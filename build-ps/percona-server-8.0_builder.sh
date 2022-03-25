@@ -20,10 +20,10 @@ Usage: $0 [OPTIONS]
         --install_deps      Install build dependencies(root previlages are required)
         --branch            Branch for build
         --repo              Repo for build
-#        --perconaft_repo    PerconaFT repo
-#        --perconaft_branch  Branch for PerconaFT
-#        --tokubackup_repo   TokuBackup repo
-#        --tokubackup_branch Btanch for TokuBackup
+        --perconaft_repo    PerconaFT repo
+        --perconaft_branch  Branch for PerconaFT
+        --tokubackup_repo   TokuBackup repo
+        --tokubackup_branch Btanch for TokuBackup
         --zenfs_repo        ZenFS repo
         --zenfs_branch      Branch for ZenFS
         --rpm_release       RPM version( default = 1)
@@ -64,10 +64,10 @@ parse_arguments() {
             --repo=*) REPO="$val" ;;
             --install_deps=*) INSTALL="$val" ;;
             --perconaft_branch=*) PERCONAFT_BRANCH="$val" ;;
-#            --tokubackup_branch=*)      TOKUBACKUP_BRANCH="$val" ;;
+            --tokubackup_branch=*)      TOKUBACKUP_BRANCH="$val" ;;
             --zenfs_branch=*)      ZENFS_BRANCH="$val" ;;
             --perconaft_repo=*) PERCONAFT_REPO="$val" ;;
-#            --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
+            --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
             --zenfs_repo=*) ZENFS_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
@@ -171,16 +171,16 @@ get_sources(){
             echo "InnoDB version differs from defined in version file"
             exit 1
         fi
-#        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
-#        if [ ${FT_TAG} = 0 ]; then
-#            echo "There is no TAG for PerconaFT. Please set it and re-run build!"
-#            exit 1
-#        fi
-#        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
-#        if [ ${TOKUBACKUP_TAG} = 0 ]; then
-#            echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
-#            exit 1
-#        fi
+        FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        if [ ${FT_TAG} = 0 ]; then
+            echo "There is no TAG for PerconaFT. Please set it and re-run build!"
+            exit 1
+        fi
+        TOKUBACKUP_TAG=$(git ls-remote --tags https://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        if [ ${TOKUBACKUP_TAG} = 0 ]; then
+            echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
+            exit 1
+        fi
     fi
     echo >> ../percona-server-8.0.properties
     echo "REVISION=${REVISION}" >> ../percona-server-8.0.properties
@@ -212,53 +212,53 @@ get_sources(){
     echo "DESTINATION=${DESTINATION}" >> ../percona-server-8.0.properties
     echo "UPLOAD=UPLOAD/${DESTINATION}/BUILDS/${PRODUCT}/${PRODUCT_FULL}/${BRANCH_NAME}/${REVISION}/${TIMESTAMP}" >> ../percona-server-8.0.properties
 
-#    rm -rf storage/tokudb/PerconaFT
-#    rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup
+    rm -rf storage/tokudb/PerconaFT
+    rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup
     git submodule init
     git submodule update
-#    rm -rf storage/tokudb/PerconaFT
-#    rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup
-#    if [ ${PERCONAFT_REPO} = 0 ]; then
-#        PERCONAFT_REPO=''
-#    fi
-#    if [ ${TOKUBACKUP_REPO} = 0 ]; then
-#        TOKUBACKUP_REPO=''
-#    fi
+    rm -rf storage/tokudb/PerconaFT
+    rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup
+    if [ ${PERCONAFT_REPO} = 0 ]; then
+        PERCONAFT_REPO=''
+    fi
+    if [ ${TOKUBACKUP_REPO} = 0 ]; then
+        TOKUBACKUP_REPO=''
+    fi
 
-#    if [ -z ${PERCONAFT_REPO} -a -z ${TOKUBACKUP_REPO} ]; then
-#        mkdir plugin/tokudb-backup-plugin/Percona-TokuBackup
-#        mkdir storage/tokudb/PerconaFT
-#        git submodule init
-#        git submodule update
-#        cd storage/tokudb/PerconaFT
-#        git fetch origin
-#        git checkout ${PERCONAFT_BRANCH}
-#        if [ ${PERCONAFT_BRANCH} = "master" ]; then
-#            git pull
-#        fi
-#        cd ${WORKDIR}/percona-server
+    if [ -z ${PERCONAFT_REPO} -a -z ${TOKUBACKUP_REPO} ]; then
+        mkdir plugin/tokudb-backup-plugin/Percona-TokuBackup
+        mkdir storage/tokudb/PerconaFT
+        git submodule init
+        git submodule update
+        cd storage/tokudb/PerconaFT
+        git fetch origin
+        git checkout ${PERCONAFT_BRANCH}
+        if [ ${PERCONAFT_BRANCH} = "master" ]; then
+            git pull
+        fi
+        cd ${WORKDIR}/percona-server
         #
-#        cd plugin/tokudb-backup-plugin/Percona-TokuBackup
-#        git fetch origin
-#        git checkout ${TOKUBACKUP_BRANCH}
-#        if [ ${TOKUBACKUP_BRANCH} = "master" ]; then
-#            git pull
-#        fi
-#        cd ${WORKDIR}/percona-server
-#    else
-#        cd storage/tokudb
-#        git clone ${PERCONAFT_REPO}
-#        cd PerconaFT
-#        git checkout ${PERCONAFT_BRANCH}
-#        cd ${WORKDIR}/percona-server
+        cd plugin/tokudb-backup-plugin/Percona-TokuBackup
+        git fetch origin
+        git checkout ${TOKUBACKUP_BRANCH}
+        if [ ${TOKUBACKUP_BRANCH} = "master" ]; then
+            git pull
+        fi
+        cd ${WORKDIR}/percona-server
+    else
+        cd storage/tokudb
+        git clone ${PERCONAFT_REPO}
+        cd PerconaFT
+        git checkout ${PERCONAFT_BRANCH}
+        cd ${WORKDIR}/percona-server
         #
-#        cd plugin/tokudb-backup-plugin
-#        git clone ${TOKUBACKUP_REPO}
-#        cd Percona-TokuBackup
-#        git checkout ${TOKUBACKUP_BRANCH}
-#        cd ${WORKDIR}/percona-server
+        cd plugin/tokudb-backup-plugin
+        git clone ${TOKUBACKUP_REPO}
+        cd Percona-TokuBackup
+        git checkout ${TOKUBACKUP_BRANCH}
+        cd ${WORKDIR}/percona-server
 
-#    fi
+    fi
     #
 
     if [ ! ${ZENFS_REPO} = 0 ]; then
@@ -287,8 +287,8 @@ get_sources(){
     tar xzf ${EXPORTED_TAR}
     rm -f ${EXPORTED_TAR}
     # add git submodules because make dist uses git archive which doesn't include them
-#    rsync -av storage/tokudb/PerconaFT ${PSDIR}/storage/tokudb --exclude .git
-#    rsync -av plugin/tokudb-backup-plugin/Percona-TokuBackup ${PSDIR}/plugin/tokudb-backup-plugin --exclude .git
+    rsync -av storage/tokudb/PerconaFT ${PSDIR}/storage/tokudb --exclude .git
+    rsync -av plugin/tokudb-backup-plugin/Percona-TokuBackup ${PSDIR}/plugin/tokudb-backup-plugin --exclude .git
     rsync -av storage/rocksdb/rocksdb/ ${PSDIR}/storage/rocksdb/rocksdb --exclude .git
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
@@ -299,7 +299,7 @@ get_sources(){
     #
     cd ${PSDIR}
     # set tokudb version - can be seen with show variables like '%version%'
-#    sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
+    sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     #
     sed -i "s:@@PERCONA_VERSION_EXTRA@@:${MYSQL_VERSION_EXTRA#-}:g" build-ps/debian/rules
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/debian/rules
@@ -718,8 +718,7 @@ build_rpm(){
     if [ ${ARCH} = x86_64 ]; then
         rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     else
-#        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_rocksdb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_rocksdb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_rocksdb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
 
     if [ $RHEL = 6 ]; then

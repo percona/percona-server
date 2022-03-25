@@ -62,8 +62,6 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
 %{!?src_base:                    %global src_base percona-server}
 
-%global FIDO_BUNDLED -DWITH_FIDO=bundled
-
 # Setup cmake flags for TokuDB
 %if 0%{?tokudb}
   %global TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=%{tokudb_backup_version}
@@ -510,6 +508,7 @@ mkdir debug
            -DWITH_LZ4=bundled \
            -DWITH_ZLIB=bundled \
            -DWITH_ZSTD=bundled \
+           -DWITH_FIDO=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_KEYRING_VAULT=ON \
@@ -559,6 +558,7 @@ mkdir release
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
+           -DWITH_FIDO=bundled \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \

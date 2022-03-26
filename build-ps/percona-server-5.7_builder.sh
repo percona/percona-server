@@ -164,12 +164,12 @@ get_sources(){
             echo "InnoDB version differs from defined in version file"
             exit 1
         fi
-        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
         if [ ${FT_TAG} = 0 ]; then
             echo "There is no TAG for PerconaFT. Please set it and re-run build!"
             exit 1
         fi
-        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        TOKUBACKUP_TAG=$(git ls-remote --tags https://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
         if [ ${TOKUBACKUP_TAG} = 0 ]; then
             echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
             exit 1

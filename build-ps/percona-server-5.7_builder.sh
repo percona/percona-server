@@ -341,6 +341,7 @@ install_deps() {
             percona-release enable origin release
             yum -y install epel-release
             yum -y install selinux-policy-devel
+	    yum -y install autoconf
             yum -y install git pkg-config numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
             yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
             yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 

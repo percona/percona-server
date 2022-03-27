@@ -359,6 +359,7 @@ install_deps() {
             fi
         else
             yum -y install perl.x86_64
+	    yum -y install libarchive
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
             yum -y install automake autoconf cmake jemalloc jemalloc-devel
             yum -y install libcurl-devel openldap-devel selinux-policy-devel

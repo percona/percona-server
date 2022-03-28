@@ -267,6 +267,7 @@ get_sources(){
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
     #
     cd ${PSDIR}
+    source ../../percona-server-5.7.properties
     # set tokudb version - can be seen with show variables like '%version%'
     sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     #

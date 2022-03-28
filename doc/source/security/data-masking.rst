@@ -210,7 +210,7 @@ The following functions generate random values for specific requirements:
             +-------------------------------+
             | gen_rnd_us_phone()            |
             +-------------------------------+
-            | 1-555635-5709                 |
+            | 1-555-635-5709                |
             +-------------------------------+
 
     * - gen_rnd_ssn()

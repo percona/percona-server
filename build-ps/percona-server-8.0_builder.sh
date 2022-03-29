@@ -617,7 +617,7 @@ build_mecab_lib(){
     make
     make check
     make DESTDIR=${MECAB_INSTALL_DIR} install
-    cd ../${MECAB_INSTALL_DIR}
+    cd ${MECAB_INSTALL_DIR}
     if [ -d usr/lib64 ]; then
 	mkdir -p usr/lib
         mv usr/lib64/* usr/lib

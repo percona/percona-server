@@ -39,8 +39,8 @@
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 %{!?with_ssl: %global ssl_option -DWITH_SSL=system}
 
-# By default a build will be done including the TokuDB
-%{!?with_tokudb: %global tokudb 1}
+# By default a build will be done excluding the TokuDB
+%{!?with_tokudb: %global tokudb 0}
 
 # By default a build will be done including the RocksDB
 %{!?with_rocksdb: %global rocksdb 1}
@@ -508,6 +508,7 @@ mkdir debug
            -DWITH_ZSTD=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
+           -DWITH_FIDO=bundled \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -554,6 +555,7 @@ mkdir release
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
+           -DWITH_FIDO=bundled \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \

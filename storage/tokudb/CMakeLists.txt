@@ -23,9 +23,11 @@ IF (NOT DEFINED WITH_TOKUDB)
   ENDIF ()
 ENDIF ()
 
+SET (WITH_TOKUDB 0)
+
 IF (NOT WITH_TOKUDB)
-  MESSAGE (STATUS "Not building with TokuDB storage engine, you must specify -DWITH_TOKUDB=1|ON|FORCE to cmake in order to build with TokuDB.")
-  RETURN ()
+#  MESSAGE (STATUS "Not building with TokuDB storage engine, you must specify -DWITH_TOKUDB=1|ON|FORCE to cmake in order to build with TokuDB.")
+#  RETURN ()
 ELSE ()
   MESSAGE (STATUS "Building with TokuDB storage engine = " ${WITH_TOKUDB})
   IF (WITH_TOKUDB STREQUAL "FORCE")

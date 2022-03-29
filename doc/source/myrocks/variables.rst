@@ -904,8 +904,7 @@ Disabled by default.
 Enable this only if you are certain that there are no row conflicts,
 for example, when setting up a new MyRocks instance from a MySQL dump.
 
-Enabling this variable will also enable
-the :variable:`rocksdb_commit_in_the_middle` variable.
+When the `rocksdb_bulk_load` variable is enabled, it behaves as if the variable `rocksdb_commit_in_the_middle` is enabled, even if the variable `rocksdb_commit_in_the_middle` is disabled.
 
 .. variable:: rocksdb_bulk_load_size
 
@@ -1005,8 +1004,8 @@ Enabled by default.
 Specifies whether to commit rows implicitly
 when a batch contains more than the value of
 :variable:`rocksdb_bulk_load_size`.
-This is disabled by default
-and will be enabled if :variable:`rocksdb_bulk_load` is enabled.
+This variable is disabled by default. 
+When the `rocksdb_bulk_load` variable is enabled, it behaves as if the variable `rocksdb_commit_in_the_middle` is enabled, even if the variable `rocksdb_commit_in_the_middle` is disabled.
 
 .. variable:: rocksdb_commit_time_batch_for_recovery
 

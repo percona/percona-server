@@ -261,9 +261,18 @@ get_sources(){
     rm -fr ${PSDIR}
     tar xzf ${EXPORTED_TAR}
     rm -f ${EXPORTED_TAR}
+
+    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
+    git submodule deinit -f storage/tokudb/PerconaFT/
+    rm -rf .git/modules/PerconaFT/
+    git rm -f storage/tokudb/PerconaFT/
+    git submodule deinit -f plugin/tokudb-backup-plugin/Percona-TokuBackup
+    rm -rf .git/modules/Percona-TokuBackup/
+    git rm -f plugin/tokudb-backup-plugin/Percona-TokuBackup
+
     # add git submodules because make dist uses git archive which doesn't include them
-    rsync -av storage/tokudb/PerconaFT ${PSDIR}/storage/tokudb --exclude .git
-    rsync -av plugin/tokudb-backup-plugin/Percona-TokuBackup ${PSDIR}/plugin/tokudb-backup-plugin --exclude .git
+#    rsync -av storage/tokudb/PerconaFT ${PSDIR}/storage/tokudb --exclude .git
+#    rsync -av plugin/tokudb-backup-plugin/Percona-TokuBackup ${PSDIR}/plugin/tokudb-backup-plugin --exclude .git
     rsync -av storage/rocksdb/rocksdb/ ${PSDIR}/storage/rocksdb/rocksdb --exclude .git
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git

@@ -535,16 +535,16 @@
    gtest
    gmock
  )
---- storage/tokudb/PerconaFT/tools/CMakeLists.txt       2018-08-29 12:23:52.000000000 -0400
-+++ storage/tokudb/PerconaFT/tools/CMakeLists.txt       2018-08-29 12:41:38.711986474 -0400
-@@ -20,7 +20,7 @@
-         target_link_libraries(${tool} sql binlog rpl master slave)
-       endif ()
-     else ()
--      target_link_libraries(${tool} perconaserverclient)
-+      target_link_libraries(${tool} mysqlclient)
-     endif ()
-   endif ()
+#--- storage/tokudb/PerconaFT/tools/CMakeLists.txt       2018-08-29 12:23:52.000000000 -0400
+#+++ storage/tokudb/PerconaFT/tools/CMakeLists.txt       2018-08-29 12:41:38.711986474 -0400
+#@@ -20,7 +20,7 @@
+#         target_link_libraries(${tool} sql binlog rpl master slave)
+#       endif ()
+#     else ()
+#-      target_link_libraries(${tool} perconaserverclient)
+#+      target_link_libraries(${tool} mysqlclient)
+#     endif ()
+#   endif ()
 
 --- libmysql/authentication_kerberos/CMakeLists.txt     2021-09-28 04:49:14.000000000 +0000
 +++ libmysql/authentication_kerberos/CMakeLists.txt     2021-09-28 09:24:09.917822028 +0000

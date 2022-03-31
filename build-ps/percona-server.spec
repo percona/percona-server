@@ -435,6 +435,12 @@ Obsoletes:      mysql-router-devel
 This package contains the development header files and libraries
 necessary to develop Percona MySQL Router applications.
 
+%package   -n   percona-icu-data-files
+Summary:        MySQL packaging of ICU data files
+
+%description    percona-icu-data-files
+This package contains ICU data files needer by MySQL regular expressions.
+
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
@@ -1384,6 +1390,13 @@ fi
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
+
+%files percona-icu-data-files
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l
+%{_libdir}/mysql/private/icudt69l/unames.icu
+%{_libdir}/mysql/private/icudt69l/brkitr
 
 %changelog
 * Fri Feb 12 2021 Percona Development Team <info@percona.com> - 8.0.22-13

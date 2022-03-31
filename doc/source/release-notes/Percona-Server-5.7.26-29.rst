@@ -1,17 +1,17 @@
 .. rn:: 5.7.26-29
 
 ==========================
-|Percona Server| |release|
+|Percona Server| 5.7.26-29
 ==========================
 
-Percona is glad to announce the release of |Percona Server| |release| on
+Percona is glad to announce the release of |Percona Server| 5.7.26-29 on
 May 27, 2019. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.26-29/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
 This release is based on `MySQL 5.7.26
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-26.html>`_
-and includes all the bug fixes in it. |Percona Server| |release| is
+and includes all the bug fixes in it. |Percona Server| 5.7.26-29 is
 now the current GA (Generally Available) release in the 5.7 series.
 
 New Features
@@ -102,4 +102,4 @@ This release also contains the fixes for the following security issues:
 CVE-2019-2632, CVE-2019-1559, CVE-2019-2628, CVE-2019-2581, CVE-2019-2683,
 CVE-2019-2592, CVE-2019-262, and CVE-2019-2614.
 
-.. |release| replace:: 5.7.26-29
+.. 5.7.26-29 replace:: 5.7.26-29

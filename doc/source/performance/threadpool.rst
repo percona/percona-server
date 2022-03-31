@@ -20,7 +20,7 @@ contentions. Using the |thread-pool| has the most effect on ``OLTP`` workloads
 
 To enable the |thread-pool| feature, the :variable:`thread_handling` variable
 should be set to the ``pool-of-threads`` value. This can be done by adding the
-following to the |MySQL| configuration file :file:`my.cnf`: ::
+following to the MySQL configuration file :file:`my.cnf`: ::
 
  thread_handling=pool-of-threads
 
@@ -55,7 +55,7 @@ The goal is to minimize the number of open transactions in the server. In many c
 
 The default thread pool behavior is to always put events from already started transactions into the high priority queue, as we believe that results in better performance in vast majority of cases.
 
-With the value of ``0``, all connections are always put into the common queue, i.e. no priority scheduling is used as in the original implementation in |MariaDB|. The higher is the value, the more chances each transaction gets to enter the high priority queue and commit before it is put in the common queue.
+With the value of ``0``, all connections are always put into the common queue, i.e. no priority scheduling is used as in the original implementation in MariaDB. The higher is the value, the more chances each transaction gets to enter the high priority queue and commit before it is put in the common queue.
 
 In some cases it is required to prioritize all statements for a specific connection regardless of whether they are executed as a part of a multi-statement transaction or in the autocommit mode. Or vice versa, some connections may require using the low priority queue for all statements unconditionally. To implement this new :variable:`thread_pool_high_prio_mode` variable has been introduced in |Percona Server|. 
 
@@ -89,7 +89,7 @@ started transactions are processed.
 Handling of Long Network Waits
 ==============================
 
-Certain types of workloads (large result sets, BLOBs, slow clients) can have longer waits on network I/O (socket reads and writes). Whenever server waits, this should be communicated to the Thread Pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from |MariaDB| patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_. 
+Certain types of workloads (large result sets, BLOBs, slow clients) can have longer waits on network I/O (socket reads and writes). Whenever server waits, this should be communicated to the Thread Pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from MariaDB patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_. 
 
 
 Version Specific Information

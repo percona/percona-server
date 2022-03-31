@@ -1,0 +1,176 @@
+--echo #
+--echo # Bug#32843447: GTID_PURGED IS GETTING EMPTY AND GTID_EXECUTED IS
+--echo #               GETTING UPDATED AFTER RESTARTING MYSQL
+--echo #
+
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+--source include/have_gtid.inc
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+CREATE TABLE t (a INT PRIMARY KEY, b INT);
+INSERT INTO t VALUES (1, 1);
+INSERT INTO t VALUES (2, 1);
+INSERT INTO t VALUES (3, 1);
+INSERT INTO t VALUES (4, 1);
+INSERT INTO t VALUES (5, 1);
+INSERT INTO t VALUES (6, 1);
+
+FLUSH LOGS;
+
+--echo # BEFORE RESET
+--let $assert_text= Committed gtids :- MASTER_UUID:1-7
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
+--source include/assert.inc
+--let $assert_text= No purged gtids
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = ""
+--source include/assert.inc
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+
+--echo # MYSQLDUMP SKIPING THE DROP DATABASE FOR MYSQL SCHEMA USING THE OPTION --skip-mysql-schema
+--let $dump_file_without_mysql = $MYSQLTEST_VARDIR/tmp/rpl_gtid_state_after_restore_without_mysql.sql
+--exec $MYSQL_DUMP --socket=$MASTER_MYSOCK --single-transaction --add-drop-database --skip-mysql-schema --databases mysql -uroot > $dump_file_without_mysql
+--let SEARCH_FILE= $dump_file_without_mysql
+--let SEARCH_PATTERN=DROP DATABASE IF EXISTS `mysql`
+--source include/search_pattern.inc
+
+--echo # MYSQLDUMP WITHOUT SKIPING THE DROP DATABASE FOR MYSQL SCHEMA
+--let $dump_file_with_mysql = $MYSQLTEST_VARDIR/tmp/rpl_gtid_state_after_restore_with_mysql.sql
+--exec $MYSQL_DUMP --socket=$MASTER_MYSOCK --single-transaction --add-drop-database --databases mysql -uroot  > $dump_file_with_mysql
+--let SEARCH_FILE= $dump_file_with_mysql
+--let SEARCH_PATTERN=DROP DATABASE IF EXISTS `mysql`
+--source include/search_pattern.inc
+
+--echo # RESET
+RESET MASTER;
+
+--echo # AFTER RESET
+--let $assert_text= No committed gtids after RESET
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+--let $assert_text= No purged gtids after RESET
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = ""
+--source include/assert.inc
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+
+--echo # DUMP RESTORE WITH THE DUMP FILE HAVING DROP DATABASE ON MYSQL SCHEMA.
+--exec $MYSQL -h localhost -P $MASTER_MYPORT < $dump_file_with_mysql
+
+--echo # AFTER RESTORE
+--let $assert_text= Committed gtids after restore :- MASTER_UUID:1-7
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
+--source include/assert.inc
+--let $assert_text= Purged gtids after restore :- MASTER_UUID:1-7
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-7"
+--source include/assert.inc
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+
+--echo # INSERT
+INSERT INTO t VALUES (7, 1);
+INSERT INTO t VALUES (8, 1);
+INSERT INTO t VALUES (9, 1);
+
+--echo # AFTER INSERTING
+--let $assert_text= Committed gtids after inserting :- MASTER_UUID:1-10
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-10"
+--source include/assert.inc
+--let $assert_text= Purged gtids after inserting :- MASTER_UUID:1-7
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-7"
+--source include/assert.inc
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+
+--let $gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+--echo # RESTART
+--source include/restart_mysqld.inc
+
+--echo # AFTER RESTART
+--let $assert_text= Committed gtids after restart :- MASTER_UUID:1-10
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-10"
+--source include/assert.inc
+--let $assert_text= Purged gtids after restart :- MASTER_UUID:1-7
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-7"
+--source include/assert.inc
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+
+--let $assert_text = GTID_EXECUTED is correct after the restart
+--let $assert_cond = "[SELECT @@GLOBAL.gtid_executed]" = "$gtid_executed"
+--source include/assert.inc
+
+CALL mtr.add_suppression(".*InnoDB: Table `mysql`.`innodb_table_stats` not found.*");
+
+SHOW CREATE TABLE `mysql`.`innodb_table_stats`;
+
+
+
+--echo #
+--echo # PS-7990: mysqldump make a non-consistent backup
+--echo #               with --single-transaction option
+--echo #
+
+--echo # Restart server.
+--let $restart_parameters= restart: --enforce-gtid-consistency=ON --gtid-mode=ON --log-bin
+--source include/restart_mysqld.inc
+
+
+DELIMITER |;
+CREATE PROCEDURE test_data()
+BEGIN
+
+DECLARE v_max_rows INT UNSIGNED DEFAULT 1000;
+DECLARE v_counter INT UNSIGNED DEFAULT 1;
+
+while v_counter <= v_max_rows do
+  INSERT INTO t VALUES (v_counter, 1);
+  SET v_counter=v_counter+1;
+end while;
+end |
+
+DELIMITER ;|
+
+TRUNCATE TABLE t;
+RESET MASTER;
+
+connect (con2,localhost,root,,);
+connection con2;
+USE test;
+--send call test_data;
+
+connection default;
+
+--echo # Waiting until background connection has executed some inserts
+let $wait_condition=
+  SELECT COUNT(*) >= 1 FROM test.t;
+--source include/wait_condition.inc
+
+--let $gtid_dump = $MYSQLTEST_VARDIR/tmp/gtid_with_trx_running_in_background.sql
+--exec $MYSQL_DUMP --socket=$MASTER_MYSOCK --set-gtid-purged=ON --single-transaction --databases test -uroot > $gtid_dump
+
+--echo # Waiting until background connection has executed all inserts
+connection con2;
+--reap
+
+--echo # RESET
+connection default;
+RESET MASTER;
+--echo # DUMP RESTORE WITH THE DUMP FILE HAVING DATA WRITTEN IN BACKGROUND.
+--exec $MYSQL -h localhost -P $MASTER_MYPORT < $gtid_dump
+
+--let $gtid_seqno= `SELECT COUNT(*) FROM test.t`
+--echo # Checking rows vs gtid seqno
+--let $assert_text= Committed rows vs gtid seqno
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-$gtid_seqno"
+--source include/assert.inc
+
+--echo #CLEANUP
+disconnect con2;
+DROP TABLE t;
+DROP PROCEDURE test_data;
+RESET MASTER;
+--source include/restart_mysqld.inc

@@ -473,6 +473,8 @@ class MYSQL_BIN_LOG: public TC_LOG
             const char *new_name);
   bool init_and_set_log_file_name(const char *log_name,
                                   const char *new_name);
+  int generate_new_name(char *new_name, const char *log_name);
+
 public:
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
@@ -584,8 +586,7 @@ public:
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
-                                      Gtid *first_gtid,
-                                      const char **errmsg);
+                                      Gtid *first_gtid, std::string &errmsg);
 
   /**
     Reads the set of all GTIDs in the binary/relay log, and the set
@@ -926,8 +927,8 @@ public:
 
     @return void
   */
-  void report_missing_purged_gtids(const Gtid_set* slave_executed_gtid_set,
-                                   const char** errmsg);
+  void report_missing_purged_gtids(const Gtid_set *slave_executed_gtid_set,
+                                   std::string &errmsg);
 
   /**
     Function to report the missing GTIDs.
@@ -951,10 +952,10 @@ public:
 
     @return void
   */
-  void report_missing_gtids(const Gtid_set* previous_gtid_set,
-                            const Gtid_set* slave_executed_gtid_set,
-                            const char** errmsg);
-  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
+  void report_missing_gtids(const Gtid_set *previous_gtid_set,
+                            const Gtid_set *slave_executed_gtid_set,
+                            std::string &errmsg);
+  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE= 5;
   /*
     It is called by the threads(e.g. dump thread) which want to read
     hot log without LOCK_log protection.
@@ -1073,9 +1074,6 @@ void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int query_error_code(THD *thd, bool not_killed);
-
-bool generate_new_log_name(char *new_name, ulong *new_ext,
-                           const char *log_name, bool is_binlog);
 
 bool handle_gtid_consistency_violation(THD *thd, int error_code);
 

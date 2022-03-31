@@ -12,7 +12,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.16
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-16.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.16-10 is the current GA release
-in the |Percona Server| 5.7 series. All of |Percona|'s software is open-source
+in the |Percona Server| 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.16-10
 milestone at Launchpad
 <https://launchpad.net/percona-server/+milestone/5.7.16-10>`_
@@ -42,6 +42,6 @@ Bugs Fixed
 
  :table:`INFORMATION_SCHEMA.TABLE_STATISTICS` and
  :table:`INFORMATION_SCHEMA.INDEX_STATISTICS` tables were not correctly updated
- for |TokuDB|. Bug fixed :bug:`1629448`.
+ for TokuDB. Bug fixed :bug:`1629448`.
 
 Other bugs fixed: :bug:`1633061`, :bug:`1633430`, and :bug:`1635184`.

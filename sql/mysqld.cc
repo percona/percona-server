@@ -4501,10 +4501,12 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   query_logger.set_handlers(log_output_options);
 
   // Open slow log file if enabled.
+  query_logger.set_log_file(QUERY_LOG_SLOW);
   if (opt_slow_log && query_logger.reopen_log_file(QUERY_LOG_SLOW))
     opt_slow_log= false;
 
   // Open general log file if enabled.
+  query_logger.set_log_file(QUERY_LOG_GENERAL);
   if (opt_general_log && query_logger.reopen_log_file(QUERY_LOG_GENERAL))
     opt_general_log= false;
 
@@ -5086,37 +5088,43 @@ int mysqld_main(int argc, char **argv)
       opt_keyring_migration_destination ||
       migrate_connect_options)
   {
-    Migrate_keyring mk;
-    if (mk.init(remaining_argc, remaining_argv,
-                opt_keyring_migration_source,
-                opt_keyring_migration_destination,
-                opt_keyring_migration_user,
-                opt_keyring_migration_host,
-                opt_keyring_migration_password,
-                opt_keyring_migration_socket,
-                opt_keyring_migration_port))
+    int exit_state = MYSQLD_ABORT_EXIT;
+    while (true)
     {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
+      Migrate_keyring mk;
+      if (mk.init(remaining_argc, remaining_argv,
+                  opt_keyring_migration_source,
+                  opt_keyring_migration_destination,
+                  opt_keyring_migration_user,
+                  opt_keyring_migration_host,
+                  opt_keyring_migration_password,
+                  opt_keyring_migration_socket,
+                  opt_keyring_migration_port))
+      {
+        sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                        "failed");
+        log_error_dest= "stderr";
+        flush_error_log_messages();
+        break;
+      }
+
+      if (mk.execute())
+      {
+        sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                        "failed");
+        log_error_dest= "stderr";
+        flush_error_log_messages();
+        break;
+      }
+
+      sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                            "successful");
       log_error_dest= "stderr";
       flush_error_log_messages();
-      unireg_abort(MYSQLD_ABORT_EXIT);
+      exit_state = MYSQLD_SUCCESS_EXIT;
+      break;
     }
-
-    if (mk.execute())
-    {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
-      log_error_dest= "stderr";
-      flush_error_log_messages();
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
-
-    sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                          "successful");
-    log_error_dest= "stderr";
-    flush_error_log_messages();
-    unireg_abort(MYSQLD_SUCCESS_EXIT);
+    unireg_abort(exit_state);
   }
 
   /*

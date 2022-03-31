@@ -39,15 +39,6 @@ call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'vault_ca
 --echo # Check what happens when we have not yet loaded keyring_udf or keyring_vault
 --source include/keyring_udf_missing_plugin.inc
 
-# We need both plugins - keyring_vault and keyring_udf in one place - to be able to load both plugins
-if ($KEYRING_UDF_DIR != $KEYRING_PLUGIN_DIR)
-{
-  --replace_regex /\.dll/.so/
-  --error 0,1
-  --remove_file $KEYRING_UDF_DIR/$KEYRING_VAULT_PLUGIN
-  --replace_regex /\.dll/.so/
-  --copy_file $KEYRING_VAULT_PLUGIN_DIR/$KEYRING_VAULT_PLUGIN $KEYRING_UDF_DIR/$KEYRING_VAULT_PLUGIN
-}
 --echo # Re-starting mysql server with keyring_vault plugin.
 --let $restart_hide_args = 1
 --let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1

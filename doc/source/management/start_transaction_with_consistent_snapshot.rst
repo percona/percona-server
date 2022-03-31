@@ -4,7 +4,7 @@
  Start transaction with consistent snapshot
 ============================================
 
-|Percona Server| has ported *MariaDB* `enhancement <https://mariadb.com/kb/en/enhancements-for-start-transaction-with-consistent/>`_ for ``START TRANSACTION WITH CONSISTENT SNAPSHOTS`` feature to |MySQL| 5.6 group commit implementation. This enhancement makes binary log positions consistent with |InnoDB| transaction snapshots.
+|Percona Server| has ported *MariaDB* `enhancement <https://mariadb.com/kb/en/enhancements-for-start-transaction-with-consistent/>`_ for ``START TRANSACTION WITH CONSISTENT SNAPSHOTS`` feature to MySQL 5.6 group commit implementation. This enhancement makes binary log positions consistent with InnoDB transaction snapshots.
 
 This feature is quite useful to obtain logical backups with correct positions without running a ``FLUSH TABLES WITH READ LOCK``. Binary log position can be obtained by two newly implemented status variables: :variable:`Binlog_snapshot_file` and :variable:`Binlog_snapshot_position`. After starting a transaction using the ``START TRANSACTION WITH CONSISTENT SNAPSHOT``, these two variables will provide you with the binlog position corresponding to the state of the database of the consistent snapshot so taken, irrespectively of which other transactions have been committed since the snapshot was taken.
 
@@ -21,9 +21,9 @@ The |Percona Server| implementation extends the ``START TRANSACTION WITH CONSIST
 
 When specified, all participating storage engines and binary log instead of creating a new snapshot of data (or binary log coordinates), create a copy of the snapshot which has been created by an active transaction in the specified session. ``session_id`` is the session identifier reported in the ``Id`` column of ``SHOW PROCESSLIST``.
 
-Currently snapshot cloning is only supported by |XtraDB| and the binary log. As with the regular ``START TRANSACTION WITH CONSISTENT SNAPSHOT``, snapshot clones can only be created with the ``REPEATABLE READ`` isolation level.
+Currently snapshot cloning is only supported by XtraDB and the binary log. As with the regular ``START TRANSACTION WITH CONSISTENT SNAPSHOT``, snapshot clones can only be created with the ``REPEATABLE READ`` isolation level.
 
-For |XtraDB|, a transaction with a cloned snapshot will only see data visible or changed by the donor transaction. That is, the cloned transaction will see no changes committed by transactions that started after the donor transaction, not even changes made by itself. Note that in case of chained cloning the donor transaction is the first one in the chain. For example, if transaction A is cloned into transaction B, which is in turn cloned into transaction C, the latter will have read view from transaction A (i.e. the donor transaction). Therefore, it will see changes made by transaction A, but not by transaction B.
+For XtraDB, a transaction with a cloned snapshot will only see data visible or changed by the donor transaction. That is, the cloned transaction will see no changes committed by transactions that started after the donor transaction, not even changes made by itself. Note that in case of chained cloning the donor transaction is the first one in the chain. For example, if transaction A is cloned into transaction B, which is in turn cloned into transaction C, the latter will have read view from transaction A (i.e. the donor transaction). Therefore, it will see changes made by transaction A, but not by transaction B.
 
 mysqldump
 =========

@@ -1,18 +1,18 @@
 .. rn:: 5.7.23-26
 
 ================================================================================
-Percona Server |release|
+Percona Server 5.7.24-26
 ================================================================================
 
 Percona announces the release of `Percona Server for MySQL
-<https://www.percona.com/software/percona-server>`_ |release| on December 4,
+<https://www.percona.com/software/percona-server>`_ 5.7.24-26 on December 4,
 2018 (downloads are available `here
 <https://www.percona.com/downloads/Percona-Server-5.7/>`_ and from the `Percona
 Software Repositories
 <https://www.percona.com/doc/percona-server/5.7/installation.html#installing-from-binaries>`_).
 This release merges changes of `MySQL 5.7.24
 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-24.html>`_, including
-all the bug fixes in it. Percona Server for MySQL |release| is now the current
+all the bug fixes in it. Percona Server for MySQL 5.7.24-26 is now the current
 GA release in the 5.7 series. All of Percona’s software is open-source and free.
 
 This release includes fixes to the following upstream CVEs (Common
@@ -65,4 +65,4 @@ Bugs Fixed
 - :psbug:`5034`: rocksdb.rocksdb: Result content mismatch
 - :psbug:`5035`: rocksdb.show_table_status: 1051: Unknown table 'db_new'
 
-.. |release| replace:: 5.7.24-26
+.. 5.7.24-26 replace:: 5.7.24-26

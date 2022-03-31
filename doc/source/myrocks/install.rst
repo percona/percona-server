@@ -29,7 +29,7 @@ It is recommended to install Percona software from official repositories:
 
    * For Debian or Ubuntu::
 
-      $ sudo apt-get install percona-server-rocksdb-5.7
+      $ sudo apt install percona-server-rocksdb-5.7
 
    * For RHEL or CentOS::
 
@@ -147,7 +147,7 @@ remove the Percona MyRocks package:
 
 * For Debian or Ubuntu::
 
-  $ sudo apt-get remove percona-server-rocksdb-5.7
+  $ sudo apt remove percona-server-rocksdb-5.7
 
 * For RHEL or CentOS::
 

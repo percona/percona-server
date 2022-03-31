@@ -1863,6 +1863,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   char *part_syntax_buf;
   uint syntax_len;
   handler *new_handler= lpt->table->file;
+  bool is_handler_allocated = false;
   DBUG_ENTER("mysql_write_frm");
 
   if (flags & (WFRM_WRITE_SHADOW | WFRM_INSTALL_SHADOW))
@@ -1879,6 +1880,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       assert(lpt->create_info->db_type->partition_flags != NULL);
       new_handler= get_new_handler(NULL, lpt->thd->mem_root,
                                    lpt->create_info->db_type);
+      is_handler_allocated = true;
       if (new_handler == NULL)
       {
         DBUG_RETURN(true);
@@ -2026,6 +2028,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   }
 
 end:
+  if (is_handler_allocated && new_handler != NULL) delete new_handler;
   DBUG_RETURN(error);
 }
 
@@ -7931,6 +7934,9 @@ static bool mysql_inplace_alter_table(THD *thd,
   table_list->table= table= NULL;
   close_temporary_table(thd, altered_table, true, false);
 
+  DBUG_EXECUTE_IF("alter_table_crash_before_frm_replace", {
+    DBUG_SUICIDE();
+  });
   /*
     Replace the old .FRM with the new .FRM, but keep the old name for now.
     Rename to the new name (if needed) will be handled separately below.

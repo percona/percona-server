@@ -28,16 +28,16 @@ TokuDB/PerconaFT directory map.
 Moving TokuDB data files to a location outside of the default MySQL datadir
 ---------------------------------------------------------------------------
 
-|TokuDB| uses the location specified by the :variable:`tokudb_data_dir`
+TokuDB uses the location specified by the :variable:`tokudb_data_dir`
 variable for all of its data files. If the :variable:`tokudb_data_dir` variable
-is not explicitly set, |TokuDB| will use the location specified by the servers
-:term:`datadir` for these files.
+is not explicitly set, TokuDB will use the location specified by the servers
+source/glossary.rst`datadir` for these files.
 
-The |TokuDB| data files are protected from concurrent process access by the
+The TokuDB data files are protected from concurrent process access by the
 ``__tokudb_lock_dont_delete_me_data`` file that is located in the same
-directory as the |TokuDB| data files.
+directory as the TokuDB data files.
 
-|TokuDB| data files may be moved to other locations with symlinks left behind
+TokuDB data files may be moved to other locations with symlinks left behind
 in their place. If those symlinks refer to files on other physical data
 volumes, the :variable:`tokudb_fs_reserve_percent` monitor will not traverse
 the symlink and monitor the real location for adequate space in the file
@@ -48,7 +48,7 @@ To safely move your TokuDB data files:
 1. Shut the server down cleanly.
 
 #. Change the :variable:`tokudb_data_dir` in your :file:`my.cnf` configuration
-   file to the location where you wish to store your |TokuDB| data files.
+   file to the location where you wish to store your TokuDB data files.
 
 #. Create your new target directory.
 
@@ -60,29 +60,29 @@ To safely move your TokuDB data files:
 Moving TokuDB temporary files to a location outside of the default MySQL datadir
 --------------------------------------------------------------------------------
 
-|TokuDB| will use the location specified by the :variable:`tokudb_tmp_dir`
+TokuDB will use the location specified by the :variable:`tokudb_tmp_dir`
 variable for all of its temporary files. If :variable:`tokudb_tmp_dir` variable
-is not explicitly set, |TokuDB| will use the location specified by the
+is not explicitly set, TokuDB will use the location specified by the
 :variable:`tokudb_data_dir` variable. If the :variable:`tokudb_data_dir`
-variable is also not explicitly set, |TokuDB| will use the location specified
-by the servers :term:`datadir` for these files.
+variable is also not explicitly set, TokuDB will use the location specified
+by the servers source/glossary.rst`datadir` for these files.
 
-|TokuDB| temporary files are protected from concurrent process access by the
+TokuDB temporary files are protected from concurrent process access by the
 ``__tokudb_lock_dont_delete_me_temp`` file that is located in the same
-directory as the |TokuDB| temporary files.
+directory as the TokuDB temporary files.
 
-If you locate your |TokuDB| temporary files on a physical volume that is
-different from where your |TokuDB| data files or recovery log files are
+If you locate your TokuDB temporary files on a physical volume that is
+different from where your TokuDB data files or recovery log files are
 located, the :variable:`tokudb_fs_reserve_percent` monitor will not monitor
 their location for adequate space in the file system.
 
-To safely move your |TokuDB| temporary files:
+To safely move your TokuDB temporary files:
 
 1. Shut the server down cleanly. A clean shutdown will ensure that there are no
    temporary files that need to be relocated.
 
 #. Change the :variable:`tokudb_tmp_dir` variable in your :file:`my.cnf`
-   configuration file to the location where you wish to store your new |TokuDB|
+   configuration file to the location where you wish to store your new TokuDB
    temporary files.
 
 #. Create your new target directory.
@@ -95,27 +95,27 @@ To safely move your |TokuDB| temporary files:
 Moving TokuDB recovery log files to a location outside of the default MySQL datadir
 -----------------------------------------------------------------------------------
 
-|TokuDB| will use the location specified by the :variable:`tokudb_log_dir`
+TokuDB will use the location specified by the :variable:`tokudb_log_dir`
 variable for all of its recovery log files. If the :variable:`tokudb_log_dir`
-variable is not explicitly set, |TokuDB| will use the location specified by the
-servers :term:`datadir` for these files.
+variable is not explicitly set, TokuDB will use the location specified by the
+servers source/glossary.rst`datadir` for these files.
 
-The |TokuDB| recovery log files are protected from concurrent process access by
+The TokuDB recovery log files are protected from concurrent process access by
 the ``__tokudb_lock_dont_delete_me_logs`` file that is located in the same
-directory as the |TokuDB| recovery log files.
+directory as the TokuDB recovery log files.
 
-|TokuDB| recovery log files may be moved to another location with symlinks left
+TokuDB recovery log files may be moved to another location with symlinks left
 behind in place of the :variable:`tokudb_log_dir`. If that symlink refers to a
 directory on another physical data volume, the
 :variable:`tokudb_fs_reserve_percent` monitor will not traverse the symlink and
 monitor the real location for adequate space in the file system.
 
-To safely move your |TokuDB| recovery log files:
+To safely move your TokuDB recovery log files:
 
 1. Shut the server down cleanly.
 
 #. Change the :variable:`tokudb_log_dir` in your :file:`my.cnf` configuration
-   file to the location where you wish to store your |TokuDB| recovery log
+   file to the location where you wish to store your TokuDB recovery log
    files.
 
 #. Create your new target directory.
@@ -131,7 +131,7 @@ To safely move your |TokuDB| recovery log files:
 Improved table renaming functionality
 -------------------------------------
 
-When you rename a |TokuDB| table via SQL, the data files on disk keep their
+When you rename a TokuDB table via SQL, the data files on disk keep their
 original names and only the mapping in the |Percona FT| directory file is
 changed to map the new dictionary name to the original internal file names.
 This makes it difficult to quickly match database/table/index names to their
@@ -152,17 +152,17 @@ Improved directory layout functionality
 ---------------------------------------
 
 Many users have had issues with managing the huge volume of individual files
-that |TokuDB| and |Percona FT| use.
+that TokuDB and |Percona FT| use.
 
 Beginning with |Percona Server| :rn:`5.7.15-9` a new server option was
 introduced called :variable:`tokudb_dir_per_db` to address this issue.
 
 When :variable:`tokudb_dir_per_db` variable is enabled (``ON`` by default),
 all new tables and indices will be placed within their corresponding database
-directory within the :file:`tokudb_data_dir` or server :term:`datadir`.
+directory within the :file:`tokudb_data_dir` or server source/glossary.rst`datadir`.
 
 If you have :variable:`tokudb_data_dir` variable set to something other than
-the server :term:`datadir`, |TokuDB| will create a directory matching the name
+the server source/glossary.rst`datadir`, TokuDB will create a directory matching the name
 of the database, but upon dropping of the database, this directory will remain
 behind.
 
@@ -180,7 +180,7 @@ directory with a few steps:
 
 .. note::
 
-  Two renames are needed because |MySQL| doesn't allow you to rename a table to
+  Two renames are needed because MySQL doesn't allow you to rename a table to
   itself. The first rename, renames the table to the temporary name and moves
   the table files into the owning database directory. The second rename sets the
   table name back to the original name. Tables can also be renamed/moved across
@@ -197,7 +197,7 @@ directory with a few steps:
 
 .. _editing_tokudb_files_with_tokudb_dir_cmd:
 
-Editing |TokuDB| directory map with :variable:`tokudb_dir_cmd`
+Editing TokuDB directory map with :variable:`tokudb_dir_cmd`
 --------------------------------------------------------------
 
 .. note::
@@ -205,12 +205,12 @@ Editing |TokuDB| directory map with :variable:`tokudb_dir_cmd`
   This feature is currently considered *Experimental*.
 
 In |Percona Server| :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
-has been implemented that can be used to edit the |TokuDB| directory map.
+has been implemented that can be used to edit the TokuDB directory map.
 **WARNING:** Use this variable only if you know what you're doing otherwise
 it **WILL** lead to data loss.
 
 This method can be used if any kind of system issue causes the loss of specific
-:file:`.tokudb` files for a given table, because the |TokuDB| tablespace file
+:file:`.tokudb` files for a given table, because the TokuDB tablespace file
 mapping will then contain invalid (nonexistent) entries, visible in
 :table:`INFORMATION_SCHEMA.TokuDB_file_map` table.
 
@@ -263,7 +263,7 @@ System Variables
      :dyn: Yes
      :vartype: String
 
-This variable is used to send commands to edit |TokuDB| directory map.
+This variable is used to send commands to edit TokuDB directory map.
 
 .. warning::
 

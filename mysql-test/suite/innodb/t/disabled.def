@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+innodb.undo_encrypt_basic : Bug#nnnnnnnn 2021-11-22 Disable unstable test

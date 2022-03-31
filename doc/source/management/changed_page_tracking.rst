@@ -4,14 +4,14 @@
 XtraDB changed page tracking
 =============================
 
-|XtraDB| now tracks the pages that have changes written to them according to the redo log. This information is written out in special changed page bitmap files.  This information can be used to speed up incremental backups using `Percona XtraBackup <http://www.percona.com/doc/percona-xtrabackup/>`_ by removing the need to scan whole data files to find the changed pages. Changed page tracking is done by a new |XtraDB| worker thread that reads and parses log records between checkpoints. The tracking is controlled by a new read-only server variable :variable:`innodb_track_changed_pages`.
+XtraDB now tracks the pages that have changes written to them according to the redo log. This information is written out in special changed page bitmap files.  This information can be used to speed up incremental backups using `Percona XtraBackup <http://www.percona.com/doc/percona-xtrabackup/>`_ by removing the need to scan whole data files to find the changed pages. Changed page tracking is done by a new XtraDB worker thread that reads and parses log records between checkpoints. The tracking is controlled by a new read-only server variable :variable:`innodb_track_changed_pages`.
 
 Bitmap filename format used for changed page tracking is ``ib_modified_log_<seq>_<startlsn>.xdb``. The first number is the sequence number of the bitmap log file and the *startlsn* number is the starting LSN number of data tracked in that file. Example of the bitmap log files should look like this: :: 
 
  ib_modified_log_1_0.xdb
  ib_modified_log_2_1603391.xdb
 
-Sequence number can be used to easily check if all the required bitmap files are present. Start LSN number will be used in |XtraBackup| and ``INFORMATION_SCHEMA`` queries to determine which files have to be opened and read for the required LSN interval data. The bitmap file is rotated on each server restart and whenever the current file size reaches the predefined maximum. This maximum is controlled by a new :variable:`innodb_max_bitmap_file_size` variable.
+Sequence number can be used to easily check if all the required bitmap files are present. Start LSN number will be used in XtraBackup and ``INFORMATION_SCHEMA`` queries to determine which files have to be opened and read for the required LSN interval data. The bitmap file is rotated on each server restart and whenever the current file size reaches the predefined maximum. This maximum is controlled by a new :variable:`innodb_max_bitmap_file_size` variable.
 
 Old bitmap files may be safely removed after a corresponding incremental backup is taken. For that there are server :ref:`changed_page_tracking_statements`. Removing the bitmap files from the filesystem directly is safe too, as long as care is taken not to delete data for not-yet-backuped LSN range.
 

@@ -1,17 +1,17 @@
 .. rn:: 5.7.24-27
 	
 ==========================
-|Percona Server| |release|
+|Percona Server| 5.7.24-27
 ==========================
 	
-Percona is glad to announce the release of |Percona Server| |release| on
+Percona is glad to announce the release of |Percona Server| 5.7.24-27 on
 December 18, 2018. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.24-27/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 	
 This release is based on `MySQL 5.7.24
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-24.html>`_
-and includes all the bug fixes in it. |Percona Server| |release| is
+and includes all the bug fixes in it. |Percona Server| 5.7.24-27 is
 now the current GA (Generally Available) release in the 5.7 series.
 	
 All software developed by Percona is open-source and free.
@@ -31,5 +31,5 @@ Bugs Fixed
   Bug fixed :psbug:`5092`.
 	
 
-.. |release| replace:: 5.7.24-27
+.. 5.7.24-27 replace:: 5.7.24-27
 

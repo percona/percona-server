@@ -190,6 +190,8 @@ mecab_parse(
 	int	token_num = 0;
 	int	ret = 0;
 	bool	term_converted = false;
+	const CHARSET_INFO*	cs = param->cs;
+	char*	end = const_cast<char*>(doc) + len;
 
 	try {
 		mecab_lattice->set_sentence(doc, len);
@@ -227,12 +229,19 @@ mecab_parse(
 
 	for (const MeCab::Node* node = mecab_lattice->bos_node();
 	     node != NULL; node = node->next) {
-		bool_info->position = position;
-		position += node->rlength;
+		int ctype = 0;
+		cs->cset->ctype(cs, &ctype, reinterpret_cast<const uchar *>(node->surface),
+		                reinterpret_cast<const uchar *>(end));
 
-		param->mysql_add_word(param, const_cast<char*>(node->surface),
-				      node->length,
-				      term_converted ? &token_info : bool_info);
+		/* Skip control characters */
+		if (!(ctype & _MY_CTR)) {
+			bool_info->position = position;
+			position += node->rlength;
+
+			param->mysql_add_word(param, const_cast<char *>(node->surface),
+														node->length,
+														term_converted ? &token_info : bool_info);
+		}
 	}
 
 	if (term_converted) {

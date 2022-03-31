@@ -50,6 +50,7 @@ usr/share/mysql/*.sql
 #private shared libs
 usr/lib/mysql/private/libprotobuf-lite.so.*
 usr/lib/mysql/private/libprotobuf.so.*
+usr/lib/mysql/private/libfido2.so.*
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so
@@ -112,6 +113,7 @@ usr/lib/mysql/plugin/debug/component_test_table_access.so
 usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/debug/semisync_replica.so
 usr/lib/mysql/plugin/debug/semisync_source.so
+usr/lib/mysql/plugin/debug/authentication_fido_client.so
 
 # Percona plugins
 usr/lib/mysql/plugin/audit_log.so
@@ -152,6 +154,7 @@ usr/lib/mysql/plugin/authentication_oci_client.so
 usr/lib/mysql/plugin/component_keyring_kmip.so
 usr/lib/mysql/plugin/debug/authentication_oci_client.so
 usr/lib/mysql/plugin/debug/component_keyring_kmip.so
+usr/lib/mysql/plugin/authentication_fido_client.so
 
 # support files
 usr/share/mysql/dictionary.txt

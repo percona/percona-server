@@ -34,7 +34,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-      $ sudo apt-get install gnupg2
+      $ sudo apt install gnupg2
 
 2. Fetch the repository packages from Percona web:
 
@@ -48,12 +48,13 @@ Installing |Percona Server| from Percona ``apt`` repository
 
       $ sudo dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
 
+   Once you install this package, the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-original-release.list` file.
   
 4. Remember to update the local cache:
 
    .. code-block:: bash
 
-      $ sudo apt-get update
+      $ sudo apt update
       
    Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
 
@@ -61,15 +62,15 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-     $ sudo apt-get install percona-server-server-5.7
+     $ sudo apt install percona-server-server-5.7
 
 .. note::
 
   |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`. These storage engines are installed as plugin.
   
-  For information on how to install and configure |TokuDB|, refer to the :ref:`tokudb_installation` guide.
+  For information on how to install and configure TokuDB, refer to the :ref:`tokudb_installation` guide.
   
-  For information on how to install and configure |MyRocks|, refer to the :ref:`myrocks_install` guide.
+  For information on how to install and configure MyRocks, refer to the :ref:`myrocks_install` guide.
 
   
 The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
@@ -95,13 +96,12 @@ Percona offers pre-release builds from the testing repository. To enable it, run
 Apt-Pinning the packages
 ------------------------
 
-In some cases you might need to "pin" the selected packages to avoid the upgrades from the distribution repositories. You'll need to make a new file :file:`/etc/apt/preferences.d/00percona.pref` and add the following lines in it: ::
+In some cases, you might need to `pin <https://wiki.debian.org/AptConfiguration?action=show&redirect=AptPinning>`_ the selected packages to avoid upgrades from the distribution repositories. Create a new file :file:`/etc/apt/preferences.d/00percona.pref` and add the following lines: ::
 
   Package: *
   Pin: release o=Percona Development Team
   Pin-Priority: 1001
 
-For more information about the pinning you can check the official `debian wiki <http://wiki.debian.org/AptPreferences>`_.
 
 .. _standalone_deb:
 
@@ -118,7 +118,7 @@ You should then unpack the bundle to get the packages:
 
  .. code-block:: bash
 
-   $ tar xvf Percona-Server-5.7.10-3-r63dafaf-jessie-x86_64-bundle.tar
+    $ tar xvf Percona-Server-5.7.10-3-r63dafaf-jessie-x86_64-bundle.tar
 
 After you unpack the bundle you should see the following packages:
 
@@ -142,15 +142,103 @@ Now you can install |Percona Server| by running:
 
     $ sudo dpkg -i *.deb
 
-This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want |TokuDB| storage engine).
+This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want TokuDB storage engine).
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 .. warning::
 
   When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself. Following packages will need to be installed before you can manually install Percona Server: ``mysql-common``, ``libjemalloc1``, ``libaio1`` and ``libmecab2``
+
+.. rubric:: AppArmor settings
+
+AppArmor is a kernel-integrated system which controls how applications access the file system by creating application profiles. If the installation of MySQL adds an AppArmor profile, you can find the profile in the following locations:
+
+* /etc/apparmor.d/usr.sbin.mysqld
+* /etc/apparmor.d/local/usr.sbin.mysqld
+
+The ``local`` version contains only comments. Add any changes specific for the server to the ``local`` file. 
+
+The ``usr.sbin.mysqld`` file has the following settings:
+
+.. sourcecode:: text
+
+    #include <tunables/global>
+
+    /usr/sbin/mysqld {
+      ...
+      # Allow data dir access
+      /var/lib/mysql/ r,
+      /var/lib/mysql/** rwk,
+
+      # Allow data files dir access
+        /var/lib/mysql-files/ r,
+        /var/lib/mysql-files/** rwk,
+
+      # Allow keyring dir access
+        /var/lib/mysql-keyring/ r,
+        /var/lib/mysql-keyring/** rwk,
+
+      # Allow log file access
+        /var/log/mysql/ r,
+        /var/log/mysql/** rw,
+      ...
+    }
+
+The settings govern how the files are accessed. For example, the data file directory access gives read (r) access to a directory and read, write, and lock access (rwk) to all directories and files underneath ``/mysql/``.
+
+You should download the `apparmor-utils` package when you are working with existing AppArmor profiles. The utilities allow you to edit a profile without stopping AppArmor or removing the profile.
+
+Before you edit a profile, change the profile to ``complain`` mode:
+
+.. sourcecode:: bash
+
+      # aa-complain /usr/sbin/mysqld
+      setting /usr/sbin/mysqld to complain mode
+
+In complain mode, you can edit the profile to add settings because you have relocated the data directory: ``/<volume>/dev/percona/data``:
+
+   .. code-block:: text
+
+        /<volume>/percona/data/ r,
+        /<volume>/percona/data/** rwk,
+        
+
+    You may need to reload AppArmor or reload the specific AppArmor profile to apply the changes. 
+
+You can also modify the ``/etc/apparmor.d/tunables/alias`` file as follows:
+
+    .. code-block:: text
+    
+        alias /var/lib/mysql -> /volume/percona/data/
+
+To reload one profile, run the following command:
+
+.. sourcecode:: bash
+
+    $ sudo apparmor_parser -r /etc/apparmor.d/usr.sbin.mysqld
+        
+Restart AppArmor with the following command:
+
+..  code-block:: bash
+
+    $ sudo systemctl restart apparmor
+    
+You can also disable AppArmor, but this action is not recommended. For earlier Ubuntu systems, prior to 16.04, use the following command:
+
+.. code-block:: bash
+
+    $ sudo systemctl stop apparmor
+    $ sudo update-rc.d -f apparmor remove
+
+For later Ubuntu systems, use the following:
+
+.. sourcecode:: bash
+
+    $ sudo sudo systemctl stop apparmor
+    $ sudo systemctl disable apparmor
 
 The following table lists the default locations for files:
 
@@ -226,14 +314,14 @@ To uninstall |Percona Server|, you must remove all of the installed packages.
 
 You have the following options:
 
-* Removing packages with :command:`apt-get remove` leaves the configuration and data files. 
-* Removing the packages with :command:`apt-get purge` removes all the packages with configuration files and data files (all the databases). 
+* Removing packages with :command:`apt remove` leaves the configuration and data files. 
+* Removing the packages with :command:`apt purge` removes all the packages with configuration files and data files (all the databases). 
 
 Depending on your needs, you can choose which command better suits you. 
 
 .. seealso:: 
 
-    `apt-get <http://manpages.ubuntu.com/manpages/bionic/man8/apt-get.8.html>`_
+    `apt <https://manpages.ubuntu.com/manpages/bionic/man8/apt.8.html>`_
 
 1. Stop the |Percona Server| service
 
@@ -247,15 +335,15 @@ Depending on your needs, you can choose which command better suits you.
 
    .. code-block:: bash
 
-     $ sudo apt-get remove 'percona-server*'
+     $ sudo apt remove 'percona-server*'
 
    b) Purge the packages. This option deletes packages, configuration, and data files. The option does not delete any configuration or data files stored in your home directory. You may need to delete some files manually.
 
    .. code-block:: bash
 
-     $ sudo apt-get purge 'percona-server*'
-     $ sudo apt-get autoremove -y
-     $ sudo apt-get autoclean
+     $ sudo apt purge 'percona-server*'
+     $ sudo apt autoremove -y
+     $ sudo apt autoclean
      $ sudo rm -rf /etc/mysql
 
 .. note::
@@ -269,7 +357,7 @@ Depending on your needs, you can choose which command better suits you.
       rm -rf /var/lib/mysql
       rm -rf /var/log/mysql
 
-     $ sudo apt-get purge percona-server*
+     $ sudo apt purge percona-server*
 
 .. include:: ../.res/replace.txt
 .. include:: ../.res/replace.program.txt

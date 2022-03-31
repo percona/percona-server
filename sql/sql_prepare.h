@@ -57,6 +57,8 @@ struct LEX;
 class Reprepare_observer
 {
 public:
+  Reprepare_observer() : m_invalidated(FALSE), m_attempt(0) {}
+
   /**
     Check if a change of metadata is OK. In future
     the signature of this method may be extended to accept the old
@@ -64,10 +66,30 @@ public:
     simple, we only need the THD to report an error.
   */
   bool report_error(THD *thd);
+  /**
+    @returns true if some table metadata is changed and statement should be
+                  re-prepared.
+  */
   bool is_invalidated() const { return m_invalidated; }
   void reset_reprepare_observer() { m_invalidated= FALSE; }
+  /// @returns true if prepared statement can (and will) be retried
+  bool can_retry() const {
+    // Only call for a statement that is invalidated
+    assert(is_invalidated());
+    return m_attempt <= MAX_REPREPARE_ATTEMPTS &&
+           DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", false,
+                            true);
+  }
+
 private:
   bool m_invalidated;
+  int m_attempt;
+
+  /*
+    We take only 3 attempts to reprepare the query, otherwise we might end up
+    in endless loop.
+  */
+  static const int MAX_REPREPARE_ATTEMPTS = 3;
 };
 
 
@@ -468,8 +490,7 @@ public:
   bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
   void set_sql_prepare() { flags|= (uint) IS_SQL_PREPARE; }
   bool prepare(const char *packet, size_t packet_length);
-  bool execute_loop(String *expanded_query,
-                    bool open_cursor,
+  bool execute_loop(bool open_cursor,
                     uchar *packet_arg, uchar *packet_end_arg);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE

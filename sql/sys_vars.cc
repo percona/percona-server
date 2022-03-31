@@ -1292,8 +1292,8 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var)
     {
       // Use the default value defined by sys_var.
       lex_string_set(&se_name,
-        reinterpret_cast<const char*>(
-        dynamic_cast<Sys_var_plugin*>(self)->global_value_ptr(thd, NULL)));
+        pointer_cast<const char*>(
+          down_cast<Sys_var_plugin*>(self)->global_value_ptr(thd, NULL)));
     }
 
     plugin_ref plugin;
@@ -5347,8 +5347,12 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
 
   return false;
 }
+
+
 static bool fix_general_log_file(sys_var *self, THD *thd, enum_var_type type)
 {
+  bool res;
+
   if (!opt_general_logname) // SET ... = DEFAULT
   {
     char buff[FN_REFLEN];
@@ -5358,17 +5362,27 @@ static bool fix_general_log_file(sys_var *self, THD *thd, enum_var_type type)
     if (!opt_general_logname)
       return true;
   }
-  bool res= false;
+
+  res= query_logger.set_log_file(QUERY_LOG_GENERAL);
+
   if (opt_general_log)
   {
     mysql_mutex_unlock(&LOCK_global_system_variables);
-    res= query_logger.reopen_log_file(QUERY_LOG_GENERAL);
+
+    if (!res)
+      res= query_logger.reopen_log_file(QUERY_LOG_GENERAL);
+    else
+      query_logger.deactivate_log_handler(QUERY_LOG_GENERAL);
+
     mysql_mutex_lock(&LOCK_global_system_variables);
-    if (res)
-      opt_general_log= false;
   }
+
+  if (res)
+    opt_general_log= false;
+
   return res;
 }
+
 static Sys_var_charptr Sys_general_log_path(
        "general_log_file", "Log connections and queries to given file",
        GLOBAL_VAR(opt_general_logname), CMD_LINE(REQUIRED_ARG),
@@ -5377,6 +5391,10 @@ static Sys_var_charptr Sys_general_log_path(
 
 static bool fix_slow_log_file(sys_var *self, THD *thd, enum_var_type type)
 {
+  bool res;
+
+  DEBUG_SYNC(thd, "log_fix_slow_log_holds_sysvar_lock");
+
   if (!opt_slow_logname) // SET ... = DEFAULT
   {
     char buff[FN_REFLEN];
@@ -5386,15 +5404,28 @@ static bool fix_slow_log_file(sys_var *self, THD *thd, enum_var_type type)
     if (!opt_slow_logname)
       return true;
   }
-  bool res= false;
+
+  res= query_logger.set_log_file(QUERY_LOG_SLOW);
+
+  DEBUG_SYNC(thd, "log_fix_slow_log_released_logger_lock");
+
   if (opt_slow_log)
   {
     mysql_mutex_unlock(&LOCK_global_system_variables);
-    res= query_logger.reopen_log_file(QUERY_LOG_SLOW);
+
+    DEBUG_SYNC(thd, "log_fix_slow_log_released_sysvar_lock");
+
+    if (!res)
+      res= query_logger.reopen_log_file(QUERY_LOG_SLOW);
+    else
+      query_logger.deactivate_log_handler(QUERY_LOG_SLOW);
+
     mysql_mutex_lock(&LOCK_global_system_variables);
-    if (res)
-      opt_slow_log= false;
   }
+
+  if (res)
+    opt_slow_log= false;
+
   return res;
 }
 static Sys_var_charptr Sys_slow_log_path(
@@ -5545,7 +5576,9 @@ void init_slow_query_log_use_global_control()
 static Sys_var_set Sys_log_slow_verbosity(
         "log_slow_verbosity",
         "Choose how verbose the messages to your slow log will be. "
-        "Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb, profiling, profiling_use_getrusage]",
+        "Multiple flags allowed in a comma-separated string. "
+        "[microtime, query_plan, innodb, profiling, profiling_use_getrusage, "
+        "minimal, standard, full]",
         SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
         log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME),
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
@@ -5658,25 +5691,29 @@ static Sys_var_enum Sys_slow_query_log_rate_type(
 
 static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (query_logger.is_log_file_enabled(QUERY_LOG_GENERAL) == opt_general_log)
+  bool new_state= opt_general_log,
+       res=       false;
+
+  if (query_logger.is_log_file_enabled(QUERY_LOG_GENERAL) == new_state)
     return false;
 
-  if (!opt_general_log)
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (!new_state)
   {
-    mysql_mutex_unlock(&LOCK_global_system_variables);
     query_logger.deactivate_log_handler(QUERY_LOG_GENERAL);
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    return false;
   }
   else
   {
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-    bool res= query_logger.activate_log_handler(thd, QUERY_LOG_GENERAL);
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    if (res)
-      opt_general_log= false;
-    return res;
+    res= query_logger.activate_log_handler(thd, QUERY_LOG_GENERAL);
   }
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+
+  if (res)
+    opt_general_log= false;
+
+  return res;
 }
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "
@@ -5688,25 +5725,29 @@ static Sys_var_mybool Sys_general_log(
 
 static bool fix_slow_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (query_logger.is_log_file_enabled(QUERY_LOG_SLOW) == opt_slow_log)
+  bool new_state= opt_slow_log,
+       res=       false;
+
+  if (query_logger.is_log_file_enabled(QUERY_LOG_SLOW) == new_state)
     return false;
 
-  if (!opt_slow_log)
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (!new_state)
   {
-    mysql_mutex_unlock(&LOCK_global_system_variables);
     query_logger.deactivate_log_handler(QUERY_LOG_SLOW);
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    return false;
   }
   else
   {
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-    bool res= query_logger.activate_log_handler(thd, QUERY_LOG_SLOW);
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    if (res)
-      opt_slow_log= false;
-    return res;
+    res= query_logger.activate_log_handler(thd, QUERY_LOG_SLOW);
   }
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+
+  if (res)
+    opt_slow_log= false;
+
+  return res;
 }
 static Sys_var_mybool Sys_slow_query_log(
        "slow_query_log",

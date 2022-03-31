@@ -12,15 +12,15 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.15
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-15.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.15-9 is the current GA release in
-the |Percona Server| 5.7 series. All of |Percona|'s software is open-source and
+the |Percona Server| 5.7 series. All of Percona's software is open-source and
 free, all the details of the release can be found in the `5.7.15-9 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.15-9>`_
 
 New Features
 ============
 
- A new |TokuDB| :variable:`tokudb_dir_per_db` option has been introduced to
- address two |TokuDB| shortcomings, the :ref:`renaming of data files
+ A new TokuDB :variable:`tokudb_dir_per_db` option has been introduced to
+ address two TokuDB shortcomings, the :ref:`renaming of data files
  <improved_table_renaming_functionality>` on table/index rename, and the
  ability to :ref:`group data files together
  <improved_directory_layout_functionality>` within a directory that represents
@@ -68,7 +68,7 @@ Bugs Fixed
  ``tokudb_default`` was not recognized by |Percona Server| as a valid row
  format. Bug fixed :bug:`1626206`.
 
- |InnoDB| ``ANALYZE TABLE`` didn't remove its table from the background
+ InnoDB ``ANALYZE TABLE`` didn't remove its table from the background
  statistics processing queue. Bug fixed :bug:`1626441` (upstream
  :mysqlbug:`71761`).
 

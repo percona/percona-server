@@ -124,7 +124,8 @@ merge_components(my_bool *pnull_value)
   if (is_comp_no_overlapped())
     return;
 
-  Item_func_spatial_operation ifso(POS(), NULL, NULL,
+  POS pos = {{NULL, NULL}, {NULL, NULL}};
+  Item_func_spatial_operation ifso(pos, NULL, NULL,
                                    Item_func_spatial_operation::op_union);
   bool do_again= true;
   uint32 last_composition[6]= {0}, num_unchanged_composition= 0;

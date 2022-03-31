@@ -12,7 +12,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.17
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-17.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.17-11 is the current GA release
-in the |Percona Server| 5.7 series. All of |Percona|'s software is open-source
+in the |Percona Server| 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.17-11
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.17-11>`_
@@ -21,13 +21,13 @@ New Features
 ============
 
  |Percona Server| has implemented support for per-column ``VARCHAR/BLOB``
- :ref:`compression <compressed_columns>` for the |XtraDB| storage engine. This
+ :ref:`compression <compressed_columns>` for the XtraDB storage engine. This
  also features compression dictionary support, to improve compression ratio for
  relatively short individual rows, such as JSON data.
 
  :ref:`innodb_kill_idle_trx` feature has been re-implemented by setting a
  connection socket read timeout value instead of periodically scanning the
- internal |InnoDB| transaction list. This makes the feature applicable to any
+ internal InnoDB transaction list. This makes the feature applicable to any
  transactional storage engine, such as TokuDB, and, in future, MyRocks.
  This re-implementation is also addressing some existing bugs, including server
  crashes: :bug:`1166744`, :bug:`1179136`, :bug:`907719`, and :bug:`1369373`.
@@ -35,7 +35,7 @@ New Features
 Bugs Fixed
 ==========
 
- Logical row counts for |TokuDB| tables could get inaccurate over time. Bug
+ Logical row counts for TokuDB tables could get inaccurate over time. Bug
  fixed :bug:`1651844` (:ftbug:`732`).
 
  Repeated execution of ``SET STATEMENT ... FOR <SELECT FROM view>`` could lead
@@ -54,7 +54,7 @@ Bugs Fixed
  tracking thread while a ``FLUSH CHANGED_PAGE_BITMAPS`` is executing
  concurrently. Bug fixed :bug:`1651656`.
 
- |TokuDB| was using wrong function to calculate free space in data files. Bug
+ TokuDB was using wrong function to calculate free space in data files. Bug
  fixed :bug:`1656022` (:tokubug:`1033`).
 
  ``CONCURRENT_CONNECTIONS`` column in the :table:`USER_STATISTICS` table was
@@ -63,7 +63,7 @@ Bugs Fixed
  :ref:`audit_log_plugin` when set to ``JSON`` format was not escaping
  characters properly. Bug fixed :bug:`1548745`.
 
- |InnoDB| index dives did not detect some of the concurrent tree changes, which
+ InnoDB index dives did not detect some of the concurrent tree changes, which
  could return bogus estimates. Bug fixed :bug:`1625151` (upstream
  :mysqlbug:`84366`).
 
@@ -83,12 +83,12 @@ Bugs Fixed
  escalation. ``chown`` can now be used only for :file:`/var/log` directory. Bug
  fixed :bug:`1660265`. Thanks to Dawid Golunski (https://legalhackers.com).
 
- Renaming a |TokuDB| table to a non-existent database with
+ Renaming a TokuDB table to a non-existent database with
  :variable:`tokudb_dir_per_db` enabled would lead to a server crash. Bug fixed
  :tokubug:`1030`.
 
  :ref:`tokudb_read_free_replication` optimization could not be used for
- |TokuDB| partition tables. Bug fixed :tokubug:`1012`.
+ TokuDB partition tables. Bug fixed :tokubug:`1012`.
 
 Other bugs fixed: :bug:`1486747`, :bug:`1617715`, :bug:`1633988`,
 :bug:`1638198` (upstream :mysqlbug:`82823`), :bug:`1642230`, :bug:`1646384`,

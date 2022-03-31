@@ -9,23 +9,10 @@
  |Percona Server| |version| - Documentation
 ============================================
 
-|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
 
-  * Your queries will run faster and more consistently.
+Percona Server for MySQL is a free, fully compatible, enhanced, and open source drop-in replacement for any MySQL database. It provides superior performance, scalability, and instrumentation. 
 
-  * You will consolidate servers on powerful hardware.
-
-  * You will delay sharding, or avoid it entirely.
-
-  * You will save money on hosting fees and power.
-
-  * You will spend less time tuning and administering.
-
-  * You will achieve higher uptime.
-
-  * You will troubleshoot without guesswork.
-
-Does this sound too good to be true? It's not. |Percona Server| offers breakthrough performance, scalability, features, and instrumentation. Its self-tuning algorithms and support for extremely high-performance hardware make it the clear choice for companies who demand the utmost performance and reliability from their database server.
+Percona Server for MySQL is trusted by thousands of enterprises to provide better performance and concurrency for their most demanding workloads. It delivers higher value to MySQL server users with optimized performance, greater performance scalability and availability, enhanced backups, and increased visibility.
 
 Introduction
 ============
@@ -126,7 +113,6 @@ Management Improvements
    management/audit_log_plugin
    management/start_transaction_with_consistent_snapshot
    management/extended_show_grants
-   management/data_at_rest_encryption
    management/ssl-improvement
    management/utility_user
    management/ps-admin

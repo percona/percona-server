@@ -12,7 +12,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.18
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-18.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.18-16 is the current GA release
-in the |Percona Server| 5.7 series. All of |Percona|'s software is open-source
+in the |Percona Server| 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.18-16
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-16>`_
@@ -29,19 +29,19 @@ covers the ``amd64`` architecture.
 
 |Percona Server| can now be built with support of OpenSSL 1.1.
 
-|MyRocks| storage engine has been merged into |Percona Server|.
+MyRocks storage engine has been merged into |Percona Server|.
 
-|TokuDB| enables to kill a query that is awaiting an FT locktree lock.
+TokuDB enables to kill a query that is awaiting an FT locktree lock.
 
-|TokuDB| enables using the ``MySQL DEBUG_SYNC`` facility within |Percona FT|.
+TokuDB enables using the ``MySQL DEBUG_SYNC`` facility within |Percona FT|.
 
 Bugs Fixed
 ==========
 
-Row counts in |TokuDB| could be lost intermittently after restarts. Bug fixed
+Row counts in TokuDB could be lost intermittently after restarts. Bug fixed
 :tdbbug:`2`.
 
-In |TokuDB|, two races in the fractal tree lock manager could significantly
+In TokuDB, two races in the fractal tree lock manager could significantly
 affect transactional throughput for some applications that used a small number
 of concurrent transactions.  These races manifested as transactions
 unnecessarily waiting for an available lock. Bug fixed :tdbbug:`3`.

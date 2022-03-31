@@ -312,21 +312,15 @@ class ha_rocksdb : public my_core::handler {
   bool is_ascending(const Rdb_key_def &keydef,
                     enum ha_rkey_function find_flag) const
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-  void setup_iterator_bounds(const Rdb_key_def &kd,
-                             const rocksdb::Slice &eq_cond, size_t bound_len,
-                             uchar *const lower_bound, uchar *const upper_bound,
-                             rocksdb::Slice *lower_bound_slice,
-                             rocksdb::Slice *upper_bound_slice);
-  bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
-                            const rocksdb::Slice &eq_cond,
-                            const bool use_all_keys);
-  bool check_bloom_and_set_bounds(THD *thd, const Rdb_key_def &kd,
-                                  const rocksdb::Slice &eq_cond,
-                                  const bool use_all_keys, size_t bound_len,
-                                  uchar *const lower_bound,
-                                  uchar *const upper_bound,
-                                  rocksdb::Slice *lower_bound_slice,
-                                  rocksdb::Slice *upper_bound_slice);
+  static void setup_iterator_bounds(const Rdb_key_def &kd,
+                                    const rocksdb::Slice &eq_cond,
+                                    size_t bound_len, uchar *const lower_bound,
+                                    uchar *const upper_bound,
+                                    rocksdb::Slice *lower_bound_slice,
+                                    rocksdb::Slice *upper_bound_slice);
+  static bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
+                                   const rocksdb::Slice &eq_cond,
+                                   const bool use_all_keys);
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *slice,
                            const bool use_all_keys, const uint eq_cond_len);
   void release_scan_iterator(void);
@@ -373,13 +367,6 @@ class ha_rocksdb : public my_core::handler {
 
   void set_last_rowkey(const uchar *const old_data);
 
-  /*
-    For the active index, indicates which columns must be covered for the
-    current lookup to be covered. If the bitmap field is null, that means this
-    index does not cover the current lookup for any record.
-   */
-  MY_BITMAP m_lookup_bitmap = {nullptr, 0, 0, nullptr, nullptr};
-
   int alloc_key_buffers(const TABLE *const table_arg,
                         const Rdb_tbl_def *const tbl_def_arg,
                         bool alloc_alter_buffers = false)
@@ -388,6 +375,11 @@ class ha_rocksdb : public my_core::handler {
 
   // the buffer size should be at least 2*Rdb_key_def::INDEX_NUMBER_SIZE
   rocksdb::Range get_range(const int i, uchar buf[]) const;
+
+  void records_in_range_internal(uint inx, key_range *const min_key,
+                                 key_range *const max_key, int64 disk_size,
+                                 int64 rows, ulonglong *total_size,
+                                 ulonglong *row_count);
 
   /*
     Perf timers for data reads
@@ -668,6 +660,13 @@ class ha_rocksdb : public my_core::handler {
   /*
     Default implementation from cancel_pushed_idx_cond() suits us
   */
+
+  static bool check_bloom_and_set_bounds(
+      THD *thd, const Rdb_key_def &kd, const rocksdb::Slice &eq_cond,
+      const bool use_all_keys, size_t bound_len, uchar *const lower_bound,
+      uchar *const upper_bound, rocksdb::Slice *lower_bound_slice,
+      rocksdb::Slice *upper_bound_slice);
+
  private:
   struct key_def_cf_info {
     std::shared_ptr<rocksdb::ColumnFamilyHandle> cf_handle;
@@ -768,14 +767,14 @@ class ha_rocksdb : public my_core::handler {
   int get_pk_for_update(struct update_row_info *const row_info);
   int check_and_lock_unique_pk(const uint key_id,
                                const struct update_row_info &row_info,
-                               bool *const found)
+                               bool *const found, const bool skip_unique_check)
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_and_lock_sk(const uint key_id,
                         const struct update_row_info &row_info,
-                        bool *const found)
+                        bool *const found, const bool skip_unique_check)
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_uniqueness_and_lock(const struct update_row_info &row_info,
-                                bool pk_changed)
+                                bool pk_changed, const bool skip_unique_check)
       MY_ATTRIBUTE((__warn_unused_result__));
   bool over_bulk_load_threshold(int *err)
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -925,6 +924,8 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
   int create_table(const std::string &table_name, const TABLE *table_arg,
                    ulonglong auto_increment_value);
+  int truncate_table(Rdb_tbl_def *tbl_def, TABLE *table_arg,
+                     ulonglong auto_increment_value);
   bool check_if_incompatible_data(HA_CREATE_INFO *const info,
                                   uint table_changes) override
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -979,6 +980,11 @@ class ha_rocksdb : public my_core::handler {
   int adjust_handler_stats_sst_and_memtable();
   int adjust_handler_stats_table_scan();
 
+  void build_decoder();
+  void check_build_decoder();
+
+  static void inc_covered_sk_lookup();
+
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
  public:
   virtual void rpl_before_delete_rows() override;
@@ -994,6 +1000,11 @@ class ha_rocksdb : public my_core::handler {
   bool m_in_rpl_delete_rows;
   bool m_in_rpl_update_rows;
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
+
+  bool m_force_skip_unique_check;
+
+  /* Need to build decoder on next read operation */
+  bool m_need_build_decoder;
 };
 
 /*

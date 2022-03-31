@@ -13,19 +13,24 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <my_global.h>
 #include "../../include/plugin.h"
 #include "../../include/udf/udf_utils.h"
 #include "../../include/udf/udf_utils_string.h"
 
 extern "C" {
-  bool mask_pan_relaxed_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+  my_bool mask_pan_relaxed_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
   void mask_pan_relaxed_deinit(UDF_INIT *initid);
   const char *mask_pan_relaxed(UDF_INIT *initid, UDF_ARGS *args, char *result,
                                unsigned long *length, char *is_null, char *);
 }
 
-bool mask_pan_relaxed_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+my_bool mask_pan_relaxed_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   DBUG_ENTER("mask_pan_relaxed_init");
+
+  if (!data_masking_is_inited(message, MYSQL_ERRMSG_SIZE)) {
+    DBUG_RETURN(true);
+  }
 
   if (args->arg_count != 1) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,

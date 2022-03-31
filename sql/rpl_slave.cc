@@ -8747,6 +8747,11 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
                            checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
+    if (!gtid_ev.is_valid())
+    {
+      global_sid_lock->unlock();
+      goto err;
+    }
     gtid.sidno= gtid_ev.get_sidno(false);
     global_sid_lock->unlock();
     if (gtid.sidno < 0)
@@ -10631,6 +10636,10 @@ int reset_slave(THD *thd)
   Execute a RESET SLAVE statement.
   Locks slave threads and unlocks the slave threads after executing
   reset slave.
+  The method also takes the mi->channel_wrlock; if this {mi} object
+  is deleted (when the parameter reset_all is true) its destructor unlocks
+  the lock. In case of error, the method shall always unlock the
+  mi channel lock.
 
   @param thd        Pointer to THD object of the client thread executing the
                     statement.
@@ -10730,7 +10739,14 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
   {
     bool is_default= !strcmp(mi->get_channel(), channel_map.get_default_channel());
 
-    channel_map.delete_mi(mi->get_channel());
+    // delete_mi will call mi->channel_unlock in case it succeeds
+    if (channel_map.delete_mi(mi->get_channel()))
+    {
+      mi->channel_unlock();
+      error= ER_UNKNOWN_ERROR;
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      goto err;
+    }
 
     if (is_default)
     {

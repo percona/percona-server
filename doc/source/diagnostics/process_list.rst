@@ -4,7 +4,7 @@
 Process List
 =============
 
-This page describes Percona changes to both the standard |MySQL| ``SHOW PROCESSLIST`` command and the standard |MySQL| ``INFORMATION_SCHEMA`` table ``PROCESSLIST``.
+This page describes Percona changes to both the standard MySQL ``SHOW PROCESSLIST`` command and the standard MySQL ``INFORMATION_SCHEMA`` table ``PROCESSLIST``.
 
 Version Specific Information
 ============================
@@ -18,10 +18,10 @@ INFORMATION_SCHEMA Tables
 
 .. table:: INFORMATION_SCHEMA.PROCESSLIST
 
-   This table implements modifications to the standard |MySQL| ``INFORMATION_SCHEMA`` table ``PROCESSLIST``.
+   This table implements modifications to the standard MySQL ``INFORMATION_SCHEMA`` table ``PROCESSLIST``.
 
    :column ID: The connection identifier.
-   :column USER: The |MySQL| user who issued the statement.
+   :column USER: The MySQL user who issued the statement.
    :column HOST: The host name of the client issuing the statement.
    :column DB: The default database, if one is selected, otherwise NULL.
    :column COMMAND: The type of command the thread is executing.

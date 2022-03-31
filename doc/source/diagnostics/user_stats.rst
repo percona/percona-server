@@ -111,7 +111,7 @@ Example: ::
   :column INDEX_NAME: The index name (as visible in ``SHOW CREATE TABLE``).
   :column ROWS_READ: The number of rows read from this index.
 
-This table shows statistics on index usage. An older version of the feature contained a single column that had the ``TABLE_SCHEMA``, ``TABLE_NAME`` and ``INDEX_NAME`` columns concatenated together. The |Percona| version of the feature separates these into three columns. Users can see entries only for tables to which they have ``SELECT`` access.
+This table shows statistics on index usage. An older version of the feature contained a single column that had the ``TABLE_SCHEMA``, ``TABLE_NAME`` and ``INDEX_NAME`` columns concatenated together. The Percona version of the feature separates these into three columns. Users can see entries only for tables to which they have ``SELECT`` access.
 
 This table makes it possible to do many things that were difficult or impossible previously. For example, you can use it to find unused indexes and generate DROP commands to remove them.
 
@@ -205,7 +205,7 @@ In order for this table to be populated with statistics, additional variable :va
   :column ACCESS_DENIED: The number of times this user's connections issued commands that were denied.
   :column EMPTY_QUERIES: The number of times this user's connections sent empty queries to the server.
 
-This table contains information about user activity. The |Percona| version of the patch restricts this table's visibility to users who have the ``SUPER`` or ``PROCESS`` privilege.
+This table contains information about user activity. The Percona version of the patch restricts this table's visibility to users who have the ``SUPER`` or ``PROCESS`` privilege.
 
 The table gives answers to questions such as which users cause the most load, and whether any users are being abusive. It also lets you measure how close to capacity the server may be. For example, you can use it to find out whether replication is likely to start falling behind.
 

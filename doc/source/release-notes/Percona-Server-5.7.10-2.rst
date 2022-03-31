@@ -12,7 +12,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.10
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-10.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.10-2 is the current Release
-Candidate release in the |Percona Server| 5.7 series. All of |Percona|'s
+Candidate release in the |Percona Server| 5.7 series. All of Percona's
 software is open-source and free, all the details of the release can be found
 in the `5.7.10-2 milestone at Launchpad
 <https://launchpad.net/percona-server/+milestone/5.7.10-2rc2>`_
@@ -23,10 +23,10 @@ New Features
  Complete list of changes between |Percona Server| 5.6 and 5.7 can be seen in
  :ref:`changed_in_57`.
 
- 5.7 binlog group commit algorithm is now supported in |TokuDB| as well.
+ 5.7 binlog group commit algorithm is now supported in TokuDB as well.
 
- New |TokuDB| index statistics reporting has been implemented to be compatible
- with the changes implemented in upstream 5.7. Following the |InnoDB| example,
+ New TokuDB index statistics reporting has been implemented to be compatible
+ with the changes implemented in upstream 5.7. Following the InnoDB example,
  the default value for :variable:`tokudb_cardinality_scale_percent` has been
  changed from ``50%`` to ``100%``. Implementing this also addresses a server
  crash deep in the optimizer code.
@@ -46,14 +46,14 @@ Known Issues
    * Bug :mysqlbug:`79328`, :variable:`super_read_only` set as a server option
      has no effect.
 
- |InnoDB| crash recovery might fail if :variable:`innodb_flush_method` is set
+ InnoDB crash recovery might fail if :variable:`innodb_flush_method` is set
  to ``ALL_O_DIRECT``. The workaround is to set this variable to a different
  value before starting up the crashed instance (bug :bug:`1529885`).
 
 Bugs Fixed
 ==========
 
- Clustering secondary index could not be created on a partitioned |TokuDB|
+ Clustering secondary index could not be created on a partitioned TokuDB
  table. Bug fixed :bug:`1527730` (:tokubug:`720`).
 
  :ref:`toku_backup` was failing to compile with |Percona Server| 5.7. Bug fixed
@@ -62,22 +62,22 @@ Bugs Fixed
  Granting privileges to a user authenticating with :ref:`pam_plugin` could lead
  to a server crash. Bug fixed :bug:`1521474`.
 
- |TokuDB| status variables were missing from |Percona Server| :rn:`5.7.10-1`.
+ TokuDB status variables were missing from |Percona Server| :rn:`5.7.10-1`.
  Bug fixed :bug:`1527364` (:tokubug:`923`).
 
  Attempting to rotate the audit log file would result in audit log file name
  :file:`foo.log.%u` (literally) instead of a numeric suffix. Bug fixed
  :bug:`1528603`.
 
- Adding an index to an |InnoDB| temporary table while
+ Adding an index to an InnoDB temporary table while
  :variable:`expand_fast_index_creation` was enabled could lead to server
  assertion. Bug fixed :bug:`1529555`.
 
- |TokuDB| would not be upgraded on *Debian*/*Ubuntu* distributions while
+ TokuDB would not be upgraded on *Debian*/*Ubuntu* distributions while
  performing an upgrade from |Percona Server| 5.6 to |Percona Server| 5.7 even
  if explicitly requested. Bug fixed :bug:`1533580`.
 
- Server would assert when both |TokuDB| and |InnoDB| tables were used within
+ Server would assert when both TokuDB and InnoDB tables were used within
  one transaction on a replication slave which has binary log enabled and slave
  updates logging disabled. Bug fixed :bug:`1534249` (upstream bug
  :mysqlbug:`80053`).
@@ -97,7 +97,7 @@ Bugs Fixed
  builds) while purge threads were stopped would cause a server crash. Bug fixed
  :bug:`1368552`.
 
- Enabling |TokuDB| with ``ps_tokudb_admin`` script inside the Docker container
+ Enabling TokuDB with ``ps_tokudb_admin`` script inside the Docker container
  would cause an error due to insufficient privileges even when running as root.
  In order for this script to be used inside docker containers this error has
  been changed to a warning that a check is impossible. Bug
@@ -106,12 +106,12 @@ Bugs Fixed
  Write-heavy workload with a small buffer pool could lead to a deadlock when
  free buffers are exhausted. Bug fixed :bug:`1521905`.
 
- |InnoDB| status will start printing negative values for spin rounds per wait,
+ InnoDB status will start printing negative values for spin rounds per wait,
  if the wait number, even though being accounted as a signed 64-bit integer,
  will not fit into a signed 32-bit integer. Bug fixed :bug:`1527160` (upstream
  :mysqlbug:`79703`).
 
- |Percona Server| 5.7 couldn't be restarted after |TokuDB| has been installed
+ |Percona Server| 5.7 couldn't be restarted after TokuDB has been installed
  with ``ps_tokudb_admin`` script. Bug fixed :bug:`1527535`.
 
  Fixed memory leak when :variable:`utility_user` is enabled. Bug fixed

@@ -300,6 +300,7 @@ class Statement_backup
 {
   LEX *m_lex;
   LEX_CSTRING m_query_string;
+  bool m_safe_to_display;
 
 public:
   LEX *lex() const { return m_lex; }
@@ -320,6 +321,12 @@ public:
     m_query_string= thd->query();
     thd->set_query(stmt->m_query_string);
 
+    m_safe_to_display = thd->safe_to_display();
+
+    /* Keep the current behaviour of displaying prepared statements always by
+    default. This can be changed in future if required. */
+    thd->set_safe_display(true);
+
     DBUG_VOID_RETURN;
   }
 
@@ -337,6 +344,7 @@ public:
     thd->lex=  m_lex;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
+    thd->set_safe_display(m_safe_to_display);
     stmt->m_query_string= thd->query();
     thd->set_query(m_query_string);
 
@@ -2560,8 +2568,6 @@ static void reset_stmt_params(Prepared_statement *stmt)
 void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
                          ulong params_length)
 {
-  /* Query text for binary, general or slow log, if any of them is open */
-  String expanded_query;
   Prepared_statement *stmt;
   Protocol *save_protocol= thd->get_protocol();
   bool open_cursor;
@@ -2595,9 +2601,8 @@ void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
   thd->set_protocol(&thd->protocol_binary);
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
-  
-  stmt->execute_loop(&expanded_query, open_cursor, params,
-                    params + params_length);
+
+  stmt->execute_loop(open_cursor, params, params + params_length);
   thd->set_protocol(save_protocol);
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
@@ -2634,8 +2639,6 @@ void mysql_sql_stmt_execute(THD *thd)
   LEX *lex= thd->lex;
   Prepared_statement *stmt;
   const LEX_CSTRING &name= lex->prepared_stmt_name;
-  /* Query text for binary, general or slow log, if any of them is open */
-  String expanded_query;
   DBUG_ENTER("mysql_sql_stmt_execute");
   DBUG_PRINT("info", ("EXECUTE: %.*s\n", (int) name.length, name.str));
 
@@ -2656,7 +2659,7 @@ void mysql_sql_stmt_execute(THD *thd)
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 
-  (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
+  (void) stmt->execute_loop(FALSE, NULL, NULL);
 
   DBUG_VOID_RETURN;
 }
@@ -2980,6 +2983,7 @@ Reprepare_observer::report_error(THD *thd)
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
   m_invalidated= TRUE;
+  m_attempt++;
 
   return TRUE;
 }
@@ -3304,6 +3308,8 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   digest.reset(token_array, max_digest_length);
   thd->m_digest= &digest;
 
+  parser_state.m_input.m_has_digest = true;
+
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);
 #ifndef EMBEDDED_LIBRARY
   if (is_audit_plugin_class_active(thd, MYSQL_AUDIT_GENERAL_CLASS))
@@ -3544,31 +3550,33 @@ Prepared_statement::set_parameters(String *expanded_query,
   validation error, prepare a new copy of the prepared statement,
   swap the old and the new statements, and try again.
   If there is a validation error again, repeat the above, but
-  perform no more than MAX_REPREPARE_ATTEMPTS.
+  perform not more than a maximum number of times. Reprepare_observer
+  ensures that a prepared statement execution is retried not more than a
+  maximum number of times.
 
   @note We have to try several times in a loop since we
   release metadata locks on tables after prepared statement
   prepare. Therefore, a DDL statement may sneak in between prepare
-  and execute of a new statement. If this happens repeatedly
-  more than MAX_REPREPARE_ATTEMPTS times, we give up.
+  and execute of a new statement. If a prepared statement execution
+  is retried for a maximum number of times then we give up.
+
 
   @return TRUE if an error, FALSE if success
-  @retval  TRUE    either MAX_REPREPARE_ATTEMPTS has been reached,
-                   or some general error
+  @retval  TRUE    either statement execution is retried for
+                   a maximum number of times or some general error.
   @retval  FALSE   successfully executed the statement, perhaps
                    after having reprepared it a few times.
 */
 
 bool
-Prepared_statement::execute_loop(String *expanded_query,
-                                 bool open_cursor,
+Prepared_statement::execute_loop(bool open_cursor,
                                  uchar *packet,
                                  uchar *packet_end)
 {
-  const int MAX_REPREPARE_ATTEMPTS= 3;
   Reprepare_observer reprepare_observer;
   bool error;
-  int reprepare_attempt= 0;
+  /* Query text for binary, general or slow log, if any of them is open */
+  String expanded_query;
 
   /* Check if we got an error when sending long data */
   if (state == Query_arena::STMT_ERROR)
@@ -3579,7 +3587,7 @@ Prepared_statement::execute_loop(String *expanded_query,
 
   assert(!thd->get_stmt_da()->is_set());
 
-  if (set_parameters(expanded_query, packet, packet_end))
+  if (set_parameters(&expanded_query, packet, packet_end))
     return TRUE;
 
   if (unlikely(thd->security_context()->password_expired() &&
@@ -3613,14 +3621,14 @@ reexecute:
 
   thd->push_reprepare_observer(stmt_reprepare_observer);
 
-  error= execute(expanded_query, open_cursor) || thd->is_error();
+  error= execute(&expanded_query, open_cursor) || thd->is_error();
 
   thd->pop_reprepare_observer();
 
   if ((sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE) &&
       error && !thd->is_fatal_error && !thd->killed &&
       reprepare_observer.is_invalidated() &&
-      reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
+      reprepare_observer.can_retry())
   {
     assert(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
     thd->clear_error();
@@ -3919,9 +3927,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                           &cur_db_changed))
   {
     flags&= ~ (uint) IS_IN_USE;
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    thd->lex= stmt_backup.lex();
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+    stmt_backup.restore_thd(thd, this);
     return TRUE;
   }
 
@@ -3933,9 +3939,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), expanded_query->length());
     flags&= ~ (uint) IS_IN_USE;
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    thd->lex= stmt_backup.lex();
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+    stmt_backup.restore_thd(thd, this);
     return TRUE;
   }
 
@@ -4031,13 +4035,17 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   thd->lex->release_plugins();
 
   /*
-    Expanded query is needed for slow logging, so we want thd->query
-    to point at it even after we restore from backup. This is ok, as
-    expanded query was allocated in thd->mem_root.
+   Note that we cannot call restore_thd() here as that would overwrite
+   the expanded query in THD::m_query_string, which is needed for slow
+   logging. Use alloc_query() to make sure the query is allocated on
+   the correct MEM_ROOT, since otherwise THD::m_query_string could end
+   up as a dangling pointer (i.e. pointer to freed memory) once the PS
+   MEM_ROOT is freed.
   */
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->lex= stmt_backup.lex();
   mysql_mutex_unlock(&thd->LOCK_thd_data);
+  alloc_query(thd, thd->query().str, thd->query().length);
 
   thd->stmt_arena= old_stmt_arena;
 

@@ -8854,7 +8854,8 @@ Field_json *Field_json::clone() const
 uint Field_json::is_equal(Create_field *new_field)
 {
   // All JSON fields are compatible with each other.
-  return (new_field->sql_type == real_type());
+  return (new_field->sql_type == real_type() &&
+          !has_different_compression_attributes_with(*new_field));
 }
 
 

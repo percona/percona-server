@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,8 +101,8 @@ int get_or_create_user_conn(THD *thd, const char *user,
   char temp_user[USER_HOST_BUFF_SIZE];
   struct  user_conn *uc;
 
-  DBUG_ASSERT(user != 0);
-  DBUG_ASSERT(host != 0);
+  assert(user != 0);
+  assert(host != 0);
 
   user_len= strlen(user);
   temp_len= (my_stpcpy(my_stpcpy(temp_user, user)+1, host) - temp_user)+1;
@@ -836,7 +836,7 @@ void decrease_user_connections(USER_CONN *uc)
 {
   DBUG_ENTER("decrease_user_connections");
   mysql_mutex_lock(&LOCK_user_conn);
-  DBUG_ASSERT(uc->connections);
+  assert(uc->connections);
   if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
@@ -862,7 +862,7 @@ void release_user_connection(THD *thd)
   if (uc)
   {
     mysql_mutex_lock(&LOCK_user_conn);
-    DBUG_ASSERT(uc->connections > 0);
+    assert(uc->connections > 0);
     thd->decrement_user_connections_counter();
     if (!uc->connections && !mqh_used)
     {
@@ -888,7 +888,7 @@ bool check_mqh(THD *thd, uint check_command)
   bool error= 0;
   const USER_CONN *uc=thd->get_user_connect();
   DBUG_ENTER("check_mqh");
-  DBUG_ASSERT(uc != 0);
+  assert(uc != 0);
 
   mysql_mutex_lock(&LOCK_user_conn);
 
@@ -1130,6 +1130,10 @@ static int check_connection(THD *thd, bool extra_port_connection)
     char ip[NI_MAXHOST];
     LEX_CSTRING main_sctx_ip;
 
+    if (extra_port_connection) {
+      vio_force_skip_proxy(net->vio);
+    }
+
     peer_rc= vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
 
     /*
@@ -1328,6 +1332,17 @@ static int check_connection(THD *thd, bool extra_port_connection)
     can be inspected.
   */
   thd->set_ssl(net->vio);
+
+  if (net->vio->ssl_arg) {
+    int version = SSL_version((SSL *)net->vio->ssl_arg);
+    if (version == TLS1_VERSION || version == TLS1_1_VERSION) {
+      Security_context *sctx = thd->security_context();
+      sql_print_warning(ER(ER_DEPRECATED_TLS_VERSION_SESSION),
+                        SSL_get_version((SSL *)net->vio->ssl_arg),
+                        sctx->priv_user().str, sctx->priv_host().str,
+                        sctx->host_or_ip().str, sctx->user().str);
+    }
+  }
 
   return auth_rc;
 }

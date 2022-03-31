@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
     table->field[2]->store(STRING_WITH_LEN("DISABLED"), cs);
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
   table->field[3]->store(plugin_type_names[plug->type].str,
@@ -488,7 +488,7 @@ ignore_db_dirs_process_additions()
   size_t len;
   char *ptr;
 
-  DBUG_ASSERT(opt_ignore_db_dirs == NULL);
+  assert(opt_ignore_db_dirs == NULL);
 
   if (my_hash_init(&ignore_db_dirs_hash, 
                    lower_case_table_names ?
@@ -558,10 +558,10 @@ ignore_db_dirs_process_additions()
   if (ptr > opt_ignore_db_dirs)
   {
     ptr--;
-    DBUG_ASSERT(*ptr == ',');
+    assert(*ptr == ',');
   }
   /* make sure the string is terminated */
-  DBUG_ASSERT(ptr - opt_ignore_db_dirs <= (ptrdiff_t) len);
+  assert(ptr - opt_ignore_db_dirs <= (ptrdiff_t) len);
   *ptr= 0;
 
   /* 
@@ -1363,7 +1363,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 */
 static bool print_on_update_clause(Field *field, String *val, bool lcase)
 {
-  DBUG_ASSERT(val->charset()->mbminlen == 1);
+  assert(val->charset()->mbminlen == 1);
   val->length(0);
   if (field->has_update_default_function())
   {
@@ -1641,7 +1641,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" /*!50606 STORAGE MEMORY */"));
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
     }
 
@@ -1672,7 +1672,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       }
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
     }
 
@@ -1961,7 +1961,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (share->was_encryption_key_id_set)
     {
-      DBUG_ASSERT(share->encrypt_type.length == 0 || my_strcasecmp(system_charset_info, share->encrypt_type.str, "KEYRING") != 0
+      assert(share->encrypt_type.length == 0 || my_strcasecmp(system_charset_info, share->encrypt_type.str, "KEYRING") != 0
                   || share->encrypt_type.length == strlen("KEYRING"));
 
       char *end;
@@ -2053,8 +2053,8 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       end= longlong10_to_str(key_info->block_size, buff, 10);
       packet->append(buff, (uint) (end - buff));
     }
-    DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) == 
-               (key_info->comment.length > 0));
+    assert(MY_TEST(key_info->flags & HA_USES_COMMENT) == 
+           (key_info->comment.length > 0));
     if (key_info->flags & HA_USES_COMMENT)
     {
       packet->append(STRING_WITH_LEN(" COMMENT "));
@@ -2102,7 +2102,7 @@ static void append_algorithm(TABLE_LIST *table, String *buff)
     buff->append(STRING_WITH_LEN("MERGE "));
     break;
   default:
-    DBUG_ASSERT(0); // never should happen
+    assert(0); // never should happen
   }
 }
 
@@ -2354,16 +2354,28 @@ public:
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str;
-      size_t query_length;
-      if ((query_length = inspect_thd->rewritten_query.length()) > 0) {
-        query_str = inspect_thd->rewritten_query.c_ptr();
-      } else {
+      const char *query_str= NULL;
+      size_t query_length= 0;
+
+      /* If a rewritten query exists, use that. */
+      if (inspect_thd->rewritten_query().length() > 0) {
+        query_length = inspect_thd->rewritten_query().length();
+        query_str = inspect_thd->rewritten_query().ptr();
+      }
+      /*
+        Otherwise, use the original query. If the query contains password in
+        plain text, we have the query re-written immediately after parsing and
+        password string is replaced. However, there is a unsafe window before
+        rewrite is done and in such case we should not display the plain text
+        password.
+      */
+      else if (inspect_thd->safe_to_display()) {
         query_length = inspect_thd->query().length;
         query_str = inspect_thd->query().str;
       }
 
 #ifndef EMBEDDED_LIBRARY
+      /* In the stand-alone server, add "PLUGIN" as needed. */
       String buf;
       if (inspect_thd->is_a_srv_session())
       {
@@ -2377,6 +2389,7 @@ public:
       }
       /* No else. We need fall-through */
 #endif
+      /* If we managed to create query info, set a copy on thd_info. */
       if (query_str)
       {
         const size_t width= min<size_t>(m_max_query_length, query_length);
@@ -2591,18 +2604,28 @@ public:
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str;
-      size_t query_length;
+      const char *query_str= NULL;
+      size_t query_length= 0;
 
-      if (inspect_thd->rewritten_query.length()) {
-        query_str = inspect_thd->rewritten_query.c_ptr_safe();
-        query_length = inspect_thd->rewritten_query.length();
-      } else {
-        query_str = inspect_thd->query().str;
+      /* If a rewritten query exists, use that. */
+      if (inspect_thd->rewritten_query().length() > 0) {
+        query_length = inspect_thd->rewritten_query().length();
+        query_str = inspect_thd->rewritten_query().ptr();
+      }
+      /*
+        Otherwise, use the original query. If the query contains password in
+        plain text, we have the query re-written immediately after parsing and
+        password string is replaced. However, there is a unsafe window before
+        rewrite is done and in such case we should not display the plain text
+        password.
+      */
+      else if (inspect_thd->safe_to_display()) {
         query_length = inspect_thd->query().length;
+        query_str = inspect_thd->query().str;
       }
 
 #ifndef EMBEDDED_LIBRARY
+      /* In the stand-alone server, add "PLUGIN" as needed. */
       String buf;
       if (inspect_thd->is_a_srv_session())
       {
@@ -2616,6 +2639,7 @@ public:
       }
       /* No else. We need fall-through */
 #endif
+      /* If we managed to create query info, set a copy on thd_info. */
       if (query_str)
       {
         const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
@@ -3029,7 +3053,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
       break;
 
     case SHOW_SIGNED_INT:
-      end= int10_to_str((long) *(uint32*) value, buff, -10);
+      end= int10_to_str((long) *(int32*) value, buff, -10);
       value_charset= system_charset_info;
       break;
 
@@ -3087,7 +3111,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_SYS:          /* Cannot happen */
 
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -3095,7 +3119,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
   /* Some callers do not use the result. */
   if (charset != NULL)
   {
-    DBUG_ASSERT(value_charset != NULL);
+    assert(value_charset != NULL);
     *charset= value_charset;
   }
   return pos;
@@ -3163,6 +3187,19 @@ static bool show_status_array(THD *thd, const char *wild,
       {
         const char *pos;
         size_t length;
+
+        DBUG_EXECUTE_IF("catch_show_gtid_mode", {
+          String gtid_mode;
+          static const char *gm= "gtid\\_mode";
+          unsigned int errors;
+          gtid_mode.copy(gm, strlen(gm), &my_charset_latin1, system_charset_info,
+                         &errors);
+
+          if (!my_strcasecmp(system_charset_info, wild,
+                             gtid_mode.c_ptr_safe())) {
+            DEBUG_SYNC_C("before_show_gtid_executed");
+          }
+        });
 
         mysql_mutex_lock(&LOCK_global_system_variables);
         pos= get_one_variable(thd, var, value_type, show_type, status_var,
@@ -4171,7 +4208,27 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
       }
     }
     else
-    {    
+    {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      if (!(thd->col_access & TABLE_ACLS))
+      {
+        TABLE_LIST table_list;
+
+        /*
+          Database name and table name have already been converted to lowercase
+          if lower_case_table_names is > 0. We can safely use lookup_field_vals
+          here.
+        */
+        table_list.db= db_name->str;
+        table_list.db_length= db_name->length;
+        table_list.table_name_length= lookup_field_vals->table_value.length;
+        table_list.table_name= lookup_field_vals->table_value.str;
+        table_list.grant.privilege=thd->col_access;
+
+        if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
+         return 2;
+      }
+#endif
       if (table_names->push_back(&lookup_field_vals->table_value))
         return 1;
       /*
@@ -4412,7 +4469,7 @@ end:
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.free_list == NULL);
+  assert(i_s_arena.free_list == NULL);
   thd->free_items();
 
   /*
@@ -4483,7 +4540,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
                                system_charset_info);
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
       }
     if (thd->is_error() &&
         thd->get_stmt_da()->mysql_errno() == ER_NO_SUCH_TABLE)
@@ -4732,7 +4789,7 @@ public:
   {
     mysql_mutex_lock(&thd->LOCK_temporary_tables);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     const char* tmp_proc_info= thd->proc_info;
     if (tmp_proc_info &&
         !strncmp(tmp_proc_info,
@@ -4917,8 +4974,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   size_t key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
-  DBUG_ASSERT(db_name->length <= NAME_LEN);
-  DBUG_ASSERT(table_name->length <= NAME_LEN);
+  assert(db_name->length <= NAME_LEN);
+  assert(table_name->length <= NAME_LEN);
 
   if (lower_case_table_names)
   {
@@ -4962,7 +5019,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       lock and deadlocks can occur due to waiting for it to go away.
       So instead of waiting skip this table with an appropriate warning.
     */
-    DBUG_ASSERT(can_deadlock);
+    assert(can_deadlock);
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_I_S_SKIPPED_TABLE,
@@ -5113,7 +5170,7 @@ end:
     We don't have any tables open since we took backup, so rolling back to
     savepoint is safe.
   */
-  DBUG_ASSERT(thd->open_tables == NULL);
+  assert(thd->open_tables == NULL);
   thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
   thd->clear_error();
   return res;
@@ -5316,7 +5373,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
   {
-    DBUG_ASSERT(db_name->length <= NAME_LEN);
+    assert(db_name->length <= NAME_LEN);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!(check_access(thd, SELECT_ACL, db_name->str,
                        &thd->col_access, NULL, 0, 1) ||
@@ -5338,7 +5395,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       List_iterator_fast<LEX_STRING> it_files(table_names);
       while ((table_name= it_files++))
       {
-        DBUG_ASSERT(table_name->length <= NAME_LEN);
+        assert(table_name->length <= NAME_LEN);
 	restore_record(table, s->default_values);
         table->field[schema_table->idx_field1]->
           store(db_name->str, db_name->length, system_charset_info);
@@ -5509,7 +5566,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
   List_iterator_fast<LEX_STRING> it(db_names);
   while ((db_name=it++))
   {
-    DBUG_ASSERT(db_name->length <= NAME_LEN);
+    assert(db_name->length <= NAME_LEN);
     if (with_i_schema)       // information schema name is always first in list
     {
       if (store_schema_shemata(thd, table, db_name,
@@ -6819,8 +6876,8 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
         else
           table->field[14]->store("", 0, cs);
         table->field[14]->set_notnull();
-        DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
-                   (key_info->comment.length > 0));
+        assert(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
+               (key_info->comment.length > 0));
         if (key_info->flags & HA_USES_COMMENT)
           table->field[15]->store(key_info->comment.str, 
                                   key_info->comment.length, cs);
@@ -7566,7 +7623,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       DBUG_RETURN(1);
     }
@@ -7863,7 +7920,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
       sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("DISABLED"), scs);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   sch_table->field[ISE_ORIGINATOR]->store(et.originator, TRUE);
 
@@ -7876,11 +7933,11 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
                                 store(STRING_WITH_LEN("PRESERVE"), scs);
     
   number_to_datetime(et.created, &time, 0, &not_used);
-  DBUG_ASSERT(not_used==0);
+  assert(not_used==0);
   sch_table->field[ISE_CREATED]->store_time(&time);
 
   number_to_datetime(et.modified, &time, 0, &not_used);
-  DBUG_ASSERT(not_used==0);
+  assert(not_used==0);
   sch_table->field[ISE_LAST_ALTERED]->store_time(&time);
 
   if (et.last_executed)
@@ -8009,7 +8066,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   }
   else
   {
-    DBUG_ASSERT(schema_table_idx == SCH_SESSION_VARIABLES);
+    assert(schema_table_idx == SCH_SESSION_VARIABLES);
     option_type= OPT_SESSION;
   }
 
@@ -8107,7 +8164,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   }
   else
   {
-    DBUG_ASSERT(schema_table_idx == SCH_SESSION_STATUS);
+    assert(schema_table_idx == SCH_SESSION_STATUS);
     option_type= OPT_SESSION;
     status_var_ptr= &thd->status_var;
   }
@@ -8413,7 +8470,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       break;
     default:
       /* Don't let unimplemented types pass through. Could be a grave error. */
-      DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING);
+      assert(fields_info->field_type == MYSQL_TYPE_STRING);
 
       if (!(item= new Item_empty_string("", fields_info->field_length, cs)))
       {
@@ -8847,7 +8904,7 @@ static bool do_fill_table(THD *thd,
     QEP_TAB::sort_table() (=filesort, for ORDER BY), so we can trust
     that condition() is complete, has not been zeroed by filesort:
   */
-  DBUG_ASSERT(qep_tab->condition() == qep_tab->condition_optim());
+  assert(qep_tab->condition() == qep_tab->condition_optim());
 
   bool res= table_list->schema_table->fill_table(
     thd, table_list, qep_tab->condition());
@@ -9018,6 +9075,9 @@ int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond)
   struct run_hton_fill_schema_table_args args;
   args.tables= tables;
   args.cond= cond;
+
+  if (check_global_access(thd, PROCESS_ACL))
+    DBUG_RETURN(1);
 
   plugin_foreach(thd, run_hton_fill_schema_table,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &args);

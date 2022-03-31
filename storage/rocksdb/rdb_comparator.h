@@ -25,6 +25,7 @@
 #include "rocksdb/comparator.h"
 
 /* MyRocks header files */
+#include "./rdb_global.h"
 #include "./rdb_utils.h"
 
 namespace myrocks {
@@ -36,7 +37,7 @@ namespace myrocks {
    Rdb_key_def)
 */
 class Rdb_pk_comparator : public rocksdb::Comparator {
-public:
+ public:
   Rdb_pk_comparator(const Rdb_pk_comparator &) = delete;
   Rdb_pk_comparator &operator=(const Rdb_pk_comparator &) = delete;
   Rdb_pk_comparator() = default;
@@ -63,7 +64,7 @@ public:
 };
 
 class Rdb_rev_comparator : public rocksdb::Comparator {
-public:
+ public:
   Rdb_rev_comparator(const Rdb_rev_comparator &) = delete;
   Rdb_rev_comparator &operator=(const Rdb_rev_comparator &) = delete;
   Rdb_rev_comparator() = default;
@@ -82,4 +83,4 @@ public:
   }
 };
 
-} // namespace myrocks
+}  // namespace myrocks

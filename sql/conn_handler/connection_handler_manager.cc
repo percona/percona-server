@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,7 +197,7 @@ bool Connection_handler_manager::init()
     connection_handler= new (std::nothrow) Thread_pool_connection_handler();
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   Connection_handler *extra_connection_handler=
@@ -279,8 +279,8 @@ void Connection_handler_manager::load_connection_handler(
                                 Connection_handler* conn_handler)
 {
   // We don't support loading more than one dynamic connection handler
-  DBUG_ASSERT(Connection_handler_manager::thread_handling !=
-              SCHEDULER_TYPES_COUNT);
+  assert(Connection_handler_manager::thread_handling !=
+         SCHEDULER_TYPES_COUNT);
   m_saved_connection_handler= m_connection_handler;
   m_saved_thread_handling= Connection_handler_manager::thread_handling;
   m_connection_handler= conn_handler;
@@ -291,7 +291,7 @@ void Connection_handler_manager::load_connection_handler(
 
 bool Connection_handler_manager::unload_connection_handler()
 {
-  DBUG_ASSERT(m_saved_connection_handler != NULL);
+  assert(m_saved_connection_handler != NULL);
   if (m_saved_connection_handler == NULL)
     return true;
   delete m_connection_handler;
@@ -359,7 +359,7 @@ extern "C"
 int my_connection_handler_set(Connection_handler_functions *chf,
                               THD_event_functions *tef)
 {
-  DBUG_ASSERT(chf != NULL && tef != NULL);
+  assert(chf != NULL && tef != NULL);
   if (chf == NULL || tef == NULL)
     return 1;
 

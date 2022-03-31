@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -142,15 +142,30 @@ ENDFUNCTION()
 FIND_PACKAGE (Threads)
 
 IF(UNIX)
-  MY_SEARCH_LIBS(floor m LIBM)
+  IF(NOT LIBM)
+    MY_SEARCH_LIBS(floor m LIBM)
+  ENDIF()
   IF(NOT LIBM)
     MY_SEARCH_LIBS(__infinity m LIBM)
   ENDIF()
   MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNSL)
   MY_SEARCH_LIBS(bind "bind;socket" LIBBIND)
+  # Feature test broken with -fsanitize=address, look for lib first.
+  IF(CMAKE_C_FLAGS MATCHES "-fsanitize=")
+    CHECK_LIBRARY_EXISTS(crypt crypt "" HAVE_crypt_IN_crypt)
+    # If found, do not look in libc.
+    IF(HAVE_crypt_IN_crypt)
+      SET(LIBCRYPT crypt)
+      SET(${LIBCRYPT} 1)
+    ENDIF()
+  ENDIF()
   MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
   MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
   MY_SEARCH_LIBS(dlopen dl LIBDL)
+  # HAVE_dlopen_IN_LIBC
+  IF(NOT LIBDL)
+    MY_SEARCH_LIBS(dlsym dl LIBDL)
+  ENDIF()
   MY_SEARCH_LIBS(sched_yield rt LIBRT)
   IF(NOT LIBRT)
     MY_SEARCH_LIBS(clock_gettime rt LIBRT)
@@ -233,7 +248,6 @@ CHECK_INCLUDE_FILES (netinet/in.h HAVE_NETINET_IN_H)
 CHECK_INCLUDE_FILES (poll.h HAVE_POLL_H)
 CHECK_INCLUDE_FILES (pwd.h HAVE_PWD_H)
 CHECK_INCLUDE_FILES (strings.h HAVE_STRINGS_H) # Used by NDB
-CHECK_INCLUDE_FILES (sys/cdefs.h HAVE_SYS_CDEFS_H) # Used by libedit
 CHECK_INCLUDE_FILES (sys/ioctl.h HAVE_SYS_IOCTL_H)
 CHECK_INCLUDE_FILES (sys/mman.h HAVE_SYS_MMAN_H)
 CHECK_INCLUDE_FILES (sys/resource.h HAVE_SYS_RESOURCE_H)
@@ -247,8 +261,6 @@ CHECK_INCLUDE_FILES (sys/wait.h HAVE_SYS_WAIT_H)
 CHECK_INCLUDE_FILES (sys/param.h HAVE_SYS_PARAM_H) # Used by NDB/libevent
 CHECK_INCLUDE_FILES (fnmatch.h HAVE_FNMATCH_H)
 CHECK_INCLUDE_FILES (sys/un.h HAVE_SYS_UN_H)
-CHECK_INCLUDE_FILES (vis.h HAVE_VIS_H) # Used by libedit
-CHECK_INCLUDE_FILES (sasl/sasl.h HAVE_SASL_SASL_H) # Used by memcached
 
 # For libevent
 CHECK_INCLUDE_FILES(sys/devpoll.h HAVE_DEVPOLL)
@@ -364,6 +376,7 @@ CHECK_SYMBOL_EXISTS(SIGEV_THREAD_ID "signal.h;time.h" HAVE_SIGEV_THREAD_ID)
 CHECK_SYMBOL_EXISTS(SIGEV_PORT "signal.h;time.h;sys/siginfo.h" HAVE_SIGEV_PORT)
 
 CHECK_SYMBOL_EXISTS(log2  math.h HAVE_LOG2)
+CHECK_SYMBOL_EXISTS(MADV_DONTDUMP "sys/mman.h" HAVE_MADV_DONTDUMP)
 
 # On Solaris, it is only visible in C99 mode
 CHECK_SYMBOL_EXISTS(isinf "math.h" HAVE_C_ISINF)
@@ -411,9 +424,16 @@ TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 #
 INCLUDE (CheckTypeSize)
 
-set(CMAKE_REQUIRED_DEFINITIONS ${CMAKE_REQUIRED_DEFINITIONS}
-        -D_LARGEFILE_SOURCE -D_LARGE_FILES -D_FILE_OFFSET_BITS=64
-        -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS)
+LIST(APPEND CMAKE_REQUIRED_DEFINITIONS
+  -D_LARGEFILE_SOURCE -D_LARGE_FILES -D_FILE_OFFSET_BITS=64
+  -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS
+  )
+
+IF(SOLARIS)
+  LIST(APPEND CMAKE_REQUIRED_DEFINITIONS
+    -D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT -D_PTHREADS
+    )
+ENDIF()
 
 SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h stdio.h sys/types.h time.h)
 

@@ -58,7 +58,7 @@ void Binlog_crypt_data::free_key(uchar *&key, size_t &key_length)
 {
   if (key != NULL)
   {
-    DBUG_ASSERT(key_length == 16);
+    assert(key_length == 16);
     memset_s(key, 512, 0, key_length);
     my_free(key);
     key= NULL;
@@ -99,7 +99,7 @@ bool Binlog_crypt_data::load_latest_binlog_key()
         system_key == NULL)))
          return true;
 
-  DBUG_ASSERT(strncmp(system_key_type, "AES", 3) == 0);
+  assert(strncmp(system_key_type, "AES", 3) == 0);
   my_free(system_key_type);
 
   error= (parse_system_key(system_key, system_key_len, &key_version, &key, &key_length) == reinterpret_cast<uchar*>(NullS));
@@ -112,8 +112,8 @@ bool Binlog_crypt_data::init_with_loaded_key(uint sch, const uchar* nonce)
 {
   scheme= sch;
 #ifdef MYSQL_SERVER
-  DBUG_ASSERT(key != NULL);
-  DBUG_ASSERT(nonce != NULL);
+  assert(key != NULL);
+  assert(nonce != NULL);
   memcpy(this->nonce, nonce, BINLOG_NONCE_LENGTH);
 #endif
   enabled= true;
@@ -131,7 +131,7 @@ bool Binlog_crypt_data::init(uint sch, uint kv, const uchar* nonce)
                    reinterpret_cast<void**>(&key), &key_length) ||
       key == NULL)
     return true;
-  DBUG_ASSERT(strncmp(key_type, "AES", 3) == 0);
+  assert(strncmp(key_type, "AES", 3) == 0);
   my_free(key_type);
 
   if(init_with_loaded_key(sch, nonce))
@@ -145,8 +145,8 @@ bool Binlog_crypt_data::init(uint sch, uint kv, const uchar* nonce)
 
 void Binlog_crypt_data::set_iv(uchar* iv, uint32 offs) const
 {
-  DBUG_ASSERT(key != NULL);
-  DBUG_ASSERT(key_length == 16);
+  assert(key != NULL);
+  assert(key_length == 16);
 
   uchar iv_plain[BINLOG_IV_LENGTH];
   memcpy(iv_plain, nonce, BINLOG_NONCE_LENGTH);

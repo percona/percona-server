@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   }
   else
   {
-    DBUG_ASSERT(keypart_map);
+    assert(keypart_map);
     /* Save the packed key for later use in the second buffer of lastkey. */
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length=_mi_pack_key(info,(uint) inx, key_buff, (uchar*) key,
@@ -191,7 +191,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     info->last_rkey_length= pack_key_length;
 
   /* Next call to mi_rnext_same should set rnext_same_key. */
-    info->set_rnext_same_key= TRUE;
+  info->set_rnext_same_key= TRUE;
 
   /* Check if we don't want to have record back, only error message */
   if (!buf)

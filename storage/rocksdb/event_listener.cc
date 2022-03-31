@@ -27,18 +27,19 @@
 
 /* MyRocks includes */
 #include "./ha_rocksdb.h"
+#include "./ha_rocksdb_proto.h"
 #include "./properties_collector.h"
 #include "./rdb_datadic.h"
 
 namespace myrocks {
 
-static std::vector<Rdb_index_stats>
-extract_index_stats(const std::vector<std::string> &files,
-                    const rocksdb::TablePropertiesCollection &props) {
+static std::vector<Rdb_index_stats> extract_index_stats(
+    const std::vector<std::string> &files,
+    const rocksdb::TablePropertiesCollection &props) {
   std::vector<Rdb_index_stats> ret;
-  for (auto fn : files) {
+  for (const auto &fn : files) {
     const auto it = props.find(fn);
-    DBUG_ASSERT(it != props.end());
+    assert(it != props.end());
     std::vector<Rdb_index_stats> stats;
     Rdb_tbl_prop_coll::read_stats_from_tbl_props(it->second, &stats);
     ret.insert(ret.end(), stats.begin(), stats.end());
@@ -48,20 +49,39 @@ extract_index_stats(const std::vector<std::string> &files,
 
 void Rdb_event_listener::update_index_stats(
     const rocksdb::TableProperties &props) {
-  DBUG_ASSERT(m_ddl_manager != nullptr);
+  assert(m_ddl_manager != nullptr);
   const auto tbl_props =
       std::make_shared<const rocksdb::TableProperties>(props);
 
   std::vector<Rdb_index_stats> stats;
   Rdb_tbl_prop_coll::read_stats_from_tbl_props(tbl_props, &stats);
 
+  // In the new approach cardinality and non-cardinality stats
+  // for a table are calculated at the same time. That is,
+  // when the table has been modified significantly. This way,
+  // cardinality and non-cardinality stats are consistent.
+  //
+  // It can happen that some non-cardinality stats may change after
+  // a compaction without significant updates to the table.
+  // So the cached values are not up-to-date.
+  //
+  // This lag is acceptable now and we will change when it becomes
+  // an issue.
+  if (rdb_is_table_scan_index_stats_calculation_enabled()) {
+    return;
+  }
+
   m_ddl_manager->adjust_stats(stats);
 }
 
 void Rdb_event_listener::OnCompactionCompleted(
     rocksdb::DB *db, const rocksdb::CompactionJobInfo &ci) {
-  DBUG_ASSERT(db != nullptr);
-  DBUG_ASSERT(m_ddl_manager != nullptr);
+  assert(db != nullptr);
+  assert(m_ddl_manager != nullptr);
+
+  if (rdb_is_table_scan_index_stats_calculation_enabled()) {
+    return;
+  }
 
   if (ci.status.ok()) {
     m_ddl_manager->adjust_stats(
@@ -72,23 +92,24 @@ void Rdb_event_listener::OnCompactionCompleted(
 
 void Rdb_event_listener::OnFlushCompleted(
     rocksdb::DB *db, const rocksdb::FlushJobInfo &flush_job_info) {
-  DBUG_ASSERT(db != nullptr);
+  assert(db != nullptr);
   update_index_stats(flush_job_info.table_properties);
 }
 
 void Rdb_event_listener::OnExternalFileIngested(
     rocksdb::DB *db, const rocksdb::ExternalFileIngestionInfo &info) {
-  DBUG_ASSERT(db != nullptr);
+  assert(db != nullptr);
   update_index_stats(info.table_properties);
 }
 
 void Rdb_event_listener::OnBackgroundError(
     rocksdb::BackgroundErrorReason reason, rocksdb::Status *status) {
   rdb_log_status_error(*status, "Error detected in background");
+  // NO_LINT_DEBUG
   sql_print_error("RocksDB: BackgroundErrorReason: %d", (int)reason);
   if (status->IsCorruption()) {
     rdb_persist_corruption_marker();
     abort();
   }
 }
-} // namespace myrocks
+}  // namespace myrocks

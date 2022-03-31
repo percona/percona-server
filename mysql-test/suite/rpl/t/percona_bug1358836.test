@@ -5,6 +5,8 @@
 
 --source include/master-slave.inc
 
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+
 CREATE TABLE t1 (
   a int(11) DEFAULT NULL
 ) DEFAULT CHARSET=latin1;

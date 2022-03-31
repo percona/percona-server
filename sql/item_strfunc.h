@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,11 +236,11 @@ class Item_func_concat :public Item_str_func
   String tmp_value;
 public:
   Item_func_concat(const POS &pos, PT_item_list *opt_list)
-    :Item_str_func(pos, opt_list)
-  {}
-
-  Item_func_concat(Item *a,Item *b) :Item_str_func(a,b) {}
-  Item_func_concat(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
+      : Item_str_func(pos, opt_list), tmp_value("", 0, collation.collation) {}
+  Item_func_concat(Item *a, Item *b)
+      : Item_str_func(a, b), tmp_value("", 0, collation.collation) {}
+  Item_func_concat(const POS &pos, Item *a, Item *b)
+      : Item_str_func(pos, a, b), tmp_value("", 0, collation.collation) {}
 
   String *val_str(String *);
   void fix_length_and_dec();
@@ -251,10 +251,11 @@ class Item_func_concat_ws :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_concat_ws(List<Item> &list) :Item_str_func(list) {}
+  Item_func_concat_ws(List<Item> &list)
+      : Item_str_func(list), tmp_value("", 0, collation.collation) {}
   Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
-    :Item_str_func(pos, opt_list)
-  {}
+      : Item_str_func(pos, opt_list), tmp_value("", 0, collation.collation) {}
+
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat_ws"; }
@@ -669,7 +670,7 @@ public:
 
   String *val_str(String *)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (null_value ? 0 : &str_value);
   }
   bool fix_fields(THD *thd, Item **ref);
@@ -817,7 +818,7 @@ public:
   String *val_str(String *str);
   bool fix_fields(THD *thd, Item **ref)
   {
-    DBUG_ASSERT(fixed == 0);
+    assert(fixed == 0);
     bool res= ((!item->fixed && item->fix_fields(thd, &item)) ||
                item->check_cols(1) ||
                Item_func::fix_fields(thd, ref));
@@ -982,7 +983,7 @@ public:
 };
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 class Item_func_like_range :public Item_str_func
 {
 protected:
@@ -1052,7 +1053,7 @@ public:
   Item_func_binary(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *a)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
     if (tmp)
@@ -1139,7 +1140,7 @@ public:
   Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
   {
-    DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
+    assert(is_fixed_or_outer_ref(args[0]));
 
     conv_charset= cs;
     if (cache_if_const && args[0]->const_item())

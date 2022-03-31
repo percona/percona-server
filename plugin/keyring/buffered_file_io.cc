@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,12 +108,19 @@ my_bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created()
   File file= file_io.open(keyring_file_data_key, this->keyring_filename.c_str(),
                           file_exist && keyring_open_mode ? O_RDONLY :
                           O_RDWR | O_CREAT, MYF(MY_WME));
-  if (file < 0 ||
-      file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+  if (file < 0) return TRUE;
+  if (file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+  {
+    file_io.close(file, MYF(MY_WME));
     return TRUE;
+  }
   my_off_t file_size= file_io.tell(file, MYF(MY_WME));
-  if ((file_size == ((my_off_t) - 1)) || file_io.close(file, MYF(MY_WME)) < 0)
+  if (file_size == ((my_off_t) - 1))
+  {
+    file_io.close(file, MYF(MY_WME));
     return TRUE;
+  }
+  if (file_io.close(file, MYF(MY_WME)) < 0) return TRUE;
   if (file_size == 0 && file_io.remove(this->keyring_filename.c_str(), MYF(MY_WME))) //remove empty file
     return TRUE;
   return FALSE;
@@ -198,21 +205,28 @@ my_bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
                                   O_RDWR | O_CREAT, MYF(MY_WME));
 
   if (keyring_file < 0 ||
-      flush_buffer_to_storage(&buffer, keyring_file) ||
-      file_io.close(backup_file, MYF(MY_WME)) < 0 ||
-      file_io.close(keyring_file, MYF(MY_WME)) < 0)
-
+      flush_buffer_to_storage(&buffer, keyring_file))
   {
+    file_io.close(backup_file, MYF(MY_WME));
+    file_io.close(keyring_file, MYF(MY_WME));
     logger->log(MY_ERROR_LEVEL, "Error while restoring keyring from backup file"
                                 " cannot overwrite keyring with backup");
     return TRUE;
   }
+
+  if (file_io.close(backup_file, MYF(MY_WME)) < 0)
+  {
+    file_io.close(keyring_file, MYF(MY_WME));
+    return TRUE;
+  }
+  if (file_io.close(keyring_file, MYF(MY_WME)) < 0) return TRUE;
+
   return remove_backup(MYF(MY_WME));
 }
 
-my_bool Buffered_file_io::init(std::string *keyring_filename)
+my_bool Buffered_file_io::init(const std::string *keyring_filename)
 {
-  DBUG_ASSERT(keyring_filename->empty() == FALSE);
+  assert(keyring_filename->empty() == FALSE);
 #ifdef HAVE_PSI_INTERFACE
   keyring_init_psi_file_keys();
 #endif
@@ -224,8 +238,14 @@ my_bool Buffered_file_io::init(std::string *keyring_filename)
                                    this->keyring_filename.c_str(), O_RDONLY,
                                    MYF(0));
 
-  return (keyring_file >= 0 && (read_keyring_stat(keyring_file) ||
-          file_io.close(keyring_file, MYF(MY_WME)) < 0));
+  my_bool status = FALSE;
+  if (keyring_file >= 0)
+  {
+    status = read_keyring_stat(keyring_file);
+    if (file_io.close(keyring_file, MYF(MY_WME)) < 0) return TRUE;
+  }
+
+  return status;
 }
 
 my_bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
@@ -273,10 +293,12 @@ my_bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
   }
 
   Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
-  DBUG_ASSERT(buffer != NULL);
-  return buffer == NULL ||
-         flush_buffer_to_file(buffer, backup_file) ||
-         file_io.close(backup_file, MYF(MY_WME)) < 0;
+  assert(buffer != NULL);
+  my_bool status = (buffer == NULL || flush_buffer_to_file(buffer, backup_file));
+
+  if (file_io.close(backup_file, MYF(MY_WME)) < 0) return TRUE;
+
+  return status;
 }
 
 my_bool Buffered_file_io::remove_backup(myf myFlags)
@@ -303,8 +325,8 @@ my_bool Buffered_file_io::read_keyring_stat(File file)
 my_bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object)
 {
   Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
-  DBUG_ASSERT(buffer != NULL);
-  DBUG_ASSERT(serialized_object->get_key_operation() != NONE);
+  assert(buffer != NULL);
+  assert(serialized_object->get_key_operation() != NONE);
 
   File keyring_file= file_io.open(keyring_file_data_key,
                                   this->keyring_filename.c_str(), O_CREAT | O_RDWR,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,7 @@ void Per_thread_connection_handler::init()
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache);
   waiting_channel_info_list= new (std::nothrow) std::list<Channel_info*>;
-  DBUG_ASSERT(waiting_channel_info_list != NULL);
+  assert(waiting_channel_info_list != NULL);
 }
 
 
@@ -145,7 +145,7 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
       before picking another session in the thread cache.
     */
     DBUG_POP();
-    DBUG_ASSERT( ! _db_is_pushed_());
+    assert( ! _db_is_pushed_());
 
     // Block pthread
     blocked_pthread_count++;
@@ -166,7 +166,7 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
       }
       else
       {
-        DBUG_ASSERT(0);
+        assert(0);
       }
     }
   }
@@ -284,7 +284,7 @@ extern "C" void *handle_connection(void *arg)
                     {
                       const char act[]=
                         "now signal thread_setup";
-                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                      assert(!debug_sync_set_action(thd,
                                                          STRING_WITH_LEN(act)));
                     };);
 
@@ -430,9 +430,9 @@ bool Per_thread_connection_handler::add_connection(Channel_info* channel_info)
                              &connection_attrib,
                              handle_connection,
                              (void*) channel_info);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 handle_error:
-#endif // !DBUG_OFF
+#endif // !NDEBUG
 
   if (error)
   {

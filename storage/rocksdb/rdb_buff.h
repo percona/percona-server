@@ -20,6 +20,17 @@
 #include <string>
 #include <vector>
 
+/* MySQL header files */
+#include "my_global.h"
+
+/* MyRocks header files */
+#include "./rdb_global.h"
+#include "./rdb_utils.h"
+
+/* RocksDB header files */
+#include "rocksdb/slice.h"
+#include "rocksdb/status.h"
+
 namespace myrocks {
 
 /*
@@ -28,8 +39,8 @@ namespace myrocks {
 */
 
 inline void rdb_netstr_append_uint64(my_core::String *const out_netstr,
-                                     const uint64 &val) {
-  DBUG_ASSERT(out_netstr != nullptr);
+                                     const uint64 val) {
+  assert(out_netstr != nullptr);
 
   // Convert from host machine byte order (usually Little Endian) to network
   // byte order (Big Endian).
@@ -38,8 +49,8 @@ inline void rdb_netstr_append_uint64(my_core::String *const out_netstr,
 }
 
 inline void rdb_netstr_append_uint32(my_core::String *const out_netstr,
-                                     const uint32 &val) {
-  DBUG_ASSERT(out_netstr != nullptr);
+                                     const uint32 val) {
+  assert(out_netstr != nullptr);
 
   // Convert from host machine byte order (usually Little Endian) to network
   // byte order (Big Endian).
@@ -48,8 +59,8 @@ inline void rdb_netstr_append_uint32(my_core::String *const out_netstr,
 }
 
 inline void rdb_netstr_append_uint16(my_core::String *const out_netstr,
-                                     const uint16 &val) {
-  DBUG_ASSERT(out_netstr != nullptr);
+                                     const uint16 val) {
+  assert(out_netstr != nullptr);
 
   // Convert from host machine byte order (usually Little Endian) to network
   // byte order (Big Endian).
@@ -61,8 +72,8 @@ inline void rdb_netstr_append_uint16(my_core::String *const out_netstr,
   Basic network buffer ("netbuf") write helper functions.
 */
 
-inline void rdb_netbuf_store_uint64(uchar *const dst_netbuf, const uint64 &n) {
-  DBUG_ASSERT(dst_netbuf != nullptr);
+inline void rdb_netbuf_store_uint64(uchar *const dst_netbuf, const uint64 n) {
+  assert(dst_netbuf != nullptr);
 
   // Convert from host byte order (usually Little Endian) to network byte order
   // (Big Endian).
@@ -70,8 +81,8 @@ inline void rdb_netbuf_store_uint64(uchar *const dst_netbuf, const uint64 &n) {
   memcpy(dst_netbuf, &net_val, sizeof(net_val));
 }
 
-inline void rdb_netbuf_store_uint32(uchar *const dst_netbuf, const uint32 &n) {
-  DBUG_ASSERT(dst_netbuf != nullptr);
+inline void rdb_netbuf_store_uint32(uchar *const dst_netbuf, const uint32 n) {
+  assert(dst_netbuf != nullptr);
 
   // Convert from host byte order (usually Little Endian) to network byte order
   // (Big Endian).
@@ -79,8 +90,8 @@ inline void rdb_netbuf_store_uint32(uchar *const dst_netbuf, const uint32 &n) {
   memcpy(dst_netbuf, &net_val, sizeof(net_val));
 }
 
-inline void rdb_netbuf_store_uint16(uchar *const dst_netbuf, const uint16 &n) {
-  DBUG_ASSERT(dst_netbuf != nullptr);
+inline void rdb_netbuf_store_uint16(uchar *const dst_netbuf, const uint16 n) {
+  assert(dst_netbuf != nullptr);
 
   // Convert from host byte order (usually Little Endian) to network byte order
   // (Big Endian).
@@ -88,15 +99,15 @@ inline void rdb_netbuf_store_uint16(uchar *const dst_netbuf, const uint16 &n) {
   memcpy(dst_netbuf, &net_val, sizeof(net_val));
 }
 
-inline void rdb_netbuf_store_byte(uchar *const dst_netbuf, const uchar &c) {
-  DBUG_ASSERT(dst_netbuf != nullptr);
+inline void rdb_netbuf_store_byte(uchar *const dst_netbuf, const uchar c) {
+  assert(dst_netbuf != nullptr);
 
   *dst_netbuf = c;
 }
 
 inline void rdb_netbuf_store_index(uchar *const dst_netbuf,
-                                   const uint32 &number) {
-  DBUG_ASSERT(dst_netbuf != nullptr);
+                                   const uint32 number) {
+  assert(dst_netbuf != nullptr);
 
   rdb_netbuf_store_uint32(dst_netbuf, number);
 }
@@ -107,7 +118,7 @@ inline void rdb_netbuf_store_index(uchar *const dst_netbuf,
 */
 
 inline uint64 rdb_netbuf_to_uint64(const uchar *const netbuf) {
-  DBUG_ASSERT(netbuf != nullptr);
+  assert(netbuf != nullptr);
 
   uint64 net_val;
   memcpy(&net_val, netbuf, sizeof(net_val));
@@ -118,7 +129,7 @@ inline uint64 rdb_netbuf_to_uint64(const uchar *const netbuf) {
 }
 
 inline uint32 rdb_netbuf_to_uint32(const uchar *const netbuf) {
-  DBUG_ASSERT(netbuf != nullptr);
+  assert(netbuf != nullptr);
 
   uint32 net_val;
   memcpy(&net_val, netbuf, sizeof(net_val));
@@ -129,7 +140,7 @@ inline uint32 rdb_netbuf_to_uint32(const uchar *const netbuf) {
 }
 
 inline uint16 rdb_netbuf_to_uint16(const uchar *const netbuf) {
-  DBUG_ASSERT(netbuf != nullptr);
+  assert(netbuf != nullptr);
 
   uint16 net_val;
   memcpy(&net_val, netbuf, sizeof(net_val));
@@ -140,7 +151,7 @@ inline uint16 rdb_netbuf_to_uint16(const uchar *const netbuf) {
 }
 
 inline uchar rdb_netbuf_to_byte(const uchar *const netbuf) {
-  DBUG_ASSERT(netbuf != nullptr);
+  assert(netbuf != nullptr);
 
   return (uchar)netbuf[0];
 }
@@ -153,7 +164,7 @@ inline uchar rdb_netbuf_to_byte(const uchar *const netbuf) {
 */
 
 inline uint64 rdb_netbuf_read_uint64(const uchar **netbuf_ptr) {
-  DBUG_ASSERT(netbuf_ptr != nullptr);
+  assert(netbuf_ptr != nullptr);
 
   // Convert from network byte order (Big Endian) to host machine byte order
   // (usually Little Endian).
@@ -166,7 +177,7 @@ inline uint64 rdb_netbuf_read_uint64(const uchar **netbuf_ptr) {
 }
 
 inline uint32 rdb_netbuf_read_uint32(const uchar **netbuf_ptr) {
-  DBUG_ASSERT(netbuf_ptr != nullptr);
+  assert(netbuf_ptr != nullptr);
 
   // Convert from network byte order (Big Endian) to host machine byte order
   // (usually Little Endian).
@@ -179,7 +190,7 @@ inline uint32 rdb_netbuf_read_uint32(const uchar **netbuf_ptr) {
 }
 
 inline uint16 rdb_netbuf_read_uint16(const uchar **netbuf_ptr) {
-  DBUG_ASSERT(netbuf_ptr != nullptr);
+  assert(netbuf_ptr != nullptr);
 
   // Convert from network byte order (Big Endian) to host machine byte order
   // (usually Little Endian).
@@ -193,8 +204,8 @@ inline uint16 rdb_netbuf_read_uint16(const uchar **netbuf_ptr) {
 
 inline void rdb_netbuf_read_gl_index(const uchar **netbuf_ptr,
                                      GL_INDEX_ID *const gl_index_id) {
-  DBUG_ASSERT(gl_index_id != nullptr);
-  DBUG_ASSERT(netbuf_ptr != nullptr);
+  assert(gl_index_id != nullptr);
+  assert(netbuf_ptr != nullptr);
 
   gl_index_id->cf_id = rdb_netbuf_read_uint32(netbuf_ptr);
   gl_index_id->index_id = rdb_netbuf_read_uint32(netbuf_ptr);
@@ -210,10 +221,10 @@ class Rdb_string_reader {
   const char *m_ptr;
   uint m_len;
 
-private:
+ private:
   Rdb_string_reader &operator=(const Rdb_string_reader &) = default;
 
-public:
+ public:
   Rdb_string_reader(const Rdb_string_reader &) = default;
   /* named constructor */
   static Rdb_string_reader read_or_empty(const rocksdb::Slice *const slice) {
@@ -248,7 +259,7 @@ public:
     Read the next @param size bytes. Returns pointer to the bytes read, or
     nullptr if the remaining string doesn't have that many bytes.
   */
-  const char *read(const uint &size) {
+  const char *read(const uint size) {
     const char *res;
     if (m_len < size) {
       res = nullptr;
@@ -262,21 +273,21 @@ public:
 
   bool read_uint8(uint *const res) {
     const uchar *p;
-    if (!(p = reinterpret_cast<const uchar *>(read(1))))
-      return true; // error
-    else {
+    if (!(p = reinterpret_cast<const uchar *>(read(1)))) {
+      return true;  // error
+    } else {
       *res = *p;
-      return false; // Ok
+      return false;  // Ok
     }
   }
 
   bool read_uint16(uint *const res) {
     const uchar *p;
-    if (!(p = reinterpret_cast<const uchar *>(read(2))))
-      return true; // error
-    else {
+    if (!(p = reinterpret_cast<const uchar *>(read(2)))) {
+      return true;  // error
+    } else {
       *res = rdb_netbuf_to_uint16(p);
-      return false; // Ok
+      return false;  // Ok
     }
   }
 
@@ -318,56 +329,56 @@ public:
 class Rdb_string_writer {
   std::vector<uchar> m_data;
 
-public:
+ public:
   Rdb_string_writer(const Rdb_string_writer &) = delete;
   Rdb_string_writer &operator=(const Rdb_string_writer &) = delete;
   Rdb_string_writer() = default;
 
   void clear() { m_data.clear(); }
-  void write_uint8(const uint &val) {
+  void write_uint8(const uint val) {
     m_data.push_back(static_cast<uchar>(val));
   }
 
-  void write_uint16(const uint &val) {
+  void write_uint16(const uint val) {
     const auto size = m_data.size();
     m_data.resize(size + 2);
     rdb_netbuf_store_uint16(m_data.data() + size, val);
   }
 
-  void write_uint32(const uint &val) {
+  void write_uint32(const uint val) {
     const auto size = m_data.size();
     m_data.resize(size + 4);
     rdb_netbuf_store_uint32(m_data.data() + size, val);
   }
 
-  void write(const uchar *const new_data, const size_t &len) {
-    DBUG_ASSERT(new_data != nullptr);
+  void write(const uchar *const new_data, const size_t len) {
+    assert(new_data != nullptr);
     m_data.insert(m_data.end(), new_data, new_data + len);
   }
 
   uchar *ptr() { return m_data.data(); }
   size_t get_current_pos() const { return m_data.size(); }
 
-  void write_uint8_at(const size_t &pos, const uint &new_val) {
+  void write_uint8_at(const size_t pos, const uint new_val) {
     // This function will only overwrite what was written
-    DBUG_ASSERT(pos < get_current_pos());
+    assert(pos < get_current_pos());
     m_data.data()[pos] = new_val;
   }
 
-  void write_uint16_at(const size_t &pos, const uint &new_val) {
+  void write_uint16_at(const size_t pos, const uint new_val) {
     // This function will only overwrite what was written
-    DBUG_ASSERT(pos < get_current_pos());
-    DBUG_ASSERT((pos + 1) < get_current_pos());
+    assert(pos < get_current_pos());
+    assert((pos + 1) < get_current_pos());
     rdb_netbuf_store_uint16(m_data.data() + pos, new_val);
   }
 
-  void truncate(const size_t &pos) {
-    DBUG_ASSERT(pos < m_data.size());
+  void truncate(const size_t pos) {
+    assert(pos < m_data.size());
     m_data.resize(pos);
   }
 
-  void allocate(const size_t &len, const uchar &val = 0) {
-    DBUG_ASSERT(len > 0);
+  void allocate(const size_t len, const uchar val = 0) {
+    assert(len > 0);
     m_data.resize(m_data.size() + len, val);
   }
 
@@ -388,15 +399,15 @@ class Rdb_bit_writer {
   Rdb_string_writer *m_writer;
   uchar m_offset;
 
-public:
+ public:
   Rdb_bit_writer(const Rdb_bit_writer &) = delete;
   Rdb_bit_writer &operator=(const Rdb_bit_writer &) = delete;
 
   explicit Rdb_bit_writer(Rdb_string_writer *writer_arg)
       : m_writer(writer_arg), m_offset(0) {}
 
-  void write(uint size, const uint &value) {
-    DBUG_ASSERT((value & ((1 << size) - 1)) == value);
+  void write(uint size, const uint value) {
+    assert((value & ((1 << size) - 1)) == value);
 
     while (size > 0) {
       if (m_offset == 0) {
@@ -420,7 +431,7 @@ class Rdb_bit_reader {
   uint m_ret;
   Rdb_string_reader *const m_reader;
 
-public:
+ public:
   Rdb_bit_reader(const Rdb_bit_reader &) = delete;
   Rdb_bit_reader &operator=(const Rdb_bit_reader &) = delete;
 
@@ -432,7 +443,7 @@ public:
   // on failure.
   uint *read(uint size) {
     m_ret = 0;
-    DBUG_ASSERT(size <= 32);
+    assert(size <= 32);
 
     while (size > 0) {
       if (m_offset == 0) {
@@ -453,4 +464,67 @@ public:
   }
 };
 
-} // namespace myrocks
+template <size_t buf_length>
+class Rdb_buf_writer {
+ public:
+  Rdb_buf_writer(const Rdb_buf_writer &) = delete;
+  Rdb_buf_writer &operator=(const Rdb_buf_writer &) = delete;
+  Rdb_buf_writer() { reset(); }
+
+  void write_uint32(const uint32 n) {
+    assert(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
+    rdb_netbuf_store_uint32(m_ptr, n);
+    m_ptr += sizeof(n);
+  }
+
+  void write_uint64(const uint64 n) {
+    assert(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
+    rdb_netbuf_store_uint64(m_ptr, n);
+    m_ptr += sizeof(n);
+  }
+
+  void write_uint16(const uint16 n) {
+    assert(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
+    rdb_netbuf_store_uint16(m_ptr, n);
+    m_ptr += sizeof(n);
+  }
+
+  void write_byte(const uchar c) {
+    assert(m_ptr + sizeof(c) <= m_buf.data() + buf_length);
+    rdb_netbuf_store_byte(m_ptr, c);
+    m_ptr += sizeof(c);
+  }
+
+  void write_index(const uint32 n) { write_uint32(n); }
+
+  void write(const char *buf, const size_t size) {
+    assert(m_ptr + size <= m_buf.data() + buf_length);
+    memcpy(m_ptr, buf, size);
+    m_ptr += size;
+  }
+
+  void write(const uchar *buf, const size_t size) {
+    assert(m_ptr + size <= m_buf.data() + buf_length);
+    memcpy(m_ptr, buf, size);
+    m_ptr += size;
+  }
+
+  void reset() { m_ptr = m_buf.data(); }
+
+  const char *data() const {
+    return reinterpret_cast<const char *>(m_buf.data());
+  }
+
+  size_t capacity() { return buf_length; }
+
+  /** Returns actual size of the buffer that has data */
+  size_t size() { return m_ptr - m_buf.data(); }
+
+  rocksdb::Slice to_slice() { return rocksdb::Slice(data(), size()); }
+
+ private:
+  std::array<uchar, buf_length> m_buf;
+  uchar *m_ptr;
+};
+
+}  // namespace myrocks

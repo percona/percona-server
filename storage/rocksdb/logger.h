@@ -15,21 +15,21 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #pragma once
 
-#include "log.h"
 #include <sstream>
 #include <string>
+#include "log.h"
 
 namespace myrocks {
 
 class Rdb_logger : public rocksdb::Logger {
-public:
+ public:
   explicit Rdb_logger(const rocksdb::InfoLogLevel log_level =
                           rocksdb::InfoLogLevel::ERROR_LEVEL)
       : m_mysql_log_level(log_level) {}
 
   void Logv(const rocksdb::InfoLogLevel log_level, const char *format,
             va_list ap) override {
-    DBUG_ASSERT(format != nullptr);
+    assert(format != nullptr);
 
     enum loglevel mysql_log_level;
 
@@ -56,7 +56,7 @@ public:
   }
 
   void Logv(const char *format, va_list ap) override {
-    DBUG_ASSERT(format != nullptr);
+    assert(format != nullptr);
     // If no level is specified, it is by default at information level
     Logv(rocksdb::InfoLogLevel::INFO_LEVEL, format, ap);
   }
@@ -77,9 +77,9 @@ public:
     m_mysql_log_level = log_level;
   }
 
-private:
+ private:
   std::shared_ptr<rocksdb::Logger> m_logger;
   rocksdb::InfoLogLevel m_mysql_log_level;
 };
 
-} // namespace myrocks
+}  // namespace myrocks

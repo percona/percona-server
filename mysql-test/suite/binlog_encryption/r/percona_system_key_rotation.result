@@ -1,6 +1,7 @@
 # Check that only percona_binlog and percona_redo key can be rotated 
 # with rotate_system_key. This part of the test needs updating
 # each time a new system key is added.
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
 include/assert.inc [It should not be possible to rotate key percona_binlog:]
 include/assert.inc [It should not be possible to rotate key percona_redo:]
 include/assert.inc [It should not be possible to rotate key percona_key]

@@ -1,10 +1,10 @@
 .. _ps.myrocks.information-schema-table:
 
 ================================================================================
-|myrocks| |information-schema| Tables
+MyRocks |information-schema| Tables
 ================================================================================
 
-When you install the |myrocks| plugin for |MySQL|, the
+When you install the MyRocks plugin for MySQL, the
 |information-schema| is extended to include the following tables:
 
 .. contents::
@@ -54,8 +54,8 @@ ROCKSDB_CFSTATS
 ROCKSDB_TRX
 ================================================================================
 
-This table stores mappings of |rocksdb| transaction identifiers to |MySQL|
-client identifiers to enable associating a |rocksdb| transaction with a |MySQL|
+This table stores mappings of RocksDB transaction identifiers to MySQL
+client identifiers to enable associating a RocksDB transaction with a MySQL
 client operation.
 
 .. rubric:: Columns
@@ -229,7 +229,7 @@ ROCKSDB_INDEX_FILE_MAP
 ROCKSDB_LOCKS
 ================================================================================
 
-This table contains the set of locks granted to |myrocks| transactions.
+This table contains the set of locks granted to MyRocks transactions.
 
 .. rubric:: Columns
 
@@ -318,6 +318,6 @@ This table records information about deadlocks.
    * - ROLLED_BACK
      - bigint(8) 
 
-.. |myrocks| replace:: MyRocks
-.. |rocksdb| replace:: RocksDB
+.. MyRocks replace:: MyRocks
+.. RocksDB replace:: RocksDB
 .. |information-schema| replace:: Information Schema

@@ -280,3 +280,7 @@ and collation for all databases::
    --character-set-server=utf8 \
    --collation-server=utf8_general_ci
 
+.. seealso:: 
+
+    `Docker Hub MySQL <https://hub.docker.com/_/mysql>`__ 
+

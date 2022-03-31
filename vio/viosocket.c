@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event)
 {
   int timeout, ret;
 
-  DBUG_ASSERT(event == VIO_IO_EVENT_READ || event == VIO_IO_EVENT_WRITE);
+  assert(event == VIO_IO_EVENT_READ || event == VIO_IO_EVENT_WRITE);
 
   /* Choose an appropriate timeout. */
   if (event == VIO_IO_EVENT_READ)
@@ -164,7 +164,7 @@ size_t vio_read(Vio *vio, uchar *buf, size_t size)
   DBUG_ENTER("vio_read");
 
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously. */
-  DBUG_ASSERT(vio->read_end == vio->read_pos);
+  assert(vio->read_end == vio->read_pos);
 
   /* If timeout is enabled, do not block if data is unavailable. */
   if (vio->read_timeout >= 0)
@@ -314,8 +314,8 @@ static int vio_set_blocking(Vio *vio, my_bool status)
   DBUG_ENTER("vio_set_blocking");
 
 #ifdef _WIN32
-  DBUG_ASSERT(vio->type != VIO_TYPE_NAMEDPIPE);
-  DBUG_ASSERT(vio->type != VIO_TYPE_SHARED_MEMORY);
+  assert(vio->type != VIO_TYPE_NAMEDPIPE);
+  assert(vio->type != VIO_TYPE_SHARED_MEMORY);
   {
     int ret;
     u_long arg= status ? 0 : 1;
@@ -372,8 +372,8 @@ int vio_socket_timeout(Vio *vio,
 
       Assert that the VIO timeout is either positive or set to infinite.
     */
-    DBUG_ASSERT(which || vio->read_timeout);
-    DBUG_ASSERT(!which || vio->write_timeout);
+    assert(which || vio->read_timeout);
+    assert(!which || vio->write_timeout);
 
     if (which)
     {
@@ -536,11 +536,11 @@ int vio_cancel(Vio * vio, int how)
 
   if (vio->inactive == FALSE)
   {
-    DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
+    assert(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
       vio->type == VIO_TYPE_SSL);
 
-    DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
+    assert(mysql_socket_getfd(vio->mysql_socket) >= 0);
     if (mysql_socket_shutdown(vio->mysql_socket, how))
       r= -1;
 #ifdef  _WIN32
@@ -717,6 +717,10 @@ void vio_proxy_cleanup()
   my_free(vio_pp_networks);
 }
 
+void vio_force_skip_proxy(Vio *vio) {
+  vio->force_skip_proxy = TRUE;
+}
+
 /* Check whether a connection from this source address must provide the proxy
 protocol header */
 static my_bool vio_client_must_be_proxied(const struct sockaddr *addr)
@@ -736,7 +740,7 @@ static my_bool vio_client_must_be_proxied(const struct sockaddr *addr)
         struct in6_addr *check= &((struct sockaddr_in6 *)addr)->sin6_addr;
         struct in6_addr *addr= &vio_pp_networks[i].addr.in6;
         struct in6_addr *mask= &vio_pp_networks[i].mask.in6;
-        DBUG_ASSERT(vio_pp_networks[i].family == AF_INET6);
+        assert(vio_pp_networks[i].family == AF_INET6);
         if ((check->s6_addr32[0] & mask->s6_addr32[0]) == addr->s6_addr32[0]
             && ((check->s6_addr32[1] & mask->s6_addr32[1])
                 == addr->s6_addr32[1])
@@ -1018,7 +1022,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
 
        The proxy protocol source ip replace it the ip returned by
        mysql_socket_getpeername(). */
-    if (vio_client_must_be_proxied(addr))
+    if (!vio->force_skip_proxy && vio_client_must_be_proxied(addr))
       if (vio_process_proxy_header(mysql_socket_getfd(vio->mysql_socket), addr,
                                    &addr_length))
         DBUG_RETURN(TRUE);
@@ -1131,7 +1135,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   short revents= 0;
 #endif
   struct pollfd pfd;
@@ -1151,14 +1155,14 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   {
   case VIO_IO_EVENT_READ:
     pfd.events= MY_POLL_SET_IN;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     revents= MY_POLL_SET_IN | MY_POLL_SET_ERR | POLLRDHUP;
 #endif
     break;
   case VIO_IO_EVENT_WRITE:
   case VIO_IO_EVENT_CONNECT:
     pfd.events= MY_POLL_SET_OUT;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     revents= MY_POLL_SET_OUT | MY_POLL_SET_ERR;
 #endif
     break;
@@ -1184,7 +1188,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
     break;
   default:
     /* Ensure that the requested I/O event has completed. */
-    DBUG_ASSERT(pfd.revents & revents);
+    assert(pfd.revents & revents);
     break;
   }
 
@@ -1279,7 +1283,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   ret|= MY_TEST(FD_ISSET(fd, &exceptfds));
 
   /* Not a timeout, ensure that a condition was met. */
-  DBUG_ASSERT(ret);
+  assert(ret);
 
   DBUG_RETURN(ret);
 }
@@ -1307,7 +1311,7 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
   DBUG_ENTER("vio_socket_connect");
 
   /* Only for socket-based transport types. */
-  DBUG_ASSERT(vio->type == VIO_TYPE_SOCKET || vio->type == VIO_TYPE_TCPIP);
+  assert(vio->type == VIO_TYPE_SOCKET || vio->type == VIO_TYPE_TCPIP);
 
   /* If timeout is not infinite, set socket to non-blocking mode. */
   if ((timeout > -1) && vio_set_blocking(vio, FALSE))
@@ -1423,7 +1427,7 @@ my_bool vio_is_connected(Vio *vio)
   DBUG_RETURN(bytes ? TRUE : FALSE);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 /**
   Number of bytes in the read or socket buffer

@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -58,15 +58,3 @@ MACRO(MYSQL_CHECK_CURL)
    ENDIF()
   ENDIF()
 ENDMACRO()
-
-MACRO (CHECK_IF_CURL_DEPENDS_ON_RTMP project_name)
-  EXECUTE_PROCESS(COMMAND ldd ${CURL_LIBRARY}
-                  COMMAND grep rtmp
-                  OUTPUT_VARIABLE CURL_DEPENDS_ON_RTMP)
-  IF (NOT CURL_DEPENDS_ON_RTMP STREQUAL "")
-    message(WARNING "Not building ${project_name}. The supplied CURL library depends on rtmp library.
-Please provide CURL library that does not depend on rtmp library to build keyring_vault unittests.")
-    RETURN()
-  ENDIF()
-ENDMACRO()
-

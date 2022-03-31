@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@
   lower_case_table_names value is not known.
 */
 #define DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES  65540
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define SKIP_ENCODING_LOWER_CASE_TABLE_NAMES         65541
 #endif
 
@@ -501,6 +501,20 @@ public:
                        Group_member_info::Group_member_status new_status)= 0;
 
   /**
+    Sets the identified member as unreachable.
+
+    @param[in] uuid        member uuid
+   */
+  virtual void set_member_unreachable(const std::string &uuid) = 0;
+
+  /**
+    Sets the identified member as reachable.
+
+    @param[in] uuid        member uuid
+   */
+  virtual void set_member_reachable(const std::string &uuid) = 0;
+
+  /**
     Updates the GTID sets on a single member
 
 
@@ -597,6 +611,10 @@ public:
   void
   update_member_status(const std::string& uuid,
                        Group_member_info::Group_member_status new_status);
+
+  void set_member_unreachable(const std::string &uuid);
+
+  void set_member_reachable(const std::string &uuid);
 
   void update_gtid_sets(const std::string& uuid,
                         std::string& gtid_executed,

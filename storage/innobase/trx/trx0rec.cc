@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -578,6 +578,21 @@ trx_undo_rec_get_pars(
 	*table_id = mach_read_next_much_compressed(&ptr);
 
 	return(const_cast<byte*>(ptr));
+}
+
+/** Reads from an undo log record the table ID
+@param[in]	undo_rec	Undo log record
+@return the table ID */
+table_id_t
+trx_undo_rec_get_table_id(const trx_undo_rec_t* undo_rec)
+{
+	const byte*	ptr = undo_rec + 3;
+
+	/* Skip the UNDO number */
+	mach_read_next_much_compressed(&ptr);
+
+	/* Read the table ID */
+	return(mach_read_next_much_compressed(&ptr));
 }
 
 /** Read from an undo log record a non-virtual column value.
@@ -1974,9 +1989,7 @@ trx_undo_report_row_operation(
 
 	undo_block = buf_page_get_gen(
 		page_id_t(undo->space, page_no), undo->page_size, RW_X_LATCH,
-		buf_pool_is_obsolete(undo->withdraw_clock)
-		? NULL : undo->guess_block, BUF_GET, __FILE__, __LINE__,
-		&mtr);
+		undo->guess_block, BUF_GET, __FILE__, __LINE__,&mtr);
 
 	buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
 
@@ -2036,14 +2049,13 @@ trx_undo_report_row_operation(
 			mtr_commit(&mtr);
 		} else {
 			/* Success */
-			undo->withdraw_clock = buf_withdraw_clock;
+			undo->guess_block = undo_block;
 			mtr_commit(&mtr);
 
 			undo->empty = FALSE;
 			undo->top_page_no = page_no;
 			undo->top_offset  = offset;
 			undo->top_undo_no = trx->undo_no;
-			undo->guess_block = undo_block;
 
 			trx->undo_no++;
 			trx->undo_rseg_space = undo_ptr->rseg->space;
@@ -2130,7 +2142,7 @@ trx_undo_get_undo_rec_low(
 		page_id_t(rseg->space, page_no), rseg->page_size,
 		&mtr);
 
-	undo_rec = trx_undo_rec_copy(undo_page + offset, heap);
+	undo_rec = trx_undo_rec_copy(undo_page, offset, heap);
 
 	mtr_commit(&mtr);
 

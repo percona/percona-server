@@ -7,3 +7,6 @@ usr/share/mysql/charsets/README
 # config files
 debian/extra/percona-server.cnf etc/mysql/
 debian/extra/percona-server.conf.d etc/mysql/
+#coredumper
+usr/include/coredumper/coredumper.h
+usr/lib/libcoredumper.a

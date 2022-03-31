@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,6 +146,7 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
 
 void vio_proxy_protocol_add(const struct st_vio_network *net);
 void vio_proxy_cleanup();
+void vio_force_skip_proxy(Vio *vio);
 void    vio_delete(Vio* vio);
 int vio_shutdown(Vio* vio, int how);
 int vio_cancel(Vio* vio, int how);
@@ -175,7 +176,7 @@ my_bool vio_peer_addr(Vio *vio, char *buf, uint16 *port, size_t buflen);
 /* Wait for an I/O event notification. */
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout);
 my_bool vio_is_connected(Vio *vio);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 ssize_t vio_pending(Vio *vio);
 #endif
 /* Set timeout for a network operation. */
@@ -306,6 +307,7 @@ struct st_vio
   size_t addrLen;                       /* Length of remote address */
   enum enum_vio_type    type;           /* Type of connection */
   my_bool               inactive; /* Connection inactive (has been shutdown) */
+  my_bool               force_skip_proxy;
   char                  desc[VIO_DESCRIPTION_SIZE]; /* Description string. This
                                                       member MUST NOT be
                                                       used directly, but only

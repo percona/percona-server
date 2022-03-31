@@ -1,16 +1,10 @@
-#
-# Bug #97828
-# PS-6113: If ANALYZE TABLE runs more than 600 seconds diagnostic query may crash server
-# PS-6148: If ANALYZE TABLE with transient statistics runs more than 600 seconds diagnostic query may crash server	
-#
-
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
-#
-# Test STATS_PERSISTENT=1 (it is by default)
-#
+--echo	#
+--echo  # Bug #30607708	IF ANALYZE TABLE RUNS MORE THAN 600 SECONDS DIAGNOSTIC QUERY MAY CRASH SERVER
+--echo	#
 
 CREATE TABLE t1(a int, index inda(a)) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
@@ -23,31 +17,9 @@ SET DEBUG_SYNC='innodb_dict_stats_update_persistent SIGNAL analyze.running WAIT_
 --connect(con1, localhost, root)
 SET DEBUG_SYNC='now WAIT_FOR analyze.running';
 
+--disable_result_log
 SELECT ENGINE,SUM(DATA_LENGTH+INDEX_LENGTH),COUNT(ENGINE),SUM(DATA_LENGTH),SUM(INDEX_LENGTH) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql') AND ENGINE='InnoDB';
-
-# let the ANALYZE TABLE to finish
-SET DEBUG_SYNC='now SIGNAL analyze.finish';
-
---connection default
---reap
-SET DEBUG_SYNC= 'RESET';
-
-
-#
-# Test STATS_PERSISTENT=0
-#
-
-ALTER TABLE t1 STATS_PERSISTENT=0;
-
-SET DEBUG_SYNC='innodb_dict_stats_update_transient SIGNAL analyze.running WAIT_FOR analyze.finish';
---send ANALYZE TABLE t1
-
-# ANALYZE TABLE is running. Query for stats.
-
---connection con1
-SET DEBUG_SYNC='now WAIT_FOR analyze.running';
-
-SELECT ENGINE,SUM(DATA_LENGTH+INDEX_LENGTH),COUNT(ENGINE),SUM(DATA_LENGTH),SUM(INDEX_LENGTH) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql') AND ENGINE='InnoDB';
+--enable_result_log
 
 # let the ANALYZE TABLE to finish
 SET DEBUG_SYNC='now SIGNAL analyze.finish';
@@ -55,8 +27,5 @@ SET DEBUG_SYNC='now SIGNAL analyze.finish';
 
 --connection default
 --reap
-
-#cleanup
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
-

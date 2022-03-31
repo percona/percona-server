@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #include <my_global.h>
 #include <welcome_copyright_notice.h>
 
-#include "lz4/lz4frame.h"
+#include "lz4frame.h"
 #include <string.h>
 
 static void usage()

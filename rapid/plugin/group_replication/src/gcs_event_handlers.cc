@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                                        Group_member_info_pointer_comparator>();
   this->joiner_compatibility_status= new st_compatibility_types(INCOMPATIBLE);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     set_number_of_members_on_view_changed_to_10= false;
     DBUG_EXECUTE_IF("group_replication_set_number_of_members_on_view_changed_to_10",
                     { set_number_of_members_on_view_changed_to_10= true; };);
@@ -278,7 +278,7 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
   if (members.empty() && unreachable.empty()) // nothing to do
     return; /* purecov: inspected */
 
-  DBUG_ASSERT(members.size() >= unreachable.size());
+  assert(members.size() >= unreachable.size());
 
   std::vector<Gcs_member_identifier> tmp_unreachable(unreachable);
   std::vector<Gcs_member_identifier>::const_iterator mit;
@@ -303,7 +303,7 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
                       "Member with address %s:%u has become unreachable.",
                       member_info->get_hostname().c_str(), member_info->get_port());
 
-        member_info->set_unreachable();
+        group_member_mgr->set_member_unreachable(member_info->get_uuid());
 
         // remove to not check again against this one
         tmp_unreachable.erase(uit);
@@ -315,8 +315,10 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
                       "Member with address %s:%u is reachable again.",
                       member_info->get_hostname().c_str(), member_info->get_port());
 
-        member_info->set_reachable();
+        group_member_mgr->set_member_reachable(member_info->get_uuid());
       }
+
+      delete member_info;
     }
   }
 
@@ -439,6 +441,8 @@ Plugin_gcs_events_handler::get_hosts_from_view(const std::vector<Gcs_member_iden
     {
       hosts_string << ", ";
     }
+
+    delete member_info;
   }
   all_hosts.assign (hosts_string.str());
   primary_host.assign (primary_string.str());
@@ -549,18 +553,10 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
 
   if (!is_leaving)
   {
-    std::string view_id_representation= "";
-    Gcs_view *view= gcs_module->get_current_view();
-    if (view != NULL)
-    {
-      view_id_representation= view->get_view_id().get_representation();
-      delete view;
-    }
-
     log_message(MY_INFORMATION_LEVEL,
                 "Group membership changed to %s on view %s.",
                 group_member_mgr->get_string_current_view_active_hosts().c_str(),
-                view_id_representation.c_str());
+                new_view.get_view_id().get_representation().c_str());
   }
   else
   {
@@ -678,7 +674,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
     return;
 
   bool am_i_leaving= true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int n=0;
 #endif
   Group_member_info* the_primary= NULL;
@@ -706,8 +702,8 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
    */
   for(it= all_members_info->begin(); it != all_members_info->end(); it++)
   {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(!(n > 1));
+#ifndef NDEBUG
+    assert(!(n > 1));
 #endif
 
     Group_member_info* member= *it;
@@ -715,7 +711,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
         member->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
     {
       the_primary= member;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       n++;
 #endif
     }
@@ -769,7 +765,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
       {
         Group_member_info* mi= *it;
 
-        DBUG_ASSERT(mi);
+        assert(mi);
         if (mi &&
             mi->get_recovery_status() == Group_member_info::MEMBER_ONLINE)
           the_primary= mi;
@@ -916,7 +912,7 @@ update_group_info_manager(const Gcs_view& new_view,
   temporary_states->clear();
 
 err:
-  DBUG_ASSERT(temporary_states->size() == 0);
+  assert(temporary_states->size() == 0);
   return error;
 }
 
@@ -1161,6 +1157,7 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data,
                                     " information can be outdated and lead to"
                                     " errors on recovery",
                                     member_info->get_hostname().c_str(), member_info->get_port());
+        delete member_info;
       }
       continue;
       /* purecov: end */
@@ -1318,6 +1315,8 @@ update_member_status(const vector<Gcs_member_identifier>& members,
     {
       group_member_mgr->update_member_status(member_info->get_uuid(), status);
     }
+
+    delete member_info;
   }
 }
 
@@ -1336,7 +1335,7 @@ Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) c
   /*
     Check if group size did reach the maximum number of members.
   */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (set_number_of_members_on_view_changed_to_10)
     number_of_members= 10;
 #endif

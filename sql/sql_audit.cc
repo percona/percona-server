@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "sql_thd_internal_api.h"               // create_thd / destroy_thd
 #include "sql_plugin.h"                         // my_plugin_foreach
 #include "sql_rewrite.h"                        // mysql_rewrite_query
+#include "sql_parse.h"                          // command_name
 
 /**
   @class Audit_error_handler
@@ -344,14 +345,21 @@ inline
 void thd_get_audit_query(THD *thd, MYSQL_LEX_CSTRING *query,
                          const struct charset_info_st **charset)
 {
-  if (!thd->rewritten_query.length())
+  /*
+    If we haven't tried to rewrite the query to obfuscate passwords
+    etc. yet, do so now.
+  */
+  if (thd->rewritten_query().length() == 0)
     mysql_rewrite_query(thd);
 
-  if (thd->rewritten_query.length())
-  {
-    query->str= thd->rewritten_query.ptr();
-    query->length= thd->rewritten_query.length();
-    *charset= thd->rewritten_query.charset();
+  /*
+    If there was something to rewrite, use the rewritten query;
+    otherwise, just use the original as submitted by the client.
+  */
+  if (thd->rewritten_query().length() > 0) {
+    query->str= thd->rewritten_query().ptr();
+    query->length= thd->rewritten_query().length();
+    *charset= thd->rewritten_query().charset();
   }
   else
   {
@@ -425,8 +433,9 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
 {
   mysql_event_general event;
   char user_buff[MAX_USER_HOST_SIZE];
+  std::string cmd_class_lowercase;
 
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                                   static_cast<unsigned long>(subclass)))
@@ -444,7 +453,46 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_host= sctx->host();
   event.general_external_user= sctx->external_user();
   event.general_rows= thd->get_stmt_da()->current_row_for_condition();
-  event.general_sql_command= sql_statement_names[thd->lex->sql_command];
+  if (thd->lex->sql_command == SQLCOM_END && msg_len > 0 && error_code == 0)
+  {
+    int found_index= -1;
+    for (size_t i= 0; i < get_command_name_len(); ++i)
+    {
+      if (!strcmp(command_name[i].str, msg))
+      {
+        found_index= i;
+        break;
+      }
+    }
+
+    if (found_index == -1)
+      event.general_sql_command= sql_statement_names[thd->lex->sql_command];
+    else
+    {
+      switch (found_index)
+      {
+      case COM_STMT_PREPARE:
+        event.general_sql_command= sql_statement_names[SQLCOM_PREPARE];
+        break;
+      case COM_STMT_EXECUTE:
+        event.general_sql_command= sql_statement_names[SQLCOM_EXECUTE];
+        break;
+      case COM_STMT_RESET:
+        event.general_sql_command= sql_statement_names[SQLCOM_RESET];
+        break;
+      default:
+        cmd_class_lowercase= msg;
+        std::transform(cmd_class_lowercase.begin(), cmd_class_lowercase.end(),
+                       cmd_class_lowercase.begin(), ::tolower);
+        MYSQL_LEX_CSTRING command_class= {
+            STRING_WITH_LEN(cmd_class_lowercase.c_str())};
+        event.general_sql_command= command_class;
+        break;
+      }
+    }
+  }
+  else
+    event.general_sql_command= sql_statement_names[thd->lex->sql_command];
 
   thd_get_audit_query(thd, &event.general_query,
                       (const charset_info_st**)&event.general_charset);
@@ -641,6 +689,10 @@ int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table)
   mysql_event_table_access_subclass_t subclass;
   const char *subclass_name;
   int ret;
+
+  if ((thd->system_thread &
+       (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+    return 0;
 
   /* Do not generate events for non query table access. */
   if (!thd->lex->query_tables)
@@ -1208,7 +1260,7 @@ void mysql_audit_init_thd(THD *thd)
 void mysql_audit_free_thd(THD *thd)
 {
   mysql_audit_release(thd);
-  DBUG_ASSERT(thd->audit_class_plugins.empty());
+  assert(thd->audit_class_plugins.empty());
 }
 
 #ifdef HAVE_PSI_INTERFACE

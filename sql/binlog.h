@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,8 +162,8 @@ public:
   {
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond_done);
-#ifndef DBUG_OFF
-    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !DBUG_OFF */
+#ifndef NDEBUG
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !NDEBUG */
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
@@ -220,7 +220,7 @@ public:
     return m_queue[stage].pop_front();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      The method ensures the follower's execution path can be preempted
      by the leader's thread.
@@ -274,7 +274,7 @@ private:
 
   /** Mutex used for the condition variable above */
   mysql_mutex_t m_lock_done;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Flag is set by Leader when it starts waiting for follower's all-clear */
   bool leader_await_preempt_status;
 
@@ -473,6 +473,8 @@ class MYSQL_BIN_LOG: public TC_LOG
             const char *new_name);
   bool init_and_set_log_file_name(const char *log_name,
                                   const char *new_name);
+  int generate_new_name(char *new_name, const char *log_name);
+
 public:
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
@@ -584,8 +586,7 @@ public:
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
-                                      Gtid *first_gtid,
-                                      const char **errmsg);
+                                      Gtid *first_gtid, std::string &errmsg);
 
   /**
     Reads the set of all GTIDs in the binary/relay log, and the set
@@ -620,7 +621,7 @@ public:
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
-    DBUG_ASSERT(is_relay_log);
+    assert(is_relay_log);
     previous_gtid_set_relaylog= previous_gtid_set_param;
   }
   /**
@@ -681,7 +682,8 @@ private:
                                 THD **out_queue_var);
   int prepare_ordered_commit(THD *thd, bool all, bool skip_commit= false);
   int ordered_commit(THD *thd);
-  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log);
+  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
+                                         const char *message);
 public:
   int open_binlog(const char *opt_name);
   void close();
@@ -802,16 +804,18 @@ public:
      Gtid_log_event and BEGIN, COMMIT automatically.
 
      It is aimed to handle cases of "background" logging where a statement is
-     logged indirectly, like "DELETE FROM a_memory_table". So don't use it on any
+     logged indirectly, like "TRUNCATE TABLE a_memory_table". So don't use it on any
      normal statement.
 
      @param[IN] thd  the THD object of current thread.
-     @param[IN] stmt the DELETE statement.
-     @param[IN] stmt_len the length of DELETE statement.
+     @param[IN] stmt the DML statement.
+     @param[IN] stmt_len the length of the DML statement.
+     @param[IN] sql_command the type of SQL command.
 
      @return Returns false if succeeds, otherwise true is returned.
   */
-  bool write_dml_directly(THD* thd, const char *stmt, size_t stmt_len);
+  bool write_stmt_directly(THD* thd, const char *stmt, size_t stmt_len,
+                          enum enum_sql_command sql_command);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -923,8 +927,8 @@ public:
 
     @return void
   */
-  void report_missing_purged_gtids(const Gtid_set* slave_executed_gtid_set,
-                                   const char** errmsg);
+  void report_missing_purged_gtids(const Gtid_set *slave_executed_gtid_set,
+                                   std::string &errmsg);
 
   /**
     Function to report the missing GTIDs.
@@ -948,10 +952,10 @@ public:
 
     @return void
   */
-  void report_missing_gtids(const Gtid_set* previous_gtid_set,
-                            const Gtid_set* slave_executed_gtid_set,
-                            const char** errmsg);
-  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
+  void report_missing_gtids(const Gtid_set *previous_gtid_set,
+                            const Gtid_set *slave_executed_gtid_set,
+                            std::string &errmsg);
+  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE= 5;
   /*
     It is called by the threads(e.g. dump thread) which want to read
     hot log without LOCK_log protection.
@@ -1071,9 +1075,6 @@ bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int query_error_code(THD *thd, bool not_killed);
 
-bool generate_new_log_name(char *new_name, ulong *new_ext,
-                           const char *log_name, bool is_binlog);
-
 bool handle_gtid_consistency_violation(THD *thd, int error_code);
 
 extern const char *log_bin_index;
@@ -1111,7 +1112,7 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
   char *ptr= (char*) from;
   char *opt_name= is_relay_log ? opt_relay_logname : opt_bin_logname;
 
-  DBUG_ASSERT(from);
+  assert(from);
 
   /* opt_name is not null and not empty and from is a relative path */
   if (opt_name && opt_name[0] && from && !test_if_hard_path(from))
@@ -1139,7 +1140,7 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
     }
   }
 
-  DBUG_ASSERT(ptr);
+  assert(ptr);
   if (ptr)
   {
     size_t length= strlen(ptr);

@@ -8,6 +8,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000001
 Binlog_snapshot_position	365
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
 BEGIN;
 INSERT INTO t1 VALUES (0, "");
 # Connection con1
@@ -39,6 +40,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000001
 Binlog_snapshot_position	1154
+Binlog_snapshot_gtid_executed	
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	1755			
@@ -61,6 +63,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000001
 Binlog_snapshot_position	1154
+Binlog_snapshot_gtid_executed	
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000002	154			
@@ -69,6 +72,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000002
 Binlog_snapshot_position	154
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000002	154			
@@ -79,6 +83,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000002
 Binlog_snapshot_position	417
+Binlog_snapshot_gtid_executed	
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000002	417			
@@ -95,6 +100,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000002
 Binlog_snapshot_position	700
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000002	700			
@@ -106,6 +112,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000002
 Binlog_snapshot_position	700
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000002	700			
@@ -117,6 +124,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000002
 Binlog_snapshot_position	417
+Binlog_snapshot_gtid_executed	
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000002	700			
@@ -126,6 +134,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000003
 Binlog_snapshot_position	154
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000003	154			
@@ -134,6 +143,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000002
 Binlog_snapshot_position	417
+Binlog_snapshot_gtid_executed	
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000003	154			
@@ -143,6 +153,7 @@ SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
 Binlog_snapshot_file	master-bin.000002
 Binlog_snapshot_position	417
+Binlog_snapshot_gtid_executed	
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000003	154			

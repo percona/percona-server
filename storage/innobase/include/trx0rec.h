@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -47,15 +47,18 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "que0types.h"
 
-/***********************************************************************//**
-Copies the undo record to the heap.
-@return own: copy of undo log record */
+/** Copies the undo record to the heap.
+@param[in]	undo_page	Undo Page
+@param[in]	undo_offset     Offset of the undo record in the page
+@param[in]	heap		Heap where undo record is copied
+@return copy of undo log record */
 UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_rec_copy(
-/*==============*/
-	const trx_undo_rec_t*	undo_rec,	/*!< in: undo log record */
-	mem_heap_t*		heap);		/*!< in: heap where copied */
+	const page_t*		undo_page,
+	ulint			undo_offset,
+	mem_heap_t*		heap);
+
 /**********************************************************************//**
 Reads the undo log record type.
 @return record type */
@@ -109,6 +112,13 @@ trx_undo_rec_get_pars(
 					externally stored fild */
 	undo_no_t*	undo_no,	/*!< out: undo log record number */
 	table_id_t*	table_id);	/*!< out: table id */
+
+/** Reads from an undo log record the table ID
+@param[in]	undo_rec	Undo log record
+@return the table ID */
+table_id_t
+trx_undo_rec_get_table_id(const trx_undo_rec_t* undo_rec)
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*******************************************************************//**
 Builds a row reference from an undo log record.

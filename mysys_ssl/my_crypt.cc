@@ -111,8 +111,8 @@ int MyEncryptionCTX::init(const my_aes_mode mode, int encrypt, const uchar *key,
                          key, iv, encrypt))
     return MY_AES_OPENSSL_ERROR;
 
-  DBUG_ASSERT(EVP_CIPHER_CTX_key_length(ctx) == (int)klen);
-  DBUG_ASSERT(EVP_CIPHER_CTX_iv_length(ctx) <= (int)ivlen);
+  assert(EVP_CIPHER_CTX_key_length(ctx) == (int)klen);
+  assert(EVP_CIPHER_CTX_iv_length(ctx) <= (int)ivlen);
 
   return MY_AES_OK;
 }
@@ -147,9 +147,9 @@ public:
     this->buf_len= 0;
     if (iv) {
       memcpy(oiv, iv, ivlen);
-      DBUG_ASSERT(ivlen == sizeof(oiv));
+      assert(ivlen == sizeof(oiv));
     } else {
-      DBUG_ASSERT(ivlen == 0);
+      assert(ivlen == 0);
     }
 
     int res= MyEncryptionCTX::init(mode, encrypt, key, klen, iv, ivlen);
@@ -186,7 +186,7 @@ public:
                                oiv, sizeof(mask), mask, &mlen, key, klen, 0, 0);
       if (result != MY_AES_OK)
         return result;
-      DBUG_ASSERT(mlen == sizeof(mask));
+      assert(mlen == sizeof(mask));
 
       for (uint i=0; i < buf_len; i++)
         dst[i]= buf[i] ^ mask[i];
@@ -256,7 +256,7 @@ public:
     int fin;
     if (!EVP_CipherFinal_ex(ctx, dst, &fin))
       return MY_AES_BAD_DATA;
-    DBUG_ASSERT(fin == 0);
+    assert(fin == 0);
 
     if (EVP_CIPHER_CTX_encrypting(ctx))
     {

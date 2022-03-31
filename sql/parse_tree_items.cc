@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,21 +98,6 @@ static Item* handle_sql2003_note184_exception(Parse_context *pc, Item* left,
     result= new (pc->mem_root) Item_func_ne(left, expr);
 
   DBUG_RETURN(result);
-}
-
-
-bool PTI_table_wild::itemize(Parse_context *pc, Item **item)
-{
-  if (super::itemize(pc, item))
-    return true;
-
-  schema=
-    pc->thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? NullS : schema;
-  *item= new (pc->mem_root) Item_field(POS(), schema, table, "*");
-  if (*item == NULL || (*item)->itemize(pc, item))
-    return true;
-  pc->select->with_wild++;
-  return false;
 }
 
 
@@ -235,7 +220,7 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res)
   {
     sp_head *sp= lex->sphead;
 
-    DBUG_ASSERT(sp);
+    assert(sp);
 
     /* We're compiling a stored procedure and found a variable */
     if (! lex->parsing_options.allows_variable)
@@ -304,9 +289,9 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res)
       return true;
     }
 
-    DBUG_ASSERT(!new_row ||
-                (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
-                 sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+    assert(!new_row ||
+           (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+            sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
     const bool read_only=
       !(new_row && sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE);
     Item_trigger_field *trg_fld= new (pc->mem_root)
@@ -317,7 +302,7 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res)
                                   read_only);
     if (trg_fld == NULL || trg_fld->itemize(pc, (Item **) &trg_fld))
       return true;
-    DBUG_ASSERT(trg_fld->type() == TRIGGER_FIELD_ITEM);
+    assert(trg_fld->type() == TRIGGER_FIELD_ITEM);
 
     /*
       Let us add this item to list of all Item_trigger_field objects

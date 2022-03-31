@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -2022,6 +2022,13 @@ row_upd_store_v_row(
 								col_no);
 						dfield_copy_data(dfield, vfield);
 						dfield_dup(dfield, node->heap);
+						if (dfield_is_null(dfield)) {
+						  innobase_get_computed_value(
+							node->row, col, index,
+							&heap, node->heap, NULL,
+							thd, mysql_table, NULL,
+							NULL, NULL, prebuilt);
+						}
 					}
 				} else {
 					/* Need to compute, this happens when
@@ -2596,7 +2603,7 @@ check_fk:
 
 	err = row_ins_clust_index_entry(
 		index, entry, thr,
-		node->upd_ext ? node->upd_ext->n_ext : 0, false);
+		entry->get_n_ext(), false);
 	node->state = UPD_NODE_INSERT_CLUSTERED;
 
 	mem_heap_free(heap);

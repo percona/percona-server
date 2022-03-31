@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -685,10 +685,14 @@ Datafile::validate_first_page(lsn_t*	flush_lsn,
 	can't be open. And for importing, we skip checking it. */
 	if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import) { 
 		if(crypt_data == NULL) {
-			m_encryption_key = static_cast<byte*>(
-				ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
-			m_encryption_iv = static_cast<byte*>(
-				ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+			if (m_encryption_key == NULL) {
+				m_encryption_key = static_cast<byte *>(
+					ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+			}
+			if (m_encryption_iv == NULL) {
+				m_encryption_iv = static_cast<byte *>(
+					ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+			}
 #ifdef	UNIV_ENCRYPT_DEBUG
 			fprintf(stderr, "Got from file %lu:", m_space_id);
 #endif

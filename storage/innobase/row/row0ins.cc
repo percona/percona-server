@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -956,12 +956,12 @@ row_ins_foreign_fill_virtual(
 	row_ext_t*	ext;
 	THD*		thd = current_thd;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	mem_heap_t*	v_heap = NULL;
+	upd_t*		update = cascade->update;
 	rec_offs_init(offsets_);
 	const ulint*	offsets =
 		rec_get_offsets(rec, index, offsets_,
-				ULINT_UNDEFINED, &cascade->heap);
-	mem_heap_t*	v_heap = NULL;
-	upd_t*		update = cascade->update;
+				ULINT_UNDEFINED, &update->heap);
 	ulint		n_v_fld = index->table->n_v_def;
 	ulint		n_diff;
 	upd_field_t*	upd_field;
@@ -972,7 +972,7 @@ row_ins_foreign_fill_virtual(
 	update->old_vrow = row_build(
 		ROW_COPY_POINTERS, index, rec,
 		offsets, index->table, NULL, NULL,
-		&ext, cascade->heap);
+		&ext, update->heap);
 
 	n_diff = update->n_fields;
 
@@ -1008,7 +1008,7 @@ row_ins_foreign_fill_virtual(
 		upd_field = upd_get_nth_field(update, n_diff);
 
 		upd_field->old_v_val = static_cast<dfield_t*>(
-				mem_heap_alloc(cascade->heap,
+				mem_heap_alloc(update->heap,
 					sizeof *upd_field->old_v_val));
 
 		dfield_copy(upd_field->old_v_val, vfield);
@@ -1018,8 +1018,35 @@ row_ins_foreign_fill_virtual(
 		if (node->is_delete
 		    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
 		    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
+			uint32_t col_match_count =
+			    dict_vcol_base_is_foreign_key(col, foreign);
+			if (col_match_count == col->num_base) {
+				/* If all base columns of virtual col are
+				in FK */
+				dfield_set_null(&upd_field->new_val);
+			} else if (col_match_count == 0) {
+				/* If no base column of virtual col is in FK */
+				dfield_copy(&(upd_field->new_val), vfield);
+			} else {
+				/* If at least one base column of virtual col
+				is in FK */
+				for (uint32_t j = 0; j < col->num_base; j++) {
+					dict_col_t *base_col = col->base_col[j];
+					uint32_t col_no = base_col->ind;
+					dfield_t *row_field =
+					  innobase_get_field_from_update_vector(
+					  foreign, node->update, col_no);
+					if (row_field != NULL) {
+						dfield_set_null(row_field);
+					}
+				}
+				dfield_t *new_vfield = innobase_get_computed_value(
+				    update->old_vrow, col, index, &v_heap,
+				    update->heap, NULL, thd, NULL,
+				    NULL, node->update, foreign, prebuilt);
+				dfield_copy(&(upd_field->new_val), new_vfield);
+			}
 
-			dfield_set_null(&upd_field->new_val);
 		}
 
 		if (!node->is_delete
@@ -1279,8 +1306,13 @@ row_ins_foreign_check_on_constraint(
 						 clust_index, tmp_heap);
 	}
 
-	if (cascade->is_delete && foreign->v_cols != NULL
-	    && foreign->v_cols->size() > 0
+	/* A cascade delete from the parent table triggers delete on the child
+	table. Before a clustered index record is deleted in the child table,
+	a copy of row is built to remove secondary index records. This copy of
+	the row requires virtual columns to be materialized. Hence, if child
+	table has any virtual columns, we have to initialize virtual column
+	template */
+	if (cascade->is_delete && dict_table_get_n_v_cols(table) > 0
 	    && table->vc_templ == NULL) {
 		innobase_init_vc_templ(table);
 	}
@@ -3224,9 +3256,9 @@ row_ins_index_entry_big_rec_func(
 	mem_heap_t**		heap,	/*!< in/out: memory heap */
 	dict_index_t*		index,	/*!< in: index */
 	const char*		file,	/*!< in: file name of caller */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	const void*		thd,    /*!< in: connection, or NULL */
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 	ulint			line)	/*!< in: line number of caller */
 {
 	mtr_t		mtr;

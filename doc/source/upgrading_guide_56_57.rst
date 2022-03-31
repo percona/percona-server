@@ -21,7 +21,7 @@ The following is a summary of the more relevant changes in the 5.7 series. It's 
 Upgrading using the Percona repositories
 ========================================
 
-The easiest and recommended way of installing - where possible - is by using the |Percona| repositories.
+The easiest and recommended way of installing - where possible - is by using the Percona repositories.
 
 Instructions for enabling the repositories in a system can be found in:
 
@@ -52,13 +52,13 @@ Then install the new server with:
 
 .. code-block:: bash
 
-  $ apt-get install percona-server-server-5.7
+  $ apt install percona-server-server-5.7
 
-If you're using |Percona Server| 5.6 with |TokuDB| you'll need to specify the |TokuDB| package as well:
+If you're using |Percona Server| 5.6 with TokuDB you'll need to specify the TokuDB package as well:
 
 .. code-block:: bash
 
-  $ apt-get install percona-server-server-5.7 percona-server-tokudb-5.7
+  $ apt install percona-server-server-5.7 percona-server-tokudb-5.7
 
 The installation script will *NOT* run automatically :command:`mysql_upgrade` as it was the case in previous versions. You'll need to run the command manually and restart the service after it's finished.
 
@@ -79,7 +79,7 @@ The installation script will *NOT* run automatically :command:`mysql_upgrade` as
 
   $ service mysql restart
 
-Note that this procedure is the same for upgrading from |MySQL| 5.6 or 5.7 to |Percona Server| 5.7.
+Note that this procedure is the same for upgrading from MySQL 5.6 or 5.7 to |Percona Server| 5.7.
 
 ``RPM``-based distributions
 ---------------------------
@@ -118,7 +118,7 @@ After checking, proceed to remove them without dependencies:
 
 It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if omitted.
 
-Note that this procedure is the same for upgrading from |MySQL| 5.6 or 5.7 to |Percona Server| 5.7: just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
+Note that this procedure is the same for upgrading from MySQL 5.6 or 5.7 to |Percona Server| 5.7: just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
 
 You will have to install the following package:
 
@@ -128,7 +128,7 @@ You will have to install the following package:
 
   $ yum install Percona-Server-server-57 
 
-If you're using |Percona Server| 5.6 with |TokuDB| you'll need to specify the |TokuDB| package as well when doing the upgrade: 
+If you're using |Percona Server| 5.6 with TokuDB you'll need to specify the TokuDB package as well when doing the upgrade: 
 
 .. code-block:: bash
 
@@ -136,7 +136,7 @@ If you're using |Percona Server| 5.6 with |TokuDB| you'll need to specify the |T
 
 Once installed, proceed to modify your configuration file - :file:`my.cnf` - and reinstall the plugins if necessary. 
 
-.. note:: If you're using |TokuDB| storage engine you'll need to comment out all the |TokuDB| specific variables in your configuration file(s) before starting the server, otherwise server won't be able to start. *RHEL*/*CentOS* 7 automatically backs up the previous configuration file to :file:`/etc/my.cnf.rpmsave` and installs the default :file:`my.cnf`. After upgrade/install process completes you can move the old configuration file back (after you remove all the unsupported system variables).
+.. note:: If you're using TokuDB storage engine you'll need to comment out all the TokuDB specific variables in your configuration file(s) before starting the server, otherwise server won't be able to start. *RHEL*/*CentOS* 7 automatically backs up the previous configuration file to :file:`/etc/my.cnf.rpmsave` and installs the default :file:`my.cnf`. After upgrade/install process completes you can move the old configuration file back (after you remove all the unsupported system variables).
 
 You can now start the ``mysql`` service:
 
@@ -146,7 +146,7 @@ You can now start the ``mysql`` service:
 
 and use ``mysql_upgrade`` to migrate to the new grant tables, it will rebuild the indexes needed and do the modifications needed: 
 
-.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps-admin --enable-tokudb`` before running ``mysql_upgrade`` otherwise you'll get errors.
+.. note:: If you're using TokuDB storage engine you'll need re-enable the storage engine plugin by running the: ``ps-admin --enable-tokudb`` before running ``mysql_upgrade`` otherwise you'll get errors.
 
 .. code-block:: bash
 
@@ -181,7 +181,7 @@ Having done the full backup (and dump if possible), stop the server: ::
 
 and remove the installed packages with their dependencies: ::
 
-  $ sudo apt-get autoremove percona-server-server-5.6 percona-server-client-5.6
+  $ sudo apt autoremove percona-server-server-5.6 percona-server-client-5.6
 
 Once removed, proceed to do the modifications needed in your configuration file, as explained at the beginning of this guide.
 
@@ -228,11 +228,11 @@ Now you can install |Percona Server| by running:
 
   $ sudo dpkg -i *.deb
 
-This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want |TokuDB| storage engine).
+This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want TokuDB storage engine).
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 .. warning::
 
@@ -268,7 +268,7 @@ After checked that, proceed to remove them without dependencies: ::
 
 It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if ommited.
 
-Note that this procedure is the same for upgrading from |MySQL| 5.6 to |Percona Server| 5.7, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
+Note that this procedure is the same for upgrading from MySQL 5.6 to |Percona Server| 5.7, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
 
 Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.10-3 release packages for *CentOS* 7:
 
@@ -304,7 +304,7 @@ Now you can install |Percona Server| 5.7 by running:
   Percona-Server-client-57-5.7.10-3.1.el7.x86_64.rpm \
   Percona-Server-shared-57-5.7.10-3.1.el7.x86_64.rpm
 
-This will install only packages required to run the |Percona Server| 5.7. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by adding the ``Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm`` to the command above. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+This will install only packages required to run the |Percona Server| 5.7. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by adding the ``Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm`` to the command above. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 To install all the packages (for debugging, testing, etc.) you should run:
 
@@ -316,7 +316,7 @@ To install all the packages (for debugging, testing, etc.) you should run:
 
   When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
 
-Once installed, proceed to modify your configuration file - :file:`my.cnf` - and install the plugins if necessary. If you're using |TokuDB| storage engine you'll need to comment out all the |TokuDB| specific variables in your configuration file(s) before starting the server, otherwise server won't be able to start. *RHEL*/*CentOS* 7 automatically backs up the previous configuration file to :file:`/etc/my.cnf.rpmsave` and installs the default :file:`my.cnf`. After upgrade/install process completes you can move the old configuration file back (after you remove all the unsupported system variables). 
+Once installed, proceed to modify your configuration file - :file:`my.cnf` - and install the plugins if necessary. If you're using TokuDB storage engine you'll need to comment out all the TokuDB specific variables in your configuration file(s) before starting the server, otherwise server won't be able to start. *RHEL*/*CentOS* 7 automatically backs up the previous configuration file to :file:`/etc/my.cnf.rpmsave` and installs the default :file:`my.cnf`. After upgrade/install process completes you can move the old configuration file back (after you remove all the unsupported system variables). 
 
 As the schema of the grant table has changed, the server must be started without reading them: 
 
@@ -326,7 +326,7 @@ As the schema of the grant table has changed, the server must be started without
 
 and use :file:`mysql_upgrade` to migrate to the new grant tables, it will rebuild the indexes needed and do the modifications needed: 
 
-.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps-admin --enable-tokudb`` before running ``mysql_upgrade`` otherwise you'll get errors.
+.. note:: If you're using TokuDB storage engine you'll need re-enable the storage engine plugin by running the: ``ps-admin --enable-tokudb`` before running ``mysql_upgrade`` otherwise you'll get errors.
 
 .. code-block:: bash
 

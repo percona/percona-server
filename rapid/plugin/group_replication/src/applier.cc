@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -310,7 +310,7 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
 
   DBUG_EXECUTE_IF("group_replication_before_apply_data_packet", {
     const char act[] = "now wait_for continue_apply";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   if (check_single_primary_queue_status())
@@ -355,7 +355,7 @@ Applier_module::apply_single_primary_action_packet(Single_primary_action_packet 
       certifier->disable_conflict_detection();
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+      assert(0); /* purecov: inspected */
   }
 
   return error;
@@ -459,7 +459,7 @@ Applier_module::applier_thread_handle()
           this->incoming->pop();
           break;
       default:
-        DBUG_ASSERT(0); /* purecov: inspected */
+        assert(0); /* purecov: inspected */
     }
 
     delete packet;
@@ -492,7 +492,7 @@ end:
   DBUG_EXECUTE_IF("applier_thd_timeout",
                   {
                     const char act[]= "now wait_for signal.applier_continue";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 
   if (cache != NULL)
@@ -615,7 +615,7 @@ Applier_module::terminate_applier_thread()
     */
     struct timespec abstime;
     set_timespec(&abstime, 2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error=
 #endif
       mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
@@ -628,10 +628,10 @@ Applier_module::terminate_applier_thread()
       mysql_mutex_unlock(&run_lock);
       DBUG_RETURN(1);
     }
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!applier_running);
+  assert(!applier_running);
 
 delete_pipeline:
 
@@ -951,7 +951,7 @@ Applier_module::intersect_group_executed_sets(std::vector<std::string>& gtid_set
     }
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *executed_set_string;
   output_set->to_string(&executed_set_string);
   DBUG_PRINT("info", ("View change GTID information: output_set: %s",
@@ -988,4 +988,44 @@ int Applier_module::check_single_primary_queue_status()
   }
 
   return 0;
+}
+
+Pipeline_member_stats *Applier_module::get_local_pipeline_stats()
+{
+  // We need run_lock to get protection against STOP GR command.
+
+  Mutex_autolock auto_lock_mutex(&run_lock);
+  Pipeline_member_stats *stats= NULL;
+  Certification_handler *cert= this->get_certification_handler();
+  Certifier_interface *cert_module= (cert ? cert->get_certifier() : NULL);
+  if (cert_module)
+  {
+    stats= new Pipeline_member_stats(
+        get_pipeline_stats_member_collector(), get_message_queue_size(),
+        cert_module->get_negative_certified(),
+        cert_module->get_certification_info_size());
+    {
+      char *committed_transactions_buf= NULL;
+      size_t committed_transactions_buf_length= 0;
+      int outcome= cert_module->get_group_stable_transactions_set_string(
+          &committed_transactions_buf, &committed_transactions_buf_length);
+
+      if (!outcome && committed_transactions_buf_length > 0)
+        stats->set_transaction_committed_all_members(committed_transactions_buf,
+                committed_transactions_buf_length);
+      my_free(committed_transactions_buf);
+    }
+    {
+      std::string last_conflict_free_transaction;
+      cert_module->get_last_conflict_free_transaction(
+          &last_conflict_free_transaction);
+      stats->set_transaction_last_conflict_free(last_conflict_free_transaction);
+    }
+  }
+  else
+  {
+    stats= new Pipeline_member_stats(get_pipeline_stats_member_collector(),
+                                     get_message_queue_size(), 0, 0);
+  }
+  return stats;
 }

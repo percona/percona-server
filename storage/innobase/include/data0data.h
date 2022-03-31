@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -620,6 +620,8 @@ struct dtuple_t {
 					/*!< data tuples can be linked into a
 					list using this field */
 #ifdef UNIV_DEBUG
+	mem_heap_t	*m_heap;	/*!< memory heap where this tuple is
+					allocated. */
 	ulint		magic_n;	/*!< magic number, used in
 					debug assertions */
 /** Value of dtuple_t::magic_n */

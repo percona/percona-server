@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,8 +98,8 @@ enum enum_log_table_type
 class File_query_log
 {
   File_query_log(enum_log_table_type log_type)
-    : m_log_type(log_type), name(NULL), write_error(false), log_open(false),
-      cur_log_ext(-1)
+    : cur_log_ext(0), last_removed_ext(0), m_log_type(log_type), name(NULL),
+      write_error(false), log_open(false)
   {
     memset(&log_file, 0, sizeof(log_file));
     mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
@@ -113,11 +113,14 @@ class File_query_log
 
   ~File_query_log()
   {
-    DBUG_ASSERT(!is_open());
+    assert(!is_open());
+    if (name != NULL)
+    {
+      my_free(name);
+      name= NULL;
+    }
     mysql_mutex_destroy(&LOCK_log);
   }
-  int rotate(ulong max_size, bool *need_purge);
-  int new_file();
 
   /** @return true if the file log is open, false otherwise. */
   bool is_open() const { return log_open; }
@@ -138,6 +141,11 @@ class File_query_log
      The internal structures are not freed until the destructor is called.
   */
   void close();
+
+  /**
+   Change what file we log to
+  */
+  bool set_file(const char *new_name);
 
   /**
      Check if we have already printed ER_ERROR_ON_WRITE and if not,
@@ -191,6 +199,14 @@ class File_query_log
                   const char *sql_text, size_t sql_text_len);
 
 private:
+  /** slow log rotation and purging functions */
+  bool set_rotated_name(bool need_lock);
+  bool rotate(ulong max_size);
+  bool purge_logs();
+
+  ulong cur_log_ext;
+  ulong last_removed_ext;
+
   /** Type of log file. */
   const enum_log_table_type m_log_type;
 
@@ -214,14 +230,10 @@ private:
   /** True if the file log is open, false otherwise. */
   volatile bool log_open;
 
-  ulong cur_log_ext;
-
 #ifdef HAVE_PSI_INTERFACE
   /** Instrumentation key to use for file io in @c log_file */
   PSI_file_key m_log_file_key;
 #endif
-
-  bool purge_up_to(ulong to_ext, const char *log_name);
 
   friend class Log_to_file_event_handler;
   friend class Query_logger;
@@ -380,7 +392,7 @@ private:
   {
     if (log_type == QUERY_LOG_SLOW)
       return &mysql_slow_log;
-    DBUG_ASSERT(log_type == QUERY_LOG_GENERAL);
+    assert(log_type == QUERY_LOG_GENERAL);
     return &mysql_general_log;
   }
 
@@ -445,7 +457,7 @@ public:
       return (opt_slow_log && (log_output_options & LOG_TABLE));
     else if (log_type == QUERY_LOG_GENERAL)
       return (opt_general_log && (log_output_options & LOG_TABLE));
-    DBUG_ASSERT(false);
+    assert(false);
     return false;                             /* make compiler happy */
   }
 
@@ -545,6 +557,17 @@ public:
      @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
   */
   bool reopen_log_file(enum_log_table_type log_type);
+
+  /**
+     Read log file name from global variable opt_*_logname.
+     If called from a sys_var update function, the caller
+     must hold a lock protecting the sys_var
+     (LOCK_global_system_variables, a polylock for the
+     variable, etc.).
+
+     @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
+  */
+  bool set_log_file(enum_log_table_type log_type);
 
   /**
      Check if given TABLE_LIST has a query log table name and

@@ -11,4 +11,15 @@ ERROR 42S01: Table 't1' already exists
 [log_stop.inc] percona.slow_extended.log_error_2
 [log_grep.inc] file: percona.slow_extended.log_error_2 pattern: ^.*Last_errno: 1050 .*$
 [log_grep.inc] lines:   1
-DROP TABLE t1;
+
+# PS-6730 - Field 'Last_errno:' should be used for errors only
+
+[log_start.inc] percona.slow_extended.log_error_3
+CREATE TABLE t2(f1 DECIMAL(5, 2) NOT NULL);
+INSERT INTO t2(f1) VALUES (31.400191);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+[log_stop.inc] percona.slow_extended.log_error_3
+[log_grep.inc] file: percona.slow_extended.log_error_3 pattern: ^.*Last_errno: 0 .*$
+[log_grep.inc] lines:   4
+DROP TABLE t1, t2;

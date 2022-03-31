@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 
@@ -445,11 +445,11 @@ starting from SRV_FORCE_IGNORE_CORRUPT, so that data can be recovered
 by SELECT or mysqldump. When this is nonzero, we do not allow any user
 modifications to the data. */
 ulong	srv_force_recovery;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** Inject a crash at different steps of the recovery process.
 This is for testing and debugging only. */
 ulong	srv_force_recovery_crash;
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
 
@@ -1589,7 +1589,7 @@ srv_printf_innodb_monitor(
 	mutex_exit(&srv_innodb_monitor_mutex);
 	fflush(file);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	srv_debug_monitor_printed = true;
 #endif
 
@@ -1903,7 +1903,7 @@ srv_export_innodb_status(void)
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** false before InnoDB monitor has been printed at least once, true
 afterwards */
 bool	srv_debug_monitor_printed	= false;
@@ -2603,6 +2603,10 @@ srv_master_do_active_tasks(void)
 		return;
 	}
 
+	if (trx_sys->rseg_history_len > 0) {
+		srv_wake_purge_thread_if_not_active();
+	}
+
 	if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
 		srv_main_thread_op_info = "enforcing dict cache limit";
 		ulint	n_evicted = srv_master_evict_from_table_cache(50);
@@ -2677,6 +2681,10 @@ srv_master_do_idle_tasks(void)
 
 	if (srv_shutdown_state > 0) {
 		return;
+	}
+
+	if (trx_sys->rseg_history_len > 0) {
+		srv_wake_purge_thread_if_not_active();
 	}
 
 	srv_main_thread_op_info = "enforcing dict cache limit";
@@ -2967,8 +2975,6 @@ srv_task_execute(void)
 
 		os_atomic_inc_ulint(
 			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
-
-		srv_inc_activity_count();
 	}
 
 	return(thr != NULL);
@@ -3316,7 +3322,9 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		rseg_history_len = srv_do_purge(
 			srv_n_purge_threads, &n_total_purged);
 
-		srv_inc_activity_count();
+		if (n_total_purged != 0) {
+			srv_inc_activity_count();
+		}
 
 	} while (!srv_purge_should_exit(n_total_purged));
 

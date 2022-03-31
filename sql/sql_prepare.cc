@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -245,8 +245,19 @@ static inline void rewrite_query_if_needed(THD *thd)
                  !(opt_general_log_raw || thd->slave_thread));
 
   if ((thd->sp_runtime_ctx == NULL) &&
-      (general || opt_slow_log || opt_bin_log))
+      (general || opt_slow_log || opt_bin_log)) {
+    /*
+      thd->m_rewritten_query may already contain "PREPARE stmt FROM ..."
+      at this point, so we reset it here so mysql_rewrite_query()
+      won't complain.
+    */
+    thd->reset_rewritten_query();
+    /*
+      Now replace the "PREPARE ..." with the obfuscated version of the
+      actual query were prepare.
+    */
     mysql_rewrite_query(thd);
+  }
 }
 
 /**
@@ -269,10 +280,10 @@ static inline void log_execute_line(THD *thd)
   if (thd->sp_runtime_ctx != NULL)
     return;
 
-  if (thd->rewritten_query.length())
+  if (thd->rewritten_query().length())
     query_logger.general_log_write(thd, COM_STMT_EXECUTE,
-                                   thd->rewritten_query.c_ptr_safe(),
-                                   thd->rewritten_query.length());
+                                   thd->rewritten_query().ptr(),
+                                   thd->rewritten_query().length());
   else
     query_logger.general_log_write(thd, COM_STMT_EXECUTE,
                                    thd->query().str, thd->query().length);
@@ -289,6 +300,7 @@ class Statement_backup
 {
   LEX *m_lex;
   LEX_CSTRING m_query_string;
+  bool m_safe_to_display;
 
 public:
   LEX *lex() const { return m_lex; }
@@ -309,6 +321,12 @@ public:
     m_query_string= thd->query();
     thd->set_query(stmt->m_query_string);
 
+    m_safe_to_display = thd->safe_to_display();
+
+    /* Keep the current behaviour of displaying prepared statements always by
+    default. This can be changed in future if required. */
+    thd->set_safe_display(true);
+
     DBUG_VOID_RETURN;
   }
 
@@ -326,6 +344,7 @@ public:
     thd->lex=  m_lex;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
+    thd->set_safe_display(m_safe_to_display);
     stmt->m_query_string= thd->query();
     thd->set_query(m_query_string);
 
@@ -774,7 +793,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     param->value.cs_info.character_set_of_placeholder= &my_charset_bin;
     param->value.cs_info.character_set_client=
       thd->variables.character_set_client;
-    DBUG_ASSERT(thd->variables.character_set_client);
+    assert(thd->variables.character_set_client);
     param->value.cs_info.final_character_set_of_str_value= &my_charset_bin;
     param->item_type= Item::STRING_ITEM;
     param->item_result_type= STRING_RESULT;
@@ -1152,7 +1171,7 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
       if (param->convert_str_value(thd))
         goto error;
 
-     DBUG_ASSERT(param->pos_in_query > length);
+      assert(param->pos_in_query > length);
      size_t num_bytes = param->pos_in_query - length;
      if (query->length() + num_bytes + val->length() >
           std::numeric_limits<uint32>::max())
@@ -1292,7 +1311,7 @@ int Sql_cmd_update::mysql_test_update(THD *thd)
 
   if (table_list->is_multiple_tables())
   {
-    DBUG_ASSERT(table_list->is_view());
+    assert(table_list->is_view());
     DBUG_PRINT("info", ("Switch to multi-update"));
     /* convert to multiupdate */
     DBUG_RETURN(2);
@@ -1327,8 +1346,8 @@ bool Sql_cmd_delete::prepared_statement_test(THD *thd)
 
   SELECT_LEX *const select= thd->lex->select_lex;
 
-  DBUG_ASSERT(thd->lex->query_tables ==
-              thd->lex->select_lex->get_table_list());
+  assert(thd->lex->query_tables ==
+         thd->lex->select_lex->get_table_list());
   TABLE_LIST *const table_list= select->get_table_list();
 
   if (delete_precheck(thd, table_list))
@@ -1464,7 +1483,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   set_var_base *var;
   DBUG_ENTER("mysql_test_set_fields");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
+  assert(stmt->is_stmt_prepare());
 
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
@@ -1477,6 +1496,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   {
     if (var->light_check(thd))
       DBUG_RETURN(true);              /* purecov: inspected */
+    var->cleanup();
   }
 
   DBUG_RETURN(false);
@@ -1502,7 +1522,7 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   Item *item;
   DBUG_ENTER("mysql_test_call_fields");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
+  assert(stmt->is_stmt_prepare());
 
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
@@ -1660,7 +1680,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   TABLE_LIST *create_table= lex->query_tables;
   TABLE_LIST *tables= lex->create_last_non_select_table->next_global;
   DBUG_ENTER("mysql_test_create_table");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
+  assert(stmt->is_stmt_prepare());
 
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
@@ -1721,7 +1741,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
   DBUG_ENTER("mysql_test_create_view");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
+  assert(stmt->is_stmt_prepare());
 
   if (create_view_precheck(thd, tables, view, lex->create_view_mode))
     goto err;
@@ -1836,7 +1856,7 @@ bool Sql_cmd_insert_select::prepared_statement_test(THD *thd)
 
   /* store it, because Sql_cmd_insert_select::prepare() change it */
   first_local_table= lex->select_lex->table_list.first;
-  DBUG_ASSERT(first_local_table != 0);
+  assert(first_local_table != 0);
 
   res=
     select_like_stmt_cmd_test_with_open(thd, tables,
@@ -1869,7 +1889,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
-  DBUG_ASSERT(lex == thd->lex); // set_n_backup_active_arena() guarantees that
+  assert(lex == thd->lex); // set_n_backup_active_arena() guarantees that
   SELECT_LEX *select_lex= lex->select_lex;
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
@@ -1924,7 +1944,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_UPDATE_MULTI:
   case SQLCOM_DELETE:
   case SQLCOM_DELETE_MULTI:
-    DBUG_ASSERT(thd->lex == stmt->lex);
+    assert(thd->lex == stmt->lex);
     res=
       static_cast<Sql_cmd_dml *>(lex->m_sql_cmd)->prepared_statement_test(thd);
     break;
@@ -2214,7 +2234,7 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
         NULL value of variable checked early as entry->value so here
         we can't get NULL in normal conditions
       */
-      DBUG_ASSERT(!is_var_null);
+      assert(!is_var_null);
       if (!var_value)
         goto end;
     }
@@ -2402,15 +2422,15 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
 
       if (sl->where_cond())
       {
-        DBUG_ASSERT(sl->where_cond()->real_item()); // no dangling 'ref'
+        assert(sl->where_cond()->real_item()); // no dangling 'ref'
         sl->where_cond()->cleanup();
       }
       if (sl->having_cond())
       {
-        DBUG_ASSERT(sl->having_cond()->real_item());
+        assert(sl->having_cond()->real_item());
         sl->having_cond()->cleanup();
       }
-      DBUG_ASSERT(sl->join == 0);
+      assert(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
       if (sl->group_list_ptrs && sl->group_list_ptrs->size() > 0)
@@ -2501,7 +2521,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
     if (reprepare_observer &&
         reprepare_observer->report_error(thd))
     {
-      DBUG_ASSERT(thd->is_error());
+      assert(thd->is_error());
       DBUG_RETURN(true);
     }
   }
@@ -2548,8 +2568,6 @@ static void reset_stmt_params(Prepared_statement *stmt)
 void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
                          ulong params_length)
 {
-  /* Query text for binary, general or slow log, if any of them is open */
-  String expanded_query;
   Prepared_statement *stmt;
   Protocol *save_protocol= thd->get_protocol();
   bool open_cursor;
@@ -2583,9 +2601,8 @@ void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
   thd->set_protocol(&thd->protocol_binary);
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
-  
-  stmt->execute_loop(&expanded_query, open_cursor, params,
-                    params + params_length);
+
+  stmt->execute_loop(open_cursor, params, params + params_length);
   thd->set_protocol(save_protocol);
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
@@ -2622,8 +2639,6 @@ void mysql_sql_stmt_execute(THD *thd)
   LEX *lex= thd->lex;
   Prepared_statement *stmt;
   const LEX_CSTRING &name= lex->prepared_stmt_name;
-  /* Query text for binary, general or slow log, if any of them is open */
-  String expanded_query;
   DBUG_ENTER("mysql_sql_stmt_execute");
   DBUG_PRINT("info", ("EXECUTE: %.*s\n", (int) name.length, name.str));
 
@@ -2644,7 +2659,7 @@ void mysql_sql_stmt_execute(THD *thd)
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 
-  (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
+  (void) stmt->execute_loop(FALSE, NULL, NULL);
 
   DBUG_VOID_RETURN;
 }
@@ -2777,7 +2792,7 @@ void mysqld_stmt_close(THD *thd, ulong stmt_id)
     The only way currently a statement can be deallocated when it's
     in use is from within Dynamic SQL.
   */
-  DBUG_ASSERT(! stmt->is_in_use());
+  assert(! stmt->is_in_use());
   MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
   stmt->deallocate();
   query_logger.general_log_print(thd, thd->get_command(), NullS);
@@ -2968,6 +2983,7 @@ Reprepare_observer::report_error(THD *thd)
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
   m_invalidated= TRUE;
+  m_attempt++;
 
   return TRUE;
 }
@@ -3137,7 +3153,7 @@ Prepared_statement::~Prepared_statement()
   free_items();
   if (lex)
   {
-    DBUG_ASSERT(lex->sphead == NULL);
+    assert(lex->sphead == NULL);
     lex_end(lex);
     delete lex->result;
     delete (st_lex_local *) lex;                // TRASH memory
@@ -3292,6 +3308,8 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   digest.reset(token_array, max_digest_length);
   thd->m_digest= &digest;
 
+  parser_state.m_input.m_has_digest = true;
+
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);
 #ifndef EMBEDDED_LIBRARY
   if (is_audit_plugin_class_active(thd, MYSQL_AUDIT_GENERAL_CLASS))
@@ -3340,7 +3358,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
     If called from a stored procedure, ensure that we won't rollback
     external changes when cleaning up after validation.
   */
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(thd->change_list.is_empty());
 
   /*
     Marker used to release metadata locks acquired while the prepared
@@ -3362,13 +3380,13 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
     statements: ensure we have no memory leak here if by someone tries
     to PREPARE stmt FROM "CREATE PROCEDURE ..."
   */
-  DBUG_ASSERT(lex->sphead == NULL || error != 0);
+  assert(lex->sphead == NULL || error != 0);
   /* The order is important */
   lex->unit->cleanup(true);
   lex->clear_values_map();
 
   /* No need to commit statement transaction, it's not started. */
-  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+  assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -3381,7 +3399,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
     Once dynamic SQL is allowed as substatements the below if-statement
     has to be adjusted to not do rollback in substatement.
   */
-  DBUG_ASSERT(! thd->in_sub_stmt);
+  assert(! thd->in_sub_stmt);
   if (thd->transaction_rollback_request)
   {
     trans_rollback_implicit(thd);
@@ -3392,18 +3410,18 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 
   rewrite_query_if_needed(thd);
 
-  if (thd->rewritten_query.length())
+  if (thd->rewritten_query().length())
   {
     MYSQL_SET_PS_TEXT(m_prepared_stmt,
-                      thd->rewritten_query.c_ptr_safe(),
-                      thd->rewritten_query.length());
+                      thd->rewritten_query().ptr(),
+                      thd->rewritten_query().length());
   }
   else
   {
     MYSQL_SET_PS_TEXT(m_prepared_stmt,
                       thd->query().str,
                       thd->query().length);
-  }  
+  }
 
   cleanup_stmt();
   stmt_backup.restore_thd(thd, this);
@@ -3445,10 +3463,10 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
     */
     if (thd->sp_runtime_ctx == NULL)
     {
-      if (thd->rewritten_query.length())
+      if (thd->rewritten_query().length())
         query_logger.general_log_write(thd, COM_STMT_PREPARE,
-                                       thd->rewritten_query.c_ptr_safe(),
-                                       thd->rewritten_query.length());
+                                       thd->rewritten_query().ptr(),
+                                       thd->rewritten_query().length());
       else
         query_logger.general_log_write(thd, COM_STMT_PREPARE,
                                        m_query_string.str,
@@ -3532,31 +3550,33 @@ Prepared_statement::set_parameters(String *expanded_query,
   validation error, prepare a new copy of the prepared statement,
   swap the old and the new statements, and try again.
   If there is a validation error again, repeat the above, but
-  perform no more than MAX_REPREPARE_ATTEMPTS.
+  perform not more than a maximum number of times. Reprepare_observer
+  ensures that a prepared statement execution is retried not more than a
+  maximum number of times.
 
   @note We have to try several times in a loop since we
   release metadata locks on tables after prepared statement
   prepare. Therefore, a DDL statement may sneak in between prepare
-  and execute of a new statement. If this happens repeatedly
-  more than MAX_REPREPARE_ATTEMPTS times, we give up.
+  and execute of a new statement. If a prepared statement execution
+  is retried for a maximum number of times then we give up.
+
 
   @return TRUE if an error, FALSE if success
-  @retval  TRUE    either MAX_REPREPARE_ATTEMPTS has been reached,
-                   or some general error
+  @retval  TRUE    either statement execution is retried for
+                   a maximum number of times or some general error.
   @retval  FALSE   successfully executed the statement, perhaps
                    after having reprepared it a few times.
 */
 
 bool
-Prepared_statement::execute_loop(String *expanded_query,
-                                 bool open_cursor,
+Prepared_statement::execute_loop(bool open_cursor,
                                  uchar *packet,
                                  uchar *packet_end)
 {
-  const int MAX_REPREPARE_ATTEMPTS= 3;
   Reprepare_observer reprepare_observer;
   bool error;
-  int reprepare_attempt= 0;
+  /* Query text for binary, general or slow log, if any of them is open */
+  String expanded_query;
 
   /* Check if we got an error when sending long data */
   if (state == Query_arena::STMT_ERROR)
@@ -3565,9 +3585,9 @@ Prepared_statement::execute_loop(String *expanded_query,
     return TRUE;
   }
 
-  DBUG_ASSERT(!thd->get_stmt_da()->is_set());
+  assert(!thd->get_stmt_da()->is_set());
 
-  if (set_parameters(expanded_query, packet, packet_end))
+  if (set_parameters(&expanded_query, packet, packet_end))
     return TRUE;
 
   if (unlikely(thd->security_context()->password_expired() &&
@@ -3583,7 +3603,7 @@ reexecute:
     allocated items when cleaning up after validation of the prepared
     statement.
   */
-  DBUG_ASSERT(thd->free_list == NULL);
+  assert(thd->free_list == NULL);
 
   /*
     Install the metadata observer. If some metadata version is
@@ -3601,16 +3621,16 @@ reexecute:
 
   thd->push_reprepare_observer(stmt_reprepare_observer);
 
-  error= execute(expanded_query, open_cursor) || thd->is_error();
+  error= execute(&expanded_query, open_cursor) || thd->is_error();
 
   thd->pop_reprepare_observer();
 
   if ((sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE) &&
       error && !thd->is_fatal_error && !thd->killed &&
       reprepare_observer.is_invalidated() &&
-      reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
+      reprepare_observer.can_retry())
   {
-    DBUG_ASSERT(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
+    assert(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
     thd->clear_error();
 
     error= reprepare();
@@ -3706,7 +3726,7 @@ Prepared_statement::reprepare()
 
     swap_prepared_statement(&copy);
     swap_parameter_array(param_array, copy.param_array, param_count);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     is_reprepared= TRUE;
 #endif
     /*
@@ -3799,8 +3819,8 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   /* Ditto */
   swap_variables(LEX_CSTRING, m_db, copy->m_db);
 
-  DBUG_ASSERT(param_count == copy->param_count);
-  DBUG_ASSERT(thd == copy->thd);
+  assert(param_count == copy->param_count);
+  assert(thd == copy->thd);
   last_error[0]= '\0';
   last_errno= 0;
 }
@@ -3885,7 +3905,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     If the free_list is not empty, we'll wrongly free some externally
     allocated items when cleaning up after execution of this statement.
   */
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(thd->change_list.is_empty());
 
   /*
    The only case where we should have items in the thd->free_list is
@@ -3907,9 +3927,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                           &cur_db_changed))
   {
     flags&= ~ (uint) IS_IN_USE;
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    thd->lex= stmt_backup.lex();
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+    stmt_backup.restore_thd(thd, this);
     return TRUE;
   }
 
@@ -3921,9 +3939,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), expanded_query->length());
     flags&= ~ (uint) IS_IN_USE;
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    thd->lex= stmt_backup.lex();
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+    stmt_backup.restore_thd(thd, this);
     return TRUE;
   }
 
@@ -4011,19 +4027,25 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
 
   /* Assert that if an error, no cursor is open */
-  DBUG_ASSERT(! (error && cursor));
+  assert(! (error && cursor));
 
   if (! cursor)
     cleanup_stmt();
 
+  thd->lex->release_plugins();
+
   /*
-    Expanded query is needed for slow logging, so we want thd->query
-    to point at it even after we restore from backup. This is ok, as
-    expanded query was allocated in thd->mem_root.
+   Note that we cannot call restore_thd() here as that would overwrite
+   the expanded query in THD::m_query_string, which is needed for slow
+   logging. Use alloc_query() to make sure the query is allocated on
+   the correct MEM_ROOT, since otherwise THD::m_query_string could end
+   up as a dangling pointer (i.e. pointer to freed memory) once the PS
+   MEM_ROOT is freed.
   */
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->lex= stmt_backup.lex();
   mysql_mutex_unlock(&thd->LOCK_thd_data);
+  alloc_query(thd, thd->query().str, thd->query().length);
 
   thd->stmt_arena= old_stmt_arena;
 
@@ -4198,7 +4220,7 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable)
     internal call from NDB etc.  Without this, a rewritten query
     would get "stuck" in SHOW PROCESSLIST.
   */
-  m_thd->rewritten_query.mem_free();
+  m_thd->reset_rewritten_query();
   m_thd->reset_query_for_display();
 
   DBUG_RETURN(rc);
@@ -4248,7 +4270,7 @@ Ed_connection::store_result_set()
 {
   Ed_result_set *ed_result_set;
 
-  DBUG_ASSERT(m_current_rset);
+  assert(m_current_rset);
 
   if (m_current_rset == m_rsets)
   {
@@ -4529,7 +4551,7 @@ bool Protocol_local::send_eof(uint server_status, uint statement_warn_count)
 {
   Ed_result_set *ed_result_set;
 
-  DBUG_ASSERT(m_rset);
+  assert(m_rset);
 
   opt_add_row_to_rset();
   m_current_row= 0;
@@ -4543,7 +4565,7 @@ bool Protocol_local::send_eof(uint server_status, uint statement_warn_count)
     return TRUE;
 
   /* In case of successful allocation memory ownership was transferred. */
-  DBUG_ASSERT(!alloc_root_inited(&m_rset_root));
+  assert(!alloc_root_inited(&m_rset_root));
 
   /*
     Link the created Ed_result_set instance into the list of connection
@@ -4610,7 +4632,7 @@ void
 Protocol_local::start_row()
 {
   DBUG_ENTER("Protocol_local::start_row");
-  DBUG_ASSERT(alloc_root_inited(&m_rset_root));
+  assert(alloc_root_inited(&m_rset_root));
 
   opt_add_row_to_rset();
   /* Start a new row. */

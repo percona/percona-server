@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, 2017, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -273,11 +273,26 @@ struct Compression {
 #endif /* UNIV_DEBUG */
 	}
 
+	/** Version of compressed page */
+	static const uint8_t FIL_PAGE_VERSION_1 = 1;
+	static const uint8_t FIL_PAGE_VERSION_2 = 2;
+
 	/** Check the page header type field.
 	@param[in]	page		Page contents
 	@return true if it is a compressed page */
 	static bool is_compressed_page(const byte* page)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check the page header type field.
+	@param[in]   page            Page contents
+	@return true if it is a compressed and encrypted page */
+	static bool is_compressed_encrypted_page(const byte *page)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if the version on page is valid.
+	@param[in]   version         version
+	@return true if version is valid */
+	static bool is_valid_page_version(uint8_t version);
 
         /** Check wether the compression algorithm is supported.
         @param[in]      algorithm       Compression algorithm to check
@@ -824,8 +839,6 @@ private:
 struct Zip_compressed_info
 {
   bool is_zip_compressed;
-
-
 };
 
 /**
@@ -873,8 +886,11 @@ public:
 		and the truncate redo log. */
 		NO_COMPRESSION = 512,
 
+		/** Row log used in online DDL */
+		ROW_LOG = 1024,
+
 		/** Force write of decrypted pages in encrypted tablespace. */
-		NO_ENCRYPTION = 1024
+		NO_ENCRYPTION = 2048
 	};
 
 	/** Default constructor */
@@ -902,7 +918,7 @@ public:
                 m_is_page_zip_compressed(false),
                 m_zip_page_physical_size(0)
 	{
-		if (is_log()) {
+		if (is_log() || is_row_log()) {
 			disable_compression();
 		}
 
@@ -940,6 +956,13 @@ public:
 		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & LOG) == LOG);
+	}
+
+	/** @return true if it is a row log entry used in online DDL */
+	bool is_row_log() const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return((m_type & ROW_LOG) == ROW_LOG);
 	}
 
 	/** @return true if the simulated AIO thread should be woken up */

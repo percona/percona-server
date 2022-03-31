@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -174,12 +174,6 @@ IF(NOT WITHOUT_SERVER)
   )
 ENDIF()
 
-# TCMalloc hacks
-IF(MALLOC_LIB)
-  MESSAGE("Using tcmalloc '${MALLOC_LIB}'")
-  INSTALL(FILES ${MALLOC_LIB} DESTINATION ${INSTALL_LIBDIR} OPTIONAL)
-ENDIF()
-
 SET(COMPILE_DEFINITIONS_WHITELIST
 )
 
@@ -350,8 +344,15 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
 ENDMACRO()
 
 EXTRACT_LINK_LIBRARIES(perconaserverclient CLIENT_LIBS)
+IF(SOLARIS AND CMAKE_C_FLAGS MATCHES "-xatomic=gcc")
+  STRING_APPEND(CLIENT_LIBS " -xatomic=gcc")
+ENDIF()
+
 IF(WITH_EMBEDDED_SERVER)
   EXTRACT_LINK_LIBRARIES(mysqlserver EMBEDD_LIBS)
+  IF(SOLARIS AND CMAKE_C_FLAGS MATCHES "-xatomic=gcc")
+    STRING_APPEND(EMBEDD_LIBS " -xatomic=gcc")
+  ENDIF()
 ENDIF()
 
 IF(MSVC)

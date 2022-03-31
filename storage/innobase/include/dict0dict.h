@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -2192,6 +2192,10 @@ bool
 dict_table_is_partition(
         const dict_table_t*     table);
 
+/** @return true if all base column of virtual column is foreign key column
+@param[in]	vcol	in-memory virtul column
+@param[in]	foreign	in-memory Foreign key constraint */
+uint32_t dict_vcol_base_is_foreign_key(dict_v_col_t *vcol, dict_foreign_t *foreign);
 
 #endif /* !UNIV_HOTBACKUP */
 /*************************************************************************

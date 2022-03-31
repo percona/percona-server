@@ -33,3 +33,36 @@ and includes the following differences from the original implementation:
 * Percona MyRocks includes the ``lz4`` and ``zstd``
   statically linked libraries.
 
+.. rubric:: Compression 
+
+The supported compression algorithms are the following:
+
+.. list-table::
+    :widths: 20 20 20
+    :header-rows: 1
+
+    * - Compression Algorithm
+      - Percona MyRocks
+      - Facebook MyRocks
+    * - Zlib
+      - Yes
+      - Yes
+    * - LZ4
+      - Yes
+      - Yes
+    * - ZStd
+      - Yes
+      - Yes
+    * - None
+      - Yes
+      - Yes
+    * - Snappy
+      - No
+      - Yes
+    * - Bzip
+      - No
+      - Yes
+   
+
+   
+

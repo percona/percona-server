@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,7 +166,7 @@ Group_member_info::encode_payload(std::vector<unsigned char>* buffer) const
                            member_weight_aux);
 
   uint16 lower_case_table_names_aux= static_cast <uint16> (lower_case_table_names);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (lower_case_table_names != SKIP_ENCODING_LOWER_CASE_TABLE_NAMES)
 #endif
   encode_payload_item_int2(buffer, PIT_LOWER_CASE_TABLE_NAME,
@@ -656,7 +656,7 @@ get_group_member_info_by_member_id(Gcs_member_identifier idx)
   {
     if((*it).second->get_gcs_member_id() == idx)
     {
-      member= (*it).second;
+      member= new Group_member_info(*(*it).second);
       break;
     }
   }
@@ -736,6 +736,34 @@ update_member_status(const string& uuid,
   if(it != members->end())
   {
     (*it).second->update_recovery_status(new_status);
+  }
+
+  mysql_mutex_unlock(&update_lock);
+}
+
+void
+Group_member_info_manager::
+set_member_unreachable(const std::string &uuid)
+{
+  mysql_mutex_lock(&update_lock);
+
+  map<string, Group_member_info*>::iterator it = members->find(uuid);
+  if (it != members->end()) {
+    (*it).second->set_unreachable();
+  }
+
+  mysql_mutex_unlock(&update_lock);
+}
+
+void
+Group_member_info_manager::
+set_member_reachable(const std::string &uuid)
+{
+  mysql_mutex_lock(&update_lock);
+
+  map<string, Group_member_info*>::iterator it = members->find(uuid);
+  if (it != members->end()) {
+    (*it).second->set_reachable();
   }
 
   mysql_mutex_unlock(&update_lock);
@@ -851,7 +879,7 @@ get_primary_member_uuid(std::string &primary_member_uuid)
     Group_member_info* info= (*it).second;
     if (info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
     {
-      DBUG_ASSERT(primary_member_uuid.empty());
+      assert(primary_member_uuid.empty());
       primary_member_uuid =info->get_uuid();
     }
   }

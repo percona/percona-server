@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBresolveip\fR
+.\"     Title: resolveip
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/17/2019
+.\"      Date: 11/29/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBRESOLVEIP\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "RESOLVEIP" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -67,7 +67,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBresolveip [\fR\fB\fIoptions\fR\fR\fB] {\fR\fB\fIhost_name\fR\fR\fB|\fR\fB\fIip\-addr\fR\fR\fB} \&.\&.\&.\fR
+resolveip [\fIoptions\fR] {\fIhost_name\fR|\fIip\-addr\fR} \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -88,7 +88,6 @@ supports the following options\&.
 \fB\-\-info\fR,
 \fB\-?\fR,
 \fB\-I\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -102,7 +101,6 @@ Display a help message and exit\&.
 .\}
 \fB\-\-silent\fR,
 \fB\-s\fR
-.sp
 Silent mode\&. Produce less output\&.
 .RE
 .sp
@@ -116,13 +114,12 @@ Silent mode\&. Produce less output\&.
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

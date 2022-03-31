@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -727,7 +727,10 @@ retry:
 
 		/* Read the first page of the tablespace */
 
-		buf2 = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
+		const ulint buf2_size = recv_recovery_is_on()
+			? (2 * UNIV_PAGE_SIZE) : UNIV_PAGE_SIZE;
+		buf2 = static_cast<byte*>(
+			ut_malloc_nokey(buf2_size + UNIV_PAGE_SIZE));
 
 		/* Align the memory for file i/o if we might have O_DIRECT
 		set */
@@ -737,8 +740,7 @@ retry:
 		IORequest	request(IORequest::READ);
 
 		success = os_file_read(
-			request,
-			node->handle, page, 0, UNIV_PAGE_SIZE);
+			request, node->handle, page, 0, buf2_size);
 
 		srv_stats.page0_read.add(1);
 		space_id = fsp_header_get_space_id(page);
@@ -845,6 +847,20 @@ retry:
 			space->size_in_header = size;
 			space->free_limit = free_limit;
 			space->free_len = free_len;
+
+			/* Set estimated value for space->compression_type
+			during recovery process. */
+			if (recv_recovery_is_on()
+			    && (Compression::is_compressed_page(
+					page + page_size.physical())
+			        || Compression::is_compressed_encrypted_page(
+					page + page_size.physical()))) {
+				ut_ad(buf2_size >= (2 * UNIV_PAGE_SIZE));
+				Compression::meta_t header;
+				Compression::deserialize_header(
+					page + page_size.physical(), &header);
+				space->compression_type = header.m_algorithm;
+			}
 		}
 
 		ut_free(buf2);
@@ -2441,6 +2457,10 @@ fil_name_write(
 	const fil_node_t*	file,
 	mtr_t*			mtr)
 {
+	/* Temporary tablespaces ibtmp1 or the file_per_table
+	compressed temporary tablespaces should never be redo logged */
+	ut_ad(FSP_FLAGS_GET_TEMPORARY(space->flags) == 0);
+
 	fil_name_write(space->id, first_page_no, file->name, mtr);
 }
 
@@ -3274,12 +3294,8 @@ fil_reinit_space_header_for_table(
 	row_mysql_unlock_data_dictionary(trx);
 	DEBUG_SYNC_C("trunc_table_index_dropped_release_dict_lock");
 
-	/* Lock the search latch in shared mode to prevent user
-	from disabling AHI during the scan */
-	btr_search_s_lock_all();
 	DEBUG_SYNC_C("simulate_buffer_pool_scan");
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_ALL_NO_WRITE, 0);
-	btr_search_s_unlock_all();
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -6935,6 +6951,7 @@ struct fil_iterator_t {
 	uint		encryption_key_version;
 	uint		encryption_key_id;
 	fil_space_crypt_t *crypt_data;		/*!< Crypt data (if encrypted) */
+	size_t		block_size;		/*!< FS Block Size */
 };
 
 /********************************************************************//**
@@ -6974,6 +6991,7 @@ fil_iterate(
 	for (offset = iter.start; offset < iter.end; offset += n_bytes) {
 
 		IORequest	read_request(read_type);
+		read_request.block_size(iter.block_size);
 
 		byte*	io_buffer = iter.io_buffer;
 
@@ -7073,6 +7091,7 @@ fil_iterate(
 		}
 
 		IORequest	write_request(write_type);
+		write_request.block_size(iter.block_size);
 
 		/* For encrypted table, set encryption information. */
 		if (iter.encryption_key != NULL && offset != 0 && iter.crypt_data == NULL) {
@@ -7202,6 +7221,17 @@ fil_tablespace_iterate(
 		err = DB_SUCCESS;
 	}
 
+	/* Set File System Block Size */
+	size_t block_size;
+	{
+		os_file_stat_t stat_info;
+
+		ut_d(dberr_t err =) os_file_get_status(filepath, &stat_info, false, false);
+		ut_ad(err == DB_SUCCESS);
+
+		block_size = stat_info.block_size;
+	}
+
 	callback.set_file(filepath, file);
 
 	os_offset_t	file_size = os_file_get_size(file);
@@ -7244,6 +7274,7 @@ fil_tablespace_iterate(
 		iter.file_size = file_size;
 		iter.n_io_buffers = n_io_buffers;
 		iter.page_size = callback.get_page_size().physical();
+		iter.block_size = block_size;
 
 		ulint	space_flags = callback.get_space_flags();
 		iter.crypt_data = fil_space_read_crypt_data(
@@ -8104,7 +8135,11 @@ fil_encryption_rotate_low(const fil_space_t* space)
 		mtr_t mtr;
 		mtr_start(&mtr);
 
-		if (fsp_is_system_temporary(space->id)) {
+		/* Compressed temporary tables are file_per_table
+		tablespaces and cannot be determined by space_id check.
+		Check the temporary FSP flag for these tablespaces */
+		if (fsp_is_system_temporary(space->id)
+		    || FSP_FLAGS_GET_TEMPORARY(space->flags)) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 		}
 

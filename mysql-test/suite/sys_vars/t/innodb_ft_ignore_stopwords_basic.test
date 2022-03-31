@@ -66,8 +66,9 @@ SET SESSION innodb_ft_ignore_stopwords = 2;
 SET GLOBAL innodb_ft_ignore_stopwords = 'AUTO';
 --error ER_WRONG_VALUE_FOR_VAR
 SET SESSION innodb_ft_ignore_stopwords = 'AUTO';
---echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL innodb_ft_ignore_stopwords = -3;
+--error ER_WRONG_VALUE_FOR_VAR
 SET SESSION innodb_ft_ignore_stopwords = -7;
 SELECT @@global.innodb_ft_ignore_stopwords;
 SELECT @@session.innodb_ft_ignore_stopwords;

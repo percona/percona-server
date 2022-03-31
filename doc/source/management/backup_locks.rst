@@ -9,11 +9,11 @@
 ``LOCK TABLES FOR BACKUP``
 ---------------------------
 
-``LOCK TABLES FOR BACKUP`` uses a new MDL lock type to block updates to non-transactional tables and DDL statements for all tables. If there is an active ``LOCK TABLES FOR BACKUP`` lock then all DDL statements and all updates to MyISAM, CSV, MEMORY, ARCHIVE, |TokuDB|, and |MyRocks| tables will be blocked in the ``Waiting for backup lock`` status, visible in ``PERFORMANCE_SCHEMA`` or ``PROCESSLIST``.
+``LOCK TABLES FOR BACKUP`` uses a new MDL lock type to block updates to non-transactional tables and DDL statements for all tables. If there is an active ``LOCK TABLES FOR BACKUP`` lock then all DDL statements and all updates to MyISAM, CSV, MEMORY, ARCHIVE, TokuDB, and MyRocks tables will be blocked in the ``Waiting for backup lock`` status, visible in ``PERFORMANCE_SCHEMA`` or ``PROCESSLIST``.
 
-``LOCK TABLES FOR BACKUP`` has no effect on ``SELECT`` queries for all mentioned storage engines. Against |InnoDB|, Blackhole and Federated tables, the ``LOCK TABLES FOR BACKUP`` is not applicable to the ``INSERT``, ``REPLACE``, ``UPDATE``, ``DELETE`` statements: Blackhole tables obviously have no relevance to backups, and Federated tables are ignored by both logical and physical backup tools. 
+``LOCK TABLES FOR BACKUP`` has no effect on ``SELECT`` queries for all mentioned storage engines. Against InnoDB, Blackhole and Federated tables, the ``LOCK TABLES FOR BACKUP`` is not applicable to the ``INSERT``, ``REPLACE``, ``UPDATE``, ``DELETE`` statements: Blackhole tables obviously have no relevance to backups, and Federated tables are ignored by both logical and physical backup tools. 
 
-Unlike ``FLUSH TABLES WITH READ LOCK``, ``LOCK TABLES FOR BACKUP`` does not flush tables, i.e. storage engines are not forced to close tables and tables are not expelled from the table cache. As a result, ``LOCK TABLES FOR BACKUP`` only waits for conflicting statements to complete (i.e. DDL and updates to non-transactional tables). It never waits for SELECTs, or UPDATEs to |InnoDB| tables to complete, for example.
+Unlike ``FLUSH TABLES WITH READ LOCK``, ``LOCK TABLES FOR BACKUP`` does not flush tables, i.e. storage engines are not forced to close tables and tables are not expelled from the table cache. As a result, ``LOCK TABLES FOR BACKUP`` only waits for conflicting statements to complete (i.e. DDL and updates to non-transactional tables). It never waits for SELECTs, or UPDATEs to InnoDB tables to complete, for example.
 
 If an "unsafe" statement is executed in the same connection that is holding a ``LOCK TABLES FOR BACKUP`` lock, it fails with the following error: :: 
 
@@ -24,11 +24,11 @@ If an "unsafe" statement is executed in the same connection that is holding a ``
 ``LOCK BINLOG FOR BACKUP``
 ---------------------------
 
-``LOCK BINLOG FOR BACKUP`` uses another new MDL lock type to block all operations that might change either binary log position or ``Exec_Master_Log_Pos`` or ``Exec_Gtid_Set`` (i.e. master binary log coordinates corresponding to the current SQL thread state on a replication slave) as reported by ``SHOW MASTER``/``SLAVE STATUS``. More specifically, a commit will only be blocked if the binary log is enabled (both globally, and for connection with sql_log_bin), or if commit is performed by a slave thread and would advance ``Exec_Master_Log_Pos`` or ``Executed_Gtid_Set``. Connections that are currently blocked on the global binlog lock can be identified by the ``Waiting for binlog lock`` status in ``PROCESSLIST``.
+``LOCK BINLOG FOR BACKUP`` uses another new MDL lock type to block all operations that might change either binary log position or ``Exec_Master_Log_Pos`` or ``Exec_Gtid_Set`` (i.e. source binary log coordinates corresponding to the current SQL thread state on a replication replica) as reported by ``SHOW MASTER``/``SLAVE STATUS``. More specifically, a commit will only be blocked if the binary log is enabled (both globally, and for connection with sql_log_bin), or if commit is performed by a replica thread and would advance ``Exec_Master_Log_Pos`` or ``Executed_Gtid_Set``. Connections that are currently blocked on the global binlog lock can be identified by the ``Waiting for binlog lock`` status in ``PROCESSLIST``.
 
 .. _backup-safe_binlog_information:
 
-``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to |InnoDB|. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in |InnoDB| are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable |Percona XtraBackup| to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
+``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to InnoDB. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in InnoDB are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable |Percona XtraBackup| to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
 
 ``UNLOCK BINLOG``
 ------------------
@@ -58,13 +58,13 @@ If the server is operating in the read-only mode (i.e. :variable:`read_only` set
 MyISAM index and data buffering
 -------------------------------
 
-|MyISAM| key buffering is normally write-through, i.e. by the time each update to a |MyISAM| table is completed, all index updates are written to disk. The only exception is delayed key writing feature which is disabled by default. 
+MyISAM key buffering is normally write-through, i.e. by the time each update to a MyISAM table is completed, all index updates are written to disk. The only exception is delayed key writing feature which is disabled by default. 
 
-When the global system variable :variable:`delay_key_write` is set to ``ALL``, key buffers for all |MyISAM| tables are not flushed between updates, so a physical backup of those tables may result in broken |MyISAM| indexes. To prevent this, ``LOCK TABLES FOR BACKUP`` will fail with an error if ``delay_key_write`` is set to ``ALL``. An attempt to set :variable:`delay_key_write` to ``ALL`` when there's an active backup lock will also fail with an error. 
+When the global system variable :variable:`delay_key_write` is set to ``ALL``, key buffers for all MyISAM tables are not flushed between updates, so a physical backup of those tables may result in broken MyISAM indexes. To prevent this, ``LOCK TABLES FOR BACKUP`` will fail with an error if ``delay_key_write`` is set to ``ALL``. An attempt to set :variable:`delay_key_write` to ``ALL`` when there's an active backup lock will also fail with an error. 
 
-Another option to involve delayed key writing is to create |MyISAM| tables with the DELAY_KEY_WRITE option and set the :variable:`delay_key_write` variable to ``ON`` (which is the default). In this case, ``LOCK TABLES FOR BACKUP`` will not be able to prevent stale index files from appearing in the backup. Users are encouraged to set :variable:`delay_key_writes` to ``OFF`` in the configuration file, :file:`my.cnf`, or repair |MyISAM| indexes after restoring from a physical backup created with backup locks.
+Another option to involve delayed key writing is to create MyISAM tables with the DELAY_KEY_WRITE option and set the :variable:`delay_key_write` variable to ``ON`` (which is the default). In this case, ``LOCK TABLES FOR BACKUP`` will not be able to prevent stale index files from appearing in the backup. Users are encouraged to set :variable:`delay_key_writes` to ``OFF`` in the configuration file, :file:`my.cnf`, or repair MyISAM indexes after restoring from a physical backup created with backup locks.
 
-|MyISAM| may also cache data for bulk inserts, e.g. when executing multi-row INSERTs or ``LOAD DATA`` statements. Those caches, however, are flushed between statements, so have no effect on physical backups as long as all statements updating |MyISAM| tables are blocked.
+MyISAM may also cache data for bulk inserts, e.g. when executing multi-row INSERTs or ``LOAD DATA`` statements. Those caches, however, are flushed between statements, so have no effect on physical backups as long as all statements updating MyISAM tables are blocked.
 
 mysqldump
 ---------
@@ -76,6 +76,8 @@ When used without the :option:`single-transaction` option, :option:`lock-for-bac
 Option :option:`lock-for-backup` is mutually exclusive with :option:`lock-all-tables`, i.e. specifying both on the command line will lead to an error. 
 
 If the backup locks feature is not supported by the target server, but :option:`lock-for-backup` is specified on the command line, ``mysqldump`` aborts with an error.
+
+|Percona XtraBackup| provides the `--backup-locks <https://www.percona.com/doc/percona-xtrabackup/2.4/innobackupex/innobackupex_option_reference.html#cmdoption-innobackupex-backup-locks>`_ option. If you disable this option, ``Flush Table with Read Lock`` is used on the backup stage.
 
 Version Specific Information
 ============================

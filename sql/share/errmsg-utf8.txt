@@ -6698,7 +6698,7 @@ ER_MALFORMED_GTID_SPECIFICATION
   eng "Malformed GTID specification '%.200s'."
 
 ER_GNO_EXHAUSTED
-  eng "Impossible to generate Global Transaction Identifier: the integer component reached the maximal value. Restart the server with a new server_uuid."
+  eng "Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid."
 
 ER_BAD_SLAVE_AUTO_POSITION
   eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."
@@ -7787,6 +7787,15 @@ ER_GROUPING_ON_TIMESTAMP_IN_DST
 ER_CANT_START_SERVER_NAMED_PIPE
   eng "Can't start server : Named Pipe \"%s\" already in use."
 
+ER_WRITE_SET_EXCEEDS_LIMIT
+  eng "The size of writeset data for the current transaction exceeds a limit imposed by an external component. If using Group Replication check 'group_replication_transaction_size_limit'."
+
+ER_DEPRECATED_TLS_VERSION_SESSION
+  eng "Accepted a connection with deprecated protocol '%s' for account `%s`@`%s` from host `%s`. Client supplied username `%s`"
+
+ER_WARN_DEPRECATED_TLS_VERSION
+  eng "A deprecated TLS version %s is enabled. Please use TLSv1.2 or higher."
+
 #
 #  End of 5.7 error messages.
 #
@@ -7891,6 +7900,12 @@ ER_RDB_TTL_DURATION_FORMAT
 
 ER_PER_INDEX_CF_DEPRECATED
   eng "The per-index column family option has been deprecated."
+
+ER_CF_DROPPED
+  eng "Column family ('%s') is being dropped."
+
+ER_CANT_DROP_CF
+  eng "Cannot drop Column family ('%s') because it is in use or does not exist."
 
 #
 # End of MyRocks specific messages

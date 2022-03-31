@@ -1,6 +1,3 @@
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
 # Starting server with keyring plugin  
 # restart:<hidden args>
 DROP DATABASE IF EXISTS tde_db;
@@ -143,7 +140,7 @@ INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
 ERROR HY000: Function 'keyring_vault' already exists
 SELECT @@global.keyring_vault_config;
 @@global.keyring_vault_config
-MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf
+MYSQLTEST_VARDIR/keyring_vault1.conf
 # Uninstall is possible when server started with --early-plugin-load
 UNINSTALL PLUGIN keyring_vault;
 # variable not accessible after uninstall
@@ -649,7 +646,7 @@ PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_vault	1.0	ACTIVE
 SELECT @@global.keyring_vault_config;
 @@global.keyring_vault_config
-MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf
+MYSQLTEST_VARDIR/keyring_vault1.conf
 # init tables
 call tde_db.init_setup();
 /*  select tde_db.t_encrypt */
@@ -719,10 +716,10 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 # Install keyring plugin
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
 # Set keyring_file_data as old file so as to access old tables
-SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf';
+SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault1.conf';
 SELECT @@global.keyring_vault_config;
 @@global.keyring_vault_config
-MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf
+MYSQLTEST_VARDIR/keyring_vault1.conf
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 COUNT(*)
 64

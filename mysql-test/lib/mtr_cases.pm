@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ our @EXPORT= qw(collect_option collect_test_cases);
 
 use mtr_report;
 use mtr_match;
+use My::Constants;
 
 # Options used for the collect phase
 our $start_from;
@@ -689,10 +690,11 @@ sub optimize_cases {
 	# The test supports different binlog formats
 	# check if the selected one is ok
 	my $supported=
-	  grep { $_ eq $binlog_format } @{$tinfo->{'binlog_formats'}};
+	  grep { $_ eq lc $binlog_format } @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
 	  $tinfo->{'comment'}=
 	    "Doesn't support --binlog-format='$binlog_format'";
 	}
@@ -707,18 +709,21 @@ sub optimize_cases {
       # Get binlog-format used by this test from master_opt
       my $test_binlog_format;
       foreach my $opt ( @{$tinfo->{master_opt}} ) {
+       (my $dash_opt = $opt) =~ s/_/-/g;
 	$test_binlog_format=
-	  mtr_match_prefix($opt, "--binlog-format=") || $test_binlog_format;
+	  mtr_match_prefix($dash_opt, "--binlog-format=") || $test_binlog_format;
       }
 
       if (defined $test_binlog_format and
 	  defined $tinfo->{binlog_formats} )
       {
 	my $supported=
-	  grep { $_ eq $test_binlog_format } @{$tinfo->{'binlog_formats'}};
+	  grep { My::Options::option_equals($_, lc $test_binlog_format) }
+            @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
 	  $tinfo->{'comment'}=
 	    "Doesn't support --binlog-format='$test_binlog_format'";
 	  next;
@@ -733,10 +738,11 @@ sub optimize_cases {
     my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
+     (my $dash_opt = $opt) =~ s/_/-/g;
       my $default_engine=
-	mtr_match_prefix($opt, "--default-storage-engine=");
+	mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine=
-	mtr_match_prefix($opt, "--default-tmp-storage-engine=");
+	mtr_match_prefix($dash_opt, "--default-tmp-storage-engine=");
 
       # Allow use of uppercase, convert to all lower case
       $default_engine =~ tr/A-Z/a-z/;
@@ -754,6 +760,7 @@ sub optimize_cases {
 	     ! exists $builtin_engines{$default_engine} )
 	{
 	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
 	  $tinfo->{'comment'}=
 	    "'$default_engine' not supported";
 	}
@@ -775,6 +782,7 @@ sub optimize_cases {
 	     ! exists $builtin_engines{$default_tmp_engine} )
 	{
 	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
 	  $tinfo->{'comment'}=
 	    "'$default_tmp_engine' not supported";
 	}
@@ -1019,6 +1027,7 @@ sub collect_one_test_case {
     if ( IS_WIN32PERL )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "No tests with sh scripts on Windows";
       return $tinfo;
     }
@@ -1037,6 +1046,7 @@ sub collect_one_test_case {
     if ( IS_WIN32PERL )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "No tests with sh scripts on Windows";
       return $tinfo;
     }
@@ -1070,6 +1080,7 @@ sub collect_one_test_case {
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
+    $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
     $tinfo->{'comment'}= "Test needs 'big-test' option";
     return $tinfo
   }
@@ -1077,6 +1088,7 @@ sub collect_one_test_case {
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
+    $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
     $tinfo->{'comment'}= "Test needs debug binaries";
     return $tinfo
   }
@@ -1088,6 +1100,7 @@ sub collect_one_test_case {
     {
       # ndbcluster is disabled
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "ndbcluster disabled";
       return $tinfo;
     }
@@ -1099,6 +1112,7 @@ sub collect_one_test_case {
     {
       # Only the ndb test should be run, all other should be skipped
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "Only ndbcluster tests";
       return $tinfo;
     }
@@ -1121,9 +1135,10 @@ sub collect_one_test_case {
   }
   if ( $tinfo->{'need_binlog'} )
   {
-    if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
+    if (grep(/^--skip[-_]log[-_]bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "Test needs binlog";
       return $tinfo;
     }
@@ -1141,6 +1156,7 @@ sub collect_one_test_case {
     if ( $skip_rpl )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "No replication tests(--skip-rpl)";
       return $tinfo;
     }
@@ -1151,6 +1167,7 @@ sub collect_one_test_case {
     if ( $tinfo->{'not_embedded'} )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "Not run for embedded server";
       return $tinfo;
     }
@@ -1170,6 +1187,7 @@ sub collect_one_test_case {
     if ( ! $::opt_ssl_supported ) {
       # SSL is not supported, skip it
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "No SSL support";
       return $tinfo;
     }
@@ -1190,6 +1208,7 @@ sub collect_one_test_case {
   if ( $tinfo->{'not_windows'} && IS_WINDOWS )
   {
     $tinfo->{'skip'}= 1;
+    $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
     $tinfo->{'comment'}= "Test not supported on Windows";
     return $tinfo;
   }
@@ -1254,11 +1273,11 @@ my @tags=
 (
  ["include/have_binlog_format_row.inc", "binlog_formats", ["row"]],
  ["include/have_binlog_format_statement.inc", "binlog_formats", ["statement"]],
- ["include/have_binlog_format_mixed.inc", "binlog_formats", ["mixed"]],
+ ["include/have_binlog_format_mixed.inc", "binlog_formats", ["mixed", "mix"]],
  ["include/have_binlog_format_mixed_or_row.inc",
-  "binlog_formats", ["mixed", "row"]],
+  "binlog_formats", ["mixed", "mix", "row"]],
  ["include/have_binlog_format_mixed_or_statement.inc",
-  "binlog_formats", ["mixed", "statement"]],
+  "binlog_formats", ["mixed", "mix", "statement"]],
  ["include/have_binlog_format_row_or_statement.inc",
   "binlog_formats", ["row", "statement"]],
 

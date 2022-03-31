@@ -198,7 +198,7 @@ static uchar *hp_allocate_variable_chunkset(HP_DATASPACE *info,
   uchar *first_chunk= 0, *curr_chunk= 0, *prev_chunk= 0;
   uchar  *last_existing_chunk= 0;
 
-  DBUG_ASSERT(alloc_count);
+  assert(alloc_count);
 
   if (existing_set)
   {

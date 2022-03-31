@@ -489,4 +489,192 @@ UPDATE t1 SET isa = 1 WHERE a = 'test' AND isa = 0;
 SELECT j,a,isa,ab FROM t1;
 DROP TABLE t1;
 
---source include/wait_until_count_sessions.inc
+--echo #
+--echo # Bug#29451999: CRASH WITH RANGE QUERIES
+--echo #
+
+CREATE TABLE t1 (c1 JSON, c2 TINYTEXT, c3 TIMESTAMP(4), c4 JSON, c5 DOUBLE, c6 TIME(4), c7 LONGTEXT GENERATED ALWAYS AS ('20:30:44') VIRTUAL NOT NULL, KEY k1 (c7(12))) ENGINE=INNODB;
+INSERT INTO t1 (c1, c2, c3, c4) VALUES('{}', 1, '1991-05-27', '{}');
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+SELECT COUNT(*) FROM t1;
+
+SET GLOBAL innodb_purge_stop_now= ON;
+DELETE FROM t1;
+
+SELECT c4 FROM t1 WHERE c7 BETWEEN '16383' AND '2015-01-01';
+
+#Cleanup
+SET GLOBAL innodb_purge_run_now = ON;
+DROP TABLE t1;
+
+CREATE TABLE t2 (
+  i INT NOT NULL,
+  gc INT GENERATED ALWAYS AS (i) VIRTUAL NOT NULL,
+  KEY (gc)
+);
+
+INSERT INTO t2 (i) VALUES (-1), (0), (1), (2);
+
+BEGIN;
+--disable_query_log
+--let $i = 2000
+while ($i > 0)
+{
+  INSERT INTO t2 (i) VALUES (-10);
+  dec $i;
+}
+--enable_query_log
+
+CONNECT (con1,localhost,root,,);
+# This query used to return zero rows.
+SELECT i FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+# Similar query using covering index was correct even before.
+SELECT gc FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+DISCONNECT con1;
+CONNECTION default;
+
+COMMIT;
+
+DROP TABLE t2;
+
+--echo #
+--echo # Bug#26330279 - ASSERT ON ROW_PURGE_REMOVE_SEC_IF_POSS_LEAF| INNOBASE/ROW/ROW0PURGE.CC
+--echo #
+
+SET GLOBAL innodb_purge_stop_now=ON;
+CREATE TABLE t1 (col1 INT,
+                 col2 VARCHAR(100),
+                 col3 VARCHAR(80) GENERATED ALWAYS AS (SUBSTR(col2,1,70)),
+                 PRIMARY KEY (col1), UNIQUE KEY uidx(col3(10))) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2) VALUES(1, CONCAT(1, REPEAT('z',90)));
+
+REPLACE INTO t1(col1, col2) SELECT col1, col2 FROM t1;
+
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #30556595  FAILING ASSERTION: !CURSOR->INDEX->IS_COMMITTED()
+--echo # ON TABLE WITH GCOLS
+--echo #
+
+--echo # Testcase-1
+CREATE TABLE t (pid int PRIMARY KEY,
+                uid int,
+                vid int AS (uid) VIRTUAL);
+connect(con1,localhost,root,,);
+--echo # Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+--send ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+--echo # Insert a record to generate an insert row log for the new index.
+--echo # LOG-1 idx_vid : INSERT [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+--echo # Update the record changing PK. It should generate 2 row logs for the new index.
+--echo # LOG-2 idx_vid : DELETE [10, 1]
+--echo # LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SELECT * FROM t;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+connection con1;
+--reap
+connection default;
+--echo # Insert a record to re-use the delete marked record in idx_vid [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+SELECT * FROM t;
+disconnect con1;
+DROP TABLE t;
+
+--echo # Testcase-2
+CREATE TABLE t (pid int PRIMARY KEY,
+                uid int,
+                vid int AS (uid) VIRTUAL);
+connect(con1,localhost,root,,);
+--echo # Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+--send ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+--echo # Start transaction
+BEGIN;
+--echo # Insert a record to generate an insert row log for the new index.
+--echo # LOG-1 idx_vid : INSERT [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+--echo # Update the record changing PK. It should generate 2 row logs for the new index.
+--echo # LOG-2 idx_vid : DELETE [10, 1]
+--echo # LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SELECT * FROM t;
+--echo # Rollback transaction
+--echo # LOG-4 idx_vid : DELETE [10, 2]
+--echo # LOG-5 idx_vid : INSERT [10, 1]
+--echo # LOG-6 idx_vid : DELETE [10, 1]
+ROLLBACK;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+connection con1;
+--reap
+connection default;
+--echo # Insert a record to check valid entry in idx_vid [NULL, 1]
+INSERT INTO t(pid) VALUES (1);
+SELECT * FROM t;
+disconnect con1;
+DROP TABLE t;
+
+--echo # Testcase-3
+CREATE TABLE t (pid int PRIMARY KEY,
+                uid int,
+                vid int AS (uid) VIRTUAL);
+INSERT INTO t(pid, uid) VALUES (1,10);
+connect(con1,localhost,root,,);
+--echo # Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+--send ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+--echo # Update the record changing PK. It should generate 2 row logs for the new index.
+--echo # LOG-2 idx_vid : DELETE [10, 1]
+--echo # LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+connection con1;
+--reap
+connection default;
+--echo # Read [2, 10, 10] row using idx_vid index key.
+--sleep 1
+select * from t where VID=10;
+disconnect con1;
+DROP TABLE t;
+
+--echo # Testcase-4
+CREATE TABLE t (pid int PRIMARY KEY,
+                uid int,
+                vid int AS (uid) VIRTUAL);
+INSERT INTO t(pid, uid) VALUES (1,10);
+connect(con1,localhost,root,,);
+--echo # Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+--send ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+--echo # Update the record changing PK. It should generate 2 row logs for the new index.
+--echo # LOG-2 idx_vid : DELETE [10, 1]
+--echo # LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+connection con1;
+--reap
+connection default;
+--echo # Delete a record.
+delete from t limit 1;
+disconnect con1;
+DROP TABLE t;

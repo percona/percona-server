@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,8 @@
 #define FIELD_IS_DROPPED (1<< 26)       /* Intern: Field is being dropped */
 #define EXPLICIT_NULL_FLAG (1<< 27)     /* Field is explicitly specified as
                                            NULL by the user */
-#define CLUSTERING_FLAG (1 << 28)       /* Field has a secondary clustering
+#define SERIAL_FLAG (1<< 28)            /* Field is "SERIAL" */
+#define CLUSTERING_FLAG (1 << 29)       /* Field has a secondary clustering
                                         key */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */

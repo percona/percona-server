@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,6 @@ extern PSI_rwlock_key
                key_GR_RWLOCK_cert_stable_gtid_set,
                key_GR_RWLOCK_io_cache_unused_list,
                key_GR_RWLOCK_plugin_stop,
-               key_GR_RWLOCK_gcs_operations,
-               key_GR_RWLOCK_gcs_operations_finalize_ongoing;
+               key_GR_RWLOCK_gcs_operations;
 
 #endif /* PLUGIN_PSI_INCLUDED */

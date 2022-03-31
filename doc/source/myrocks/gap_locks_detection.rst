@@ -6,7 +6,7 @@ Gap locks detection
 
 |Percona Server| has implemented `Gap locks
 <https://dev.mysql.com/doc/refman/5.7/en/innodb-locking.html#innodb-gap-locks>`_
-detection in :rn:`5.7.18-14` based on a Facebook |MySQL| patch.
+detection in :rn:`5.7.18-14` based on a Facebook MySQL patch.
 
 If a transactional storage engine does not support gap locks (for example
 MyRocks) and a gap lock is being attempted while the transaction isolation

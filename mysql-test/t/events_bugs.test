@@ -223,11 +223,11 @@ create event e_55 on schedule at 20000101000000 do drop table t;
 show events;
 
 --error ER_PARSE_ERROR
-create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 starts 10000101000000 do drop table t;
 --error ER_PARSE_ERROR
-create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 ends 10000101000000 do drop table t;
 --error ER_PARSE_ERROR
-create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 starts 10000101000000 ends 10000101000000 do drop table t;
 --error ER_WRONG_VALUE
 create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
 
@@ -685,6 +685,37 @@ connection default;
 
 DROP USER mysqltest_u1@localhost;
 
+#
+# PS#8115: Check a user containing an '@' is processed correctly
+#
+
+--let $user= 'mysqltest_u1@corp'@'localhost'
+--let $event= e1
+--eval CREATE USER $user
+--eval GRANT EVENT ON events_test.* TO $user
+
+--eval CREATE DEFINER=$user EVENT $event ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO SELECT 1
+--eval SHOW CREATE EVENT $event
+
+--eval DROP EVENT $event
+--eval DROP USER $user
+
+# user with several '@' is processed correctly
+--let $user= 'mysqltest_u1@corp@comp'@'localhost'
+--let $event= e1
+--eval CREATE USER $user
+--eval GRANT EVENT ON events_test.* TO $user
+
+--eval CREATE DEFINER=$user EVENT $event ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO SELECT 1
+--eval SHOW CREATE EVENT $event
+
+--eval DROP EVENT $event
+--eval DROP USER $user
+
+# '@' is not allowed in the hostname
+--let $user= 'mysqltest_u1'@'localhost@corp'
+--error ER_UNKNOWN_ERROR
+--eval CREATE USER $user
 
 #
 # BUG#16420: Events: timestamps become UTC
@@ -730,7 +761,7 @@ SHOW EVENTS;
 
 # This will update event time zone.
 SET TIME_ZONE= '-03:00';
-ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2030-01-03 00:00:00'
+ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2038-01-03 00:00:00'
   ON COMPLETION PRESERVE DISABLE;
 SHOW EVENTS;
 

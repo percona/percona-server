@@ -3294,7 +3294,7 @@ redo_log_keys::generate_and_store_new_key(THD* thd) {
 		return(NULL);
 	}
 
-	DBUG_ASSERT(rkey != NULL);
+	assert(rkey != NULL);
 	byte*  rkey2 = NULL;
 	size_t klen2 = 0;
 	uint   version = 0;

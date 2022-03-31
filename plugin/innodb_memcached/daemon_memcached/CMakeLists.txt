@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,10 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 		)
 INCLUDE_DIRECTORIES(SYSTEM ${LIBEVENT_INCLUDE_DIRS})
 
+IF(HAVE_LIBEVENT2)
+  ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
+ENDIF()
+
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
 
 # Remove "-Wdeclaration-after-statement" and "-Wvla" flags if exist to reduce the number of warnings
@@ -50,6 +54,9 @@ IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-but-set-variable")
   ENDIF()
 ENDIF()
+
+# Suppress 'sigignore' deprecation error
+ADD_COMPILE_FLAGS("daemon/memcached.c" COMPILE_FLAGS "-Wno-deprecated-declarations")
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
 		include/memcached/config_parser.h

@@ -256,7 +256,7 @@ diff -rup old/plugin/percona-pam-for-mysql/CMakeLists.txt new/plugin/percona-pam
 diff -rup old/scripts/CMakeLists.txt new/scripts/CMakeLists.txt
 --- old/scripts/CMakeLists.txt	2016-03-09 09:25:25.000000000 +0100
 +++ new/scripts/CMakeLists.txt	2016-03-09 11:41:15.163325622 +0100
-@@ -319,7 +319,7 @@ ELSE()
+@@ -305,7 +305,7 @@
  ENDIF()
  
  # Use cmake variables to inspect dependencies for 
@@ -265,14 +265,16 @@ diff -rup old/scripts/CMakeLists.txt new/scripts/CMakeLists.txt
  SET(CLIENT_LIBS "")
  SET(LIBS "")
  
-@@ -360,14 +360,14 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
+@@ -343,7 +343,7 @@
    STRING(REGEX REPLACE "[ ]+$" "" ${var} "${${var}}")
  ENDMACRO()
  
 -EXTRACT_LINK_LIBRARIES(perconaserverclient CLIENT_LIBS)
 +EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
- IF(WITH_EMBEDDED_SERVER)
-   EXTRACT_LINK_LIBRARIES(mysqlserver EMBEDD_LIBS)
+ IF(SOLARIS AND CMAKE_C_FLAGS MATCHES "-xatomic=gcc")
+   STRING_APPEND(CLIENT_LIBS " -xatomic=gcc")
+ ENDIF()
+@@ -356,8 +356,8 @@
  ENDIF()
  
  IF(MSVC)
@@ -466,15 +468,15 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile new/stor
 diff -rup old/storage/ndb/test/run-test/CMakeLists.txt new/storage/ndb/test/run-test/CMakeLists.txt
 --- old/storage/ndb/test/run-test/CMakeLists.txt	2016-03-09 09:25:27.000000000 +0100
 +++ new/storage/ndb/test/run-test/CMakeLists.txt	2016-03-09 11:41:15.167325622 +0100
-@@ -32,7 +32,7 @@ IF(NOT WIN32)
-   ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
- ENDIF()
+@@ -41,7 +41,7 @@
  ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
--TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static perconaserverclient)
-+TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
- 
- FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
- ADD_TEST(NAME check_testcase_files
+ IF(WIN32)
+   # All clients will need auth_win_client
+-  TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static perconaserverclient)
++  TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclien)
+ ELSE()
+   # Linking with mysqlclient may fail on macOS, so link individual libs instead.
+   TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static
 diff -rup old/testclients/CMakeLists.txt new/testclients/CMakeLists.txt
 --- old/testclients/CMakeLists.txt	2016-03-09 09:25:27.000000000 +0100
 +++ new/testclients/CMakeLists.txt	2016-03-09 11:41:15.167325622 +0100

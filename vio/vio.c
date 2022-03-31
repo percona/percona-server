@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,6 +113,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   memset(vio, 0, sizeof(*vio));
   vio->type= type;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
+  vio->force_skip_proxy= FALSE;
   mysql_socket_setfd(&vio->mysql_socket, sd);
   vio->localhost= flags & VIO_LOCALHOST;
   vio->read_timeout= vio->write_timeout= -1;
@@ -235,7 +236,7 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
   DBUG_ENTER("vio_reset");
 
   /* The only supported rebind is from a socket-based transport type. */
-  DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET);
+  assert(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET);
 
   vio_init(&new_vio, type, sd, flags);
 

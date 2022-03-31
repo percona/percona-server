@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include "mysqld.h"
 #include "binlog.h"
 
+#include "debug_sync.h"
 
 Logical_clock::Logical_clock()
   : state(SEQ_UNINIT), offset(0)
@@ -52,7 +53,7 @@ inline int64 Logical_clock::get_timestamp()
  */
 inline int64 Logical_clock::step()
 {
-  DBUG_ASSERT(SEQ_UNINIT == 0);
+  assert(SEQ_UNINIT == 0);
   DBUG_EXECUTE_IF("logical_clock_step_2", ++state;);
   return ++state;
 }
@@ -76,7 +77,7 @@ inline int64 Logical_clock::set_if_greater(int64 new_val)
 
   DBUG_ENTER("Logical_clock::set_if_greater");
 
-  DBUG_ASSERT(new_val > 0);
+  assert(new_val > 0);
 
   if (new_val <= offset)
   {
@@ -89,15 +90,15 @@ inline int64 Logical_clock::set_if_greater(int64 new_val)
     DBUG_RETURN(SEQ_UNINIT);
   }
 
-  DBUG_ASSERT(new_val > 0);
+  assert(new_val > 0);
 
   while (!(cas_rc= my_atomic_cas64(&state, &old_val, new_val)) &&
          old_val < new_val)
   {}
 
-  DBUG_ASSERT(state >= new_val); // setting can't be done to past
+  assert(state >= new_val); // setting can't be done to past
 
-  DBUG_ASSERT(cas_rc || old_val >= new_val);
+  assert(cas_rc || old_val >= new_val);
 
   DBUG_RETURN(cas_rc ? new_val : old_val);
 }
@@ -120,8 +121,8 @@ Commit_order_trx_dependency_tracker::get_dependency(THD *thd,
 {
   Transaction_ctx *trn_ctx= thd->get_transaction();
 
-  DBUG_ASSERT(trn_ctx->sequence_number
-              > m_max_committed_transaction.get_offset());
+  assert(trn_ctx->sequence_number
+         > m_max_committed_transaction.get_offset());
   /*
     Prepare sequence_number and commit_parent relative to the current
     binlog.  This is done by subtracting the binlog's clock offset
@@ -189,10 +190,10 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     thd->get_transaction()->get_transaction_write_set_ctx();
   std::set<uint64> *writeset= write_set_ctx->get_write_set();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* The writeset of an empty transaction must be empty. */
   if (is_empty_transaction_in_binlog_cache(thd))
-    DBUG_ASSERT(writeset->size() == 0);
+    assert(writeset->size() == 0);
 #endif
 
   /*
@@ -214,9 +215,12 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     (global_system_variables.transaction_write_set_extraction ==
      thd->variables.transaction_write_set_extraction) &&
     // must not use foreign keys
-    !write_set_ctx->get_has_related_foreign_keys();
+    !write_set_ctx->get_has_related_foreign_keys() &&
+    // it did not broke past the capacity already
+    !write_set_ctx->was_write_set_limit_reached();
   bool exceeds_capacity= false;
 
+  mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
   if (can_use_writesets)
   {
     /*
@@ -225,12 +229,13 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
      using its information for current transaction.
     */
     exceeds_capacity=
-      m_writeset_history.size() + writeset->size() > m_opt_max_history_size;
+      m_writeset_history.size() + writeset->size() > get_opt_max_history_size();
 
     /*
      Compute the greatest sequence_number among all conflicts and add the
      transaction's row hashes to the history.
     */
+    DEBUG_SYNC(thd, "wait_in_get_dependency");
     int64 last_parent= m_writeset_history_start;
     for (std::set<uint64>::iterator it= writeset->begin();
          it != writeset->end(); ++it)
@@ -271,6 +276,7 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     m_writeset_history_start= sequence_number;
     m_writeset_history.clear();
   }
+  mysql_mutex_unlock(&LOCK_slave_trans_dep_tracker);
 }
 
 void
@@ -316,7 +322,7 @@ Transaction_dependency_tracker::get_dependency(THD *thd,
 {
   sequence_number= commit_parent= 0;
 
-  switch(m_opt_tracking_mode)
+  switch(my_atomic_load64(&m_opt_tracking_mode))
   {
     case DEPENDENCY_TRACKING_COMMIT_ORDER:
       m_commit_order.get_dependency(thd, sequence_number, commit_parent);
@@ -331,7 +337,7 @@ Transaction_dependency_tracker::get_dependency(THD *thd,
       m_writeset_session.get_dependency(thd, sequence_number, commit_parent);
       break;
     default:
-      DBUG_ASSERT(0);  // blow up on debug
+      assert(0);  // blow up on debug
       /*
         Fallback to commit order on production builds.
        */
@@ -371,8 +377,9 @@ Transaction_dependency_tracker::update_max_committed(THD *thd)
   */
   trn_ctx->sequence_number= SEQ_UNINIT;
 
-  DBUG_ASSERT(trn_ctx->last_committed == SEQ_UNINIT ||
-              thd->commit_error == THD::CE_FLUSH_ERROR);
+  assert(trn_ctx->last_committed == SEQ_UNINIT ||
+         thd->commit_error == THD::CE_FLUSH_ERROR ||
+         thd->commit_error == THD::CE_FLUSH_GNO_EXHAUSTED_ERROR);
 }
 
 int64

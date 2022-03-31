@@ -32,7 +32,8 @@ The MyRocks storage engine lacks the following features compared to InnoDB:
 You should also consider the following:
 
 * :file:`*_bin` (e.g. ``latin1_bin``) or binary collation should be used
-  on ``CHAR`` and ``VARCHAR`` indexed columns.
+  on ``CHAR`` and ``VARCHAR`` indexed columns. The following binary collations
+  are supported: ``binary``, ``latin1_bin``, and ``utf8_bin``.
   By default, MyRocks prevents creating indexes with non-binary collations
   (including ``latin1``).
   You can optionally use it by setting
@@ -51,7 +52,7 @@ You should also consider the following:
   Note that InnoDB also imposes a cost
   when the index is scanned in the opposite order.
 
-* MyRocks does not support operating as either a master or a slave
+* MyRocks does not support operating as either a source or a replica
   in any replication topology that is not exclusively row-based.
   Statement-based and mixed-format binary logging is not supported.
   For more information, see `Replication Formats

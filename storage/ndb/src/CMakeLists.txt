@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ SET(LIBS_TO_MERGE
 IF(WITH_ZLIB STREQUAL "bundled")
   LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
 ENDIF()
-IF(NOT WITH_SSL STREQUAL "system")
+IF(NOT APPLE AND NOT WITH_SSL STREQUAL "system")
   LIST(APPEND LIBS_TO_MERGE ${SSL_LIBRARIES})
 ENDIF()
 

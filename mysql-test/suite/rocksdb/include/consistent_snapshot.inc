@@ -2,6 +2,8 @@
 # TRANSACTION WITH CONSISTENT SNAPSHOT
 #
 
+set @save.rocksdb_pause_background_work = @@global.rocksdb_pause_background_work;
+set global rocksdb_pause_background_work = on;
 --enable_connect_log
 
 # Save the initial number of concurrent sessions
@@ -10,8 +12,11 @@
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
-connection con1;
+connection con2;
+select VALUE into @begin_num_snapshots from information_schema.rocksdb_dbstats
+where stat_type='DB_NUM_SNAPSHOTS';
 
+connection con1;
 CREATE TABLE t1 (a INT, pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation;
 
@@ -21,14 +26,18 @@ eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation;
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
 
 connection con2;
-select * from information_schema.rocksdb_dbstats where stat_type='DB_NUM_SNAPSHOTS';
+select VALUE into @num_snapshots_before from information_schema.rocksdb_dbstats
+where stat_type='DB_NUM_SNAPSHOTS';
+select @num_snapshots_before - @begin_num_snapshots;
 
 connection con1;
 COMMIT;
 
 # verifying snapshot is released after finishing transaction
 connection con2;
-select * from information_schema.rocksdb_dbstats where stat_type='DB_NUM_SNAPSHOTS';
+select VALUE into @num_snapshots_after from information_schema.rocksdb_dbstats
+where stat_type='DB_NUM_SNAPSHOTS';
+select @num_snapshots_after - @begin_num_snapshots;
 
 connection con1;
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
@@ -115,3 +124,4 @@ disconnect con2;
 
 
 --source include/wait_until_count_sessions.inc
+set global rocksdb_pause_background_work = @save.rocksdb_pause_background_work;

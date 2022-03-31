@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -364,7 +364,7 @@ public:
   uint host_idx() { return MYSQL_USER_FIELD_HOST; }
   uint user_idx() { return MYSQL_USER_FIELD_USER; }
   //not available
-  uint password_idx() { DBUG_ASSERT(0); return MYSQL_USER_FIELD_COUNT; }
+  uint password_idx() { assert(0); return MYSQL_USER_FIELD_COUNT; }
   uint select_priv_idx() { return MYSQL_USER_FIELD_SELECT_PRIV; }
   uint insert_priv_idx() { return MYSQL_USER_FIELD_INSERT_PRIV; }
   uint update_priv_idx() { return MYSQL_USER_FIELD_UPDATE_PRIV; }
@@ -718,6 +718,8 @@ bool check_fk_parent_table_access(THD *thd,
                                   const char *child_table_db,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
+                                             bool *fake_lock_tables_acl);
 bool check_readonly(THD *thd, bool err_if_readonly);
 void err_readonly(THD *thd);
 

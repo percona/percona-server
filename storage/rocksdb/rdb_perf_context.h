@@ -107,7 +107,7 @@ class Rdb_perf_counters {
   Rdb_perf_counters(const Rdb_perf_counters &) = delete;
   Rdb_perf_counters &operator=(const Rdb_perf_counters &) = delete;
 
-public:
+ public:
   Rdb_perf_counters() = default;
   uint64_t m_value[PC_MAX_IDX];
 
@@ -125,16 +125,16 @@ class Rdb_io_perf {
   my_io_perf_atomic_t *m_shared_io_perf_read = nullptr;
   ha_statistics *m_stats = nullptr;
 
-public:
+ public:
   Rdb_io_perf(const Rdb_io_perf &) = delete;
   Rdb_io_perf &operator=(const Rdb_io_perf &) = delete;
 
   void init(Rdb_atomic_perf_counters *const atomic_counters,
             my_io_perf_atomic_t *const shared_io_perf_read,
             ha_statistics *const stats) {
-    DBUG_ASSERT(atomic_counters != nullptr);
-    DBUG_ASSERT(shared_io_perf_read != nullptr);
-    DBUG_ASSERT(stats != nullptr);
+    assert(atomic_counters != nullptr);
+    assert(shared_io_perf_read != nullptr);
+    assert(stats != nullptr);
 
     m_atomic_counters = atomic_counters;
     m_shared_io_perf_read = shared_io_perf_read;
@@ -145,8 +145,9 @@ public:
   void end_and_record(const uint32_t perf_context_level);
 
   explicit Rdb_io_perf()
-      : m_atomic_counters(nullptr), m_shared_io_perf_read(nullptr),
+      : m_atomic_counters(nullptr),
+        m_shared_io_perf_read(nullptr),
         m_stats(nullptr) {}
 };
 
-} // namespace myrocks
+}  // namespace myrocks

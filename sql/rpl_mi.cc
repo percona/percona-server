@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -404,7 +404,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (from->get_info(&temp_master_log_pos,
                      (ulong) BIN_LOG_HEADER_SIZE) ||
       from->get_info(host, sizeof(host), (char *) 0) ||
-      from->get_info(user, sizeof(user), (char *) "test") ||
+      from->get_info(user, sizeof(user), (char *) 0) ||
       from->get_info(password, sizeof(password), (char *) 0) ||
       from->get_info((int *) &port, (int) MYSQL_PORT) ||
       from->get_info((int *) &connect_retry,
@@ -581,7 +581,7 @@ void Master_info::set_password(const char* password_arg)
 {
   DBUG_ENTER("Master_info::set_password");
 
-  DBUG_ASSERT(password_arg);
+  assert(password_arg);
 
   if (password_arg && start_user_configured)
     strmake(start_password, password_arg, sizeof(start_password) - 1);

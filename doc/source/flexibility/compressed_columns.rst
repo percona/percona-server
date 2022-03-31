@@ -6,7 +6,7 @@ Compressed columns with dictionaries
 
 In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
 compression feature. It is a data type modifier, independent from user-level SQL
-and |InnoDB| data compression, that causes the data stored in the column to be
+and InnoDB data compression, that causes the data stored in the column to be
 compressed on writing to storage and decompressed on reading. For all other
 purposes, the data type is identical to the one without the modifier, i.e. no
 new data types are created. Compression is done by using the ``zlib`` library.
@@ -20,7 +20,7 @@ This feature provides:
 * a better compression ratio for text data which consist of a large number of
   predefined words (e.g. JSON or XML) using compression methods with static
   dictionaries
-* a way to select columns in the table to compress (in contrast to the |InnoDB|
+* a way to select columns in the table to compress (in contrast to the InnoDB
   row compression method)
   
 This feature is based on a patch provided by Weixiang Zhai.
@@ -88,10 +88,10 @@ the same effect. However, the latter is more space-efficient. Quote symbol
 quoting is handled by regular SQL quoting. Maximum supported dictionary length
 is 32506 bytes (``zlib`` limitation).
 
-The compression dictionary is stored in a new system |InnoDB| table.
+The compression dictionary is stored in a new system InnoDB table.
 As this table is of the data dictionary kind, concurrent reads are
 allowed, but writes are serialized, and reads are blocked by writes. Table read
-through old read views are unsupported, similarly to |InnoDB| internal DDL
+through old read views are unsupported, similarly to InnoDB internal DDL
 transactions.
 
 Example
@@ -205,7 +205,7 @@ COLUMN_FORMAT DEFAULT``.
 mysqldump command line parameters
 =================================
 
-By default, with no additional options, ``mysqldump`` will generate a |MySQL|
+By default, with no additional options, ``mysqldump`` will generate a MySQL
 compatible SQL output.
 
 All ``/*!50633 COLUMN_FORMAT COMPRESSED */`` and ``/*!50633 COLUMN_FORMAT

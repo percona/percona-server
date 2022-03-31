@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,32 @@ INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
+SET(TARGET_OS_LINUX 1)
+
+IF(EXISTS "/etc/fedora-release")
+  SET(LINUX_FEDORA 1)
+  FILE(READ "/etc/fedora-release" FEDORA_RELEASE)
+  IF(FEDORA_RELEASE MATCHES "Fedora" AND
+     FEDORA_RELEASE MATCHES "28")
+    SET(LINUX_FEDORA_28 1)
+  ENDIF()
+ENDIF()
+
+IF(EXISTS "/etc/os-release")
+  FILE(READ "/etc/os-release" MY_OS_RELEASE)
+  IF(MY_OS_RELEASE MATCHES "Ubuntu" AND
+     MY_OS_RELEASE MATCHES "16.04")
+    SET(LINUX_UBUNTU_16_04 1)
+  ENDIF()
+  IF(MY_OS_RELEASE MATCHES "Debian")
+    IF(MY_OS_RELEASE MATCHES "jessie")
+      SET(LINUX_DEBIAN_8 1)
+    ENDIF()
+    IF(MY_OS_RELEASE MATCHES "stretch")
+      SET(LINUX_DEBIAN_9 1)
+    ENDIF()
+  ENDIF()
+ENDIF()
 
 # We require at least GCC 4.4 or Clang 3.3.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)

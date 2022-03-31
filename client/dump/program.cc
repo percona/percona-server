@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -192,7 +192,7 @@ int Program::execute(std::vector<std::string> positional_options)
   }
   I_crawler* crawler= new Mysql_crawler(
     connection_provider, message_handler, id_generator,
-    m_mysql_chain_element_options, this);
+    m_mysql_chain_element_options, m_mysqldump_tool_chain_maker_options, this);
   m_mysqldump_tool_chain_maker_options->process_positional_options(
     positional_options);
   check_mutually_exclusive_options();
@@ -275,7 +275,13 @@ Program::Program()
 const char *load_default_groups[]=
 {
   "client", /* Read settings how to connect to server. */
-  "mysql_dump", /* Read special settings for mysql_dump. */
+  /*
+    Read special settings for mysql_dump.
+    This section will be deprecated.
+  */
+  "mysql_dump",
+  /* Read config options from mysqlpump section. */
+  "mysqlpump",
   0
 };
 

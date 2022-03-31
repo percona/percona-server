@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/client
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/mysys_ssl
-  ${LZ4_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include

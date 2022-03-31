@@ -23,7 +23,7 @@ Before installing, you might want to read the :doc:`release-notes/release-notes_
 Installing |Percona Server| from Repositories
 =============================================
 
-|Percona| provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS* and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |Percona XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager. This is the recommended way of installing where possible.
+Percona provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS* and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |Percona XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager. This is the recommended way of installing where possible.
 
 Following guides describe the installation process for using the official Percona repositories for :file:`.deb` and :file:`.rpm` packages.
 
@@ -39,7 +39,26 @@ Following guides describe the installation process for using the official Percon
 Installing |Percona Server| from a Binary Tarball
 ===================================================
 
-|Percona Server| offers multiple tarballs depending on the *OpenSSL* library available in the distribution:
+In |Percona Server| 5.7.31-34 and later, the multiple binary tarballs have been replaced with the following:
+
+.. tabularcolumns:: |p{5cm}|p{5cm}|p{11cm}|
+
+.. list-table::
+   :header-rows: 1
+
+   * - Type
+     - Name
+     - Description
+   * - Full
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.12.tar.gz 
+     - Contains binaries, libraries, test files, and debug symbols
+   * - Minimal
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.12-minimal.tar.gz
+     - Contains binaries, and libraries but does not include test files, or debug symbols
+
+Select the |Percona Server| 5.7 version number and type of tarball for your installation. Both binary tarballs support all distributions.
+
+In |Percona Server| before 5.7.31-34, multiple tarballs are provided based on the *OpenSSL* library available in the distribution:
 
  * ssl100 - for *Debian* prior to 9 and *Ubuntu* prior to 14.04 versions (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0``);
  * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10``);
@@ -105,7 +124,7 @@ After either fetching the source repository or extracting a source tarball
 configure and build Percona Server.
 
 First, run cmake to configure the build. Here you can specify all the normal
-build options as you do for a normal |MySQL| build. Depending on what
+build options as you do for a normal MySQL build. Depending on what
 options you wish to compile Percona Server with, you may need other
 libraries installed on your system. Here is an example using a
 configure line similar to the options that Percona uses to produce

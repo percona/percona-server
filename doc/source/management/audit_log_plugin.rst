@@ -6,129 +6,221 @@
 
 Percona Audit Log Plugin provides monitoring and logging of connection and query activity that were performed on specific server. Information about the activity will be stored in the XML log file where each event will have its ``NAME`` field, its own unique ``RECORD_ID`` field and a ``TIMESTAMP`` field. This implementation is alternative to the `MySQL Enterprise Audit Log Plugin <dev.mysql.com/doc/refman/5.7/en/audit-log-plugin.html>`_
 
+Audit logging documents the database usage. You can use the log for troubleshooting. 
+
+
+Installation
+============
+
+Audit Log plugin is installed with |Percona Server|, but is not enabled by default. You can verify if the plugin is enabled by running the following commands:
+
+.. sourcecode:: mysql
+
+    mysql> SELECT * FROM information_schema.PLUGINS WHERE PLUGIN_NAME LIKE '%audit%';
+    Empty set (0.00 sec)
+
+    mysql> SHOW variables LIKE 'audit%';
+    Empty set (0.01 sec)
+
+    mysql> SHOW variables LIKE 'plugin%';
+    +---------------+------------------------+
+    | Variable_name | Value                  |
+    +---------------+------------------------+
+    | plugin_dir    | /usr/lib/mysql/plugin/ |
+    +---------------+------------------------+
+    1 row in set (0.00 sec)
+
+.. note::
+
+    The location of the MySQL plugin directory depends on the operating system and may be different. 
+
+The following command enables the plugin: 
+
+.. code-block:: mysql
+
+   mysql> INSTALL PLUGIN audit_log SONAME 'audit_log.so';
+
+Run the following command to verify if the plugin was installed correctly:
+
+.. sourcecode:: mysql
+
+    mysql> SELECT * FROM information_schema.PLUGINS WHERE PLUGIN_NAME LIKE '%audit%'\G
+    *************************** 1. row ***************************
+              PLUGIN_NAME: audit_log
+            PLUGIN_VERSION: 0.2
+            PLUGIN_STATUS: ACTIVE
+              PLUGIN_TYPE: AUDIT
+      PLUGIN_TYPE_VERSION: 4.1
+            PLUGIN_LIBRARY: audit_log.so
+    PLUGIN_LIBRARY_VERSION: 1.7
+            PLUGIN_AUTHOR: Percona LLC and/or its affiliates.
+        PLUGIN_DESCRIPTION: Audit log
+            PLUGIN_LICENSE: GPL
+              LOAD_OPTION: ON
+    1 row in set (0.00 sec)
+
+You can review the audit log variables with the following command:
+
+.. sourcecode:: mysql
+
+    mysql> SHOW variables LIKE 'audit%';
+    +-----------------------------+---------------+
+    | Variable_name               | Value         |
+    +-----------------------------+---------------+
+    | audit_log_buffer_size       | 1048576       |
+    | audit_log_exclude_accounts  |               |
+    | audit_log_exclude_commands  |               |
+    | audit_log_exclude_databases |               |
+    | audit_log_file              | audit.log     |
+    | audit_log_flush             | OFF           |
+    | audit_log_format            | OLD           |
+    | audit_log_handler           | FILE          |
+    | audit_log_include_accounts  |               |
+    | audit_log_include_commands  |               |
+    | audit_log_include_databases |               |
+    | audit_log_policy            | ALL           |
+    | audit_log_rotate_on_size    | 0             |
+    | audit_log_rotations         | 0             |
+    | audit_log_strategy          | ASYNCHRONOUS  |
+    | audit_log_syslog_facility   | LOG_USER      |
+    | audit_log_syslog_ident      | percona-audit |
+    | audit_log_syslog_priority   | LOG_INFO      |
+    +-----------------------------+---------------+
+    18 rows in set (0.00 sec)
+
+
 Audit Log plugin produces the log of following events:
 
 * **Audit** - Audit event indicates that audit logging started or finished. ``NAME`` field will be ``Audit`` when logging started and ``NoAudit`` when logging finished. Audit record also includes server version and command-line arguments.
 
 Example of the Audit event: :: 
 
- <AUDIT_RECORD
-  "NAME"="Audit"
-  "RECORD"="1_2014-04-29T09:29:40"
-  "TIMESTAMP"="2014-04-29T09:29:40 UTC"
-  "MYSQL_VERSION"="5.6.17-65.0-655.trusty"
-  "STARTUP_OPTIONS"="--basedir=/usr --datadir=/var/lib/mysql --plugin-dir=/usr/lib/mysql/plugin --user=mysql --log-error=/var/log/mysql/error.log --pid-file=/var/run/mysqld/mysqld.pid --socket=/var/run/mysqld/mysqld.sock --port=3306"
-  "OS_VERSION"="x86_64-debian-linux-gnu",
+  <AUDIT_RECORD
+    NAME="Audit"
+    RECORD="1_2021-06-30T11:56:53"
+    TIMESTAMP="2021-06-30T11:56:53 UTC"
+    MYSQL_VERSION="5.7.34-37"
+    STARTUP_OPTIONS="--daemonize --pid-file=/var/run/mysqld/mysqld.pid"
+    OS_VERSION="x86_64-debian-linux-gnu"
   />
 
-* **Connect**/**Disconnect** - Connect record event will have ``NAME`` field ``Connect`` when user logged in or login failed, or ``Quit`` when connection is closed. Additional fields for this event are ``CONNECTION_ID``, ``STATUS``, ``USER``, ``PRIV_USER``, ``OS_LOGIN``, ``PROXY_USER``, ``HOST``, and ``IP``. ``STATUS`` will be  ``0`` for successful logins and non-zero for failed logins.
+* **Connect**/**Disconnect** - Connect record event will have ``NAME`` field ``Connect`` when user logged in or login failed, or ``Quit`` when connection is closed. 
+Additional fields for this event are the following:
+
+* ``CONNECTION_ID``
+
+* ``STATUS``
+
+* ``USER``
+
+* ``PRIV_USER``
+
+* ``OS_LOGIN``
+
+* ``PROXY_USER``
+
+* ``HOST``
+
+* ``IP``
+
+The value for ``STATUS`` is ``0`` for successful logins and non-zero for failed logins.
 
 Example of the Disconnect event: :: 
 
- <AUDIT_RECORD
-  "NAME"="Quit"
-  "RECORD"="24_2014-04-29T09:29:40"
-  "TIMESTAMP"="2014-04-29T10:20:13 UTC"
-  "CONNECTION_ID"="49"
-  "STATUS"="0"
-  "USER"=""
-  "PRIV_USER"=""
-  "OS_LOGIN"=""
-  "PROXY_USER"=""
-  "HOST"=""
-  "IP"=""
-  "DB"=""
+  <AUDIT_RECORD
+    NAME="Quit"
+    RECORD="5_2021-06-29T19:33:03"
+    TIMESTAMP="2021-06-29T19:34:38Z"
+    CONNECTION_ID="14"
+    STATUS="0"
+    USER="root"
+    PRIV_USER="root"
+    OS_LOGIN=""
+    PROXY_USER=""
+    HOST="localhost"
+    IP=""
+    DB=""
   />
 
-* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values come from the ``com_status_vars`` array in the :file:`sql/mysqld.cc`` file in a MySQL source distribution. Examples are ``select``, ``alter_table``, ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc.
+* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values come from the ``com_status_vars`` array in the :file:`sql/mysqld.cc`` file in a MySQL source distribution. Examples are ``select``, ``alter_table``, ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc..
+
+.. note::
+    The ``statement/sql/%``  populates the audit log command_class field, for example, the ``SELECT name FROM performance_schema.setup_instruments WHERE name LIKE "statement/sql/%"`` query.
+    
+    The %statement/com%`` entry populates the audit log command_class field as lowercase text, for example, the ``SELECT name FROM performance_schema.setup_instruments WHERE name LIKE '%statement/com%'`` query.  If you run a 'Ping' command, then the command_class field is 'ping', and for 'Init DB', the command_class field is 'init db'.
 
 Example of the Query event: :: 
 
- <AUDIT_RECORD
-  "NAME"="Query"
-  "RECORD"="23_2014-04-29T09:29:40"
-  "TIMESTAMP"="2014-04-29T10:20:10 UTC"
-  "COMMAND_CLASS"="select"
-  "CONNECTION_ID"="49"
-  "STATUS"="0"
-  "SQLTEXT"="SELECT * from mysql.user"
-  "USER"="root[root] @ localhost []"
-  "HOST"="localhost"
-  "OS_USER"=""
-  "IP"=""
+  <AUDIT_RECORD
+    NAME="Query"
+    RECORD="4_2021-06-29T19:33:03"
+    TIMESTAMP="2021-06-29T19:33:34Z"
+    COMMAND_CLASS="show_variables"
+    CONNECTION_ID="14"
+    STATUS="0"
+    SQLTEXT="show variables like 'audit%'"
+    USER="root[root] @ localhost []"
+    HOST="localhost"
+    OS_USER=""
+    IP=""
+    DB=""
   />
 
-Installation
-============
 
-Audit Log plugin is shipped with |Percona Server|, but it is not installed by default. To enable the plugin you must run the following command: 
-
-.. code-block:: mysql
-
-   INSTALL PLUGIN audit_log SONAME 'audit_log.so';
-
-You can check if the plugin is loaded correctly by running:
-
-.. code-block:: mysql
-
-   SHOW PLUGINS;
-
-Audit log should be listed in the output:
-    
-.. code-block:: mysql
-
-   +--------------------------------+----------+--------------------+--------------+---------+
-   | Name                           | Status   | Type               | Library      | License |
-   +--------------------------------+----------+--------------------+--------------+---------+
-   ...
-   | audit_log                      | ACTIVE   | AUDIT              | audit_log.so | GPL     |
-   +--------------------------------+----------+--------------------+--------------+---------+
 
 Log Format
 ==========
 
-The audit log plugin supports four log formats: ``OLD``, ``NEW``, ``JSON``, and ``CSV``. ``OLD`` and ``NEW`` formats are based on XML, where the former outputs log record properties as XML attributes and the latter as XML tags. Information logged is the same in all four formats. The log format choice is controlled by :variable:`audit_log_format` variable.
+The audit log plugin supports the following log formats: ``OLD``, ``NEW``, ``JSON``, and ``CSV``. The ``OLD``format and the``NEW`` format are based on XML. The ``OLD`` format defines each log record with XML attributes. The ``NEW`` format defines each log record with XML tags. The information logged is the same for all four formats. The :variable:`audit_log_format` variable controls the log format choice.
 
-Example of the ``OLD`` format: ::
+An example of the ``OLD`` format: 
 
- <AUDIT_RECORD
-  "NAME"="Query"
-  "RECORD"="2_2014-04-28T09:29:40"
-  "TIMESTAMP"="2014-04-28T09:29:40 UTC"
-  "COMMAND_CLASS"="install_plugin"
-  "CONNECTION_ID"="47"
-  "STATUS"="0"
-  "SQLTEXT"="INSTALL PLUGIN audit_log SONAME 'audit_log.so'"
-  "USER"="root[root] @ localhost []"
-  "HOST"="localhost"
-  "OS_USER"=""
-  "IP"=""
- />
+.. sourcecode:: xml
 
-Example of the ``NEW`` format: :: 
+  <AUDIT_RECORD
+    NAME="Query"
+    RECORD="3_2021-06-30T11:56:53"
+    TIMESTAMP="2021-06-30T11:57:14 UTC"
+    COMMAND_CLASS="select"
+    CONNECTION_ID="3"
+    STATUS="0"
+    SQLTEXT="select * from information_schema.PLUGINS where PLUGIN_NAME like '%audit%'"
+    USER="root[root] @ localhost []"
+    HOST="localhost"
+    OS_USER=""
+    IP=""
+    DB=""
+  />
 
- <AUDIT_RECORD>
-  <NAME>Quit</NAME>
-  <RECORD>10902_2014-04-28T11:02:54</RECORD>
-  <TIMESTAMP>2014-04-28T11:02:59 UTC</TIMESTAMP>
-  <CONNECTION_ID>36</CONNECTION_ID>
-  <STATUS>0</STATUS>
-  <USER></USER>
-  <PRIV_USER></PRIV_USER>
-  <OS_LOGIN></OS_LOGIN>
-  <PROXY_USER></PROXY_USER>
-  <HOST></HOST>
-  <IP></IP>
-  <DB></DB>
- </AUDIT_RECORD>
+An example of the ``NEW`` format: 
 
-Example of the ``JSON`` format: ::
+.. sourcecode:: xml
 
- {"audit_record":{"name":"Query","record":"4707_2014-08-27T10:43:52","timestamp":"2014-08-27T10:44:19 UTC","command_class":"show_databases","connection_id":"37","status":0,"sqltext":"show databases","user":"root[root] @ localhost []","host":"localhost","os_user":"","ip":""}}
+  <AUDIT_RECORD>
+    <NAME>Query</NAME>
+    <RECORD>16684_2021-06-30T16:07:41</RECORD>
+    <TIMESTAMP>2021-06-30T16:08:06 UTC</TIMESTAMP>
+    <COMMAND_CLASS>select</COMMAND_CLASS>
+    <CONNECTION_ID>2</CONNECTION_ID>
+    <STATUS>0</STATUS>
+    <SQLTEXT>select id, holder from one</SQLTEXT>
+    <USER>root[root] @ localhost []</USER>
+    <HOST>localhost</HOST>
+    <OS_USER></OS_USER>
+    <IP></IP>
+    <DB></DB>
 
-Example of the ``CSV`` format: :: 
+An example of the ``JSON`` format: 
 
- "Query","49284_2014-08-27T10:47:11","2014-08-27T10:47:23 UTC","show_databases","37",0,"show databases","root[root] @ localhost []","localhost","",""
+.. sourcecode:: json
+
+  {"audit_record":{"name":"Query","record":"13149_2021-06-30T15:03:11","timestamp":"2021-06-30T15:07:58 UTC","command_class":"show_databases","connection_id":"2","status":0,"sqltext":"show databases","user":"root[root] @ localhost []","host":"localhost","os_user":"","ip":"","db":""}}
+
+An example of the ``CSV`` format: 
+
+.. sourcecode:: text
+
+  "Query","22567_2021-06-30T16:10:09","2021-06-30T16:19:00 UTC","select","2",0,"select count(*) from one","root[root] @ localhost []","localhost","","",""
 
 .. _streaming_to_syslog:
 
@@ -139,7 +231,7 @@ To stream the audit log to syslog you'll need to set :variable:`audit_log_handle
 
 .. note::
 
-   Variables: :variable:`audit_log_strategy`, :variable:`audit_log_buffer_size`, :variable:`audit_log_rotate_on_size`, :variable:`audit_log_rotations` have effect only with ``FILE`` handler. 
+   The actions for the variables: :variable:`audit_log_strategy`, :variable:`audit_log_buffer_size`, :variable:`audit_log_rotate_on_size`, :variable:`audit_log_rotations` are captured only with ``FILE`` handler. 
 
 .. _filtering_by_user:
 
@@ -229,8 +321,8 @@ This is what you'll see when ``user1`` connected from ``localhost``:
 
   <AUDIT_RECORD
     NAME="Connect"
-    RECORD="4971917_2016-08-22T09:09:10"
-    TIMESTAMP="2016-08-22T09:12:21 UTC"
+    RECORD="2_2021-06-30T11:56:53"
+    TIMESTAMP="2021-06-30T11:56:53 UTC"
     CONNECTION_ID="6"
     STATUS="0"
     USER="user1" ;; this is a 'user' part of account in 5.7
@@ -314,30 +406,30 @@ You can add commands to the include filter by running:
 
   mysql> SET GLOBAL audit_log_include_commands= 'set_option,create_db';
 
-If you now create a database:
+When you create a database with the following command:
 
 .. code-block:: mysql
 
-  mysql> CREATE DATABASE world;
+  mysql> CREATE DATABASE sample;
 
-You'll see it the audit log:
+The action is captured in the audit log:
 
-.. code-block:: none
+.. code-block:: xml
 
-  <AUDIT_RECORD
-    NAME="Query"
-    RECORD="10724_2016-08-18T12:34:22"
-    TIMESTAMP="2016-08-18T15:10:47 UTC"
-    COMMAND_CLASS="create_db"
-    CONNECTION_ID="61"
-    STATUS="0"
-    SQLTEXT="create database world"
-    USER="root[root] @ localhost []"
-    HOST="localhost"
-    OS_USER=""
-    IP=""
-    DB=""
-  />
+  <AUDIT_RECORD>
+    <NAME>Query</NAME>
+    <RECORD>24320_2021-06-30T17:44:46</RECORD>
+    <TIMESTAMP>2021-06-30T17:45:16 UTC</TIMESTAMP>
+    <COMMAND_CLASS>create_db</COMMAND_CLASS>
+    <CONNECTION_ID>2</CONNECTION_ID>
+    <STATUS>0</STATUS>
+    <SQLTEXT>CREATE DATABASE sample</SQLTEXT>
+    <USER>root[root] @ localhost []</USER>
+    <HOST>localhost</HOST>
+    <OS_USER></OS_USER>
+    <IP></IP>
+    <DB></DB>
+  </AUDIT_RECORD>
 
 To switch command type filtering type from included type list to excluded one
 or back, first reset the currently-active list to ``NULL``:

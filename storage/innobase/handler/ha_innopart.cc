@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -197,7 +197,14 @@ Ha_innopart_share::open_one_table_part(
 		&& (m_table_share->fields
 		    != dict_table_get_n_user_cols(ib_table)
 		       + dict_table_get_n_v_cols(ib_table) - 1))) {
-		ib::warn() << "Partition `" << get_partition_name(part_id)
+        /* We may end up here when doing ha_innopart::open(), so before
+        populate_partition_name_hash() was called. In such a case
+        get_partition_name() returns nullptr. Fall back to any other
+        informative string instead of trying to print nullptr. */
+        const char *part_name = get_partition_name(part_id)
+                                ? get_partition_name(part_id)
+                                : ib_table->name.m_name;
+		ib::warn() << "Partition `" << (part_name ? part_name : "nullptr")
 			<< "` contains " << dict_table_get_n_user_cols(ib_table)
 			<< " user defined columns in InnoDB, but "
 			<< m_table_share->fields
@@ -272,11 +279,11 @@ Ha_innopart_share::open_table_parts(
 	char	partition_name[FN_REFLEN];
 	bool	index_loaded = true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	if (m_table_share->tmp_table == NO_TMP_TABLE) {
 		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
 	}
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 	m_ref_count++;
 	if (m_table_parts != NULL) {
 		ut_ad(m_ref_count > 1);
@@ -433,11 +440,11 @@ err:
 void
 Ha_innopart_share::close_table_parts()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	if (m_table_share->tmp_table == NO_TMP_TABLE) {
 		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
 	}
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 	m_ref_count--;
 	if (m_ref_count != 0) {
 
@@ -459,7 +466,10 @@ Ha_innopart_share::close_table_parts()
 	mutex_enter(&dict_sys->mutex);
 	if (m_table_parts != NULL) {
 		for (uint i = 0; i < m_tot_parts; i++) {
-			if (m_table_parts[i] != NULL) {
+            // If the partition is corrupted, it was not opened.
+            ut_a(m_table_parts[i] == NULL || m_table_parts[i]->get_ref_count() > 0
+                 || m_table_parts[i]->corrupted);
+			if (m_table_parts[i] != NULL && !m_table_parts[i]->corrupted)  {
 				dict_table_close(m_table_parts[i], TRUE, TRUE);
 			}
 		}
@@ -861,7 +871,7 @@ ha_innopart::initialize_auto_increment(
 	ulonglong	auto_inc = 0;
 	const Field*	field = table->found_next_number_field;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	if (table_share->tmp_table == NO_TMP_TABLE)
 	{
 		mysql_mutex_assert_owner(m_part_share->auto_inc_mutex);
@@ -1056,6 +1066,11 @@ share_error:
 	m_clust_pcur_parts = NULL;
 	m_pcur_map = NULL;
 
+    if (ib_table->corrupted) {
+        close();
+        DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+    }
+
 	/* TODO: Handle mismatching #P# vs #p# in upgrading to new DD instead!
 	See bug#58406, The problem exists when moving partitioned tables
 	between Windows and Unix-like platforms. InnoDB always folds the name
@@ -1113,12 +1128,7 @@ share_error:
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
                 set_my_errno(ENOENT);
-
-		lock_shared_ha_data();
-		m_part_share->close_table_parts();
-		unlock_shared_ha_data();
-		m_part_share = NULL;
-
+		close();
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -1127,7 +1137,7 @@ share_error:
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
 
-	DBUG_ASSERT(table != NULL);
+	assert(table != NULL);
 	m_prebuilt->m_mysql_table = table;
 	m_prebuilt->m_mysql_handler = this;
 
@@ -1351,6 +1361,7 @@ share_error:
 		close();  // Frees all the above.
 		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 	}
+	m_reuse_mysql_template = false;
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
@@ -1461,8 +1472,10 @@ ha_innopart::close()
 
 	/* Prevent double close of m_prebuilt->table. The real one was done
 	done in m_part_share->close_table_parts(). */
-	m_prebuilt->table = NULL;
-	row_prebuilt_free(m_prebuilt, FALSE);
+	if (m_prebuilt != NULL) {
+		m_prebuilt->table = NULL;
+		row_prebuilt_free(m_prebuilt, FALSE);
+        }
 
 	if (m_upd_buf != NULL) {
 		ut_ad(m_upd_buf_size != 0);
@@ -1582,6 +1595,7 @@ ha_innopart::update_partition(
 	m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
 	if (m_prebuilt->sql_stat_start == 0) {
 		clear_bit(m_sql_stat_start_parts, part_id);
+		m_reuse_mysql_template = true;
 	}
 	m_last_part = part_id;
 	DBUG_VOID_RETURN;
@@ -4227,6 +4241,7 @@ ha_innopart::start_stmt(
 		memset(m_sql_stat_start_parts, 0,
 		       UT_BITS_IN_BYTES(m_tot_parts));
 	}
+	m_reuse_mysql_template = false;
 	return(error);
 }
 
@@ -4360,6 +4375,7 @@ ha_innopart::external_lock(
 		memset(m_sql_stat_start_parts, 0,
 		       UT_BITS_IN_BYTES(m_tot_parts));
 	}
+	m_reuse_mysql_template = false;
 	return(error);
 }
 
@@ -4636,8 +4652,8 @@ ha_innopart::rnd_pos_by_record(uchar*  record)
 {
 	int error;
 	DBUG_ENTER("ha_innopart::rnd_pos_by_record");
-	DBUG_ASSERT(ha_table_flags() &
-		HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+	assert(ha_table_flags() &
+	       HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
 	/* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
 	/* Set m_last_part correctly. */
 	if (unlikely(get_part_for_delete(record,

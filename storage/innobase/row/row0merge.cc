@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1358,24 +1358,24 @@ row_merge_write_rec_low(
 /*====================*/
 	byte*		b,	/*!< out: buffer */
 	ulint		e,	/*!< in: encoded extra_size */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	ulint		size,	/*!< in: total size to write */
 	int		fd,	/*!< in: file descriptor */
 	ulint		foffs,	/*!< in: file offset */
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 	const mrec_t*	mrec,	/*!< in: record to write */
 	const ulint*	offsets)/*!< in: offsets of mrec */
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 # define row_merge_write_rec_low(b, e, size, fd, foffs, mrec, offsets)	\
 	row_merge_write_rec_low(b, e, mrec, offsets)
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 {
 	DBUG_ENTER("row_merge_write_rec_low");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	const byte* const end = b + size;
-#endif /* DBUG_OFF */
-	DBUG_ASSERT(e == rec_offs_extra_size(offsets) + 1);
+#endif /* NDEBUG */
+	assert(e == rec_offs_extra_size(offsets) + 1);
 	DBUG_PRINT("ib_merge_sort",
 		   ("%p,fd=%d,%lu: %s",
 		    reinterpret_cast<const void*>(b), fd, ulong(foffs),
@@ -1389,7 +1389,7 @@ row_merge_write_rec_low(
 	}
 
 	memcpy(b, mrec - rec_offs_extra_size(offsets), rec_offs_size(offsets));
-	DBUG_ASSERT(b + rec_offs_size(offsets) == end);
+	assert(b + rec_offs_size(offsets) == end);
 	DBUG_VOID_RETURN;
 }
 
@@ -1952,11 +1952,11 @@ row_merge_read_clustered_index(
 				}
 			}
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 # define dbug_run_purge	false
-#else /* DBUG_OFF */
+#else /* NDEBUG */
 			bool	dbug_run_purge = false;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 			DBUG_EXECUTE_IF(
 				"ib_purge_on_create_index_page_switch",
 				dbug_run_purge = true;);
@@ -4338,6 +4338,11 @@ row_merge_create_index(
 		this index, to ensure read consistency. */
 		ut_ad(index->trx_id == trx->id);
 	} else {
+		/* In case we were unable to assign an undo record for this index
+		we won't free index memory object */
+		if (err == DB_TOO_MANY_CONCURRENT_TRXS) {
+			dict_mem_index_free(index);
+		}
 		index = NULL;
 	}
 
@@ -4720,21 +4725,23 @@ wait_again:
 		if (indexes[i]->type & DICT_FTS) {
 			row_fts_psort_info_destroy(psort_info, merge_info);
 			fts_psort_initiated = false;
-		} else if (error != DB_SUCCESS || !online) {
-			/* Do not apply any online log. */
-		} else if (old_table != new_table) {
-			ut_ad(!sort_idx->online_log);
-			ut_ad(sort_idx->online_status
-			      == ONLINE_INDEX_COMPLETE);
-		} else {
+		} else if (error == DB_SUCCESS &&
+			   !dict_table_is_temporary(indexes[i]->table)) {
 			ut_ad(need_flush_observer);
-
 			flush_observer->flush();
 			row_merge_write_redo(indexes[i]);
 
-			DEBUG_SYNC_C("row_log_apply_before");
-			error = row_log_apply(trx, sort_idx, table, stage);
-			DEBUG_SYNC_C("row_log_apply_after");
+			if (old_table != new_table) {
+				ut_ad(!sort_idx->online_log);
+				ut_ad(sort_idx->online_status
+				      == ONLINE_INDEX_COMPLETE);
+			/* Do not apply any online log if not online. */
+			} else if (online) {
+				DEBUG_SYNC_C("row_log_apply_before");
+				error = row_log_apply(trx, sort_idx, table,
+						stage);
+				DEBUG_SYNC_C("row_log_apply_after");
+			}
 		}
 
 		if (error != DB_SUCCESS) {

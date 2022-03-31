@@ -225,3 +225,16 @@ about what else affects the writing of ``FLUSH`` commands to the binary log.
 
 .. binlog_skip_flush_command replace:: :variable:`binlog_skip_flush_command`
 .. |super-read-only| replace:: :variable:`super_read_only`
+
+
+Limitations
+====================
+
+Do not use one or more dot characters (.) when defining the values for the following variables:
+
+* `log_bin <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#option_mysqld_log-bin>`__  
+
+* `log_bin_index <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log html#option_mysqld_log-bin-index>`__ 
+
+MySQL and **XtraBackup** handle the value in different ways and this difference causes unpredictable behavior.
+

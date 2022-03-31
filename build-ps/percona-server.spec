@@ -438,7 +438,7 @@ necessary to develop Percona MySQL Router applications.
 %package   -n   percona-icu-data-files
 Summary:        MySQL packaging of ICU data files
 
-%description    percona-icu-data-files
+%description -n percona-icu-data-files
 This package contains ICU data files needer by MySQL regular expressions.
 
 %prep
@@ -1391,7 +1391,7 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
-%files percona-icu-data-files
+%files -n percona-icu-data-files
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l

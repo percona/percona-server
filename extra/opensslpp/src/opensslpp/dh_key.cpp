@@ -46,8 +46,7 @@ dh_key::dh_key(const dh_key &obj)
                 ? nullptr
                 : DHparams_dup(dh_key_accessor::get_impl_const_casted(obj))} {
   if (!obj.is_empty()) {
-    if (is_empty())
-      core_error::raise_with_error_string("cannot duplicate DH parameters");
+    if (is_empty()) throw core_error{"cannot duplicate DH parameters"};
     auto public_component = obj.get_public_component();
     auto private_component = obj.get_private_component();
     auto *dh_raw = dh_key_accessor::get_impl(*this);
@@ -202,8 +201,7 @@ dh_key dh_key::derive_public_key() const {
   dh_key res{};
   dh_key_accessor::set_impl(
       res, DHparams_dup(dh_key_accessor::get_impl_const_casted(*this)));
-  if (res.is_empty())
-    core_error::raise_with_error_string("cannot derive public key from DH key");
+  if (res.is_empty()) throw core_error{"cannot derive public key from DH key"};
 
   auto *dh_raw = dh_key_accessor::get_impl(res);
   int set_result;
@@ -227,8 +225,7 @@ dh_key dh_key::generate_parameters(
     std::uint32_t bits, std::uintmax_t generator /* = default_generator */) {
   auto res = dh_key{};
   dh_key_accessor::set_impl(res, DH_new());
-  if (res.is_empty())
-    core_error::raise_with_error_string("cannot create DH parameters");
+  if (res.is_empty()) throw core_error{"cannot create DH parameters"};
 
   if (DH_generate_parameters_ex(dh_key_accessor::get_impl(res),
                                 static_cast<int>(bits),
@@ -264,8 +261,7 @@ std::string dh_key::export_private_pem(const dh_key &key) {
   evp_pkey_capsule pkey{EVP_PKEY_new()};
   if (EVP_PKEY_set1_DH(pkey.get(),
                        dh_key_accessor::get_impl_const_casted(key)) != 1)
-    core_error::raise_with_error_string(
-        "cannot assign PRIVATE DH key to EVP PKEY");
+    throw core_error{"cannot assign PRIVATE DH key to EVP PKEY"};
 
   auto sink = bio{};
   const int r =
@@ -283,8 +279,7 @@ std::string dh_key::export_public_pem(const dh_key &key) {
   evp_pkey_capsule pkey{EVP_PKEY_new()};
   if (EVP_PKEY_set1_DH(pkey.get(),
                        dh_key_accessor::get_impl_const_casted(key)) != 1)
-    core_error::raise_with_error_string(
-        "cannot assign PUBLIC DH key to EVP PKEY");
+    throw core_error{"cannot assign PUBLIC DH key to EVP PKEY"};
 
   auto sink = bio{};
   const int r = PEM_write_bio_PUBKEY(bio_accessor::get_impl(sink), pkey.get());
@@ -321,8 +316,7 @@ dh_key dh_key::import_private_pem(const std::string &pem) {
   dh_key res{};
   dh_key_accessor::set_impl(res, EVP_PKEY_get1_DH(pkey.get()));
   if (res.is_empty())
-    core_error::raise_with_error_string(
-        "cannot extract PRIVATE DH key from EVP KEY");
+    throw core_error{"cannot extract PRIVATE DH key from EVP KEY"};
 
   return res;
 }
@@ -339,8 +333,7 @@ dh_key dh_key::import_public_pem(const std::string &pem) {
   dh_key res{};
   dh_key_accessor::set_impl(res, EVP_PKEY_get1_DH(pkey.get()));
   if (res.is_empty())
-    core_error::raise_with_error_string(
-        "cannot extract PUBLIC DH key from EVP KEY");
+    throw core_error{"cannot extract PUBLIC DH key from EVP KEY"};
 
   return res;
 }

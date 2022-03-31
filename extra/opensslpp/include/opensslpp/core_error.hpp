@@ -25,8 +25,7 @@ namespace opensslpp {
 class core_error : public std::runtime_error {
  public:
   core_error(const char *message) : std::runtime_error{message} {}
-  core_error(const std::string &message)
-      : std::runtime_error{message.c_str()} {}
+  core_error(const std::string &message) : std::runtime_error{message} {}
 
   [[noreturn]] static void raise_with_error_string(
       const std::string &prefix = std::string());

@@ -42,8 +42,7 @@ dsa_key::dsa_key(const dsa_key &obj)
                 ? nullptr
                 : DSAparams_dup(dsa_key_accessor::get_impl_const_casted(obj))} {
   if (!obj.is_empty()) {
-    if (is_empty())
-      core_error::raise_with_error_string("cannot duplicate DSA key");
+    if (is_empty()) throw core_error{"cannot duplicate DSA key"};
 
     auto public_component = obj.get_public_component();
     auto private_component = obj.get_private_component();
@@ -194,9 +193,7 @@ dsa_key dsa_key::derive_public_key() const {
   dsa_key res{};
   dsa_key_accessor::set_impl(
       res, DSAparams_dup(dsa_key_accessor::get_impl_const_casted(*this)));
-  if (res.is_empty())
-    core_error::raise_with_error_string(
-        "cannot derive public key from DSA key");
+  if (res.is_empty()) throw core_error{"cannot derive public key from DSA key"};
 
   auto *dsa_raw = dsa_key_accessor::get_impl(res);
   int set_result;
@@ -219,8 +216,7 @@ dsa_key dsa_key::derive_public_key() const {
 dsa_key dsa_key::generate_parameters(std::uint32_t bits) {
   auto res = dsa_key{};
   dsa_key_accessor::set_impl(res, DSA_new());
-  if (res.is_empty())
-    core_error::raise_with_error_string("cannot create DSA key");
+  if (res.is_empty()) throw core_error{"cannot create DSA key"};
 
   if (DSA_generate_parameters_ex(dsa_key_accessor::get_impl(res),
                                  static_cast<int>(bits), nullptr, 0, nullptr,

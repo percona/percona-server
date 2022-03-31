@@ -54,7 +54,7 @@ rsa_key::rsa_key(const rsa_key &obj)
               : RSAPublicKey_dup(
                     rsa_key_accessor::get_impl_const_casted(obj))} {
   if (!obj.is_empty() && is_empty())
-    core_error::raise_with_error_string("cannot duplicate RSA key");
+    throw core_error{"cannot duplicate RSA key"};
 }
 
 rsa_key &rsa_key::operator=(const rsa_key &obj) {
@@ -115,8 +115,7 @@ rsa_key rsa_key::derive_public_key() const {
   rsa_key res{};
   rsa_key_accessor::set_impl(
       res, RSAPublicKey_dup(rsa_key_accessor::get_impl_const_casted(*this)));
-  if (res.is_empty())
-    core_error::raise_with_error_string("cannot derive public RSA key");
+  if (res.is_empty()) throw core_error{"cannot derive public RSA key"};
 
   return res;
 }
@@ -126,8 +125,7 @@ rsa_key rsa_key::generate(std::uint32_t bits,
                           const big_number &exponent /* = default_exponent */) {
   auto res = rsa_key{};
   rsa_key_accessor::set_impl(res, RSA_new());
-  if (res.is_empty())
-    core_error::raise_with_error_string("cannot create RSA key");
+  if (res.is_empty()) throw core_error{"cannot create RSA key"};
 
   if (RSA_generate_key_ex(
           rsa_key_accessor::get_impl(res), static_cast<int>(bits),

@@ -89,8 +89,8 @@ std::string decrypt_with_rsa_public_key(const std::string &input,
   assert(!key.is_empty());
 
   if (input.size() != key.get_size_in_bytes())
-    core_error::raise_with_error_string(
-        "decryption block size is not the same as RSA key length in bytes");
+    throw core_error{
+        "decryption block size is not the same as RSA key length in bytes"};
 
   // TODO: use c++17 non-const std::string::data() member here
   using buffer_type = std::vector<unsigned char>;

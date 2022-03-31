@@ -557,3 +557,14 @@
  
  DISABLE_MISSING_PROFILE_WARNING()
  
+--- unittest/gunit/changestreams/CMakeLists.txt         2022-03-31 15:09:27.559009464 +0000
++++ unittest/gunit/changestreams/CMakeLists.txt         2022-03-31 15:10:26.404854666 +0000
+@@ -36,7 +36,7 @@
+ SET(TESTS_LINK_LIBRARIES
+   changestreams_standalone_static
+   binlogstandalone_static
+-  perconaserverclient
++  mysqlclient
+   gunit_small)
+ 
+ IF (WITH_CS_PROTOBUF)

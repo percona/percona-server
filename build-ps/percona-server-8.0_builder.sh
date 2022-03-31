@@ -307,6 +307,11 @@ get_sources(){
     rsync -av extra/libkmip/ ${PSDIR}/extra/libkmip/ --exclude .git
     #
     cd ${PSDIR}
+
+    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
+    rm -rf storage/tokudb
+    rm -rf plugin/tokudb-backup-plugin
+
     # set tokudb version - can be seen with show variables like '%version%'
     sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     #

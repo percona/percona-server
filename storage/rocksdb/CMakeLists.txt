@@ -98,6 +98,8 @@ ELSE()
       MESSAGE(SEND_ERROR "Missing RocksDB plugin makefile in ${PLUGIN_ROOT}")
     ELSE()
       FILE(READ ${PLUGINMKFILE} PLUGINMK)
+      #Remove line continuation/breaking
+      STRING(REGEX REPLACE "[ \t\r]*\\\\\n[ \t\r]*" " "  PLUGINMK ${PLUGINMK})
       STRING(REGEX MATCH "SOURCES[ ]*=[ ]*([^\n]*)" FOO ${PLUGINMK})
       SET(MK_SOURCES ${CMAKE_MATCH_1})
       SEPARATE_ARGUMENTS(MK_SOURCES)

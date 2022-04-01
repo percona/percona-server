@@ -515,6 +515,7 @@ mkdir debug
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_FIDO=bundled \
+           -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -562,6 +563,7 @@ mkdir release
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
            -DWITH_FIDO=bundled \
+           -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \

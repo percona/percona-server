@@ -747,6 +747,7 @@ static bool rocksdb_skip_locks_if_skip_unique_check = false;
 static bool rocksdb_alter_column_default_inplace = false;
 static bool rocksdb_alter_table_comment_inplace = false;
 static bool rocksdb_instant_ddl = false;
+bool rocksdb_column_default_value_as_expression = true;
 bool rocksdb_enable_tmp_table = false;
 static std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 static std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -2361,7 +2362,13 @@ static MYSQL_SYSVAR_BOOL(alter_table_comment_inplace,
                          "Allow inplace alter for alter table comment", nullptr,
                          nullptr, false);
 
-static constexpr int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
+static MYSQL_SYSVAR_BOOL(column_default_value_as_expression,
+                         rocksdb_column_default_value_as_expression,
+                         PLUGIN_VAR_RQCMDARG,
+                         "allow column default value expressed in function",
+                         nullptr, nullptr, true);
+
+static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(lock_wait_timeout),
@@ -2555,6 +2562,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(instant_ddl),
     MYSQL_SYSVAR(enable_tmp_table),
     MYSQL_SYSVAR(alter_table_comment_inplace),
+    MYSQL_SYSVAR(column_default_value_as_expression),
     nullptr};
 
 static bool is_tmp_table(const std::string &tablename) {

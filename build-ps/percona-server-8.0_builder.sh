@@ -171,12 +171,12 @@ get_sources(){
             echo "InnoDB version differs from defined in version file"
             exit 1
         fi
-        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
         if [ ${FT_TAG} = 0 ]; then
             echo "There is no TAG for PerconaFT. Please set it and re-run build!"
             exit 1
         fi
-        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        TOKUBACKUP_TAG=$(git ls-remote --tags https://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
         if [ ${TOKUBACKUP_TAG} = 0 ]; then
             echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
             exit 1
@@ -286,9 +286,18 @@ get_sources(){
     rm -fr ${PSDIR}
     tar xzf ${EXPORTED_TAR}
     rm -f ${EXPORTED_TAR}
+
+    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
+    git submodule deinit -f storage/tokudb/PerconaFT/
+    rm -rf .git/modules/PerconaFT/
+    git rm -f storage/tokudb/PerconaFT/
+    git submodule deinit -f plugin/tokudb-backup-plugin/Percona-TokuBackup
+    rm -rf .git/modules/Percona-TokuBackup/
+    git rm -f plugin/tokudb-backup-plugin/Percona-TokuBackup
+
     # add git submodules because make dist uses git archive which doesn't include them
-    rsync -av storage/tokudb/PerconaFT ${PSDIR}/storage/tokudb --exclude .git
-    rsync -av plugin/tokudb-backup-plugin/Percona-TokuBackup ${PSDIR}/plugin/tokudb-backup-plugin --exclude .git
+#    rsync -av storage/tokudb/PerconaFT ${PSDIR}/storage/tokudb --exclude .git
+#    rsync -av plugin/tokudb-backup-plugin/Percona-TokuBackup ${PSDIR}/plugin/tokudb-backup-plugin --exclude .git
     rsync -av storage/rocksdb/rocksdb/ ${PSDIR}/storage/rocksdb/rocksdb --exclude .git
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
@@ -298,6 +307,11 @@ get_sources(){
     rsync -av extra/libkmip/ ${PSDIR}/extra/libkmip/ --exclude .git
     #
     cd ${PSDIR}
+
+    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
+    rm -rf storage/tokudb
+    rm -rf plugin/tokudb-backup-plugin
+
     # set tokudb version - can be seen with show variables like '%version%'
     sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     #
@@ -382,7 +396,7 @@ install_deps() {
         yum -y install epel-release
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd zstd-devel
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
-        yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf
+        yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
         if [ "${RHEL}" -lt 8 ]; then
             until yum -y install centos-release-scl; do

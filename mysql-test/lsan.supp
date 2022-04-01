@@ -37,6 +37,8 @@ leak:/usr/bin/python2.7
 leak:/usr/bin/zip
 leak:/usr/bin/python3.8
 leak:/usr/bin/python3.9
+leak:/usr/bin/grep
+leak:/usr/bin/ps
 leak:/usr/bin/*g++-*
 leak:/usr/lib/*cc1plus
 leak:/lib/*libbfd-*-system.so

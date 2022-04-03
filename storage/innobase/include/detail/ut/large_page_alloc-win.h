@@ -62,9 +62,10 @@ inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
     ib::log_warn(ER_IB_MSG_856)
         << "large_page_aligned_alloc VirtualAlloc(" << n_bytes_rounded
         << " bytes) failed; Windows error " << GetLastError();
+    return nullptr;
   }
 
-  if (!ptr && populate) prefault_if_not_map_populate(ptr, n_bytes_rounded);
+  if (populate) prefault_if_not_map_populate(ptr, n_bytes_rounded);
 
   return ptr;
 }

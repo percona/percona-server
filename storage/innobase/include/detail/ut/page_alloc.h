@@ -75,6 +75,7 @@ inline void *page_aligned_alloc(size_t n_bytes, bool populate) {
                                 << " bytes) failed;"
                                    " Windows error "
                                 << GetLastError();
+    return nullptr;
   }
 #else
   // With addr set to nullptr, mmap will internally round n_bytes to the
@@ -87,11 +88,11 @@ inline void *page_aligned_alloc(size_t n_bytes, bool populate) {
                                 << " bytes) failed;"
                                    " errno "
                                 << errno;
+    return nullptr;
   }
-  if (ptr == (void *)-1) ptr = nullptr;
 #endif
 
-  if (!ptr && populate) prefault_if_not_map_populate(ptr, n_bytes);
+  if (populate) prefault_if_not_map_populate(ptr, n_bytes);
 
   return ptr;
 }

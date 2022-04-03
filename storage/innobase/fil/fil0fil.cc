@@ -8718,6 +8718,9 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                                    req_type.is_read());
   }
 
+  /* Set encryption information. */
+  fil_io_set_encryption(req_type, page_id, space);
+
   mutex_release();
 
   DEBUG_SYNC_C("innodb_fil_do_io_prepared_io_with_no_mutex");
@@ -8755,9 +8758,6 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     req_type.set_zip_page_physical_size(page_size.physical());
     ut_ad(page_size.physical() > 0);
   }
-
-  /* Set encryption information. */
-  fil_io_set_encryption(req_type, page_id, space);
 
   req_type.block_size(file->block_size);
 

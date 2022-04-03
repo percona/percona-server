@@ -44,6 +44,7 @@
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"
+#include "prealloced_array.h"
 #include "sql/sql_plist.h"
 #include "template_utils.h"
 
@@ -1425,6 +1426,10 @@ class MDL_context {
                      Timeout_type lock_wait_timeout);
   bool upgrade_shared_lock(MDL_ticket *mdl_ticket, enum_mdl_type new_type,
                            Timeout_type lock_wait_timeout);
+  bool upgrade_shared_locks(MDL_request_list *mdl_requests,
+                            enum_mdl_type new_type,
+                            Timeout_type lock_wait_timeout,
+                            bool (*filter_func)(MDL_request *) = nullptr);
 
   bool clone_ticket(MDL_request *mdl_request);
 
@@ -1669,6 +1674,10 @@ class MDL_context {
 
   friend bool mdl_unittest::test_drive_fix_pins(MDL_context *);
   bool fix_pins();
+
+  bool filter_and_sort_requests_by_mdl_key(
+      Prealloced_array<MDL_request *, 16> *sort_buf,
+      MDL_request_list *mdl_requests, bool (*filter_func)(MDL_request *));
 
  public:
   void find_deadlock();

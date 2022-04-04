@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/auth/role_tables.h"
+#include "sql/auth/sql_authentication.h"
 
 #include <string.h>
 #include <memory>
@@ -330,6 +331,26 @@ bool populate_roles_caches(THD *thd, Table_ref *tablelst) {
     }
     rebuild_vertex_index(thd);
     opt_mandatory_roles_cache = false;
+  }
+
+  // Re-grant external roles provided by authentication plugins
+  for (const auto &p : g_external_roles) {
+    const char *host = p.first.second.c_str();
+    const char *username = p.first.first.c_str();
+    ACL_USER *acl_user = find_acl_user(host, username, true);
+    if (acl_user == nullptr) {
+      continue;
+    }
+
+    for (const auto &r : p.second) {
+      const char *host2 = r.second.c_str();
+      const char *name = r.first.c_str();
+      ACL_USER *acl_role = find_acl_user(host2, name, false);
+      if (acl_role == nullptr) {
+        continue;
+      }
+      grant_role(acl_role, acl_user, false);
+    }
   }
 
   return false;

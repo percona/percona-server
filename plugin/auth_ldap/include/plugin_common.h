@@ -34,7 +34,7 @@ int auth_ldap_common_authenticate_user(
     MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info, const char *password,
     mysql::plugin::auth_ldap::Pool *pool, const char *user_search_attr,
     const char *group_search_attr, const char *group_search_filter,
-    const char *bind_base_dn);
+    const char *bind_base_dn, const char *group_role_mapping);
 
 int auth_ldap_common_generate_auth_string_hash(char *outbuf,
                                                unsigned int *buflen,

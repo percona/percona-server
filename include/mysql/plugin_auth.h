@@ -145,6 +145,10 @@ struct MYSQL_SERVER_AUTH_INFO {
     method
   */
   auth_factor_desc *multi_factor_auth_info;
+
+  /** Comma separated list of possible roles the user can have, if they do
+     exists on the server */
+  char external_roles[512];
 };
 
 /**

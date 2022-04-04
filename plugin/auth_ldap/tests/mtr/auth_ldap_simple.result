@@ -1,3 +1,5 @@
+CREATE ROLE 'test_role';
+CREATE ROLE 'test_role2';
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_simple%';
 PLUGIN_NAME	PLUGIN_STATUS
 authentication_ldap_simple	ACTIVE
@@ -8,6 +10,7 @@ authentication_ldap_simple_bind_base_dn
 authentication_ldap_simple_bind_root_dn	
 authentication_ldap_simple_bind_root_pwd	
 authentication_ldap_simple_ca_path	
+authentication_ldap_simple_group_role_mapping	
 authentication_ldap_simple_group_search_attr	cn
 authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
 authentication_ldap_simple_init_pool_size	10
@@ -19,6 +22,7 @@ authentication_ldap_simple_ssl	OFF
 authentication_ldap_simple_tls	OFF
 authentication_ldap_simple_user_search_attr	uid
 SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
+SET GLOBAL authentication_ldap_simple_group_role_mapping = 'admin_staff=test_role';
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 Variable_name	Value
 authentication_ldap_simple_auth_method_name	SIMPLE
@@ -26,6 +30,7 @@ authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
 authentication_ldap_simple_bind_root_dn	
 authentication_ldap_simple_bind_root_pwd	
 authentication_ldap_simple_ca_path	
+authentication_ldap_simple_group_role_mapping	admin_staff=test_role
 authentication_ldap_simple_group_search_attr	cn
 authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
 authentication_ldap_simple_init_pool_size	10
@@ -36,8 +41,33 @@ authentication_ldap_simple_server_port	<MTR_LDAP_PORT>
 authentication_ldap_simple_ssl	OFF
 authentication_ldap_simple_tls	OFF
 authentication_ldap_simple_user_search_attr	uid
-CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=John A. Zoidberg,ou=people,dc=planetexpress,dc=com';
+CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com';
 CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_simple BY 'uid=nonexistent';
+SHOW GRANTS FOR 'zoidberg';
+Grants for zoidberg@%
+GRANT USAGE ON *.* TO `zoidberg`@`%`
+"should show test_role"
+SHOW GRANTS FOR 'zoidberg';
+Grants for zoidberg@%
+GRANT USAGE ON *.* TO `zoidberg`@`%`
+GRANT `test_role`@`%` TO `zoidberg`@`%`
+"should show test_role,test_role2"
+GRANT 'test_role2' TO zoidberg;
+SHOW GRANTS FOR 'zoidberg';
+Grants for zoidberg@%
+GRANT USAGE ON *.* TO `zoidberg`@`%`
+GRANT `test_role`@`%`,`test_role2`@`%` TO `zoidberg`@`%`
+FLUSH PRIVILEGES;
+"should show test_role,test_role2"
+SHOW GRANTS FOR 'zoidberg';
+Grants for zoidberg@%
+GRANT USAGE ON *.* TO `zoidberg`@`%`
+GRANT `test_role`@`%`,`test_role2`@`%` TO `zoidberg`@`%`
+"should show test_role,test_role2"
+SHOW GRANTS FOR 'zoidberg';
+Grants for zoidberg@%
+GRANT USAGE ON *.* TO `zoidberg`@`%`
+GRANT `test_role`@`%`,`test_role2`@`%` TO `zoidberg`@`%`
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 Variable_name	Value
 authentication_ldap_simple_auth_method_name	SIMPLE
@@ -45,6 +75,7 @@ authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
 authentication_ldap_simple_bind_root_dn	
 authentication_ldap_simple_bind_root_pwd	
 authentication_ldap_simple_ca_path	
+authentication_ldap_simple_group_role_mapping	admin_staff=test_role
 authentication_ldap_simple_group_search_attr	cn
 authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
 authentication_ldap_simple_init_pool_size	10
@@ -56,7 +87,22 @@ authentication_ldap_simple_ssl	OFF
 authentication_ldap_simple_tls	OFF
 authentication_ldap_simple_user_search_attr	uid
 ERROR 28000: Access denied for user 'nonexistent'@'localhost' (using password: YES)
+"should show test_role,test_role2"
+SHOW GRANTS FOR 'zoidberg';
+Grants for zoidberg@%
+GRANT USAGE ON *.* TO `zoidberg`@`%`
+GRANT `test_role`@`%`,`test_role2`@`%` TO `zoidberg`@`%`
+REVOKE test_role FROM zoidberg;
+ERROR HY000: The role test_role is a dynamic role and can't be revoked or dropped. It should be managed by the external authentication plugin instead.
+"should show test_role,test_role2"
+SHOW GRANTS FOR 'zoidberg';
+Grants for zoidberg@%
+GRANT USAGE ON *.* TO `zoidberg`@`%`
+GRANT `test_role`@`%`,`test_role2`@`%` TO `zoidberg`@`%`
 DROP USER zoidberg;
 DROP USER nonexistent;
+DROP ROLE test_role;
+DROP ROLE test_role2;
 SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
 SET GLOBAL authentication_ldap_simple_log_status = 1;
+SET GLOBAL authentication_ldap_simple_group_role_mapping = '';

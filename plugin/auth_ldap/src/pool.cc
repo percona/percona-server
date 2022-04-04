@@ -5,6 +5,7 @@
 #include <thread>
 #include "my_sys.h"
 
+#include <boost/algorithm/string.hpp>
 #include "plugin/auth_ldap/include/plugin_log.h"
 
 namespace mysql {
@@ -110,6 +111,21 @@ void Pool::return_connection(pool_ptr_t conn) {
     if (bs_used_.count() >= std::ceil(pool_max_size_ * 0.9)) {
       std::thread t(&Pool::zombie_control, this);
       t.detach();
+    }
+  }
+}
+
+void Pool::reset_group_role_mapping(std::string const &mapping) {
+  std::vector<std::string> roles;
+  boost::algorithm::split(roles, mapping, boost::is_any_of(","));
+  group_role_mapping_.clear();
+  for (auto const &role : roles) {
+    std::vector<std::string> r;
+    boost::algorithm::split(r, role, boost::is_any_of("="));
+    if (r.size() == 1) {
+      group_role_mapping_[role] = role;
+    } else {
+      group_role_mapping_[r[0]] = r[1];
     }
   }
 }

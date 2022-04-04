@@ -8,27 +8,28 @@ usage () {
     cat <<EOF
 Usage: $0 [OPTIONS]
     The following options may be given :
-        --builddir=DIR      Absolute path to the dir where all actions will be performed
-        --get_sources       Source will be downloaded from github
-        --build_src_rpm     If it is 1 src rpm will be built
-        --build_source_deb  If it is 1 source deb package will be built
-        --build_rpm         If it is 1 rpm will be built
-        --build_deb         If it is 1 deb will be built
-        --build_tarball     If it is 1 tarball will be built
-        --with_ssl          If it is 1 tarball will also include ssl libs
-        --with_zenfs        If it is 1 tarball and packages will also include zenfs
-        --install_deps      Install build dependencies(root previlages are required)
-        --branch            Branch for build
-        --repo              Repo for build
-        --perconaft_repo    PerconaFT repo
-        --perconaft_branch  Branch for PerconaFT
-        --tokubackup_repo   TokuBackup repo
-        --tokubackup_branch Btanch for TokuBackup
-        --zenfs_repo        ZenFS repo
-        --zenfs_branch      Branch for ZenFS
-        --rpm_release       RPM version( default = 1)
-        --deb_release       DEB version( default = 1)
-        --debug             Build debug tarball
+        --builddir=DIR              Absolute path to the dir where all actions will be performed
+        --get_sources               Source will be downloaded from github
+        --build_src_rpm             If it is 1 src rpm will be built
+        --build_source_deb          If it is 1 source deb package will be built
+        --build_rpm                 If it is 1 rpm will be built
+        --build_deb                 If it is 1 deb will be built
+        --build_tarball             If it is 1 tarball will be built
+        --with_ssl                  If it is 1 tarball will also include ssl libs
+        --with_zenfs                If it is 1 tarball and packages will also include zenfs
+        --install_deps              Install build dependencies(root previlages are required)
+        --branch                    Branch for build
+        --repo                      Repo for build
+	--build_tokudb_tokubackup   If it is 1 tokudb and tokudback packages will be build (default = 0)
+	--perconaft_repo            PerconaFT repo (The TokuDB storage has no longer supported since 8.0.28)
+        --perconaft_branch          Branch for PerconaFT
+	--tokubackup_repo           TokuBackup repo (The TokuDB storage has no longer supported since 8.0.28)
+        --tokubackup_branch         Branch for TokuBackup
+        --zenfs_repo                ZenFS repo
+        --zenfs_branch              Branch for ZenFS
+        --rpm_release               RPM version( default = 1)
+        --deb_release               DEB version( default = 1)
+        --debug                     Build debug tarball
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -63,6 +64,7 @@ parse_arguments() {
             --branch=*) BRANCH="$val" ;;
             --repo=*) REPO="$val" ;;
             --install_deps=*) INSTALL="$val" ;;
+            --build_tokudb_tokubackup=*) BUILD_TOKUDB_TOKUBACKUP="$val" ;;
             --perconaft_branch=*) PERCONAFT_BRANCH="$val" ;;
             --tokubackup_branch=*)      TOKUBACKUP_BRANCH="$val" ;;
             --zenfs_branch=*)      ZENFS_BRANCH="$val" ;;
@@ -171,15 +173,17 @@ get_sources(){
             echo "InnoDB version differs from defined in version file"
             exit 1
         fi
-        FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
-        if [ ${FT_TAG} = 0 ]; then
-            echo "There is no TAG for PerconaFT. Please set it and re-run build!"
-            exit 1
-        fi
-        TOKUBACKUP_TAG=$(git ls-remote --tags https://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
-        if [ ${TOKUBACKUP_TAG} = 0 ]; then
-            echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
-            exit 1
+        if [ ${BUILD_TOKUDB_TOKUBACKUP} = 1 ]; then
+            FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+            if [ ${FT_TAG} = 0 ]; then
+                echo "There is no TAG for PerconaFT. Please set it and re-run build!"
+                exit 1
+            fi
+            TOKUBACKUP_TAG=$(git ls-remote --tags https://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+            if [ ${TOKUBACKUP_TAG} = 0 ]; then
+                echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
+                exit 1
+            fi
         fi
     fi
     echo >> ../percona-server-8.0.properties
@@ -192,6 +196,7 @@ get_sources(){
     echo "PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-8.0.properties
     echo "BUILD_NUMBER=${BUILD_NUMBER}" >> ../percona-server-8.0.properties
     echo "BUILD_ID=${BUILD_ID}" >> ../percona-server-8.0.properties
+    echo "BUILD_TOKUDB_TOKUBACKUP=${BUILD_TOKUDB_TOKUBACKUP}" >> ../percona-server-8.0.properties
     echo "PERCONAFT_REPO=${PERCONAFT_REPO}" >> ../percona-server-8.0.properties
     echo "PERCONAFT_BRANCH=${PERCONAFT_BRANCH}" >> ../percona-server-8.0.properties
     echo "TOKUBACKUP_REPO=${TOKUBACKUP_REPO}" >> ../percona-server-8.0.properties
@@ -225,39 +230,41 @@ get_sources(){
         TOKUBACKUP_REPO=''
     fi
 
-    if [ -z ${PERCONAFT_REPO} -a -z ${TOKUBACKUP_REPO} ]; then
-        mkdir plugin/tokudb-backup-plugin/Percona-TokuBackup
-        mkdir storage/tokudb/PerconaFT
-        git submodule init
-        git submodule update
-        cd storage/tokudb/PerconaFT
-        git fetch origin
-        git checkout ${PERCONAFT_BRANCH}
-        if [ ${PERCONAFT_BRANCH} = "master" ]; then
-            git pull
-        fi
-        cd ${WORKDIR}/percona-server
-        #
-        cd plugin/tokudb-backup-plugin/Percona-TokuBackup
-        git fetch origin
-        git checkout ${TOKUBACKUP_BRANCH}
-        if [ ${TOKUBACKUP_BRANCH} = "master" ]; then
-            git pull
-        fi
-        cd ${WORKDIR}/percona-server
-    else
-        cd storage/tokudb
-        git clone ${PERCONAFT_REPO}
-        cd PerconaFT
-        git checkout ${PERCONAFT_BRANCH}
-        cd ${WORKDIR}/percona-server
-        #
-        cd plugin/tokudb-backup-plugin
-        git clone ${TOKUBACKUP_REPO}
-        cd Percona-TokuBackup
-        git checkout ${TOKUBACKUP_BRANCH}
-        cd ${WORKDIR}/percona-server
+    if [ ${BUILD_TOKUDB_TOKUBACKUP} = 1 ]; then
+        if [ -z ${PERCONAFT_REPO} -a -z ${TOKUBACKUP_REPO} ]; then
+            mkdir plugin/tokudb-backup-plugin/Percona-TokuBackup
+            mkdir storage/tokudb/PerconaFT
+            git submodule init
+            git submodule update
+            cd storage/tokudb/PerconaFT
+            git fetch origin
+            git checkout ${PERCONAFT_BRANCH}
+            if [ ${PERCONAFT_BRANCH} = "master" ]; then
+                git pull
+            fi
+            cd ${WORKDIR}/percona-server
+            #
+            cd plugin/tokudb-backup-plugin/Percona-TokuBackup
+            git fetch origin
+            git checkout ${TOKUBACKUP_BRANCH}
+            if [ ${TOKUBACKUP_BRANCH} = "master" ]; then
+                git pull
+            fi
+            cd ${WORKDIR}/percona-server
+        else
+            cd storage/tokudb
+            git clone ${PERCONAFT_REPO}
+            cd PerconaFT
+            git checkout ${PERCONAFT_BRANCH}
+            cd ${WORKDIR}/percona-server
+            #
+            cd plugin/tokudb-backup-plugin
+            git clone ${TOKUBACKUP_REPO}
+            cd Percona-TokuBackup
+            git checkout ${TOKUBACKUP_BRANCH}
+            cd ${WORKDIR}/percona-server
 
+        fi
     fi
     #
 
@@ -288,16 +295,20 @@ get_sources(){
     rm -f ${EXPORTED_TAR}
 
     # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
-    git submodule deinit -f storage/tokudb/PerconaFT/
-    rm -rf .git/modules/PerconaFT/
-    git rm -f storage/tokudb/PerconaFT/
-    git submodule deinit -f plugin/tokudb-backup-plugin/Percona-TokuBackup
-    rm -rf .git/modules/Percona-TokuBackup/
-    git rm -f plugin/tokudb-backup-plugin/Percona-TokuBackup
+    if [ ${BUILD_TOKUDB_TOKUBACKUP} != 1 ]; then
+        git submodule deinit -f storage/tokudb/PerconaFT/
+        rm -rf .git/modules/PerconaFT/
+        git rm -f storage/tokudb/PerconaFT/
+        git submodule deinit -f plugin/tokudb-backup-plugin/Percona-TokuBackup
+        rm -rf .git/modules/Percona-TokuBackup/
+        git rm -f plugin/tokudb-backup-plugin/Percona-TokuBackup
+    fi
 
     # add git submodules because make dist uses git archive which doesn't include them
-#    rsync -av storage/tokudb/PerconaFT ${PSDIR}/storage/tokudb --exclude .git
-#    rsync -av plugin/tokudb-backup-plugin/Percona-TokuBackup ${PSDIR}/plugin/tokudb-backup-plugin --exclude .git
+    if [ ${BUILD_TOKUDB_TOKUBACKUP} = 1 ]; then
+        rsync -av storage/tokudb/PerconaFT ${PSDIR}/storage/tokudb --exclude .git
+        rsync -av plugin/tokudb-backup-plugin/Percona-TokuBackup ${PSDIR}/plugin/tokudb-backup-plugin --exclude .git
+    fi
     rsync -av storage/rocksdb/rocksdb/ ${PSDIR}/storage/rocksdb/rocksdb --exclude .git
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
@@ -309,8 +320,10 @@ get_sources(){
     cd ${PSDIR}
 
     # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
-    rm -rf storage/tokudb
-    rm -rf plugin/tokudb-backup-plugin
+    if [ ${BUILD_TOKUDB_TOKUBACKUP} != 1 ]; then
+        rm -rf storage/tokudb
+        rm -rf plugin/tokudb-backup-plugin
+    fi
 
     # set tokudb version - can be seen with show variables like '%version%'
     sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
@@ -998,6 +1011,7 @@ MYSQL_VERSION_PATCH=27
 MYSQL_VERSION_EXTRA=-18
 PRODUCT_FULL=Percona-Server-8.0.27
 BOOST_PACKAGE_NAME=boost_1_73_0
+BUILD_TOKUDB_TOKUBACKUP=0
 PERCONAFT_BRANCH=Percona-Server-8.0.27-18
 TOKUBACKUP_BRANCH=Percona-Server-8.0.27-18
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

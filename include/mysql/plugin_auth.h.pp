@@ -170,6 +170,7 @@ struct MYSQL_SERVER_AUTH_INFO {
   unsigned long additional_auth_string_length;
   unsigned int current_auth_factor;
   auth_factor_desc *multi_factor_auth_info;
+  char external_roles[512];
 };
 typedef int (*authenticate_user_t)(MYSQL_PLUGIN_VIO *vio,
                                    MYSQL_SERVER_AUTH_INFO *info);

@@ -92,6 +92,7 @@
 #include "sql/auth/role_tables.h"
 #include "sql/auth/roles.h"
 #include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_authentication.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
 #include "sql/current_thd.h"
@@ -3139,6 +3140,33 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
         }
       }
     }
+
+    while ((lex_user = users_it++)) {
+      for (const auto &p : g_external_roles) {
+        const char *host = p.first.second.c_str();
+        const char *username = p.first.first.c_str();
+        if (strcmp(username, lex_user->user.str) ||
+            strcmp(host, lex_user->host.str)) {
+          continue;
+        }
+
+        roles_it.rewind();
+        while (LEX_USER *role = roles_it++) {
+          for (const auto &r : p.second) {
+            const char *name = r.first.c_str();
+            Role_id id(role->user.str, "");
+            Role_id id2(name, "");
+            if (id == id2) {
+              my_error(ER_DYNAMIC_ROLE, MYF(0), role->user.str);
+              commit_and_close_mysql_tables(thd);
+              return true;
+            }
+          }
+        }
+      }
+    }
+
+    users_it.rewind();
     while ((lex_user = users_it++) && !errors) {
       roles_it.rewind();
       if (lex_user->user.str == nullptr) {

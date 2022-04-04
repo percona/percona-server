@@ -42,6 +42,7 @@ static unsigned int server_port;
 static bool ssl;
 static bool tls;
 static char *user_search_attr;
+static char *group_role_mapping;
 
 static mysql::plugin::auth_ldap::Pool *connPool;
 
@@ -147,6 +148,13 @@ static MYSQL_SYSVAR_STR(user_search_attr, user_search_attr,
                         &update_sysvar<char *> /* update */,
                         "uid" /* default */);
 
+static MYSQL_SYSVAR_STR(
+    group_role_mapping, group_role_mapping,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+    "Maps LDAP groups to MySQL groups. Uses comma separated list, where "
+    "entries could be <name>, or <ldap_name>=<mysql_name>",
+    nullptr /* check */, &update_sysvar<char *> /* update */, "" /* default */);
+
 static SYS_VAR *mpaldap_sysvars[] = {MYSQL_SYSVAR(auth_method_name),
                                      MYSQL_SYSVAR(bind_base_dn),
                                      MYSQL_SYSVAR(bind_root_dn),
@@ -162,6 +170,7 @@ static SYS_VAR *mpaldap_sysvars[] = {MYSQL_SYSVAR(auth_method_name),
                                      MYSQL_SYSVAR(ssl),
                                      MYSQL_SYSVAR(tls),
                                      MYSQL_SYSVAR(user_search_attr),
+                                     MYSQL_SYSVAR(group_role_mapping),
                                      nullptr};
 
 #endif  // PLUGIN_VARIABLES_MPALDAP_H

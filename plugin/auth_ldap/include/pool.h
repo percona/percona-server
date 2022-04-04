@@ -16,6 +16,7 @@
 #define MPAL_POOL_H
 
 #include <boost/dynamic_bitset.hpp>
+#include <map>
 #include <mutex>
 #include <vector>
 
@@ -40,6 +41,7 @@ class Pool {
   pool_ptr_t borrow_connection(bool default_connect = true);
   void debug_info();
   void return_connection(pool_ptr_t conn);
+  void reset_group_role_mapping(const std::string &mapping);
   void reconfigure(std::size_t new_pool_initial_size,
                    std::size_t new_pool_max_size, const std::string &ldap_host,
                    std::uint16_t ldap_port, bool use_ssl, bool use_tls,
@@ -63,6 +65,7 @@ class Pool {
   std::string ca_path_;
   std::string bind_dn_;
   std::string bind_pwd_;
+  std::map<std::string, std::string> group_role_mapping_;
   using bs_used_t = boost::dynamic_bitset<>;
   bs_used_t bs_used_;
   using connection_vec_t = std::vector<pool_ptr_t>;

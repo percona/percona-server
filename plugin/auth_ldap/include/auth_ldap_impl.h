@@ -38,23 +38,36 @@ class AuthLDAPImpl {
                const std::string &user_search_attr,
                const std::string &group_search_filter,
                const std::string &group_search_attr,
-               const std::string &bind_base_dn, Pool *pool);
+               const std::string &bind_base_dn, const std::string &mapping,
+               Pool *pool);
   ~AuthLDAPImpl();
 
   bool bind(const std::string &user_dn, const std::string &password);
   bool get_ldap_uid(std::string *user_dn);
 
-  bool get_mysql_uid(std::string *user_mysql, const std::string &user_dn);
+  bool get_mysql_uid(std::string *user_mysql, std::string *roles_mysql,
+                     const std::string &user_dn,
+                     Pool::pool_ptr_t *use_conn = nullptr);
+
+  bool bind_and_get_mysql_uid(const std::string &user_dn,
+                              const std::string &password,
+                              std::string *user_mysql,
+                              std::string *roles_mysql);
 
  private:
+  bool bind_internal(const std::string &user_dn, const std::string &password,
+                     Pool::pool_ptr_t *conn);
+
   std::string calc_ldap_uid();
 
   void calc_mappings(const std::string &group_str);
   std::string calc_mysql_user(const groups_t &groups);
+  std::string calc_mysql_roles(const groups_t &groups);
 
   bool matched_map(const t_group_mapping &map, const groups_t &groups);
 
-  groups_t search_ldap_groups(const std::string &user_dn);
+  groups_t search_ldap_groups(const std::string &user_dn,
+                              Pool::pool_ptr_t *use_conn);
 
   std::string search_ldap_uid();
 
@@ -69,6 +82,7 @@ class AuthLDAPImpl {
   std::string user_name_;
   std::string user_auth_string_;
   std::vector<t_group_mapping> mappings_;
+  std::map<std::string, std::string> group_role_mapping_;
 };
 }  // namespace auth_ldap
 }  // namespace plugin

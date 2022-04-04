@@ -5,20 +5,46 @@
 
 --source include/count_sessions.inc
 
+CREATE ROLE 'test_role';
+CREATE ROLE 'test_role2';
+
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_simple%';
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
+SET GLOBAL authentication_ldap_simple_group_role_mapping = 'admin_staff=test_role';
 
 # For debugging:
 # SET GLOBAL authentication_ldap_simple_log_status = 6;
 
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
-CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=John A. Zoidberg,ou=people,dc=planetexpress,dc=com';
+CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com';
 CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_simple BY 'uid=nonexistent';
 
---connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
+# Note: role not shown at this point, as the user never logged on
+SHOW GRANTS FOR 'zoidberg';
+
+--connect (con1,localhost,zoidberg,hermes,,,,CLEARTEXT)
+
+# Note: role shown as it was added to the auth cache
+--echo "should show test_role"
+SHOW GRANTS FOR 'zoidberg';
+
+--connection default
+--echo "should show test_role,test_role2"
+GRANT 'test_role2' TO zoidberg;
+
+SHOW GRANTS FOR 'zoidberg';
+
+FLUSH PRIVILEGES;
+
+--echo "should show test_role,test_role2"
+SHOW GRANTS FOR 'zoidberg';
+
+--connection con1
+--echo "should show test_role,test_role2"
+SHOW GRANTS FOR 'zoidberg';
 
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
@@ -31,9 +57,23 @@ SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 --connect (con1,localhost,nonexistent,zoidberg,,,,CLEARTEXT)
 --enable_query_log
 
+# Note: role remains in the in memory auth cache... should we allow that?
+--echo "should show test_role,test_role2"
+SHOW GRANTS FOR 'zoidberg';
+
+--error ER_DYNAMIC_ROLE
+REVOKE test_role FROM zoidberg;
+
+# Note: revoke role fails, role should be removed from LDAP
+--echo "should show test_role,test_role2"
+SHOW GRANTS FOR 'zoidberg';
+
 DROP USER zoidberg;
 DROP USER nonexistent;
+DROP ROLE test_role;
+DROP ROLE test_role2;
 SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
 SET GLOBAL authentication_ldap_simple_log_status = 1;
+SET GLOBAL authentication_ldap_simple_group_role_mapping = '';
 
 --source include/wait_until_count_sessions.inc

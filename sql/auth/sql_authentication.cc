@@ -37,6 +37,7 @@
 #include <utility>
 #include <vector> /* std::vector */
 
+#include "boost/algorithm/string.hpp"
 #include "crypt_genhash_impl.h"  // generate_user_salt
 #include "include/compression.h"
 #include "m_string.h"
@@ -1081,6 +1082,7 @@ plugin_ref Cached_authentication_plugins::get_cached_plugin_ref(
   return cached_plugin;
 }
 
+external_roles_t g_external_roles;
 Cached_authentication_plugins *g_cached_authentication_plugins = nullptr;
 
 bool disconnect_on_expired_password = true;
@@ -4022,6 +4024,28 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       assert(mpvio.restrictions);
       sctx->set_master_access(acl_user->access, *(mpvio.restrictions));
       assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
+
+      if (acl_user->user != nullptr) {
+        // Adding external roles
+        Acl_cache_lock_guard acl_cache_lock2(thd,
+                                             Acl_cache_lock_mode::WRITE_MODE);
+        acl_cache_lock2.lock();
+        const name_and_host_t u(std::string(acl_user->user),
+                                std::string(acl_user->host.get_host()));
+        if (g_external_roles.find(u) != g_external_roles.end())
+          g_external_roles[u].clear();
+        std::vector<std::string> roles;
+        boost::algorithm::split(roles, mpvio.auth_info.external_roles,
+                                boost::is_any_of(","));
+        for (const auto &role : roles) {
+          ACL_USER *acl_role = find_acl_user("", role.c_str(), false);
+          if (acl_role != nullptr && acl_role->user != nullptr) {
+            grant_role(acl_role, acl_user, false);
+            const name_and_host_t r(std::string(acl_role->user), "");
+            g_external_roles[u].push_back(r);
+          }
+        }
+      }
       /* Assign default role */
       {
         List_of_auth_id_refs default_roles;

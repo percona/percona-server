@@ -48,10 +48,9 @@ static compute_key_function get_compute_key_function(
   return res;
 }
 
-std::string compute_dh_key(const big_number &public_component,
-                           const dh_key &private_key, dh_padding padding) {
-  assert(!public_component.is_empty());
-  assert(!private_key.is_empty());
+static std::string compute_dh_key_internal(const BIGNUM *public_component,
+                                           const dh_key &private_key,
+                                           dh_padding padding) {
   if (!private_key.has_private_component())
     throw core_error{
         "cannot compute shared key as DH key does not have private component"};
@@ -62,14 +61,22 @@ std::string compute_dh_key(const big_number &public_component,
   using buffer_type = std::vector<unsigned char>;
   buffer_type res(private_key.get_size_in_bytes());
   auto compute_status =
-      (*function)(res.data(), big_number_accessor::get_impl(public_component),
+      (*function)(res.data(), public_component,
                   dh_key_accessor::get_impl_const_casted(private_key));
 
   if (compute_status == -1)
     core_error::raise_with_error_string(
-        "cannot compute shared key from DH private key / public component");
+        "cannot compute shared key from DH private / public components");
 
   return {reinterpret_cast<char *>(res.data()), res.size()};
+}
+
+std::string compute_dh_key(const big_number &public_component,
+                           const dh_key &private_key, dh_padding padding) {
+  assert(!public_component.is_empty());
+  assert(!private_key.is_empty());
+  return compute_dh_key_internal(
+      big_number_accessor::get_impl(public_component), private_key, padding);
 }
 
 std::string compute_dh_key(const dh_key &public_key, const dh_key &private_key,
@@ -79,30 +86,16 @@ std::string compute_dh_key(const dh_key &public_key, const dh_key &private_key,
   if (!public_key.has_public_component())
     throw core_error{
         "cannot compute shared key as DH key does not have public component"};
-  if (!private_key.has_private_component())
-    throw core_error{
-        "cannot compute shared key as DH key does not have private component"};
 
-  auto function = get_compute_key_function(padding);
-
-  // TODO: use c++17 non-const std::string::data() member here
-  using buffer_type = std::vector<unsigned char>;
-  buffer_type res(private_key.get_size_in_bytes());
   const auto *dh_raw = dh_key_accessor::get_impl(public_key);
-  auto compute_status =
-      (*function)(res.data(),
+  const auto *public_component_raw =
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-                  dh_raw->pub_key,
+      dh_raw->pub_key;
 #else
-                  DH_get0_pub_key(dh_raw),
+      DH_get0_pub_key(dh_raw);
 #endif
-                  dh_key_accessor::get_impl_const_casted(private_key));
 
-  if (compute_status == -1)
-    core_error::raise_with_error_string(
-        "cannot compute shared key from DH private key / public key");
-
-  return {reinterpret_cast<char *>(res.data()), res.size()};
+  return compute_dh_key_internal(public_component_raw, private_key, padding);
 }
 
 }  // namespace opensslpp

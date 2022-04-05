@@ -19,6 +19,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <boost/algorithm/string/predicate.hpp>
+
 #include <boost/lexical_cast/try_lexical_convert.hpp>
 
 #include <boost/preprocessor/stringize.hpp>
@@ -54,6 +56,47 @@ REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 
 namespace {
 
+// clang-format off
+#define ENCRYPTION_UDF_X_MACRO_LIST() \
+  ENCRYPTION_UDF_X_MACRO(rsa),        \
+  ENCRYPTION_UDF_X_MACRO(dsa),        \
+  ENCRYPTION_UDF_X_MACRO(dh)
+// clang-format on
+
+#define ENCRYPTION_UDF_X_MACRO(X) X
+enum class algorithm_id_type { ENCRYPTION_UDF_X_MACRO_LIST(), delimiter };
+#undef ENCRYPTION_UDF_X_MACRO
+
+constexpr std::size_t number_of_algorithms =
+    static_cast<std::size_t>(algorithm_id_type::delimiter);
+
+#define ENCRYPTION_UDF_X_MACRO(X) BOOST_PP_STRINGIZE(X)
+constexpr std::array<ext::string_view, number_of_algorithms>
+    algorithm_id_labels = {ENCRYPTION_UDF_X_MACRO_LIST()};
+#undef ENCRYPTION_UDF_X_MACRO
+
+#undef ENCRYPTION_UDF_X_MACRO_LIST
+
+algorithm_id_type get_algorithm_id_by_label(
+    ext::string_view algorithm) noexcept {
+  assert(algorithm.data() != nullptr);
+  std::size_t index = 0;
+  while (index < number_of_algorithms &&
+         !boost::iequals(algorithm, algorithm_id_labels[index]))
+    ++index;
+  return static_cast<algorithm_id_type>(index);
+}
+
+algorithm_id_type get_and_validate_algorithm_id_by_label(
+    ext::string_view algorithm) {
+  if (algorithm.data() == nullptr)
+    throw std::invalid_argument("Algorithm cannot be NULL");
+  auto res = get_algorithm_id_by_label(algorithm);
+  if (res == algorithm_id_type::delimiter)
+    throw std::invalid_argument("Invalid algorithm specified");
+  return res;
+}
+
 enum class threshold_index_type { rsa, dsa, dh, delimiter };
 constexpr std::size_t number_of_thresholds =
     static_cast<std::size_t>(threshold_index_type::delimiter);
@@ -67,14 +110,16 @@ struct threshold_definition {
   const char *var_description;
 };
 
+// DSA max key length must be <= OPENSSL_DSA_MAX_MODULUS_BITS (10000)
+// and be a multiple of 64, therefore 9984
+constexpr std::size_t aligned_max_dsa_bits = 10000U / 64U * 64U;
+
 constexpr std::array<threshold_definition, number_of_thresholds> thresholds = {
     threshold_definition{
         1024U, 16384U, "rsa_bits_threshold",
         "Maximum RSA key length in bits for create_asymmetric_priv_key()"},
-    // DSA max key length must be <= OPENSSL_DSA_MAX_MODULUS_BITS (10000)
-    // and be a multiple of 64, therefore 9984
     threshold_definition{
-        1024U, 9984U, "dsa_bits_threshold",
+        1024U, aligned_max_dsa_bits, "dsa_bits_threshold",
         "Maximum DSA key length in bits for create_asymmetric_priv_key()"},
     threshold_definition{
         1024U, 10000U, "dh_bits_threshold",
@@ -134,20 +179,17 @@ class create_asymmetric_priv_key_impl {
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
-      const mysqlpp::udf_context &args);
+      const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  if (algorithm.data() == nullptr)
-    throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA" && algorithm != "DSA" && algorithm != "DH")
-    throw std::invalid_argument("Invalid algorithm specified");
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
   auto length_or_dh_parameters = ctx.get_arg<STRING_RESULT>(1);
 
   std::string pem;
-  if (algorithm == "DH") {
+  if (algorithm_id == algorithm_id_type::dh) {
     if (length_or_dh_parameters.data() == nullptr)
       throw std::invalid_argument("DH parameters cannot be NULL");
     auto dh_parameters_pem = static_cast<std::string>(length_or_dh_parameters);
@@ -164,12 +206,12 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
                                                 length))
       throw std::invalid_argument("Key length is not a numeric value");
 
-    if (algorithm == "RSA") {
+    if (algorithm_id == algorithm_id_type::rsa) {
       if (!check_if_bits_in_range(length, threshold_index_type::rsa))
         throw std::invalid_argument("Invalid RSA key length specified");
       auto key = opensslpp::rsa_key::generate(length);
       pem = opensslpp::rsa_key::export_private_pem(key);
-    } else if (algorithm == "DSA") {
+    } else if (algorithm_id == algorithm_id_type::dsa) {
       if (!check_if_bits_in_range(length, threshold_index_type::dsa))
         throw std::invalid_argument("Invalid DSA key length specified");
       auto key = opensslpp::dsa_key::generate_parameters(length);
@@ -205,28 +247,25 @@ class create_asymmetric_pub_key_impl {
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
-      const mysqlpp::udf_context &args);
+      const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  if (algorithm.data() == nullptr)
-    throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA" && algorithm != "DSA" && algorithm != "DH")
-    throw std::invalid_argument("Invalid algorithm specified");
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
   auto priv_key_pem = static_cast<std::string>(ctx.get_arg<STRING_RESULT>(1));
   if (priv_key_pem.data() == nullptr)
     throw std::invalid_argument("Private key cannot be NULL");
 
   std::string pem;
-  if (algorithm == "RSA") {
+  if (algorithm_id == algorithm_id_type::rsa) {
     auto priv_key = opensslpp::rsa_key::import_private_pem(priv_key_pem);
     pem = opensslpp::rsa_key::export_public_pem(priv_key);
-  } else if (algorithm == "DSA") {
+  } else if (algorithm_id == algorithm_id_type::dsa) {
     auto priv_key = opensslpp::dsa_key::import_private_pem(priv_key_pem);
     pem = opensslpp::dsa_key::export_public_pem(priv_key);
-  } else if (algorithm == "DH") {
+  } else if (algorithm_id == algorithm_id_type::dh) {
     auto priv_key = opensslpp::dh_key::import_private_pem(priv_key_pem);
     pem = opensslpp::dh_key::export_public_pem(priv_key);
   }
@@ -261,15 +300,14 @@ class asymmetric_encrypt_impl {
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
-      const mysqlpp::udf_context &args);
+      const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  if (algorithm.data() == nullptr)
-    throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA")
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
+  if (algorithm_id != algorithm_id_type::rsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
@@ -323,15 +361,14 @@ class asymmetric_decrypt_impl {
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
-      const mysqlpp::udf_context &args);
+      const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  if (algorithm.data() == nullptr)
-    throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA")
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
+  if (algorithm_id != algorithm_id_type::rsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
@@ -382,7 +419,7 @@ class create_digest_impl {
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
-      const mysqlpp::udf_context &args);
+      const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
@@ -441,15 +478,15 @@ class asymmetric_sign_impl {
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
-      const mysqlpp::udf_context &args);
+      const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  if (algorithm.data() == nullptr)
-    throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA" && algorithm != "DSA")
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
+  if (algorithm_id != algorithm_id_type::rsa &&
+      algorithm_id != algorithm_id_type::dsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
@@ -468,11 +505,11 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   std::string signature;
-  if (algorithm == "RSA") {
+  if (algorithm_id == algorithm_id_type::rsa) {
     auto private_key = opensslpp::rsa_key::import_private_pem(private_key_pem);
     signature = opensslpp::sign_with_rsa_private_key(
         digest_type, message_digest, private_key);
-  } else if (algorithm == "DSA") {
+  } else if (algorithm_id == algorithm_id_type::dsa) {
     auto private_key = opensslpp::dsa_key::import_private_pem(private_key_pem);
     signature = opensslpp::sign_with_dsa_private_key(
         digest_type, message_digest, private_key);
@@ -527,15 +564,15 @@ class asymmetric_verify_impl {
     ctx.set_arg_type(4, STRING_RESULT);
   }
 
-  mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &args);
+  mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  if (algorithm.data() == nullptr)
-    throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA" && algorithm != "DSA")
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
+  if (algorithm_id != algorithm_id_type::rsa &&
+      algorithm_id != algorithm_id_type::dsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
@@ -559,11 +596,11 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   bool verification_result = false;
-  if (algorithm == "RSA") {
+  if (algorithm_id == algorithm_id_type::rsa) {
     auto public_key = opensslpp::rsa_key::import_public_pem(public_key_pem);
     verification_result = opensslpp::verify_with_rsa_public_key(
         digest_type, message_digest, signature, public_key);
-  } else if (algorithm == "DSA") {
+  } else if (algorithm_id == algorithm_id_type::dsa) {
     auto public_key = opensslpp::dsa_key::import_public_pem(public_key_pem);
     verification_result = opensslpp::verify_with_dsa_public_key(
         digest_type, message_digest, signature, public_key);
@@ -593,7 +630,7 @@ class create_dh_parameters_impl {
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
-      const mysqlpp::udf_context &args);
+      const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
@@ -638,7 +675,7 @@ class asymmetric_derive_impl {
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
-      const mysqlpp::udf_context &args);
+      const mysqlpp::udf_context &ctx);
 };
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_derive_impl::calculate(
@@ -776,21 +813,27 @@ void my_error(int error_id, myf flags, ...) {
   va_end(args);
 }
 
+// clang-format off
 BEGIN_COMPONENT_PROVIDES(CURRENT_COMPONENT_NAME)
 END_COMPONENT_PROVIDES();
 
 BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
-REQUIRES_SERVICE(mysql_runtime_error), REQUIRES_SERVICE(udf_registration),
-    REQUIRES_SERVICE(component_sys_variable_register),
-    REQUIRES_SERVICE(component_sys_variable_unregister),
-    END_COMPONENT_REQUIRES();
+  REQUIRES_SERVICE(mysql_runtime_error),
+  REQUIRES_SERVICE(udf_registration),
+  REQUIRES_SERVICE(component_sys_variable_register),
+  REQUIRES_SERVICE(component_sys_variable_unregister),
+END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(CURRENT_COMPONENT_NAME)
-METADATA("mysql.author", "Percona Corporation"),
-    METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
+  METADATA("mysql.author", "Percona Corporation"),
+  METADATA("mysql.license", "GPL"),
+END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(CURRENT_COMPONENT_NAME, CURRENT_COMPONENT_NAME_STR)
-component_init, component_deinit, END_DECLARE_COMPONENT();
+  component_init,
+  component_deinit,
+END_DECLARE_COMPONENT();
+// clang-format on
 
 DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(CURRENT_COMPONENT_NAME)
     END_DECLARE_LIBRARY_COMPONENTS

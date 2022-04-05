@@ -81,7 +81,6 @@ set(
   bio.hpp
   bio_accessor.hpp
   bio_fwd.hpp
-  core_allocated_buffer.hpp
   dh_key_accessor.hpp
   digest_context_accessor.hpp
   dsa_key_accessor.hpp
@@ -95,7 +94,6 @@ set(
   big_number.cpp
   bio.cpp
   core_error.cpp
-  core_allocated_buffer.cpp
   dh_compute_operations.cpp
   dh_key.cpp
   digest_context.cpp

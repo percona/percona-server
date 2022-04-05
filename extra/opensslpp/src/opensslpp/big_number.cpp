@@ -23,7 +23,6 @@
 #include <opensslpp/core_error.hpp>
 
 #include "opensslpp/big_number_accessor.hpp"
-#include "opensslpp/core_allocated_buffer.hpp"
 
 namespace opensslpp {
 
@@ -91,13 +90,18 @@ big_number &big_number::operator--() {
   return *this;
 }
 
+struct openssl_core_deleter {
+  void operator()(char *ptr) const noexcept {
+    if (ptr != nullptr) OPENSSL_free(ptr);
+  }
+};
+using openssl_core_buffer_ptr = std::unique_ptr<char, openssl_core_deleter>;
+
 std::ostream &operator<<(std::ostream &os, const big_number &obj) {
   assert(!obj.is_empty());
-  const auto buffer =
-      core_allocated_buffer{BN_bn2dec(big_number_accessor::get_impl(obj))};
-  if (buffer.is_empty())
-    throw core_error{"cannot convert big number to decimal string"};
-  os << buffer.get_typed_ptr<char>();
+  openssl_core_buffer_ptr buffer{BN_bn2dec(big_number_accessor::get_impl(obj))};
+  if (!buffer) throw core_error{"cannot convert big number to decimal string"};
+  os << buffer.get();
   return os;
 }
 

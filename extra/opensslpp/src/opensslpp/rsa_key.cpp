@@ -158,8 +158,9 @@ std::string rsa_key::export_public_pem(const rsa_key &key) {
   assert(!key.is_empty());
 
   auto sink = bio{};
-  const int r = PEM_write_bio_RSAPublicKey(bio_accessor::get_impl(sink),
-                                           rsa_key_accessor::get_impl(key));
+  const int r =
+      PEM_write_bio_RSA_PUBKEY(bio_accessor::get_impl(sink),
+                               rsa_key_accessor::get_impl_const_casted(key));
   if (r == 0)
     core_error::raise_with_error_string(
         "cannot export RSA key to PEM PUBLIC KEY");
@@ -186,8 +187,8 @@ rsa_key rsa_key::import_public_pem(const std::string &pem) {
   auto source = bio{pem};
   rsa_key res{};
   rsa_key_accessor::set_impl(
-      res, PEM_read_bio_RSAPublicKey(bio_accessor::get_impl(source), nullptr,
-                                     nullptr, nullptr));
+      res, PEM_read_bio_RSA_PUBKEY(bio_accessor::get_impl(source), nullptr,
+                                   nullptr, nullptr));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot import RSA key from PEM PUBLIC KEY");

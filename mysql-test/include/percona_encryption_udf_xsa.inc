@@ -14,10 +14,57 @@ INSTALL COMPONENT 'file://component_encryption_udf';
 eval SET @algorithm = "$algorithm";
 
 --echo ** [$algorithm][$key_length] checking asymmetric algorithm functions
---echo **** [$algorithm][$key_length] generating private key
-eval SET @priv = create_asymmetric_priv_key(@algorithm, $key_length);
---echo **** [$algorithm][$key_length] deriving public key
-SET @pub = create_asymmetric_pub_key(@algorithm, @priv);
+if (!$use_openssl_binary)
+{
+  --echo **** [$algorithm][$key_length] generating private key
+  eval SET @priv = create_asymmetric_priv_key(@algorithm, $key_length);
+}
+if ($use_openssl_binary)
+{
+  --let $private_key_file_path = $MYSQLTEST_VARDIR/tmp/private.pem
+  --echo **** [$algorithm][$key_length] generating private key with openssl binary
+  if ($algorithm == 'RSA')
+  {
+    --let $subcommand = genrsa
+  }
+  if ($algorithm == 'DSA')
+  {
+    --let $subcommand = dsaparam -genkey -noout
+  }
+  --exec openssl $subcommand -out $private_key_file_path $key_length
+  --replace_result $private_key_file_path <PRIVATE_KEY_FILE_PATH>
+  eval SET @priv = TRIM(TRAILING '\n' FROM LOAD_FILE('$private_key_file_path'));
+}
+
+if (!$use_openssl_binary)
+{
+  --echo **** [$algorithm][$key_length] deriving public key
+  SET @pub = create_asymmetric_pub_key(@algorithm, @priv);
+}
+if ($use_openssl_binary)
+{
+  --let $public_key_file_path = $MYSQLTEST_VARDIR/tmp/public.pem
+  --echo **** [$algorithm][$key_length] deriving public key with openssl binary
+  if ($algorithm == 'RSA')
+  {
+    --let $subcommand = rsa
+  }
+  if ($algorithm == 'DSA')
+  {
+    --let $subcommand = dsa
+  }
+  --exec openssl $subcommand -in $private_key_file_path -pubout -out $public_key_file_path
+  --replace_result $public_key_file_path <PUBLIC_KEY_FILE_PATH>
+  eval SET @pub = TRIM(TRAILING '\n' FROM LOAD_FILE('$public_key_file_path'));
+  --remove_file $public_key_file_path
+  --remove_file $private_key_file_path
+
+  --let $assert_text = [$algorithm][$key_length] public key created with create_asymmetric_pub_key must be identical to the one created with openssl $subcommand
+  --let $assert_cond = @pub = create_asymmetric_pub_key(@algorithm, @priv)
+  --let $include_silent = 1
+  --source include/assert.inc
+  --let $include_silent =
+}
 
 # for RSA <max message size> = <key length in bytes> - <pkcs1 padding>
 --let $max_message_size = `SELECT $key_length DIV 8`

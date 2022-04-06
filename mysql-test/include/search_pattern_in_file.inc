@@ -83,7 +83,7 @@ perl;
              last;
           }
 
-          if ( @buffs > 2 ) {
+          if ( @buffs >= 2 ) {
              shift @buffs
           }
        }

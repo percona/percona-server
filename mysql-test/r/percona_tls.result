@@ -1,6 +1,0 @@
-#
-# Percona tests for TLS
-#
-# Test that neither TLSv1 or TLSv1.1 are allowed
-Pattern "Option --tls-version or --admin-tls-version is set to an invalid value TLSv1,TLSv1.1." found
-# restart

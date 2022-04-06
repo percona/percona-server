@@ -25,7 +25,7 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 **** [RSA][4096] checking operations on NULL message
 ****** [RSA][4096] checking encryption with public key of NULL message
 ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
-****** [RSA][4096] checking encryption with privcate key of NULL message
+****** [RSA][4096] checking encryption with private key of NULL message
 ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
 **** [RSA][4096][message_len=0] checking operations
 ****** [RSA][4096][message_len=0] checking encryption with public key

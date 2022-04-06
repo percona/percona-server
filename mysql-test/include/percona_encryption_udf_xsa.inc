@@ -83,7 +83,7 @@ if ($algorithm == 'RSA')
   --echo ****** [$algorithm][$key_length] checking encryption with public key of NULL message
   --error ER_UDF_ERROR
   SELECT asymmetric_encrypt(@algorithm, @message, @pub);
-  --echo ****** [$algorithm][$key_length] checking encryption with privcate key of NULL message
+  --echo ****** [$algorithm][$key_length] checking encryption with private key of NULL message
   --error ER_UDF_ERROR
   SELECT asymmetric_encrypt(@algorithm, @message, @priv);
 }

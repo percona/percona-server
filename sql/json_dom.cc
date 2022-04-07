@@ -2588,7 +2588,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
           size_t key_length= path_leg->get_member_name_length();
           Json_wrapper member= lookup(key, key_length);
 
-          if (!member.empty() & !(member.type() == Json_dom::J_ERROR))
+          if (!member.empty() && !(member.type() == Json_dom::J_ERROR))
           {
             // recursion
             if (member.seek_no_ellipsis(path, hits, leg_number + 1, auto_wrap,

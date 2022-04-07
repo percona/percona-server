@@ -99,6 +99,15 @@ while ($message_index <= 4)
   {
     --echo ****** [$algorithm][$key_length][message_len=$message_length] checking encryption with public key
     SET @message_enc_with_pub = asymmetric_encrypt(@algorithm, @message, @pub);
+    # RSA encryption with public key should include random bytes in padding and therefore
+    # calls to "asymmetric_encrypt('RSA', @message, @pub)" with the same arguments are expected to
+    # return different results
+    --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message encrypted with public key for the second time must differ
+    --let $assert_cond = @message_enc_with_pub <> asymmetric_encrypt(@algorithm, @message, @pub)
+    --let $include_silent = 1
+    --source include/assert.inc
+    --let $include_silent =
+
     --echo ****** [$algorithm][$key_length][message_len=$message_length] checking decryption with private key
     SET @message_dec_with_priv = asymmetric_decrypt(@algorithm, @message_enc_with_pub, @priv);
     --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message decrypted with private key must match the original one
@@ -109,6 +118,15 @@ while ($message_index <= 4)
 
     --echo ****** [$algorithm][$key_length][message_len=$message_length] checking encryption with private key
     SET @message_enc_with_priv = asymmetric_encrypt(@algorithm, @message, @priv);
+    # RSA encryption with private key should be deterministic and therefore
+    # calls to "asymmetric_encrypt('RSA', @message, @pub)" with the same arguments are expected to
+    # return identical results
+    --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message encrypted with private key for the second time must not differ
+    --let $assert_cond = @message_enc_with_priv = asymmetric_encrypt(@algorithm, @message, @priv)
+    --let $include_silent = 1
+    --source include/assert.inc
+    --let $include_silent =
+
     --echo ****** [$algorithm][$key_length][message_len=$message_length] checking decryption with public key
     SET @message_dec_with_pub = asymmetric_decrypt(@algorithm, @message_enc_with_priv, @pub);
     --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message decrypted with public key must match the original one
@@ -128,6 +146,26 @@ while ($message_index <= 4)
     SET @message_digest = create_digest(@digest_type, @message);
     --echo ******** [$algorithm][$key_length][message_len=$message_length][$digest_name] calculating signature
     SET @message_signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type);
+    if ($algorithm == 'RSA')
+    {
+      # RSA signing with private key should be deterministic and therefore
+      # calls to "asymmetric_sign('RSA', @message_digest, @priv, @digest_type)" with the same arguments
+      # are expected to return identical results
+      --let $assert_text = [$algorithm][$key_length][message_len=$message_length][$digest_name] calculating signature for the second time must not differ
+      --let $assert_cond = @message_signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type)
+    }
+    if ($algorithm == 'DSA')
+    {
+      # DSA signing with private key should include random bytes in padding and therefore
+      # calls to "asymmetric_sign('DSA', @message_digest, @priv, @digest_type)" with the same arguments
+      # are expected to return different results
+      --let $assert_text = [$algorithm][$key_length][message_len=$message_length][$digest_name] calculating signature for the second time must not differ
+      --let $assert_cond = @message_signature <> asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type)
+    }
+    --let $include_silent = 1
+    --source include/assert.inc
+    --let $include_silent =
+
     --echo ******** [$algorithm][$key_length][message_len=$message_length][$digest_name] verifying signature
     SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @message_signature, @pub, @digest_type);
     --let $assert_text = [$algorithm][$key_length][message_len=$message_length][$digest_name] signature must pass verification

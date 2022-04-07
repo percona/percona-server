@@ -506,3 +506,10 @@ UNLOCK TABLES;
 DROP USER u1@localhost;
 DROP VIEW v_innodb, v_myisam, v_memory, v_csv, v_blackhole, v_archive;
 DROP TABLE t_innodb, t_myisam, t_memory, t_csv, t_blackhole, t_archive;
+LOCK TABLES FOR BACKUP;
+SET SESSION lock_wait_timeout=1;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+SET SESSION lock_wait_timeout=default;

@@ -2177,6 +2177,9 @@ bool File_query_log::set_rotated_name(const bool need_lock) {
     }
 
     if (need_lock) mysql_mutex_lock(&LOCK_global_system_variables);
+    if (opt_slow_logname != NULL) {
+      my_free(opt_slow_logname);
+    }
     opt_slow_logname =
         my_strdup(key_memory_LOG_name, log_file_name, MYF(MY_WME));
     if (need_lock) mysql_mutex_unlock(&LOCK_global_system_variables);

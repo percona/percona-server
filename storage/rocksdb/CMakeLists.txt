@@ -22,8 +22,8 @@ ELSE ()
 ENDIF ()
 
 # check platform support, no 32 bit
-IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-  MESSAGE (${MYROCKS_STATUS_MODE} "x86_64 is only platform supported. ${CMAKE_SYSTEM_PROCESSOR} found. Not building MyRocks")
+IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|AARCH64")
+  MESSAGE (${MYROCKS_STATUS_MODE} "x86_64/aarch64 are the only platforms supported. ${CMAKE_SYSTEM_PROCESSOR} found. Not building MyRocks")
   RETURN ()
 ENDIF ()
 
@@ -114,17 +114,32 @@ IF (NOT HAVE_THREAD_LOCAL)
   MESSAGE(FATAL_ERROR "No '__thread' support found. Not building MyRocks")
 ENDIF()
 
-IF (HAVE_SSE42)
-  MESSAGE(STATUS "MyRocks: SSE42 support found")
-  add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2") # use Fast_CRC32
-  IF (HAVE_PCLMUL)
-    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-mpclmul") # use crc32c_3way instead of Fast_CRC32
-  ENDIF()
-ELSE()
-  IF (ALLOW_NO_SSE42)
-    MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
+IF (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+  IF (HAVE_SSE42)
+    MESSAGE(STATUS "MyRocks: SSE42 support found")
+    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2") # use Fast_CRC32
+    IF (HAVE_PCLMUL)
+      add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-mpclmul") # use crc32c_3way instead of Fast_CRC32
+    ENDIF()
   ELSE()
-    MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks")
+    IF (ALLOW_NO_SSE42)
+      MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
+    ELSE()
+      MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks")
+    ENDIF()
+  ENDIF()
+ELSE() # aarch64
+  CHECK_C_COMPILER_FLAG("-march=armv8-a+crc+crypto" ARMV8A_CRC_CRYPTO_SUPPORTED)
+  IF (ARMV8A_CRC_CRYPTO_SUPPORTED)
+    MESSAGE(STATUS "MyRocks: ARMv8-A+crc+crypto support found")
+    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-march=armv8-a+crc+crypto")
+    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c_arm64.cc COMPILE_FLAGS "-march=armv8-a+crc+crypto")
+  ELSE()
+    IF (ALLOW_NO_ARMV8A_CRC_CRYPTO)
+      MESSAGE(WARNING "No ARMv8-A+crc+crypto support found and ALLOW_NO_ARMV8A_CRC_CRYPTO specified, building MyRocks but without ARMv8-A+crc+crypto/FastCRC32 support")
+    ELSE()
+      MESSAGE(FATAL_ERROR "No ARMv8-A+crc+crypto support found. Not building MyRocks")
+    ENDIF()
   ENDIF()
 ENDIF()
 

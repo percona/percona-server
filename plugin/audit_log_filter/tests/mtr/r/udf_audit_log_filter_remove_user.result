@@ -1,0 +1,77 @@
+#
+# Check wrong argument number
+SELECT audit_log_filter_remove_user();
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument list: audit_log_filter_remove_user(user_name)
+SELECT audit_log_filter_remove_user(1, 2);
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument list: audit_log_filter_remove_user(user_name)
+#
+# Check wrong argument type
+SELECT audit_log_filter_remove_user(1);
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument type: audit_log_filter_remove_user(string)
+SELECT audit_log_filter_remove_user(0.1);
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument type: audit_log_filter_remove_user(string)
+#
+# Check empty argument
+SELECT audit_log_filter_remove_user('');
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument: empty user name
+#
+# Check too long argument
+SELECT audit_log_filter_remove_user('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument: user_name is too long, max length is 288
+SELECT audit_log_filter_remove_user('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@localhost');
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument: user name part of user_name is too long, max length is 32
+SELECT audit_log_filter_remove_user('root@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument: user host part of user_name is too long, max length is 255
+#
+# Wrong user_name format
+SELECT audit_log_filter_remove_user('aaaaaa');
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_user'; Wrong argument: wrong user_name format, it should be in user_name@host_name format, or '%' to represent the default account
+#
+# Filter removal failure
+SET SESSION debug="+d,udf_audit_log_user_delete_user_by_name_host_failure";
+SELECT audit_log_filter_remove_user('user1@localhost');
+audit_log_filter_remove_user('user1@localhost')
+ERROR: Failed to remove filter for user from users table
+SET SESSION debug="-d,udf_audit_log_user_delete_user_by_name_host_failure";
+#
+# Assign filter to a user
+SELECT audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}');
+audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}')
+OK
+SELECT audit_log_filter_set_user('user1@localhost', 'log_table_access');
+audit_log_filter_set_user('user1@localhost', 'log_table_access')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+user1	localhost	log_table_access
+#
+# Remove unknown user
+SELECT audit_log_filter_remove_user('user2@localhost');
+audit_log_filter_remove_user('user2@localhost')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+user1	localhost	log_table_access
+#
+# Remove valid user
+SELECT audit_log_filter_remove_user('user1@localhost');
+audit_log_filter_remove_user('user1@localhost')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

@@ -1,0 +1,76 @@
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+CREATE TABLE temp_1 (id INT);
+CREATE TABLE temp_2 (id INT);
+CREATE TABLE temp_3 (id INT);
+INSERT INTO temp_1 VALUES (1);
+INSERT INTO temp_2 VALUES (1);
+SELECT audit_log_filter_set_filter('filter_replace', '{
+"filter": {
+"id": "main",
+"class": [
+{
+"name": "table_access",
+"event": {
+"name": [ "update", "delete" ],
+"log": false,
+"filter": {
+"class": {
+"name": "general",
+"event" : { "name": "status",
+"log": true,
+"filter": { "ref": "main" } }
+},
+"activate": {
+"or": [
+{ "field": { "name": "table_name.str", "value": "temp_1" } },
+{ "field": { "name": "table_name.str", "value": "temp_2" } }
+]
+}
+}
+}
+},
+{
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"field": { "name": "table_name.str", "value": "temp_3" }
+}
+}
+}
+]
+}
+}');
+audit_log_filter_set_filter('filter_replace', '{
+"filter": {
+"id": "main",
+"class": [
+{
+"name": "table_access",
+"event": {
+"name": [ "update", "delete" ],
+"log": false,
+"filter": {
+"class": {
+"name": "general",
+"event" : { "name": "status",
+"log": true,
+"
+OK
+SELECT audit_log_filter_set_user('%', 'filter_replace');
+audit_log_filter_set_user('%', 'filter_replace')
+OK
+UPDATE temp_1, temp_2 SET temp_1.id=21, temp_2.id=23;
+INSERT INTO temp_3 VALUES (1);
+Tag [<EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME>.*<SQLTEXT>UPDATE temp_1, temp_2 SET temp_1.id=21, temp_2.id=23</SQLTEXT>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>temp_3</TABLE>] Ok
+#
+# Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+DROP TABLE temp_1, temp_2, temp_3;
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

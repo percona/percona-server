@@ -1,0 +1,54 @@
+#
+# Check wrong argument number
+SELECT audit_log_read('arg1', 'arg2');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong argument list: audit_log_read([arg])
+#
+# Wrong argument type
+SELECT audit_log_read(1);
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong argument type: audit_log_read(string)
+#
+# Wrong JSON argument format
+SELECT audit_log_read('');
+ERROR HY000: Can't initialize function 'audit_log_read'; Bad JSON format
+SELECT audit_log_read('{some string}');
+ERROR HY000: Can't initialize function 'audit_log_read'; Bad JSON format
+SELECT audit_log_read('{ "some_arg": 0 }');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong JSON argument: some_arg
+#
+# Find records by a start timestamp
+SELECT audit_log_read('{"start": {"timestamp": 0}}');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong JSON argument: start timestamp is not a string
+SELECT audit_log_read('{"start": {"timestamp": ""}}');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong JSON argument: bad timestamp format
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}}');
+audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}}')
+
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+#
+# Find records by a bookmark
+SELECT audit_log_read('{ "timestamp": 0, "id": 0 }');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong JSON argument: bad bookmark format
+SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": "" }');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong JSON argument: bad bookmark format
+SELECT audit_log_read('{ "timestamp": "", "id": 0 }');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong JSON argument: bad timestamp format
+SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0 }');
+audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0 }')
+
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+#
+# Check max_array_length parameter
+SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": "" }');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong JSON argument: bad max_array_length format
+SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": -10 }');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong JSON argument: bad max_array_length format
+SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": 10 }');
+audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": 10 }')
+
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK

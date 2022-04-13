@@ -1,0 +1,34 @@
+SET GLOBAL audit_log_filter_flush = ON;
+#
+# Create filter used for testing
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+#
+# No filter assigned to a user, log should be empty
+include/assert_grep.inc [unexpected audit events in log]
+#
+# Wrong user name, log should be empty
+SELECT audit_log_filter_set_user('unknown@localhost', 'log_all');
+audit_log_filter_set_user('unknown@localhost', 'log_all')
+OK
+include/assert_grep.inc [unexpected audit events in log]
+#
+# Wrong user host, log should be empty
+SELECT audit_log_filter_set_user('root@unknown', 'log_all');
+audit_log_filter_set_user('root@unknown', 'log_all')
+OK
+include/assert_grep.inc [unexpected audit events in log]
+#
+# Correct user and host name
+SELECT audit_log_filter_set_user('root@localhost', 'log_all');
+audit_log_filter_set_user('root@localhost', 'log_all')
+OK
+include/assert_grep.inc [unexpected audit events in log]
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

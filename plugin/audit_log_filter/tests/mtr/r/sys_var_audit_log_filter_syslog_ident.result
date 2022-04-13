@@ -1,0 +1,10 @@
+SET GLOBAL audit_log_filter_syslog_ident=percona-audit-event-filter-test;
+ERROR HY000: Variable 'audit_log_filter_syslog_ident' is a read only variable
+SELECT @@global.audit_log_filter_syslog_ident;
+@@global.audit_log_filter_syslog_ident
+percona-audit-event-filter
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+# restart: --audit-log-filter-syslog-ident=percona-audit-event-filter-test
+SELECT @@global.audit_log_filter_syslog_ident;
+@@global.audit_log_filter_syslog_ident
+percona-audit-event-filter-test

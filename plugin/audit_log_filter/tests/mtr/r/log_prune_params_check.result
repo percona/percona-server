@@ -1,0 +1,22 @@
+# restart: --audit-log-filter-max-size=4096 --audit-log-filter-prune-seconds=1000
+include/assert_grep.inc [ER_WARN_ADUIT_FILTER_MAX_SIZE_AND_PRUNE_SECONDS_LOG in error log]
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+4096
+SELECT @@global.audit_log_filter_prune_seconds;
+@@global.audit_log_filter_prune_seconds
+1000
+SET GLOBAL audit_log_filter_max_size=0;
+SET GLOBAL audit_log_filter_max_size=4096;
+Warnings:
+Warning	7033	Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored
+SET GLOBAL audit_log_filter_prune_seconds=0;
+SET GLOBAL audit_log_filter_prune_seconds=1000;
+Warnings:
+Warning	7033	Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+4096
+SELECT @@global.audit_log_filter_prune_seconds;
+@@global.audit_log_filter_prune_seconds
+1000

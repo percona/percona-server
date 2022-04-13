@@ -1,0 +1,32 @@
+
+--disable_query_log
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+call mtr.add_suppression("Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero");
+--enable_query_log
+
+# Restart with both max_size and prune_seconds being set, there must be a warning in error log
+--let $restart_parameters="restart: --audit-log-filter-max-size=4096 --audit-log-filter-prune-seconds=1000"
+--source include/restart_mysqld.inc
+
+#--let $log_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+#--let LOGF= $log_file
+
+--let $assert_text = ER_WARN_ADUIT_FILTER_MAX_SIZE_AND_PRUNE_SECONDS_LOG in error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+# Parameters are set despite the warning
+SELECT @@global.audit_log_filter_max_size;
+SELECT @@global.audit_log_filter_prune_seconds;
+
+# Warning returned to a client in case both are set at runtime
+SET GLOBAL audit_log_filter_max_size=0;
+SET GLOBAL audit_log_filter_max_size=4096;
+
+SET GLOBAL audit_log_filter_prune_seconds=0;
+SET GLOBAL audit_log_filter_prune_seconds=1000;
+
+SELECT @@global.audit_log_filter_max_size;
+SELECT @@global.audit_log_filter_prune_seconds;

@@ -1,0 +1,28 @@
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "general"}}}');
+audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "general"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'filter_1');
+audit_log_filter_set_user('%', 'filter_1')
+OK
+Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "table_access"}}}' WHERE name = 'filter_1';
+No tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME> Ok
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+Tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME> Ok
+#
+# Check wrong argument number
+SELECT audit_log_filter_flush("");
+ERROR HY000: Can't initialize function 'audit_log_filter_flush'; Wrong argument list: audit_log_filter_flush()
+#
+# Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

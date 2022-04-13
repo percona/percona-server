@@ -1,0 +1,28 @@
+SET @old_prune_seconds = @@global.audit_log_filter_prune_seconds;
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+Logs age exceeds expected prune_seconds 2
+SET GLOBAL audit_log_filter_prune_seconds = 2;
+Logs age doesn't exceed expected prune_seconds 2
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+Logs age doesn't exceed expected prune_seconds 2
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+SET GLOBAL audit_log_filter_prune_seconds = @old_prune_seconds;

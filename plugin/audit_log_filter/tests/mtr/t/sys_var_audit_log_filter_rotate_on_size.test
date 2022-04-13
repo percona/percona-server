@@ -1,0 +1,25 @@
+
+SET GLOBAL audit_log_filter_rotate_on_size=0;
+SELECT @@global.audit_log_filter_rotate_on_size;
+
+SET GLOBAL audit_log_filter_rotate_on_size=4000;
+SELECT @@global.audit_log_filter_rotate_on_size;
+
+SET GLOBAL audit_log_filter_rotate_on_size=4300;
+SELECT @@global.audit_log_filter_rotate_on_size;
+
+SET GLOBAL audit_log_filter_rotate_on_size=-1;
+SELECT @@global.audit_log_filter_rotate_on_size;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter_rotate_on_size=0.5;
+SELECT @@global.audit_log_filter_rotate_on_size;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter_rotate_on_size='str';
+SELECT @@global.audit_log_filter_rotate_on_size;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter_rotate_on_size='';
+SELECT @@global.audit_log_filter_rotate_on_size;
+

@@ -1,0 +1,130 @@
+#
+# Check wrong argument number
+SELECT audit_log_filter_set_user();
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument list: audit_log_filter_set_user(user_name, filter_name)
+SELECT audit_log_filter_set_user(1);
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument list: audit_log_filter_set_user(user_name, filter_name)
+SELECT audit_log_filter_set_user(1, 2, 3);
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument list: audit_log_filter_set_user(user_name, filter_name)
+#
+# Check wrong argument type
+SELECT audit_log_filter_set_user(1, 2);
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument type: audit_log_filter_set_user(string, string)
+SELECT audit_log_filter_set_user(1, 'filter_1');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument type: audit_log_filter_set_user(string, string)
+SELECT audit_log_filter_set_user('root@localhost', 2);
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument type: audit_log_filter_set_user(string, string)
+#
+# Check empty argument
+SELECT audit_log_filter_set_user('', 'filter_1');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: empty user name
+SELECT audit_log_filter_set_user('root@localhost', '');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: empty filter name
+#
+# Check too long argument
+SELECT audit_log_filter_set_user('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'filter_1');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: user_name is too long, max length is 288
+SELECT audit_log_filter_set_user('root@localhost', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: filter_name is too long, max length is 255
+SELECT audit_log_filter_set_user('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@localhost', 'filter_1');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: user name part of user_name is too long, max length is 32
+SELECT audit_log_filter_set_user('root@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'filter_1');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: user host part of user_name is too long, max length is 255
+#
+# Wrong user_name format
+SELECT audit_log_filter_set_user('aaaaaa', 'filter_1');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: wrong user_name format, it should be in user_name@host_name format, or '%' to represent the default account
+#
+# Filter name existence check failure
+SET SESSION debug="+d,udf_audit_log_filter_check_name_failure";
+SELECT audit_log_filter_set_user('root@localhost', 'filter_1');
+audit_log_filter_set_user('root@localhost', 'filter_1')
+ERROR: Failed to check filtering rule name existence
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+SET SESSION debug="-d,udf_audit_log_filter_check_name_failure";
+#
+# Assigning unknown filter
+SELECT audit_log_filter_set_user('root@localhost', 'filter_1');
+audit_log_filter_set_user('root@localhost', 'filter_1')
+ERROR: Unknown filtering rule name 'filter_1'
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+#
+# Create valid filters
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}');
+audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+#
+# Set filter for default user
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+%	%	log_all
+#
+# Set filter for a user
+SELECT audit_log_filter_set_user('root@localhost', 'log_all');
+audit_log_filter_set_user('root@localhost', 'log_all')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+%	%	log_all
+root	localhost	log_all
+#
+# Update filter for a user
+SELECT audit_log_filter_set_user('root@localhost', 'log_table_access');
+audit_log_filter_set_user('root@localhost', 'log_table_access')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+%	%	log_all
+root	localhost	log_table_access
+#
+# User filter set failure
+SET SESSION debug="+d,udf_audit_log_user_set_update_filter_failure";
+SELECT audit_log_filter_set_user('root@localhost', 'log_all');
+audit_log_filter_set_user('root@localhost', 'log_all')
+ERROR: Failed to set 'log_all' filtering rule for user 'root@localhost'
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+%	%	log_all
+root	localhost	log_table_access
+SET SESSION debug="-d,udf_audit_log_user_set_update_filter_failure";
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

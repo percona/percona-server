@@ -1,0 +1,110 @@
+#
+# Check wrong argument number
+SELECT audit_log_filter_remove_filter();
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_filter'; Wrong argument list: audit_log_filter_remove_filter(filter_name)
+SELECT audit_log_filter_remove_filter('filter_1', 'filter_2');
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_filter'; Wrong argument list: audit_log_filter_remove_filter(filter_name)
+#
+# Check wrong argument type
+SELECT audit_log_filter_remove_filter(1);
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_filter'; Wrong argument type: audit_log_filter_remove_filter(string)
+SELECT audit_log_filter_remove_filter(0.1);
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_filter'; Wrong argument type: audit_log_filter_remove_filter(string)
+#
+# Check empty argument
+SELECT audit_log_filter_remove_filter('');
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_filter'; Wrong argument: empty filter name
+#
+# Check too long argument
+SELECT audit_log_filter_remove_filter('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+ERROR HY000: Can't initialize function 'audit_log_filter_remove_filter'; Wrong argument: filter_name is too long, max length is 255
+#
+# Filter name existence check failure
+SET SESSION debug="+d,udf_audit_log_filter_check_name_failure";
+SELECT audit_log_filter_remove_filter('filter_1');
+audit_log_filter_remove_filter('filter_1')
+ERROR: Failed to check filtering rule name existence
+SET SESSION debug="-d,udf_audit_log_filter_check_name_failure";
+#
+# Remove non existent filter
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+SELECT audit_log_filter_remove_filter('filter_1');
+audit_log_filter_remove_filter('filter_1')
+OK
+#
+# Create valid filter and assign it to a user
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}');
+audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}')
+OK
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "table_access"}}}');
+audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "table_access"}}}')
+OK
+SELECT audit_log_filter_set_user('user1@localhost', 'filter_1');
+audit_log_filter_set_user('user1@localhost', 'filter_1')
+OK
+SELECT audit_log_filter_set_user('user2@localhost', 'filter_2');
+audit_log_filter_set_user('user2@localhost', 'filter_2')
+OK
+SELECT audit_log_filter_set_user('user3@localhost', 'filter_1');
+audit_log_filter_set_user('user3@localhost', 'filter_1')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	filter_1	{"filter": {"class": {"name": "connection"}}}
+2	filter_2	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+user1	localhost	filter_1
+user3	localhost	filter_1
+user2	localhost	filter_2
+#
+# Remove filter_1
+SELECT audit_log_filter_remove_filter('filter_1');
+audit_log_filter_remove_filter('filter_1')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+2	filter_2	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+user2	localhost	filter_2
+#
+# Delete user by filter name failure
+SET SESSION debug="+d,udf_audit_log_user_delete_user_by_filter_failure";
+SELECT audit_log_filter_remove_filter('filter_2');
+audit_log_filter_remove_filter('filter_2')
+ERROR: Failed to remove filter from users table
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+2	filter_2	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+user2	localhost	filter_2
+SET SESSION debug="-d,udf_audit_log_user_delete_user_by_filter_failure";
+#
+# Delete filter failure
+SET SESSION debug="+d,udf_audit_log_filter_delete_filter_failure";
+SELECT audit_log_filter_remove_filter('filter_2');
+audit_log_filter_remove_filter('filter_2')
+ERROR: Failed to remove filter
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+2	filter_2	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+SET SESSION debug="-d,udf_audit_log_filter_delete_filter_failure";
+SELECT audit_log_filter_remove_filter('filter_2');
+audit_log_filter_remove_filter('filter_2')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

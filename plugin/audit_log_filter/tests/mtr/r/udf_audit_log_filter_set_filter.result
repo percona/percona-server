@@ -1,0 +1,96 @@
+#
+# Check wrong argument number
+SELECT audit_log_filter_set_filter();
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument list: audit_log_filter_set_filter(filter_name, definition)
+SELECT audit_log_filter_set_filter(1);
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument list: audit_log_filter_set_filter(filter_name, definition)
+SELECT audit_log_filter_set_filter('filter_1');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument list: audit_log_filter_set_filter(filter_name, definition)
+#
+# Check wrong argument types
+SELECT audit_log_filter_set_filter(1, 2);
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument type: audit_log_filter_set_filter(string, string)
+SELECT audit_log_filter_set_filter('filter_1', 2);
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument type: audit_log_filter_set_filter(string, string)
+SELECT audit_log_filter_set_filter(1, '{"filter": {"class": {"name": "connection"}}}');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument type: audit_log_filter_set_filter(string, string)
+#
+# Check empty argument
+SELECT audit_log_filter_set_filter('', '{"filter": {"class": {"name": "connection"}}}');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument: empty filter name
+SELECT audit_log_filter_set_filter('filter_1', '');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument: empty filter definition
+#
+# Check too long argument
+SELECT audit_log_filter_set_filter('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '{"filter": {"class": {"name": "connection"}}}');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument: filter_name is too long, max length is 255
+SELECT audit_log_filter_set_filter('filter_1', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument: definition is too long, max length is 1024
+#
+# Filter validity check, incorrect JSON
+SELECT audit_log_filter_set_filter('filter_1', '{}');
+audit_log_filter_set_filter('filter_1', '{}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}}');
+audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}}')
+ERROR: Incorrect rule definition
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+#
+# Filter name duplicate check failure
+SET SESSION debug="+d,udf_audit_log_filter_check_name_failure";
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}');
+audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}')
+ERROR: Failed to check filtering rule name existence
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+SET SESSION debug="-d,udf_audit_log_filter_check_name_failure";
+#
+# Insert valid filtering rules
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}');
+audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}')
+OK
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "table_access"}}}');
+audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "table_access"}}}')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	filter_1	{"filter": {"class": {"name": "connection"}}}
+2	filter_2	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+#
+# Filter name duplicate check
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "general"}}}');
+audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "general"}}}')
+ERROR: Rule with this name already exists
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	filter_1	{"filter": {"class": {"name": "connection"}}}
+2	filter_2	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+#
+# Filter insertion failure
+SET SESSION debug="+d,udf_audit_log_filter_insertion_failure";
+SELECT audit_log_filter_set_filter('filter_3', '{"filter": {"class": {"name": "general"}}}');
+audit_log_filter_set_filter('filter_3', '{"filter": {"class": {"name": "general"}}}')
+ERROR: Failed to insert rule
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	filter_1	{"filter": {"class": {"name": "connection"}}}
+2	filter_2	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+SET SESSION debug="-d,udf_audit_log_filter_insertion_failure";
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

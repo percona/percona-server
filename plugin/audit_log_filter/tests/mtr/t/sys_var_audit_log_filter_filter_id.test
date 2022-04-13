@@ -1,0 +1,8 @@
+
+SELECT @@global.audit_log_filter_filter_id;
+SELECT @@session.audit_log_filter_filter_id;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL audit_log_filter_filter_id = 1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION audit_log_filter_filter_id = 1;

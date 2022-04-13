@@ -1,0 +1,40 @@
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+0
+SET GLOBAL audit_log_filter_max_size=0;
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+0
+SET GLOBAL audit_log_filter_max_size=4000;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter_max_size value: '4000'
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+0
+SET GLOBAL audit_log_filter_max_size=4300;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter_max_size value: '4300'
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+4096
+SET GLOBAL audit_log_filter_max_size=-1;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter_max_size value: '-1'
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+0
+SET GLOBAL audit_log_filter_max_size=0.5;
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_max_size'
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+0
+SET GLOBAL audit_log_filter_max_size='str';
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_max_size'
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+0
+SET GLOBAL audit_log_filter_max_size='';
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_max_size'
+SELECT @@global.audit_log_filter_max_size;
+@@global.audit_log_filter_max_size
+0

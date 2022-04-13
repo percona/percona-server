@@ -1,0 +1,3 @@
+$AUDIT_LOG_FILTER_OPT
+$AUDIT_LOG_FILTER_LOAD
+--audit_log_filter.strategy=SYNCHRONOUS

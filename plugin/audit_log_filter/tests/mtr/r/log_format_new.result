@@ -1,0 +1,33 @@
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1()
+BEGIN
+SELECT * FROM t1;
+END//
+CALL p1();
+c1
+1
+DROP PROCEDURE p1;
+DROP TABLE t1;
+SELECT @@global.audit_log_filter.file;
+@@global.audit_log_filter.file
+test_audit_filter.log
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+SELECT audit_api_message_emit_udf('component_text', 'producer_text', 'message_text', 'key', 'value') AS 'Message';
+Message
+OK
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+DROP USER user1;
+# restart
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;

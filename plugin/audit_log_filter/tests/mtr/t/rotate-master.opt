@@ -1,0 +1,3 @@
+--audit_log_filter.file=test_audit_filter.log
+--audit_log_filter.format=NEW
+--audit_log_filter.rotate_on_size=4096

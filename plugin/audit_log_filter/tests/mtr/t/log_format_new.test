@@ -1,0 +1,19 @@
+
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'log_all');
+
+--source generate_audit_events.inc
+
+--let $xml_file_path = `SELECT @@global.datadir`
+--let $xml_file_name = `SELECT @@global.audit_log_filter.file`
+
+--source include/shutdown_mysqld.inc
+--source validate_xml_file.inc
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;

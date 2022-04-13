@@ -1,0 +1,27 @@
+
+SET GLOBAL audit_log_filter.rotations=0;
+SELECT @@global.audit_log_filter.rotations;
+
+SET GLOBAL audit_log_filter.rotations=1;
+SELECT @@global.audit_log_filter.rotations;
+
+SET GLOBAL audit_log_filter.rotations=999;
+SELECT @@global.audit_log_filter.rotations;
+
+SET GLOBAL audit_log_filter.rotations=1000;
+SELECT @@global.audit_log_filter.rotations;
+
+SET GLOBAL audit_log_filter.rotations=-1;
+SELECT @@global.audit_log_filter.rotations;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter.rotations=0.5;
+SELECT @@global.audit_log_filter.rotations;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter.rotations='str';
+SELECT @@global.audit_log_filter.rotations;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter.rotations='';
+SELECT @@global.audit_log_filter.rotations;

@@ -1,0 +1,152 @@
+/* Copyright (c) 2022 Percona LLC and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
+#include "plugin/audit_log_filter/log_writer/file_handle.h"
+#include "plugin/audit_log_filter/audit_psi_info.h"
+
+#include <mysql/psi/mysql_mutex.h>
+
+#if defined(HAVE_PSI_INTERFACE)
+static PSI_mutex_key key_LOCK_audit_filter_service;
+static PSI_mutex_info mutex_list[] = {
+    {&key_LOCK_audit_filter_service, "file_handle::m_lock", PSI_FLAG_SINGLETON,
+     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME}};
+#else
+#define key_LOCK_audit_filter_service nullptr
+#endif /*HAVE_PSI_INTERFACE && !FLOGGER_NO_PSI*/
+
+namespace audit_log_filter::log_writer {
+
+bool FileHandle::open_file(std::filesystem::path file_path) noexcept {
+  assert(!m_file.is_open() && m_path.empty());
+  m_path = std::move(file_path);
+  m_file.open(m_path, std::ios::out | std::ios_base::app);
+
+  if (!m_file.is_open()) {
+    m_file.close();
+    m_path.clear();
+    return false;
+  }
+
+#ifdef HAVE_PSI_INTERFACE
+  mysql_mutex_register(AUDIT_LOG_FILTER_PSI_CATEGORY, mutex_list,
+                       array_elements(mutex_list));
+#endif /* HAVE_PSI_INTERFACE */
+
+  mysql_mutex_init(key_LOCK_audit_filter_service, &m_lock, MY_MUTEX_INIT_FAST);
+
+  return true;
+}
+
+bool FileHandle::close_file() noexcept {
+  m_file.close();
+  m_path.clear();
+
+  mysql_mutex_destroy(&m_lock);
+
+  return !m_file.fail();
+}
+
+bool FileHandle::init_buffer(const size_t buffer_size,
+                             const bool drop_if_full) noexcept {
+  auto flush_cb = [this](const char *buf, size_t size) {
+    write_file(buf, size);
+  };
+
+  return m_buffer.init(buffer_size, drop_if_full, flush_cb);
+}
+
+void FileHandle::close_buffer() noexcept { m_buffer.shutdown(); }
+
+void FileHandle::write_file(const std::string &record) noexcept {
+  write_file(record.c_str(), record.length());
+}
+
+void FileHandle::write_file(const char *record, const size_t size) noexcept {
+  m_file.write(record, size);
+  m_file.flush();
+}
+
+void FileHandle::write_buffer(const std::string &record) noexcept {
+  m_buffer.write(record.c_str(), record.length());
+}
+
+uint64_t FileHandle::get_file_size() const noexcept {
+  assert(m_file.is_open());
+  return std::filesystem::file_size(m_path);
+}
+
+void FileHandle::remove_file_footer(
+    const std::filesystem::path &file_path,
+    const std::string &expected_footer) const noexcept {
+  assert(expected_footer.length() > 0);
+
+  std::fstream file;
+  file.open(file_path, std::ios::in);
+
+  if (!file.is_open()) {
+    return;
+  }
+
+  file.seekg(-expected_footer.length(), std::ios_base::end);
+
+  if (file.fail()) {
+    file.close();
+    return;
+  }
+
+  std::string file_footer;
+  std::getline(file, file_footer);
+
+  if (file.fail()) {
+    file.close();
+    return;
+  }
+
+  file.close();
+
+  if (expected_footer.back() == '\n') {
+    file_footer.push_back('\n');
+  }
+
+  if (expected_footer == file_footer) {
+    std::filesystem::resize_file(
+        file_path,
+        std::filesystem::file_size(file_path) - expected_footer.size());
+  }
+}
+
+std::error_code FileHandle::rotate(const std::string &working_dir_name,
+                                   const std::string &file_name) noexcept {
+  auto current_file_path = std::filesystem::path{working_dir_name} /
+                           std::filesystem::path{file_name};
+
+  const std::time_t t =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  std::stringstream new_file_name;
+  new_file_name << current_file_path.filename().replace_extension().c_str()
+                << "." << std::put_time(std::localtime(&t), "%Y%m%dT%H%M%S")
+                << current_file_path.extension().c_str();
+
+  std::filesystem::path new_file_path{current_file_path};
+  new_file_path.replace_filename(new_file_name.str());
+  std::error_code ec;
+
+  std::filesystem::rename(current_file_path, new_file_path, ec);
+
+  return ec;
+}
+
+}  // namespace audit_log_filter::log_writer

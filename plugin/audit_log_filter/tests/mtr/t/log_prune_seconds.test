@@ -1,0 +1,50 @@
+
+SET @old_prune_seconds = @@global.audit_log_filter_prune_seconds;
+
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'log_all');
+
+# prune_seconds is not set, no logs prune happens
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+
+# stop updating log before size check
+SELECT audit_log_filter_remove_user('%');
+
+--let $log_path = `SELECT @@global.datadir`
+--let $log_name = `SELECT @@global.audit_log_filter_file`
+--let $prune_seconds = 2
+
+--source check_logs_age.inc
+
+# logs get pruned after prune_seconds update
+SET GLOBAL audit_log_filter_prune_seconds = 2;
+
+--source check_logs_age.inc
+
+# oldest log rotation time should not exceed prune_seconds while writing
+# audit events
+SELECT audit_log_filter_set_user('%', 'log_all');
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+
+# stop updating log before size check
+SELECT audit_log_filter_remove_user('%');
+
+--source check_logs_age.inc
+
+--echo #
+--echo # Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+
+SET GLOBAL audit_log_filter_prune_seconds = @old_prune_seconds;

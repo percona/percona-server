@@ -1,0 +1,83 @@
+--echo #
+--echo # Check wrong argument number
+--error 1123
+SELECT audit_log_filter_remove_filter();
+--error 1123
+SELECT audit_log_filter_remove_filter('filter_1', 'filter_2');
+
+--echo #
+--echo # Check wrong argument type
+--error 1123
+SELECT audit_log_filter_remove_filter(1);
+--error 1123
+SELECT audit_log_filter_remove_filter(0.1);
+
+--echo #
+--echo # Check empty argument
+--error 1123
+SELECT audit_log_filter_remove_filter('');
+
+--echo #
+--echo # Check too long argument
+--let $too_long_name = `SELECT REPEAT('a', 256)`
+--error 1123
+--eval SELECT audit_log_filter_remove_filter('$too_long_name')
+
+--disable_query_log
+call mtr.add_suppression("Failed to check filtering rule name existence");
+call mtr.add_suppression("Failed to remove filter 'filter_2' from users table");
+call mtr.add_suppression("Failed to remove filter 'filter_2'");
+--enable_query_log
+
+--echo #
+--echo # Filter name existence check failure
+SET SESSION debug="+d,udf_audit_log_filter_check_name_failure";
+SELECT audit_log_filter_remove_filter('filter_1');
+SET SESSION debug="-d,udf_audit_log_filter_check_name_failure";
+
+--echo #
+--echo # Remove non existent filter
+SELECT * FROM mysql.audit_log_filter;
+SELECT audit_log_filter_remove_filter('filter_1');
+
+--echo #
+--echo # Create valid filter and assign it to a user
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}');
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "table_access"}}}');
+SELECT audit_log_filter_set_user('user1@localhost', 'filter_1');
+SELECT audit_log_filter_set_user('user2@localhost', 'filter_2');
+SELECT audit_log_filter_set_user('user3@localhost', 'filter_1');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+
+--echo #
+--echo # Remove filter_1
+SELECT audit_log_filter_remove_filter('filter_1');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+
+--echo #
+--echo # Delete user by filter name failure
+SET SESSION debug="+d,udf_audit_log_user_delete_user_by_filter_failure";
+SELECT audit_log_filter_remove_filter('filter_2');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+SET SESSION debug="-d,udf_audit_log_user_delete_user_by_filter_failure";
+
+--echo #
+--echo # Delete filter failure
+SET SESSION debug="+d,udf_audit_log_filter_delete_filter_failure";
+SELECT audit_log_filter_remove_filter('filter_2');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+SET SESSION debug="-d,udf_audit_log_filter_delete_filter_failure";
+
+SELECT audit_log_filter_remove_filter('filter_2');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+
+--echo #
+--echo # Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();

@@ -1,0 +1,54 @@
+SELECT @@global.audit_log_filter_filter_id;
+@@global.audit_log_filter_filter_id
+0
+SELECT @@session.audit_log_filter_filter_id;
+@@session.audit_log_filter_filter_id
+0
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+GRANT ALL PRIVILEGES ON *.* to 'user1'@'%';
+CREATE USER 'user2'@'%' IDENTIFIED BY '222';
+GRANT ALL PRIVILEGES ON *.* to 'user2'@'%';
+SELECT audit_log_filter_set_filter('user1_1', '{"filter": {}}');
+audit_log_filter_set_filter('user1_1', '{"filter": {}}')
+OK
+SELECT audit_log_filter_set_filter('user2_1', '{"filter": {}}');
+audit_log_filter_set_filter('user2_1', '{"filter": {}}')
+OK
+SELECT audit_log_filter_set_filter('user1_2', '{"filter": {}}');
+audit_log_filter_set_filter('user1_2', '{"filter": {}}')
+OK
+SELECT audit_log_filter_set_filter('user2_2', '{"filter": {}}');
+audit_log_filter_set_filter('user2_2', '{"filter": {}}')
+OK
+SELECT audit_log_filter_set_user('user1@localhost', 'user1_1');
+audit_log_filter_set_user('user1@localhost', 'user1_1')
+OK
+SELECT audit_log_filter_set_user('user2@localhost', 'user2_1');
+audit_log_filter_set_user('user2@localhost', 'user2_1')
+OK
+SELECT @@session.audit_log_filter_filter_id;
+@@session.audit_log_filter_filter_id
+1
+SELECT @@session.audit_log_filter_filter_id;
+@@session.audit_log_filter_filter_id
+2
+SELECT audit_log_filter_set_user('user1@localhost', 'user1_2');
+audit_log_filter_set_user('user1@localhost', 'user1_2')
+OK
+SELECT audit_log_filter_set_user('user2@localhost', 'user2_2');
+audit_log_filter_set_user('user2@localhost', 'user2_2')
+OK
+SELECT @@session.audit_log_filter_filter_id;
+@@session.audit_log_filter_filter_id
+3
+SELECT @@session.audit_log_filter_filter_id;
+@@session.audit_log_filter_filter_id
+4
+#
+# Cleanup
+DROP USER user1, user2;
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

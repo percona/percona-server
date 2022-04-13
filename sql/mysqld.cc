@@ -161,6 +161,10 @@
 
 #if defined(HAVE_OPENSSL)
 #include <openssl/crypto.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/evp.h>
+#include <openssl/provider.h>
+#endif
 #endif
 
 #ifndef EMBEDDED_LIBRARY
@@ -3702,14 +3706,25 @@ static void push_deprecated_tls_option_no_replacement(const char *tls_version) {
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  int fips_mode= EVP_default_properties_is_fips_enabled(NULL) &&
+                 OSSL_PROVIDER_available(NULL, "fips");
+#else
   int fips_mode= FIPS_mode();
+#endif
   if (fips_mode != 0)
   {
     /* FIPS is enabled, Log warning and Disable it now */
     sql_print_warning(
         "Percona Server cannot operate under OpenSSL FIPS mode."
         " Disabling FIPS.");
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_default_properties_enable_fips(NULL, 0);
+#else
     FIPS_mode_set(0);
+#endif
   }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();

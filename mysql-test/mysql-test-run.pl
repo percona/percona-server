@@ -297,6 +297,7 @@ our @DEFAULT_SUITES = qw(
   component_keyring_file
 
   audit_log
+  audit_log_filter
   binlog_57_decryption
   percona-pam-for-mysql
   component_masking_functions
@@ -4460,6 +4461,15 @@ sub mysql_install_db {
   } else {
     mtr_error(
        "Error: The test_data_timezone.sql not found" . "in working directory.");
+  }
+
+  if (-f "include/mtr_test_data_audit.sql") {
+    # Add Audit Log related table and data into mysql database
+    mtr_appendfile_to_file("include/mtr_test_data_audit.sql",
+                           $bootstrap_sql_file);
+  } else {
+    mtr_error(
+       "Error: The mtr_test_data_audit.sql not found in working directory.");
   }
 
   if ($opt_skip_sys_schema) {

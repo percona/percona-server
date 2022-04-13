@@ -1,0 +1,140 @@
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+#
+# Check read-only access to a table
+SELECT audit_log_filter_set_filter('table_readonly', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert", "update", "delete"],
+"abort": true
+}
+}
+}
+}');
+audit_log_filter_set_filter('table_readonly', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert", "update", "delete"],
+"abort": true
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'table_readonly');
+audit_log_filter_set_user('%', 'table_readonly')
+OK
+INSERT INTO t1 VALUES (2);
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+INSERT INTO t2 VALUES (2);
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+UPDATE t1 SET c1 = 3 WHERE c1 = 2;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_UPDATE';1).
+UPDATE t2 SET c2 = 3 WHERE c2 = 2;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_UPDATE';1).
+DELETE FROM t1 WHERE c1 = 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+DELETE FROM t2 WHERE c2 = 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+SELECT * FROM t1;
+c1
+1
+SELECT * FROM t2;
+c2
+1
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+#
+# Abort access to a particular table
+SELECT audit_log_filter_set_filter('no_t1_access', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["read", "insert", "update", "delete"],
+"abort": {
+"and": [
+{"field": {"name": "table_database.str", "value": "test"}},
+{"field": {"name": "table_name.str", "value": "t1"}}
+]
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('no_t1_access', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["read", "insert", "update", "delete"],
+"abort": {
+"and": [
+{"field": {"name": "table_database.str", "value": "test"}},
+{"field": {"name": "ta
+OK
+SELECT audit_log_filter_set_user('%', 'no_t1_access');
+audit_log_filter_set_user('%', 'no_t1_access')
+OK
+INSERT INTO t1 VALUES (2);
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+INSERT INTO t2 VALUES (2);
+UPDATE t1 SET c1 = 3 WHERE c1 = 2;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_UPDATE';1).
+UPDATE t2 SET c2 = 3 WHERE c2 = 2;
+DELETE FROM t1 WHERE c1 = 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+DELETE FROM t2 WHERE c2 = 1;
+SELECT * FROM t1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_READ';1).
+SELECT * FROM t2;
+c2
+3
+#
+# Check mysql_event_message events may be aborted
+SELECT audit_log_filter_set_filter('abort_message', '{
+"filter": {
+"class": {
+"name": "message",
+"event": {
+"name": "user",
+"abort": true
+}
+}
+}
+}');
+audit_log_filter_set_filter('abort_message', '{
+"filter": {
+"class": {
+"name": "message",
+"event": {
+"name": "user",
+"abort": true
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'abort_message');
+audit_log_filter_set_user('%', 'abort_message')
+OK
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+SELECT audit_api_message_emit_udf('component_text', 'producer_text', 'message_text', 'key', 'value') AS 'Message';
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_MESSAGE_USER';1).
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+DROP TABLE t1;
+DROP TABLE t2;

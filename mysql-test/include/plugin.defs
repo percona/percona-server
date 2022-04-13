@@ -188,6 +188,7 @@ component_test_mysql_thd_store_service 	        plugin_output_directory no COMPO
 # Percona additions
 auth_socket        plugin_output_directory  no  SOCKET_AUTH
 audit_log          plugin_output_directory  no  AUDIT_LOG             audit_log
+audit_log_filter   plugin_output_directory  no  AUDIT_LOG_FILTER      audit_log_filter
 ha_tokudb          plugin_output_directory  no  TOKUDB          tokudb,tokudb_trx,tokudb_locks,tokudb_lock_waits,tokudb_fractal_tree_info,tokudb_background_job_status,tokudb_file_map
 tokudb_backup      plugin_output_directory  no  TOKUDB_BACKUP   tokudb_backup
 ha_rocksdb         plugin_output_directory  no  ROCKSDB         rocksdb,rocksdb_cfstats,rocksdb_dbstats,rocksdb_perf_context,rocksdb_perf_context_global,rocksdb_cf_options,rocksdb_compaction_history,rocksdb_compaction_stats,rocksdb_active_compaction_stats,rocksdb_global_info,rocksdb_ddl,rocksdb_index_file_map,rocksdb_locks,rocksdb_trx,rocksdb_deadlock,rocksdb_sst_props,rocksdb_live_files_metadata

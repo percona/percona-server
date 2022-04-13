@@ -1,0 +1,148 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
+
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--echo #
+--echo # Log different subclasses of 'general' events class
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "log"
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_general_log', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_general_log');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_SUBCLASS_NAME>log</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "result"
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_general_result', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_general_result');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_SUBCLASS_NAME>result</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status"
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_general_status', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_general_status');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Enable logging multiple subclasses with one rule
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": [
+        {"name": "log"},
+        {"name": "result"}
+      ]
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_general_log_result_1', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_general_log_result_1');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_SUBCLASS_NAME>(?:log|result)</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Another way to enable logging multiple subclasses with one rule
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": ["log", "result"]
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_general_log_result_2', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_general_log_result_2');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_SUBCLASS_NAME>(?:log|result)</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Enable logging subclasses belonging to different unrelated event classes
+let $filter = {
+  "filter": {
+    "class": [
+      {"name": "connection", "event": [{"name": "connect"}]},
+      {"name": "table_access", "event": [{"name": "insert"}]}
+    ]
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_connect_insert', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_connect_insert');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_SUBCLASS_NAME>(?:connect|insert)</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Logging multiple subclasses with explicit "log" action
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": [
+        {"name": "read", "log": true},
+        {"name": "insert", "log": true},
+        {"name": "delete", "log": false},
+        {"name": "update", "log": false}
+      ]
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_table_access_explicit_action', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_table_access_explicit_action');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_SUBCLASS_NAME>(?:read|insert)</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();

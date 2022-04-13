@@ -1,0 +1,21 @@
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL audit_log_filter_strategy=ASYNCHRONOUS;
+SELECT @@global.audit_log_filter_strategy;
+
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+
+--let $restart_parameters="restart: --audit-log-filter-strategy=ASYNCHRONOUS"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter_strategy;
+
+--let $restart_parameters="restart: --audit-log-filter-strategy=PERFORMANCE"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter_strategy;
+
+--let $restart_parameters="restart: --audit-log-filter-strategy=SEMISYNCHRONOUS"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter_strategy;
+
+--let $restart_parameters="restart: --audit-log-filter-strategy=SYNCHRONOUS"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter_strategy;

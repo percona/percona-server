@@ -1,0 +1,196 @@
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+#
+# Log different subclasses of 'general' events class
+SELECT audit_log_filter_set_filter('log_general_log', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "log"
+      }
+}
+}
+}');
+audit_log_filter_set_filter('log_general_log', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "log"
+      }
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_general_log');
+audit_log_filter_set_user('%', 'log_general_log')
+OK
+Tag <EVENT_SUBCLASS_NAME>log</EVENT_SUBCLASS_NAME> Ok
+SELECT audit_log_filter_set_filter('log_general_result', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "result"
+      }
+}
+}
+}');
+audit_log_filter_set_filter('log_general_result', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "result"
+      }
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_general_result');
+audit_log_filter_set_user('%', 'log_general_result')
+OK
+Tag <EVENT_SUBCLASS_NAME>result</EVENT_SUBCLASS_NAME> Ok
+SELECT audit_log_filter_set_filter('log_general_status', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status"
+      }
+}
+}
+}');
+audit_log_filter_set_filter('log_general_status', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status"
+      }
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_general_status');
+audit_log_filter_set_user('%', 'log_general_status')
+OK
+Tag <EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME> Ok
+#
+# Enable logging multiple subclasses with one rule
+SELECT audit_log_filter_set_filter('log_general_log_result_1', '{
+"filter": {
+"class": {
+"name": "general",
+"event": [
+{"name": "log"},
+{"name": "result"}
+]
+}
+}
+}');
+audit_log_filter_set_filter('log_general_log_result_1', '{
+"filter": {
+"class": {
+"name": "general",
+"event": [
+{"name": "log"},
+{"name": "result"}
+]
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_general_log_result_1');
+audit_log_filter_set_user('%', 'log_general_log_result_1')
+OK
+Tag <EVENT_SUBCLASS_NAME>(?:log|result)</EVENT_SUBCLASS_NAME> Ok
+#
+# Another way to enable logging multiple subclasses with one rule
+SELECT audit_log_filter_set_filter('log_general_log_result_2', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": ["log", "result"]
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_general_log_result_2', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": ["log", "result"]
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_general_log_result_2');
+audit_log_filter_set_user('%', 'log_general_log_result_2')
+OK
+Tag <EVENT_SUBCLASS_NAME>(?:log|result)</EVENT_SUBCLASS_NAME> Ok
+#
+# Enable logging subclasses belonging to different unrelated event classes
+SELECT audit_log_filter_set_filter('log_connect_insert', '{
+"filter": {
+"class": [
+{"name": "connection", "event": [{"name": "connect"}]},
+{"name": "table_access", "event": [{"name": "insert"}]}
+]
+}
+}');
+audit_log_filter_set_filter('log_connect_insert', '{
+"filter": {
+"class": [
+{"name": "connection", "event": [{"name": "connect"}]},
+{"name": "table_access", "event": [{"name": "insert"}]}
+]
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_connect_insert');
+audit_log_filter_set_user('%', 'log_connect_insert')
+OK
+Tag <EVENT_SUBCLASS_NAME>(?:connect|insert)</EVENT_SUBCLASS_NAME> Ok
+#
+# Logging multiple subclasses with explicit "log" action
+SELECT audit_log_filter_set_filter('log_table_access_explicit_action', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": [
+{"name": "read", "log": true},
+{"name": "insert", "log": true},
+{"name": "delete", "log": false},
+{"name": "update", "log": false}
+]
+}
+}
+}');
+audit_log_filter_set_filter('log_table_access_explicit_action', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": [
+{"name": "read", "log": true},
+{"name": "insert", "log": true},
+{"name": "delete", "log": false},
+{"name": "update", "log": false}
+OK
+SELECT audit_log_filter_set_user('%', 'log_table_access_explicit_action');
+audit_log_filter_set_user('%', 'log_table_access_explicit_action')
+OK
+Tag <EVENT_SUBCLASS_NAME>(?:read|insert)</EVENT_SUBCLASS_NAME> Ok
+#
+# Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

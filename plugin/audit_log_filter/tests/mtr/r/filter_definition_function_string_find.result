@@ -1,0 +1,251 @@
+CREATE TABLE user_list (id INT, name VARCHAR(32));
+CREATE TABLE product_list (id INT, name VARCHAR(32));
+INSERT INTO user_list VALUES (1, "user_1");
+INSERT INTO product_list VALUES (1, "product_1");
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+#
+# Match table name by its suffix using string_find() function
+SELECT audit_log_filter_set_filter('log_users_access', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": "user_"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_users_access', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": "user_"}}
+]
+OK
+SELECT audit_log_filter_set_user('%', 'log_users_access');
+audit_log_filter_set_user('%', 'log_users_access')
+OK
+SELECT * FROM user_list;
+id	name
+1	user_1
+SELECT * FROM product_list;
+id	name
+1	product_1
+Tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>.*<TABLE>user_list</TABLE> Ok
+No tag <TABLE>product_list</TABLE> Ok
+#
+# Make sure string_find() does a case-sensitive search
+SELECT audit_log_filter_set_filter('log_users_access_case_sensitive', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": "User_"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_users_access_case_sensitive', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"strin
+OK
+SELECT audit_log_filter_set_user('%', 'log_users_access_case_sensitive');
+audit_log_filter_set_user('%', 'log_users_access_case_sensitive')
+OK
+SELECT * FROM user_list;
+id	name
+1	user_1
+SELECT * FROM product_list;
+id	name
+1	product_1
+No tag <TABLE>user_list</TABLE> Ok
+No tag <TABLE>product_list</TABLE> Ok
+#
+# Wrong arguments for string_find()
+SELECT audit_log_filter_set_filter('missing_args', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find"
+          }
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('missing_args', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find"
+          }
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('one_missing_arg', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('one_missing_arg', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}}
+]
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('wrong_pattern_type', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": 2}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('wrong_pattern_type', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": 2}}
+]
+}
+}
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('wrong_field_type', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": 2}},
+{"string": {"string": "User_"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('wrong_field_type', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": 2}},
+{"string": {"string": "User_"}}
+]
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+#
+# Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+DROP TABLE user_list, product_list;

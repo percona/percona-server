@@ -1,0 +1,9 @@
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL audit_log_filter_file=audit_log_filter_file;
+SELECT @@global.audit_log_filter_file;
+
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+
+--let $restart_parameters="restart: --audit-log-filter-file='audit_log_filter_file'"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter_file;

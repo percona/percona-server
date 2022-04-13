@@ -1,0 +1,3 @@
+--replace_column 2 #
+--sorted_result
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_%';

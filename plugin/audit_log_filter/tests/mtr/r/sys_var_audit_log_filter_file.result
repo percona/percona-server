@@ -1,0 +1,10 @@
+SET GLOBAL audit_log_filter_file=audit_log_filter_file;
+ERROR HY000: Variable 'audit_log_filter_file' is a read only variable
+SELECT @@global.audit_log_filter_file;
+@@global.audit_log_filter_file
+test_audit_filter.log
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+# restart: --audit-log-filter-file=audit_log_filter_file
+SELECT @@global.audit_log_filter_file;
+@@global.audit_log_filter_file
+audit_log_filter_file

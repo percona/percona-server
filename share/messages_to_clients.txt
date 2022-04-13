@@ -10540,6 +10540,9 @@ ER_TOO_BIG_ERROR_CODE
 ER_DYNAMIC_ROLE
   eng "The role %s is a dynamic role and can't be revoked or dropped. It should be managed by the external authentication plugin instead."
 
+ER_WARN_ADUIT_FILTER_MAX_SIZE_AND_PRUNE_SECONDS
+  eng "Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored"
+
 #
 # End of Percona Server 8.0 client messages
 #

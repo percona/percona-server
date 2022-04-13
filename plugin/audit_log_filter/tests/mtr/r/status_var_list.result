@@ -1,0 +1,10 @@
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_%';
+Variable_name	Value
+Audit_log_filter_current_size	#
+Audit_log_filter_event_max_drop_size	#
+Audit_log_filter_events	#
+Audit_log_filter_events_filtered	#
+Audit_log_filter_events_lost	#
+Audit_log_filter_events_written	#
+Audit_log_filter_total_size	#
+Audit_log_filter_write_waits	#

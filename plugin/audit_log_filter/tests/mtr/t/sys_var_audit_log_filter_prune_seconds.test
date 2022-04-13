@@ -1,0 +1,23 @@
+
+SELECT @@global.audit_log_filter_prune_seconds;
+
+SET GLOBAL audit_log_filter_prune_seconds=0;
+SELECT @@global.audit_log_filter_prune_seconds;
+
+SET GLOBAL audit_log_filter_prune_seconds=4000;
+SELECT @@global.audit_log_filter_prune_seconds;
+
+SET GLOBAL audit_log_filter_prune_seconds=-1;
+SELECT @@global.audit_log_filter_prune_seconds;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter_prune_seconds=0.5;
+SELECT @@global.audit_log_filter_prune_seconds;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter_prune_seconds='str';
+SELECT @@global.audit_log_filter_prune_seconds;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL audit_log_filter_prune_seconds='';
+SELECT @@global.audit_log_filter_prune_seconds;

@@ -1,0 +1,109 @@
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+--echo #
+--echo # Check read-only access to a table
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": ["insert", "update", "delete"],
+        "abort": true
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('table_readonly', '$filter');
+SELECT audit_log_filter_set_user('%', 'table_readonly');
+
+--error ER_AUDIT_API_ABORT
+INSERT INTO t1 VALUES (2);
+--error ER_AUDIT_API_ABORT
+INSERT INTO t2 VALUES (2);
+
+--error ER_AUDIT_API_ABORT
+UPDATE t1 SET c1 = 3 WHERE c1 = 2;
+--error ER_AUDIT_API_ABORT
+UPDATE t2 SET c2 = 3 WHERE c2 = 2;
+
+--error ER_AUDIT_API_ABORT
+DELETE FROM t1 WHERE c1 = 1;
+--error ER_AUDIT_API_ABORT
+DELETE FROM t2 WHERE c2 = 1;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+SELECT audit_log_filter_remove_user('%');
+
+--echo #
+--echo # Abort access to a particular table
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": ["read", "insert", "update", "delete"],
+        "abort": {
+          "and": [
+            {"field": {"name": "table_database.str", "value": "test"}},
+            {"field": {"name": "table_name.str", "value": "t1"}}
+          ]
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('no_t1_access', '$filter');
+SELECT audit_log_filter_set_user('%', 'no_t1_access');
+
+--error ER_AUDIT_API_ABORT
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (2);
+
+--error ER_AUDIT_API_ABORT
+UPDATE t1 SET c1 = 3 WHERE c1 = 2;
+UPDATE t2 SET c2 = 3 WHERE c2 = 2;
+
+--error ER_AUDIT_API_ABORT
+DELETE FROM t1 WHERE c1 = 1;
+DELETE FROM t2 WHERE c2 = 1;
+
+--error ER_AUDIT_API_ABORT
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo #
+--echo # Check mysql_event_message events may be aborted
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "message",
+      "event": {
+        "name": "user",
+        "abort": true
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('abort_message', '$filter');
+SELECT audit_log_filter_set_user('%', 'abort_message');
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+--error ER_AUDIT_API_ABORT
+SELECT audit_api_message_emit_udf('component_text', 'producer_text', 'message_text', 'key', 'value') AS 'Message';
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+
+--echo #
+--echo # Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+
+DROP TABLE t1;
+DROP TABLE t2;

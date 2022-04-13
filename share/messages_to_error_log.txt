@@ -12379,6 +12379,16 @@ ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED
 ER_GRP_RPL_FLOW_CONTROL_TIMEOUT
   eng "Flow control auto evict timeout reached. The server will now leave the group."
 
+ER_PERCONA_IGNORE_TMP_TABLE_SIZE 
+  eng "Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning."
+
+ER_WARN_ADUIT_FILTER_MAX_SIZE_AND_PRUNE_SECONDS_LOG
+  eng "Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored"
+
+ER_WARN_AUDIT_LOG_FILTER_DISABLED
+  eng "Audit Log Filter is disabled. Enable it with audit_log_filter_disable = false."
+
+#
 # End of Percona Server 8.0 server error log messages
 #
 

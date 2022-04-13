@@ -1,0 +1,28 @@
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+SET GLOBAL audit_log_filter_flush = ON;
+Audit_log_filter_current_size Ok
+Audit_log_filter_total_size Ok
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+SET GLOBAL audit_log_filter_flush = ON;
+Audit_log_filter_current_size Ok
+Audit_log_filter_total_size Ok
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

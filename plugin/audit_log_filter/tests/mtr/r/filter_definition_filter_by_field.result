@@ -1,0 +1,259 @@
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+#
+# Filter events by one field
+SELECT audit_log_filter_set_filter('log_general_query', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"log": {
+"field": {"name": "general_command.str", "value": "Query"}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_general_query', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"log": {
+"field": {"name": "general_command.str", "value": "Query"}
+}
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_general_query');
+audit_log_filter_set_user('%', 'log_general_query')
+OK
+Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>.*<NAME>Query</NAME> Ok
+#
+# Filter "connection" events by connection_type, check both by numeric value and using pseudo-constant
+SELECT audit_log_filter_set_filter('log_conn_type_by_numeric', '{
+"filter": {
+"class": {
+"name": "connection",
+"event": {
+"name": "connect",
+"log": {
+"field": {"name": "connection_type", "value": "2"}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_conn_type_by_numeric', '{
+"filter": {
+"class": {
+"name": "connection",
+"event": {
+"name": "connect",
+"log": {
+"field": {"name": "connection_type", "value": "2"}
+}
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_conn_type_by_numeric');
+audit_log_filter_set_user('%', 'log_conn_type_by_numeric')
+OK
+Tag <CONNECTION_TYPE>Socket</CONNECTION_TYPE> Ok
+SELECT audit_log_filter_set_filter('log_conn_type_by_pseudo', '{
+"filter": {
+"class": {
+"name": "connection",
+"event": {
+"name": "connect",
+"log": {
+"field": {"name": "connection_type", "value": "::socket"}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_conn_type_by_pseudo', '{
+"filter": {
+"class": {
+"name": "connection",
+"event": {
+"name": "connect",
+"log": {
+"field": {"name": "connection_type", "value": "::socket"}
+}
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_conn_type_by_pseudo');
+audit_log_filter_set_user('%', 'log_conn_type_by_pseudo')
+OK
+Tag <CONNECTION_TYPE>Socket</CONNECTION_TYPE> Ok
+#
+# Check 'or' logical operator in event field condition
+SELECT audit_log_filter_set_filter('log_table_access_or', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"or": [
+{"field": {"name": "table_name.str", "value": "t1"}},
+{"field": {"name": "table_name.str", "value": "t2"}}
+]
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_table_access_or', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"or": [
+{"field": {"name": "table_name.str", "value": "t1"}},
+{"field": {"name": "table_name.str", "value": "t2"}}
+]
+OK
+SELECT audit_log_filter_set_user('%', 'log_table_access_or');
+audit_log_filter_set_user('%', 'log_table_access_or')
+OK
+Tag [<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t1</TABLE>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t2</TABLE>] Ok
+#
+# Check 'and' logical operator in event field condition
+SELECT audit_log_filter_set_filter('log_table_access_and', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"and": [
+{"field": {"name": "table_name.str", "value": "t1"}},
+{"field": {"name": "query.str", "value": "INSERT INTO t1 VALUES (2)"}}
+]
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_table_access_and', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"and": [
+{"field": {"name": "table_name.str", "value": "t1"}},
+{"field": {"name": "query.str", "value": "INSERT INT
+OK
+SELECT audit_log_filter_set_user('%', 'log_table_access_and');
+audit_log_filter_set_user('%', 'log_table_access_and')
+OK
+Tag <EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<SQLTEXT>INSERT\sINTO\st1\sVALUES\s\(2\)</SQLTEXT>.*<TABLE>t1</TABLE> Ok
+#
+# Check 'not' logical operator in event field condition
+SELECT audit_log_filter_set_filter('log_table_access_not', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"not": {
+"field": {"name": "table_name.str", "value": "t1"}
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_table_access_not', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"not": {
+"field": {"name": "table_name.str", "value": "t1"}
+}
+}
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_table_access_not');
+audit_log_filter_set_user('%', 'log_table_access_not')
+OK
+Tag [<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t2</TABLE>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t3</TABLE>] Ok
+#
+# Check logical operatos combination in event field condition
+SELECT audit_log_filter_set_filter('log_table_access_all', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"or": [
+{
+"and": [
+{"field": {"name": "table_name.str", "value": "t1"}},
+{"field": {"name": "table_name.length", "value": "2"}}
+]
+},
+{
+"not": {
+"and": [
+{"field": {"name": "table_name.str", "value": "t2"}},
+{"field": {"name": "table_name.length", "value": "2"}}
+]
+}
+}
+]
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_table_access_all', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "insert",
+"log": {
+"or": [
+{
+"and": [
+{"field": {"name": "table_name.str", "value": "t1"}},
+{"field": {"name": "table_name.length", "v
+OK
+SELECT audit_log_filter_set_user('%', 'log_table_access_all');
+audit_log_filter_set_user('%', 'log_table_access_all')
+OK
+Tag [<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t1</TABLE>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t3</TABLE>] Ok
+#
+# Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

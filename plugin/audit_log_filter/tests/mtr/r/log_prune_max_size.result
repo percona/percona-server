@@ -1,0 +1,28 @@
+SET @old_max_size = @@global.audit_log_filter_max_size;
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+Logs size exceeds expected 8192 bytes
+SET GLOBAL audit_log_filter_max_size = 8192;
+Logs size doesn't exceed expected 8192 bytes
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+Logs size doesn't exceed expected 8192 bytes
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+SET GLOBAL audit_log_filter_max_size = @old_max_size;

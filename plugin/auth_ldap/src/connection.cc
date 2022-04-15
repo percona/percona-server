@@ -1,6 +1,7 @@
 #include "plugin/auth_ldap/include/connection.h"
 
 #include <iostream>
+#include <iterator>
 #include <regex>
 
 #include "plugin/auth_ldap/include/plugin_log.h"

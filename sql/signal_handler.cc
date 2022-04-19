@@ -30,6 +30,7 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
+#include "mysys/buffered_error_log.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -176,6 +177,8 @@ extern "C" void handle_fatal_signal(int sig) {
       "in the manual which will help you identify the cause of the crash.\n");
 
 #endif /* HAVE_STACKTRACE */
+
+  buffered_error_log.write_to_disk();
 
   if (test_flags & TEST_CORE_ON_SIGNAL) {
 #if HAVE_LIBCOREDUMPER

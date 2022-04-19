@@ -34,6 +34,8 @@ of incompatible changes that could cause automatic upgrade to fail:
    With partitioned tables that use the TokuDB or MyRocks storage
    engine, the upgrade only works with native partitioning.
 
+   As of **Percona Server8.0.28-19** the `TokuDB` storage engine has been removed. Before you upgrade to this version or later, verify if your database has any TokuDB tables. If you do, then convert them to another storage engine before the upgrade. If you continue the upgrade with TokuDB tables, the data in those tables is lost. For more information, see :ref:`TokuDB <tokudb_intro>`.
+
 -------------------------------------------------------------------------------
 
 .. contents::

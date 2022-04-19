@@ -2,7 +2,7 @@ show create table information_schema.rocksdb_locks;
 Table	Create Table
 ROCKSDB_LOCKS	CREATE TEMPORARY TABLE `ROCKSDB_LOCKS` (
   `COLUMN_FAMILY_ID` int NOT NULL DEFAULT '0',
-  `TRANSACTION_ID` int NOT NULL DEFAULT '0',
+  `TRANSACTION_ID` bigint NOT NULL DEFAULT '0',
   `KEY` varchar(513) NOT NULL DEFAULT '',
   `MODE` varchar(32) NOT NULL DEFAULT ''
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3

@@ -3571,7 +3571,8 @@ static void buf_flush_page_coordinator_thread() {
     buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
     buf_flush_wait_LRU_batch_end();
 
-  } while (!success || n_flushed > 0 || are_any_read_ios_still_underway);
+  } while (!success || n_flushed > 0 || are_any_read_ios_still_underway ||
+           buf_get_flush_list_len(nullptr) > 0);
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);

@@ -1084,6 +1084,11 @@ has returned NULL and before invoking buf_pool_watch_unset(same_page_id).
 @return false if the given page was not read in, true if it was */
 [[nodiscard]] bool buf_pool_watch_occurred(const page_id_t &page_id);
 
+/** Get the current length of the flush list.
+@param[in] buf_pool buffer pool instance or nullptr to all instances
+@return number of pages in flush list */
+ulint buf_get_flush_list_len(const buf_pool_t *buf_pool);
+
 /** Get total buffer pool statistics.
 @param[out] LRU_len Length of all lru lists
 @param[out] free_len Length of all free lists

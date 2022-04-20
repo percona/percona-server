@@ -429,6 +429,24 @@ buf_pool_get_oldest_modification(void)
 	return(oldest_lsn);
 }
 
+ulint
+buf_get_flush_list_len(const buf_pool_t *buf_pool) {
+	ulint pages = 0;
+	if (buf_pool == NULL) {
+		for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+			buf_pool_t *buf_pool_instance;
+
+			buf_pool_instance = buf_pool_from_array(i);
+
+			pages +=
+			    UT_LIST_GET_LEN(buf_pool_instance->flush_list);
+		}
+	} else {
+		pages = UT_LIST_GET_LEN(buf_pool->flush_list);
+	}
+	return (pages);
+}
+
 /********************************************************************//**
 Get total buffer pool statistics. */
 void

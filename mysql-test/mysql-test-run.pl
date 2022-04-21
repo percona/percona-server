@@ -352,6 +352,7 @@ our $opt_warnings  = 1;
 
 our @opt_cases;
 our @opt_combinations;
+our $opt_only_combinations;
 our @opt_extra_bootstrap_opt;
 our @opt_extra_mysqld_opt;
 our @opt_extra_mysqltest_opt;
@@ -1758,6 +1759,7 @@ sub command_line_setup {
     # Control what test suites or cases to run
     'big-test'                           => \$opt_big_test,
     'combination=s'                      => \@opt_combinations,
+    'only-combinations=s'                => \$opt_only_combinations,
     'do-suite=s'                         => \$opt_do_suite,
     'do-test=s'                          => \&collect_option,
     'force'                              => \$opt_force,
@@ -8002,6 +8004,7 @@ Options to control what engine/variation to run
 
   combination=<opt>     Use at least twice to run tests with specified
                         options to mysqld.
+  only-combinations=<name>  Use only given combinations, separated by ",".
   compress              Use the compressed protocol between client and server.
   async-client          Use async-client with select() to run the test case
   cursor-protocol       Use the cursor protocol between client and server

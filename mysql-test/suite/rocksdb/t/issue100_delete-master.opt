@@ -1,1 +1,2 @@
 --loose-rocksdb_table_stats_sampling_pct=100
+--loose-rocksdb_default_cf_options=disable_auto_compactions=true

@@ -419,7 +419,10 @@ SELECT DISTINCT(cf_name) FROM information_schema.rocksdb_cfstats WHERE cf_name='
 
 # Verify that correct partition and key are used when searching.
 ANALYZE TABLE t2;
---replace_column 10 # 11 #
+
+# col2 is part of PK, so it was added to SK
+# That's why we do not expect here.
+--replace_column 10 ROWS 11 FILTERED
 EXPLAIN SELECT  * FROM t2 WHERE col3 = 0x4 AND col2 = 0x34567;
 
 DROP TABLE t2;

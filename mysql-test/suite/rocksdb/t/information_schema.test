@@ -1,4 +1,5 @@
 --source include/have_rocksdb.inc
+--source suite/rocksdb/include/have_compact_range_for_drop_table.inc
 
 --let $max_index_id = query_get_value(SELECT * from INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO where type = 'MAX_INDEX_ID', VALUE, 1)
 --replace_result $max_index_id max_index_id
@@ -79,4 +80,3 @@ SET GLOBAL ROCKSDB_PAUSE_BACKGROUND_WORK = @ORIG_ROCKSDB_PAUSE_BACKGROUND_WORK;
 
 DROP TABLE t1;
 DROP TABLE t2;
-

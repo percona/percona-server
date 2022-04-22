@@ -946,6 +946,7 @@ rocksdb_delete_cf
 rocksdb_delete_obsolete_files_period_micros	21600000000
 rocksdb_disable_file_deletions	OFF
 rocksdb_enable_bulk_load_api	ON
+rocksdb_enable_delete_range_for_drop_index	OFF
 rocksdb_enable_insert_with_update_caching	ON
 rocksdb_enable_iterate_bounds	ON
 rocksdb_enable_pipelined_write	OFF

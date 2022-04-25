@@ -40,6 +40,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <ssl_acceptor_context.h>
 using std::min;
 
 struct ACL_internal_schema_registry_entry
@@ -1376,7 +1377,7 @@ validate_user_plugin_records()
         }
       }
       if (acl_user->plugin.str == sha256_password_plugin_name.str &&
-          rsa_auth_status() && !ssl_acceptor_fd)
+          rsa_auth_status() && !SslAcceptorContext::have_ssl())
       {
           sql_print_warning("The plugin '%s' is used to authenticate "
                             "user '%s'@'%.*s', "

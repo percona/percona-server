@@ -909,10 +909,7 @@ extern mysql_rwlock_t LOCK_consistent_snapshot;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
 extern mysql_mutex_t LOCK_keyring_operations;
-
-extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
-            *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
-
+extern mysql_mutex_t LOCK_tls_ctx_options;
 
 extern char *opt_disabled_storage_engines;
 /**

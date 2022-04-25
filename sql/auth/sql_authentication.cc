@@ -56,6 +56,7 @@
 #include "tztime.h"
 #include "sql_time.h"
 #include <mutex_lock.h>
+#include <ssl_acceptor_context.h>
 
 /****************************************************************************
    AUTHENTICATION CODE
@@ -452,10 +453,6 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 #define initialized 0
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 #endif /* EMBEDDED_LIBRARY */
-#ifndef HAVE_OPENSSL
-#define ssl_acceptor_fd 0
-#define sslaccept(A,B,C) 1
-#endif /* HAVE_OPENSSL */
 
 /**
   a helper function to report an access denied error in all the proper places
@@ -561,7 +558,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
 
   protocol->add_client_capability(CAN_CLIENT_COMPRESS);
 
-  if (ssl_acceptor_fd)
+  if (SslAcceptorContext::have_ssl())
   {
     protocol->add_client_capability(CLIENT_SSL);
     protocol->add_client_capability(CLIENT_SSL_VERIFY_SERVER_CERT);
@@ -1487,14 +1484,13 @@ skip_to_ssl:
     uint ssl_charset_code= 0;
 #endif
 
+    SslAcceptorContext::AutoLock c;
     /* Do the SSL layering. */
-    if (!ssl_acceptor_fd)
-      return packet_error;
+    if (c.empty()) return packet_error;
 
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, protocol->get_vio(),
-                  protocol->get_net()->read_timeout, &errptr))
-    {
+    if (sslaccept(c, protocol->get_vio(), protocol->get_net()->read_timeout,
+                  &errptr)) {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;
     }
@@ -4012,8 +4008,8 @@ end:
     @retval true i Generation is successful or skipped
     @retval false Generation failed.
 */
-bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
-{
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
+                             char **ssl_ca, char **ssl_key, char **ssl_cert) {
   if (opt_auto_generate_certs == true)
   {
     /*
@@ -4088,9 +4084,9 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
       {
         return false;
       }
-      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
-      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
-      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+      *ssl_ca = (char *)DEFAULT_SSL_CA_CERT;
+      *ssl_cert = (char *)DEFAULT_SSL_SERVER_CERT;
+      *ssl_key = (char *)DEFAULT_SSL_SERVER_KEY;
       sql_print_information("Auto generated SSL certificates are placed "
                             "in data directory.");
     }

@@ -264,6 +264,7 @@ SET(SQL_SHARED_SOURCES
   xa.cc
   binlog_crypt_data.cc
   userstat.cc
+  ssl_acceptor_context.cc
 )
 
 IF(WIN32)

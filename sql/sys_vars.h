@@ -3140,5 +3140,40 @@ err:
   }
 };
 
+/**
+   A subclass of @ref Sys_var_have to return dynamic values
+
+   All the usual restrictions for @ref Sys_var_have apply.
+   But instead of reading a global variable it calls a function
+   to return the value.
+ */
+class Sys_var_have_func : public Sys_var_have {
+ public:
+  /**
+    Construct a new variable.
+
+    @param name_arg The name of the variable
+    @param comment  Explanation of what the variable does
+    @param func     The function to call when in need to read the global value
+  */
+  Sys_var_have_func(const char *name_arg, const char *comment,
+                    enum SHOW_COMP_OPTION (*func)(THD *))
+  /*
+    Note: it doesn't really matter what variable we use, as long as we are
+    using one. So we use a local static dummy
+  */
+      : Sys_var_have(name_arg, comment,
+                     READ_ONLY GLOBAL_VAR(dummy_), NO_CMD_LINE),
+  func_(func) {}
+
+  uchar *global_value_ptr(THD *thd, LEX_STRING *) {
+    return (uchar *)show_comp_option_name[func_(thd)];
+  }
+
+ protected:
+  enum SHOW_COMP_OPTION (*func_)(THD *);
+  static enum SHOW_COMP_OPTION dummy_;
+};
+
 #endif /* SYS_VARS_H_INCLUDED */
 

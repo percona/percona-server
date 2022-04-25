@@ -96,7 +96,7 @@ public:
     READONLY=     0x0400, // 1024
     ALLOCATED=    0x0800, // 2048
     INVISIBLE=    0x1000, // 4096
-    TRI_LEVEL=    0x2000  // 8192 - default is neither GLOBAL nor SESSION
+    TRI_LEVEL=    0x2000, // 8192 - default is neither GLOBAL nor SESSION
   };
   static const int PARSE_EARLY= 1;
   static const int PARSE_NORMAL= 2;
@@ -398,7 +398,7 @@ public:
 extern SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
 extern SHOW_COMP_OPTION have_profiling;
 
-extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;

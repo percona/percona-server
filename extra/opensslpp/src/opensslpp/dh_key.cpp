@@ -25,11 +25,14 @@
 
 #include <opensslpp/big_number.hpp>
 #include <opensslpp/core_error.hpp>
+#include <opensslpp/operation_cancelled_error.hpp>
 
 #include "opensslpp/big_number_accessor.hpp"
 #include "opensslpp/bio.hpp"
 #include "opensslpp/bio_accessor.hpp"
 #include "opensslpp/dh_key_accessor.hpp"
+#include "opensslpp/key_generation_cancellation_context.hpp"
+#include "opensslpp/key_generation_cancellation_context_accessor.hpp"
 
 namespace opensslpp {
 
@@ -222,14 +225,22 @@ dh_key dh_key::derive_public_key() const {
 
 /*static*/
 dh_key dh_key::generate_parameters(
-    std::uint32_t bits, std::uintmax_t generator /* = default_generator */) {
+    std::uint32_t bits, std::uintmax_t generator /* = default_generator */,
+    const key_generation_cancellation_callback
+        &cancellation_callback /* = key_generation_cancellation_callback{} */) {
   auto res = dh_key{};
   dh_key_accessor::set_impl(res, DH_new());
   if (res.is_empty()) throw core_error{"cannot create DH parameters"};
 
-  if (DH_generate_parameters_ex(dh_key_accessor::get_impl(res),
-                                static_cast<int>(bits),
-                                static_cast<int>(generator), nullptr) == 0)
+  key_generation_cancellation_context cancellation_ctx{cancellation_callback};
+  auto generation_status = DH_generate_parameters_ex(
+      dh_key_accessor::get_impl(res), static_cast<int>(bits),
+      static_cast<int>(generator),
+      key_generation_cancellation_context_accessor::get_impl(cancellation_ctx));
+  if (cancellation_ctx.is_cancelled())
+    throw operation_cancelled_error{"DH parameters generation cancelled"};
+
+  if (generation_status == 0)
     core_error::raise_with_error_string("cannot generate DH parameters");
 
   return res;

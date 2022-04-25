@@ -14,23 +14,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef OPENSSLPP_CORE_ERROR_HPP
-#define OPENSSLPP_CORE_ERROR_HPP
+#ifndef OPENSSLPP_OPERATION_CANCELLLED_ERROR_HPP
+#define OPENSSLPP_OPERATION_CANCELLLED_ERROR_HPP
 
-#include <stdexcept>
 #include <string>
 
-#include <opensslpp/core_error_fwd.hpp>
+#include <opensslpp/operation_cancelled_error_fwd.hpp>
+
+#include <opensslpp/core_error.hpp>
 
 namespace opensslpp {
 
-class core_error : public std::runtime_error {
+class operation_cancelled_error : public core_error {
  public:
-  core_error(const char *message) : std::runtime_error{message} {}
-  core_error(const std::string &message) : std::runtime_error{message} {}
-
-  [[noreturn]] static void raise_with_error_string(
-      const std::string &prefix = std::string());
+  using core_error::core_error;
 };
 
 }  // namespace opensslpp

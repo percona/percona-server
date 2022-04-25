@@ -20,7 +20,9 @@
 #include <memory>
 #include <string>
 
-#include "opensslpp/accessor_fwd.hpp"
+#include "opensslpp/bio_fwd.hpp"
+
+#include <opensslpp/accessor_fwd.hpp>
 
 namespace opensslpp {
 

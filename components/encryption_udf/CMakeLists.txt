@@ -31,6 +31,8 @@ DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_COMPONENT(encryption_udf
   encryption_udf_component.cc
+  server_helpers.h
+  server_helpers.cc
   LINK_LIBRARIES OpenSSLPP::OpenSSLPP
   MODULE_ONLY
 )

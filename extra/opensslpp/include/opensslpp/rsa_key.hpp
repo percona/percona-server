@@ -26,6 +26,7 @@
 
 #include <opensslpp/accessor_fwd.hpp>
 #include <opensslpp/big_number_fwd.hpp>
+#include <opensslpp/key_generation_cancellation_callback_fwd.hpp>
 #include <opensslpp/rsa_padding_fwd.hpp>
 
 namespace opensslpp {
@@ -59,8 +60,10 @@ class rsa_key final {
 
   rsa_key derive_public_key() const;
 
-  static rsa_key generate(std::uint32_t bits,
-                          const big_number &exponent = default_exponent);
+  static rsa_key generate(
+      std::uint32_t bits, const big_number &exponent = default_exponent,
+      const key_generation_cancellation_callback &cancellation_callback =
+          key_generation_cancellation_callback{});
 
   static std::string export_private_pem(const rsa_key &key);
   static std::string export_public_pem(const rsa_key &key);

@@ -25,11 +25,14 @@
 
 #include <opensslpp/big_number.hpp>
 #include <opensslpp/core_error.hpp>
+#include <opensslpp/operation_cancelled_error.hpp>
 
 #include "opensslpp/big_number_accessor.hpp"
 #include "opensslpp/bio.hpp"
 #include "opensslpp/bio_accessor.hpp"
 #include "opensslpp/dsa_key_accessor.hpp"
+#include "opensslpp/key_generation_cancellation_context.hpp"
+#include "opensslpp/key_generation_cancellation_context_accessor.hpp"
 
 namespace opensslpp {
 
@@ -213,14 +216,23 @@ dsa_key dsa_key::derive_public_key() const {
 }
 
 /*static*/
-dsa_key dsa_key::generate_parameters(std::uint32_t bits) {
+dsa_key dsa_key::generate_parameters(
+    std::uint32_t bits,
+    const key_generation_cancellation_callback
+        &cancellation_callback /* = key_generation_cancellation_callback{} */) {
   auto res = dsa_key{};
   dsa_key_accessor::set_impl(res, DSA_new());
   if (res.is_empty()) throw core_error{"cannot create DSA key"};
 
-  if (DSA_generate_parameters_ex(dsa_key_accessor::get_impl(res),
-                                 static_cast<int>(bits), nullptr, 0, nullptr,
-                                 nullptr, nullptr) == 0)
+  key_generation_cancellation_context cancellation_ctx{cancellation_callback};
+  auto generation_status = DSA_generate_parameters_ex(
+      dsa_key_accessor::get_impl(res), static_cast<int>(bits), nullptr, 0,
+      nullptr, nullptr,
+      key_generation_cancellation_context_accessor::get_impl(cancellation_ctx));
+  if (cancellation_ctx.is_cancelled())
+    throw operation_cancelled_error{"DSA parameters generation cancelled"};
+
+  if (generation_status == 0)
     core_error::raise_with_error_string("cannot generate DSA parameters");
 
   return res;

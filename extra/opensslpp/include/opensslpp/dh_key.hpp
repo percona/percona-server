@@ -26,6 +26,7 @@
 
 #include <opensslpp/accessor_fwd.hpp>
 #include <opensslpp/big_number_fwd.hpp>
+#include <opensslpp/key_generation_cancellation_callback_fwd.hpp>
 
 namespace opensslpp {
 
@@ -64,7 +65,9 @@ class dh_key final {
   dh_key derive_public_key() const;
 
   static dh_key generate_parameters(
-      std::uint32_t bits, std::uintmax_t generator = default_generator);
+      std::uint32_t bits, std::uintmax_t generator = default_generator,
+      const key_generation_cancellation_callback &cancellation_callback =
+          key_generation_cancellation_callback{});
 
   static std::string export_parameters_pem(const dh_key &key);
   static std::string export_private_pem(const dh_key &key);

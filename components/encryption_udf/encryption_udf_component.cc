@@ -28,6 +28,7 @@
 #include <mysql/components/component_implementation.h>
 
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_runtime_error.h>
 #include <mysql/components/services/udf_registration.h>
 
@@ -40,10 +41,13 @@
 #include <opensslpp/digest_operations.hpp>
 #include <opensslpp/dsa_key.hpp>
 #include <opensslpp/dsa_sign_verify_operations.hpp>
+#include <opensslpp/operation_cancelled_error.hpp>
 #include <opensslpp/rsa_encrypt_decrypt_operations.hpp>
 #include <opensslpp/rsa_key.hpp>
 #include <opensslpp/rsa_padding.hpp>
 #include <opensslpp/rsa_sign_verify_operations.hpp>
+
+#include "server_helpers.h"
 
 // defined as a macro because needed both raw and stringized
 #define CURRENT_COMPONENT_NAME encryption_udf
@@ -53,6 +57,7 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
 
 namespace {
 
@@ -154,6 +159,15 @@ bool check_if_bits_in_range(udf_int_arg_raw_type value,
   return true;
 }
 
+opensslpp::key_generation_cancellation_callback create_cancellation_callback() {
+  THD *local_thd = nullptr;
+  if (mysql_service_mysql_current_thread_reader->get(&local_thd) != 0 ||
+      local_thd == nullptr)
+    throw std::invalid_argument("Cannot extract current THD");
+
+  return [local_thd]() noexcept -> bool { return is_thd_killed(local_thd); };
+}
+
 // CREATE_ASYMMETRIC_PRIV_KEY(@algorithm, {@key_len|@dh_parameters})
 // This functions generates a private key using the given algorithm
 // (@algorithm) and key length (@key_len) or Diffie-Hellman
@@ -209,12 +223,25 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
     if (algorithm_id == algorithm_id_type::rsa) {
       if (!check_if_bits_in_range(length, threshold_index_type::rsa))
         throw std::invalid_argument("Invalid RSA key length specified");
-      auto key = opensslpp::rsa_key::generate(length);
+      opensslpp::rsa_key key;
+      try {
+        key = opensslpp::rsa_key::generate(length,
+                                           opensslpp::rsa_key::default_exponent,
+                                           create_cancellation_callback());
+      } catch (const opensslpp::operation_cancelled_error &e) {
+        throw mysqlpp::udf_exception{e.what(), ER_QUERY_INTERRUPTED};
+      }
       pem = opensslpp::rsa_key::export_private_pem(key);
     } else if (algorithm_id == algorithm_id_type::dsa) {
       if (!check_if_bits_in_range(length, threshold_index_type::dsa))
         throw std::invalid_argument("Invalid DSA key length specified");
-      auto key = opensslpp::dsa_key::generate_parameters(length);
+      opensslpp::dsa_key key;
+      try {
+        key = opensslpp::dsa_key::generate_parameters(
+            length, create_cancellation_callback());
+      } catch (const opensslpp::operation_cancelled_error &e) {
+        throw mysqlpp::udf_exception{e.what(), ER_QUERY_INTERRUPTED};
+      }
       key.promote_to_key();
       pem = opensslpp::dsa_key::export_private_pem(key);
     }
@@ -643,7 +670,14 @@ mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
   if (!check_if_bits_in_range(length, threshold_index_type::dh))
     throw std::invalid_argument("Invalid DH parameters length specified");
 
-  auto key = opensslpp::dh_key::generate_parameters(length);
+  opensslpp::dh_key key;
+  try {
+    key = opensslpp::dh_key::generate_parameters(
+        length, opensslpp::dh_key::default_generator,
+        create_cancellation_callback());
+  } catch (const opensslpp::operation_cancelled_error &e) {
+    throw mysqlpp::udf_exception{e.what(), ER_QUERY_INTERRUPTED};
+  }
   key.promote_to_key();
 
   return {opensslpp::dh_key::export_parameters_pem(key)};
@@ -822,6 +856,7 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(udf_registration),
   REQUIRES_SERVICE(component_sys_variable_register),
   REQUIRES_SERVICE(component_sys_variable_unregister),
+  REQUIRES_SERVICE(mysql_current_thread_reader),
 END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(CURRENT_COMPONENT_NAME)

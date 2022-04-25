@@ -66,6 +66,9 @@ set(
   dsa_key.hpp
   dsa_key_fwd.hpp
   dsa_sign_verify_operations.hpp
+  key_generation_cancellation_callback_fwd.hpp
+  operation_cancelled_error.hpp
+  operation_cancelled_error_fwd.hpp
   rsa_encrypt_decrypt_operations.hpp
   rsa_key.hpp
   rsa_key_fwd.hpp
@@ -84,6 +87,9 @@ set(
   dh_key_accessor.hpp
   digest_context_accessor.hpp
   dsa_key_accessor.hpp
+  key_generation_cancellation_context.hpp
+  key_generation_cancellation_context_accessor.hpp
+  key_generation_cancellation_context_fwd.hpp
   rsa_key_accessor.hpp
   rsa_padding_conversions.hpp
   typed_accessor.hpp
@@ -100,6 +106,7 @@ set(
   digest_operations.cpp
   dsa_key.cpp
   dsa_sign_verify_operations.cpp
+  key_generation_cancellation_context.cpp
   rsa_encrypt_decrypt_operations.cpp
   rsa_key.cpp
   rsa_sign_verify_operations.cpp

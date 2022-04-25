@@ -25,11 +25,14 @@
 
 #include <opensslpp/big_number.hpp>
 #include <opensslpp/core_error.hpp>
+#include <opensslpp/operation_cancelled_error.hpp>
 #include <opensslpp/rsa_padding.hpp>
 
 #include "opensslpp/big_number_accessor.hpp"
 #include "opensslpp/bio.hpp"
 #include "opensslpp/bio_accessor.hpp"
+#include "opensslpp/key_generation_cancellation_context.hpp"
+#include "opensslpp/key_generation_cancellation_context_accessor.hpp"
 #include "opensslpp/rsa_key_accessor.hpp"
 
 namespace opensslpp {
@@ -121,15 +124,23 @@ rsa_key rsa_key::derive_public_key() const {
 }
 
 /*static*/
-rsa_key rsa_key::generate(std::uint32_t bits,
-                          const big_number &exponent /* = default_exponent */) {
+rsa_key rsa_key::generate(
+    std::uint32_t bits, const big_number &exponent /* = default_exponent */,
+    const key_generation_cancellation_callback
+        &cancellation_callback /* = key_generation_cancellation_callback{} */) {
   auto res = rsa_key{};
   rsa_key_accessor::set_impl(res, RSA_new());
   if (res.is_empty()) throw core_error{"cannot create RSA key"};
 
-  if (RSA_generate_key_ex(
-          rsa_key_accessor::get_impl(res), static_cast<int>(bits),
-          big_number_accessor::get_impl_const_casted(exponent), nullptr) == 0)
+  key_generation_cancellation_context cancellation_ctx{cancellation_callback};
+  auto generation_status = RSA_generate_key_ex(
+      rsa_key_accessor::get_impl(res), static_cast<int>(bits),
+      big_number_accessor::get_impl_const_casted(exponent),
+      key_generation_cancellation_context_accessor::get_impl(cancellation_ctx));
+  if (cancellation_ctx.is_cancelled())
+    throw operation_cancelled_error{"RSA key generation cancelled"};
+
+  if (generation_status == 0)
     core_error::raise_with_error_string("cannot generate RSA key");
   return res;
 }

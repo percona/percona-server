@@ -1214,6 +1214,10 @@ class Rdb_field_encoder {
   ptrdiff_t m_field_null_offset;
   ptrdiff_t m_field_offset;
   bool m_is_virtual_gcol;
+  bool m_is_instant_field;
+  // nullptr means null value for that field
+  uchar *m_instant_default_value;
+  size_t m_instant_default_value_len;
 
   bool maybe_null() const { return m_null_mask != 0; }
 

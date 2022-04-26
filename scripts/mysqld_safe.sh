@@ -1071,7 +1071,13 @@ do
         sleep_state=$?
         if test $sleep_state -gt 0
         then
+<<<<<<< HEAD
           log_notice "The server is respawning too fast and no working sleep command. Turning off throttling."
+||||||| 0cd98bdf981
+          log_notice "The server is respawning too fast and no working sleep command. Turning off trottling."
+=======
+          log_notice "The server is respawning too fast and in addition no working 'sleep' command was found. Turning off throttling."
+>>>>>>> c94ce787737f9a6c9a31abe22bee02866698885b^
           have_sleep=0
         fi
 

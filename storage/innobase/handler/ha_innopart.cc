@@ -1064,11 +1064,6 @@ share_error:
 	m_clust_pcur_parts = NULL;
 	m_pcur_map = NULL;
 
-    if (ib_table->corrupted) {
-        close();
-        DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    }
-
 	/* TODO: Handle mismatching #P# vs #p# in upgrading to new DD instead!
 	See bug#58406, The problem exists when moving partitioned tables
 	between Windows and Unix-like platforms. InnoDB always folds the name
@@ -1111,13 +1106,7 @@ share_error:
 
 			no_tablespace = false;
 
-<<<<<<< HEAD
-	} else if (ib_table->file_unreadable) {
-||||||| 0cd98bdf981
-	} else if (ib_table->ibd_file_missing) {
-=======
-		} else if (ib_table->ibd_file_missing) {
->>>>>>> c94ce787737f9a6c9a31abe22bee02866698885b^
+		} else if (ib_table->file_unreadable || ib_table->corrupted) {
 
 			ib_senderrf(
 				thd, IB_LOG_LEVEL_WARN,

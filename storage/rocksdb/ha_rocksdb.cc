@@ -3158,12 +3158,6 @@ class Rdb_transaction {
           table_name = "./" + table_name;
         }
 
-        // Currently, unique indexes only checked in the inplace alter path,
-        // but not in allow_sk bulk load path.
-        bool is_unique_index =
-            table_arg &&
-            table_arg->key_info[keydef->get_keyno()].flags & HA_NOSAME;
-
         // Unable to find key definition or table name since the
         // table could have been dropped.
         // TODO(herman): there is a race here between dropping the table
@@ -3187,6 +3181,13 @@ class Rdb_transaction {
           }
           return HA_ERR_NO_SUCH_TABLE;
         }
+
+        // Currently, unique indexes only checked in the inplace alter path,
+        // but not in allow_sk bulk load path.
+        bool is_unique_index =
+            table_arg &&
+            table_arg->key_info[keydef->get_keyno()].flags & HA_NOSAME;
+
         const std::string &index_name = keydef->get_name();
         Rdb_index_merge &rdb_merge = it->second;
 

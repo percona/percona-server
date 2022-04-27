@@ -300,6 +300,8 @@ static void btr_search_disable_ref_count(dict_table_t *table) {
 /** Disable the adaptive hash search system and empty the index.
 @param[in]	need_mutex	Need to acquire dict_sys->mutex */
 void btr_search_disable(bool need_mutex) {
+  if (!dict_sys) return;
+
   if (need_mutex) {
     dict_sys_mutex_enter();
   }

@@ -227,6 +227,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
     MESSAGE(STATUS "AVX-512: add -Wno-uninitialized for xxhash.cc (check https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105593)")
     ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-uninitialized -Wno-maybe-uninitialized FILES rocksdb/util/xxhash.cc ${BUNDLED_LZ4_PATH}/xxhash.c)
   ENDIF()
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/db/blob/blob_file_reader.cc)
 ENDIF()
 
 # Suppress warnings for gcc ASan build
@@ -306,6 +307,7 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_tool.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_cmd.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/utilities/blob_db/blob_dump_tool.cc
     ${ROCKSDB_LIB_SOURCES}
     ${ZSTD_SOURCES}
   )

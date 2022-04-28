@@ -921,6 +921,14 @@ void reset_thd(THD *thd) {
     Upgrade_error_counter *error_count) {
   invalid_triggers(thd, sn.c_str(), *table);
 
+  // The TokuDB engine was removed in 8.0.28 Don't upgrade if it is used.
+  if (my_strcasecmp(system_charset_info, table->engine().c_str(), "TokuDB") ==
+      0) {
+    (*error_count)++;
+    LogErr(ERROR_LEVEL, ER_PERCONA_UNSUPPORTED_ENGINE, sn.c_str(),
+           table->name().c_str(), table->engine().c_str());
+  }
+
   // Check for usage of prefix key index in PARTITION BY KEY() function.
   if (dd::prefix_key_partition_exists(sn.c_str(), table->name().c_str(), table,
                                       true))

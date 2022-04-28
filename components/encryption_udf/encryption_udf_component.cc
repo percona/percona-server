@@ -16,8 +16,10 @@
 
 #include <array>
 #include <bitset>
+#include <chrono>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -773,6 +775,9 @@ static udf_bitset_type registered_udfs;
 using threshold_bitset_type = std::bitset<number_of_thresholds>;
 static threshold_bitset_type registered_thresholds;
 
+static constexpr std::size_t max_unregister_attempts = 10;
+static constexpr auto unregister_sleep_interval = std::chrono::seconds(1);
+
 static mysql_service_status_t component_init() {
   std::size_t index = 0U;
 
@@ -814,9 +819,16 @@ static mysql_service_status_t component_deinit() {
 
   for (const auto &element : known_udfs) {
     if (registered_udfs.test(index)) {
-      if (mysql_service_udf_registration->udf_unregister(element.name,
-                                                         &was_present) == 0)
-        registered_udfs.reset(index);
+      std::size_t attempt = 0;
+      mysql_service_status_t status = 0;
+      while (attempt < max_unregister_attempts &&
+             (status = mysql_service_udf_registration->udf_unregister(
+                  element.name, &was_present)) != 0 &&
+             was_present != 0) {
+        std::this_thread::sleep_for(unregister_sleep_interval);
+        ++attempt;
+      }
+      if (status == 0) registered_udfs.reset(index);
     }
     ++index;
   }

@@ -745,6 +745,14 @@ static bool check_tables(THD *thd, std::unique_ptr<Schema> &schema,
   auto process_table = [&](std::unique_ptr<dd::Table> &table) {
     invalid_triggers(thd, schema->name().c_str(), *table);
 
+    // The TokuDB engine was removed in 8.0.28 Don't upgrade if it is used.
+    if (my_strcasecmp(system_charset_info, table->engine().c_str(), "TokuDB") ==
+        0) {
+      (*error_count)++;
+      LogErr(ERROR_LEVEL, ER_PERCONA_UNSUPPORTED_ENGINE, schema->name().c_str(),
+             table->name().c_str(), table->engine().c_str());
+    }
+
     // Check for usage of prefix key index in PARTITION BY KEY() function.
     if (dd::prefix_key_partition_exists(
             schema->name().c_str(), table->name().c_str(), table.get(), true))

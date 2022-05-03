@@ -419,22 +419,11 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
     return;
   }
 
-<<<<<<< HEAD
-  if (lock_wait_timeout < std::chrono::seconds(100000000) &&
-      wait_time > lock_wait_timeout && !trx_is_high_priority(trx)) {
-    trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+  if (trx->error_state == DB_LOCK_WAIT_TIMEOUT) {
+    MONITOR_INC(MONITOR_TIMEOUT);
+
     if (srv_print_lock_wait_timeout_info)
       print_lock_wait_timeout(*trx, blocking, blocking_count);
-
-||||||| 6846e6b2f72
-  if (lock_wait_timeout < std::chrono::seconds(100000000) &&
-      wait_time > lock_wait_timeout && !trx_is_high_priority(trx)) {
-    trx->error_state = DB_LOCK_WAIT_TIMEOUT;
-
-=======
-  if (trx->error_state == DB_LOCK_WAIT_TIMEOUT) {
->>>>>>> mysql-8.0.29
-    MONITOR_INC(MONITOR_TIMEOUT);
   }
 
   if (trx_is_interrupted(trx)) {

@@ -80,11 +80,8 @@ int log_message(int, ...) {
   return 0;
 }
 
-<<<<<<< HEAD
 bool acl_is_utility_user(const char *, const char *, const char *) {
   return false;
 }
-||||||| 6846e6b2f72
-=======
+
 void reset_status_by_thd() {}
->>>>>>> mysql-8.0.29

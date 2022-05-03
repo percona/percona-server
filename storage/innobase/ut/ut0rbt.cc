@@ -55,17 +55,7 @@
 #warning "Testing enabled!"
 #endif
 
-<<<<<<< HEAD
-#define ROOT(t) (t->root->left)
-||||||| 6846e6b2f72
-#define ROOT(t) (t->root->left)
-#define SIZEOF_NODE(t) ((sizeof(ib_rbt_node_t) + t->sizeof_value) - 1)
-=======
 inline static ib_rbt_node_t *ROOT(const ib_rbt_t *t) { return t->root->left; }
-inline static size_t SIZEOF_NODE(const ib_rbt_t *t) {
-  return sizeof(ib_rbt_node_t) + t->sizeof_value - 1;
-}
->>>>>>> mysql-8.0.29
 
 #if defined UNIV_DEBUG || defined IB_RBT_TESTING
 /** Verify that the keys are in order.

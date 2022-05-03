@@ -61,16 +61,8 @@ typedef int     (*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef int     (*fts_scanner)();
 
 struct fts_lexer_struct {
-<<<<<<< HEAD
 	fts_scanner_alt		scanner;
 	void*		yyscanner;
-||||||| 6846e6b2f72
-	fts_scanner	scanner;
-	void*		yyscanner;
-=======
-        fts_scanner     scanner;
-        void*           yyscanner;
->>>>>>> mysql-8.0.29
 };
 
 %}
@@ -248,10 +240,9 @@ fts_lexer_create(
         const byte*     query,
         ulint           query_len)
 {
-        fts_lexer_t*    fts_lexer = static_cast<fts_lexer_t*>(
-                ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(fts_lexer_t)));
+	fts_lexer_t*	fts_lexer = static_cast<fts_lexer_t*>(
+		ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(fts_lexer_t)));
 
-<<<<<<< HEAD
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
 		fts0b_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
@@ -263,33 +254,8 @@ fts_lexer_create(
 		fts0t_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = fts_tlexer;
 	}
-||||||| 6846e6b2f72
-	if (boolean_mode) {
-		fts0blex_init(&fts_lexer->yyscanner);
-		fts0b_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
-		fts_lexer->scanner = (fts_scan) fts_blexer;
-		/* FIXME: Debugging */
-		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
-	} else {
-		fts0tlex_init(&fts_lexer->yyscanner);
-		fts0t_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
-		fts_lexer->scanner = (fts_scan) fts_tlexer;
-	}
-=======
-        if (boolean_mode) {
-                fts0blex_init(&fts_lexer->yyscanner);
-                fts0b_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
-                fts_lexer->scanner = (fts_scan) fts_blexer;
-                /* FIXME: Debugging */
-                /* fts0bset_debug(1 , fts_lexer->yyscanner); */
-        } else {
-                fts0tlex_init(&fts_lexer->yyscanner);
-                fts0t_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
-                fts_lexer->scanner = (fts_scan) fts_tlexer;
-        }
->>>>>>> mysql-8.0.29
 
-        return(fts_lexer);
+	return(fts_lexer);
 }
 
 /********************************************************************
@@ -300,25 +266,11 @@ fts_lexer_free(
 /*===========*/
         fts_lexer_t*    fts_lexer)
 {
-<<<<<<< HEAD
 	if (fts_lexer->scanner == fts_blexer) {
 		fts0blex_destroy(fts_lexer->yyscanner);
 	} else {
 		fts0tlex_destroy(fts_lexer->yyscanner);
 	}
-||||||| 6846e6b2f72
-	if (fts_lexer->scanner == (fts_scan) fts_blexer) {
-		fts0blex_destroy(fts_lexer->yyscanner);
-	} else {
-		fts0tlex_destroy(fts_lexer->yyscanner);
-	}
-=======
-        if (fts_lexer->scanner == (fts_scan) fts_blexer) {
-                fts0blex_destroy(fts_lexer->yyscanner);
-        } else {
-                fts0tlex_destroy(fts_lexer->yyscanner);
-        }
->>>>>>> mysql-8.0.29
 
         ut::free(fts_lexer);
 }

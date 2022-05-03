@@ -76,35 +76,6 @@ bool row_vers_must_preserve_del_marked(trx_id_t trx_id,
  id >= purge view, and the secondary index entry == ientry; exactly in
  this case we return true.
  @return true if earlier version should have */
-<<<<<<< HEAD
-ibool row_vers_old_has_index_entry(
-    ibool also_curr,           /*!< in: TRUE if also rec is included in the
-                             versions to search; otherwise only versions
-                             prior to it are searched */
-    const rec_t *rec,          /*!< in: record in the clustered index; the
-                               caller must have a latch on the page */
-    mtr_t *mtr,                /*!< in: mtr holding the latch on rec; it will
-                               also hold the latch on purge_view */
-    dict_index_t *index,       /*!< in: the secondary index */
-    const dtuple_t *ientry,    /*!< in: the secondary index entry */
-    roll_ptr_t roll_ptr,       /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id,           /*!< in: transaction ID on the purging record */
-    row_prebuilt_t *prebuilt); /*!< in: compress_heap must be taken from
-                               here */
-||||||| 6846e6b2f72
-ibool row_vers_old_has_index_entry(
-    ibool also_curr,        /*!< in: TRUE if also rec is included in the
-                          versions to search; otherwise only versions
-                          prior to it are searched */
-    const rec_t *rec,       /*!< in: record in the clustered index; the
-                            caller must have a latch on the page */
-    mtr_t *mtr,             /*!< in: mtr holding the latch on rec; it will
-                            also hold the latch on purge_view */
-    dict_index_t *index,    /*!< in: the secondary index */
-    const dtuple_t *ientry, /*!< in: the secondary index entry */
-    roll_ptr_t roll_ptr,    /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id);       /*!< in: transaction ID on the purging record */
-=======
 bool row_vers_old_has_index_entry(
     bool also_curr,         /*!< in: true if also rec is included in the
                            versions to search; otherwise only versions
@@ -116,8 +87,9 @@ bool row_vers_old_has_index_entry(
     dict_index_t *index,    /*!< in: the secondary index */
     const dtuple_t *ientry, /*!< in: the secondary index entry */
     roll_ptr_t roll_ptr,    /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id);       /*!< in: transaction ID on the purging record */
->>>>>>> mysql-8.0.29
+    trx_id_t trx_id,        /*!< in: transaction ID on the purging record */
+    row_prebuilt_t *prebuilt);  /*!< in: compress_heap must be taken from
+                                here */
 
 /** Constructs the version of a clustered index record which a consistent
  read should see. We assume that the trx id stored in rec is such that

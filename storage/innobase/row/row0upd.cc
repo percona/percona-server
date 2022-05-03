@@ -817,14 +817,8 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]      heap            memory heap from which allocated
 @param[in]      mysql_table     NULL, or mysql table object when
                                 user thread invokes dml
-<<<<<<< HEAD
-@param[in]	prebuilt	compress_heap must be taken from here
-@param[out]	error		error number in case of failure
-||||||| 6846e6b2f72
-@param[out]	error		error number in case of failure
-=======
+@param[in]      prebuilt        compress_heap must be taken from here
 @param[out]     error           error number in case of failure
->>>>>>> mysql-8.0.29
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t *row_upd_build_difference_binary(
@@ -1815,24 +1809,12 @@ static inline void row_upd_eval_new_vals(
 }
 
 /** Stores to the heap the virtual columns that need for any indexes
-<<<<<<< HEAD
-@param[in,out]	node		row update node
-@param[in]	update		an update vector if it is update
-@param[in]	thd		mysql thread handle
-@param[in,out]	prebuilt	nullptr, or a prebuilt object: used to extract
-                                mysql table object when user thread invokes
-                                dml and for compress heap */
-||||||| 6846e6b2f72
-@param[in,out]	node		row update node
-@param[in]	update		an update vector if it is update
-@param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	mysql table object */
-=======
 @param[in,out]  node            row update node
 @param[in]      update          an update vector if it is update
 @param[in]      thd             mysql thread handle
-@param[in,out]  mysql_table     mysql table object */
->>>>>>> mysql-8.0.29
+@param[in,out]  prebuilt        nullptr, or a prebuilt object: used to extract
+                                mysql table object when user thread invokes
+                                dml and for compress heap */
 static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
                                 row_prebuilt_t *prebuilt) {
   mem_heap_t *heap = nullptr;
@@ -1887,14 +1869,7 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
             if (dfield_is_null(dfield)) {
               innobase_get_computed_value(node->row, col, index, &heap,
                                           node->heap, nullptr, thd, mysql_table,
-<<<<<<< HEAD
                                           nullptr, nullptr, nullptr, &prebuilt->compress_heap);
-||||||| 6846e6b2f72
-                                          node->heap, NULL, thd, mysql_table,
-                                          NULL, NULL, NULL);
-=======
-                                          nullptr, nullptr, nullptr);
->>>>>>> mysql-8.0.29
             }
           }
         } else {
@@ -1913,30 +1888,7 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
   }
 }
 
-<<<<<<< HEAD
-/** Stores to the heap the row on which the node->pcur is positioned.
-@param[in]	trx		the transaction object
-@param[in]	node		row update node
-@param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	NULL, or mysql table object when
-                                user thread invokes dml
-@param[in,out]	prebuilt	NULL, or a prebuilt object: used to extract
-                                mysql table object when user thread invokes
-                                dml and for compress heap */
-void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
-                       row_prebuilt_t *prebuilt) {
-||||||| 6846e6b2f72
-/** Stores to the heap the row on which the node->pcur is positioned.
-@param[in]	trx		the transaction object
-@param[in]	node		row update node
-@param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	NULL, or mysql table object when
-                                user thread invokes dml */
-void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
-                       TABLE *mysql_table) {
-=======
-void row_upd_store_row(upd_node_t *node, THD *thd, TABLE *mysql_table) {
->>>>>>> mysql-8.0.29
+void row_upd_store_row(upd_node_t *node, THD *thd, row_prebuilt_t *prebuilt) {
   dict_index_t *clust_index;
   rec_t *rec;
   mem_heap_t *heap = nullptr;
@@ -2967,15 +2919,7 @@ func_exit:
   /* Store row because we have to build also the secondary index
   entries */
 
-<<<<<<< HEAD
-  row_upd_store_row(trx, node, thr_get_trx(thr)->mysql_thd, thr->prebuilt);
-||||||| 6846e6b2f72
-  row_upd_store_row(trx, node, thr_get_trx(thr)->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : nullptr);
-=======
-  row_upd_store_row(node, thr_get_trx(thr)->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : nullptr);
->>>>>>> mysql-8.0.29
+  row_upd_store_row(node, thr_get_trx(thr)->mysql_thd, thr->prebuilt);
 
   /* Mark the clustered index record deleted; we do not have to check
   locks, because we assume that we have an x-lock on the record */
@@ -3114,15 +3058,7 @@ func_exit:
     goto exit_func;
   }
 
-<<<<<<< HEAD
-  row_upd_store_row(trx, node, trx->mysql_thd, thr->prebuilt);
-||||||| 6846e6b2f72
-  row_upd_store_row(trx, node, trx->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : nullptr);
-=======
-  row_upd_store_row(node, trx->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : nullptr);
->>>>>>> mysql-8.0.29
+  row_upd_store_row(node, trx->mysql_thd, thr->prebuilt);
 
   if (row_upd_changes_ord_field_binary(index, node->update, thr, node->row,
                                        node->ext, nullptr)) {

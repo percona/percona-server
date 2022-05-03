@@ -2124,13 +2124,7 @@ void dd_add_instant_columns(const dd::Table *old_dd_table,
 
     row_mysql_store_col_in_innobase_format(
         &dfield, reinterpret_cast<byte *>(&buf), true, mysql_data, size,
-<<<<<<< HEAD
-        dict_table_is_comp(new_table), false, nullptr, 0, nullptr);
-||||||| 6846e6b2f72
-        dict_table_is_comp(new_table));
-=======
-        dict_table_is_comp(new_dict_table));
->>>>>>> mysql-8.0.29
+        dict_table_is_comp(new_dict_table), false, nullptr, 0, nullptr);
 
     DD_instant_col_val_coder coder;
     size_t length = 0;
@@ -3414,15 +3408,19 @@ void get_field_types(const dd::Table *dd_tab, const dict_table_t *m_table,
     col_len = field->key_length();
   }
 
+  const ulint is_compressed =
+      field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED ? DATA_COMPRESSED
+                                                              : 0;
+
   if (!is_virtual) {
     prtype =
         dtype_form_prtype((ulint)field->type() | nulls_allowed | unsigned_type |
-                              binary_type | long_true_varchar,
+                              binary_type | long_true_varchar | is_compressed,
                           charset_no);
   } else {
     prtype = dtype_form_prtype(
         (ulint)field->type() | nulls_allowed | unsigned_type | binary_type |
-            long_true_varchar | is_virtual | is_multi_val,
+            long_true_varchar | is_virtual | is_multi_val | is_compressed,
         charset_no);
   }
 }
@@ -3837,190 +3835,9 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   /* Fill out each column info */
   fill_dict_columns(dd_tab, m_form, m_table, n_mysql_cols, heap, add_doc_id);
 
-<<<<<<< HEAD
-    /* The MySQL type code has to fit in 8 bits
-    in the metadata stored in the InnoDB change buffer. */
-    ut_ad(field->charset() == nullptr ||
-          field->charset()->number <= MAX_CHAR_COLL_NUM);
-    ut_ad(field->charset() == nullptr || field->charset()->number > 0);
-
-    ulint nulls_allowed;
-    ulint unsigned_type;
-    ulint binary_type;
-    ulint long_true_varchar;
-    ulint charset_no;
-    ulint mtype = get_innobase_type_from_mysql_type(&unsigned_type, field);
-
-    nulls_allowed = field->is_nullable() ? 0 : DATA_NOT_NULL;
-
-    /* Convert non nullable fields in FTS AUX tables as nullable.
-    This is because in 5.7, we created FTS AUX tables clustered
-    index with nullable field, although NULLS are not inserted.
-    When fields are nullable, the record layout is dependent on
-    that. When registering FTS AUX Tables with new DD, we cannot
-    register nullable fields as part of Primary Key. Hence we register
-    them as non-nullabe in DD but treat as nullable in InnoDB.
-    This way the compatibility with 5.7 FTS AUX tables is also
-    maintained. */
-    if (m_table->is_fts_aux()) {
-      const dd::Table &dd_table = dd_tab->table();
-      const dd::Column *dd_col = dd_find_column(&dd_table, field->field_name);
-      const dd::Properties &p = dd_col->se_private_data();
-      if (p.exists("nullable")) {
-        bool nullable;
-        p.get("nullable", &nullable);
-        nulls_allowed = nullable ? 0 : DATA_NOT_NULL;
-      }
-    }
-
-    binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
-
-    charset_no = 0;
-    if (dtype_is_string_type(mtype)) {
-      charset_no = static_cast<ulint>(field->charset()->number);
-    }
-
-    long_true_varchar = 0;
-    if (field->type() == MYSQL_TYPE_VARCHAR) {
-      col_len -= field->get_length_bytes();
-
-      if (field->get_length_bytes() == 2) {
-        long_true_varchar = DATA_LONG_TRUE_VARCHAR;
-      }
-    }
-
-    ulint is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
-
-    ulint is_multi_val =
-        innobase_is_multi_value_fld(field) ? DATA_MULTI_VALUE : 0;
-
-    bool is_stored = innobase_is_s_fld(field);
-
-    const ulint is_compressed =
-        field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED
-            ? DATA_COMPRESSED
-            : 0;
-
-    if (is_multi_val) {
-      col_len = field->key_length();
-    }
-
-    if (!is_virtual) {
-      prtype = dtype_form_prtype((ulint)field->type() | nulls_allowed |
-                                     unsigned_type | binary_type |
-                                     long_true_varchar | is_compressed,
-                                 charset_no);
-      dict_mem_table_add_col(m_table, heap, field->field_name, mtype, prtype,
-                             col_len, !field->is_hidden_by_system());
-    } else {
-      prtype = dtype_form_prtype(
-          (ulint)field->type() | nulls_allowed | unsigned_type | binary_type |
-              long_true_varchar | is_virtual | is_compressed | is_multi_val,
-          charset_no);
-      dict_mem_table_add_v_col(m_table, heap, field->field_name, mtype, prtype,
-                               col_len, i,
-                               field->gcol_info->non_virtual_base_columns(),
-                               !field->is_hidden_by_system());
-    }
-
-    if (is_stored) {
-      ut_ad(!is_virtual);
-      /* Added stored column in m_s_cols list. */
-      dict_mem_table_add_s_col(m_table,
-                               field->gcol_info->non_virtual_base_columns());
-    }
-||||||| 6846e6b2f72
-    /* The MySQL type code has to fit in 8 bits
-    in the metadata stored in the InnoDB change buffer. */
-    ut_ad(field->charset() == nullptr ||
-          field->charset()->number <= MAX_CHAR_COLL_NUM);
-    ut_ad(field->charset() == nullptr || field->charset()->number > 0);
-
-    ulint nulls_allowed;
-    ulint unsigned_type;
-    ulint binary_type;
-    ulint long_true_varchar;
-    ulint charset_no;
-    ulint mtype = get_innobase_type_from_mysql_type(&unsigned_type, field);
-
-    nulls_allowed = field->is_nullable() ? 0 : DATA_NOT_NULL;
-
-    /* Convert non nullable fields in FTS AUX tables as nullable.
-    This is because in 5.7, we created FTS AUX tables clustered
-    index with nullable field, although NULLS are not inserted.
-    When fields are nullable, the record layout is dependent on
-    that. When registering FTS AUX Tables with new DD, we cannot
-    register nullable fields as part of Primary Key. Hence we register
-    them as non-nullabe in DD but treat as nullable in InnoDB.
-    This way the compatibility with 5.7 FTS AUX tables is also
-    maintained. */
-    if (m_table->is_fts_aux()) {
-      const dd::Table &dd_table = dd_tab->table();
-      const dd::Column *dd_col = dd_find_column(&dd_table, field->field_name);
-      const dd::Properties &p = dd_col->se_private_data();
-      if (p.exists("nullable")) {
-        bool nullable;
-        p.get("nullable", &nullable);
-        nulls_allowed = nullable ? 0 : DATA_NOT_NULL;
-      }
-    }
-
-    binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
-
-    charset_no = 0;
-    if (dtype_is_string_type(mtype)) {
-      charset_no = static_cast<ulint>(field->charset()->number);
-    }
-
-    long_true_varchar = 0;
-    if (field->type() == MYSQL_TYPE_VARCHAR) {
-      col_len -= field->get_length_bytes();
-
-      if (field->get_length_bytes() == 2) {
-        long_true_varchar = DATA_LONG_TRUE_VARCHAR;
-      }
-    }
-
-    ulint is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
-
-    ulint is_multi_val =
-        innobase_is_multi_value_fld(field) ? DATA_MULTI_VALUE : 0;
-
-    bool is_stored = innobase_is_s_fld(field);
-
-    if (is_multi_val) {
-      col_len = field->key_length();
-    }
-
-    if (!is_virtual) {
-      prtype =
-          dtype_form_prtype((ulint)field->type() | nulls_allowed |
-                                unsigned_type | binary_type | long_true_varchar,
-                            charset_no);
-      dict_mem_table_add_col(m_table, heap, field->field_name, mtype, prtype,
-                             col_len, !field->is_hidden_by_system());
-    } else {
-      prtype = dtype_form_prtype(
-          (ulint)field->type() | nulls_allowed | unsigned_type | binary_type |
-              long_true_varchar | is_virtual | is_multi_val,
-          charset_no);
-      dict_mem_table_add_v_col(m_table, heap, field->field_name, mtype, prtype,
-                               col_len, i,
-                               field->gcol_info->non_virtual_base_columns(),
-                               !field->is_hidden_by_system());
-    }
-
-    if (is_stored) {
-      ut_ad(!is_virtual);
-      /* Added stored column in m_s_cols list. */
-      dict_mem_table_add_s_col(m_table,
-                               field->gcol_info->non_virtual_base_columns());
-    }
-=======
 #ifdef UNIV_DEBUG
   if (m_table->is_upgraded_instant()) {
     ut_ad(m_table->has_instant_cols());
->>>>>>> mysql-8.0.29
   }
 #endif
 
@@ -7174,17 +6991,9 @@ bool dd_tablespace_update_cache(THD *thd) {
     }
 
     const dd::Properties &p = t->se_private_data();
-<<<<<<< HEAD
-    uint32 id;
-    uint32 flags = 0;
-    bool is_enc_in_progress{false};
-||||||| 6846e6b2f72
-    uint32 id;
-    uint32 flags = 0;
-=======
     uint32_t id;
     uint32_t flags = 0;
->>>>>>> mysql-8.0.29
+    bool is_enc_in_progress{false};
 
     /* There should be exactly one file name associated
     with each InnoDB tablespace, except innodb_system */
@@ -7311,7 +7120,6 @@ bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
   }
 }
 
-<<<<<<< HEAD
 /* Updates tablespace's DD flags.
 @param[in] Thread       THD
 @param[in] space_name   name of the space that DD flags are to be updated
@@ -7505,13 +7313,8 @@ bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd,
                       &is_space_being_removed);
 }
 
-void dict_table_t::get_table_name(std::string &schema, std::string &table) {
-||||||| 6846e6b2f72
-void dict_table_t::get_table_name(std::string &schema, std::string &table) {
-=======
 void dict_table_t::get_table_name(std::string &schema,
                                   std::string &table) const {
->>>>>>> mysql-8.0.29
   std::string dict_table_name(name.m_name);
   dict_name::get_table(dict_table_name, schema, table);
 }

@@ -1328,12 +1328,11 @@ already completed
 free page started
 @param[in]	flush_failures	how many times single-page flush, if allowed,
 has failed
-@param[out]	mon_value_was	previous srv_print_innodb_monitor value
-@param[out]	started_monitor	whether InnoDB monitor print has been requested
+@param[in,out]	started_monitor	whether InnoDB monitor print has been requested
 */
 static void buf_LRU_handle_lack_of_free_blocks(
     ulint n_iterations, std::chrono::steady_clock::time_point started_time,
-    ulint flush_failures, bool *mon_value_was, bool *started_monitor) {
+    ulint flush_failures, bool *started_monitor) {
   static std::chrono::steady_clock::time_point last_printout_time;
 
   /* Legacy algorithm started warning after at least 2 seconds, we
@@ -1364,10 +1363,11 @@ static void buf_LRU_handle_lack_of_free_blocks(
            " further diagnostics to the standard output.";
 
     last_printout_time = current_time;
-    *mon_value_was = srv_print_innodb_monitor;
-    *started_monitor = true;
-    srv_print_innodb_monitor = true;
-    os_event_set(srv_monitor_event);
+
+    if (!*started_monitor) {
+      *started_monitor = true;
+      srv_innodb_needs_monitoring++;
+    }
   }
 }
 
@@ -1491,8 +1491,7 @@ loop:
     }
 
     buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time,
-                                       flush_failures, &mon_value_was,
-                                       &started_monitor);
+                                       flush_failures, &started_monitor);
 
     n_iterations++;
 
@@ -1547,61 +1546,8 @@ loop:
     goto loop;
   }
 
-<<<<<<< HEAD
   buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time, flush_failures,
-                                     &mon_value_was, &started_monitor);
-||||||| 6846e6b2f72
-  if (n_iterations > 20 && srv_buf_pool_old_size == srv_buf_pool_size) {
-    ib::warn(ER_IB_MSG_134)
-        << "Difficult to find free blocks in the buffer pool"
-           " ("
-        << n_iterations << " search iterations)! " << flush_failures
-        << " failed attempts to"
-           " flush a page! Consider increasing the buffer pool"
-           " size. It is also possible that in your Unix version"
-           " fsync is very slow, or completely frozen inside"
-           " the OS kernel. Then upgrading to a newer version"
-           " of your operating system may help. Look at the"
-           " number of fsyncs in diagnostic info below."
-           " Pending flushes (fsync) log: "
-        << fil_n_pending_log_flushes
-        << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
-        << os_n_file_reads << " OS file reads, " << os_n_file_writes
-        << " OS file writes, " << os_n_fsyncs
-        << " OS fsyncs. Starting InnoDB Monitor to print"
-           " further diagnostics to the standard output.";
-
-    mon_value_was = srv_print_innodb_monitor;
-    started_monitor = true;
-    srv_print_innodb_monitor = true;
-    os_event_set(srv_monitor_event);
-  }
-=======
-  if (n_iterations > 20 && srv_buf_pool_old_size == srv_buf_pool_size) {
-    ib::warn(ER_IB_MSG_134)
-        << "Difficult to find free blocks in the buffer pool"
-           " ("
-        << n_iterations << " search iterations)! " << flush_failures
-        << " failed attempts to"
-           " flush a page! Consider increasing the buffer pool"
-           " size. It is also possible that in your Unix version"
-           " fsync is very slow, or completely frozen inside"
-           " the OS kernel. Then upgrading to a newer version"
-           " of your operating system may help. Look at the"
-           " number of fsyncs in diagnostic info below."
-           " Pending flushes (fsync) log: "
-        << fil_n_pending_log_flushes
-        << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
-        << os_n_file_reads << " OS file reads, " << os_n_file_writes
-        << " OS file writes, " << os_n_fsyncs
-        << " OS fsyncs. Starting InnoDB Monitor to print"
-           " further diagnostics to the standard output.";
-    if (!started_monitor) {
-      started_monitor = true;
-      srv_innodb_needs_monitoring++;
-    }
-  }
->>>>>>> mysql-8.0.29
+                                     &started_monitor);
 
   /* If we have scanned the whole LRU and still are unable to
   find a free block then we should sleep here to let the

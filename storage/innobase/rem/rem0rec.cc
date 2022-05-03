@@ -857,44 +857,6 @@ static inline bool rec_convert_dtuple_to_rec_comp(
         ut_ad(!mbmaxlen || len >= mbminlen * (fixed_len / mbmaxlen));
         ut_ad(!dfield_is_ext(field));
 #endif /* UNIV_DEBUG */
-<<<<<<< HEAD
-    } else if (dfield_is_ext(field)) {
-      ut_ad(DATA_BIG_COL(col));
-      ut_ad(len <= REC_ANTELOPE_MAX_INDEX_COL_LEN + BTR_EXTERN_FIELD_REF_SIZE);
-      *lens-- = (byte)(len >> 8) | 0xc0;
-      *lens-- = (byte)len;
-    } else {
-      /* DATA_POINT would have a fixed_len */
-      ut_ad(dtype_get_mtype(type) != DATA_POINT);
-#ifndef UNIV_HOTBACKUP
-      ut_ad(len <= dtype_get_len(type) +
-                       prtype_get_compression_extra(dtype_get_prtype(type)) ||
-            DATA_LARGE_MTYPE(dtype_get_mtype(type)) ||
-            !strcmp(index->name, FTS_INDEX_TABLE_IND_NAME));
-#endif /* !UNIV_HOTBACKUP */
-      if (len < 128 ||
-          !DATA_BIG_LEN_MTYPE(
-              dtype_get_len(type), dtype_get_mtype(type),
-              prtype_get_compression_extra(dtype_get_prtype(type)))) {
-        *lens-- = (byte)len;
-||||||| 6846e6b2f72
-    } else if (dfield_is_ext(field)) {
-      ut_ad(DATA_BIG_COL(col));
-      ut_ad(len <= REC_ANTELOPE_MAX_INDEX_COL_LEN + BTR_EXTERN_FIELD_REF_SIZE);
-      *lens-- = (byte)(len >> 8) | 0xc0;
-      *lens-- = (byte)len;
-    } else {
-      /* DATA_POINT would have a fixed_len */
-      ut_ad(dtype_get_mtype(type) != DATA_POINT);
-#ifndef UNIV_HOTBACKUP
-      ut_ad(len <= dtype_get_len(type) ||
-            DATA_LARGE_MTYPE(dtype_get_mtype(type)) ||
-            !strcmp(index->name, FTS_INDEX_TABLE_IND_NAME));
-#endif /* !UNIV_HOTBACKUP */
-      if (len < 128 ||
-          !DATA_BIG_LEN_MTYPE(dtype_get_len(type), dtype_get_mtype(type))) {
-        *lens-- = (byte)len;
-=======
       } else if (dfield_is_ext(field)) {
         ut_ad(DATA_BIG_COL(col));
         ut_ad(len <=
@@ -903,17 +865,19 @@ static inline bool rec_convert_dtuple_to_rec_comp(
         lens--;
         *lens = (byte)len;
         lens--;
->>>>>>> mysql-8.0.29
       } else {
         /* DATA_POINT would have a fixed_len */
         ut_ad(dtype_get_mtype(type) != DATA_POINT);
 #ifndef UNIV_HOTBACKUP
-        ut_ad(len <= dtype_get_len(type) ||
+        ut_ad(len <= dtype_get_len(type) +
+                         prtype_get_compression_extra(dtype_get_prtype(type)) ||
               DATA_LARGE_MTYPE(dtype_get_mtype(type)) ||
               !strcmp(index->name, FTS_INDEX_TABLE_IND_NAME));
 #endif /* !UNIV_HOTBACKUP */
         if (len < 128 ||
-            !DATA_BIG_LEN_MTYPE(dtype_get_len(type), dtype_get_mtype(type))) {
+            !DATA_BIG_LEN_MTYPE(
+                dtype_get_len(type), dtype_get_mtype(type),
+                prtype_get_compression_extra(dtype_get_prtype(type)))) {
           *lens = (byte)len;
           lens--;
         } else {

@@ -419,36 +419,6 @@ enum row_sel_match_mode {
                        of a fixed length column) */
 };
 
-<<<<<<< HEAD
-#ifdef UNIV_DEBUG
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            compress_heap, sec)                     \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, field, src, len,  \
-                                           compress_heap, sec)
-#else /* UNIV_DEBUG */
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            compress_heap, sec)                     \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len, compress_heap)
-#endif /* UNIV_DEBUG */
-
-||||||| 6846e6b2f72
-#ifdef UNIV_DEBUG
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, field, src, len,  \
-                                           sec)
-#else /* UNIV_DEBUG */
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len)
-#endif /* UNIV_DEBUG */
-
-=======
->>>>>>> mysql-8.0.29
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 @param[in,out] dest             buffer where to store; NOTE
@@ -459,87 +429,28 @@ function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 @param[in]      templ           MySQL column template. Its following fields
                                 are referenced: type, is_unsigned,
 mysql_col_len, mbminlen, mbmaxlen
-<<<<<<< HEAD
-@param[in]	index		InnoDB index */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
-                                or templ->icp_rec_field_no */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	data		data to store
-@param[in]	len		length of the data
-@param[in]	prebuilt	use prebuilt->compress_heap only here */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	sec_field	secondary index field no if the secondary index
-||||||| 6846e6b2f72
-@param[in]	index		InnoDB index */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
-                                or templ->icp_rec_field_no */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	data		data to store
-@param[in]	len		length of the data */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	sec_field	secondary index field no if the secondary index
-=======
 @param[in]      index           InnoDB index
 @param[in]      field_no        templ->rec_field_no or templ->clust_rec_field_no
                                 or templ->icp_rec_field_no
 @param[in]      data            data to store
 @param[in]      len             length of the data
+@param[in]      compress_heap
 @param[in]      sec_field       secondary index field no if the secondary index
->>>>>>> mysql-8.0.29
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
-<<<<<<< HEAD
-#endif /* UNIV_DEBUG */
-void row_sel_field_store_in_mysql_format_func(byte *dest,
-                                              const mysql_row_templ_t *templ,
-                                              const dict_index_t *index,
-#ifdef UNIV_DEBUG
-                                              ulint field_no,
-#endif /* UNIV_DEBUG */
-                                              const byte *data, ulint len,
-                                              mem_heap_t **compress_heap
-#ifdef UNIV_DEBUG
-                                              ,
-                                              ulint sec_field
-#endif /* UNIV_DEBUG */
-);
-||||||| 6846e6b2f72
-#endif /* UNIV_DEBUG */
-void row_sel_field_store_in_mysql_format_func(byte *dest,
-                                              const mysql_row_templ_t *templ,
-                                              const dict_index_t *index,
-#ifdef UNIV_DEBUG
-                                              ulint field_no,
-#endif /* UNIV_DEBUG */
-                                              const byte *data, ulint len
-#ifdef UNIV_DEBUG
-                                              ,
-                                              ulint sec_field
-#endif /* UNIV_DEBUG */
-);
-=======
 void row_sel_field_store_in_mysql_format_func(
     byte *dest, const mysql_row_templ_t *templ, const dict_index_t *index,
     IF_DEBUG(ulint field_no, ) const byte *data,
-    ulint len IF_DEBUG(, ulint sec_field));
+    ulint len, mem_heap_t **compress_heap IF_DEBUG(, ulint sec_field));
 
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
 static inline void row_sel_field_store_in_mysql_format(
     byte *dest, const mysql_row_templ_t *templ, const dict_index_t *idx,
-    ulint field, const byte *src, ulint len, ulint sec) {
+    ulint field, const byte *src, ulint len, mem_heap_t **compress_heap, ulint sec) {
   row_sel_field_store_in_mysql_format_func(
-      dest, templ, idx, IF_DEBUG(field, ) src, len IF_DEBUG(, sec));
+      dest, templ, idx, IF_DEBUG(field, ) src, len, compress_heap IF_DEBUG(, sec));
 }
->>>>>>> mysql-8.0.29
 
 /** Search the record present in innodb_table_stats table using
 db_name, table_name and fill it in table stats structure.

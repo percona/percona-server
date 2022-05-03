@@ -1106,13 +1106,7 @@ do
         sleep_state=$?
         if test $sleep_state -gt 0
         then
-<<<<<<< HEAD
-          log_notice "The server is respawning too fast and no working sleep command. Turning off throttling."
-||||||| 6846e6b2f72
-          log_notice "The server is respawning too fast and no working sleep command. Turning off trottling."
-=======
           log_notice "The server is respawning too fast and in addition no working 'sleep' command was found. Turning off throttling."
->>>>>>> mysql-8.0.29
           have_sleep=0
         fi
 

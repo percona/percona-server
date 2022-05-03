@@ -282,22 +282,10 @@ bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
   ut_ad(!index->is_clustered());
   mtr_start(&mtr);
 
-<<<<<<< HEAD
-  can_delete = !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr) ||
-               !row_vers_old_has_index_entry(
-                   TRUE, btr_pcur_get_rec(&node->pcur), &mtr, index, entry,
-                   node->roll_ptr, node->trx_id, prebuilt);
-||||||| 6846e6b2f72
-  can_delete =
-      !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr) ||
-      !row_vers_old_has_index_entry(TRUE, btr_pcur_get_rec(&node->pcur), &mtr,
-                                    index, entry, node->roll_ptr, node->trx_id);
-=======
   can_delete =
       !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr) ||
       !row_vers_old_has_index_entry(true, node->pcur.get_rec(), &mtr, index,
-                                    entry, node->roll_ptr, node->trx_id);
->>>>>>> mysql-8.0.29
+                                    entry, node->roll_ptr, node->trx_id, prebuilt);
 
   /* Persistent cursor is closed if reposition fails. */
   if (node->found_clust) {

@@ -252,32 +252,14 @@ static inline void mem_heap_free_top(mem_heap_t *heap, ulint n);
 static inline ulint mem_heap_get_size(mem_heap_t *heap); /*!< in: heap */
 
 /** Duplicates a NUL-terminated string.
-<<<<<<< HEAD
-@param[in]	str	string to be copied
-@return own: a copy of the string, must be deallocated with ut::free */
-||||||| 6846e6b2f72
-@param[in]	str	string to be copied
-@return own: a copy of the string, must be deallocated with ut_free */
-=======
 @param[in]      str     string to be copied
-@return own: a copy of the string, must be deallocated with ut_free */
->>>>>>> mysql-8.0.29
+@return own: a copy of the string, must be deallocated with ut::free */
 static inline char *mem_strdup(const char *str);
 
 /** Makes a NUL-terminated copy of a nonterminated string.
-<<<<<<< HEAD
-@param[in]	str	string to be copied
-@param[in]	len	length of str, in bytes
-@return own: a copy of the string, must be deallocated with ut::free */
-||||||| 6846e6b2f72
-@param[in]	str	string to be copied
-@param[in]	len	length of str, in bytes
-@return own: a copy of the string, must be deallocated with ut_free */
-=======
 @param[in]      str     string to be copied
 @param[in]      len     length of str, in bytes
-@return own: a copy of the string, must be deallocated with ut_free */
->>>>>>> mysql-8.0.29
+@return own: a copy of the string, must be deallocated with ut::free */
 static inline char *mem_strdupl(const char *str, ulint len);
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.

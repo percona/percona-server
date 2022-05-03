@@ -1829,15 +1829,9 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
                            DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN, true);
   }
 
-<<<<<<< HEAD
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx,
+  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx, nullptr,
                                      FIL_ENCRYPTION_DEFAULT,
                                      KeyringEncryptionKeyIdInfo());
-||||||| 6846e6b2f72
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx);
-=======
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx, nullptr);
->>>>>>> mysql-8.0.29
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -2032,15 +2026,9 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
                          (DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
                          FTS_INDEX_ILIST_LEN, true);
 
-<<<<<<< HEAD
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx,
+  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx, nullptr,
                                      FIL_ENCRYPTION_DEFAULT,
                                      KeyringEncryptionKeyIdInfo());
-||||||| 6846e6b2f72
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx);
-=======
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx, nullptr);
->>>>>>> mysql-8.0.29
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -4487,29 +4475,13 @@ dberr_t fts_sync_table(dict_table_t *table, bool unlock_cache, bool wait,
 1. for ngram token, check whether the token contains any words in stopwords
 2. for non-ngram token, check if it's stopword or less than fts_min_token_size
 or greater than fts_max_token_size.
-<<<<<<< HEAD
-@param[in]	token		token string
-@param[in]	stopwords	stopwords rb tree
-@param[in]	is_ngram	is ngram parser
-@param[in]	cs		token charset
-@param[in]	skip		true if the check should be skipped
-@retval true	if it is not stopword and length in range
-@retval false	if it is stopword or lenght not in range */
-||||||| 6846e6b2f72
-@param[in]	token		token string
-@param[in]	stopwords	stopwords rb tree
-@param[in]	is_ngram	is ngram parser
-@param[in]	cs		token charset
-@retval true	if it is not stopword and length in range
-@retval false	if it is stopword or length not in range */
-=======
 @param[in]      token           token string
 @param[in]      stopwords       stopwords rb tree
 @param[in]      is_ngram        is ngram parser
 @param[in]      cs              token charset
+@param[in]      skip            true if the check should be skipped
 @retval true    if it is not stopword and length in range
 @retval false   if it is stopword or length not in range */
->>>>>>> mysql-8.0.29
 bool fts_check_token(const fts_string_t *token, const ib_rbt_t *stopwords,
                      bool is_ngram, const CHARSET_INFO *cs, bool skip) {
   ut_ad(cs != nullptr || stopwords == nullptr);

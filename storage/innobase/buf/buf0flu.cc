@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| 6846e6b2f72
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-=======
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.29
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -208,22 +202,6 @@ static ut::unique_ptr<page_cleaner_t> page_cleaner;
 bool innodb_page_cleaner_disabled_debug;
 #endif /* UNIV_DEBUG */
 
-<<<<<<< HEAD
-||||||| 6846e6b2f72
-/** If LRU list of a buf_pool is less than this size then LRU eviction
-should not happen. This is because when we do LRU flushing we also put
-the blocks on free list. If LRU list is very small then we can end up
-in thrashing. */
-#define BUF_LRU_MIN_LEN 256
-
-=======
-/** If LRU list of a buf_pool is less than this size then LRU eviction
-should not happen. This is because when we do LRU flushing we also put
-the blocks on free list. If LRU list is very small then we can end up
-in thrashing. */
-constexpr uint32_t BUF_LRU_MIN_LEN = 256;
-
->>>>>>> mysql-8.0.29
 /** Flush a batch of writes to the datafiles that have already been
 written to the dblwr buffer on disk. */
 static void buf_flush_sync_datafiles() {
@@ -1790,25 +1768,13 @@ The calling thread is not allowed to own any latches on pages!
 It attempts to make 'max' blocks available in the free list. Note that
 it is a best effort attempt and it is not guaranteed that after a call
 to this function there will be 'max' blocks in the free list.
-<<<<<<< HEAD
-@param[in]	buf_pool	buffer pool instance
-@param[in]	max		desired number for blocks in the free_list
+@param[in]      buf_pool        buffer pool instance
+@param[in]      max             desired number for blocks in the free_list
 @return pair of numbers where first number is the blocks for which
 flush request is queued and second is the number of blocks that were
 clean and simply evicted from the LRU. */
 static std::pair<ulint, ulint> buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
                                                         ulint max) {
-||||||| 6846e6b2f72
-@param[in]	buf_pool	buffer pool instance
-@param[in]	max		desired number for blocks in the free_list
-@return number of blocks for which the write request was queued. */
-static ulint buf_flush_LRU_list_batch(buf_pool_t *buf_pool, ulint max) {
-=======
-@param[in]      buf_pool        buffer pool instance
-@param[in]      max             desired number for blocks in the free_list
-@return number of blocks for which the write request was queued. */
-static ulint buf_flush_LRU_list_batch(buf_pool_t *buf_pool, ulint max) {
->>>>>>> mysql-8.0.29
   buf_page_t *bpage;
   ulint scanned = 0;
   ulint evict_count = 0;
@@ -2037,39 +2003,7 @@ static std::pair<ulint, ulint> buf_flush_batch(buf_pool_t *buf_pool,
              ("flush %u completed, flushed %u pages, evicted %u pages",
               unsigned(flush_type), unsigned(res.first), unsigned(res.second)));
 
-<<<<<<< HEAD
   return (res);
-||||||| 6846e6b2f72
-  return (count);
-}
-
-/** Gather the aggregated stats for both flush list and LRU list flushing.
- @param page_count_flush	number of pages flushed from the end of the
- flush_list
- @param page_count_LRU	number of pages flushed from the end of the LRU list
- */
-static void buf_flush_stats(ulint page_count_flush, ulint page_count_LRU) {
-  DBUG_PRINT("ib_buf", ("flush completed, from flush_list %u pages, "
-                        "from LRU_list %u pages",
-                        unsigned(page_count_flush), unsigned(page_count_LRU)));
-
-  srv_stats.buf_pool_flushed.add(page_count_flush + page_count_LRU);
-=======
-  return (count);
-}
-
-/** Gather the aggregated stats for both flush list and LRU list flushing.
- @param page_count_flush        number of pages flushed from the end of the
- flush_list
- @param page_count_LRU  number of pages flushed from the end of the LRU list
- */
-static void buf_flush_stats(ulint page_count_flush, ulint page_count_LRU) {
-  DBUG_PRINT("ib_buf", ("flush completed, from flush_list %u pages, "
-                        "from LRU_list %u pages",
-                        unsigned(page_count_flush), unsigned(page_count_LRU)));
-
-  srv_stats.buf_pool_flushed.add(page_count_flush + page_count_LRU);
->>>>>>> mysql-8.0.29
 }
 
 /** Start a buffer flush batch for LRU or flush list
@@ -2099,22 +2033,12 @@ static bool buf_flush_start(buf_pool_t *buf_pool, buf_flush_t flush_type) {
 }
 
 /** End a buffer flush batch for LRU or flush list
-<<<<<<< HEAD
-@param[in]	buf_pool	buffer pool instance
-@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
-@param[in]	flushed_page_count number of dirty pages whose writes have been
+@param[in]      buf_pool        buffer pool instance
+@param[in]      flush_type      BUF_FLUSH_LRU or BUF_FLUSH_LIST
+@param[in]     flushed_page_count      number of dirty pages whose writes have been
 queued by this flush. */
 static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type,
                           ulint flushed_page_count) {
-||||||| 6846e6b2f72
-@param[in]	buf_pool	buffer pool instance
-@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST */
-static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
-=======
-@param[in]      buf_pool        buffer pool instance
-@param[in]      flush_type      BUF_FLUSH_LRU or BUF_FLUSH_LIST */
-static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
->>>>>>> mysql-8.0.29
   mutex_enter(&buf_pool->flush_state_mutex);
 
   buf_pool->init_flush[flush_type] = false;
@@ -2925,7 +2849,6 @@ bool buf_flush_page_cleaner_is_active() {
   return (srv_thread_is_active(srv_threads.m_page_cleaner_coordinator));
 }
 
-<<<<<<< HEAD
 /** Returns the count of currently active LRU manager threads. */
 size_t buf_flush_active_lru_managers() noexcept {
   size_t count = 0;
@@ -2935,16 +2858,7 @@ size_t buf_flush_active_lru_managers() noexcept {
   return count;
 }
 
-/** Initialize page_cleaner.
-@param[in]	n_page_cleaners	Number of page cleaner threads to create */
-void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
-||||||| 6846e6b2f72
-/** Initialize page_cleaner.
-@param[in]	n_page_cleaners	Number of page cleaner threads to create */
-void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
-=======
 void buf_flush_page_cleaner_init() {
->>>>>>> mysql-8.0.29
   ut_ad(page_cleaner == nullptr);
 
   page_cleaner = ut::make_unique<page_cleaner_t>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -3005,13 +2919,7 @@ static void buf_flush_page_cleaner_close(void) {
 
 /**
 Requests for all slots to flush all buffer pool instances.
-<<<<<<< HEAD
-@param min_n	wished minimum number of flush list blocks flushed
-||||||| 6846e6b2f72
-@param min_n	wished minimum number of blocks flushed
-=======
-@param min_n    wished minimum number of blocks flushed
->>>>>>> mysql-8.0.29
+@param min_n    wished minimum number of flush list blocks flushed
                 (it is not guaranteed that the actual number is that big)
 @param lsn_limit in the case BUF_FLUSH_LIST all blocks whose
                 oldest_modification is smaller than this should be flushed
@@ -3141,26 +3049,10 @@ static ulint pc_flush_slot(void) {
 
 /**
 Wait until all flush requests are finished.
-<<<<<<< HEAD
-@param n_flushed_list	number of pages flushed from the end of the
-||||||| 6846e6b2f72
-@param n_flushed_lru	number of pages flushed from the end of the LRU list.
-@param n_flushed_list	number of pages flushed from the end of the
-=======
-@param n_flushed_lru    number of pages flushed from the end of the LRU list.
 @param n_flushed_list   number of pages flushed from the end of the
->>>>>>> mysql-8.0.29
                         flush_list.
-<<<<<<< HEAD
-@return			true if all flush_list flushing batch were success. */
-static bool pc_wait_finished(ulint *n_flushed_list) {
-||||||| 6846e6b2f72
-@return			true if all flush_list flushing batch were success. */
-static bool pc_wait_finished(ulint *n_flushed_lru, ulint *n_flushed_list) {
-=======
 @return                 true if all flush_list flushing batch were success. */
-static bool pc_wait_finished(ulint *n_flushed_lru, ulint *n_flushed_list) {
->>>>>>> mysql-8.0.29
+static bool pc_wait_finished(ulint *n_flushed_list) {
   bool all_succeeded = true;
 
   *n_flushed_list = 0;
@@ -3199,19 +3091,9 @@ static bool pc_wait_finished(ulint *n_flushed_lru, ulint *n_flushed_list) {
 
 #ifdef UNIV_LINUX
 /**
-<<<<<<< HEAD
 Set priority for page_cleaner and LRU manager threads.
-@param[in]	priority	priority intended to set
-@return	true if set as intended */
-||||||| 6846e6b2f72
-Set priority for page_cleaner threads.
-@param[in]	priority	priority intended to set
-@return	true if set as intended */
-=======
-Set priority for page_cleaner threads.
 @param[in]      priority        priority intended to set
 @return true if set as intended */
->>>>>>> mysql-8.0.29
 static bool buf_flush_page_cleaner_set_priority(int priority) {
   setpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid), priority);
   return (getpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid)) == priority);
@@ -3256,27 +3138,7 @@ static void buf_flush_page_cleaner_disabled_loop(void) {
   mutex_exit(&page_cleaner->mutex);
 }
 
-<<<<<<< HEAD
-/** Disables page cleaner threads (coordinator and workers) and LRU manager
-threads. It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
-void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
-                                                  void *var_ptr,
-||||||| 6846e6b2f72
-/** Disables page cleaner threads (coordinator and workers).
-It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
-void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
-                                                  void *var_ptr,
-=======
 void buf_flush_page_cleaner_disabled_debug_update(THD *, SYS_VAR *, void *,
->>>>>>> mysql-8.0.29
                                                   const void *save) {
   if (page_cleaner == nullptr) {
     return;
@@ -3385,58 +3247,12 @@ static void buf_flush_page_coordinator_thread() {
       break;
     }
 
-<<<<<<< HEAD
     /* Flush all pages */
     do {
       pc_request(ULINT_MAX, LSN_MAX);
       while (pc_flush_slot() > 0) {
       }
     } while (!pc_wait_finished(&n_flushed_list));
-||||||| 6846e6b2f72
-    switch (recv_sys->flush_type) {
-      case BUF_FLUSH_LRU:
-        /* Flush pages from end of LRU if required */
-        pc_request(0, LSN_MAX);
-        while (pc_flush_slot() > 0) {
-        }
-        pc_wait_finished(&n_flushed_lru, &n_flushed_list);
-        break;
-
-      case BUF_FLUSH_LIST:
-        /* Flush all pages */
-        do {
-          pc_request(ULINT_MAX, LSN_MAX);
-          while (pc_flush_slot() > 0) {
-          }
-        } while (!pc_wait_finished(&n_flushed_lru, &n_flushed_list));
-        break;
-
-      default:
-        ut_ad(0);
-    }
-=======
-    switch (recv_sys->flush_type) {
-      case BUF_FLUSH_LRU:
-        /* Flush pages from end of LRU if required */
-        pc_request(0, LSN_MAX);
-        while (pc_flush_slot() > 0) {
-        }
-        pc_wait_finished(&n_flushed_lru, &n_flushed_list);
-        break;
-
-      case BUF_FLUSH_LIST:
-        /* Flush all pages */
-        do {
-          pc_request(ULINT_MAX, LSN_MAX);
-          while (pc_flush_slot() > 0) {
-          }
-        } while (!pc_wait_finished(&n_flushed_lru, &n_flushed_list));
-        break;
-
-      default:
-        ut_d(ut_error);
-    }
->>>>>>> mysql-8.0.29
 
     os_event_reset(recv_sys->flush_start);
     os_event_set(recv_sys->flush_end);

@@ -382,51 +382,6 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
 
     // 1. Fetch value into local variable var_value.
 
-<<<<<<< HEAD
-  // 1. Fetch value into local variable var_value.
-
-  const char *var_value = val_buf;
-  if (setvar->type == OPT_PERSIST_ONLY) {
-    String str(val_buf, sizeof(val_buf), system_charset_info), *res;
-    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-    uint dummy_err;
-    String bool_str;
-    if (setvar->value) {
-      setvar->var->persist_only_to_string(thd, setvar, &str);
-      res = &str;
-
-      if (res && res->length()) {
-        /*
-          value held by Item class can be of different charset,
-          so convert to utf8mb4
-        */
-||||||| 6846e6b2f72
-  // 1. Fetch value into local variable var_value.
-
-  const char *var_value = val_buf;
-  if (setvar->type == OPT_PERSIST_ONLY) {
-    String str(val_buf, sizeof(val_buf), system_charset_info), *res;
-    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-    uint dummy_err;
-    String bool_str;
-    if (setvar->value) {
-      res = setvar->value->val_str(&str);
-      if (system_var->get_var_type() == GET_BOOL) {
-        if (res == nullptr ||
-            check_boolean_value(res->c_ptr_quick(), bool_str)) {
-          my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var_name,
-                   (res ? res->c_ptr_quick() : "null"));
-          return true;
-        } else {
-          res = &bool_str;
-        }
-      }
-      if (res && res->length()) {
-        /*
-          value held by Item class can be of different charset,
-          so convert to utf8mb4
-        */
-=======
     const char *var_value = val_buf;
     if (setvar->type == OPT_PERSIST_ONLY) {
       String str(val_buf, sizeof(val_buf), system_charset_info), *res;
@@ -434,17 +389,8 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       uint dummy_err;
       String bool_str;
       if (setvar->value) {
-        res = setvar->value->val_str(&str);
-        if (system_var->get_var_type() == GET_BOOL) {
-          if (res == nullptr ||
-              check_boolean_value(res->c_ptr_quick(), bool_str)) {
-            my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var_name.c_str(),
-                     (res ? res->c_ptr_quick() : "null"));
-            return true;
-          } else {
-            res = &bool_str;
-          }
-        }
+        setvar->var->persist_only_to_string(thd, setvar, &str);
+        res = &str;
         if (res && res->length()) {
           /*
             value held by Item class can be of different charset,
@@ -463,41 +409,17 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
           check_boolean_value(res->c_ptr_quick(), bool_str);
           res = &bool_str;
         }
->>>>>>> mysql-8.0.29
         utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
                       &dummy_err);
         var_value = utf8_str.c_ptr_quick();
       }
     } else {
-<<<<<<< HEAD
       // Persist default value. Need to use this approach to set default value
       // for persist_only variable. The save_default() does nothing for
       // plugin variable. As a result persist_only_to_string()
       // cannot be used here.
-      setvar->var->save_default(thd, setvar);
-      setvar->var->saved_value_to_string(thd, setvar, str.ptr());
-      res = &str;
-      if (system_var->get_var_type() == GET_BOOL) {
-        check_boolean_value(res->c_ptr_quick(), bool_str);
-        res = &bool_str;
-      }
-      utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
-                    &dummy_err);
-||||||| 6846e6b2f72
-      /* persist default value */
-      setvar->var->save_default(thd, setvar);
-      setvar->var->saved_value_to_string(thd, setvar, str.ptr());
-      res = &str;
-      if (system_var->get_var_type() == GET_BOOL) {
-        check_boolean_value(res->c_ptr_quick(), bool_str);
-        res = &bool_str;
-      }
-      utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
-                    &dummy_err);
-=======
       Persisted_variables_cache::get_variable_value(thd, system_var, &utf8_str,
                                                     &is_null);
->>>>>>> mysql-8.0.29
       var_value = utf8_str.c_ptr_quick();
     }
 

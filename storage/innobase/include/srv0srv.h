@@ -1171,13 +1171,11 @@ void srv_export_innodb_status(void);
  reading this value as it is only used in heuristics.
  @return activity count. */
 ulint srv_get_activity_count(void);
-<<<<<<< HEAD
 /** Check if there has been any activity. Considers background change
 buffer merge as regular server activity unless a non-default
 old_ibuf_merge_activity_count value is passed, in which case the merge
 will be treated as keeping server idle.
-@return false if no change in
-activity counter. */
+@return false if no change in activity counter. */
 bool srv_check_activity(
     ulint old_activity_count, /*!< old activity count */
     /*!< old change buffer merge
@@ -1189,19 +1187,6 @@ bool srv_check_activity(
 @param[in]	ibuf_merge_activity	whether this activity bump is caused by
 the background change buffer merge */
 void srv_inc_activity_count(bool ibuf_merge_activity = false) noexcept;
-||||||| 6846e6b2f72
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-ibool srv_check_activity(ulint old_activity_count); /*!< old activity count */
-/** Increment the server activity counter. */
-void srv_inc_activity_count(void);
-=======
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-bool srv_check_activity(ulint old_activity_count); /*!< old activity count */
-/** Increment the server activity counter. */
-void srv_inc_activity_count(void);
->>>>>>> mysql-8.0.29
 
 /** Enqueues a task to server task queue and releases a worker thread, if there
 is a suspended one. */
@@ -1228,36 +1213,11 @@ void srv_worker_thread();
 @param[in] space_id     Undo tablespace id
 @param[in] mtr          Mini-transaction
 @return false for success, true otherwise */
-<<<<<<< HEAD
-bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
-                                    bool is_boot);
-||||||| 6846e6b2f72
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
-                                    bool is_boot);
-=======
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr);
->>>>>>> mysql-8.0.29
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr);
 
 /** Enable UNDO tablespaces encryption.
 @return false for success, true otherwise. */
-<<<<<<< HEAD
-bool srv_enable_undo_encryption(THD *thd, bool is_boot);
-||||||| 6846e6b2f72
-bool srv_enable_undo_encryption(bool is_boot);
-
-/** Enable REDO log encryption.
-@param[in] is_boot	true if it is called during server start up. In this
-                        case, default master key will be used which will be
-                        rotated later with actual master key from keyring.
-@return false for success, true otherwise. */
-bool srv_enable_redo_encryption(bool is_boot);
-=======
-bool srv_enable_undo_encryption();
-
-/** Enable REDO log encryption.
-@return false for success, true otherwise. */
-bool srv_enable_redo_encryption();
->>>>>>> mysql-8.0.29
+bool srv_enable_undo_encryption(THD *thd);
 
 /** Get count of tasks in the queue.
  @return number of tasks in queue */
@@ -1313,7 +1273,8 @@ bool srv_enable_redo_encryption_mk(THD *thd);
  * SET innodb_redo_log_encrypt = RK. */
 bool srv_enable_redo_encryption_rk(THD *thd);
 
-/** Enables redo log encryption based on srv_redo_log_encrypt. */
+/** Enables REDO log encryption based on srv_redo_log_encrypt.
+@return false for success, true otherwise. */
 bool srv_enable_redo_encryption(THD *thd);
 
 /** Set redo log variable for performance schema global status.

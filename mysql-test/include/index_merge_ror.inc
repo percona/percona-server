@@ -131,20 +131,14 @@ analyze table t1;
 -- enable_query_log
 
 --echo # One row results tests for cases where a single row matches all conditions
-<<<<<<< HEAD
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
   explain select key1,key2 from t1 where key1=100 and key2=100;
 }
-||||||| 6846e6b2f72
-explain select key1,key2 from t1 where key1=100 and key2=100;
-=======
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 10 # 11 #
-}
-explain select key1,key2 from t1 where key1=100 and key2=100;
->>>>>>> mysql-8.0.29
 select key1,key2 from t1 where key1=100 and key2=100;
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
@@ -171,37 +165,25 @@ analyze table t1;
 -- enable_query_log
 
 --echo #  ROR-intersection, not covering
-<<<<<<< HEAD
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
   explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
 }
-||||||| 6846e6b2f72
-explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
-=======
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 10 # 11 #
-}
-explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
->>>>>>> mysql-8.0.29
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
 
 --echo #  ROR-intersection, covering
-<<<<<<< HEAD
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
   explain select key1,key2 from t1 where key1=100 and key2=100;
 }
-||||||| 6846e6b2f72
-explain select key1,key2 from t1 where key1=100 and key2=100;
-=======
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 10 # 11 #
-}
-explain select key1,key2 from t1 where key1=100 and key2=100;
->>>>>>> mysql-8.0.29
 select key1,key2 from t1 where key1=100 and key2=100;
 
 --echo #  ROR-union of ROR-intersections
@@ -286,20 +268,14 @@ if (!$skip_ror_EXPLAIN_for_MyRocks)
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 --echo # ROR-intersection with empty result
-<<<<<<< HEAD
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
   explain select key1,key2 from t1 where key1=100 and key2=100;
 }
-||||||| 6846e6b2f72
-explain select key1,key2 from t1 where key1=100 and key2=100;
-=======
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 10 # 11 #
-}
-explain select key1,key2 from t1 where key1=100 and key2=100;
->>>>>>> mysql-8.0.29
 select key1,key2 from t1 where key1=100 and key2=100;
 
 --echo # ROR-union tests with various cases.

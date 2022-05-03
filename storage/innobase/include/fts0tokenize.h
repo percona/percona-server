@@ -67,34 +67,6 @@ struct FT_WORD {
 
 /** Tokenizer for ngram referring to ft_get_word(ft_parser.c) in MyISAM.
 Differences: a. code format changed; b. stopword processing removed.
-<<<<<<< HEAD
-@param[in]	cs	charset
-@param[in,out]	start	doc start pointer
-@param[in,out]	end	doc end pointer
-@param[in,out]	word	token
-@param[in,out]	info	token info
-@retval	0	eof
-@retval	1	word found
-@retval	2	left bracket
-@retval	3	right bracket
-@retval	4	stopword found */
-inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
-                          uchar **start, uchar *end, FT_WORD *word,
-                          MYSQL_FTPARSER_BOOLEAN_INFO *info) {
-||||||| 6846e6b2f72
-@param[in]	cs	charset
-@param[in,out]	start	doc start pointer
-@param[in,out]	end	doc end pointer
-@param[in,out]	word	token
-@param[in,out]	info	token info
-@retval	0	eof
-@retval	1	word found
-@retval	2	left bracket
-@retval	3	right bracket
-@retval	4	stopword found */
-inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
-                          FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *info) {
-=======
 @param[in]      cs      charset
 @param[in,out]  start   doc start pointer
 @param[in,out]  end     doc end pointer
@@ -105,9 +77,9 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
 @retval 2       left bracket
 @retval 3       right bracket
 @retval 4       stopword found */
-inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
-                          FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *info) {
->>>>>>> mysql-8.0.29
+inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
+                          uchar **start, uchar *end, FT_WORD *word,
+                          MYSQL_FTPARSER_BOOLEAN_INFO *info) {
   uchar *doc = *start;
   int ctype;
   uint length;
@@ -179,19 +151,11 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
          length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, doc, end);
 
-<<<<<<< HEAD
       if (extra_word_chars && *doc == FTB_RQUOT) {
         break;
-      } else if (true_word_char(ctype, extra_word_chars, *doc)) {
-        mwc = 0;
-      } else if (!misc_word_char(*doc) || mwc) {
-||||||| 6846e6b2f72
-      if (true_word_char(ctype, *doc)) {
-        mwc = 0;
-      } else if (!misc_word_char(*doc) || mwc) {
-=======
-      if (!true_word_char(ctype, *doc)) {
->>>>>>> mysql-8.0.29
+      }
+      
+      if (!true_word_char(ctype, extra_word_chars, *doc)) {
         break;
       }
     }

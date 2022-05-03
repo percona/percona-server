@@ -1313,52 +1313,34 @@ PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-<<<<<<< HEAD
 SET @cmd = CONCAT("ALTER TABLE mysql.tables_priv ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-||||||| 6846e6b2f72
-=======
 SET SESSION innodb_strict_mode=OFF;
->>>>>>> mysql-8.0.29
 SET @cmd="ALTER TABLE mysql.tables_priv TABLESPACE = mysql";
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-<<<<<<< HEAD
-SET @cmd = CONCAT("ALTER TABLE mysql.columns_priv ENCRYPTION='", @is_mysql_encrypted, "'");
-PREPARE stmt FROM @cmd;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
-||||||| 6846e6b2f72
-
-SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
-=======
-SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
->>>>>>> mysql-8.0.29
-PREPARE stmt FROM @cmd;
-EXECUTE stmt;
-DROP PREPARE stmt;
-SET SESSION innodb_strict_mode=DEFAULT;
-
-<<<<<<< HEAD
 SET @cmd = CONCAT("ALTER TABLE mysql.procs_priv ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
-||||||| 6846e6b2f72
-SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
-=======
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET SESSION innodb_strict_mode=DEFAULT;
+
+SET @cmd = CONCAT("ALTER TABLE mysql.columns_priv ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
->>>>>>> mysql-8.0.29
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;

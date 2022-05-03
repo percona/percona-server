@@ -519,18 +519,10 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   /* Write encryption information into the first log file header
   if redo log is set with encryption. */
   if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags) &&
-<<<<<<< HEAD
-      !log_write_encryption(
-          log_space->encryption_key, log_space->encryption_iv, true,
-          static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt),
-          log_space->encryption_key_version)) {
-||||||| 6846e6b2f72
-      !log_write_encryption(log_space->encryption_key, log_space->encryption_iv,
-                            true)) {
-=======
       !log_write_encryption(log_space->encryption_key,
-                            log_space->encryption_iv)) {
->>>>>>> mysql-8.0.29
+                            log_space->encryption_iv,
+                            static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt),
+                            log_space->encryption_key_version)) {
     return (DB_ERROR);
   }
 
@@ -1383,13 +1375,7 @@ static dberr_t srv_undo_tablespaces_construct() {
   }
 
   if (srv_undo_log_encrypt) {
-<<<<<<< HEAD
-    ut_d(bool ret =) srv_enable_undo_encryption(nullptr, false);
-||||||| 6846e6b2f72
-    ut_d(bool ret =) srv_enable_undo_encryption(false);
-=======
-    ut_d(bool ret =) srv_enable_undo_encryption();
->>>>>>> mysql-8.0.29
+    ut_d(bool ret =) srv_enable_undo_encryption(nullptr);
     ut_ad(!ret);
   }
 
@@ -1749,13 +1735,7 @@ static dberr_t srv_open_tmp_tablespace(bool create_new_db,
       mtr_start(&mtr);
       mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-<<<<<<< HEAD
-      fsp_header_init(tmp_space->space_id(), size, &mtr, true);
-||||||| 6846e6b2f72
-      fsp_header_init(tmp_space->space_id(), size, &mtr, false);
-=======
       fsp_header_init(tmp_space->space_id(), size, &mtr);
->>>>>>> mysql-8.0.29
 
       mtr_commit(&mtr);
     } else {
@@ -2755,13 +2735,7 @@ files_checked:
 
     mtr_start(&mtr);
 
-<<<<<<< HEAD
-    bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr, true);
-||||||| 6846e6b2f72
-    bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr, false);
-=======
     bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr);
->>>>>>> mysql-8.0.29
 
     mtr_commit(&mtr);
 
@@ -3245,18 +3219,8 @@ files_checked:
       srv_threads.m_monitor =
           os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
 
-<<<<<<< HEAD
       srv_threads.m_monitor.start();
     }
-
-    srv_start_state_set(SRV_START_STATE_MONITOR);
-||||||| 6846e6b2f72
-    srv_threads.m_monitor.start();
-
-    srv_start_state_set(SRV_START_STATE_MONITOR);
-=======
-    srv_threads.m_monitor.start();
->>>>>>> mysql-8.0.29
   }
 
   /* wake main loop of page cleaner up */

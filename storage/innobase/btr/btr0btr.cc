@@ -996,7 +996,6 @@ ulint btr_create(ulint type, space_id_t space, space_index_t index_id,
 
 /** Free a B-tree except the root page. The root page MUST be freed after
 this by calling btr_free_root.
-<<<<<<< HEAD
 @param[in,out]	block		root page
 @param[in]	log_mode	mtr logging mode
 @param[in]	is_ahi_allowed	false for intrinsic tables because AHI
@@ -1004,18 +1003,7 @@ this by calling btr_free_root.
                                 true for other tables */
 static void btr_free_but_not_root(buf_block_t *block, mtr_log_t log_mode,
                                   bool is_ahi_allowed) {
-  ibool finished;
-||||||| 6846e6b2f72
-@param[in,out]	block		root page
-@param[in]	log_mode	mtr logging mode */
-static void btr_free_but_not_root(buf_block_t *block, mtr_log_t log_mode) {
-  ibool finished;
-=======
-@param[in,out]  block           root page
-@param[in]      log_mode        mtr logging mode */
-static void btr_free_but_not_root(buf_block_t *block, mtr_log_t log_mode) {
   bool finished;
->>>>>>> mysql-8.0.29
   mtr_t mtr;
 
   ut_ad(page_is_root(block->frame));
@@ -1097,21 +1085,11 @@ void btr_free_if_exists(const page_id_t &page_id, const page_size_t &page_size,
 }
 
 /** Free an index tree in a temporary tablespace.
-<<<<<<< HEAD
-@param[in]	page_id		root page id
-@param[in]	page_size	page size
-@param[in]	is_intrinsic	true for intrinsic tables else false */
+@param[in]      page_id		root page id
+@param[in]      page_size	page size
+@param[in]      is_intrinsic	true for intrinsic tables else false */
 void btr_free(const page_id_t &page_id, const page_size_t &page_size,
               bool is_intrinsic) {
-||||||| 6846e6b2f72
-@param[in]	page_id		root page id
-@param[in]	page_size	page size */
-void btr_free(const page_id_t &page_id, const page_size_t &page_size) {
-=======
-@param[in]      page_id         root page id
-@param[in]      page_size       page size */
-void btr_free(const page_id_t &page_id, const page_size_t &page_size) {
->>>>>>> mysql-8.0.29
   mtr_t mtr;
   mtr.start();
   mtr.set_log_mode(MTR_LOG_NO_REDO);
@@ -4648,19 +4626,13 @@ bool btr_validate_index(
 
   bool ok = true;
   page_t *root = btr_root_get(index, &mtr);
-<<<<<<< HEAD
 
   SRV_CORRUPT_TABLE_CHECK(root, {
     mtr_commit(&mtr);
     return (false);
   });
 
-  ulint n = btr_page_get_level(root, &mtr);
-||||||| 6846e6b2f72
-  ulint n = btr_page_get_level(root, &mtr);
-=======
   ulint n = btr_page_get_level(root);
->>>>>>> mysql-8.0.29
 
   for (ulint i = 0; i <= n; ++i) {
     if (!btr_validate_level(index, trx, n - i, lockout)) {

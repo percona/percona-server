@@ -44,33 +44,17 @@ flag is cleared and the x-lock released by an i/o-handler thread.
                                 if we are trying to read from a non-existent
                                 tablespace or a tablespace which is just now
                                 being dropped
-<<<<<<< HEAD
-@param[in]	sync		whether synchronous aio is desired
-@param[in]	type		Request type
-@param[in]	mode		BUF_READ_IBUF_PAGES_ONLY, ...
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	unzip		true=request uncompressed page
-@param[in]	should_buffer	whether to buffer an aio request. AIO read
-                                ahead uses this. If you plan to use this
-                                parameter, make sure you remember to call
-                                os_aio_dispatch_read_array_submit() when you're
-                                ready to commit all your requests.
-||||||| 6846e6b2f72
-@param[in]	sync		whether synchronous aio is desired
-@param[in]	type		Request type
-@param[in]	mode		BUF_READ_IBUF_PAGES_ONLY, ...
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	unzip		true=request uncompressed page
-=======
 @param[in]      sync            whether synchronous aio is desired
 @param[in]      type            Request type
 @param[in]      mode            BUF_READ_IBUF_PAGES_ONLY, ...
 @param[in]      page_id         page id
 @param[in]      page_size       page size
 @param[in]      unzip           true=request uncompressed page
->>>>>>> mysql-8.0.29
+@param[in]      should_buffer   whether to buffer an aio request. AIO read
+                                ahead uses this. If you plan to use this
+                                parameter, make sure you remember to call
+                                os_aio_dispatch_read_array_submit() when you're
+                                ready to commit all your requests.
 @return 1 if a read request was queued, 0 if the page already resided in
 buf_pool, or if the page is in the doublewrite buffer blocks in which case it
 is never read into the pool, or if the tablespace does not exist or is being

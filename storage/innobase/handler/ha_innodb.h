@@ -1381,7 +1381,6 @@ void innobase_build_v_templ_callback(const TABLE *table, void *ib_table);
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE *, void *);
 
-<<<<<<< HEAD
 /** This function builds a translation table in INNOBASE_SHARE
 structure for fast index location with mysql array number from its
 table->key_info structure. This also provides the necessary
@@ -1404,12 +1403,9 @@ bool innobase_build_index_translation(const TABLE *table,
 uint innodb_force_index_records_in_range(THD *thd);
 uint innodb_records_in_range(THD *thd);
 
-||||||| 6846e6b2f72
-=======
 /** Drop the statistics for a specified table, and mark it as discard
 after DDL
 @param[in,out]  thd     THD object
 @param[in,out]  table   InnoDB table object */
 void innobase_discard_table(THD *thd, dict_table_t *table);
->>>>>>> mysql-8.0.29
 #endif /* ha_innodb_h */

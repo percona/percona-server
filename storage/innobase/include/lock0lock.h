@@ -911,27 +911,6 @@ dberr_t lock_trx_handle_wait(trx_t *trx); /*!< in/out: trx lock state */
 
 /** Set the lock system timeout event. */
 void lock_set_timeout_event();
-<<<<<<< HEAD
-
-#ifdef UNIV_DEBUG
-/** Checks that a transaction id is sensible, i.e., not in the future.
- @return true if ok */
-[[nodiscard]] bool lock_check_trx_id_sanity(
-    trx_id_t trx_id,           /*!< in: trx id */
-    const rec_t *rec,          /*!< in: user record */
-    const dict_index_t *index, /*!< in: index */
-    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
-||||||| 6846e6b2f72
-#ifdef UNIV_DEBUG
-/** Checks that a transaction id is sensible, i.e., not in the future.
- @return true if ok */
-[[nodiscard]] bool lock_check_trx_id_sanity(
-    trx_id_t trx_id,           /*!< in: trx id */
-    const rec_t *rec,          /*!< in: user record */
-    const dict_index_t *index, /*!< in: index */
-    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
-=======
->>>>>>> mysql-8.0.29
 
 /** Checks that a transaction id is sensible, i.e., not in the future.
 Emits an error otherwise.

@@ -1523,7 +1523,6 @@ the dictionary.
 @return true if it does. */
 bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table);
 
-<<<<<<< HEAD
 bool dd_is_table_in_encrypted_tablespace(const char *name);
 
 /* Sets tablespace's DD online encryption flag.
@@ -1565,8 +1564,7 @@ bool dd_clear_encryption_flag(THD *thd, const char *space_name,
 @param[in] Thread       THD
 @param[in] space_flags  with correct encryption flag */
 bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd, uint32_t space_flags);
-||||||| 6846e6b2f72
-=======
+
 /** Parse the default value from dd::Column::se_private to dict_col_t
 @param[in]      se_private_data dd::Column::se_private
 @param[in,out]  col             InnoDB column object
@@ -1611,7 +1609,6 @@ void get_field_types(const dd::Table *dd_tab, const dict_table_t *m_table,
                      const Field *field, unsigned &col_len, ulint &mtype,
                      ulint &prtype);
 #endif
->>>>>>> mysql-8.0.29
 
 #include "dict0dd.ic"
 #endif

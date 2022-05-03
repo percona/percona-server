@@ -264,12 +264,8 @@ extern ulong expire_logs_days;
 extern ulong max_slowlog_size;
 extern ulong max_slowlog_files;
 extern ulong binlog_expire_logs_seconds;
-<<<<<<< HEAD
 extern ulonglong binlog_space_limit;
-||||||| 6846e6b2f72
-=======
 extern bool opt_binlog_expire_logs_auto_purge;
->>>>>>> mysql-8.0.29
 extern uint sync_binlog_period, sync_relaylog_period, sync_relayloginfo_period,
     sync_masterinfo_period, opt_mta_checkpoint_period, opt_mta_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;

@@ -366,37 +366,19 @@ void row_mysql_unfreeze_data_dictionary(trx_t *trx); /*!< in/out: transaction */
 kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in,out]	table		table definition(will be freed, or on
                                 DB_SUCCESS added to the data dictionary cache)
-<<<<<<< HEAD
-@param[in]	compression	compression algorithm to use, can be nullptr
-@param[in]	create_info     HA_CREATE_INFO object
-@param[in,out]	trx		transaction
-@param[in]	mode		keyring encryption mode
-@param[in]	keyring_encryption_key_id	keyring encryption info
-||||||| 6846e6b2f72
-@param[in]	compression	compression algorithm to use, can be nullptr
-@param[in]	create_info     HA_CREATE_INFO object
-@param[in,out]	trx		transaction
-=======
 @param[in]      compression     compression algorithm to use, can be nullptr
 @param[in]      create_info     HA_CREATE_INFO object
 @param[in,out]  trx             transaction
 @param[in]      heap            temp memory heap or nullptr
->>>>>>> mysql-8.0.29
+@param[in]      mode            keyring encryption mode
+@param[in]      keyring_encryption_key_id       keyring encryption info
 @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t row_create_table_for_mysql(
-<<<<<<< HEAD
-    dict_table_t *table, const char *compression,
-    const HA_CREATE_INFO *create_info, trx_t *trx,
+    dict_table_t *&table, const char *compression,
+    const HA_CREATE_INFO *create_info, trx_t *trx, mem_heap_t *heap,
     const fil_encryption_t mode, /*!< in: encryption mode */
     const KeyringEncryptionKeyIdInfo
         &keyring_encryption_key_id); /*!< in: encryption key_id */
-||||||| 6846e6b2f72
-    dict_table_t *table, const char *compression,
-    const HA_CREATE_INFO *create_info, trx_t *trx);
-=======
-    dict_table_t *&table, const char *compression,
-    const HA_CREATE_INFO *create_info, trx_t *trx, mem_heap_t *heap);
->>>>>>> mysql-8.0.29
 
 /** Does an index creation operation for MySQL. TODO: currently failure
  to create an index results in dropping the whole table! This is no problem
@@ -647,30 +629,9 @@ struct row_prebuilt_t {
                                columns through a secondary index
                                and at least one column is not in
                                the secondary index, then this is
-<<<<<<< HEAD
-                                        set to TRUE; note that sometimes this
-                                        is set but we later optimize out the
-                                        clustered index lookup */
-  unsigned templ_contains_blob : 1;        /*!< TRUE if the template contains
-                                               a column with DATA_LARGE_MTYPE(
-                                               get_innobase_type_from_mysql_type())
-                                               is TRUE;
-                                               not to be confused with InnoDB
-                                               externally stored columns
-                                               (VARCHAR can be off-page too) */
-  unsigned templ_contains_fixed_point : 1; /*!< TRUE if the
-||||||| 6846e6b2f72
-                               set to TRUE */
-  unsigned templ_contains_blob : 1;        /*!< TRUE if the template contains
-                                     a column with DATA_LARGE_MTYPE(
-                                     get_innobase_type_from_mysql_type())
-                                     is TRUE;
-                                     not to be confused with InnoDB
-                                     externally stored columns
-                                     (VARCHAR can be off-page too) */
-  unsigned templ_contains_fixed_point : 1; /*!< TRUE if the
-=======
-                               set to true */
+                               set to true; note that sometimes this
+                               is set but we later optimize out the
+                               clustered index lookup */
   unsigned templ_contains_blob : 1;        /*!< true if the template contains
                                      a column with DATA_LARGE_MTYPE(
                                      get_innobase_type_from_mysql_type())
@@ -679,7 +640,6 @@ struct row_prebuilt_t {
                                      externally stored columns
                                      (VARCHAR can be off-page too) */
   unsigned templ_contains_fixed_point : 1; /*!< true if the
->>>>>>> mysql-8.0.29
                               template contains a column with
                               DATA_POINT. Since InnoDB regards
                               DATA_POINT as non-BLOB type, the
@@ -844,6 +804,8 @@ struct row_prebuilt_t {
                              in fetch_cache */
   mem_heap_t *blob_heap;     /*!< in SELECTS BLOB fields are copied
                              to this heap */
+  mem_heap_t *compress_heap;          /*!< memory heap used to compress
+                                        /decompress blob column*/
   mem_heap_t *old_vers_heap; /*!< memory heap where a previous
                              version is built in consistent read */
   enum {
@@ -875,37 +837,9 @@ struct row_prebuilt_t {
                         cache with HA_EXTRA_KEYREAD, don't
                         overwrite other fields in mysql row
                         row buffer.*/
-<<<<<<< HEAD
-  ulint fetch_cache_first;            /*!< position of the first not yet
-                                    fetched row in fetch_cache */
-  ulint n_fetch_cached;               /*!< number of not yet fetched rows
-                                      in fetch_cache */
-  mem_heap_t *blob_heap;              /*!< in SELECTS BLOB fields are copied
-                                      to this heap */
-  mem_heap_t *compress_heap;          /*!< memory heap used to compress
-                                        /decompress blob column*/
-  mem_heap_t *old_vers_heap;          /*!< memory heap where a previous
-                                      version is built in consistent read */
-  bool in_fts_query;                  /*!< Whether we are in a FTS query */
-  bool fts_doc_id_in_read_set;        /*!< true if table has externally
-                              defined FTS_DOC_ID coulmn. */
-||||||| 6846e6b2f72
-  ulint fetch_cache_first;            /*!< position of the first not yet
-                                    fetched row in fetch_cache */
-  ulint n_fetch_cached;               /*!< number of not yet fetched rows
-                                      in fetch_cache */
-  mem_heap_t *blob_heap;              /*!< in SELECTS BLOB fields are copied
-                                      to this heap */
-  mem_heap_t *old_vers_heap;          /*!< memory heap where a previous
-                                      version is built in consistent read */
-  bool in_fts_query;                  /*!< Whether we are in a FTS query */
-  bool fts_doc_id_in_read_set;        /*!< true if table has externally
-                              defined FTS_DOC_ID coulmn. */
-=======
   bool in_fts_query;                 /*!< Whether we are in a FTS query */
   bool fts_doc_id_in_read_set;       /*!< true if table has externally
                              defined FTS_DOC_ID coulmn. */
->>>>>>> mysql-8.0.29
   /*----------------------*/
   ulonglong autoinc_last_value;
   /*!< last value of AUTO-INC interval */

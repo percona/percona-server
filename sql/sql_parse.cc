@@ -3451,7 +3451,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
                    "SUPER or BINLOG_ADMIN");
           goto error;
         }
-        res = purge_master_logs(thd, lex->to_log);
+        res = purge_source_logs_to_file(thd, lex->to_log);
         break;
       } else if (lex->type == PURGE_BITMAPS_TO_LSN) {
         /* PURGE CHANGED_PAGE_BITMAPS BEFORE lsn */
@@ -3477,16 +3477,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
         my_ok(thd);
         break;
       }
-<<<<<<< HEAD
-||||||| 6846e6b2f72
-      /* PURGE MASTER LOGS TO 'file' */
-      res = purge_master_logs(thd, lex->to_log);
-      break;
-=======
-      /* PURGE MASTER LOGS TO 'file' */
-      res = purge_source_logs_to_file(thd, lex->to_log);
-      break;
->>>>>>> mysql-8.0.29
     }
     [[fallthrough]];
     case SQLCOM_PURGE_BEFORE: {

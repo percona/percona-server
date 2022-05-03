@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, 2016, Percona Inc.
-||||||| 6846e6b2f72
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.0.29
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -527,15 +519,9 @@ class AIO {
 
 #ifdef LINUX_NATIVE_AIO
   /** Dispatch an AIO request to the kernel.
-<<<<<<< HEAD
-  @param[in,out]	slot	an already reserved slot
-        @param[in]	should_buffer	should buffer the request
-                                        rather than submit
-||||||| 6846e6b2f72
-  @param[in,out]	slot	an already reserved slot
-=======
   @param[in,out]        slot    an already reserved slot
->>>>>>> mysql-8.0.29
+  @param[in]            should_buffer   should buffer the request
+                                        rather than submit
   @return true on success. */
  [[nodiscard]] bool linux_dispatch(Slot *slot, bool should_buffer);
 
@@ -2829,15 +2815,9 @@ void os_aio_dispatch_read_array_submit() {
 
 #if defined(LINUX_NATIVE_AIO)
 /** Dispatch an AIO request to the kernel.
-<<<<<<< HEAD
-@param[in,out]	slot		an already reserved slot
-@param[in]	should_buffer	should buffer the request
-rather than submit
-||||||| 6846e6b2f72
-@param[in,out]	slot		an already reserved slot
-=======
 @param[in,out]  slot            an already reserved slot
->>>>>>> mysql-8.0.29
+@param[in]      should_buffer   should buffer the request
+rather than submit
 @return true on success. */
 bool AIO::linux_dispatch(Slot *slot, bool should_buffer) {
   ut_ad(slot);
@@ -5843,24 +5823,7 @@ static bool os_file_handle_error_no_exit(const char *name,
       os_file_handle_error_cond_exit(name, operation, false, on_error_silent));
 }
 
-<<<<<<< HEAD
-/** Tries to disable OS caching on an opened file descriptor.
-@param[in]	fd		file descriptor to alter
-@param[in]	file_name	file name, used in the diagnostic message
-@param[in]	operation_name	"open" or "create"; used in the diagnostic
-                                message
-@return true if operation is success and false */
 bool os_file_set_nocache(int fd [[maybe_unused]],
-||||||| 6846e6b2f72
-/** Tries to disable OS caching on an opened file descriptor.
-@param[in]	fd		file descriptor to alter
-@param[in]	file_name	file name, used in the diagnostic message
-@param[in]	operation_name	"open" or "create"; used in the diagnostic
-                                message */
-void os_file_set_nocache(int fd [[maybe_unused]],
-=======
-void os_file_set_nocache(int fd [[maybe_unused]],
->>>>>>> mysql-8.0.29
                          const char *file_name [[maybe_unused]],
                          const char *operation_name [[maybe_unused]]) {
 /* some versions of Solaris may not have DIRECTIO_ON */
@@ -5978,26 +5941,6 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
     IORequest request(IORequest::WRITE);
 
     err = os_file_write(request, name, file, buf, current_size, n_bytes);
-<<<<<<< HEAD
-#else
-    /* Using AIO_mode::SYNC mode on POSIX systems will result in
-    fall back to os_file_write/read. On Windows it will use
-    special mechanism to wait before it returns back. */
-
-    err = os_aio(request, AIO_mode::SYNC, name, file, buf, current_size,
-                 n_bytes, read_only, nullptr, nullptr, 0, nullptr, false);
-#endif /* UNIV_HOTBACKUP */
-||||||| 6846e6b2f72
-#else
-    /* Using AIO_mode::SYNC mode on POSIX systems will result in
-    fall back to os_file_write/read. On Windows it will use
-    special mechanism to wait before it returns back. */
-
-    err = os_aio(request, AIO_mode::SYNC, name, file, buf, current_size,
-                 n_bytes, read_only, nullptr, nullptr);
-#endif /* UNIV_HOTBACKUP */
-=======
->>>>>>> mysql-8.0.29
 
     if (err != DB_SUCCESS) {
       ut::aligned_free(buf);
@@ -6125,23 +6068,11 @@ not directly this function!
 Requests a synchronous read operation of page 0 of IBD file
 @param[in]      type            IO request context
 @param[in]  file_name file name
-<<<<<<< HEAD
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-@param[in]	exit_on_err	if true then exit on error
-@return DB_SUCCESS or error code */
-||||||| 6846e6b2f72
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
-=======
 @param[in]      file            Open file handle
 @param[out]     buf             buffer where to read
 @param[in]      n               number of bytes to read
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
->>>>>>> mysql-8.0.29
+@param[in]      exit_on_err     if true then exit on error
+@return DB_SUCCESS or error code */
 dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
                                      os_file_t file, void *buf, ulint n,
                                      bool exit_on_err) {
@@ -6445,18 +6376,6 @@ dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
 
   while (offset < end) {
     err = os_file_write(request, name, file, buf, offset, n_bytes);
-<<<<<<< HEAD
-#else
-    err = os_aio(request, AIO_mode::SYNC, name, file, buf, offset, n_bytes,
-                 read_only_mode, nullptr, nullptr, 0, nullptr, false);
-#endif /* UNIV_HOTBACKUP */
-||||||| 6846e6b2f72
-#else
-    err = os_aio(request, AIO_mode::SYNC, name, file, buf, offset, n_bytes,
-                 read_only_mode, NULL, NULL);
-#endif /* UNIV_HOTBACKUP */
-=======
->>>>>>> mysql-8.0.29
 
     if (err != DB_SUCCESS) {
       break;
@@ -8424,18 +8343,8 @@ void os_aio_print_pending_io(FILE *file) { AIO::print_to_file(file); }
 
 #endif /* UNIV_DEBUG */
 
-<<<<<<< HEAD
 /** Set the file create umask
-@param[in]	umask		The umask to use for file creation. */
-||||||| 6846e6b2f72
-/**
-Set the file create umask
-@param[in]	umask		The umask to use for file creation. */
-=======
-/**
-Set the file create umask
 @param[in]      umask           The umask to use for file creation. */
->>>>>>> mysql-8.0.29
 void os_file_set_umask(ulint umask) { os_innodb_umask = umask; }
 
 /** Get the file create umask

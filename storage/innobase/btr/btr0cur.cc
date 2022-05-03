@@ -206,17 +206,11 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
 
       mode = latch_mode == BTR_MODIFY_LEAF ? RW_X_LATCH : RW_S_LATCH;
       latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
-      get_block = btr_block_get(page_id, page_size, mode, cursor->index, mtr);
+      get_block = btr_block_get(page_id, page_size, mode, UT_LOCATION_HERE,
+                                cursor->index, mtr);
 
       SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
 
-||||||| 6846e6b2f72
-      get_block = btr_block_get(page_id, page_size, mode, cursor->index, mtr);
-=======
-      get_block = btr_block_get(page_id, page_size, mode, UT_LOCATION_HERE,
-                                cursor->index, mtr);
->>>>>>> mysql-8.0.29
       latch_leaves.blocks[1] = get_block;
 #ifdef UNIV_BTR_DEBUG
       ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
@@ -242,20 +236,12 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
         }
 
         latch_leaves.savepoints[0] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
-        get_block = btr_block_get(page_id_t(page_id.space(), left_page_no),
-                                  page_size, RW_X_LATCH, cursor->index, mtr);
-
-        SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
-
-||||||| 6846e6b2f72
-        get_block = btr_block_get(page_id_t(page_id.space(), left_page_no),
-                                  page_size, RW_X_LATCH, cursor->index, mtr);
-=======
         get_block =
             btr_block_get(page_id_t(page_id.space(), left_page_no), page_size,
                           RW_X_LATCH, UT_LOCATION_HERE, cursor->index, mtr);
->>>>>>> mysql-8.0.29
+
+        SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
+
         latch_leaves.blocks[0] = get_block;
 
         if (spatial) {
@@ -269,19 +255,11 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
       }
 
       latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
-      get_block =
-          btr_block_get(page_id, page_size, RW_X_LATCH, cursor->index, mtr);
+      get_block = btr_block_get(page_id, page_size, RW_X_LATCH,
+                                UT_LOCATION_HERE, cursor->index, mtr);
 
       SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
 
-||||||| 6846e6b2f72
-      get_block =
-          btr_block_get(page_id, page_size, RW_X_LATCH, cursor->index, mtr);
-=======
-      get_block = btr_block_get(page_id, page_size, RW_X_LATCH,
-                                UT_LOCATION_HERE, cursor->index, mtr);
->>>>>>> mysql-8.0.29
       latch_leaves.blocks[1] = get_block;
 
 #ifdef UNIV_BTR_DEBUG
@@ -306,20 +284,12 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
               mtr_set_savepoint(mtr);
         }
         latch_leaves.savepoints[2] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
-        get_block = btr_block_get(page_id_t(page_id.space(), right_page_no),
-                                  page_size, RW_X_LATCH, cursor->index, mtr);
-
-        SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
-
-||||||| 6846e6b2f72
-        get_block = btr_block_get(page_id_t(page_id.space(), right_page_no),
-                                  page_size, RW_X_LATCH, cursor->index, mtr);
-=======
         get_block =
             btr_block_get(page_id_t(page_id.space(), right_page_no), page_size,
                           RW_X_LATCH, UT_LOCATION_HERE, cursor->index, mtr);
->>>>>>> mysql-8.0.29
+
+        SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
+
         latch_leaves.blocks[2] = get_block;
 #ifdef UNIV_BTR_DEBUG
         ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
@@ -353,17 +323,11 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
       }
 
       latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
-<<<<<<< HEAD
-      get_block = btr_block_get(page_id, page_size, mode, cursor->index, mtr);
+      get_block = btr_block_get(page_id, page_size, mode, UT_LOCATION_HERE,
+                                cursor->index, mtr);
 
       SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
 
-||||||| 6846e6b2f72
-      get_block = btr_block_get(page_id, page_size, mode, cursor->index, mtr);
-=======
-      get_block = btr_block_get(page_id, page_size, mode, UT_LOCATION_HERE,
-                                cursor->index, mtr);
->>>>>>> mysql-8.0.29
       latch_leaves.blocks[1] = get_block;
 #ifdef UNIV_BTR_DEBUG
       /* Sanity check only after both the blocks are latched. */
@@ -2038,7 +2002,6 @@ void btr_cur_open_at_index_side(bool from_left, dict_index_t *index,
 
     page = buf_block_get_frame(block);
 
-<<<<<<< HEAD
     SRV_CORRUPT_TABLE_CHECK(page, {
       page_cursor->block = nullptr;
       page_cursor->rec = nullptr;
@@ -2049,12 +2012,7 @@ void btr_cur_open_at_index_side(bool from_left, dict_index_t *index,
       goto exit_loop;
     });
 
-    if (height == ULINT_UNDEFINED && btr_page_get_level(page, mtr) == 0 &&
-||||||| 6846e6b2f72
-    if (height == ULINT_UNDEFINED && btr_page_get_level(page, mtr) == 0 &&
-=======
     if (height == ULINT_UNDEFINED && btr_page_get_level(page) == 0 &&
->>>>>>> mysql-8.0.29
         rw_latch != RW_NO_LATCH && rw_latch != root_leaf_rw_latch) {
       /* We should retry to get the page, because the root page
       is latched with different level as a leaf page. */
@@ -2452,7 +2410,6 @@ bool btr_cur_open_at_rnd_pos(dict_index_t *index, /*!< in: index */
 
     page = buf_block_get_frame(block);
 
-<<<<<<< HEAD
     SRV_CORRUPT_TABLE_CHECK(page, {
       page_cursor->block = nullptr;
       page_cursor->rec = nullptr;
@@ -2460,12 +2417,7 @@ bool btr_cur_open_at_rnd_pos(dict_index_t *index, /*!< in: index */
       goto exit_loop;
     });
 
-    if (height == ULINT_UNDEFINED && btr_page_get_level(page, mtr) == 0 &&
-||||||| 6846e6b2f72
-    if (height == ULINT_UNDEFINED && btr_page_get_level(page, mtr) == 0 &&
-=======
     if (height == ULINT_UNDEFINED && btr_page_get_level(page) == 0 &&
->>>>>>> mysql-8.0.29
         rw_latch != RW_NO_LATCH && rw_latch != root_leaf_rw_latch) {
       /* We should retry to get the page, because the root page
       is latched with different level as a leaf page. */

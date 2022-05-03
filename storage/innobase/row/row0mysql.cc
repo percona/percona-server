@@ -3193,23 +3193,11 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
   trx->dict_operation_lock_mode = 0;
 }
 
-<<<<<<< HEAD
 dberr_t row_create_table_for_mysql(
-    dict_table_t *table, const char *compression,
-    const HA_CREATE_INFO *create_info, trx_t *trx, const fil_encryption_t mode,
+    dict_table_t *&table, const char *compression,
+    const HA_CREATE_INFO *create_info, trx_t *trx, mem_heap_t *heap,
+    const fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-  mem_heap_t *heap;
-||||||| 6846e6b2f72
-dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
-                                   const HA_CREATE_INFO *create_info,
-                                   trx_t *trx) {
-  mem_heap_t *heap;
-=======
-dberr_t row_create_table_for_mysql(dict_table_t *&table,
-                                   const char *compression,
-                                   const HA_CREATE_INFO *create_info,
-                                   trx_t *trx, mem_heap_t *heap) {
->>>>>>> mysql-8.0.29
   dberr_t err;
 
   ut_ad(!dict_sys_mutex_own());

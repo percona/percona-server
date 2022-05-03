@@ -84,13 +84,7 @@ INSERT INTO aliases(name) VALUES
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
-<<<<<<< HEAD
---let $expected = 117
-||||||| 6846e6b2f72
---let $expected = 113
-=======
---let $expected = 114
->>>>>>> mysql-8.0.29
+--let $expected = 118
 --let $assert_text = Expect $expected variables in the table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc

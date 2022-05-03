@@ -203,26 +203,6 @@ static lsn_t recv_max_page_lsn;
 
 #ifndef UNIV_HOTBACKUP
 
-<<<<<<< HEAD
-||||||| 6846e6b2f72
-/** Reads a specified log segment to a buffer.
-@param[in,out]	log		redo log
-@param[in,out]	buf		buffer where to read
-@param[in]	start_lsn	read area start
-@param[in]	end_lsn		read area end */
-static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
-                              lsn_t end_lsn);
-
-=======
-/** Reads a specified log segment to a buffer.
-@param[in,out]  log             redo log
-@param[in,out]  buf             buffer where to read
-@param[in]      start_lsn       read area start
-@param[in]      end_lsn         read area end */
-static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
-                              lsn_t end_lsn);
-
->>>>>>> mysql-8.0.29
 /** Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == false. */
 static void recv_init_crash_recovery();
@@ -2907,29 +2887,13 @@ void recv_recover_page_func(
 }
 
 /** Tries to parse a single log record.
-<<<<<<< HEAD
-@param[out]	type		log record type
-@param[in]	ptr		pointer to a buffer
-@param[in]	end_ptr		end of the buffer
-@param[out]	space_id	tablespace identifier
-@param[out]	page_no		page number
-@param[in]	online_log	do we process DDL online log
-@param[out]	body		start of log record body
-||||||| 6846e6b2f72
-@param[out]	type		log record type
-@param[in]	ptr		pointer to a buffer
-@param[in]	end_ptr		end of the buffer
-@param[out]	space_id	tablespace identifier
-@param[out]	page_no		page number
-@param[out]	body		start of log record body
-=======
 @param[out]     type            log record type
 @param[in]      ptr             pointer to a buffer
 @param[in]      end_ptr         end of the buffer
 @param[out]     space_id        tablespace identifier
 @param[out]     page_no         page number
+@param[in]      online_log      do we process DDL online log
 @param[out]     body            start of log record body
->>>>>>> mysql-8.0.29
 @return length of the record, or 0 if the record was not complete */
 ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
                          space_id_t *space_id, page_no_t *page_no,
@@ -3780,33 +3744,15 @@ bool meb_read_log_encryption(IORequest &encryption_request,
 
 #ifndef UNIV_HOTBACKUP
 /** Reads a specified log segment to a buffer.
-<<<<<<< HEAD
-@param[in,out]	log		redo log
-@param[in,out]	buf		buffer where to read
-@param[in]	start_lsn	read area start
-@param[in]	end_lsn		read area end
-@param[in]	online		whether the read is for the changed page
-                                tracking */
-void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
-                       bool online) {
-  if (!online) log_background_threads_inactive_validate(log);
-||||||| 6846e6b2f72
-@param[in,out]	log		redo log
-@param[in,out]	buf		buffer where to read
-@param[in]	start_lsn	read area start
-@param[in]	end_lsn		read area end */
-static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
-                              lsn_t end_lsn) {
-  log_background_threads_inactive_validate(log);
-=======
 @param[in,out]  log             redo log
 @param[in,out]  buf             buffer where to read
 @param[in]      start_lsn       read area start
-@param[in]      end_lsn         read area end */
-static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
-                              lsn_t end_lsn) {
-  log_background_threads_inactive_validate();
->>>>>>> mysql-8.0.29
+@param[in]      end_lsn         read area end
+@param[in]      online          whether the read is for the changed page
+                                tracking */
+void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
+                       bool online) {
+  if (!online) log_background_threads_inactive_validate();
 
   do {
     lsn_t source_offset;
@@ -4227,35 +4173,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   return (DB_SUCCESS);
 }
 
-<<<<<<< HEAD
-/** Complete the recovery from the latest checkpoint.
-@param[in,out]	log		redo log
-@param[in]	aborting	true if the server has to abort due to an error
-@return recovered persistent metadata or nullptr if aborting*/
-MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
-                                                      bool aborting) {
-||||||| 6846e6b2f72
-/** Complete the recovery from the latest checkpoint.
-@param[in,out]	log		redo log
-@param[in]	aborting	true if the server has to abort due to an error
-@return recovered persistent metadata or nullptr if aborting*/
-MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
-                                                      bool aborting) {
-  /* Make sure that the recv_writer thread is done. This is
-  required because it grabs various mutexes and we want to
-  ensure that when we enable sync_order_checks there is no
-  mutex currently held by any thread. */
-  mutex_enter(&recv_sys->writer_mutex);
-
-=======
 MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
-  /* Make sure that the recv_writer thread is done. This is
-  required because it grabs various mutexes and we want to
-  ensure that when we enable sync_order_checks there is no
-  mutex currently held by any thread. */
-  mutex_enter(&recv_sys->writer_mutex);
-
->>>>>>> mysql-8.0.29
   /* Restore state. */
   if (recv_sys->is_meb_recovery) dblwr::enabled = recv_sys->dblwr_state;
 

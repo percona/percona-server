@@ -539,15 +539,9 @@ class ha_innopart : public ha_innobase,
     return (Partition_helper::ph_read_range_next());
   }
 
-<<<<<<< HEAD
   bool has_gap_locks() const noexcept override { return true; }
 
-  uint32 calculate_key_hash_value(Field **field_array) override {
-||||||| 6846e6b2f72
-  uint32 calculate_key_hash_value(Field **field_array) override {
-=======
   uint32_t calculate_key_hash_value(Field **field_array) override {
->>>>>>> mysql-8.0.29
     return (Partition_helper::ph_calculate_key_hash_value(field_array));
   }
 

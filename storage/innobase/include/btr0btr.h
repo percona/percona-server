@@ -176,29 +176,6 @@ page_t *btr_root_get(const dict_index_t *index, /*!< in: index tree */
 
 #ifndef UNIV_HOTBACKUP
 /** Gets a buffer page and declares its latching order level.
-<<<<<<< HEAD
-@param[in]	page_id		Page id
-@param[in]	page_size	Page size
-@param[in]	mode		Latch mode
-@param[in]	file		File name
-@param[in]	line		Line where called
-@param[in]	index		Index tree, may be NULL if it is not an insert
-                    buffer tree
-@param[in,out]	mtr		Mini-transaction
-||||||| 6846e6b2f72
-@param[in]	page_id		Page id
-@param[in]	page_size	Page size
-@param[in]	mode		Latch mode
-@param[in]	file		File name
-@param[in]	line		Line where called */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	index		Index tree, may be NULL if it is not an insert
-                                buffer tree */
-#endif /* UNIV_DEBUG */
-/**
-@param[in,out]	mtr		Mini-transaction
-=======
 @param[in]      page_id         Page id
 @param[in]      page_size       Page size
 @param[in]      mode              Latch mode
@@ -206,28 +183,10 @@ page_t *btr_root_get(const dict_index_t *index, /*!< in: index tree */
 @param[in]      index           Index tree, may be NULL if it is not an insert
                                 buffer tree
 @param[in,out]  mtr             Mini-transaction
->>>>>>> mysql-8.0.29
 @return block */
-<<<<<<< HEAD
-static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
-                                              const page_size_t &page_size,
-                                              ulint mode, const char *file,
-                                              ulint line,
-                                              const dict_index_t *index,
-                                              mtr_t *mtr);
-||||||| 6846e6b2f72
-static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
-                                              const page_size_t &page_size,
-                                              ulint mode, const char *file,
-                                              ulint line,
-#ifdef UNIV_DEBUG
-                                              const dict_index_t *index,
-#endif /* UNIV_DEBUG */
-                                              mtr_t *mtr);
-=======
 static inline buf_block_t *btr_block_get_func(
     const page_id_t &page_id, const page_size_t &page_size, ulint mode,
-    ut::Location location, IF_DEBUG(const dict_index_t *index, ) mtr_t *mtr);
+    ut::Location location, const dict_index_t *index, mtr_t *mtr);
 
 /** Gets a buffer page and declares its latching order level.
 @param page_id Tablespace/page identifier
@@ -243,65 +202,11 @@ static inline buf_block_t *btr_block_get(const page_id_t &page_id,
                                          const dict_index_t *index,
                                          mtr_t *mtr) {
   return btr_block_get_func(page_id, page_size, mode, location,
-                            IF_DEBUG(index, ) mtr);
+                            index, mtr);
 }
 
->>>>>>> mysql-8.0.29
 #endif /* !UNIV_HOTBACKUP */
 
-<<<<<<< HEAD
-/** Gets a buffer page and declares its latching order level.
-@param page_id Tablespace/page identifier
-@param page_size Page size
-@param mode Latch mode
-@param index Index tree, may be NULL if not the insert buffer tree
-@param mtr Mini-transaction handle
-@return the block descriptor */
-#define btr_block_get(page_id, page_size, mode, index, mtr) \
-  btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, index, mtr)
-
-/** Gets a buffer page and declares its latching order level.
-@param page_id Tablespace/page identifier
-@param page_size Page size
-@param mode Latch mode
-@param index Index tree, may be NULL if not the insert buffer tree
-@param mtr Mini-transaction handle
-@return the uncompressed page frame */
-#define btr_page_get(page_id, page_size, mode, index, mtr) \
-  buf_block_get_frame(btr_block_get(page_id, page_size, mode, index, mtr))
-||||||| 6846e6b2f72
-#ifdef UNIV_DEBUG
-/** Gets a buffer page and declares its latching order level.
-@param page_id Tablespace/page identifier
-@param page_size Page size
-@param mode Latch mode
-@param index Index tree, may be NULL if not the insert buffer tree
-@param mtr Mini-transaction handle
-@return the block descriptor */
-#define btr_block_get(page_id, page_size, mode, index, mtr) \
-  btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, index, mtr)
-#else /* UNIV_DEBUG */
-/** Gets a buffer page and declares its latching order level.
-@param page_id Tablespace/page identifier
-@param page_size Page size
-@param mode Latch mode
-@param index Index tree, may be NULL if not the insert buffer tree
-@param mtr Mini-transaction handle
-@return the block descriptor */
-#define btr_block_get(page_id, page_size, mode, index, mtr) \
-  btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, mtr)
-#endif /* UNIV_DEBUG */
-/** Gets a buffer page and declares its latching order level.
-@param page_id Tablespace/page identifier
-@param page_size Page size
-@param mode Latch mode
-@param index Index tree, may be NULL if not the insert buffer tree
-@param mtr Mini-transaction handle
-@return the uncompressed page frame */
-#define btr_page_get(page_id, page_size, mode, index, mtr) \
-  buf_block_get_frame(btr_block_get(page_id, page_size, mode, index, mtr))
-=======
->>>>>>> mysql-8.0.29
 /** Gets the index id field of a page.
  @return index id */
 [[nodiscard]] static inline space_index_t btr_page_get_index_id(
@@ -374,21 +279,11 @@ void btr_free_if_exists(const page_id_t &page_id, const page_size_t &page_size,
                         space_index_t index_id, mtr_t *mtr);
 
 /** Free an index tree in a temporary tablespace.
-<<<<<<< HEAD
-@param[in]	page_id		root page id
-@param[in]	page_size	page size
-@param[in]	is_intrinsic	true for intrinsic tables else false */
+@param[in]      page_id         root page id
+@param[in]      page_size       page size
+@param[in]      is_intrinsic    true for intrinsic tables else false */
 void btr_free(const page_id_t &page_id, const page_size_t &page_size,
               bool is_intrinsic);
-||||||| 6846e6b2f72
-@param[in]	page_id		root page id
-@param[in]	page_size	page size */
-void btr_free(const page_id_t &page_id, const page_size_t &page_size);
-=======
-@param[in]      page_id         root page id
-@param[in]      page_size       page size */
-void btr_free(const page_id_t &page_id, const page_size_t &page_size);
->>>>>>> mysql-8.0.29
 
 /** Truncate an index tree. We just free all except the root.
 Currently, this function is only specific for clustered indexes and the only
@@ -652,7 +547,6 @@ the index.
                                should print hex dump of
                                record and page on error */
 /** Checks the consistency of an index tree.
-=======
  @return true if ok */
 [[nodiscard]] bool btr_validate_index(
     dict_index_t *index, /*!< in: index */

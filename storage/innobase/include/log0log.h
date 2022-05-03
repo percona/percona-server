@@ -882,31 +882,15 @@ void log_rotate_default_key();
 
 /** Write the encryption info into the log file header(the 3rd block).
 It just need to flush the file header block with current master key.
-<<<<<<< HEAD
-@param[in]	key	encryption key
-@param[in]	iv	encryption iv
-@param[in]	is_boot	if it is for bootstrap
-@param[in]	redo_log_encrypt	encryption type
-@param[in]	version	                key's version (used for KEYRING
-                                    encryption)
-||||||| 6846e6b2f72
-@param[in]	key	encryption key
-@param[in]	iv	encryption iv
-@param[in]	is_boot	if it is for bootstrap
-=======
 @param[in]      key     encryption key
 @param[in]      iv      encryption iv
->>>>>>> mysql-8.0.29
+@param[in]      redo_log_encrypt    encryption type
+@param[in]      version             key's version (used for KEYRING
+                                    encryption)
 @return true if success. */
-<<<<<<< HEAD
-bool log_write_encryption(byte *key, byte *iv, bool is_boot,
+bool log_write_encryption(byte *key, byte *iv,
                           redo_log_encrypt_enum redo_log_encrypt,
                           uint version = 0);
-||||||| 6846e6b2f72
-bool log_write_encryption(byte *key, byte *iv, bool is_boot);
-=======
-bool log_write_encryption(byte *key, byte *iv);
->>>>>>> mysql-8.0.29
 
 /** Rotate the redo log encryption
 It will re-encrypt the redo log encryption metadata and write it to

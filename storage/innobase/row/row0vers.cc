@@ -633,23 +633,11 @@ static bool row_vers_non_vc_index_entry_match(dict_index_t *index,
 }
 
 /** build virtual column value from current cluster index record data
-<<<<<<< HEAD
-@param[in,out]	row		the cluster index row in dtuple form
-@param[in]	clust_index	clustered index
-@param[in]	index		the secondary index
-@param[in]	heap		heap used to build virtual dtuple
-@param[in]	prebuilt	compress_heap must be taken from here */
-||||||| 6846e6b2f72
-@param[in,out]	row		the cluster index row in dtuple form
-@param[in]	clust_index	clustered index
-@param[in]	index		the secondary index
-@param[in]	heap		heap used to build virtual dtuple */
-=======
 @param[in,out]  row             the cluster index row in dtuple form
 @param[in]      clust_index     clustered index
 @param[in]      index           the secondary index
-@param[in]      heap            heap used to build virtual dtuple */
->>>>>>> mysql-8.0.29
+@param[in]      heap            heap used to build virtual dtuple
+@param[in]      prebuilt        compress_heap must be taken from here */
 static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
                                        dict_index_t *index, mem_heap_t *heap,
                                        row_prebuilt_t *prebuilt) {
@@ -932,32 +920,6 @@ func_exit:
 }
 
 /** Build a dtuple contains virtual column data for current cluster index
-<<<<<<< HEAD
-@param[in]	in_purge	called by purge thread
-@param[in]	rec		cluster index rec
-@param[in]	clust_index	cluster index
-@param[in]	clust_offsets	cluster rec offset
-@param[in]	index		secondary index
-@param[in]	ientry		secondary index rec
-@param[in]	roll_ptr	roll_ptr for the purge record
-@param[in]	trx_id		transaction ID on the purging record
-@param[in,out]	heap		heap memory
-@param[in,out]	v_heap		heap memory to keep virtual colum dtuple
-@param[in]	mtr		mtr holding the latch on rec
-@param[in]	prebuilt	compress_heap must be taken from here
-||||||| 6846e6b2f72
-@param[in]	in_purge	called by purge thread
-@param[in]	rec		cluster index rec
-@param[in]	clust_index	cluster index
-@param[in]	clust_offsets	cluster rec offset
-@param[in]	index		secondary index
-@param[in]	ientry		secondary index rec
-@param[in]	roll_ptr	roll_ptr for the purge record
-@param[in]	trx_id		transaction ID on the purging record
-@param[in,out]	heap		heap memory
-@param[in,out]	v_heap		heap memory to keep virtual colum dtuple
-@param[in]	mtr		mtr holding the latch on rec
-=======
 @param[in]      in_purge        called by purge thread
 @param[in]      rec             cluster index rec
 @param[in]      clust_index     cluster index
@@ -968,22 +930,13 @@ func_exit:
 @param[in,out]  heap            heap memory
 @param[in,out]  v_heap          heap memory to keep virtual column dtuple
 @param[in]      mtr             mtr holding the latch on rec
->>>>>>> mysql-8.0.29
+@param[in]      prebuilt        compress_heap must be taken from here
 @return dtuple contains virtual column data */
 static const dtuple_t *row_vers_build_cur_vrow(
     bool in_purge, const rec_t *rec, dict_index_t *clust_index,
-<<<<<<< HEAD
-    ulint **clust_offsets, dict_index_t *index, const dtuple_t *ientry,
-    roll_ptr_t roll_ptr, trx_id_t trx_id, mem_heap_t *heap, mem_heap_t *v_heap,
-    mtr_t *mtr, row_prebuilt_t *prebuilt) {
-||||||| 6846e6b2f72
-    ulint **clust_offsets, dict_index_t *index, const dtuple_t *ientry,
-    roll_ptr_t roll_ptr, trx_id_t trx_id, mem_heap_t *heap, mem_heap_t *v_heap,
-    mtr_t *mtr) {
-=======
     ulint **clust_offsets, dict_index_t *index, roll_ptr_t roll_ptr,
-    trx_id_t trx_id, mem_heap_t *heap, mem_heap_t *v_heap, mtr_t *mtr) {
->>>>>>> mysql-8.0.29
+    trx_id_t trx_id, mem_heap_t *heap, mem_heap_t *v_heap, mtr_t *mtr,
+    row_prebuilt_t *prebuilt) {
   const dtuple_t *cur_vrow = nullptr;
 
   roll_ptr_t t_roll_ptr =
@@ -1022,35 +975,6 @@ static const dtuple_t *row_vers_build_cur_vrow(
  id >= purge view, and the secondary index entry and ientry are identified in
  the alphabetical ordering; exactly in this case we return true.
  @return true if earlier version should have */
-<<<<<<< HEAD
-ibool row_vers_old_has_index_entry(
-    ibool also_curr,          /*!< in: TRUE if also rec is included in the
-                            versions to search; otherwise only versions
-                            prior to it are searched */
-    const rec_t *rec,         /*!< in: record in the clustered index; the
-                              caller must have a latch on the page */
-    mtr_t *mtr,               /*!< in: mtr holding the latch on rec; it will
-                              also hold the latch on purge_view */
-    dict_index_t *index,      /*!< in: the secondary index */
-    const dtuple_t *ientry,   /*!< in: the secondary index entry */
-    roll_ptr_t roll_ptr,      /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id,          /*!< in: transaction ID on the purging record */
-    row_prebuilt_t *prebuilt) /*!< in: compress_heap must be taken from
-                           here */
-||||||| 6846e6b2f72
-ibool row_vers_old_has_index_entry(
-    ibool also_curr,        /*!< in: TRUE if also rec is included in the
-                          versions to search; otherwise only versions
-                          prior to it are searched */
-    const rec_t *rec,       /*!< in: record in the clustered index; the
-                            caller must have a latch on the page */
-    mtr_t *mtr,             /*!< in: mtr holding the latch on rec; it will
-                            also hold the latch on purge_view */
-    dict_index_t *index,    /*!< in: the secondary index */
-    const dtuple_t *ientry, /*!< in: the secondary index entry */
-    roll_ptr_t roll_ptr,    /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id)        /*!< in: transaction ID on the purging record */
-=======
 bool row_vers_old_has_index_entry(
     bool also_curr,         /*!< in: true if also rec is included in the
                            versions to search; otherwise only versions
@@ -1062,8 +986,8 @@ bool row_vers_old_has_index_entry(
     dict_index_t *index,    /*!< in: the secondary index */
     const dtuple_t *ientry, /*!< in: the secondary index entry */
     roll_ptr_t roll_ptr,    /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id)        /*!< in: transaction ID on the purging record */
->>>>>>> mysql-8.0.29
+    trx_id_t trx_id,        /*!< in: transaction ID on the purging record */
+    row_prebuilt_t *prebuilt) /*!< in: compress_heap must be taken from here */
 {
   const rec_t *version;
   rec_t *prev_version;
@@ -1213,19 +1137,9 @@ bool row_vers_old_has_index_entry(
     deleted, but the previous version of it might not. We will
     need to get the virtual column data from undo record
     associated with current cluster index */
-<<<<<<< HEAD
-    cur_vrow = row_vers_build_cur_vrow(also_curr, rec, clust_index,
-                                       &clust_offsets, index, ientry, roll_ptr,
-                                       trx_id, heap, v_heap, mtr, prebuilt);
-||||||| 6846e6b2f72
-    cur_vrow = row_vers_build_cur_vrow(also_curr, rec, clust_index,
-                                       &clust_offsets, index, ientry, roll_ptr,
-                                       trx_id, heap, v_heap, mtr);
-=======
     cur_vrow =
         row_vers_build_cur_vrow(also_curr, rec, clust_index, &clust_offsets,
-                                index, roll_ptr, trx_id, heap, v_heap, mtr);
->>>>>>> mysql-8.0.29
+                                index, roll_ptr, trx_id, heap, v_heap, mtr, prebuilt);
   }
 
   version = rec;

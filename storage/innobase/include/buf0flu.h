@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| 6846e6b2f72
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-=======
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.29
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -195,8 +189,8 @@ bool buf_flush_ready_for_replace(buf_page_t *bpage);
 #ifdef UNIV_DEBUG
 struct SYS_VAR;
 
-/** Disables page cleaner threads (coordinator and workers).
-It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
+/** Disables page cleaner threads (coordinator and workers) and LRU manager
+threads. It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 @param[in]      thd             thread handle
 @param[in]      var             pointer to system variable
 @param[out]     var_ptr         where the formal string goes

@@ -270,26 +270,12 @@ This is the performance schema instrumented wrapper function for
 os_file_read() which requests a synchronous read operation.
 @param[in, out] type            IO request context
 @param[in]  file_name file name
-<<<<<<< HEAD
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
-@param[in]	exit_on_err	if true then exit on error
-||||||| 6846e6b2f72
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
-=======
 @param[in]      file            Open file handle
 @param[out]     buf             buffer where to read
 @param[in]      n               number of bytes to read
 @param[in]      src_file        file name where func invoked
 @param[in]      src_line        line where the func invoked
->>>>>>> mysql-8.0.29
+@param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char* file_name, pfs_os_file_t file,
                                          void *buf, ulint n,

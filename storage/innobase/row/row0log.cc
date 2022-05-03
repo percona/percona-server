@@ -2353,19 +2353,9 @@ flag_ok:
   /** It allows to create tuple with virtual column information. */
   dtuple_t *entry = row_build_index_entry_low(row, nullptr, index, heap,
                                               ROW_BUILD_FOR_INSERT);
-<<<<<<< HEAD
-  upd_t *update = row_upd_build_difference_binary(
-      index, entry, btr_pcur_get_rec(&pcur), cur_offsets, false, nullptr, heap,
-      dup->m_table, thr->prebuilt, &error);
-||||||| 6846e6b2f72
-  upd_t *update = row_upd_build_difference_binary(
-      index, entry, btr_pcur_get_rec(&pcur), cur_offsets, false, nullptr, heap,
-      dup->m_table, &error);
-=======
   upd_t *update = row_upd_build_difference_binary(index, entry, pcur.get_rec(),
                                                   cur_offsets, false, nullptr,
-                                                  heap, dup->m_table, &error);
->>>>>>> mysql-8.0.29
+                                                  heap, dup->m_table, thr->prebuilt, &error);
   if (error != DB_SUCCESS) {
     goto func_exit;
   }

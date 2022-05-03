@@ -1465,20 +1465,10 @@ struct dict_index_t {
   ulint get_sys_col_pos(ulint type) const;
 
   /** Looks for column n in an index.
-<<<<<<< HEAD
-  @param[in]	n		column number
-  @param[in]	inc_prefix	true=consider column prefixes too
-  @param[in]	is_virtual	true==virtual column
-  @param[out]	prefix_col_pos	column number if prefix
-||||||| 6846e6b2f72
-  @param[in]	n		column number
-  @param[in]	inc_prefix	true=consider column prefixes too
-  @param[in]	is_virtual	true==virtual column
-=======
   @param[in]    n               column number
   @param[in]    inc_prefix      true=consider column prefixes too
   @param[in]    is_virtual      true==virtual column
->>>>>>> mysql-8.0.29
+  @param[out]   prefix_col_pos  column number if prefix
   @return position in internal representation of the index;
   ULINT_UNDEFINED if not contained */
   ulint get_col_pos(ulint n, bool inc_prefix = false, bool is_virtual = false,
@@ -1816,15 +1806,12 @@ temp table */
 typedef std::vector<row_prebuilt_t *> temp_prebuilt_vec;
 #endif /* !UNIV_HOTBACKUP */
 
-<<<<<<< HEAD
 using AutoIncMutex = ib_bpmutex_t;
-||||||| 6846e6b2f72
-=======
+
 #ifdef UNIV_DEBUG
 /** Value of 'magic_n'. */
 constexpr uint32_t DICT_TABLE_MAGIC_N = 76333786;
 #endif
->>>>>>> mysql-8.0.29
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or false in dict_mem_table_create(). */

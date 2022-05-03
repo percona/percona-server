@@ -127,19 +127,9 @@ static void repair_threads_update(THD *thd, SYS_VAR *, void *tgt,
 }
 
 static MYSQL_THDVAR_ULONG(
-<<<<<<< HEAD
     repair_threads, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
-    "If larger than 1, when repairing a MyISAM table all indexes will be "
-    "created in parallel, with one thread per index. The value of 1 "
-||||||| 6846e6b2f72
-    repair_threads, PLUGIN_VAR_RQCMDARG,
-    "If larger than 1, when repairing a MyISAM table all indexes will be "
-    "created in parallel, with one thread per index. The value of 1 "
-=======
-    repair_threads, PLUGIN_VAR_RQCMDARG,
     "DEPRECATED. If larger than 1, when repairing a MyISAM table all indexes "
     "will be created in parallel, with one thread per index. The value of 1 "
->>>>>>> mysql-8.0.29
     "disables parallel repair",
     nullptr, repair_threads_update, 1, 1, ULONG_MAX, 1);
 
@@ -1206,26 +1196,10 @@ int ha_myisam::assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt) {
     /* use all keys if there's no list specified by the user through hints */
     map = table->keys_in_use_for_query.to_ulonglong();
 
-<<<<<<< HEAD
-  char buf[STRING_BUFFER_USUAL_SIZE];
-||||||| 6846e6b2f72
-=======
   char errmsg[STRING_BUFFER_USUAL_SIZE];
->>>>>>> mysql-8.0.29
   if ((error = mi_assign_to_key_cache(file, map, new_key_cache))) {
-<<<<<<< HEAD
-    snprintf(buf, sizeof(buf), "Failed to flush to index file (errno: %d)",
-             error);
-    errmsg = buf;
-||||||| 6846e6b2f72
-    char buf[STRING_BUFFER_USUAL_SIZE];
-    snprintf(buf, sizeof(buf), "Failed to flush to index file (errno: %d)",
-             error);
-    errmsg = buf;
-=======
     snprintf(errmsg, sizeof(errmsg),
              "Failed to flush to index file (errno: %d)", error);
->>>>>>> mysql-8.0.29
     error = HA_ADMIN_CORRUPT;
   }
 

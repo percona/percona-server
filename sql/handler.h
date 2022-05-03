@@ -61,14 +61,8 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
-<<<<<<< HEAD
-#include "mysql/components/services/psi_table_bits.h"
-#include "mysql_com.h"
-||||||| 6846e6b2f72
-#include "mysql/components/services/psi_table_bits.h"
-=======
 #include "mysql/components/services/bits/psi_table_bits.h"
->>>>>>> mysql-8.0.29
+#include "mysql_com.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/init_mode.h"

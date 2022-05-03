@@ -516,7 +516,7 @@ int table_events_waits_common::make_metadata_lock_object_columns(
       case MDL_key::BACKUP_TABLES:
         m_row.m_object_type = "BACKUP TABLES";
         m_row.m_object_type_length = sizeof("BACKUP TABLES") - 1;
-        m_row.m_object_schema_length = 0;
+        m_row.m_object_schema.reset();
         m_row.m_object_name_length = 0;
         m_row.m_index_name_length = 0;
         break;

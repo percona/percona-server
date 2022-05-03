@@ -1355,9 +1355,8 @@ static void log_pad_current_log_block(void) {
   if (pad_length) {
     srv_stats.n_log_scrubs.inc();
   }
-  auto handle = log_buffer_reserve(*log_sys, pad_length);
   for (i = 0; i < pad_length; i++) {
-    log_buffer_write(*log_sys, handle, &b, 1, log_sys->current_file_lsn);
+    log_buffer_write(*log_sys, &b, 1, log_sys->current_file_lsn);
   }
   lsn = log_sys->current_file_lsn;
   ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);

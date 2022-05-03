@@ -1408,13 +1408,13 @@ struct export_var_t {
   ulint innodb_page0_read; /*!< srv_stats.page0_read */
   trx_id_t innodb_purge_trx_id;
   undo_no_t innodb_purge_undo_no;
-  ib_uint64_t
+  uint64_t
       innodb_n_merge_blocks_encrypted; /*!< Number of merge blocks encrypted */
-  ib_uint64_t
+  uint64_t
       innodb_n_merge_blocks_decrypted; /*!< Number of merge blocks decrypted */
-  ib_uint64_t innodb_n_rowlog_blocks_encrypted; /*!< Number of row log blocks
+  uint64_t innodb_n_rowlog_blocks_encrypted; /*!< Number of row log blocks
                                                    encrypted */
-  ib_uint64_t innodb_n_rowlog_blocks_decrypted; /*!< Number of row log blocks
+  uint64_t innodb_n_rowlog_blocks_decrypted; /*!< Number of row log blocks
                                                    decrypted */
 
   ulint innodb_sec_rec_cluster_reads; /*!< srv_sec_rec_cluster_reads */

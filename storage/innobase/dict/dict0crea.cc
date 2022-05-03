@@ -850,9 +850,9 @@ static ibool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
   ulint len = dfield_get_len(dfield);
 
   ut_a(dtype_get_mtype(type) == DATA_INT);
-  ut_a(len == sizeof(ib_uint32_t));
+  ut_a(len == sizeof(uint32_t));
 
-  memcpy(user_arg, dfield_get_data(dfield), sizeof(ib_uint32_t));
+  memcpy(user_arg, dfield_get_data(dfield), sizeof(uint32_t));
 
   return (TRUE);
 }
@@ -871,7 +871,7 @@ dberr_t dict_create_get_zip_dict_id_by_reference(
 
   pars_info_t *info = pars_info_create();
 
-  ib_uint32_t dict_id_buf;
+  uint32_t dict_id_buf;
   mach_write_to_4(reinterpret_cast<byte *>(&dict_id_buf), UINT32_UNDEFINED);
 
   pars_info_add_int4_literal(info, "table_id", table_id);
@@ -893,7 +893,7 @@ dberr_t dict_create_get_zip_dict_id_by_reference(
                                "END;\n",
                                FALSE, trx);
   if (error == DB_SUCCESS) {
-    ib_uint32_t local_dict_id =
+    uint32_t local_dict_id =
         mach_read_from_4(reinterpret_cast<const byte *>(&dict_id_buf));
     if (local_dict_id == UINT32_UNDEFINED)
       error = DB_RECORD_NOT_FOUND;

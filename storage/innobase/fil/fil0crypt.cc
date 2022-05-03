@@ -2825,7 +2825,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 // dfield_t*	dfield = que_node_get_val(node->select_list);
 
 // ut_ad(dtype_get_mtype(dfield_get_type(dfield)) == DATA_INT);
-// ut_ad(dfield_get_len(dfield) == sizeof(ib_uint32_t));
+// ut_ad(dfield_get_len(dfield) == sizeof(uint32_t));
 //[> There should be at most one matching record. So the value
 // must be the default value. */
 // ut_ad(mach_read_from_4(static_cast<byte*>(user_arg))
@@ -2870,7 +2870,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 // bool	set) {			[> in: Table for which we want
 // to set the root table->flags2 */
 // pars_info_t*		info;
-// ib_uint32_t		flags2;
+// uint32_t		flags2;
 
 // static const char	sql[] =
 //"PROCEDURE UPDATE_ENCRYPTED_FLAG() IS\n"
@@ -2926,7 +2926,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 // dfield_t*	dfield = que_node_get_val(node->select_list);
 
 // ut_ad(dtype_get_mtype(dfield_get_type(dfield)) == DATA_INT);
-// ut_ad(dfield_get_len(dfield) == sizeof(ib_uint32_t));
+// ut_ad(dfield_get_len(dfield) == sizeof(uint32_t));
 //// There should be at most one matching record. So the value
 //// must be the default value.
 // ut_ad(mach_read_from_4(static_cast<byte*>(user_arg))
@@ -2952,7 +2952,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 // dfield_t*	dfield = que_node_get_val(node->select_list);
 
 // ut_ad(dtype_get_mtype(dfield_get_type(dfield)) == DATA_INT);
-// ut_ad(dfield_get_len(dfield) == sizeof(ib_uint32_t));
+// ut_ad(dfield_get_len(dfield) == sizeof(uint32_t));
 //// There should be at most one matching record. So the value
 //// must be the default value.
 // ut_ad(mach_read_from_4(static_cast<byte*>(user_arg))

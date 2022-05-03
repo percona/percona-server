@@ -1467,7 +1467,7 @@ Truncates a file at the specified position.
 @param[in]	src_line	line where the func invoked
 @return true if success */
 static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file,
-                                               ib_uint64_t new_len,
+                                               uint64_t new_len,
                                                const char *src_file,
                                                ulint src_line);
 
@@ -1691,7 +1691,7 @@ Truncates a file at the specified position.
 @param[in]	file	file to truncate
 @param[in]	new_len	new file length
 @return true if success */
-bool os_file_set_eof_at_func(os_file_t file, ib_uint64_t new_len);
+bool os_file_set_eof_at_func(os_file_t file, uint64_t new_len);
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
 function!

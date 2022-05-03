@@ -60,8 +60,8 @@ MY_NODISCARD bool log_block_checksum_is_ok(
 
 /** Calculates the new value for lsn when more data is added to the log. */
 lsn_t recv_calc_lsn_on_data_add(
-    lsn_t lsn,        /*!< in: old lsn */
-    ib_uint64_t len); /*!< in: this many bytes of data is
+    lsn_t lsn,     /*!< in: old lsn */
+    uint64_t len); /*!< in: this many bytes of data is
                       added, log block headers not included */
 
 /** Reads a specified log segment to a buffer.

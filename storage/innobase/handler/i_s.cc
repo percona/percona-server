@@ -7644,7 +7644,7 @@ static void limit_lsn_range_from_condition(TABLE *table, Item *cond,
         return;
       }
 
-      ib_uint64_t tmp_result;
+      uint64_t tmp_result;
       if (left->type() == Item::FIELD_ITEM && right->type() == Item::INT_ITEM) {
         /* The case of start_lsn|end_lsn <|<= const, i.e. the
            upper bound.  */
@@ -7721,7 +7721,7 @@ static int i_s_innodb_changed_pages_fill(THD *thd, TABLE_LIST *tables,
 
   DEBUG_SYNC(thd, "i_s_innodb_changed_pages_range_ready");
 
-  ib_uint64_t output_rows_num = 0UL;
+  uint64_t output_rows_num = 0UL;
 
   while (log_online_bitmap_iterator_next(&i) &&
          (!srv_max_changed_pages || output_rows_num < srv_max_changed_pages)) {

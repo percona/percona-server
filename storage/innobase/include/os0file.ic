@@ -574,7 +574,7 @@ Truncates a file at the specified position.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file, ib_uint64_t new_len,
+static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file, uint64_t new_len,
                                                const char *src_file, ulint src_line) {
   struct PSI_file_locker *locker = NULL;
   PSI_file_locker_state state;

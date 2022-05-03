@@ -3410,7 +3410,7 @@ Truncates a file at the specified position.
 @param[in]	file	file to truncate
 @param[in]	new_len	new file length
 @return true if success */
-bool os_file_set_eof_at_func(os_file_t file, ib_uint64_t new_len) {
+bool os_file_set_eof_at_func(os_file_t file, uint64_t new_len) {
 #ifdef __WIN__
   LARGE_INTEGER li, li2;
   li.QuadPart = new_len;

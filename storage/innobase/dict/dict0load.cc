@@ -1041,29 +1041,29 @@ const char *dict_process_sys_zip_dict(mem_heap_t *heap,
   const page_size_t page_size{dict_table_page_size(index.table)};
   ulint len;
   const byte *field =
-      rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__ID, &len);
+      rec_get_nth_field_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__ID, &len);
 
   if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE)) goto err_len;
   *id = mach_read_from_4(field);
 
-  rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT__DB_TRX_ID, &len);
+  rec_get_nth_field_offs_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DB_TRX_ID, &len);
   if (UNIV_UNLIKELY(len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL))
     goto err_len;
 
-  rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT__DB_ROLL_PTR, &len);
+  rec_get_nth_field_offs_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DB_ROLL_PTR, &len);
   if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL))
     goto err_len;
 
-  field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__NAME, &len);
+  field = rec_get_nth_field_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__NAME, &len);
   if (UNIV_UNLIKELY(len == 0 || len == UNIV_SQL_NULL)) goto err_len;
   *name = mem_heap_strdupl(heap, (char *)field, len);
   *name_len = len;
 
-  field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__DATA, &len);
+  field = rec_get_nth_field_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DATA, &len);
   if (UNIV_UNLIKELY(len == UNIV_SQL_NULL)) goto err_len;
 
   if (rec_get_1byte_offs_flag(rec) == 0 &&
-      rec_2_is_field_extern(rec, DICT_FLD__SYS_ZIP_DICT__DATA)) {
+      rec_2_is_field_extern(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DATA)) {
     ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
     if (UNIV_UNLIKELY(!memcmp(field + len - BTR_EXTERN_FIELD_REF_SIZE,
@@ -3280,7 +3280,7 @@ static bool dict_load_table_id_on_index_id(space_index_t index_id,
   while (rec) {
     ulint len = 0;
     const byte *field = rec_get_nth_field(
-        rec, offsets,
+        nullptr, rec, offsets,
         dd_object_table.field_number("FIELD_ID") + DD_FIELD_OFFSET, &len);
     ut_ad(len == 7);
 
@@ -3289,7 +3289,7 @@ static bool dict_load_table_id_on_index_id(space_index_t index_id,
       found = true;
       /* Now we get the table id */
       const byte *field = rec_get_nth_field(
-          rec, offsets,
+          nullptr, rec, offsets,
           dd_object_table.field_number("FIELD_TABLE_ID") + DD_FIELD_OFFSET,
           &len);
       *table_id = mach_read_from_8(field);

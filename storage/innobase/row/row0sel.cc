@@ -3840,8 +3840,9 @@ static size_t rec_field_len_in_chars(const dict_col_t &col,
   const ulint cset = dtype_get_charset_coll(col.prtype);
   const CHARSET_INFO *cs = all_charsets[cset];
   ulint rec_field_len;
+  // nullptr for index as it can't be clustered index
   const char *rec_field = reinterpret_cast<const char *>(
-      rec_get_nth_field(rec, offsets, field_no, &rec_field_len));
+      rec_get_nth_field(nullptr, rec, offsets, field_no, &rec_field_len));
   return (cs->cset->numchars(cs, rec_field, rec_field + rec_field_len));
 }
 
@@ -4400,8 +4401,9 @@ static bool use_secondary_index(const row_prebuilt_t *prebuilt,
       const dict_field_t *field = index->get_field(secondary_index_field_no);
       ut_a(field->prefix_len > 0);
 
+      // nullptr for index as it can't be clustered index
       const auto record_size =
-          rec_offs_nth_size(offsets, secondary_index_field_no);
+          rec_offs_nth_size(nullptr, offsets, secondary_index_field_no);
       const auto prefix_len_chars = field->prefix_len / templ->mbmaxlen;
 
       if (record_size < prefix_len_chars) {

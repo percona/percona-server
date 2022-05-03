@@ -1,12 +1,6 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
-   Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| 6846e6b2f72
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
-=======
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.29
+   Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1122,21 +1116,13 @@ void THD::init(void) {
   m_se_gtid_flags.reset();
   owned_gtid.dbug_print(nullptr, "set owned_gtid (clear) in THD::init");
 
-<<<<<<< HEAD
   clear_slow_extended();
 
-  // This will clear the writeset session history.
-  rpl_thd_ctx.dependency_tracker_ctx().set_last_session_sequence_number(0);
-||||||| 6846e6b2f72
-  // This will clear the writeset session history.
-  rpl_thd_ctx.dependency_tracker_ctx().set_last_session_sequence_number(0);
-=======
   /*
     This will clear the writeset session history and re-set delegate state to
     INIT
   */
   rpl_thd_ctx.init();
->>>>>>> mysql-8.0.29
 
   /*
     This variable is used to temporarily disable the password validation plugin

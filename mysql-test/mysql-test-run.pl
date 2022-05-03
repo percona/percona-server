@@ -1458,31 +1458,13 @@ sub run_worker ($) {
       stop_all_servers($opt_shutdown_timeout);
       mark_time_used('restart');
 
-<<<<<<< HEAD
       if ( $opt_gprof ) {
-||||||| 6846e6b2f72
-      my $valgrind_reports = 0;
-      if ($opt_valgrind_mysqld or $opt_sanitize) {
-        $valgrind_reports = valgrind_exit_reports();
-        print $server "VALGREP\n" if $valgrind_reports;
-      }
-
-      if ($opt_gprof) {
-=======
-      my $valgrind_reports = 0;
-      if ($opt_valgrind_mysqld or $opt_sanitize) {
-        $valgrind_reports = valgrind_exit_reports() if not $shutdown_report;
-        print $server "VALGREP\n" if $valgrind_reports;
-      }
-
-      if ($opt_gprof) {
->>>>>>> mysql-8.0.29
         gprof_collect(find_mysqld($basedir), keys %gprof_dirs);
       }
 
       my $valgrind_report_text = '';
       if ($opt_valgrind || $opt_sanitize) {
-        $valgrind_report_text = valgrind_exit_reports();
+        $valgrind_reports = valgrind_exit_reports() if not $shutdown_report;
       }
 
       if ($shutdown_report || $valgrind_report_text) {

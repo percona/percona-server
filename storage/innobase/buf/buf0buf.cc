@@ -1202,23 +1202,12 @@ static void buf_pool_set_sizes(void) {
 }
 
 /** Initialize a buffer pool instance.
-<<<<<<< HEAD
-@param[in]	buf_pool	    buffer pool instance
-@param[in]	buf_pool_size size in bytes
-@param[in]	populate      virtual page preallocation
-@param[in]	instance_no   id of the instance
-||||||| 6846e6b2f72
-@param[in]	buf_pool	    buffer pool instance
-@param[in]	buf_pool_size size in bytes
-@param[in]	instance_no   id of the instance
-=======
 @param[in]      buf_pool            buffer pool instance
 @param[in]      buf_pool_size size in bytes
 @param[in]      instance_no   id of the instance
->>>>>>> mysql-8.0.29
-@param[in,out]  mutex     Mutex to protect common data structures
-@param[out] err           DB_SUCCESS if all goes well
-@param[in]  populate      virtual page preallocation */
+@param[in,out]  mutex         Mutex to protect common data structures
+@param[out]     err           DB_SUCCESS if all goes well
+@param[in]      populate      virtual page preallocation */
 static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
                             ulint instance_no, std::mutex *mutex, dberr_t &err,
                             bool populate) {
@@ -3126,16 +3115,8 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
   buf_page_t *bpage;
   BPageMutex *block_mutex;
   rw_lock_t *hash_lock;
-<<<<<<< HEAD
-  ibool discard_attempted = FALSE;
-  ibool must_read;
-  trx_t *trx = innobase_get_trx_for_slow_log();
-||||||| 6846e6b2f72
-  ibool discard_attempted = FALSE;
-  ibool must_read;
-=======
   bool discard_attempted = false;
->>>>>>> mysql-8.0.29
+  trx_t *trx = innobase_get_trx_for_slow_log();
   buf_pool_t *buf_pool = buf_pool_get(page_id);
 
   Counter::inc(buf_pool->stat.m_n_page_gets, page_id.page_no());
@@ -3203,20 +3184,12 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
         goto lookup;
       }
 
-      buf_block_buf_fix_inc((buf_block_t *)bpage, __FILE__, __LINE__);
+      buf_block_buf_fix_inc((buf_block_t *)bpage, UT_LOCATION_HERE);
 
       block_mutex = &((buf_block_t *)bpage)->mutex;
 
       mutex_enter(block_mutex);
 
-<<<<<<< HEAD
-||||||| 6846e6b2f72
-      buf_block_buf_fix_inc((buf_block_t *)bpage, __FILE__, __LINE__);
-
-=======
-      buf_block_buf_fix_inc((buf_block_t *)bpage, UT_LOCATION_HERE);
-
->>>>>>> mysql-8.0.29
       goto got_block;
   }
 
@@ -3424,17 +3397,9 @@ static bool buf_debug_execute_is_force_flush() {
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Wait for the block to be read in.
-<<<<<<< HEAD
-@param[in]	block	The block to check
-@param trx	Transaction to account the I/Os to */
+@param[in]      block   The block to check
+@param          trx     Transaction to account the I/Os to */
 static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
-||||||| 6846e6b2f72
-@param[in]	block	The block to check */
-static void buf_wait_for_read(buf_block_t *block) {
-=======
-@param[in]      block   The block to check */
-static void buf_wait_for_read(buf_block_t *block) {
->>>>>>> mysql-8.0.29
   /* Note:
   This unlocked read of IO fix is safe as we have the block buf-fixed. The page
   can only transition away from the IO_READ state, and once this is done, it
@@ -5764,7 +5729,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
         fil_page_get_type(frame) == FIL_PAGE_INDEX && page_is_leaf(frame) &&
         !fsp_is_system_temporary(bpage->id.space()) &&
         !fsp_is_undo_tablespace(bpage->id.space()) && !bpage->was_stale()) {
-<<<<<<< HEAD
       buf_block_t *block;
       bool update_ibuf_bitmap;
 
@@ -5777,13 +5741,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       }
       ibuf_merge_or_delete_for_page(block, bpage->id, &bpage->size,
                                     update_ibuf_bitmap);
-||||||| 6846e6b2f72
-      ibuf_merge_or_delete_for_page((buf_block_t *)bpage, bpage->id,
-                                    &bpage->size, TRUE);
-=======
-      ibuf_merge_or_delete_for_page((buf_block_t *)bpage, bpage->id,
-                                    &bpage->size, true);
->>>>>>> mysql-8.0.29
     }
     fil_space_release_for_io(space);
   }
@@ -5942,26 +5899,10 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->flush_state_mutex);
 
   for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-<<<<<<< HEAD
     /* Although this function is called during startup and
     during redo application phase during recovery, Percona InnoDB
     might be running several LRU manager threads at this stage.
     Hence, a new write batch can be in initialization stage at this point. */
-||||||| 6846e6b2f72
-    /* As this function is called during startup and
-    during redo application phase during recovery, InnoDB
-    is single threaded (apart from IO helper threads) at
-    this stage. No new write batch can be in initialization
-    stage at this point. */
-    ut_ad(buf_pool->init_flush[i] == FALSE);
-=======
-    /* As this function is called during startup and
-    during redo application phase during recovery, InnoDB
-    is single threaded (apart from IO helper threads) at
-    this stage. No new write batch can be in initialization
-    stage at this point. */
-    ut_ad(buf_pool->init_flush[i] == false);
->>>>>>> mysql-8.0.29
 
     /* For buffer pool invalidation to proceed we must ensure there is NO
     write activity happening. */
@@ -5973,7 +5914,7 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
       mutex_enter(&buf_pool->flush_state_mutex);
     }
 
-    ut_ad(buf_pool->init_flush[i] == FALSE);
+    ut_ad(buf_pool->init_flush[i] == false);
   }
 
   mutex_exit(&buf_pool->flush_state_mutex);

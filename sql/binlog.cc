@@ -7530,10 +7530,6 @@ void MYSQL_BIN_LOG::auto_purge() {
     }
     return;
   }
-<<<<<<< HEAD
-  if (binlog_space_limit) purge_logs_by_size(true);
-||||||| 6846e6b2f72
-=======
 
   assert(purge_error == 0);
 
@@ -7547,7 +7543,8 @@ void MYSQL_BIN_LOG::auto_purge() {
   */
   ha_flush_logs();
   purge_logs_before_date(purge_time, auto_purge);
->>>>>>> mysql-8.0.29
+
+  if (binlog_space_limit) purge_logs_by_size(true);
 }
 
 /**

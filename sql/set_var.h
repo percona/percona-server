@@ -348,12 +348,8 @@ class sys_var {
 
   void save_default(THD *thd, set_var *var) { global_save_default(thd, var); }
 
-<<<<<<< HEAD
   virtual void persist_only_to_string(THD *thd, set_var *var, String *dest) = 0;
-||||||| 6846e6b2f72
-=======
   bool check_if_sensitive_in_context(THD *, bool suppress_errors = true) const;
->>>>>>> mysql-8.0.29
 
  private:
   /**
@@ -1110,25 +1106,7 @@ collation_unordered_map<std::string, sys_var *>
 extern bool get_sysvar_source(const char *name, uint length,
                               enum enum_variable_source *source);
 
-<<<<<<< HEAD
-bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
-                        enum enum_var_type type, bool strict);
-void lock_plugin_mutex();
-void unlock_plugin_mutex();
-sys_var *find_sys_var(THD *thd, const char *str, size_t length = 0);
-sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length = 0,
-                         bool throw_error = false, bool locked = false);
 MY_NODISCARD
-||||||| 6846e6b2f72
-bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
-                        enum enum_var_type type, bool strict);
-void lock_plugin_mutex();
-void unlock_plugin_mutex();
-sys_var *find_sys_var(THD *thd, const char *str, size_t length = 0);
-sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length = 0,
-                         bool throw_error = false, bool locked = false);
-=======
->>>>>>> mysql-8.0.29
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
 bool keyring_access_test();
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);

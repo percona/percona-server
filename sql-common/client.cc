@@ -3401,7 +3401,6 @@ const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql [[maybe_unused]]) {
   return nullptr;
 }
 
-<<<<<<< HEAD
 #include <openssl/x509v3.h>
 
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
@@ -3561,8 +3560,7 @@ error:
 }
 
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-||||||| 6846e6b2f72
-=======
+
 /**
   Get the current SSL session serialization
 
@@ -3692,7 +3690,6 @@ bool STDCALL mysql_get_ssl_session_reused(MYSQL *mysql) {
   }
   return false;
 }
->>>>>>> mysql-8.0.29
 
 /*
   Check the server's (subject) Common Name against the

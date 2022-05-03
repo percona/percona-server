@@ -2239,7 +2239,6 @@ ulint srv_get_activity_count(void) {
   return (srv_sys == nullptr ? 0 : srv_sys->activity_count);
 }
 
-<<<<<<< HEAD
 /** Get current server ibuf merge activity count.
 @return ibuf merge activity count */
 static ulint srv_get_ibuf_merge_activity_count() noexcept {
@@ -2277,22 +2276,6 @@ bool srv_check_activity(ulint old_activity_count,
   const auto activity_delta = new_activity_count - old_activity_count;
 
   return (activity_delta > ibuf_merge_activity_delta);
-||||||| 6846e6b2f72
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-ibool srv_check_activity(
-    ulint old_activity_count) /*!< in: old activity count */
-{
-  return (srv_sys == nullptr ? false
-                             : srv_sys->activity_count != old_activity_count);
-=======
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-bool srv_check_activity(ulint old_activity_count) /*!< in: old activity count */
-{
-  return (srv_sys == nullptr ? false
-                             : srv_sys->activity_count != old_activity_count);
->>>>>>> mysql-8.0.29
 }
 
 /** Make room in the table cache by evicting an unused table.
@@ -2814,24 +2797,12 @@ static bool srv_master_do_shutdown_tasks(
   return (n_bytes_merged != 0);
 }
 
-<<<<<<< HEAD
 /** Set temporary tablespace to be encrypted if global variable
 innodb_temp_tablespace_encrypt is TRUE
 @param[in]	enable	true to enable encryption, false to disable
 @return DB_SUCCESS on success, DB_ERROR on failure */
 dberr_t srv_temp_encryption_update(bool enable) {
   ut_ad(!srv_read_only_mode);
-||||||| 6846e6b2f72
-/* Enable REDO tablespace encryption */
-bool srv_enable_redo_encryption(bool is_boot) {
-  /* Start to encrypt the redo log block from now on. */
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-=======
-/* Enable REDO tablespace encryption */
-bool srv_enable_redo_encryption() {
-  /* Start to encrypt the redo log block from now on. */
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
->>>>>>> mysql-8.0.29
 
   fil_space_t *const space = fil_space_get(srv_tmp_space.space_id());
   bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
@@ -2967,21 +2938,13 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
   Encryption::random_value(iv);
   Encryption::random_value(key);
 
-<<<<<<< HEAD
-  if (!log_write_encryption(key, iv, false, REDO_LOG_ENCRYPT_MK)) {
+  if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_MK)) {
     if (thd != nullptr) {
       ib::error(ER_IB_MSG_1243);
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
     } else {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
     }
-||||||| 6846e6b2f72
-  if (!log_write_encryption(key, iv, is_boot)) {
-    ib::error(ER_IB_MSG_1243);
-=======
-  if (!log_write_encryption(key, iv)) {
-    ib::error(ER_IB_MSG_1243);
->>>>>>> mysql-8.0.29
     return true;
   }
 
@@ -3108,15 +3071,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
 }
 
 /* Set encryption for UNDO tablespace with given space id. */
-<<<<<<< HEAD
-bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
-                                    bool is_boot) {
-||||||| 6846e6b2f72
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
-                                    bool is_boot) {
-=======
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
->>>>>>> mysql-8.0.29
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr) {
   ut_ad(fsp_is_undo_tablespace(space_id));
   fil_space_t *space = fil_space_get(space_id);
 
@@ -3168,13 +3123,7 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
 }
 
 /* Enable UNDO tablespace encryption */
-<<<<<<< HEAD
-bool srv_enable_undo_encryption(THD *thd, bool is_boot) {
-||||||| 6846e6b2f72
-bool srv_enable_undo_encryption(bool is_boot) {
-=======
-bool srv_enable_undo_encryption() {
->>>>>>> mysql-8.0.29
+bool srv_enable_undo_encryption(THD *thd) {
   /* Make sure undo::ddl_mutex is owned. */
   ut_ad(mutex_own(&undo::ddl_mutex));
   bool ret_val = false;
@@ -3213,13 +3162,7 @@ bool srv_enable_undo_encryption() {
     mtr_start(&mtr);
     mtr_x_lock_space(space, &mtr);
 
-<<<<<<< HEAD
-    if (set_undo_tablespace_encryption(thd, undo_space->id(), &mtr, is_boot)) {
-||||||| 6846e6b2f72
-    if (set_undo_tablespace_encryption(undo_space->id(), &mtr, is_boot)) {
-=======
-    if (set_undo_tablespace_encryption(undo_space->id(), &mtr)) {
->>>>>>> mysql-8.0.29
+    if (set_undo_tablespace_encryption(thd, undo_space->id(), &mtr)) {
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
       ret_val = true;
@@ -3721,7 +3664,6 @@ void srv_purge_coordinator_thread() {
   ut_a(trx_purge_state() == PURGE_STATE_INIT);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-<<<<<<< HEAD
   srv_purge_tids[0] = os_thread_get_tid();
   const auto actual_priority =
       os_thread_set_priority(srv_purge_tids[0], srv_sched_priority_purge);
@@ -3730,12 +3672,7 @@ void srv_purge_coordinator_thread() {
                << srv_sched_priority_master << " the current priority is "
                << actual_priority;
 
-  rw_lock_x_lock(&purge_sys->latch);
-||||||| 6846e6b2f72
-  rw_lock_x_lock(&purge_sys->latch);
-=======
   rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
->>>>>>> mysql-8.0.29
 
   purge_sys->running = true;
   purge_sys->state = PURGE_STATE_RUN;

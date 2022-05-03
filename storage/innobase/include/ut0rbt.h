@@ -110,7 +110,9 @@ struct ib_rbt_bound_t {
 
 /* Node size. FIXME: name might clash, but currently it does not, so for easier
 maintenance do not rename it for now. */
-#define SIZEOF_NODE(t) ((sizeof(ib_rbt_node_t) + t->sizeof_value) - 1)
+inline static size_t SIZEOF_NODE(const ib_rbt_t *t) {
+  return sizeof(ib_rbt_node_t) + t->sizeof_value - 1;
+}
 
 /** Free an instance of  a red black tree */
 void rbt_free(ib_rbt_t *tree); /*!< in: rb tree to free */

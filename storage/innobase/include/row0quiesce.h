@@ -44,13 +44,7 @@ constexpr uint32_t IB_EXPORT_CFG_VERSION_V1 = 1;
 /** The v2 .cfg has space flags written */
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V2 = 2;
 /** The v3 .cfg writes instant column default values in metadata section. */
-<<<<<<< HEAD
-#define IB_EXPORT_CFG_VERSION_V3 0x3UL
-||||||| 6846e6b2f72
-#define IB_EXPORT_CFG_VERSION_V3 3
-=======
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V3 = 3;
->>>>>>> mysql-8.0.29
 /** The v4 .cfg has the is_ascending boolean written for each index column. */
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V4 = 4;
 /** The v5 .cfg writes number of nullable column in table before first instant
@@ -61,14 +55,8 @@ constexpr uint32_t IB_EXPORT_CFG_VERSION_V6 = 6;
 /** The v7 .cfg has metadata of INSTANT DROP/ADD columns. */
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V7 = 7;
 /** Future version used to test that the correct error message is returned. */
-<<<<<<< HEAD
-#define IB_EXPORT_CFG_VERSION_V99 99
-#define IB_EXPORT_CFG_VERSION_V1_WITH_RK 0xFFFFFFFF
-||||||| 6846e6b2f72
-#define IB_EXPORT_CFG_VERSION_V99 99
-=======
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V99 = 99;
->>>>>>> mysql-8.0.29
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V1_WITH_RK = 0xFFFFFFFF;
 
 /** Quiesce the tablespace that the table resides in.
 @param[in] table Quiesce this table

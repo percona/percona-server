@@ -22,13 +22,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-<<<<<<< HEAD
-||||||| 6846e6b2f72
-#include <NDBT_Test.hpp>
-=======
 #include "util/require.h"
-#include <NDBT_Test.hpp>
->>>>>>> mysql-8.0.29
 #include <NDBT_ReturnCodes.h>
 #include <NdbEnv.h>
 #include <Bitmask.hpp>

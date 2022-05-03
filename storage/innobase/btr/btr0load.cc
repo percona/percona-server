@@ -1225,17 +1225,11 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
   mtr_t mtr;
 
   mtr.start();
-<<<<<<< HEAD
   if (m_index->table->is_temporary()) {
     // We are bulk loading a temporary table index. No need to redo-log it.
     mtr.set_log_mode(MTR_LOG_NO_REDO);
   }
-  mtr.x_lock(dict_index_get_lock(m_index), __FILE__, __LINE__);
-||||||| 6846e6b2f72
-  mtr.x_lock(dict_index_get_lock(m_index), __FILE__, __LINE__);
-=======
   mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
->>>>>>> mysql-8.0.29
 
   auto last_block = btr_block_get(page_id, page_size, RW_X_LATCH,
                                   UT_LOCATION_HERE, m_index, &mtr);

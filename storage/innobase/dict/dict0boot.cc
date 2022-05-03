@@ -238,41 +238,6 @@ dberr_t dict_boot(void) {
 
     /* Be sure these constants do not ever change.  To avoid bloat,
     only check the *NUM_FIELDS* in each table */
-<<<<<<< HEAD
-    ut_ad(DICT_NUM_COLS__SYS_TABLES == 8);
-    ut_ad(DICT_NUM_FIELDS__SYS_TABLES == 10);
-    ut_ad(DICT_NUM_FIELDS__SYS_TABLE_IDS == 2);
-    ut_ad(DICT_NUM_COLS__SYS_COLUMNS == 7);
-    ut_ad(DICT_NUM_FIELDS__SYS_COLUMNS == 9);
-    ut_ad(DICT_NUM_COLS__SYS_INDEXES == 8);
-    ut_ad(DICT_NUM_FIELDS__SYS_INDEXES == 10);
-    ut_ad(DICT_NUM_COLS__SYS_FIELDS == 3);
-    ut_ad(DICT_NUM_FIELDS__SYS_FIELDS == 5);
-    ut_ad(DICT_NUM_COLS__SYS_FOREIGN == 4);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN == 6);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_FOR_NAME == 2);
-    ut_ad(DICT_NUM_COLS__SYS_FOREIGN_COLS == 4);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_COLS == 6);
-    ut_ad(DICT_NUM_COLS__SYS_ZIP_DICT == 3);
-    ut_ad(DICT_NUM_FIELDS__SYS_ZIP_DICT == 5);
-    ut_ad(DICT_NUM_COLS__SYS_ZIP_DICT_COLS == 3);
-    ut_ad(DICT_NUM_FIELDS__SYS_ZIP_DICT_COLS == 5);
-||||||| 6846e6b2f72
-    ut_ad(DICT_NUM_COLS__SYS_TABLES == 8);
-    ut_ad(DICT_NUM_FIELDS__SYS_TABLES == 10);
-    ut_ad(DICT_NUM_FIELDS__SYS_TABLE_IDS == 2);
-    ut_ad(DICT_NUM_COLS__SYS_COLUMNS == 7);
-    ut_ad(DICT_NUM_FIELDS__SYS_COLUMNS == 9);
-    ut_ad(DICT_NUM_COLS__SYS_INDEXES == 8);
-    ut_ad(DICT_NUM_FIELDS__SYS_INDEXES == 10);
-    ut_ad(DICT_NUM_COLS__SYS_FIELDS == 3);
-    ut_ad(DICT_NUM_FIELDS__SYS_FIELDS == 5);
-    ut_ad(DICT_NUM_COLS__SYS_FOREIGN == 4);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN == 6);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_FOR_NAME == 2);
-    ut_ad(DICT_NUM_COLS__SYS_FOREIGN_COLS == 4);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_COLS == 6);
-=======
     static_assert(DICT_NUM_COLS__SYS_TABLES == 8);
     static_assert(DICT_NUM_FIELDS__SYS_TABLES == 10);
     static_assert(DICT_NUM_FIELDS__SYS_TABLE_IDS == 2);
@@ -287,7 +252,10 @@ dberr_t dict_boot(void) {
     static_assert(DICT_NUM_FIELDS__SYS_FOREIGN_FOR_NAME == 2);
     static_assert(DICT_NUM_COLS__SYS_FOREIGN_COLS == 4);
     static_assert(DICT_NUM_FIELDS__SYS_FOREIGN_COLS == 6);
->>>>>>> mysql-8.0.29
+    static_assert(DICT_NUM_COLS__SYS_ZIP_DICT == 3);
+    static_assert(DICT_NUM_FIELDS__SYS_ZIP_DICT == 5);
+    static_assert(DICT_NUM_COLS__SYS_ZIP_DICT_COLS == 3);
+    static_assert(DICT_NUM_FIELDS__SYS_ZIP_DICT_COLS == 5);
 
     heap = mem_heap_create(450, UT_LOCATION_HERE);
 

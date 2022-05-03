@@ -65,14 +65,10 @@ Plugin_table table_processlist::m_table_def(
     "  TIME BIGINT,\n"
     "  STATE VARCHAR(64),\n"
     "  INFO LONGTEXT,\n"
-<<<<<<< HEAD
     "  TIME_MS BIGINT unsigned not null,\n"
     "  ROWS_SENT BIGINT unsigned not null,\n"
     "  ROWS_EXAMINED BIGINT unsigned not null,\n"
-||||||| 6846e6b2f72
-=======
     "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY'),\n"
->>>>>>> mysql-8.0.29
     "  PRIMARY KEY (ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -313,14 +309,10 @@ int table_processlist::make_row(PFS_thread *pfs) {
     memcpy(m_row.m_hostname, host_ip.c_str(), m_row.m_hostname_length);
   }
 
-<<<<<<< HEAD
   m_row.m_start_time_usec = pfs->m_start_time_usec;
   m_row.m_rows_sent = pfs->m_rows_sent;
   m_row.m_rows_examined = pfs->m_rows_examined;
-||||||| 6846e6b2f72
-=======
   m_row.m_secondary = pfs->m_secondary;
->>>>>>> mysql-8.0.29
 
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
@@ -402,7 +394,6 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
             f->set_null();
           }
           break;
-<<<<<<< HEAD
         case 8: /* TIME_MS */
           if (m_row.m_start_time_usec) {
             auto now = my_micro_time();
@@ -420,11 +411,9 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 10: /* ROWS_EXAMINED */
           set_field_ulonglong(f, m_row.m_rows_examined);
-||||||| 6846e6b2f72
-=======
-        case 8: /* EXECUTION_ENGINE */
+          break;
+        case 11: /* EXECUTION_ENGINE */
           set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
->>>>>>> mysql-8.0.29
           break;
         default:
           assert(false);

@@ -107,16 +107,8 @@ typedef int     (*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef int     (*fts_scanner)();
 
 struct fts_lexer_t {
-<<<<<<< HEAD
-	fts_scanner_alt		scanner;
-	void*			yyscanner;
-||||||| 6846e6b2f72
-	fts_scanner	scanner;
-	void*		yyscanner;
-=======
-        fts_scanner     scanner;
-        void*           yyscanner;
->>>>>>> mysql-8.0.29
+	fts_scanner_alt scanner;
+	void*           yyscanner;
 };
 
 
@@ -1962,25 +1954,11 @@ fts_lexer_free(
 /*===========*/
         fts_lexer_t*    fts_lexer)
 {
-<<<<<<< HEAD
 	if (fts_lexer->scanner == fts_blexer) {
 		fts0blex_destroy(fts_lexer->yyscanner);
 	} else {
 		fts0tlex_destroy(fts_lexer->yyscanner);
 	}
-||||||| 6846e6b2f72
-	if (fts_lexer->scanner == (fts_scan) fts_blexer) {
-		fts0blex_destroy(fts_lexer->yyscanner);
-	} else {
-		fts0tlex_destroy(fts_lexer->yyscanner);
-	}
-=======
-        if (fts_lexer->scanner == (fts_scan) fts_blexer) {
-                fts0blex_destroy(fts_lexer->yyscanner);
-        } else {
-                fts0tlex_destroy(fts_lexer->yyscanner);
-        }
->>>>>>> mysql-8.0.29
 
         ut::free(fts_lexer);
 }

@@ -117,14 +117,8 @@ void page_zip_set_alloc(void *stream, mem_heap_t *heap);
 /** Compress a page.
  @return true on success, false on failure; page_zip will be left
  intact on failure. */
-<<<<<<< HEAD
 MY_NODISCARD
-ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
-||||||| 6846e6b2f72
-ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
-=======
 bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
->>>>>>> mysql-8.0.29
                                                   n_blobs, m_start, m_end,
                                                   m_nonempty */
                        const page_t *page,       /*!< in: uncompressed page */

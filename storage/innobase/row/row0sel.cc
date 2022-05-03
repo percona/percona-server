@@ -2393,17 +2393,9 @@ void row_sel_convert_mysql_key_to_innobase(dtuple_t *tuple, byte *buf,
 
     if (UNIV_LIKELY(!is_null)) {
       buf = row_mysql_store_col_in_innobase_format(
-<<<<<<< HEAD
-          dfield, buf, FALSE, /* MySQL key value format col */
+          dfield, buf, false, /* MySQL key value format col */
           key_ptr + data_offset, data_len, dict_table_is_comp(index->table),
           false, 0, 0, 0);
-||||||| 6846e6b2f72
-          dfield, buf, FALSE, /* MySQL key value format col */
-          key_ptr + data_offset, data_len, dict_table_is_comp(index->table));
-=======
-          dfield, buf, false, /* MySQL key value format col */
-          key_ptr + data_offset, data_len, dict_table_is_comp(index->table));
->>>>>>> mysql-8.0.29
       ut_a(buf <= original_buf + buf_len);
     }
 
@@ -2494,79 +2486,20 @@ function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 @param[in]      templ           MySQL column template. Its following fields
                                 are referenced: type, is_unsigned,
 mysql_col_len, mbminlen, mbmaxlen
-<<<<<<< HEAD
-@param[in]	index		InnoDB index */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
-                                or templ->icp_rec_field_no */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	data		data to store
-@param[in]	len		length of the data
-@param[in]	compress_heap */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	sec_field	secondary index field no if the secondary index
-||||||| 6846e6b2f72
-@param[in]	index		InnoDB index */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
-                                or templ->icp_rec_field_no */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	data		data to store
-@param[in]	len		length of the data */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	sec_field	secondary index field no if the secondary index
-=======
 @param[in]      index           InnoDB index
 @param[in]      field_no        templ->rec_field_no or templ->clust_rec_field_no
                                 or templ->icp_rec_field_no
 @param[in]      data            data to store
 @param[in]      len             length of the data
+@param[in]	    compress_heap
 @param[in]      sec_field       secondary index field no if the secondary index
->>>>>>> mysql-8.0.29
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
-<<<<<<< HEAD
-#endif /* UNIV_DEBUG */
-void row_sel_field_store_in_mysql_format_func(byte *dest,
-                                              const mysql_row_templ_t *templ,
-                                              const dict_index_t *index,
-#ifdef UNIV_DEBUG
-                                              ulint field_no,
-#endif /* UNIV_DEBUG */
-                                              const byte *data, ulint len,
-                                              mem_heap_t **compress_heap
-#ifdef UNIV_DEBUG
-                                              ,
-                                              ulint sec_field
-#endif /* UNIV_DEBUG */
-) {
-||||||| 6846e6b2f72
-#endif /* UNIV_DEBUG */
-void row_sel_field_store_in_mysql_format_func(byte *dest,
-                                              const mysql_row_templ_t *templ,
-                                              const dict_index_t *index,
-#ifdef UNIV_DEBUG
-                                              ulint field_no,
-#endif /* UNIV_DEBUG */
-                                              const byte *data, ulint len
-#ifdef UNIV_DEBUG
-                                              ,
-                                              ulint sec_field
-#endif /* UNIV_DEBUG */
-) {
-=======
 void row_sel_field_store_in_mysql_format_func(
     byte *dest, const mysql_row_templ_t *templ, const dict_index_t *index,
     IF_DEBUG(ulint field_no, ) const byte *data,
-    ulint len IF_DEBUG(, ulint sec_field)) {
->>>>>>> mysql-8.0.29
+    ulint len, mem_heap_t** compress_heap IF_DEBUG(, ulint sec_field)) {
   byte *ptr;
 #ifdef UNIV_DEBUG
   const dict_field_t *field =
@@ -2714,15 +2647,9 @@ void row_sel_field_store_in_mysql_format_func(
       from prefix virtual column in virtual index. */
       ut_ad(templ->is_virtual || clust_templ_for_sec ||
             len * templ->mbmaxlen >= mysql_col_len ||
-<<<<<<< HEAD
+            index->has_row_versions() ||
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0) ||
             templ->rec_field_is_prefix);
-||||||| 6846e6b2f72
-            (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
-=======
-            index->has_row_versions() ||
-            (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
->>>>>>> mysql-8.0.29
       ut_ad(templ->is_virtual || !(field->prefix_len % templ->mbmaxlen));
 
       /* Pad with spaces. This undoes the stripping
@@ -3778,23 +3705,12 @@ static ulint row_sel_try_search_shortcut_for_mysql(
   ut_ad(index->is_clustered());
   ut_ad(!prebuilt->templ_contains_blob);
 
-<<<<<<< HEAD
   ut_ad(trx->has_search_latch);
 
-  btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF,
-                             pcur, RW_S_LATCH, mtr);
-  rec = btr_pcur_get_rec(pcur);
-||||||| 6846e6b2f72
-  btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF,
-                             pcur, (trx->has_search_latch) ? RW_S_LATCH : 0,
-                             mtr);
-  rec = btr_pcur_get_rec(pcur);
-=======
   pcur->open_no_init(index, search_tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF,
-                     (trx->has_search_latch) ? RW_S_LATCH : 0, mtr,
+                     RW_S_LATCH, mtr,
                      UT_LOCATION_HERE);
   rec = pcur->get_rec();
->>>>>>> mysql-8.0.29
 
   if (!page_rec_is_user_rec(rec)) {
     return (SEL_RETRY);
@@ -5067,18 +4983,12 @@ rec_loop:
 
   rec = pcur->get_rec();
 
-<<<<<<< HEAD
   SRV_CORRUPT_TABLE_CHECK(rec, {
     err = DB_CORRUPTION;
     goto lock_wait_or_error;
   });
 
-  ut_ad(!!page_rec_is_comp(rec) == comp);
-||||||| 6846e6b2f72
-  ut_ad(!!page_rec_is_comp(rec) == comp);
-=======
   ut_ad(page_rec_is_comp(rec) == comp);
->>>>>>> mysql-8.0.29
 
   if (page_rec_is_infimum(rec)) {
     /* The infimum record on a page cannot be in the result set,
@@ -5187,20 +5097,14 @@ rec_loop:
 
   if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
   wrong_offs:
-<<<<<<< HEAD
     if (srv_pass_corrupt_table && index->table->space != 0 &&
         index->table->space < dict_sys_t::s_log_space_first_id) {
       index->table->is_corrupt = true;
       fil_space_set_corrupt(index->table->space);
     }
 
-    if ((srv_force_recovery == 0 || moves_up == FALSE) &&
+    if ((srv_force_recovery == 0 || moves_up == false) &&
         srv_pass_corrupt_table <= 1) {
-||||||| 6846e6b2f72
-    if (srv_force_recovery == 0 || moves_up == FALSE) {
-=======
-    if (srv_force_recovery == 0 || moves_up == false) {
->>>>>>> mysql-8.0.29
       ib::error(ER_IB_MSG_1032)
           << "Rec address " << static_cast<const void *>(rec)
           << ", buf block fix count "

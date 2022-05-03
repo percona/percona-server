@@ -423,124 +423,6 @@ bool update_plugins_I_S_metadata(THD *thd) {
   return dd::end_transaction(thd, error);
 }
 
-<<<<<<< HEAD
-||||||| 6846e6b2f72
-/*
-  Create INFORMATION_SCHEMA system views.
-*/
-bool create_system_views(THD *thd, bool is_non_dd_based) {
-  // Force use of utf8 charset.
-  const CHARSET_INFO *client_cs = thd->variables.character_set_client;
-  const CHARSET_INFO *cs = thd->variables.collation_connection;
-  const CHARSET_INFO *m_client_cs, *m_connection_cl;
-  Disable_binlog_guard binlog_guard(thd);
-  Implicit_substatement_state_guard substatement_guard(thd);
-
-  resolve_charset("utf8", system_charset_info, &m_client_cs);
-  resolve_collation("utf8_general_ci", system_charset_info, &m_connection_cl);
-
-  thd->variables.character_set_client = m_client_cs;
-  thd->variables.collation_connection = m_connection_cl;
-  thd->update_charset();
-
-  dd::System_views::Types sv_type =
-      is_non_dd_based ? dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA
-                      : dd::System_views::Types::INFORMATION_SCHEMA;
-
-  // Iterate over system view definitions.
-  bool error = false;
-  for (dd::System_views::Const_iterator it =
-           dd::System_views::instance()->begin(sv_type);
-       it != dd::System_views::instance()->end();
-       it = dd::System_views::instance()->next(it, sv_type)) {
-    const dd::system_views::System_view_definition *view_def =
-        (*it)->entity()->view_definition();
-
-    // Build the CREATE VIEW DDL statement and execute it.
-    if (view_def == nullptr ||
-        dd::execute_query(thd, view_def->build_ddl_create_view())) {
-      error = true;
-      break;
-    }
-  }
-
-  // Store the target I_S version.
-  if (!error && !is_non_dd_based) {
-    dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
-    if (!opt_initialize)
-      dd::bootstrap::DD_bootstrap_ctx::instance().set_actual_I_S_version(
-          d->get_actual_I_S_version(thd));
-    error = d->set_I_S_version(thd, d->get_target_I_S_version());
-    dd::bootstrap::DD_bootstrap_ctx::instance().set_I_S_upgrade_done();
-  }
-
-  // Restore the original character set.
-  thd->variables.character_set_client = client_cs;
-  thd->variables.collation_connection = cs;
-  thd->update_charset();
-
-  return error;
-}
-
-=======
-/*
-  Create INFORMATION_SCHEMA system views.
-*/
-bool create_system_views(THD *thd, bool is_non_dd_based) {
-  // Force use of utf8mb3 charset.
-  const CHARSET_INFO *client_cs = thd->variables.character_set_client;
-  const CHARSET_INFO *cs = thd->variables.collation_connection;
-  const CHARSET_INFO *m_client_cs, *m_connection_cl;
-  Disable_binlog_guard binlog_guard(thd);
-  Implicit_substatement_state_guard substatement_guard(thd);
-
-  resolve_charset("utf8mb3", system_charset_info, &m_client_cs);
-  resolve_collation("utf8_general_ci", system_charset_info, &m_connection_cl);
-
-  thd->variables.character_set_client = m_client_cs;
-  thd->variables.collation_connection = m_connection_cl;
-  thd->update_charset();
-
-  dd::System_views::Types sv_type =
-      is_non_dd_based ? dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA
-                      : dd::System_views::Types::INFORMATION_SCHEMA;
-
-  // Iterate over system view definitions.
-  bool error = false;
-  for (dd::System_views::Const_iterator it =
-           dd::System_views::instance()->begin(sv_type);
-       it != dd::System_views::instance()->end();
-       it = dd::System_views::instance()->next(it, sv_type)) {
-    const dd::system_views::System_view_definition *view_def =
-        (*it)->entity()->view_definition();
-
-    // Build the CREATE VIEW DDL statement and execute it.
-    if (view_def == nullptr ||
-        dd::execute_query(thd, view_def->build_ddl_create_view())) {
-      error = true;
-      break;
-    }
-  }
-
-  // Store the target I_S version.
-  if (!error && !is_non_dd_based) {
-    dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
-    if (!opt_initialize)
-      dd::bootstrap::DD_bootstrap_ctx::instance().set_actual_I_S_version(
-          d->get_actual_I_S_version(thd));
-    error = d->set_I_S_version(thd, d->get_target_I_S_version());
-    dd::bootstrap::DD_bootstrap_ctx::instance().set_I_S_upgrade_done();
-  }
-
-  // Restore the original character set.
-  thd->variables.character_set_client = client_cs;
-  thd->variables.collation_connection = cs;
-  thd->update_charset();
-
-  return error;
-}
-
->>>>>>> mysql-8.0.29
 bool create_non_dd_based_system_views(THD *thd) {
   return dd::info_schema::create_system_views(thd, true, false);
 }
@@ -773,7 +655,7 @@ bool get_I_S_view_definition(const dd::String_type &schema_name,
   Create INFORMATION_SCHEMA system views.
 */
 bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
-  // Force use of utf8 charset.
+  // Force use of utf8mb3 charset.
   const CHARSET_INFO *client_cs = thd->variables.character_set_client;
   const CHARSET_INFO *cs = thd->variables.collation_connection;
   const CHARSET_INFO *m_client_cs, *m_connection_cl;
@@ -818,7 +700,7 @@ bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
                         &m_connection_cl);
     } else {
       // compression dictionaries require mb4. Other views do not...
-      resolve_charset("utf8", system_charset_info, &m_client_cs);
+      resolve_charset("utf8mb3", system_charset_info, &m_client_cs);
       resolve_collation("utf8_general_ci", system_charset_info,
                         &m_connection_cl);
     }

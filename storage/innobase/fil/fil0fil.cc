@@ -958,16 +958,8 @@ class Fil_shard {
   [[nodiscard]] fil_space_t *space_free(space_id_t space_id);
 
   /** Map the space ID and name to the tablespace instance.
-<<<<<<< HEAD
-  @param[in]	space		Tablespace instance */
-  void space_add(fil_space_t *space, fil_encryption_t mode);
-||||||| 6846e6b2f72
-  @param[in]	space		Tablespace instance */
-  void space_add(fil_space_t *space);
-=======
   @param[in]    space           Tablespace instance */
-  void space_add(fil_space_t *space);
->>>>>>> mysql-8.0.29
+  void space_add(fil_space_t *space, fil_encryption_t mode);
 
   /** Prepare to free a file. Remove from the unflushed list
   if there are no pending flushes.
@@ -1147,17 +1139,11 @@ class Fil_shard {
   must not cross a file boundary; in AIO this must be a block size multiple
   @param[in,out]        buf             buffer where to store read data or from
   where to write; in AIO this must be appropriately aligned
-<<<<<<< HEAD
-  @param[in]	message		message for AIO handler if !sync, else ignored
-  @param[in]	should_buffer   whether to buffer an aio request. AIO read
+  @param[in]    message         message for AIO handler if !sync, else ignored
+  @param[in]    should_buffer   whether to buffer an aio request. AIO read
   ahead uses this. If you plan to use this parameter, make sure you remember to
   call os_aio_dispatch_read_array_submit() when you're ready to commit all your
   requests.
-||||||| 6846e6b2f72
-  @param[in]	message		message for AIO handler if !sync, else ignored
-=======
-  @param[in]    message         message for AIO handler if !sync, else ignored
->>>>>>> mysql-8.0.29
   @return error code
   @retval DB_SUCCESS on success
   @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
@@ -2134,16 +2120,8 @@ Fil_shard::Fil_shard(size_t shard_id)
 }
 
 /** Map the space ID and name to the tablespace instance.
-<<<<<<< HEAD
-@param[in]	space		Tablespace instance */
-void Fil_shard::space_add(fil_space_t *space, fil_encryption_t mode) {
-||||||| 6846e6b2f72
-@param[in]	space		Tablespace instance */
-void Fil_shard::space_add(fil_space_t *space) {
-=======
 @param[in]      space           Tablespace instance */
-void Fil_shard::space_add(fil_space_t *space) {
->>>>>>> mysql-8.0.29
+void Fil_shard::space_add(fil_space_t *space, fil_encryption_t mode) {
   ut_ad(mutex_owned());
 
   {
@@ -4077,7 +4055,6 @@ void Fil_shard::validate_space_reference_count(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
-<<<<<<< HEAD
 /** Wait for redo log tracker to catch up, if enabled */
 void Fil_system::wait_for_changed_page_tracker() noexcept {
   // Must check both flags as it's possible for this to be called during
@@ -4088,11 +4065,6 @@ void Fil_system::wait_for_changed_page_tracker() noexcept {
     os_event_wait(srv_redo_log_tracked_event);
 }
 
-/** Close all open files. */
-||||||| 6846e6b2f72
-/** Close all open files. */
-=======
->>>>>>> mysql-8.0.29
 void Fil_shard::close_all_files() {
   ut_ad(mutex_owned());
 
@@ -6222,15 +6194,9 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
 @param[in]      flags           Tablespace flags
 @param[in]      size            Initial size of the tablespace file in pages,
                                 must be >= FIL_IBD_FILE_INITIAL_SIZE
-<<<<<<< HEAD
-@param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in]	mode		keyring encryption mode
-@param[in]	keyring_encryption_key_id info on keyring encryption key
-||||||| 6846e6b2f72
-@param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-=======
 @param[in]      type            FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
->>>>>>> mysql-8.0.29
+@param[in]      mode            keyring encryption mode
+@param[in]      keyring_encryption_key_id     info on keyring encryption key
 @return DB_SUCCESS or error code */
 static dberr_t fil_create_tablespace(
     space_id_t space_id, const char *name, const char *path, uint32_t flags,
@@ -7167,19 +7133,6 @@ static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
   while (offset < end) {
     err =
         os_file_write(request, file->name, file->handle, buf, offset, n_bytes);
-<<<<<<< HEAD
-#else  /* UNIV_HOTBACKUP */
-    err = os_aio_func(request, AIO_mode::SYNC, file->name, file->handle, buf,
-                      offset, n_bytes, read_only_mode, nullptr, nullptr,
-                      file->space->id, nullptr, false);
-#endif /* UNIV_HOTBACKUP */
-||||||| 6846e6b2f72
-#else  /* UNIV_HOTBACKUP */
-    err = os_aio_func(request, AIO_mode::SYNC, file->name, file->handle, buf,
-                      offset, n_bytes, read_only_mode, nullptr, nullptr);
-#endif /* UNIV_HOTBACKUP */
-=======
->>>>>>> mysql-8.0.29
 
     if (err != DB_SUCCESS) {
       break;
@@ -10215,23 +10168,11 @@ dberr_t fil_set_autoextend_size(space_id_t space_id, uint64_t autoextend_size) {
 }
 
 /** Set the encryption type for the tablespace
-<<<<<<< HEAD
-@param[in] space_id		Space ID of tablespace for which to set
-@param[in] algorithm		Encryption algorithm
-@param[in] key			Encryption key
-@param[in] iv			Encryption iv
-@param[in] acquire_mutex  if true acquire fil_sys mutex, else false
-||||||| 6846e6b2f72
-@param[in] space_id		Space ID of tablespace for which to set
-@param[in] algorithm		Encryption algorithm
-@param[in] key			Encryption key
-@param[in] iv			Encryption iv
-=======
 @param[in] space_id             Space ID of tablespace for which to set
 @param[in] algorithm            Encryption algorithm
 @param[in] key                  Encryption key
 @param[in] iv                   Encryption iv
->>>>>>> mysql-8.0.29
+@param[in] acquire_mutex        if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
 dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
                            byte *key, byte *iv, bool acquire_mutex) {

@@ -1174,19 +1174,11 @@ class Sys_var_version : public Sys_var_charptr {
 
   ~Sys_var_version() override = default;
 
-<<<<<<< HEAD
-  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
-    const char *const *version_ptr = reinterpret_cast<const char *const *>(
-        Sys_var_charptr::global_value_ptr(thd, base));
-    if (version_ptr == nullptr || *version_ptr == nullptr) return nullptr;
-||||||| 6846e6b2f72
-  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
-    const uchar *value = Sys_var_charptr::global_value_ptr(thd, base);
-=======
   const uchar *global_value_ptr(THD *thd,
                                 std::string_view keycache_name) override {
-    const uchar *value = Sys_var_charptr::global_value_ptr(thd, keycache_name);
->>>>>>> mysql-8.0.29
+    const char *const *version_ptr = reinterpret_cast<const char *const *>(
+        Sys_var_charptr::global_value_ptr(thd, keycache_name));
+    if (version_ptr == nullptr || *version_ptr == nullptr) return nullptr;
 
     sys_var *suffix_var = find_sys_var(thd, STRING_WITH_LEN("version_suffix"));
     if (suffix_var == nullptr)

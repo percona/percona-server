@@ -282,16 +282,9 @@ inline bool DATA_LARGE_MTYPE(ulint mtype) {
 }
 
 /* For checking if data type is big length data type. */
-<<<<<<< HEAD
-#define DATA_BIG_LEN_MTYPE(len, mtype, extra) \
-  ((len) > 255 - (extra) || DATA_LARGE_MTYPE(mtype))
-||||||| 6846e6b2f72
-#define DATA_BIG_LEN_MTYPE(len, mtype) ((len) > 255 || DATA_LARGE_MTYPE(mtype))
-=======
-inline bool DATA_BIG_LEN_MTYPE(ulint len, ulint mtype) {
-  return len > 255 || DATA_LARGE_MTYPE(mtype);
+inline bool DATA_BIG_LEN_MTYPE(ulint len, ulint mtype, ulint extra) {
+  return len > (255 - extra) || DATA_LARGE_MTYPE(mtype);
 }
->>>>>>> mysql-8.0.29
 
 /* For checking if the column is a big length column. */
 #define DATA_BIG_COL(col)                      \

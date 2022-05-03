@@ -1199,12 +1199,8 @@ bool migrate_connect_options = false;
 uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 bool opt_keyring_migration_to_component = false;
-<<<<<<< HEAD
 bool opt_libcoredumper, opt_corefile = 0;
-||||||| 6846e6b2f72
-=======
 bool opt_persist_sensitive_variables_in_plaintext{true};
->>>>>>> mysql-8.0.29
 
 #if defined(_WIN32)
 /*

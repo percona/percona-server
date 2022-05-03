@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, 2017, Percona Inc.
-||||||| 6846e6b2f72
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.0.29
+Copyright (c) 2009, 2017, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -555,10 +547,9 @@ class IORequest {
   }
 
   /** Set encryption key and iv
-<<<<<<< HEAD
-  @param[in] key		The encryption key to use
-  @param[in] key_len	length of the encryption key
-  @param[in] iv		The encryption iv to use */
+  @param[in] key        The encryption key to use
+  @param[in] key_len    length of the encryption key
+  @param[in] iv         The encryption iv to use */
   void encryption_key(const byte *key, ulint key_len, const byte *iv,
                       uint key_version, uint key_id, byte *tablespace_key,
                       const char *uuid,
@@ -577,18 +568,9 @@ class IORequest {
   }
 
   /** Set encryption key and iv
-  @param[in] key		The encryption key to use
-  @param[in] key_len	length of the encryption key
-  @param[in] iv		The encryption iv to use */
-||||||| 6846e6b2f72
-  @param[in] key		The encryption key to use
-  @param[in] key_len	length of the encryption key
-  @param[in] iv		The encryption iv to use */
-=======
-  @param[in] key                The encryption key to use
+  @param[in] key        The encryption key to use
   @param[in] key_len    length of the encryption key
   @param[in] iv         The encryption iv to use */
->>>>>>> mysql-8.0.29
   void encryption_key(const byte *key, ulint key_len, const byte *iv) {
     m_encryption.set_key(key);
     m_encryption.set_key_length(key_len);
@@ -910,26 +892,12 @@ null-terminated string
     bool *success);
 
 /** Tries to disable OS caching on an opened file descriptor.
-<<<<<<< HEAD
-@param[in]	fd		file descriptor to alter
-@param[in]	file_name	file name, used in the diagnostic message
-@param[in]	operation_name	"open" or "create"; used in the diagnostic
-                                message
-@return true if operation is success and false */
-bool os_file_set_nocache(int fd, const char *file_name,
-||||||| 6846e6b2f72
-@param[in]	fd		file descriptor to alter
-@param[in]	file_name	file name, used in the diagnostic message
-@param[in]	operation_name	"open" or "create"; used in the diagnostic
-                                message */
-void os_file_set_nocache(int fd, const char *file_name,
-=======
 @param[in]      fd              file descriptor to alter
 @param[in]      file_name       file name, used in the diagnostic message
 @param[in]      operation_name  "open" or "create"; used in the diagnostic
-                                message */
-void os_file_set_nocache(int fd, const char *file_name,
->>>>>>> mysql-8.0.29
+                                message
+@return true if operation is success and false */
+bool os_file_set_nocache(int fd, const char *file_name,
                          const char *operation_name);
 
 /** Tries to disable OS caching on an opened file file.
@@ -1294,26 +1262,12 @@ os_file_read_first_page() which requests a synchronous read operation
 of page 0 of IBD file
 @param[in, out] type            IO request context
 @param[in]  file_name file name
-<<<<<<< HEAD
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
-@param[in]	exit_on_err	if true then exit on error
-||||||| 6846e6b2f72
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
-=======
 @param[in]      file            Open file handle
 @param[out]     buf             buffer where to read
 @param[in]      n               number of bytes to read
 @param[in]      src_file        file name where func invoked
 @param[in]      src_line        line where the func invoked
->>>>>>> mysql-8.0.29
+@param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
                                          pfs_os_file_t file, void *buf, ulint n,
@@ -1394,22 +1348,14 @@ must not cross a file boundary; in AIO this must be a block size multiple
 @param[in,out]  m2              message for the AIO handler (can be used to
                                 identify a completed AIO operation); ignored
                                 if mode is OS_AIO_SYNC
-<<<<<<< HEAD
-@param[in]	should_buffer	Whether to buffer an aio request.
+@param[in]      should_buffer   Whether to buffer an aio request.
                                 AIO read ahead uses this. If you plan to
                                 use this parameter, make sure you remember to
                                 call os_aio_dispatch_read_array_submit()
                                 when you're ready to commit all your
                                 requests.
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
-||||||| 6846e6b2f72
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
-=======
 @param[in]      src_file        file name where func invoked
 @param[in]      src_line        line where the func invoked
->>>>>>> mysql-8.0.29
 @return DB_SUCCESS if request was queued successfully, false if fail */
 static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode, const char *name,
                         pfs_os_file_t file, void *buf, os_offset_t offset,
@@ -1664,7 +1610,6 @@ to original un-instrumented file I/O APIs */
                                      offset, n, o)
 #endif
 
-<<<<<<< HEAD
 #ifdef UNIV_PFS_IO
 #define os_file_set_eof_at(file, new_len) os_file_set_eof_at_pfs(file, new_len)
 #else
@@ -1678,15 +1623,6 @@ future.
 @param[in]	offset	file region offset
 @param[in]	len	file region length
 @param[in]	advice	advice for access pattern
-||||||| 6846e6b2f72
-#ifdef UNIV_HOTBACKUP
-/** Closes a file handle.
-@param[in] file		handle to a file
-=======
-#ifdef UNIV_HOTBACKUP
-/** Closes a file handle.
-@param[in] file         handle to a file
->>>>>>> mysql-8.0.29
 @return true if success */
 bool os_file_advise(pfs_os_file_t file, os_offset_t offset, os_offset_t len,
                     ulint advice);
@@ -1791,21 +1727,11 @@ Requests a synchronous read operation of page 0 of IBD file.
 not directly this function!
 Requests a synchronous read operation of page 0 of IBD file
 @param[in]      type            IO request context
-@param[in]  file_name file name
-<<<<<<< HEAD
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-@param[in]	exit_on_err	if true then exit on error
-||||||| 6846e6b2f72
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-=======
+@param[in]      file_name       file name
 @param[in]      file            Open file handle
 @param[out]     buf             buffer where to read
 @param[in]      n               number of bytes to read
->>>>>>> mysql-8.0.29
+@param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 [[nodiscard]] dberr_t os_file_read_first_page_func(IORequest &type,
                                                   const char *file_name,

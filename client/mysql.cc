@@ -2673,22 +2673,10 @@ static char **new_mysql_completion(const char *text, int start, int end);
   if not.
 */
 
-<<<<<<< HEAD
 #if defined(XLINE_HAVE_COMPLETION_CHAR)
-char *no_completion(const char *, int)
-#elif defined(XLINE_HAVE_COMPLETION_INT)
-int no_completion(const char *, int)
-||||||| 6846e6b2f72
-#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
-char *no_completion(const char *, int)
-#elif defined(EDITLINE_HAVE_COMPLETION_INT)
-int no_completion(const char *, int)
-=======
-#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
 char *no_completion(const char *, int) { return nullptr; }
-#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+#elif defined(XLINE_HAVE_COMPLETION_INT)
 int no_completion(const char *, int) { return 0; }
->>>>>>> mysql-8.0.29
 #else
 char *no_completion() { return nullptr; }
 #endif

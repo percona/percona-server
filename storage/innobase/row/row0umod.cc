@@ -336,7 +336,6 @@ introduced where a call to log_free_check() is bypassed. */
     }
   }
 
-<<<<<<< HEAD
   /**
    * when scrubbing, and records gets cleared,
    *   the transaction id is not present afterwards.
@@ -345,12 +344,7 @@ introduced where a call to log_free_check() is bypassed. */
    *   which is just below
    */
   ut_ad(srv_immediate_scrub_data_uncompressed ||
-        rec_get_trx_id(btr_pcur_get_rec(pcur), index) == node->new_trx_id);
-||||||| 6846e6b2f72
-  ut_ad(rec_get_trx_id(btr_pcur_get_rec(pcur), index) == node->new_trx_id);
-=======
-  ut_ad(rec_get_trx_id(pcur->get_rec(), index) == node->new_trx_id);
->>>>>>> mysql-8.0.29
+        rec_get_trx_id(pcur->get_rec(), index) == node->new_trx_id);
 
   pcur->commit_specify_mtr(&mtr);
 
@@ -501,39 +495,9 @@ introduced where a call to log_free_check() is bypassed. */
       node->pcur.restore_position(BTR_SEARCH_LEAF, &mtr_vers, UT_LOCATION_HERE);
   ut_a(success);
 
-<<<<<<< HEAD
-  /* If the key is delete marked then the statement could not modify the
-  key yet and the transaction has no implicit lock on it. We must convert
-  to explicit lock if and only if we are the transaction which has implicit
-  lock on it.Note that it is still ok to purge the delete mark key if it
-  is purgeable.*/
-  rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
-                                     dict_table_is_comp(index->table));
-  if (rec_deleted == 0) {
-    row_convert_impl_to_expl_if_needed(btr_cur, node);
-  }
-
-  old_has = row_vers_old_has_index_entry(FALSE, btr_pcur_get_rec(&(node->pcur)),
-                                         &mtr_vers, index, entry, 0, 0,
-                                         thr->prebuilt);
-||||||| 6846e6b2f72
-  /* If the key is delete marked then the statement could not modify the
-  key yet and the transaction has no implicit lock on it. We must convert
-  to explicit lock if and only if we are the transaction which has implicit
-  lock on it.Note that it is still ok to purge the delete mark key if it
-  is purgeable.*/
-  rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
-                                     dict_table_is_comp(index->table));
-  if (rec_deleted == 0) {
-    row_convert_impl_to_expl_if_needed(btr_cur, node);
-  }
-
-  old_has = row_vers_old_has_index_entry(FALSE, btr_pcur_get_rec(&(node->pcur)),
-                                         &mtr_vers, index, entry, 0, 0);
-=======
   old_has = row_vers_old_has_index_entry(false, node->pcur.get_rec(), &mtr_vers,
-                                         index, entry, 0, 0);
->>>>>>> mysql-8.0.29
+                                         index, entry, 0, 0,
+                                         thr->prebuilt);
   if (old_has) {
     err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG, btr_cur, true, thr,
                                        &mtr);

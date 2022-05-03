@@ -104,50 +104,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innopart.h"
 #include "partition_info.h"
 
-<<<<<<< HEAD
 extern char server_uuid[UUID_LENGTH + 1];
 
-/** Flags indicating if current operation can be done instantly */
-enum class Instant_Type : uint16_t {
-  /** Impossible to alter instantly */
-  INSTANT_IMPOSSIBLE,
-
-  /** Can be instant without any change */
-  INSTANT_NO_CHANGE,
-
-  /** Adding or dropping virtual columns only */
-  INSTANT_VIRTUAL_ONLY,
-
-  /** ADD COLUMN which can be done instantly, including
-  adding stored column only (or along with adding virtual columns) */
-  INSTANT_ADD_COLUMN,
-
-  /** Column rename */
-  INSTANT_COLUMN_RENAME
-};
-
-||||||| 6846e6b2f72
-/** Flags indicating if current operation can be done instantly */
-enum class Instant_Type : uint16_t {
-  /** Impossible to alter instantly */
-  INSTANT_IMPOSSIBLE,
-
-  /** Can be instant without any change */
-  INSTANT_NO_CHANGE,
-
-  /** Adding or dropping virtual columns only */
-  INSTANT_VIRTUAL_ONLY,
-
-  /** ADD COLUMN which can be done instantly, including
-  adding stored column only (or along with adding virtual columns) */
-  INSTANT_ADD_COLUMN,
-
-  /** Column rename */
-  INSTANT_COLUMN_RENAME
-};
-
-=======
->>>>>>> mysql-8.0.29
 /** Function to convert the Instant_Type to a comparable int */
 inline uint16_t instant_type_to_int(Instant_Type type) {
   return (static_cast<typename std::underlying_type<Log_Type>::type>(type));
@@ -939,15 +897,9 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
 }
 
 /** Determine if ALTER TABLE needs to rebuild the table.
-<<<<<<< HEAD
-@param[in]  ha_alter_info  The DDL operation
-@param[in]  old_table the table we are changing
-@param[in]  is_file_per_table true if table is file_per_table
-||||||| 6846e6b2f72
-@param[in]	ha_alter_info	The DDL operation
-=======
 @param[in]      ha_alter_info   The DDL operation
->>>>>>> mysql-8.0.29
+@param[in]      old_table       the table we are changing
+@param[in]      is_file_per_table     true if table is file_per_table
 @return whether it is necessary to rebuild the table */
 [[nodiscard]] static bool innobase_need_rebuild(
     const Alter_inplace_info *ha_alter_info, const TABLE *old_table,
@@ -1029,15 +981,8 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
   }
 
-<<<<<<< HEAD
   /* We don't support change Master key encryption attribute with
   inplace algorithm. */
-||||||| 6846e6b2f72
-  /* We don't support change encryption attribute with
-  inplace algorithm. */
-=======
-  /* We don't support change encryption attribute with inplace algorithm. */
->>>>>>> mysql-8.0.29
   char *old_encryption = this->table->s->encrypt_type.str;
   char *new_encryption = altered_table->s->encrypt_type.str;
 
@@ -4560,18 +4505,10 @@ template <typename Table>
   column is to be added, and the primary index definition
   is just copied from old table and stored in indexdefs[0] */
   assert(!add_fts_doc_id || new_clustered);
-<<<<<<< HEAD
   assert(
-      !!new_clustered ==
+      new_clustered ==
       (innobase_need_rebuild(ha_alter_info, old_table, is_file_per_table) ||
        add_fts_doc_id));
-||||||| 6846e6b2f72
-  assert(!!new_clustered ==
-         (innobase_need_rebuild(ha_alter_info) || add_fts_doc_id));
-=======
-  assert(new_clustered ==
-         (innobase_need_rebuild(ha_alter_info) || add_fts_doc_id));
->>>>>>> mysql-8.0.29
 
   /* Allocate memory for dictionary index definitions */
 
@@ -4621,14 +4558,8 @@ template <typename Table>
     ulint n_m_v_cols = 0;
     dtuple_t *add_cols;
     space_id_t space_id = 0;
-<<<<<<< HEAD
-    ulint z = 0;
     ulint key_id = FIL_DEFAULT_ENCRYPTION_KEY;
     fil_encryption_t mode = FIL_ENCRYPTION_DEFAULT;
-||||||| 6846e6b2f72
-    ulint z = 0;
-=======
->>>>>>> mysql-8.0.29
 
     /* SQL-layer already has checked that we are not dropping any
     columns in foreign keys to be kept or making referencing column
@@ -4923,14 +4854,8 @@ template <typename Table>
     keyring_encryption_key_id.id = key_id;
 
     error = row_create_table_for_mysql(ctx->new_table, compression,
-                                       ha_alter_info->create_info, ctx->trx,
-<<<<<<< HEAD
+                                       ha_alter_info->create_info, ctx->trx, nullptr,
                                        mode, keyring_encryption_key_id);
-||||||| 6846e6b2f72
-                                       ha_alter_info->create_info, ctx->trx);
-=======
-                                       nullptr);
->>>>>>> mysql-8.0.29
 
     dict_sys_mutex_enter();
 
@@ -5671,19 +5596,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   is an implicit change to the previously selected default row format. We want
   to keep the table using the original default row_format. */
   if (old_dd_tab->table().row_format() != new_dd_tab->table().row_format() &&
-<<<<<<< HEAD
       !innobase_need_rebuild(ha_alter_info, altered_table,
                              dict_table_is_file_per_table(m_prebuilt->table))) {
-    adjust_row_format(this->table, altered_table, ha_alter_info, old_dd_tab,
-                      new_dd_tab);
-||||||| 6846e6b2f72
-      !innobase_need_rebuild(ha_alter_info)) {
-    adjust_row_format(this->table, altered_table, ha_alter_info, old_dd_tab,
-                      new_dd_tab);
-=======
-      !innobase_need_rebuild(ha_alter_info)) {
     adjust_row_format(this->table, altered_table, old_dd_tab, new_dd_tab);
->>>>>>> mysql-8.0.29
   }
 
   /* Make a copy for existing tablespace name */
@@ -7267,15 +7182,9 @@ inline void commit_cache_rebuild(ha_innobase_inplace_ctx *ctx) {
   error = dict_table_rename_in_cache(ctx->old_table, ctx->tmp_name, false);
   ut_a(error == DB_SUCCESS);
 
-<<<<<<< HEAD
   DEBUG_SYNC_C("commit_cache_rebuild_middle");
 
-  error = dict_table_rename_in_cache(ctx->new_table, old_name, FALSE);
-||||||| 6846e6b2f72
-  error = dict_table_rename_in_cache(ctx->new_table, old_name, FALSE);
-=======
   error = dict_table_rename_in_cache(ctx->new_table, old_name, false);
->>>>>>> mysql-8.0.29
   ut_a(error == DB_SUCCESS);
 }
 

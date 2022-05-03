@@ -968,44 +968,6 @@ void SetUpTablesForDelete(THD *thd, JOIN *join) {
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
 }
 
-/// Performs some extra checks if the sql_safe_updates option is enabled, and
-/// raises an error (and returns true) if the statement is likely to delete a
-/// large number of rows. Specifically, it raises an error if there is a full
-/// table scan or full index scan of one of the tables deleted from, and there
-/// is no LIMIT clause.
-static bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
-  if (!Overlaps(thd->variables.option_bits, OPTION_SAFE_UPDATES)) {
-    return false;
-  }
-
-  if (join->query_block->has_limit()) {
-    return false;
-  }
-
-  bool full_scan = false;
-  WalkAccessPaths(
-      join->root_access_path(), join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [&full_scan](const AccessPath *path, const JOIN *) {
-        if (path->type == AccessPath::TABLE_SCAN) {
-          full_scan |= path->table_scan().table->pos_in_table_list->updating;
-        } else if (path->type == AccessPath::INDEX_SCAN) {
-          full_scan |= path->index_scan().table->pos_in_table_list->updating;
-        }
-        return full_scan;
-      });
-
-  if (full_scan) {
-    // Append the first warning (if any) to the error message. The warning may
-    // give the user a hint as to why index access couldn't be chosen.
-    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
-             thd->get_stmt_da()->get_first_condition_message());
-    return true;
-  }
-
-  return false;
-}
-
-<<<<<<< HEAD
 /**
   Test that the two strings are equal, accoding to the lower_case_table_names
   setting.
@@ -1058,46 +1020,45 @@ static bool has_cascade_dependency(THD *thd, TABLE_LIST &table,
   return false;
 }
 
-/**
-  Optimize for deletion from one or more tables in a multi-table DELETE
+/// Performs some extra checks if the sql_safe_updates option is enabled, and
+/// raises an error (and returns true) if the statement is likely to delete a
+/// large number of rows. Specifically, it raises an error if there is a full
+/// table scan or full index scan of one of the tables deleted from, and there
+/// is no LIMIT clause.
+static bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
+  if (!Overlaps(thd->variables.option_bits, OPTION_SAFE_UPDATES)) {
+    return false;
+  }
 
-  Function is called when the join order has been determined.
-  Calculate which tables can be deleted from immediately and which tables
-  must be delayed. Create objects for handling of delayed deletes.
-*/
-bool Query_result_delete::optimize() {
-  DBUG_TRACE;
+  if (join->query_block->has_limit()) {
+    return false;
+  }
 
-  Query_block *const select = unit->first_query_block();
+  bool full_scan = false;
+  WalkAccessPaths(
+      join->root_access_path(), join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [&full_scan](const AccessPath *path, const JOIN *) {
+        if (path->type == AccessPath::TABLE_SCAN) {
+          full_scan |= path->table_scan().table->pos_in_table_list->updating;
+        } else if (path->type == AccessPath::INDEX_SCAN) {
+          full_scan |= path->index_scan().table->pos_in_table_list->updating;
+        }
+        return full_scan;
+      });
 
-  JOIN *const join = select->join;
-  THD *thd = join->thd;
+  if (full_scan) {
+    // Append the first warning (if any) to the error message. The warning may
+    // give the user a hint as to why index access couldn't be chosen.
+    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
+             thd->get_stmt_da()->get_first_condition_message());
+    return true;
+  }
 
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
-      error_if_full_join(join))
-||||||| 6846e6b2f72
-/**
-  Optimize for deletion from one or more tables in a multi-table DELETE
+  return false;
+}
 
-  Function is called when the join order has been determined.
-  Calculate which tables can be deleted from immediately and which tables
-  must be delayed. Create objects for handling of delayed deletes.
-*/
-
-bool Query_result_delete::optimize() {
-  DBUG_TRACE;
-
-  Query_block *const select = unit->first_query_block();
-
-  JOIN *const join = select->join;
-  THD *thd = join->thd;
-
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
-      error_if_full_join(join))
-=======
 bool DeleteRowsIterator::Init() {
   if (CheckSqlSafeUpdate(thd(), m_join)) {
->>>>>>> mysql-8.0.29
     return true;
   }
 
@@ -1343,19 +1304,14 @@ int DeleteRowsIterator::Read() {
     }
   }
 
+  thd->updated_row_count += deleted_rows;
+
   if (local_error) {
     return 1;
   } else {
     thd()->set_row_count_func(m_deleted_rows);
     return -1;
   }
-<<<<<<< HEAD
-  thd->updated_row_count += deleted_rows;
-  return thd->is_error();
-||||||| 6846e6b2f72
-  return thd->is_error();
-=======
->>>>>>> mysql-8.0.29
 }
 
 bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {

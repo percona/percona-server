@@ -899,18 +899,10 @@ void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
         auto &file = handler->m_file;
         handler->m_offsets.push_back(file.m_size);
 
-<<<<<<< HEAD
-        auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
+        auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
           return builder->append(
               file, io_buffer,
               handler->m_aligned_buffer_crypt.io_buffer().first, space_id);
-||||||| 6846e6b2f72
-        auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
-          return builder->append(file, io_buffer);
-=======
-        auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
-          return builder->append(file, io_buffer);
->>>>>>> mysql-8.0.29
         };
 
         err = key_buffer->serialize(io_buffer, persistor);
@@ -1025,18 +1017,10 @@ void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
 
       handler->m_offsets.push_back(file.m_size);
 
-<<<<<<< HEAD
-      auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
+      auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
         return builder->append(
             file, io_buffer, handler->m_aligned_buffer_crypt.io_buffer().first,
             space_id);
-||||||| 6846e6b2f72
-      auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
-        return builder->append(file, io_buffer);
-=======
-      auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
-        return builder->append(file, io_buffer);
->>>>>>> mysql-8.0.29
       };
 
       err = key_buffer->serialize(io_buffer, persistor);

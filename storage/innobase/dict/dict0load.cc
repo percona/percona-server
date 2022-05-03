@@ -1370,21 +1370,11 @@ static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
 /** Load and check each general tablespace mentioned in the SYS_TABLESPACES.
 Ignore system and file-per-table tablespaces.
 If it is valid, add it to the file_system list.
-<<<<<<< HEAD
-@param[in]	validate	true when the previous shutdown was not clean
+@param[in]      validate        true when the previous shutdown was not clean
 @return first  - true if there is tablespace KEYRING v1 encrypted,
                  false if not.
         second - the highest space ID found. */
 static inline std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
-||||||| 6846e6b2f72
-@param[in]	validate	true when the previous shutdown was not clean
-@return the highest space ID found. */
-static inline space_id_t dict_check_sys_tablespaces(bool validate) {
-=======
-@param[in]      validate        true when the previous shutdown was not clean
-@return the highest space ID found. */
-static inline space_id_t dict_check_sys_tablespaces(bool validate) {
->>>>>>> mysql-8.0.29
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -1554,21 +1544,11 @@ Search SYS_TABLES and check each tablespace mentioned that has not
 already been added to the fil_system.  If it is valid, add it to the
 file_system list.  Perform extra validation on the table if recovery from
 the REDO log occurred.
-<<<<<<< HEAD
-@param[in]	validate	Whether to do validation on the table.
+@param[in]      validate        Whether to do validation on the table.
 @return first  - true if there is tablespace KEYRING v1 encrypted,
                  false if not.
         second - the highest space ID found. */
 static inline std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
-||||||| 6846e6b2f72
-@param[in]	validate	Whether to do validation on the table.
-@return the highest space ID found. */
-static inline space_id_t dict_check_sys_tables(bool validate) {
-=======
-@param[in]      validate        Whether to do validation on the table.
-@return the highest space ID found. */
-static inline space_id_t dict_check_sys_tables(bool validate) {
->>>>>>> mysql-8.0.29
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -2626,15 +2606,9 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
       table->id = table->id + DICT_MAX_DD_TABLES;
     }
     if (cached) {
-<<<<<<< HEAD
       auto can_be_evicted =
           dict_load_is_system_table(table->name.m_name) ? false : true;
-      dict_table_add_to_cache(table, can_be_evicted, heap);
-||||||| 6846e6b2f72
-      dict_table_add_to_cache(table, TRUE, heap);
-=======
-      dict_table_add_to_cache(table, true);
->>>>>>> mysql-8.0.29
+      dict_table_add_to_cache(table, can_be_evicted);
     }
   }
 

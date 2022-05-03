@@ -2947,14 +2947,8 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose,
   // Return list sorted by thread_id.
   std::sort(thread_infos.begin(), thread_infos.end(), thread_info_compare());
 
-<<<<<<< HEAD
-  auto now = my_time(0);
-  auto now_us = my_micro_time();
-||||||| 6846e6b2f72
-  time_t now = my_time(0);
-=======
   time_t now = time(nullptr);
->>>>>>> mysql-8.0.29
+  auto now_us = my_micro_time();
   for (size_t ix = 0; ix < thread_infos.size(); ++ix) {
     thread_info *thd_info = thread_infos.at(ix);
     protocol->start_row();

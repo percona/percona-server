@@ -17976,13 +17976,7 @@ sf_tail:
                                             $10->get_type_flags(), NULL, NULL, &NULL_CSTR, 0,
                                             $10->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
-<<<<<<< HEAD
-                                            $10 != nullptr, $9->get_uint_geom_type(), nullptr,
-||||||| 6846e6b2f72
-                                            $10 != nullptr, $9->get_uint_geom_type(),
-=======
-                                            $11 != nullptr, $10->get_uint_geom_type(),
->>>>>>> mysql-8.0.29
+                                            $11 != nullptr, $10->get_uint_geom_type(), nullptr,
                                             nullptr, nullptr, {},
                                             dd::Column::enum_hidden_type::HT_VISIBLE))
             {

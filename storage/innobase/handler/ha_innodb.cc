@@ -4452,15 +4452,7 @@ static void innobase_post_recover() {
     } else {
       /* Enable encryption for UNDO tablespaces */
       mutex_enter(&undo::ddl_mutex);
-<<<<<<< HEAD
-      if (srv_enable_undo_encryption(nullptr, true)) {
-        ut_ad(false);
-||||||| 6846e6b2f72
-      if (srv_enable_undo_encryption(true)) {
-        ut_ad(false);
-=======
-      if (srv_enable_undo_encryption()) {
->>>>>>> mysql-8.0.29
+      if (srv_enable_undo_encryption(nullptr)) {
         srv_undo_log_encrypt = false;
         ut_d(ut_error);
       }
@@ -4483,15 +4475,7 @@ static void innobase_post_recover() {
       srv_redo_log_encrypt = false;
     } else {
       /* Enable encryption for REDO log */
-<<<<<<< HEAD
       if (srv_enable_redo_encryption(nullptr)) {
-        ut_ad(false);
-||||||| 6846e6b2f72
-      if (srv_enable_redo_encryption(true)) {
-        ut_ad(false);
-=======
-      if (srv_enable_redo_encryption()) {
->>>>>>> mysql-8.0.29
         srv_redo_log_encrypt = false;
         ut_d(ut_error);
       }
@@ -5783,16 +5767,10 @@ static int innodb_init(void *p) {
       innobase_page_track_get_num_page_ids;
   innobase_hton->page_track.get_status = innobase_page_track_get_status;
 
-<<<<<<< HEAD
   innobase_hton->upgrade_get_compression_dict_data =
       dd_upgrade_get_compression_dict_data;
 
-  ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
-||||||| 6846e6b2f72
-  ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
-=======
   static_assert(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
->>>>>>> mysql-8.0.29
 
   os_file_set_umask(my_umask);
 
@@ -5964,27 +5942,13 @@ static int innodb_deinit(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
 }
 
 /** Create a hard-coded tablespace file at server initialization.
-<<<<<<< HEAD
-@param[in]	space_id	fil_space_t::id
-@param[in]	filename	file name
-@param[in]	flags		tabelspace flags
-@retval false	on success
-@retval true	on failure */
-static bool dd_create_hardcoded(space_id_t space_id, const char *filename,
-                                ulint flags) {
-||||||| 6846e6b2f72
-@param[in]	space_id	fil_space_t::id
-@param[in]	filename	file name
-@retval false	on success
-@retval true	on failure */
-static bool dd_create_hardcoded(space_id_t space_id, const char *filename) {
-=======
 @param[in]      space_id        fil_space_t::id
 @param[in]      filename        file name
+@param[in]      flags           tabelspace flags
 @retval false   on success
 @retval true    on failure */
-static bool dd_create_hardcoded(space_id_t space_id, const char *filename) {
->>>>>>> mysql-8.0.29
+static bool dd_create_hardcoded(space_id_t space_id, const char *filename,
+                                ulint flags) {
   page_no_t pages = FIL_IBD_FILE_INITIAL_SIZE;
 
   dberr_t err = fil_ibd_create(space_id, dict_sys_t::s_dd_space_name, filename,
@@ -6009,27 +5973,13 @@ static bool dd_create_hardcoded(space_id_t space_id, const char *filename) {
 }
 
 /** Open a hard-coded tablespace file at server initialization.
-<<<<<<< HEAD
-@param[in]	space_id	fil_space_t::id
-@param[in]	filename	file name
-@param[in]	flags		tabelspace flags
-@retval false	on success
-@retval true	on failure */
-static bool dd_open_hardcoded(space_id_t space_id, const char *filename,
-                              ulint flags) {
-||||||| 6846e6b2f72
-@param[in]	space_id	fil_space_t::id
-@param[in]	filename	file name
-@retval false	on success
-@retval true	on failure */
-static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
-=======
 @param[in]      space_id        fil_space_t::id
 @param[in]      filename        file name
+@param[in]      flags           tabelspace flags
 @retval false   on success
 @retval true    on failure */
-static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
->>>>>>> mysql-8.0.29
+static bool dd_open_hardcoded(space_id_t space_id, const char *filename,
+                              ulint flags) {
   bool fail = false;
   fil_space_t *space = fil_space_acquire_silent(space_id);
   Keyring_encryption_info keyring_encryption_info;
@@ -8076,16 +8026,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
     ib_table->first_index()->type |= DICT_CORRUPT;
-<<<<<<< HEAD
     free_share_and_nullify(&m_share);
-    dict_table_close(ib_table, FALSE, FALSE);
-||||||| 6846e6b2f72
-    free_share(m_share);
-    dict_table_close(ib_table, FALSE, FALSE);
-=======
-    free_share(m_share);
     dict_table_close(ib_table, false, false);
->>>>>>> mysql-8.0.29
     ib_table = nullptr;
   }
 
@@ -8108,7 +8050,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       ib_table->ibd_file_missing && !dict_table_is_discarded(ib_table)) {
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
-<<<<<<< HEAD
     FilSpace space;
     int error = 0;
     if (ib_table) space = fil_space_acquire_silent(ib_table->space);
@@ -8122,16 +8063,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
       error = HA_ERR_TABLE_CORRUPT;
     }
-    dict_table_close(ib_table, FALSE, FALSE);
-||||||| 6846e6b2f72
-
-    free_share(m_share);
-    dict_table_close(ib_table, FALSE, FALSE);
-=======
-
-    free_share(m_share);
     dict_table_close(ib_table, false, false);
->>>>>>> mysql-8.0.29
     ib_table = nullptr;
 
     free_share_and_nullify(&m_share);
@@ -8625,18 +8557,6 @@ extern size_t innobase_fts_casedn_str(CHARSET_INFO *cs, char *src,
   }
 }
 
-<<<<<<< HEAD
-||||||| 6846e6b2f72
-#define true_word_char(c, ch) ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_')
-
-#define misc_word_char(X) 0
-
-=======
-inline bool true_word_char(int c, uchar ch) {
-  return c & (_MY_U | _MY_L | _MY_NMR) || ch == '_';
-}
-
->>>>>>> mysql-8.0.29
 /** Get the next token from the given string and store it in *token.
  It is mostly copied from MyISAM's doc parsing function ft_simple_get_word()
  @return length of string processed */
@@ -8681,17 +8601,7 @@ ulint innobase_mysql_fts_get_token(
     int ctype;
 
     mbl = cs->cset->ctype(cs, &ctype, (uchar *)doc, (uchar *)end);
-<<<<<<< HEAD
-    if (true_word_char(ctype, extra_word_chars, *doc)) {
-      mwc = 0;
-    } else if (!misc_word_char(*doc) || mwc) {
-||||||| 6846e6b2f72
-    if (true_word_char(ctype, *doc)) {
-      mwc = 0;
-    } else if (!misc_word_char(*doc) || mwc) {
-=======
-    if (!true_word_char(ctype, *doc)) {
->>>>>>> mysql-8.0.29
+    if (!true_word_char(ctype, extra_word_chars, *doc)) {
       break;
     }
 
@@ -10065,16 +9975,8 @@ static byte *innodb_fill_old_vcol_val(row_prebuilt_t *prebuilt,
 
   if (o_len != UNIV_SQL_NULL) {
     buf = row_mysql_store_col_in_innobase_format(
-<<<<<<< HEAD
-        vfield, buf, TRUE, old_mysql_row_col, col_pack_len,
-        dict_table_is_comp(prebuilt->table), false, nullptr, 0, nullptr);
-||||||| 6846e6b2f72
-        vfield, buf, TRUE, old_mysql_row_col, col_pack_len,
-        dict_table_is_comp(prebuilt->table));
-=======
         vfield, buf, true, old_mysql_row_col, col_pack_len,
-        dict_table_is_comp(prebuilt->table));
->>>>>>> mysql-8.0.29
+        dict_table_is_comp(prebuilt->table), false, nullptr, 0, nullptr);
   } else {
     dfield_set_null(vfield);
   }
@@ -10402,21 +10304,11 @@ static dberr_t calc_row_difference(
           innobase_get_multi_value(prebuilt->m_mysql_table, i, &dfield, nullptr,
                                    0, comp, uvect->heap);
         } else {
-<<<<<<< HEAD
           buf = row_mysql_store_col_in_innobase_format(
-              &dfield, (byte *)buf, TRUE, new_mysql_row_col, col_pack_len, comp,
+              &dfield, (byte *)buf, true, new_mysql_row_col, col_pack_len, comp,
               field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED,
               reinterpret_cast<const byte *>(field->zip_dict_data.str),
               field->zip_dict_data.length, &prebuilt->compress_heap);
-||||||| 6846e6b2f72
-          buf = row_mysql_store_col_in_innobase_format(&dfield, (byte *)buf,
-                                                       TRUE, new_mysql_row_col,
-                                                       col_pack_len, comp);
-=======
-          buf = row_mysql_store_col_in_innobase_format(&dfield, (byte *)buf,
-                                                       true, new_mysql_row_col,
-                                                       col_pack_len, comp);
->>>>>>> mysql-8.0.29
         }
 
         if (multi_value_calc_by_diff) {
@@ -10453,18 +10345,10 @@ static dberr_t calc_row_difference(
                 static_cast<uint>(old_row - new_row), comp, uvect->heap);
           } else {
             buf = row_mysql_store_col_in_innobase_format(
-<<<<<<< HEAD
-                &dfield, (byte *)buf, TRUE, old_mysql_row_col, col_pack_len,
+                &dfield, (byte *)buf, true, old_mysql_row_col, col_pack_len,
                 comp, field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED,
                 reinterpret_cast<const byte *>(field->zip_dict_data.str),
                 field->zip_dict_data.length, &prebuilt->compress_heap);
-||||||| 6846e6b2f72
-                &dfield, (byte *)buf, TRUE, old_mysql_row_col, col_pack_len,
-                comp);
-=======
-                &dfield, (byte *)buf, true, old_mysql_row_col, col_pack_len,
-                comp);
->>>>>>> mysql-8.0.29
           }
 
           if (multi_value_calc_by_diff) {
@@ -12383,19 +12267,16 @@ dberr_t create_table_info_t::enable_keyring_encryption(
   dd::Object_id dd_space_id = dd::INVALID_OBJECT_ID;
   ulint actual_n_cols;
 
-<<<<<<< HEAD
   fil_encryption_t keyring_encryption_option =
       Encryption::none_explicitly_specified(m_create_info->explicit_encryption,
                                             m_create_info->encrypt_type.str)
           ? FIL_ENCRYPTION_OFF
           : FIL_ENCRYPTION_DEFAULT;
-||||||| 6846e6b2f72
-=======
+
   uint32_t i_c = 0;
   uint32_t c_c = 0;
   uint32_t t_c = 0;
   uint32_t c_r_v = 0;
->>>>>>> mysql-8.0.29
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s", m_table_name));
@@ -12853,14 +12734,9 @@ dberr_t create_table_info_t::enable_keyring_encryption(
 
     if (err == DB_SUCCESS) {
       err = row_create_table_for_mysql(table, algorithm, m_create_info, m_trx,
-<<<<<<< HEAD
+                                       heap,
                                        keyring_encryption_option,
                                        keyring_encryption_key_id);
-||||||| 6846e6b2f72
-      err = row_create_table_for_mysql(table, algorithm, m_create_info, m_trx);
-=======
-                                       heap);
->>>>>>> mysql-8.0.29
 
       if (err == DB_IO_NO_PUNCH_HOLE_FS) {
         ut_ad(!dict_table_in_shared_tablespace(table));
@@ -22768,13 +22644,7 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   mutex_enter(&undo::ddl_mutex);
 
   /* Enable encryption for UNDO tablespaces */
-<<<<<<< HEAD
-  bool ret = srv_enable_undo_encryption(thd, false);
-||||||| 6846e6b2f72
-  bool ret = srv_enable_undo_encryption(false);
-=======
-  bool ret = srv_enable_undo_encryption();
->>>>>>> mysql-8.0.29
+  bool ret = srv_enable_undo_encryption(thd);
 
   if (!ret) {
     /* At this point, all UNDO tablespaces have been encrypted. */
@@ -22854,13 +22724,7 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   }
 
   /* Enable encryption for REDO tablespaces */
-<<<<<<< HEAD
   bool ret = update_innodb_redo_log_encrypt(thd, use);
-||||||| 6846e6b2f72
-  bool ret = srv_enable_redo_encryption(false);
-=======
-  bool ret = srv_enable_redo_encryption();
->>>>>>> mysql-8.0.29
 
   if (!ret) {
     /* At this point, REDO log is set to be encrypted. */
@@ -23595,19 +23459,6 @@ static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *, void *,
   }
 }
 
-<<<<<<< HEAD
-/** Update innodb_status_output or innodb_status_output_locks,
-which control InnoDB "status monitor" output to the error log.
-@param[out]	var_ptr   current value
-@param[in]	save      to-be-assigned value */
-static void innodb_status_output_update(THD *, SYS_VAR *, void *var_ptr,
-                                        const void *save) {
-  *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
-  /* The lock timeout monitor thread also takes care of this
-  output. */
-  os_event_set(srv_monitor_event);
-}
-
 /** Empty free list algorithm. This function is registered as a callback with
 MySQL.
 @param[in]	thd	thread handle
@@ -23759,21 +23610,6 @@ static void innodb_encryption_rotation_iops_update(
   fil_crypt_set_rotation_iops(*static_cast<const uint *>(save));
 }
 
-||||||| 6846e6b2f72
-/** Update innodb_status_output or innodb_status_output_locks,
-which control InnoDB "status monitor" output to the error log.
-@param[out]	var_ptr   current value
-@param[in]	save      to-be-assigned value */
-static void innodb_status_output_update(THD *, SYS_VAR *, void *var_ptr,
-                                        const void *save) {
-  *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
-  /* The lock timeout monitor thread also takes care of this
-  output. */
-  os_event_set(srv_monitor_event);
-}
-
-=======
->>>>>>> mysql-8.0.29
 /** Update the innodb_log_checksums parameter.
 @param[out]     var_ptr   current value
 @param[in]      save      immediate result from check function */
@@ -25144,24 +24980,12 @@ static MYSQL_SYSVAR_STR(
     /*validate_func*/ meb::validate_redo_log_archive_dirs,
     /*update_func*/ nullptr, /*default*/ nullptr);
 
-<<<<<<< HEAD
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
                          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
                          "Enable or disable Encryption of REDO tablespace."
                          "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
                          validate_innodb_redo_log_encrypt, nullptr,
                          REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
-||||||| 6846e6b2f72
-static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
-                         PLUGIN_VAR_OPCMDARG,
-                         "Enable or disable Encryption of REDO tablespace.",
-                         validate_innodb_redo_log_encrypt, nullptr, FALSE);
-=======
-static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
-                         PLUGIN_VAR_OPCMDARG,
-                         "Enable or disable Encryption of REDO tablespace.",
-                         validate_innodb_redo_log_encrypt, nullptr, false);
->>>>>>> mysql-8.0.29
 
 static MYSQL_SYSVAR_BOOL(
     print_ddl_logs, srv_print_ddl_logs, PLUGIN_VAR_OPCMDARG,
@@ -25228,14 +25052,8 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
 static MYSQL_SYSVAR_BOOL(ddl_log_crash_reset_debug,
                          innodb_ddl_log_crash_reset_debug, PLUGIN_VAR_OPCMDARG,
                          "Reset all crash injection counters to 1", nullptr,
-<<<<<<< HEAD
-                         ddl_log_crash_reset, FALSE);
-
-||||||| 6846e6b2f72
-                         ddl_log_crash_reset, FALSE);
-=======
                          ddl_log_crash_reset, false);
->>>>>>> mysql-8.0.29
+
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_STR(directories, srv_innodb_directories,
@@ -25828,17 +25646,9 @@ dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
 @param[in,out]  mysql_table     mysql table object
 @param[in]      old_table       during ALTER TABLE, this is the old table
                                 or NULL.
-<<<<<<< HEAD
-@param[in]	parent_update	update vector for the parent row
-@param[in]	foreign		foreign key information
-@param[in]	compress_heap
-||||||| 6846e6b2f72
-@param[in]	parent_update	update vector for the parent row
-@param[in]	foreign		foreign key information
-=======
 @param[in]      parent_update   update vector for the parent row
 @param[in]      foreign         foreign key information
->>>>>>> mysql-8.0.29
+@param[in]      compress_heap
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t *innobase_get_computed_value(
@@ -26023,17 +25833,9 @@ dfield_t *innobase_get_computed_value(
     field->type.prtype |= DATA_MULTI_VALUE;
   } else {
     row_mysql_store_col_in_innobase_format(
-<<<<<<< HEAD
-        field, buf, TRUE, mysql_rec + vctempl->mysql_col_offset,
+        field, buf, true, mysql_rec + vctempl->mysql_col_offset,
         vctempl->mysql_col_len, dict_table_is_comp(index->table), false,
         nullptr, 0, nullptr);
-||||||| 6846e6b2f72
-        field, buf, TRUE, mysql_rec + vctempl->mysql_col_offset,
-        vctempl->mysql_col_len, dict_table_is_comp(index->table));
-=======
-        field, buf, true, mysql_rec + vctempl->mysql_col_offset,
-        vctempl->mysql_col_len, dict_table_is_comp(index->table));
->>>>>>> mysql-8.0.29
   }
   field->type.prtype |= DATA_VIRTUAL;
 

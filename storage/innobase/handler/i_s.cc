@@ -7349,22 +7349,10 @@ static ST_FIELD_INFO innodb_session_temp_tablespaces_fields_info[] = {
 };
 
 /** Function to fill INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES
-<<<<<<< HEAD
-    @param[in]	thd		thread
-    @param[in]	ts		temp tablespace object
-    @param[in,out]	table_to_fill	fill this table
-    @return 0 on success */
-||||||| 6846e6b2f72
-@param[in]	thd		thread
-@param[in]	ts		temp tablespace object
-@param[in,out]	table_to_fill	fill this table
-@return 0 on success */
-=======
 @param[in]      thd             thread
 @param[in]      ts              temp tablespace object
 @param[in,out]  table_to_fill   fill this table
 @return 0 on success */
->>>>>>> mysql-8.0.29
 static int i_s_innodb_session_temp_tablespaces_fill_one(
     THD *thd, const ibt::Tablespace *ts, TABLE *table_to_fill) {
   Field **fields;
@@ -7409,22 +7397,10 @@ static int i_s_innodb_session_temp_tablespaces_fill_one(
 }
 
 /** Function to populate INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES
-<<<<<<< HEAD
-    table. Iterate over the in-memory structure and fill the table
-    @param[in]	thd		thread
-    @param[in,out]	tables		tables to fill
-    @return 0 on success */
-||||||| 6846e6b2f72
-table. Iterate over the in-memory structure and fill the table
-@param[in]	thd		thread
-@param[in,out]	tables		tables to fill
-@return 0 on success */
-=======
 table. Iterate over the in-memory structure and fill the table
 @param[in]      thd             thread
 @param[in,out]  tables          tables to fill
 @return 0 on success */
->>>>>>> mysql-8.0.29
 static int i_s_innodb_session_temp_tablespaces_fill(THD *thd,
                                                     TABLE_LIST *tables,
                                                     Item *) {
@@ -7459,19 +7435,9 @@ static int i_s_innodb_session_temp_tablespaces_fill(THD *thd,
 }
 
 /** Bind the dynamic table
-<<<<<<< HEAD
-    INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES
-    @param[in,out]	p	table schema object
-    @return 0 on success */
-||||||| 6846e6b2f72
-INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES
-@param[in,out]	p	table schema object
-@return 0 on success */
-=======
 INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES
 @param[in,out]  p       table schema object
 @return 0 on success */
->>>>>>> mysql-8.0.29
 static int innodb_session_temp_tablespaces_init(void *p) {
   ST_SCHEMA_TABLE *schema;
 

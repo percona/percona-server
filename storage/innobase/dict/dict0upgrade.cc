@@ -231,27 +231,11 @@ static bool dd_has_explicit_pk(const dd::Table *dd_table) {
 }
 
 /** Match InnoDB column object and Server column object
-<<<<<<< HEAD
-@param[in]	field	Server field object
-@param[in,out]	col	InnoDB column object
-@retval		false	column definition matches
-@retval		true	column definition mismatch */
-static bool dd_upgrade_match_single_col(const Field *field, dict_col_t *col) {
-||||||| 6846e6b2f72
-@param[in]	field	Server field object
-@param[in]	col	InnoDB column object
-@retval		false	column definition matches
-@retval		true	column definition mismatch */
-static bool dd_upgrade_match_single_col(const Field *field,
-                                        const dict_col_t *col) {
-=======
 @param[in]      field   Server field object
-@param[in]      col     InnoDB column object
+@param[in,out]  col     InnoDB column object
 @retval         false   column definition matches
 @retval         true    column definition mismatch */
-static bool dd_upgrade_match_single_col(const Field *field,
-                                        const dict_col_t *col) {
->>>>>>> mysql-8.0.29
+static bool dd_upgrade_match_single_col(const Field *field, dict_col_t *col) {
   ulint unsigned_type;
   ulint col_type = get_innobase_type_from_mysql_type(&unsigned_type, field);
 

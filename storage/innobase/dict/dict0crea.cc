@@ -102,17 +102,9 @@ dberr_t dict_build_table_def(
 }
 
 /** Builds a tablespace to store various objects.
-<<<<<<< HEAD
-@param[in,out]	trx		DD transaction
-@param[in,out]	tablespace	Tablespace object describing what to build.
-@param[in]      keyring_encryption_key_id info on keyring encryption key
-||||||| 6846e6b2f72
-@param[in,out]	trx		DD transaction
-@param[in,out]	tablespace	Tablespace object describing what to build.
-=======
 @param[in,out]  trx             DD transaction
 @param[in,out]  tablespace      Tablespace object describing what to build.
->>>>>>> mysql-8.0.29
+@param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code. */
 dberr_t dict_build_tablespace(
     trx_t *trx, Tablespace *tablespace, fil_encryption_t mode,

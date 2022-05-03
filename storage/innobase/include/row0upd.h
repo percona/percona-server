@@ -194,14 +194,8 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]      heap            memory heap from which allocated
 @param[in]      mysql_table     NULL, or mysql table object when
                                 user thread invokes dml
-<<<<<<< HEAD
-@param[in]	prebuilt	compress_heap must be taken from here
-@param[out]	error		error number in case of failure
-||||||| 6846e6b2f72
-@param[out]	error		error number in case of failure
-=======
+@param[in]      prebuilt        compress_heap must be taken from here
 @param[out]     error           error number in case of failure
->>>>>>> mysql-8.0.29
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 [[nodiscard]] upd_t *row_upd_build_difference_binary(
@@ -319,30 +313,12 @@ bool row_upd_changes_some_index_ord_field_binary(
     const upd_t *update);      /*!< in: update vector for the row */
 
 /** Stores to the heap the row on which the node->pcur is positioned.
-<<<<<<< HEAD
-@param[in]	trx		the transaction object
-@param[in]	node		row update node
-@param[in]	thd		mysql thread handle
-@param[in,out]	prebuilt	NULL, or a prebuilt object: used to extract
-                                mysql table object when user thread invokes
-                                dml and for compress heap */
-void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
-                       row_prebuilt_t *prebuilt);
-||||||| 6846e6b2f72
-@param[in]	trx		the transaction object
-@param[in]	node		row update node
-@param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	NULL, or mysql table object when
-                                user thread invokes dml */
-void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
-                       TABLE *mysql_table);
-=======
 @param[in]      node            row update node
 @param[in]      thd             mysql thread handle
-@param[in,out]  mysql_table     NULL, or mysql table object when
-                                user thread invokes dml */
-void row_upd_store_row(upd_node_t *node, THD *thd, TABLE *mysql_table);
->>>>>>> mysql-8.0.29
+@param[in,out]  prebuilt        NULL, or a prebuilt object: used to extract
+                                mysql table object when user thread invokes
+                                dml and for compress heap */
+void row_upd_store_row(upd_node_t *node, THD *thd, row_prebuilt_t *prebuilt);
 
 /** Updates a row in a table. This is a high-level function used
  in SQL execution graphs.

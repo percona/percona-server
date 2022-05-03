@@ -710,15 +710,7 @@ static page_t *ibuf_bitmap_get_map_page(const page_id_t &page_id,
 
   block =
       buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size), page_size,
-<<<<<<< HEAD
-                       RW_X_LATCH, nullptr, Page_fetch::NORMAL, file, line, mtr);
-||||||| 6846e6b2f72
-  block = buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size),
-                           page_size, RW_X_LATCH, nullptr, Page_fetch::NORMAL,
-                           file, line, mtr);
-=======
                        RW_X_LATCH, nullptr, Page_fetch::NORMAL, location, mtr);
->>>>>>> mysql-8.0.29
 
   buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
 
@@ -4035,24 +4027,13 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
 
       ibuf_mtr_start(&mtr);
 
-<<<<<<< HEAD
-      bitmap_page = ibuf_bitmap_get_map_page(page_id, *page_size, &mtr);
+      bitmap_page =
+          ibuf_bitmap_get_map_page(page_id, *page_size, UT_LOCATION_HERE, &mtr);
+
       if (bitmap_page) {
         bitmap_bits = ibuf_bitmap_page_get_bits(
             bitmap_page, page_id, *page_size, IBUF_BITMAP_BUFFERED, &mtr);
       }
-||||||| 6846e6b2f72
-      bitmap_page = ibuf_bitmap_get_map_page(page_id, *page_size, &mtr);
-
-      bitmap_bits = ibuf_bitmap_page_get_bits(bitmap_page, page_id, *page_size,
-                                              IBUF_BITMAP_BUFFERED, &mtr);
-=======
-      bitmap_page =
-          ibuf_bitmap_get_map_page(page_id, *page_size, UT_LOCATION_HERE, &mtr);
-
-      bitmap_bits = ibuf_bitmap_page_get_bits(bitmap_page, page_id, *page_size,
-                                              IBUF_BITMAP_BUFFERED, &mtr);
->>>>>>> mysql-8.0.29
 
       ibuf_mtr_commit(&mtr);
 

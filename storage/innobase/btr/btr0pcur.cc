@@ -74,16 +74,10 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
   ut_ad(m_latch_mode != BTR_NO_LATCHES);
 
   auto block = get_block();
-<<<<<<< HEAD
 
   SRV_CORRUPT_TABLE_CHECK(block, return;);
 
-  auto index = btr_cur_get_index(get_btr_cur());
-||||||| 6846e6b2f72
-  auto index = btr_cur_get_index(get_btr_cur());
-=======
   auto index = get_btr_cur()->index;
->>>>>>> mysql-8.0.29
 
   auto page_cursor = get_page_cur();
 
@@ -362,21 +356,11 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
 
   auto block = get_block();
 
-<<<<<<< HEAD
   btr_update_scan_stats(page, next_page_no, true /* forward */);
 
-  auto next_block =
-      btr_block_get(page_id_t(block->page.id.space(), next_page_no),
-                    block->page.size, mode, get_btr_cur()->index, mtr);
-||||||| 6846e6b2f72
-  auto next_block =
-      btr_block_get(page_id_t(block->page.id.space(), next_page_no),
-                    block->page.size, mode, get_btr_cur()->index, mtr);
-=======
   auto next_block = btr_block_get(
       page_id_t(block->page.id.space(), next_page_no), block->page.size, mode,
       UT_LOCATION_HERE, get_btr_cur()->index, mtr);
->>>>>>> mysql-8.0.29
 
   auto next_page = buf_block_get_frame(next_block);
 
@@ -441,15 +425,10 @@ void btr_pcur_t::move_backward_from_page(mtr_t *mtr) {
 
   /* For intrinsic table we don't do optimistic restore and so there is
   no left block that is pinned that needs to be released. */
-<<<<<<< HEAD
-  if (!btr_cur_get_index(get_btr_cur())->table->is_intrinsic()) {
+  if (!get_btr_cur()->index->table->is_intrinsic()) {
     if (prev_page_no != FIL_NULL)
       btr_update_scan_stats(page, prev_page_no, false /* backward */);
-||||||| 6846e6b2f72
-  if (!btr_cur_get_index(get_btr_cur())->table->is_intrinsic()) {
-=======
-  if (!get_btr_cur()->index->table->is_intrinsic()) {
->>>>>>> mysql-8.0.29
+
     buf_block_t *prev_block;
 
     if (prev_page_no == FIL_NULL) {

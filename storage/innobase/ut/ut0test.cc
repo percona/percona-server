@@ -312,19 +312,8 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   block size. */
 
   IORequest read_io_type(IORequest::READ);
-<<<<<<< HEAD
-  const dberr_t err =
-      os_aio(read_io_type, AIO_mode::SYNC, node->name, node->handle, buf.data(),
-             offset, OS_FILE_LOG_BLOCK_SIZE, false, nullptr, nullptr, space_id,
-             nullptr, false);
-||||||| 6846e6b2f72
-  const dberr_t err =
-      os_aio(read_io_type, AIO_mode::SYNC, node->name, node->handle, buf.data(),
-             offset, OS_FILE_LOG_BLOCK_SIZE, false, nullptr, nullptr);
-=======
   const dberr_t err = os_file_read(read_io_type, node->name, node->handle,
                                    buf.data(), offset, OS_FILE_LOG_BLOCK_SIZE);
->>>>>>> mysql-8.0.29
   if (err != DB_SUCCESS) {
     page_type_t page_type = fil_page_get_type(buf.data());
     TLOG("Could not read page_id=" << page_id << ", page_type=" << page_type
@@ -479,17 +468,8 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
 
   byte *buf = mem;
   IORequest read_io_type(IORequest::READ);
-<<<<<<< HEAD
-  dberr_t err = os_aio(read_io_type, AIO_mode::SYNC, node->name, node->handle,
-                       buf, offset, buf_size, false, nullptr, nullptr, space_id,
-                       nullptr, false);
-||||||| 6846e6b2f72
-  dberr_t err = os_aio(read_io_type, AIO_mode::SYNC, node->name, node->handle,
-                       buf, offset, buf_size, false, nullptr, nullptr);
-=======
   dberr_t err = os_file_read(read_io_type, node->name, node->handle, buf,
                              offset, buf_size);
->>>>>>> mysql-8.0.29
   if (err != DB_SUCCESS) {
     page_type_t page_type = fil_page_get_type(buf);
     TLOG("Could not read page_id=" << page_id << ", page type=" << page_type
@@ -508,17 +488,8 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
   memset(buf, 0x00, prefix_length);
 
   IORequest write_io_type(IORequest::WRITE);
-<<<<<<< HEAD
-  err = os_aio(write_io_type, AIO_mode::SYNC, node->name, node->handle, buf,
-               offset, buf_size, false, nullptr, nullptr, space_id, nullptr,
-               false);
-||||||| 6846e6b2f72
-  err = os_aio(write_io_type, AIO_mode::SYNC, node->name, node->handle, buf,
-               offset, buf_size, false, nullptr, nullptr);
-=======
   err = os_file_write(write_io_type, node->name, node->handle, buf, offset,
                       buf_size);
->>>>>>> mysql-8.0.29
   if (err == DB_SUCCESS) {
     TLOG("Successfully zeroed prefix of page_id=" << page_id << ", prefix="
                                                   << prefix_length);

@@ -1910,15 +1910,9 @@ number should be zero.
 @param[in,out]  buf             buffer where to store read data or from where
                                 to write; in AIO this must be appropriately
                                 aligned
-<<<<<<< HEAD
-@param[in]	message		message for AIO handler if !sync, else ignored
-@param[in]	should_buffer	whether to buffer an AIO request. Only used by
-                                AIO read ahead
-||||||| 6846e6b2f72
-@param[in]	message		message for AIO handler if !sync, else ignored
-=======
 @param[in]      message         message for AIO handler if !sync, else ignored
->>>>>>> mysql-8.0.29
+@param[in]      should_buffer   whether to buffer an AIO request. Only used by
+                                AIO read ahead
 @return error code
 @retval DB_SUCCESS on success
 @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
@@ -2178,23 +2172,11 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
                            fil_space_t *space);
 
 /** Set the encryption type for the tablespace
-<<<<<<< HEAD
-@param[in] space_id		Space ID of tablespace for which to set
-@param[in] algorithm		Encryption algorithm
-@param[in] key			Encryption key
-@param[in] iv			Encryption iv
-@param[in] acquire_mutex  if true acquire fil_sys mutex, else false
-||||||| 6846e6b2f72
-@param[in] space_id		Space ID of tablespace for which to set
-@param[in] algorithm		Encryption algorithm
-@param[in] key			Encryption key
-@param[in] iv			Encryption iv
-=======
 @param[in] space_id             Space ID of tablespace for which to set
 @param[in] algorithm            Encryption algorithm
 @param[in] key                  Encryption key
 @param[in] iv                   Encryption iv
->>>>>>> mysql-8.0.29
+@param[in] acquire_mutex        if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
                            byte *key, byte *iv, bool aquire_mutex = true);

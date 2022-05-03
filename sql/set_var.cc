@@ -1666,25 +1666,19 @@ int set_var::check(THD *thd) {
   if (value == nullptr) {
     return 0;
   }
-<<<<<<< HEAD
-  int ret = var->check(thd, this) ? -1 : 0;
-||||||| 6846e6b2f72
-  int ret = (type != OPT_PERSIST_ONLY && var->check(thd, this)) ? -1 : 0;
-=======
 
   auto f = [this, thd](const System_variable_tracker &, sys_var *var) -> int {
     if (var->check_update_type(value->result_type())) {
       my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name.str);
       return -1;
     }
-    return (type != OPT_PERSIST_ONLY && var->check(thd, this)) ? -1 : 0;
+    return var->check(thd, this) ? -1 : 0;
   };
 
   int ret =
       m_var_tracker
           .access_system_variable<int>(thd, f, Suppress_not_found_error::NO)
           .value_or(-1);
->>>>>>> mysql-8.0.29
 
   if (!ret && (is_global_persist())) {
     ret = mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_SET),
@@ -1777,58 +1771,17 @@ void set_var::update_source_user_host_timestamp(THD *thd, sys_var *var) {
   an error due to logics.
 */
 int set_var::update(THD *thd) {
-<<<<<<< HEAD
-  assert(var != nullptr);
-
-  int ret = 0;
-  /* for persist only syntax do not update the value */
-  if (type != OPT_PERSIST_ONLY) {
-    auto saved_var_source = var->get_source();
-    var->set_source(enum_variable_source::DYNAMIC);
-    if (value)
-      ret = (int)var->update(thd, this);
-    else
-      ret = (int)var->set_default(thd, this);
-    var->set_source(saved_var_source);
-  }
-  /*
-   For PERSIST_ONLY syntax we dont change the value of the variable
-   for the current session, thus we should not change variables
-   source/timestamp/user/host.
-  */
-  if (ret == 0 && type != OPT_PERSIST_ONLY) {
-    update_source_user_host_timestamp(thd);
-  }
-  return ret;
-||||||| 6846e6b2f72
-  assert(var != nullptr);
-
-  int ret = 0;
-  /* for persist only syntax do not update the value */
-  if (type != OPT_PERSIST_ONLY) {
-    if (value)
-      ret = (int)var->update(thd, this);
-    else
-      ret = (int)var->set_default(thd, this);
-  }
-  /*
-   For PERSIST_ONLY syntax we dont change the value of the variable
-   for the current session, thus we should not change variables
-   source/timestamp/user/host.
-  */
-  if (ret == 0 && type != OPT_PERSIST_ONLY) {
-    update_source_user_host_timestamp(thd);
-  }
-  return ret;
-=======
   auto f = [this, thd](const System_variable_tracker &, sys_var *var) -> bool {
     bool ret = false;
     /* for persist only syntax do not update the value */
     if (type != OPT_PERSIST_ONLY) {
+      auto saved_var_source = var->get_source();
+      var->set_source(enum_variable_source::DYNAMIC);
       if (value)
         ret = var->update(thd, this);
       else
         ret = var->set_default(thd, this);
+      var->set_source(saved_var_source);
       /*
        For PERSIST_ONLY syntax we dont change the value of the variable
        for the current session, thus we should not change variables
@@ -1846,7 +1799,6 @@ int set_var::update(THD *thd) {
                  .value_or(true)
              ? 1
              : 0;
->>>>>>> mysql-8.0.29
 }
 
 void set_var::print_short(const THD *thd, String *str) {

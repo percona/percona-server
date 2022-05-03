@@ -1628,30 +1628,7 @@ ENDIF(WITH_LTO)
 # Libraries from Homebrew have file extension '.dylib'.
 # To get all the Homebrew libraries, do 'brew install' <name of lib>.
 SET(SYSTEM_LIBRARIES
-<<<<<<< HEAD
-  CURL
-  ICU
-  LIBEVENT
-  LZ4
-  PROTOBUF
-  SSL
-  ZLIB
-  ZSTD
-  FIDO
-||||||| 6846e6b2f72
-  CURL
-  EDITLINE
-  ICU
-  LIBEVENT
-  LZ4
-  PROTOBUF
-  SSL
-  ZLIB
-  ZSTD
-  FIDO
-=======
   CURL      # Xcode
-  EDITLINE  # Xcode
   ICU       # Homebrew  icu4c
   LIBEVENT  # Homebrew  libevent
   LZ4       # Homebrew  lz4
@@ -1660,7 +1637,6 @@ SET(SYSTEM_LIBRARIES
   ZLIB      # Xcode
   ZSTD      # Homebrew  zstd
   FIDO      # Homebrew  libfido2
->>>>>>> mysql-8.0.29
   )
 
 IF(APPLE)

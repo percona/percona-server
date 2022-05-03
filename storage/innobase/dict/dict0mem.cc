@@ -724,20 +724,10 @@ ulint dict_index_t::get_sys_col_pos(ulint type) const {
 }
 
 /** Looks for column n in an index.
-<<<<<<< HEAD
 @param[in]	n		column number
 @param[in]	inc_prefix	true=consider column prefixes too
 @param[in]	is_virtual	true==virtual column
 @param[out]	prefix_col_pos	column number if prefix
-||||||| 6846e6b2f72
-@param[in]	n		column number
-@param[in]	inc_prefix	true=consider column prefixes too
-@param[in]	is_virtual	true==virtual column
-=======
-@param[in]      n               column number
-@param[in]      inc_prefix      true=consider column prefixes too
-@param[in]      is_virtual      true==virtual column
->>>>>>> mysql-8.0.29
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
 ulint dict_index_t::get_col_pos(ulint n, bool inc_prefix, bool is_virtual,

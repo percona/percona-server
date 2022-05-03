@@ -195,17 +195,11 @@ fsp_header_t *fsp_get_space_header_block(space_id_t id,
 
   ut_ad(id != 0 || !page_size.is_compressed());
 
-<<<<<<< HEAD
-  blk = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
+  blk = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, UT_LOCATION_HERE,
+                     mtr);
 
   SRV_CORRUPT_TABLE_CHECK(block, return (0););
 
-||||||| 6846e6b2f72
-  blk = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
-=======
-  blk = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, UT_LOCATION_HERE,
-                     mtr);
->>>>>>> mysql-8.0.29
   header = FSP_HEADER_OFFSET + buf_block_get_frame(blk);
   buf_block_dbg_add_level(blk, SYNC_FSP_PAGE);
 

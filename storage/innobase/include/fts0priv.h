@@ -204,29 +204,13 @@ Write out a single word's data as new entry/entries in the INDEX table.
 1. for ngram token, check whether the token contains any words in stopwords
 2. for non-ngram token, check if it's stopword or less than fts_min_token_size
 or greater than fts_max_token_size.
-<<<<<<< HEAD
-@param[in]	token		token string
-@param[in]	stopwords	stopwords rb tree
-@param[in]	is_ngram	is ngram parser
-@param[in]	cs		token charset
-@param[in]	skip		true if the check should be skipped
-@retval true	if it is not stopword and length in range
-@retval false	if it is stopword or length not in range */
-||||||| 6846e6b2f72
-@param[in]	token		token string
-@param[in]	stopwords	stopwords rb tree
-@param[in]	is_ngram	is ngram parser
-@param[in]	cs		token charset
-@retval true	if it is not stopword and length in range
-@retval false	if it is stopword or length not in range */
-=======
 @param[in]      token           token string
 @param[in]      stopwords       stopwords rb tree
 @param[in]      is_ngram        is ngram parser
 @param[in]      cs              token charset
+@param[in]      skip            true if the check should be skipped
 @retval true    if it is not stopword and length in range
 @retval false   if it is stopword or length not in range */
->>>>>>> mysql-8.0.29
 bool fts_check_token(const fts_string_t *token, const ib_rbt_t *stopwords,
                      bool is_ngram, const CHARSET_INFO *cs, bool skip);
 

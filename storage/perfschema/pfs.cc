@@ -3180,7 +3180,6 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
 
   clear_thread_account(pfs);
 
-<<<<<<< HEAD
   if (acl_is_utility_user(user, host, nullptr)) {
     /* We do not want the utility user to show up in any PFS statistics,
     so we keep this pfs session dirty. This fixes many, but not all tables.
@@ -3190,29 +3189,8 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
     return;
   }
 
-  if (host_len > 0) {
-    memcpy(pfs->m_hostname, host, host_len);
-  }
-  pfs->m_hostname_length = host_len;
-
-  if (user_len > 0) {
-    memcpy(pfs->m_username, user, user_len);
-  }
-  pfs->m_username_length = user_len;
-||||||| 6846e6b2f72
-  if (host_len > 0) {
-    memcpy(pfs->m_hostname, host, host_len);
-  }
-  pfs->m_hostname_length = host_len;
-
-  if (user_len > 0) {
-    memcpy(pfs->m_username, user, user_len);
-  }
-  pfs->m_username_length = user_len;
-=======
   pfs->m_user_name.set(user, user_len);
   pfs->m_host_name.set(host, host_len);
->>>>>>> mysql-8.0.29
 
   set_thread_account(pfs);
 

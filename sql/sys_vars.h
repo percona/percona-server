@@ -1185,7 +1185,7 @@ class Sys_var_version : public Sys_var_charptr {
       return reinterpret_cast<const uchar *>(version_ptr);
 
     const char *const *suffix_ptr = reinterpret_cast<const char *const *>(
-        suffix_var->value_ptr(thd, OPT_GLOBAL, nullptr));
+        suffix_var->value_ptr(thd, OPT_GLOBAL, {}));
     if (suffix_ptr == nullptr || *suffix_ptr == nullptr)
       return reinterpret_cast<const uchar *>(version_ptr);
 
@@ -3091,13 +3091,13 @@ class Sys_var_errors_set : public sys_var {
     return false;
   }
   const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                                 LEX_STRING *) override {
+                                 std::string_view) override {
     char buf[Query_errors_set::MAX_TEXT_LENGTH + 1];
     ((Query_errors_set *)session_var_ptr(target_thd))->to_string(buf);
     char *ret = running_thd->mem_strdup(buf);
     return (uchar *)ret;
   }
-  const uchar *global_value_ptr(THD *thd, LEX_STRING *) override {
+  const uchar *global_value_ptr(THD *thd, std::string_view) override {
     char buf[Query_errors_set::MAX_TEXT_LENGTH + 1];
     ((Query_errors_set *)global_var_ptr())->to_string(buf);
     char *ret = thd->mem_strdup(buf);

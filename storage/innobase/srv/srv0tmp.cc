@@ -190,7 +190,7 @@ void Tablespace::decrypt() {
   (zero-filled) to initial size. Just make sure that in-memory
   tablespace structure (fil_space_t) doesn't have encryption info */
 
-  rw_lock_x_lock(&space->latch);
+  rw_lock_x_lock(&space->latch, UT_LOCATION_HERE);
   /* Reset In-mem encryption for tablespace */
 
   /* fil_space_t of session temp tablespace will be always found and

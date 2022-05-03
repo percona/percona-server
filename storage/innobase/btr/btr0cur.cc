@@ -4564,7 +4564,7 @@ bool btr_cur_optimistic_delete_func(btr_cur_t *cursor,
 
   block = btr_cur_get_block(cursor);
 
-  SRV_CORRUPT_TABLE_CHECK(block, return (DB_CORRUPTION););
+  SRV_CORRUPT_TABLE_CHECK(block, return (true););
 
   ut_ad(page_is_leaf(buf_block_get_frame(block)));
   ut_ad(!dict_index_is_online_ddl(cursor->index) ||

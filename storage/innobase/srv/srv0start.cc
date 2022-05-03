@@ -2838,7 +2838,7 @@ files_checked:
 
     if (err != DB_SUCCESS) {
       /* Set the abort flag to true. */
-      auto p = recv_recovery_from_checkpoint_finish(*log_sys, true);
+      auto p = recv_recovery_from_checkpoint_finish(true);
 
       ut_a(p == nullptr);
 
@@ -2880,7 +2880,7 @@ files_checked:
       if (recv_sys->found_corrupt_log) {
         err = DB_ERROR;
         /* Set the abort flag to true. */
-        auto p = recv_recovery_from_checkpoint_finish(*log_sys, true);
+        auto p = recv_recovery_from_checkpoint_finish(true);
 
         ut_a(p == nullptr);
         return (srv_init_abort(err));

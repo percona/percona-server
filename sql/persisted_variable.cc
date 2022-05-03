@@ -389,7 +389,7 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       uint dummy_err;
       String bool_str;
       if (setvar->value) {
-        setvar->var->persist_only_to_string(thd, setvar, &str);
+        system_var->persist_only_to_string(thd, setvar, &str);
         res = &str;
         if (res && res->length()) {
           /*

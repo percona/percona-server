@@ -6201,7 +6201,7 @@ dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
   trx_t *const trx = trx_allocate_for_background();
   trx->op_info = "get zip dict id by composite key";
   trx->dict_operation_lock_mode = RW_S_LATCH;
-  trx_start_if_not_started(trx, false);
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
   const dberr_t err = dict_create_get_zip_dict_id_by_reference(
       table_id, column_pos, dict_id, trx);
@@ -6233,7 +6233,7 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
   trx_t *const trx = trx_allocate_for_background();
   trx->op_info = "get zip dict name and data by id";
   trx->dict_operation_lock_mode = RW_S_LATCH;
-  trx_start_if_not_started(trx, false);
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
   const dberr_t err = dict_create_get_zip_dict_info_by_id(
       dict_id, name, name_len, data, data_len, trx);
@@ -6303,8 +6303,9 @@ static std::tuple<bool, bool> get_mysql_ibd_page_0_from_buffer() {
   const page_size_t page_size(space->flags);
   mtr_t mtr;
   mtr_start(&mtr);
-  buf_block_t *block = buf_page_get(page_id_t(dict_sys_t::s_dict_space_id, 0),
-                                    univ_page_size, RW_X_LATCH, &mtr);
+  buf_block_t *block =
+      buf_page_get(page_id_t(dict_sys_t::s_dict_space_id, 0), univ_page_size,
+                   RW_X_LATCH, UT_LOCATION_HERE, &mtr);
 
   if (block == nullptr) {
     mtr_commit(&mtr);

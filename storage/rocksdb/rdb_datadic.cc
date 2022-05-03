@@ -4311,7 +4311,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
           LogPluginErrMsg(
               WARNING_LEVEL, 0,
               "Trying to create an index with a multi-level collation %s",
-              cs->name);
+              cs->m_coll_name);
           LogPluginErrMsg(WARNING_LEVEL, 0,
                           "Will handle this collation internally as if it had "
                           "a NO_PAD attribute.");

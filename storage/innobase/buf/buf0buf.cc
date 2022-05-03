@@ -2095,7 +2095,7 @@ static void buf_pool_resize() {
 
   buf_resize_status("Disabling adaptive hash index.");
 
-  rw_lock_s_lock(btr_search_latches[0]);
+  rw_lock_s_lock(btr_search_latches[0], UT_LOCATION_HERE);
   if (btr_search_enabled) {
     rw_lock_s_unlock(btr_search_latches[0]);
     btr_search_disabled = true;

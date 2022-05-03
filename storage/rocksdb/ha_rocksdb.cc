@@ -3291,7 +3291,7 @@ class Rdb_transaction {
           rocksdb::Slice cur_prefix;
           std::vector<std::pair<rocksdb::Slice, rocksdb::Slice>> keys;
           MEM_ROOT mem_root;
-          init_sql_alloc(PSI_NOT_INSTRUMENTED, &mem_root, 4024, 0);
+          init_sql_alloc(PSI_NOT_INSTRUMENTED, &mem_root, 4024);
 
           while ((rc2 = rdb_merge.next(&merge_key, &merge_val)) == 0) {
             if (cur_prefix.size() == 0 ||

@@ -32,7 +32,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ha_prototypes.h"
 #include "mach0data.h"
-#include "rem0types.h" /* ZIP_COLUMN_HEADER_LENGTH */
 
 /** Gets the MySQL charset-collation code for MySQL string types.
  @return MySQL charset-collation code */

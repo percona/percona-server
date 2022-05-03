@@ -854,7 +854,7 @@ static bool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
 
   memcpy(user_arg, dfield_get_data(dfield), sizeof(uint32_t));
 
-  return (TRUE);
+  return (true);
 }
 
 /** Get a single compression dictionary id for the given
@@ -999,7 +999,7 @@ static bool dict_create_get_zip_dict_info_by_id_aux(
     }
   }
 
-  return TRUE;
+  return true;
 }
 
 /** Get compression dictionary info (name and data) for the given id.

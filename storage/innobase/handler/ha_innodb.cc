@@ -8003,7 +8003,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     if (UNIV_UNLIKELY(m_share->ib_table && m_share->ib_table->is_corrupt &&
                       srv_pass_corrupt_table <= 1)) {
       free_share_and_nullify(&m_share);
-      dict_table_close(ib_table, FALSE, FALSE);
+      dict_table_close(ib_table, false, false);
       return HA_ERR_CRASHED_ON_USAGE;
     }
   }
@@ -8034,7 +8034,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
                     srv_pass_corrupt_table <= 1)) {
     free_share_and_nullify(&m_share);
-    dict_table_close(ib_table, FALSE, FALSE);
+    dict_table_close(ib_table, false, false);
     return HA_ERR_CRASHED_ON_USAGE;
   }
 
@@ -24105,12 +24105,12 @@ static MYSQL_SYSVAR_BOOL(
     priority_purge, srv_purge_thread_priority, PLUGIN_VAR_OPCMDARG,
     "Make purge coordinator and worker threads acquire shared resources with "
     "priority",
-    NULL, NULL, FALSE);
+    NULL, NULL, false);
 
 static MYSQL_SYSVAR_BOOL(
     priority_master, srv_master_thread_priority, PLUGIN_VAR_OPCMDARG,
     "Make buffer pool cleaner thread acquire shared resources with priority",
-    NULL, NULL, FALSE);
+    NULL, NULL, false);
 
 #endif /* UNIV_LINUX */
 
@@ -24706,7 +24706,7 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
 
 static MYSQL_SYSVAR_BOOL(immediate_scrub_data_uncompressed,
                          srv_immediate_scrub_data_uncompressed, 0,
-                         "Enable scrubbing of data", NULL, NULL, FALSE);
+                         "Enable scrubbing of data", NULL, NULL, false);
 
 static MYSQL_SYSVAR_BOOL(
     scrub_log, srv_scrub_log, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -24851,7 +24851,7 @@ static MYSQL_SYSVAR_BOOL(
 #else
     nullptr,
 #endif
-    nullptr, FALSE);
+    nullptr, false);
 
 static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
                               PLUGIN_VAR_RQCMDARG,
@@ -25169,13 +25169,13 @@ static MYSQL_SYSVAR_BOOL(background_scrub_data_uncompressed,
                          srv_background_scrub_data_uncompressed, 0,
                          "Enable scrubbing of uncompressed data by "
                          "background threads (same as encryption_threads)",
-                         NULL, NULL, FALSE);
+                         NULL, NULL, false);
 
 static MYSQL_SYSVAR_BOOL(background_scrub_data_compressed,
                          srv_background_scrub_data_compressed, 0,
                          "Enable scrubbing of compressed data by "
                          "background threads (same as encryption_threads)",
-                         NULL, NULL, FALSE);
+                         NULL, NULL, false);
 
 static MYSQL_SYSVAR_UINT(background_scrub_data_check_interval,
                          srv_background_scrub_data_check_interval, 0,

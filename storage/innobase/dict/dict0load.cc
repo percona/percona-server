@@ -3304,7 +3304,7 @@ static bool dict_load_table_id_on_index_id(space_index_t index_id,
 
   dd_table_close(dd_tables, current_thd, &mdl, true);
 
-  btr_pcur_close(&pcur);
+  pcur.close();
   mtr_commit(&mtr);
 
   return (found);

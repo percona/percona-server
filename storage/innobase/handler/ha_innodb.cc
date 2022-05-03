@@ -6421,7 +6421,7 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
   innobase_srv_conc_force_exit_innodb(trx);
 
   /* If the transaction is not started yet, start it */
-  trx_start_if_not_started_xa(trx, false);
+  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
 
   /* Clone the read view from the donor transaction.  Do this only if
   transaction is using REPEATABLE READ isolation level. */
@@ -21012,7 +21012,7 @@ void ha_innobase::get_auto_increment(
 
 /** See comment in handler.cc */
 
-bool ha_innobase::get_error_message(int, String *buf) {
+bool ha_innobase::get_error_message(int error, String *buf) {
   trx_t *trx = check_trx_exists(ha_thd());
 
   if (error == HA_ERR_ENCRYPTION_KEY_MISSING) {

@@ -1437,8 +1437,8 @@ static inline void fil_crypt_read_crypt_data(fil_space_t *space) {
   const page_size_t page_size(space->flags);
   mtr_t mtr;
   mtr.start();
-  if (buf_block_t *block =
-          buf_page_get(page_id_t(space->id, 0), page_size, RW_S_LATCH, &mtr)) {
+  if (buf_block_t *block = buf_page_get(page_id_t(space->id, 0), page_size,
+                                        RW_S_LATCH, UT_LOCATION_HERE, &mtr)) {
     fil_lock_shard_by_id(space->id);
     if (!space->crypt_data) {
       fil_space_crypt_t *crypt_data =
@@ -1462,7 +1462,7 @@ static void fil_crypt_write_crypt_data_to_page0(fil_space_t *space) {
 
   if (buf_block_t *block = buf_page_get_gen(
           page_id_t(space->id, 0), page_size_t(space->flags), RW_X_LATCH, NULL,
-          Page_fetch::NORMAL, __FILE__, __LINE__, &mtr)) {
+          Page_fetch::NORMAL, UT_LOCATION_HERE, &mtr)) {
     space->crypt_data->write_page0(
         space, block->frame, &mtr, space->crypt_data->min_key_version,
         space->crypt_data->max_key_version, space->crypt_data->type);
@@ -1741,7 +1741,7 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
 
     buf_block_t *block = buf_page_get_gen(
         page_id_t(space->id, 0), page_size_t(space->flags), RW_X_LATCH, nullptr,
-        Page_fetch::NORMAL, __FILE__, __LINE__, &mtr);
+        Page_fetch::NORMAL, UT_LOCATION_HERE, &mtr);
 
     /* 3 - write crypt data to page 0 */
     byte *frame = buf_block_get_frame(block);
@@ -2535,7 +2535,7 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
 
   buf_block_t *block =
       buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
-                       Page_fetch::PEEK_IF_IN_POOL, file, line, mtr);
+                       Page_fetch::PEEK_IF_IN_POOL, {file, line}, mtr);
 
   if (block != NULL) {
     /* page was in buffer pool */
@@ -2551,7 +2551,7 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
 
   const auto start = std::chrono::steady_clock::now();
   block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
-                           Page_fetch::POSSIBLY_FREED, file, line, mtr, false);
+                           Page_fetch::POSSIBLY_FREED, {file, line}, mtr, false);
   const auto end = std::chrono::steady_clock::now();
 
   state->cnt_waited++;
@@ -3071,7 +3071,7 @@ class TransactionAndHeapGuard {
     ut_ad(table_ids_to_revert == nullptr);
 
     // This should only wait in rare cases
-    while (!rw_lock_x_lock_nowait(dict_operation_lock)) {
+    while (!rw_lock_x_lock_nowait(dict_operation_lock, UT_LOCATION_HERE)) {
       std::this_thread::sleep_for(std::chrono::microseconds(6));
       if (space->stop_new_ops)  // space is about to be dropped
         return false;           // do not try to lock the DD
@@ -3394,7 +3394,7 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
 
   if (buf_block_t *block = buf_page_get_gen(
           page_id_t(space->id, 0), page_size_t(space->flags), RW_X_LATCH, NULL,
-          Page_fetch::NORMAL, __FILE__, __LINE__, &mtr)) {
+          Page_fetch::NORMAL, UT_LOCATION_HERE, &mtr)) {
     // mtr.set_named_space(space);
     crypt_data->write_page0(space, block->frame, &mtr,
                             crypt_data->rotate_state.min_key_version_found,

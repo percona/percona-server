@@ -987,7 +987,7 @@ bool fsp_enable_encryption(fil_space_t *space) {
 
   if (!Encryption::fill_encryption_info(space->encryption_key,
                                         space->encryption_iv, encrypt_info,
-                                        false, true)) {
+                                        true)) {
     return (false);
   }
 
@@ -998,8 +998,8 @@ bool fsp_enable_encryption(fil_space_t *space) {
   mtr_x_lock_space(space, &mtr);
 
   const page_size_t page_size(space->flags);
-  buf_block_t *block =
-      buf_page_get(page_id_t(space->id, 0), page_size, RW_SX_LATCH, &mtr);
+  buf_block_t *block = buf_page_get(page_id_t(space->id, 0), page_size,
+                                    RW_SX_LATCH, UT_LOCATION_HERE, &mtr);
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
   ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
 

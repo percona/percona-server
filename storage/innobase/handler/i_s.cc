@@ -7652,7 +7652,7 @@ static void limit_lsn_range_from_condition(TABLE *table, Item *cond,
         tmp_result = right->val_int();
         if (((func_type == Item_func::LE_FUNC) ||
              (func_type == Item_func::GE_FUNC)) &&
-            (tmp_result != IB_UINT64_MAX)) {
+            (tmp_result != std::numeric_limits<uint64_t>::max())) {
           tmp_result++;
         }
         if (tmp_result < *end_lsn) {
@@ -7670,7 +7670,7 @@ static void limit_lsn_range_from_condition(TABLE *table, Item *cond,
         }
         if (((func_type == Item_func::LT_FUNC) ||
              (func_type == Item_func::GT_FUNC)) &&
-            (tmp_result != IB_UINT64_MAX)) {
+            (tmp_result != std::numeric_limits<uint64_t>::max())) {
           tmp_result++;
         }
         if (tmp_result > *start_lsn) {

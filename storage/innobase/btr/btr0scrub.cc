@@ -372,14 +372,15 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
      */
     mtr->release_block_at_savepoint(scrub_data->savepoint, block);
 
-    buf_block_t *get_block __attribute__((unused)) = btr_block_get(
-        page_id_t(space->id, left_page_no), page_size, RW_X_LATCH, index, mtr);
+    buf_block_t *get_block __attribute__((unused)) =
+        btr_block_get(page_id_t(space->id, left_page_no), page_size, RW_X_LATCH,
+                      UT_LOCATION_HERE, index, mtr);
 
     /**
      * Refetch block and re-initialize page
      */
     block = btr_block_get(page_id_t(space->id, page_no), page_size, RW_X_LATCH,
-                          index, mtr);
+                          UT_LOCATION_HERE, index, mtr);
 
     page = buf_block_get_frame(block);
 
@@ -391,8 +392,9 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
   }
 
   if (right_page_no != FIL_NULL) {
-    buf_block_t *get_block __attribute__((unused)) = btr_block_get(
-        page_id_t(space->id, right_page_no), page_size, RW_X_LATCH, index, mtr);
+    buf_block_t *get_block __attribute__((unused)) =
+        btr_block_get(page_id_t(space->id, right_page_no), page_size,
+                      RW_X_LATCH, UT_LOCATION_HERE, index, mtr);
   }
 
   /* arguments to btr_page_split_and_insert */
@@ -626,7 +628,7 @@ int btr_scrub_recheck_page(btr_scrub_t *scrub_data, buf_block_t *block,
   }
 
   mtr_start(mtr);
-  mtr_x_lock(dict_index_get_lock(scrub_data->current_index), mtr);
+  mtr_x_lock(dict_index_get_lock(scrub_data->current_index), mtr, UT_LOCATION_HERE);
   /** set savepoint for X-latch of block */
   scrub_data->savepoint = mtr_set_savepoint(mtr);
   return BTR_SCRUB_PAGE;

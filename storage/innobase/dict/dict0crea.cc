@@ -841,7 +841,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 /** Fetch callback, just stores extracted zip_dict id in the external
 variable.
 @return TRUE if all OK */
-static ibool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
+static bool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
                                          void *user_arg) /*!< in: int32 id */
 {
   sel_node_t *node = static_cast<sel_node_t *>(row);
@@ -891,7 +891,7 @@ dberr_t dict_create_get_zip_dict_id_by_reference(
                                "  FETCH cur INTO my_func();\n"
                                "  CLOSE cur;\n"
                                "END;\n",
-                               FALSE, trx);
+                               trx);
   if (error == DB_SUCCESS) {
     uint32_t local_dict_id =
         mach_read_from_4(reinterpret_cast<const byte *>(&dict_id_buf));
@@ -922,7 +922,7 @@ struct zip_dict_info_aux {
 /** Fetch callback, just stores extracted zip_dict data in the external
 variable.
 @return always returns TRUE */
-static ibool dict_create_get_zip_dict_info_by_id_aux(
+static bool dict_create_get_zip_dict_info_by_id_aux(
     void *row,      /*!< in: sel_node_t* */
     void *user_arg) /*!< in: pointer to zip_dict_info_aux* */
 {
@@ -1037,7 +1037,7 @@ dberr_t dict_create_get_zip_dict_info_by_id(
                                "  FETCH cur INTO my_func();\n"
                                "  CLOSE cur;\n"
                                "END;\n",
-                               FALSE, trx);
+                               trx);
   if (error == DB_SUCCESS) {
     switch (rec.code) {
       case zip_dict_info_success:

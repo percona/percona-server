@@ -1304,7 +1304,7 @@ int DeleteRowsIterator::Read() {
     }
   }
 
-  thd->updated_row_count += deleted_rows;
+  thd()->updated_row_count += m_deleted_rows;
 
   if (local_error) {
     return 1;

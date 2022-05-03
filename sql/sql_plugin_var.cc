@@ -1059,8 +1059,7 @@ static Item *alloc_and_copy_string(const char *str) {
 }
 
 Item *sys_var_pluginvar::copy_value(THD *thd) {
-  LEX_STRING str;
-  const auto *val_ptr = session_value_ptr(thd, thd, &str);
+  const auto *val_ptr = session_value_ptr(thd, thd, {});
 
   switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
     case PLUGIN_VAR_BOOL:

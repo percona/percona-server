@@ -228,6 +228,9 @@ constexpr uint32_t DATA_MULTI_VALUE = 16384;
   32768 /* this is ORed to the precise data      \
         type when the column has COLUMN_FORMAT = \
         COMPRESSED attribute*/
+
+/** Compressed field header size in bytes */
+constexpr uint32_t ZIP_COLUMN_HEADER_LENGTH = 2;
 /*-------------------------------------------*/
 
 /* This many bytes we need to store the type information affecting the

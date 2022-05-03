@@ -3706,7 +3706,7 @@ bool fseg_free_step(
 
   SRV_CORRUPT_TABLE_CHECK(descr, {
     /* The page may be corrupt. pass it. */
-    return (TRUE);
+    return (true);
   });
 
   /* Check that the header resides on a page which has not been
@@ -3790,7 +3790,7 @@ bool fseg_free_step_not_header(
   inode = fseg_inode_get(header, space_id, page_size, mtr, &iblock);
   SRV_CORRUPT_TABLE_CHECK(inode, {
     /* ignore the corruption */
-    return (TRUE);
+    return (true);
   });
 
   fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);

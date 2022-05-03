@@ -957,7 +957,7 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
 #endif /* !UNIV_HOTBACKUP */
 
   if (!page) {
-    return (FALSE);
+    return (false);
   }
 
   ut_a(page_is_comp(page));

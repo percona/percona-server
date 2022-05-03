@@ -5377,7 +5377,7 @@ void buf_page_free_stale_during_write(buf_page_t *bpage,
   --buf_pool->n_flush[flush_type];
 
   if (buf_pool->n_flush[flush_type] == 0 &&
-      buf_pool->init_flush[flush_type] == FALSE) {
+      buf_pool->init_flush[flush_type] == false) {
     os_event_set(buf_pool->no_flush[flush_type]);
   }
 

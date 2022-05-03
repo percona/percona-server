@@ -3654,24 +3654,8 @@ create_index_stmt:
 create_compression_dictionary_allowed_expr:
           text_literal
           { ITEMIZE($1, &$$); }
-        | variable
-          {
-            ITEMIZE($1, &$1);
-            if ($1->type() == Item::FUNC_ITEM)
-            {
-              Item_func *item= (Item_func*) $1;
-              if (item->functype() == Item_func::SUSERVAR_FUNC)
-              {
-                /*
-                  Don't allow the following syntax:
-                    CREATE COMPRESSION_DICTIONARY <dict>(@foo := expr)
-                */
-                my_error(ER_SYNTAX_ERROR, MYF(0));
-                MYSQL_YYABORT;
-              }
-            }
-            $$= $1;
-          }
+        | rvalue_system_or_user_variable
+          { ITEMIZE($1, &$$); }
         ;
 
 server_options_list:

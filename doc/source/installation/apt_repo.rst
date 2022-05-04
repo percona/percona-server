@@ -1,10 +1,10 @@
 .. _apt_repo:
 
-====================================================
-Installing |Percona Server| on *Debian* and *Ubuntu*
-====================================================
+========================================================================
+Installing Percona Server for MySQL on *Debian* and *Ubuntu*
+========================================================================
 
-Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_.
+Ready-to-use packages are available from the Percona Server for MySQL software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_.
 
 Specific information on the supported platforms, products, and versions is described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
@@ -27,8 +27,8 @@ The ``libperconaserverclient20-dev`` package contains header files needed to com
 
 The ``libperconaserverclient20`` package contains the client shared library. The ``18.1`` is a reference to the version of the shared library. The version is incremented when there is a ABI change that requires software using the client library to be recompiled or its source code modified.
 
-Installing |Percona Server| from Percona ``apt`` repository
-===========================================================
+Installing Percona Server for MySQL from Percona ``apt`` repository
+===============================================================================
 
 1. Install ``GnuPG``, the GNU Privacy Guard:
 
@@ -65,14 +65,14 @@ Installing |Percona Server| from Percona ``apt`` repository
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`. These storage engines are installed as plugin.
+  Percona Server for MySQL 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`. These storage engines are installed as plugin.
   
   For information on how to install and configure TokuDB, refer to the :ref:`tokudb_installation` guide.
   
   For information on how to install and configure MyRocks, refer to the :ref:`myrocks_install` guide.
 
   
-The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
+The Percona Server for MySQL distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
 
 .. code-block:: bash
 
@@ -105,10 +105,10 @@ For more information about the pinning you can check the official `debian wiki <
 
 .. _standalone_deb:
 
-Installing |Percona Server| using downloaded deb packages
-=========================================================
+Installing Percona Server for MySQL using downloaded deb packages
+=============================================================================
 
-Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| :rn:`5.7.10-3` release packages for *Debian* 8.0:
+Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download Percona Server for MySQL :ref:`5.7.10-3` release packages for *Debian* 8.0:
 
  .. code-block:: bash
 
@@ -136,17 +136,17 @@ After you unpack the bundle you should see the following packages:
     percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb
 
 
-Now you can install |Percona Server| by running:
+Now you can install Percona Server for MySQL by running:
 
   .. code-block:: bash
 
     $ sudo dpkg -i *.deb
 
-This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want TokuDB storage engine).
+This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running Percona Server for MySQL installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want TokuDB storage engine).
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
+  Percona Server for MySQL 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 .. warning::
 
@@ -173,17 +173,17 @@ The following table lists the default locations for files:
 
   *Debian* and *Ubuntu* installation does not automatically create a special
   ``debian-sys-maint`` user which can be used by the control scripts to control
-  the |Percona Server| ``mysqld`` and ``mysqld_safe`` services like it was the
-  case with previous |Percona Server| versions. If you still require this user you must create the user manually.
+  the Percona Server for MySQL ``mysqld`` and ``mysqld_safe`` services like it was the
+  case with previous Percona Server for MySQL versions. If you still require this user you must create the user manually.
 
-Running |Percona Server|
-========================
+Running Percona Server for MySQL
+============================================
 
-The following procedure runs the |Percona Server|:
+The following procedure runs the Percona Server for MySQL:
 
 1. Starting the service
 
-   |Percona Server| starts automatically after installation unless the server
+   Percona Server for MySQL starts automatically after installation unless the server
    encounters errors during the installation process. You can also manually
    start it by running the following command:
 
@@ -219,10 +219,10 @@ The following procedure runs the |Percona Server|:
 
   *Debian* 8.0 (jessie) and *Ubuntu* 16.04(Xenial) come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently, both are supported.
 
-Uninstalling |Percona Server|
-=============================
+Uninstalling Percona Server for MySQL
+=================================================
 
-To uninstall |Percona Server|, you must remove all of the installed packages. 
+To uninstall Percona Server for MySQL, you must remove all of the installed packages. 
 
 You have the following options:
 
@@ -235,7 +235,7 @@ Depending on your needs, you can choose which command better suits you.
 
     `apt <https://manpages.ubuntu.com/manpages/bionic/man8/apt.8.html>`_
 
-1. Stop the |Percona Server| service
+1. Stop the Percona Server for MySQL service
 
    .. code-block:: bash
 

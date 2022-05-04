@@ -3161,7 +3161,7 @@ void log_rotate_default_key() {
     ut_a(FSP_FLAGS_GET_ENCRYPTION(space->flags));
     ut_a(strlen(server_uuid) > 0);
 
-    log_write_encryption(nullptr, nullptr, false, REDO_LOG_ENCRYPT_MK);
+    log_write_encryption(nullptr, nullptr, REDO_LOG_ENCRYPT_MK);
   }
 
   if (space->encryption_type != Encryption::NONE &&
@@ -3179,7 +3179,7 @@ void log_rotate_default_key() {
                     ut_ad(srv_redo_log_key_version == 2););
     // server uuid may not yet be written to redo log header - write it now
     log_write_encryption(reinterpret_cast<uchar *>(key->key),
-                         space->encryption_iv, false, REDO_LOG_ENCRYPT_RK,
+                         space->encryption_iv, REDO_LOG_ENCRYPT_RK,
                          key->version);
   }
 }

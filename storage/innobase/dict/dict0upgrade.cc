@@ -1522,7 +1522,7 @@ bool dd_upgrade_get_compression_dict_data(
 
   dict_sys_mutex_enter();
 
-  mem_heap_t *heap = mem_heap_create(1000);
+  mem_heap_t *heap = mem_heap_create(1000, UT_LOCATION_HERE);
   mtr_t mtr;
   mtr_start(&mtr);
 

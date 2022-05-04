@@ -2713,6 +2713,8 @@ files_checked:
 
   mtr_t::s_logging.init();
 
+  bool srv_monitor_thread_created = false;
+
   if (create_new_db) {
     ut_a(!srv_read_only_mode);
 
@@ -2820,7 +2822,7 @@ files_checked:
       srv_threads.m_monitor =
           os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
       srv_threads.m_monitor.start();
-      srv_start_state_set(SRV_START_STATE_MONITOR);
+      srv_monitor_thread_created = true;
     }
 
     /* We always try to do a recovery, even if the database had
@@ -3215,11 +3217,12 @@ files_checked:
     srv_threads.m_error_monitor.start();
 
     /* Create the thread which prints InnoDB monitor info */
-    if (!srv_start_state_is_set(SRV_START_STATE_MONITOR)) {
+    if (!srv_monitor_thread_created) {
       srv_threads.m_monitor =
           os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
 
       srv_threads.m_monitor.start();
+      srv_monitor_thread_created = true;
     }
   }
 

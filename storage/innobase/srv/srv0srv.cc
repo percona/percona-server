@@ -3027,7 +3027,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
   fprintf(stderr, "Fetched redo key: %s.\n", key);
 #endif
 
-  if (!log_write_encryption(key, iv, false, REDO_LOG_ENCRYPT_RK, version)) {
+  if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_RK, version)) {
     if (thd != nullptr) {
       ib::error(ER_IB_MSG_1243);
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);

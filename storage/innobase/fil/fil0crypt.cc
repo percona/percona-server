@@ -3119,7 +3119,7 @@ class TransactionAndHeapGuard {
     ut_ad(table_ids_to_revert == nullptr);
 
     // TODO: consider moving expensive operation out of dict_sys->mutex
-    heap = mem_heap_create(1024);
+    heap = mem_heap_create(1024, UT_LOCATION_HERE);
     return heap != NULL;
   }
 

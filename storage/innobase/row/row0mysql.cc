@@ -400,7 +400,8 @@ byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
   int window_bits = wrap ? MAX_WBITS : -MAX_WBITS;
 
   if (!*compress_heap)
-    *compress_heap = mem_heap_create(ut_max(UNIV_PAGE_SIZE, buf_len));
+    *compress_heap =
+        mem_heap_create(std::max(UNIV_PAGE_SIZE, buf_len), UT_LOCATION_HERE);
 
   buf = static_cast<byte *>(mem_heap_zalloc(*compress_heap, buf_len));
 
@@ -556,7 +557,7 @@ const byte *row_decompress_column(const byte *data, ulint *len,
   /* data is compressed, decompress it*/
   if (!*compress_heap) {
     *compress_heap =
-        mem_heap_create(ut_max(UNIV_PAGE_SIZE, uncomp_len));
+        mem_heap_create(std::max(UNIV_PAGE_SIZE, uncomp_len), UT_LOCATION_HERE);
   }
 
   buf_len = uncomp_len;

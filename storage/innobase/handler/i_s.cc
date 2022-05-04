@@ -7971,7 +7971,7 @@ static int i_s_tablespaces_encryption_fill_table(
     DBUG_RETURN(0);
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(1000, UT_LOCATION_HERE);
   dict_sys_mutex_enter();
   mtr_start(&mtr);
 

@@ -33,6 +33,7 @@ namespace plugin {
 namespace auth_ldap {
 struct ldap_log_type {
   enum ldap_type {
+    LDAP_LOG_LDAP_DBG,
     LDAP_LOG_DBG,
     LDAP_LOG_INFO,
     LDAP_LOG_WARNING,
@@ -45,7 +46,8 @@ enum ldap_log_level {
   LDAP_LOG_LEVEL_ERROR,
   LDAP_LOG_LEVEL_ERROR_WARNING,
   LDAP_LOG_LEVEL_ERROR_WARNING_INFO,
-  LDAP_LOG_LEVEL_ALL
+  LDAP_LOG_LEVEL_MYSQL_DBG,
+  LDAP_LOG_LEVEL_LDAP_DBG
 };
 
 class Ldap_log_writer_error {
@@ -72,8 +74,13 @@ template <ldap_log_type::ldap_type type>
 void Ldap_logger::log(const std::string &msg) {
   std::ostringstream log_stream;
   switch (type) {
+    case ldap_log_type::LDAP_LOG_LDAP_DBG:
+      if (LDAP_LOG_LEVEL_LDAP_DBG > m_log_level) {
+        return;
+      }
+      break;
     case ldap_log_type::LDAP_LOG_DBG:
-      if (LDAP_LOG_LEVEL_ALL > m_log_level) {
+      if (LDAP_LOG_LEVEL_MYSQL_DBG > m_log_level) {
         return;
       }
       break;

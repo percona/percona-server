@@ -2,14 +2,54 @@
 
 select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";
 
-let $MYSQLD_DATADIR= `select @@datadir`;
---exec find $MYSQLD_DATADIR/.rocksdb/OPTIONS* | sort -t- -k 2 -n | tail -1 | xargs -0 -I {} -t sh -c "sed -i 's/rocksdb_version=.*/rocksdb_version=99.9.9/' {}"
---exec find $MYSQLD_DATADIR/.rocksdb/OPTIONS* | sort -t- -k 2 -n | tail -1 | xargs -0 -I {} -t sh -c "echo hello=world>>{}"
+--source ../include/parse_rocksdb_fs_uri.inc
+
+--let $most_recent_options_include_file = $MYSQL_TMP_DIR/most_recent_options.inc
+
+if ($rocksdb_zenfs_disabled)
+{
+  --let $datadir = `SELECT @@datadir`
+  --let $gen_cmd = find $datadir.rocksdb/OPTIONS* -type f -printf "%f\n"
+}
+if (!$rocksdb_zenfs_disabled)
+{
+  --file_exists $MYSQL_ZENFS
+  --let $gen_cmd = $MYSQL_ZENFS list --zbd=$extracted_zenfs_device --path=/.rocksdb | awk '{ print \$6 }' | grep OPTIONS
+}
+
+--source include/shutdown_mysqld.inc
+
+--let $gen_cmd = $gen_cmd | sort -t- -k 2 -n | tail -1 | xargs echo --let \\\$most_recent_options = > $most_recent_options_include_file
+--exec $gen_cmd
+
+--source $most_recent_options_include_file
+--remove_file $most_recent_options_include_file
+
+if ($rocksdb_zenfs_disabled)
+{
+  --let $options_file_to_modify = $datadir.rocksdb/$most_recent_options
+}
+if (!$rocksdb_zenfs_disabled)
+{
+  --let $zenfs_backup_dir = $MYSQL_TMP_DIR/zenfs_backup
+  --mkdir $zenfs_backup_dir
+  --exec $MYSQL_ZENFS backup --zbd=$extracted_zenfs_device --path=$zenfs_backup_dir --backup_path=/.rocksdb/$most_recent_options > /dev/null 2>&1
+  --let $options_file_to_modify = $zenfs_backup_dir/$most_recent_options
+}
+
+--exec sed -i 's/rocksdb_version=.*/rocksdb_version=99.9.9/' $options_file_to_modify
+--exec echo hello=world >> $options_file_to_modify
+
+if (!$rocksdb_zenfs_disabled)
+{
+  --exec $MYSQL_ZENFS restore --zbd=$extracted_zenfs_device --path=$zenfs_backup_dir --restore_path=/.rocksdb> /dev/null 2>&1
+  --force-rmdir $zenfs_backup_dir
+}
 
 --let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.check_ignore_unknown_options.err
 --let $restart_parameters=restart:--log-error=$SEARCH_FILE --rocksdb_ignore_unknown_options=0
 --replace_result $SEARCH_FILE LOG_FILE
---source include/restart_mysqld.inc
+--source include/start_mysqld.inc
 
 --let SEARCH_PATTERN=Compatibility check against existing database options failed
 --source include/search_pattern.inc

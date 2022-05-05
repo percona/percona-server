@@ -9,7 +9,7 @@ CREATE ROLE 'test_role';
 CREATE ROLE 'test_role2';
 
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_simple%';
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
+--replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT> $MTR_LDAP_FALLBACK_HOST <MTR_LDAP_FALLBACK_HOST> $MTR_LDAP_FALLBACK_PORT <MTR_LDAP_FALLBACK_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
 SET GLOBAL authentication_ldap_simple_group_role_mapping = 'admin_staff=test_role';
@@ -17,7 +17,7 @@ SET GLOBAL authentication_ldap_simple_group_role_mapping = 'admin_staff=test_rol
 # For debugging:
 # SET GLOBAL authentication_ldap_simple_log_status = 6;
 
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
+--replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT> $MTR_LDAP_FALLBACK_HOST <MTR_LDAP_FALLBACK_HOST> $MTR_LDAP_FALLBACK_PORT <MTR_LDAP_FALLBACK_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com';
 CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_simple BY 'uid=nonexistent';
@@ -46,7 +46,7 @@ SHOW GRANTS FOR 'zoidberg';
 --echo "should show test_role,test_role2"
 SHOW GRANTS FOR 'zoidberg';
 
---replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
+--replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT> $MTR_LDAP_FALLBACK_HOST <MTR_LDAP_FALLBACK_HOST> $MTR_LDAP_FALLBACK_PORT <MTR_LDAP_FALLBACK_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
 
 --disconnect con1

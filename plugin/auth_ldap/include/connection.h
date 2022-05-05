@@ -34,17 +34,16 @@ class Connection {
   static const unsigned ZombieAfterSeconds = 120;
 
   Connection(std::size_t idx, const std::string &ldap_host,
-             std::uint16_t ldap_port, bool use_ssl, bool use_tls,
-             const std::string &ca_path);
+             std::uint16_t ldap_port, const std::string &fallback_host,
+             std::uint16_t fallback_port, bool use_ssl, bool use_tls);
   ~Connection();
 
- public:
   Connection(const Connection &) = delete;  // non construction-copyable
   Connection &operator=(const Connection &) = delete;  // non copyable
 
- public:
   void configure(const std::string &ldap_host, std::uint16_t ldap_port,
-                 bool use_ssl, bool use_tls, const std::string &ca_path);
+                 const std::string &fallback_host, std::uint16_t fallback_port,
+                 bool use_ssl, bool use_tls);
   bool connect(const std::string &bind_dn, const std::string &bind_pwd);
   std::size_t get_idx_pool() const;
   bool is_snipped() const;
@@ -61,22 +60,24 @@ class Connection {
                          const std::string &group_search_filter,
                          const std::string &base_dn);
 
- private:
-  std::string get_ldap_uri();
-  void log_error(const std::string &str, int ldap_err);
-  void log_warning(const std::string &str, int ldap_err);
+  static void initialize_global_ldap_parameters(bool enable_debug,
+                                                std::string const &ca_path);
 
  private:
+  std::string get_ldap_uri();
+  static void log_error(const std::string &str, int ldap_err);
+  static void log_warning(const std::string &str, int ldap_err);
+
   bool available_;
   std::size_t index_;
   std::atomic<bool> snipped_;
   std::string ldap_host_;
   std::uint16_t ldap_port_;
+  std::string ldap_fallback_host_;
+  std::uint16_t ldap_fallback_port_;
   bool use_ssl_;
   bool use_tls_;
-  std::string ca_path_;
 
- private:
   std::time_t borrowed_ts_;
   std::mutex conn_mutex_;
   LDAP *ldap_;

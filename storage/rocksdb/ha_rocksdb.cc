@@ -6242,7 +6242,7 @@ static int rocksdb_init_internal(void *const p) {
     std::shared_ptr<rocksdb::PersistentCache> pcache;
     uint64_t cache_size_bytes = rocksdb_persistent_cache_size_mb * 1024 * 1024;
     status = rocksdb::NewPersistentCache(
-        rocksdb::Env::Default(), std::string(rocksdb_persistent_cache_path),
+        rocksdb_db_options->env, std::string(rocksdb_persistent_cache_path),
         cache_size_bytes, myrocks_logger, true, &pcache);
     if (!status.ok()) {
       LogPluginErrMsg(ERROR_LEVEL, 0, "Persistent cache returned error: (%s)",

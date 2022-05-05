@@ -33,7 +33,6 @@
 #include "sql/dd/types/column.h"
 #include "sql/field.h"
 #include "sql/gis/srid.h"
-#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "typelib.h"
 
@@ -206,7 +205,7 @@ class Create_field {
         */
         treat_bit_as_char(false),
         pack_length_override(0),
-        zip_dict_name(null_lex_cstr),
+        zip_dict_name(NULL_CSTR),
         stored_in_db(false),
         m_default_val_expr(nullptr),
         zip_dict_id(0) {}

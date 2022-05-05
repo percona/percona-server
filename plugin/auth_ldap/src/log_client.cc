@@ -29,7 +29,6 @@ namespace plugin {
 namespace auth_ldap {
 Ldap_logger::Ldap_logger() {
   m_log_level = LDAP_LOG_LEVEL_NONE;
-  m_log_writer = NULL;
   m_log_writer = new Ldap_log_writer_error();
 }
 
@@ -45,6 +44,7 @@ void Ldap_log_writer_error::write(ldap_log_type::ldap_type level,
                                   const std::string &data) {
   plugin_log_level plevel = MY_INFORMATION_LEVEL;
   switch (level) {
+    case ldap_log_type::LDAP_LOG_LDAP_DBG:
     case ldap_log_type::LDAP_LOG_DBG:
     case ldap_log_type::LDAP_LOG_INFO:
       plevel = MY_INFORMATION_LEVEL;

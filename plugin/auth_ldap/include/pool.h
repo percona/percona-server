@@ -28,9 +28,10 @@ namespace auth_ldap {
 class Pool {
  public:
   Pool(std::size_t pool_initial_size, std::size_t pool_max_size,
-       const std::string &ldap_host, std::uint16_t ldap_port, bool use_ssl,
-       bool use_tls, const std::string &ca_path, const std::string &bind_dn,
-       const std::string &bind_pwd);
+       const std::string &ldap_host, std::uint16_t ldap_port,
+       const std::string &fallback_host, std::uint16_t fallback_port,
+       bool use_ssl, bool use_tls, const std::string &ca_path,
+       const std::string &bind_dn, const std::string &bind_pwd);
   ~Pool();
 
  public:
@@ -44,7 +45,8 @@ class Pool {
   void reset_group_role_mapping(const std::string &mapping);
   void reconfigure(std::size_t new_pool_initial_size,
                    std::size_t new_pool_max_size, const std::string &ldap_host,
-                   std::uint16_t ldap_port, bool use_ssl, bool use_tls,
+                   std::uint16_t ldap_port, const std::string &fallback_host,
+                   std::uint16_t fallback_port, bool use_ssl, bool use_tls,
                    const std::string &ca_path, const std::string &bind_dn,
                    const std::string &bind_pwd);
   void zombie_control();
@@ -60,6 +62,8 @@ class Pool {
   std::size_t pool_max_size_;
   std::string ldap_host_;
   std::uint16_t ldap_port_;
+  std::string ldap_fallback_host_;
+  std::uint16_t ldap_fallback_port_;
   bool use_ssl_;
   bool use_tls_;
   std::string ca_path_;

@@ -13,13 +13,16 @@ namespace plugin {
 namespace auth_ldap {
 
 Pool::Pool(std::size_t pool_initial_size, std::size_t pool_max_size,
-           const std::string &ldap_host, std::uint16_t ldap_port, bool use_ssl,
-           bool use_tls, const std::string &ca_path, const std::string &bind_dn,
-           const std::string &bind_pwd)
+           const std::string &ldap_host, std::uint16_t ldap_port,
+           const std::string &fallback_host, std::uint16_t fallback_port,
+           bool use_ssl, bool use_tls, const std::string &ca_path,
+           const std::string &bind_dn, const std::string &bind_pwd)
     : pool_initial_size_(pool_initial_size),
       pool_max_size_(pool_max_size),
       ldap_host_(ldap_host),
       ldap_port_(ldap_port),
+      ldap_fallback_host_(fallback_host),
+      ldap_fallback_port_(fallback_port),
       use_ssl_(use_ssl),
       use_tls_(use_tls),
       ca_path_(ca_path),
@@ -27,11 +30,14 @@ Pool::Pool(std::size_t pool_initial_size, std::size_t pool_max_size,
       bind_pwd_(bind_pwd) {
   std::lock_guard<std::mutex> lock(pool_mutex_);
 
+  Connection::initialize_global_ldap_parameters(true, ca_path);
+
   bs_used_.resize(pool_max_size_);
   v_connections_.resize(pool_max_size_);
   for (std::size_t i = 0; i < pool_max_size_; i++) {
-    v_connections_[i] = std::make_shared<Connection>(i, ldap_host, ldap_port,
-                                                     use_ssl, use_tls, ca_path);
+    v_connections_[i] = std::make_shared<Connection>(
+        i, ldap_host_, ldap_port_, ldap_fallback_host_, ldap_fallback_port_,
+        use_ssl, use_tls);
     if (i < pool_initial_size_) {
       v_connections_[i]->connect(bind_dn_, bind_pwd_);
     }
@@ -133,8 +139,9 @@ void Pool::reset_group_role_mapping(std::string const &mapping) {
 void Pool::reconfigure(std::size_t newpool_initial_size_,
                        std::size_t newpool_max_size_,
                        const std::string &ldap_host, std::uint16_t ldap_port,
-                       bool use_ssl, bool use_tls, const std::string &ca_path,
-                       const std::string &bind_dn,
+                       const std::string &fallback_host,
+                       std::uint16_t fallback_port, bool use_ssl, bool use_tls,
+                       const std::string &ca_path, const std::string &bind_dn,
                        const std::string &bind_pwd) {
   log_srv_dbg("Pool::reconfigure()");
   // Force zombie control
@@ -158,8 +165,9 @@ void Pool::reconfigure(std::size_t newpool_initial_size_,
     if (newpool_max_size_ > pool_max_size_) {
       log_srv_dbg("extending max pool size");
       for (std::size_t i = pool_max_size_; i < newpool_max_size_; i++) {
-        v_connections_[i] = std::make_shared<Connection>(
-            i, ldap_host, ldap_port, use_ssl, use_tls, ca_path);
+        v_connections_[i] =
+            std::make_shared<Connection>(i, ldap_host, ldap_port, fallback_host,
+                                         fallback_port, use_ssl, use_tls);
       }
     }
 
@@ -171,6 +179,8 @@ void Pool::reconfigure(std::size_t newpool_initial_size_,
   // Reconnect pool
   ldap_host_ = ldap_host;
   ldap_port_ = ldap_port;
+  ldap_fallback_host_ = fallback_host;
+  ldap_fallback_port_ = fallback_port;
   use_ssl_ = use_ssl;
   use_tls_ = use_tls;
   ca_path_ = ca_path;
@@ -179,8 +189,8 @@ void Pool::reconfigure(std::size_t newpool_initial_size_,
   bind_pwd_ = bind_pwd;
 
   for (std::size_t i = 0; i < pool_max_size_; i++) {
-    v_connections_[i]->configure(ldap_host_, ldap_port_, use_ssl_, use_tls_,
-                                 ca_path_);
+    v_connections_[i]->configure(ldap_host_, ldap_port_, ldap_fallback_host_,
+                                 ldap_fallback_port_, use_ssl_, use_tls_);
     if (i < pool_initial_size_) {
       v_connections_[i]->connect(bind_dn_, bind_pwd_);
     }

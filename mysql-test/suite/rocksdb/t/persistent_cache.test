@@ -1,9 +1,18 @@
 --source include/have_rocksdb.inc
 
---let $cache_dir_name=$MYSQLTEST_VARDIR/tmp/roksdb.persistent_cache
+--source ../include/parse_rocksdb_fs_uri.inc
+
+if (!$rocksdb_zenfs_disabled)
+{
+  --let $cache_dir_name = /roksdb.persistent_cache
+}
+if ($rocksdb_zenfs_disabled)
+{
+  --let $cache_dir_name = $MYSQLTEST_VARDIR/tmp/roksdb.persistent_cache
+}
 
 --let $restart_parameters=restart:--rocksdb_persistent_cache_path=$cache_dir_name --rocksdb_persistent_cache_size_mb=100
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $cache_dir_name <CACHE_DIR_NAME>
 --source include/restart_mysqld.inc
 
 # insert values and flush out of memtable
@@ -16,19 +25,26 @@ SELECT * FROM t1 WHERE a = 1;
 
 # restart server to re-read cache
 --let $restart_parameters=restart:--rocksdb_persistent_cache_path=$cache_dir_name --rocksdb_persistent_cache_size_mb=100
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $cache_dir_name <CACHE_DIR_NAME>
 --source include/restart_mysqld.inc
 
 # pull values from cache again
 SELECT * FROM t1 WHERE a = 1;
 
---let $restart_parameters=
---source include/restart_mysqld.inc
+--source include/shutdown_mysqld.inc
 
-# not cross platform safe, but there is a nested directory hierarchy in place
-# that would need discovering and manual removal since 5.7 seems not to support
-# the force-rmdir command yet
---force-rmdir $cache_dir_name
+if (!$rocksdb_zenfs_disabled)
+{
+  --file_exists $MYSQL_ZENFS
+  --exec $MYSQL_ZENFS rmdir --zbd=$extracted_zenfs_device --path=$cache_dir_name --force > /dev/null 2>&1
+}
+if ($rocksdb_zenfs_disabled)
+{
+  --force-rmdir $cache_dir_name
+}
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
 
 DROP TABLE t1;
 
@@ -37,7 +53,7 @@ call mtr.add_suppression("Plugin 'ROCKSDB'");
 
 # rocksdb_persistent_cache_size_mb has to be at least 100
 --let $restart_parameters=restart:--rocksdb_persistent_cache_path=$cache_dir_name --rocksdb_persistent_cache_size_mb=12
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $cache_dir_name <CACHE_DIR_NAME>
 --source include/restart_mysqld.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -47,7 +63,7 @@ call mtr.add_suppression("Plugin 'ROCKSDB'");
 
 # rocksdb_persistent_cache_path required persistent cache parameter if using rocksdb_persistent_cache_size_mb
 --let $restart_parameters=restart:--rocksdb_persistent_cache_size_mb=100
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $cache_dir_name <CACHE_DIR_NAME>
 --source include/restart_mysqld.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err

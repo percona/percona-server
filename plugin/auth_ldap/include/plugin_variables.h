@@ -39,6 +39,8 @@ static int log_status;
 static unsigned int max_pool_size;
 static char *server_host;
 static unsigned int server_port;
+static char *fallback_server_host;
+static unsigned int fallback_server_port;
 static bool ssl;
 static bool tls;
 static char *user_search_attr;
@@ -113,7 +115,7 @@ static MYSQL_SYSVAR_UINT(max_pool_size, max_pool_size, PLUGIN_VAR_RQCMDARG,
 static MYSQL_SYSVAR_INT(log_status, log_status, PLUGIN_VAR_RQCMDARG,
                         "The logging level", nullptr /* check */,
                         &update_sysvar<unsigned int> /* update */,
-                        1 /* default */, 1 /*minimum */, 5 /* maximum */,
+                        1 /* default */, 1 /*minimum */, 6 /* maximum */,
                         0 /* blocksize */);
 static MYSQL_SYSVAR_STR(server_host, server_host,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
@@ -126,7 +128,20 @@ static MYSQL_SYSVAR_UINT(server_port, server_port,
                          "The LDAP server TCP/IP port number",
                          nullptr /* check */,
                          &update_sysvar<unsigned int> /* update */,
-                         389 /* default */, 1 /*minimum */, 32376 /* maximum */,
+                         389 /* default */, 1 /*minimum */, 65535 /* maximum */,
+                         0 /* blocksize */);
+static MYSQL_SYSVAR_STR(fallback_server_host, fallback_server_host,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
+                        "The fallback LDAP server host", nullptr /* check */,
+                        &update_sysvar<char *> /* update */,
+                        nullptr /* default */);
+static MYSQL_SYSVAR_UINT(fallback_server_port, fallback_server_port,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                         "The fallback LDAP server TCP/IP port number",
+                         nullptr /* check */,
+                         &update_sysvar<unsigned int> /* update */,
+                         0 /* default */, 0 /*minimum */, 65535 /* maximum */,
                          0 /* blocksize */);
 static MYSQL_SYSVAR_BOOL(
     ssl, ssl, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -167,6 +182,8 @@ static SYS_VAR *mpaldap_sysvars[] = {MYSQL_SYSVAR(auth_method_name),
                                      MYSQL_SYSVAR(max_pool_size),
                                      MYSQL_SYSVAR(server_host),
                                      MYSQL_SYSVAR(server_port),
+                                     MYSQL_SYSVAR(fallback_server_host),
+                                     MYSQL_SYSVAR(fallback_server_port),
                                      MYSQL_SYSVAR(ssl),
                                      MYSQL_SYSVAR(tls),
                                      MYSQL_SYSVAR(user_search_attr),

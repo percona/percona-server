@@ -5941,7 +5941,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   rocksdb::ConfigOptions config_options;
   config_options.ignore_unknown_options = rocksdb_ignore_unknown_options;
   config_options.input_strings_escaped = true;
-  config_options.env = rocksdb::Env::Default();
+  config_options.env = main_opts.env;
   rocksdb::Status status = LoadLatestOptions(config_options, dbpath,
                                              &loaded_db_opt, &loaded_cf_descs);
 
@@ -5988,7 +5988,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   config_options_for_check.ignore_unknown_options =
       rocksdb_ignore_unknown_options;
   config_options_for_check.input_strings_escaped = true;
-  config_options_for_check.env = rocksdb::Env::Default();
+  config_options_for_check.env = main_opts.env;
   status = CheckOptionsCompatibility(config_options_for_check, dbpath,
                                      main_opts, loaded_cf_descs);
 
@@ -6504,7 +6504,7 @@ static int rocksdb_init_internal(void *const p) {
     std::shared_ptr<rocksdb::PersistentCache> pcache;
     uint64_t cache_size_bytes = rocksdb_persistent_cache_size_mb * 1024 * 1024;
     status = rocksdb::NewPersistentCache(
-        rocksdb::Env::Default(), std::string(rocksdb_persistent_cache_path),
+        rocksdb_db_options->env, std::string(rocksdb_persistent_cache_path),
         cache_size_bytes, myrocks_logger, true, &pcache);
     if (!status.ok()) {
       LogPluginErrMsg(ERROR_LEVEL, 0, "Persistent cache returned error: (%s)",

@@ -6,20 +6,87 @@
 
 #include "plugin/auth_ldap/include/plugin_log.h"
 
+namespace {
+// example of this callback is in the OpenLDAP's
+// servers/slapd/back-meta/bind.c (meta_back_default_urllist)
+int cb_urllist_proc(LDAP * /* ld */, LDAPURLDesc **urllist, LDAPURLDesc **url,
+                    void * /* params */) {
+  if (urllist == url) return LDAP_SUCCESS;
+
+  LDAPURLDesc **urltail;
+  for (urltail = &(*url)->lud_next; *urltail; urltail = &(*urltail)->lud_next)
+    /* count */;
+
+  // all failed hosts go to the end of list
+  *urltail = *urllist;
+  // succeeded host becomes first
+  *urllist = *url;
+  // mark end of list
+  *url = nullptr;
+
+  return LDAP_SUCCESS;
+}
+
+void cb_log(LDAP_CONST char *data) { log_ldap_dbg(data); }
+
+}  // namespace
+
 namespace mysql {
 namespace plugin {
 namespace auth_ldap {
+
+void Connection::initialize_global_ldap_parameters(bool enable_debug,
+                                                   std::string const &ca_path) {
+  int version = LDAP_VERSION3;
+  int err = ldap_set_option(nullptr, LDAP_OPT_PROTOCOL_VERSION, &version);
+  if (err != LDAP_OPT_SUCCESS) {
+    log_error("ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)", err);
+  }
+
+  if (ca_path.size() == 0) {
+    int reqCert = LDAP_OPT_X_TLS_NEVER;
+    err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_REQUIRE_CERT, &reqCert);
+    if (err != LDAP_OPT_SUCCESS) {
+      log_error("ldap_set_option(LDAP_OPT_X_TLS_REQUIRE_CERT)", err);
+    }
+  } else {
+    char *cca_path = const_cast<char *>(ca_path.c_str());
+    err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_CACERTFILE,
+                          static_cast<void *>(cca_path));
+    if (err != LDAP_OPT_SUCCESS) {
+      log_error("ldap_set_option(LDAP_OPT_X_TLS_CACERTFILE)", err);
+    }
+  }
+
+  err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_NEWCTX, LDAP_OPT_ON);
+  if (err != LDAP_OPT_SUCCESS) {
+    log_error("ldap_set_option(LDAP_OPT_X_TLS_NEWCTX)", err);
+  }
+
+  if (enable_debug) {
+    static const unsigned short debug_any = 0xffff;
+    err = ldap_set_option(nullptr, LDAP_OPT_DEBUG_LEVEL, &debug_any);
+    if (err != LDAP_OPT_SUCCESS) {
+      log_error("ldap_set_option(LDAP_OPT_DEBUG_LEVEL)", err);
+    }
+    ber_set_option(nullptr, LBER_OPT_LOG_PRINT_FN,
+                   reinterpret_cast<const void *>(cb_log));
+  }
+}
+
 Connection::Connection(std::size_t idx, const std::string &ldap_host,
-                       std::uint16_t ldap_port, bool use_ssl, bool use_tls,
-                       const std::string &ca_path)
+                       std::uint16_t ldap_port,
+                       const std::string &fallback_host,
+                       std::uint16_t fallback_port, bool use_ssl, bool use_tls)
     : available_(true),
       index_(idx),
       snipped_(false),
       ldap_host_(ldap_host),
       ldap_port_(ldap_port),
+      ldap_fallback_host_(fallback_host),
+      ldap_fallback_port_(fallback_port),
       use_ssl_(use_ssl),
       use_tls_(use_tls),
-      ca_path_(ca_path),
       ldap_(nullptr) {}
 
 Connection::~Connection() {
@@ -30,21 +97,27 @@ Connection::~Connection() {
 }
 
 void Connection::configure(const std::string &ldap_host,
-                           std::uint16_t ldap_port, bool use_ssl, bool use_tls,
-                           const std::string &ca_path) {
+                           std::uint16_t ldap_port,
+                           const std::string &fallback_host,
+                           std::uint16_t fallback_port, bool use_ssl,
+                           bool use_tls) {
   // ldap function use c_strs from these variables
   // changing them during a connect call could lead to a crash
   std::lock_guard<std::mutex> lock(conn_mutex_);
   ldap_host_ = ldap_host;
   ldap_port_ = ldap_port;
+  ldap_fallback_host_ = fallback_host;
+  ldap_fallback_port_ = fallback_port;
   use_ssl_ = use_ssl;
   use_tls_ = use_tls;
-  ca_path_ = ca_path;
 }
 
 bool Connection::connect(const std::string &bind_dn,
                          const std::string &bind_pwd) {
   std::lock_guard<std::mutex> lock(conn_mutex_);
+
+  int version = LDAP_VERSION3;
+  ldap_set_option(nullptr, LDAP_OPT_PROTOCOL_VERSION, &version);
 
   if (bind_pwd.empty()) {
     return false;
@@ -57,37 +130,7 @@ bool Connection::connect(const std::string &bind_dn,
       ldap_unbind_ext_s(ldap_, nullptr, nullptr);
     }
 
-    int version = LDAP_VERSION3;
-    int err = ldap_set_option(nullptr, LDAP_OPT_PROTOCOL_VERSION, &version);
-    if (err != LDAP_OPT_SUCCESS) {
-      log_error("ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)", err);
-      return false;
-    }
-
-    if (ca_path_.size() == 0) {
-      int reqCert = LDAP_OPT_X_TLS_NEVER;
-      err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_REQUIRE_CERT, &reqCert);
-      if (err != LDAP_OPT_SUCCESS) {
-        log_error("ldap_set_option(LDAP_OPT_X_TLS_REQUIRE_CERT)", err);
-        return false;
-      }
-    } else {
-      char *cca_path = const_cast<char *>(ca_path_.c_str());
-      err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_CACERTFILE,
-                            static_cast<void *>(cca_path));
-      if (err != LDAP_OPT_SUCCESS) {
-        log_error("ldap_set_option(LDAP_OPT_X_TLS_CACERTFILE)", err);
-        return false;
-      }
-    }
-
-    err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_NEWCTX, LDAP_OPT_ON);
-    if (err != LDAP_OPT_SUCCESS) {
-      log_error("ldap_set_option(LDAP_OPT_X_TLS_NEWCTX)", err);
-      return false;
-    }
-
-    err = ldap_initialize(&(ldap_), get_ldap_uri().c_str());
+    int err = ldap_initialize(&(ldap_), get_ldap_uri().c_str());
     if (err != LDAP_SUCCESS) {
       log_error("ldap_initialize", err);
       return false;
@@ -111,6 +154,11 @@ bool Connection::connect(const std::string &bind_dn,
         log_error("ldap_start_tls_s", err);
         return false;
       }
+    }
+
+    err = ldap_set_urllist_proc(ldap_, cb_urllist_proc, nullptr);
+    if (err != LDAP_OPT_SUCCESS) {
+      log_warning("ldap_set_urllist_proc failed", err);
     }
 
     struct berval *serverCreds;
@@ -286,6 +334,21 @@ std::string Connection::get_ldap_uri() {
   std::ostringstream str_stream;
   str_stream << (use_ssl_ ? "ldaps://" : "ldap://") << ldap_host_ << ":"
              << ldap_port_;
+  if (!ldap_fallback_host_.empty()) {
+    // We allow 2 formats for fallback:
+    // * only fallback_host is specified (port is 0): in this case, we add it to
+    // the connection string as is
+    // * port is also specified: in this case we add the protocal prefix and
+    // port to it
+    str_stream << ",";
+    if (ldap_fallback_port_ != 0) {
+      str_stream << (use_ssl_ ? "ldaps://" : "ldap://");
+    }
+    str_stream << ldap_fallback_host_;
+    if (ldap_fallback_port_ != 0) {
+      str_stream << ":" << ldap_fallback_port_;
+    }
+  }
   return str_stream.str();
 }
 

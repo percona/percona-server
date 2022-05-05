@@ -5710,8 +5710,8 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   rocksdb::DBOptions loaded_db_opt;
   std::vector<rocksdb::ColumnFamilyDescriptor> loaded_cf_descs;
   rocksdb::Status status =
-      LoadLatestOptions(dbpath, rocksdb::Env::Default(), &loaded_db_opt,
-                        &loaded_cf_descs, rocksdb_ignore_unknown_options);
+      LoadLatestOptions(dbpath, main_opts.env, &loaded_db_opt, &loaded_cf_descs,
+                        rocksdb_ignore_unknown_options);
 
   // If we're starting from scratch and there are no options saved yet then this
   // is a valid case. Therefore we can't compare the current set of options to
@@ -5750,7 +5750,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   // This is the essence of the function - determine if it's safe to open the
   // database or not.
-  status = CheckOptionsCompatibility(dbpath, rocksdb::Env::Default(), main_opts,
+  status = CheckOptionsCompatibility(dbpath, main_opts.env, main_opts,
                                      loaded_cf_descs,
                                      rocksdb_ignore_unknown_options);
 

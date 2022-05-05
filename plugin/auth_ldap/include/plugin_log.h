@@ -19,6 +19,9 @@
 
 extern mysql::plugin::auth_ldap::Ldap_logger *g_logger_server;
 
+#define log_ldap_dbg \
+  g_logger_server    \
+      ->log<mysql::plugin::auth_ldap::ldap_log_type::LDAP_LOG_LDAP_DBG>
 #define log_srv_dbg \
   g_logger_server->log<mysql::plugin::auth_ldap::ldap_log_type::LDAP_LOG_DBG>
 #define log_srv_info \

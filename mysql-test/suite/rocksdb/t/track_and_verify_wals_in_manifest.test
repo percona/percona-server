@@ -1,8 +1,9 @@
 -- source include/have_rocksdb.inc
 -- source include/not_valgrind.inc
 
-
 --source include/restart_mysqld.inc
+
+--source ../include/parse_rocksdb_fs_uri.inc
 
 call mtr.add_suppression("Taking backup from");
 
@@ -27,18 +28,46 @@ insert into t2 values (101);
 insert into t1 values (102);
 insert into t2 values (102);
 
---let data_dir= query_get_value(SELECT @@DATADIR, @@DATADIR, 1)
---let pid_file= query_get_value(SELECT @@pid_file, @@pid_file, 1)
---let write_policy= query_get_value(SELECT @@rocksdb_write_policy, @@rocksdb_write_policy, 1)
---let $_custom_err= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.err
+--let $write_policy = `SELECT @@rocksdb_write_policy`
+--let $most_recent_log_include_file = $MYSQL_TMP_DIR/most_recent_log.inc
 
---source include/expect_crash.inc
+if ($rocksdb_zenfs_disabled)
+{
+  --let $datadir = `SELECT @@datadir`
+  --let $gen_cmd = find $datadir.rocksdb/*.log -type f -printf "%f\n"
+}
+if (!$rocksdb_zenfs_disabled)
+{
+  --file_exists $MYSQL_ZENFS
+  --let $gen_cmd = $MYSQL_ZENFS list --zbd=$extracted_zenfs_device --path=/.rocksdb | awk '{ print \$6 }' | grep \.log
+}
 
---write_file $MYSQL_TMP_DIR/truncate_tail_wal_N.sh
+--source include/kill_mysqld.inc
+
+--let $gen_cmd = $gen_cmd | sort -t. -k 2 -n -r | head -n 2 | tail -n 1 | xargs echo --let \\\$most_recent_log = > $most_recent_log_include_file
+--exec $gen_cmd
+
+--source $most_recent_log_include_file
+--remove_file $most_recent_log_include_file
+
+if ($rocksdb_zenfs_disabled)
+{
+  --let $log_file_to_modify = $datadir.rocksdb/$most_recent_log
+}
+if (!$rocksdb_zenfs_disabled)
+{
+  --let $zenfs_backup_dir = $MYSQL_TMP_DIR/zenfs_backup
+  --mkdir $zenfs_backup_dir
+  --exec $MYSQL_ZENFS backup --zbd=$extracted_zenfs_device --path=$zenfs_backup_dir --backup_path=/.rocksdb/$most_recent_log > /dev/null 2>&1
+  --let $log_file_to_modify = $zenfs_backup_dir/$most_recent_log
+}
+
+
+--let $truncate_script = $MYSQL_TMP_DIR/truncate_tail_wal.sh
+--write_file $truncate_script
 #!/bin/bash
 
-F=`ls -t $data_dir/.rocksdb/*.log | head -n $1 | tail -n 1`
-SIZE=`stat -c %s $F`
+SIZE=`stat -c %s $1`
 
 case $2 in
   write_committed)
@@ -52,21 +81,27 @@ case $2 in
     ;;
 esac
 
-truncate -s $NEW_SIZE $F
+truncate -s $NEW_SIZE $1
 rc=$?
 if [[ $rc != 0 ]]; then
   exit 1
 fi
 
-kill -9 `head -1 $pid_file`
-
 exit 0
 EOF
---chmod 0755 $MYSQL_TMP_DIR/truncate_tail_wal_N.sh
+
+--chmod 0755 $truncate_script
+--exec $truncate_script $log_file_to_modify $write_policy
+--remove_file $truncate_script
+
+if (!$rocksdb_zenfs_disabled)
+{
+  --exec $MYSQL_ZENFS restore --zbd=$extracted_zenfs_device --path=$zenfs_backup_dir --restore_path=/.rocksdb> /dev/null 2>&1
+  --force-rmdir $zenfs_backup_dir
+}
 
 
---exec $MYSQL_TMP_DIR/truncate_tail_wal_N.sh 2 $write_policy
---remove_file $MYSQL_TMP_DIR/truncate_tail_wal_N.sh
+--let $_custom_err= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.err
 
 # The restart has to fail with rocksdb_track_and_verify_wals_in_manifest=1 (default)
 --error 1

@@ -2,7 +2,7 @@
 
 select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";
 
---source ../include/parse_rocksdb_fs_uri.inc
+--source include/parse_rocksdb_fs_uri.inc
 
 --let $most_recent_options_include_file = $MYSQL_TMP_DIR/most_recent_options.inc
 

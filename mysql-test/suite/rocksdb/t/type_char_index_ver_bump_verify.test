@@ -14,6 +14,7 @@ call mtr.add_suppression("Will handle this collation internally as if it had a N
 
 --let $ADDITIONAL_OPTS=
 --let $ARCH_DATA=data80_rocks_index_ver_bump
+--let $ZENFS_AWARE = 1
 
 --source include/begin_upgrade_from_prev_ver_mysql_upgrade.inc
 

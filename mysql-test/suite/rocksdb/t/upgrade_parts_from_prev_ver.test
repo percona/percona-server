@@ -15,6 +15,7 @@ CALL mtr.add_suppression("Schema mismatch - Table test\.t1 is registered in Rock
 
 --let $ADDITIONAL_OPTS=
 --let $ARCH_DATA=data_prev_ver_part_rocksdb
+--let $ZENFS_AWARE = 1
 
 --source include/begin_upgrade_from_prev_ver_mysql_upgrade.inc
 

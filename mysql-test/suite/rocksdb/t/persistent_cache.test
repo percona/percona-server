@@ -1,6 +1,6 @@
 --source include/have_rocksdb.inc
 
---source ../include/parse_rocksdb_fs_uri.inc
+--source include/parse_rocksdb_fs_uri.inc
 
 if (!$rocksdb_zenfs_disabled)
 {

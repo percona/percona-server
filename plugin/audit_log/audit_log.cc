@@ -660,7 +660,7 @@ static size_t audit_log_header(MY_STAT *stat, char *buf,
       "<AUDIT>\n",
       "", ""};
 
-  assert(strcmp(system_charset_info->csname, "utf8") == 0);
+  assert(strcmp(system_charset_info->csname, "utf8mb3") == 0);
 
   log_file_time = stat->st_mtime;
 

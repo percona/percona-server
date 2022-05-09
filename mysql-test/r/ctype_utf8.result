@@ -5642,7 +5642,7 @@ ADD KEY(ch);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ch` varchar(60) CHARACTER SET utf8 DEFAULT NULL,
+  `ch` varchar(60) CHARACTER SET utf8mb3 DEFAULT NULL,
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `ch` (`ch`)
@@ -5896,7 +5896,7 @@ ADD KEY(ch);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ch` varchar(60) CHARACTER SET utf8 DEFAULT NULL,
+  `ch` varchar(60) CHARACTER SET utf8mb3 DEFAULT NULL,
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `ch` (`ch`)
@@ -6150,7 +6150,7 @@ ADD KEY(ch);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ch` varchar(60) CHARACTER SET utf8 DEFAULT NULL,
+  `ch` varchar(60) CHARACTER SET utf8mb3 DEFAULT NULL,
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `ch` (`ch`)

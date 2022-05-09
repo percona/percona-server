@@ -3,7 +3,7 @@
 # $file_exists_inverted - if non-zero, $file_exists_file_name must not exist
 #
 
---source parse_rocksdb_fs_uri.inc
+--source include/parse_rocksdb_fs_uri.inc
 if ($rocksdb_zenfs_disabled)
 {
 

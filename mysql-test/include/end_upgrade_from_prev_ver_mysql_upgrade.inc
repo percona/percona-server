@@ -5,6 +5,14 @@
 --echo # Stop the server
 --source include/shutdown_mysqld.inc
 
+if ($ZENFS_AWARE)
+{
+  if (!$rocksdb_zenfs_disabled)
+  {
+    --exec $MYSQL_ZENFS rmdir --zbd=$extracted_zenfs_device --path=/.rocksdb.$ARCH_DATA --force >/dev/null 2>&1
+  }
+}
+
 --let $restart_parameters =
 --let $do_not_echo_parameters =
 

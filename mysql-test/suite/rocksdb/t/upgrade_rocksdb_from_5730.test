@@ -15,6 +15,7 @@ CALL mtr.add_suppression("Parsing 'mtr.check_testcase' routine body failed. Crea
 --let $ADDITIONAL_OPTS=
 --let $ARCH_DIR=rocksdb
 --let $ARCH_DATA=data_rocks_5730_bloomfilter
+--let $ZENFS_AWARE = 1
 
 --source include/begin_upgrade_from_prev_ver_mysql_upgrade.inc
 

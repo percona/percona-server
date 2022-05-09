@@ -42,7 +42,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` char(8) CHARACTER SET utf8 DEFAULT NULL,
+  `b` char(8) CHARACTER SET utf8mb3 DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1 COMMENT='table altered'
 DROP TABLE t1;

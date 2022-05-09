@@ -6,6 +6,8 @@
 #                      exactly as $MYSQLTEST_VARDIR/std_data/$ARCH_DIR/$ARCH_DATA.zip
 #   $ADDITIONAL_OPTS - Additional options to be passed to mysqld when restarted
 #                      on the upgrade (old dversion) datadir.
+#   $ZENFS_AWARE     - if set to non-zero '.rocksdb' folder from the archive will
+#                      be moved to ZenFS volume
 #
 # Upon return, the following variables will be available for the test validation
 # but _MUST_NOT_BE_ALTERED_ or the cleanup stage will fail :
@@ -28,6 +30,11 @@
 --echo # Check that the file exists in the working folder.
 --file_exists $DATA_ARCH_PATH
 
+if ($ZENFS_AWARE)
+{
+  --source parse_rocksdb_fs_uri.inc
+}
+
 --echo # Stop DB server which was created by MTR default
 --source include/shutdown_mysqld.inc
 
@@ -35,10 +42,21 @@
 --file_exists $DATA_ARCH_PATH
 --exec unzip -qo $DATA_ARCH_PATH -d $MYSQL_TMP_DIR
 
+if ($ZENFS_AWARE)
+{
+  if (!$rocksdb_zenfs_disabled)
+  {
+    --file_exists $MYSQL_ZENFS
+    --exec $MYSQL_ZENFS restore --zbd=$extracted_zenfs_device --path=$MYSQLD_DATADIR1/.rocksdb --restore_path=/.rocksdb.$ARCH_DATA >/dev/null 2>&1
+    --force-rmdir $MYSQLD_DATADIR1/.rocksdb
+    --let $ZENFS_ADDITIONAL_OPTS = --rocksdb_datadir=./.rocksdb.$ARCH_DATA
+  }
+}
+
 --echo # Remove copied files
 --remove_file $DATA_ARCH_PATH
 
---let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $ADDITIONAL_OPTS"
+--let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $ADDITIONAL_OPTS $ZENFS_ADDITIONAL_OPTS"
 --let $do_not_echo_parameters = 1
 --source include/start_mysqld.inc
 

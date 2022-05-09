@@ -17,5 +17,5 @@ SELECT COUNT(@@SESSION.innodb_track_changed_pages);
 ERROR HY000: Variable 'innodb_track_changed_pages' is a GLOBAL variable
 SELECT COUNT(@@LOCAL.innodb_track_changed_pages);
 ERROR HY000: Variable 'innodb_track_changed_pages' is a GLOBAL variable
-SELECT innodb_track_changed_pages = @@SESSION.innodb_track_changed_pages;
+SELECT innodb_track_changed_pages;
 ERROR 42S22: Unknown column 'innodb_track_changed_pages' in 'field list'

@@ -7,7 +7,7 @@
 # $disk_usage_output_suffix - suffix to add to the output size (must be double-quoted, can be empty)
 #
 
---source parse_rocksdb_fs_uri.inc
+--source include/parse_rocksdb_fs_uri.inc
 
 if ($rocksdb_zenfs_disabled)
 {

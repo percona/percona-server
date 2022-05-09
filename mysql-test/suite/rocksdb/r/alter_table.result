@@ -167,8 +167,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` int NOT NULL,
   `a` int DEFAULT NULL,
-  `b` char(8) CHARACTER SET utf8 DEFAULT NULL,
-  `c` char(8) CHARACTER SET utf8 DEFAULT NULL,
+  `b` char(8) CHARACTER SET utf8mb3 DEFAULT NULL,
+  `c` char(8) CHARACTER SET utf8mb3 DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci
 ALTER TABLE t1 FORCE;
@@ -177,8 +177,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` int NOT NULL,
   `a` int DEFAULT NULL,
-  `b` char(8) CHARACTER SET utf8 DEFAULT NULL,
-  `c` char(8) CHARACTER SET utf8 DEFAULT NULL,
+  `b` char(8) CHARACTER SET utf8mb3 DEFAULT NULL,
+  `c` char(8) CHARACTER SET utf8mb3 DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci
 DROP TABLE t1;

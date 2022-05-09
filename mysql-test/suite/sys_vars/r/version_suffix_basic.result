@@ -62,8 +62,8 @@ COUNT(@@GLOBAL.version_suffix)
 1
 1 Expected
 SELECT version_suffix = @@SESSION.version_suffix;
-ERROR 42S22: Unknown column 'version_suffix' in 'field list'
-Expected error 'Readonly variable'
+ERROR HY000: Variable 'version_suffix' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
 SET GLOBAL version_suffix = NULL;
 SHOW GLOBAL VARIABLES LIKE 'a';
 Variable_name	Value

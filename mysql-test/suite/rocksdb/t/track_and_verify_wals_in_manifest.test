@@ -3,7 +3,7 @@
 
 --source include/restart_mysqld.inc
 
---source ../include/parse_rocksdb_fs_uri.inc
+--source include/parse_rocksdb_fs_uri.inc
 
 call mtr.add_suppression("Taking backup from");
 

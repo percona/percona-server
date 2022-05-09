@@ -5879,6 +5879,18 @@ static int rocksdb_init_internal(void *const p) {
     }
   }
 
+  rocksdb::Status s;
+  if (rocksdb_fs_uri) {
+    std::shared_ptr<rocksdb::FileSystem> fs;
+    s = rocksdb::FileSystem::Load(rocksdb_fs_uri, &fs);
+    if (fs == nullptr) {
+      LogPluginErrMsg(ERROR_LEVEL, 0, "Loading custom file system failed: %s\n",
+                      s.ToString().c_str());
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+    rocksdb_db_options->env = GetCompositeEnv(fs);
+  }
+
   DBUG_EXECUTE_IF("rocksdb_init_failure_files_corruption",
                   { DBUG_RETURN(HA_EXIT_FAILURE); });
 
@@ -6014,8 +6026,8 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_db_options->delayed_write_rate = rocksdb_delayed_write_rate;
 
   std::shared_ptr<Rdb_logger> myrocks_logger = std::make_shared<Rdb_logger>();
-  rocksdb::Status s = rocksdb::CreateLoggerFromOptions(
-      rocksdb_datadir, *rocksdb_db_options, &rocksdb_db_options->info_log);
+  s = rocksdb::CreateLoggerFromOptions(rocksdb_datadir, *rocksdb_db_options,
+                                       &rocksdb_db_options->info_log);
   if (s.ok()) {
     myrocks_logger->SetRocksDBLogger(rocksdb_db_options->info_log);
   }
@@ -6043,17 +6055,6 @@ static int rocksdb_init_internal(void *const p) {
         ERROR_LEVEL, 0,
         "Can't enable both use_direct_reads and allow_mmap_reads\n");
     DBUG_RETURN(HA_EXIT_FAILURE);
-  }
-
-  if (rocksdb_fs_uri) {
-    std::shared_ptr<rocksdb::FileSystem> fs;
-    s = rocksdb::FileSystem::Load(rocksdb_fs_uri, &fs);
-    if (fs == nullptr) {
-      LogPluginErrMsg(ERROR_LEVEL, 0, "Loading custom file system failed: %s\n",
-                      s.ToString().c_str());
-      DBUG_RETURN(HA_EXIT_FAILURE);
-    }
-    rocksdb_db_options->env = GetCompositeEnv(fs);
   }
 
   // Check whether the filesystem backing rocksdb_datadir allows O_DIRECT

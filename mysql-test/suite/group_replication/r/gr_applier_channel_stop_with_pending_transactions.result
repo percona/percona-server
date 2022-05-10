@@ -23,6 +23,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";;
 [connection server_2]
 
 # 4. Signal to continue_commit. The stop shall continue.
+SET DEBUG_SYNC='now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached';
 SET DEBUG_SYNC='now SIGNAL continue_commit';
 SET @@GLOBAL.DEBUG= @debug_save;
 [connection server2]

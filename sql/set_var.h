@@ -686,8 +686,20 @@ class System_variable_tracker final {
     @returns true if the underlying variable can be referenced in the
              SET_VAR optimizer hint syntax, otherwise false.
   */
-  bool is_hint_updateable() const {
-    return m_tag == STATIC && m_static.m_static_var->is_hint_updateable();
+  bool is_hint_updateable(THD *thd) const {
+    if (m_tag == STATIC && m_static.m_static_var->is_hint_updateable())
+      return true;
+
+    if (m_tag == PLUGIN) {
+      auto f = [](const System_variable_tracker &, sys_var *var) {
+        return var->is_hint_updateable();
+      };
+
+      return access_system_variable<bool>(thd, f, Suppress_not_found_error::YES)
+          .value_or(false);
+    }
+
+    return false;
   }
 
   /**

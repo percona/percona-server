@@ -78,19 +78,19 @@ Installing |Percona Server| from Percona ``apt`` repository
 
 .. note::
 
-   |ps-last|  comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`.
-   These storage engines are installed as plugin.
+   |ps-last| comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`. These storage engines are installed as plugin.
+
+   Starting with Percona Server for MySQL :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds. For more information, see :ref:`tokudb_intro`.
 
    For information on how to install and configure |TokuDB|, refer to the :ref:`tokudb_installation` guide.
 
    For information on how to install and configure |MyRocks|, refer to the :ref:`myrocks_install` guide.
 
-
 The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
 
 .. code-block:: bash
 
-    mysql -e "CREATE FUNCTION fnvla_64 RETURNS INTEGER SONAME 'libfnvla_udf.so'"
+    mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'"
     mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'"
     mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'"
 
@@ -183,6 +183,8 @@ storage engine).
    |Percona Server| |version| comes with the :ref:`TokuDB storage engine
    <tokudb_intro>`. You can find more information on how to install and enable
    the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+
+   Starting with Percona Server for MySQL :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds. For more information, see :ref:`tokudb_intro`.
 
 .. warning::
 

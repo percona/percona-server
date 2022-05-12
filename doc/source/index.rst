@@ -35,6 +35,18 @@ Installation
    installation
    installation/post-installation
 
+In-place upgrades
+================================================================================
+
+.. toctree::
+   :maxdepth: 2
+   :glob:
+
+   upgrading_guide
+   upgrading_using_percona_repos
+   upgrading_tokudb_myrocks
+   upgrading_using_standalone_pakages
+
 Run in Docker
 ================================================================================
 
@@ -77,16 +89,16 @@ Flexibility Improvements
    :maxdepth: 1
    :glob:
 
-   flexibility/log_warnings_suppress
-   flexibility/improved_memory_engine
-   flexibility/extended_mysqldump
-   flexibility/extended_select_into_outfile
-   flexibility/extended_mysqlbinlog
-   flexibility/proxy_protocol_support
+   flexibility/binlogging_replication_improvements  
    flexibility/compressed_columns
-   flexibility/innodb_fts_improvements
-   flexibility/binlogging_replication_improvements
+    flexibility/extended_mysqlbinlog  
+    flexibility/extended_mysqldump
+   flexibility/extended_select_into_outfile  
    flexibility/extended_set_var
+   flexibility/improved_memory_engine   
+   flexibility/log_warnings_suppress
+   flexibility/binlog_space
+   flexibility/proxy_protocol_support
    flexibility/sequence_table
    flexibility/slowlog_rotation
 

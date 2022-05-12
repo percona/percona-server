@@ -405,9 +405,8 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
         cmd_class_lowercase = msg;
         std::transform(cmd_class_lowercase.begin(), cmd_class_lowercase.end(),
                        cmd_class_lowercase.begin(), ::tolower);
-        MYSQL_LEX_CSTRING command_class = {
-            STRING_WITH_LEN(cmd_class_lowercase.c_str())};
-        event.general_sql_command = command_class;
+        event.general_sql_command.str = cmd_class_lowercase.c_str();
+        event.general_sql_command.length = cmd_class_lowercase.length();
         break;
     }
   } else {

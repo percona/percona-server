@@ -11681,6 +11681,9 @@ ER_KEYRING_COMPONENT_CONFIG_PARSE_FAILED
 ER_SEC_LOG_PATH_NULL
   eng "--%s is set to NULL. Dynamic log files can be saved anywhere, possibly overwriting other files."
 
+ER_KEYRING_COMPONENT_KMS_ERROR
+  eng "KMS communication error: %s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

@@ -24,9 +24,8 @@ System Variables
    :scope: Global
    :Dyn: No
    :vartype: Enumeration
-   :default: ``fdatasync``
-   :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``
-
+   :default: NULL
+   :allowed: ``fsync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``littlesync``, ``nosync``
 
 The following values are allowed:
 

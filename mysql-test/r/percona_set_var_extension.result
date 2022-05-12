@@ -20,6 +20,8 @@ SET_VAR(myisam_repair_threads=2)
 @before_val	@hint_val	@after_val
 1	2	1
 SET myisam_repair_threads=4;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 CALL test_hint("SET_VAR(myisam_repair_threads=2)", "myisam_repair_threads");
 hint_str
 SET_VAR(myisam_repair_threads=2)
@@ -34,6 +36,7 @@ INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (3,4);
 OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=700000) SET_VAR(myisam_repair_threads=3) */  TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	Warning	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 test.t1	optimize	status	OK
 ##############################################
 # Test with invalid values to myisam variables
@@ -111,12 +114,15 @@ CALL p1();
 CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
 @@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
 16777216	4	524288	461461461	99
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 # some with invalid values
 CALL /*+ SET_VAR(myisam_sort_buffer_size=a216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288b) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
 @@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
 8388608	4	262144	461461461	99
 Warnings:
 Warning	1232	Incorrect argument type to variable 'myisam_sort_buffer_size'
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 Warning	1232	Incorrect argument type to variable 'sort_buffer_size'
 DROP PROCEDURE p1;
 ###########################################################
@@ -181,6 +187,8 @@ hint_str
 SET_VAR(innodb_lock_wait_timeout=299)
 @before_val	@hint_val	@after_val
 499	299	499
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 DROP PROCEDURE p1;
 #######################################
 #Test SET_VAR with block_encryption_mode

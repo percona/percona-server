@@ -14,25 +14,25 @@ Getting Started with TokuDB
 
    We recommend :ref:`migrate-myrocks`.
       
-   Starting with Percona 8.0.28-18, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
 
 
-:Operating Systems: |TokuDB| is currently supported on 64-bit Linux only.
-:Memory: |TokuDB| requires at least 1GB of main memory.
+:Operating Systems: *TokuDB* is currently supported on 64-bit Linux only.
+:Memory: *TokuDB* requires at least 1GB of main memory.
 
 	 For the best results, run with at least 2GB of main memory.
 :Disk space and configuration:
    Make sure to allocate enough disk space for data, indexes and logs.
 
-   | Due to high compression, |TokuDB| may achieve up to 25x space savings on data
-   | and indexes over |InnoDB|.
+   | Due to high compression, *TokuDB* may achieve up to 25x space savings on data
+   | and indexes over *InnoDB*.
 
 Creating Tables and Loading Data 
 ================================================================================
 
-|TokuDB| tables are created the same way as other tables in |MySQL| by
+*TokuDB* tables are created the same way as other tables in *MySQL* by
 specifying :mysql:`ENGINE=TokuDB` in the table definition. For example, the
-following command creates a table with a single column and uses the |TokuDB|
+following command creates a table with a single column and uses the *TokuDB*
 storage engine to store its data:
 
 .. code-block:: mysql
@@ -42,8 +42,8 @@ storage engine to store its data:
 
 .. rubric:: Loading data
 	    
-Once |TokuDB| tables have been created, data can be inserted or loaded using
-standard |MySQL| insert or bulk load operations. For example, the following
+Once *TokuDB* tables have been created, data can be inserted or loaded using
+standard *MySQL* insert or bulk load operations. For example, the following
 command loads data from a file into the table:
 
 .. code-block:: sql
@@ -53,13 +53,13 @@ command loads data from a file into the table:
 
 .. note:: 
 
-   For more information about loading data, see the |mysql.last-version| reference
+   For more information about loading data, see the MySQL 8.0 reference
    manual.
 
 Migrating Data from an Existing Database
 ================================================================================
 
-Use the following command to convert an existing table for the |TokuDB| storage
+Use the following command to convert an existing table for the *TokuDB* storage
 engine:
 
 .. code-block:: mysql
@@ -69,40 +69,40 @@ engine:
 
 .. rubric:: Bulk Loading Data
 
-The |TokuDB| bulk loader imports data much faster than regular |MySQL| with
-|InnoDB|. To make use of the loader you need flat files in either comma
-separated or tab separated format. The |MySQL| |sql.load-data-infile|
+The *TokuDB* bulk loader imports data much faster than regular *MySQL* with
+*InnoDB*. To make use of the loader you need flat files in either comma
+separated or tab separated format. The *MySQL* :mysql:`LOAD DATA INFILE`
 statement will invoke the bulk loader if the table is empty. Keep in mind that
 while this is the most convenient and, in most cases, the fastest way to
-initialize a |TokuDB| table, it may not be replication safe if applied to the
+initialize a *TokuDB* table, it may not be replication safe if applied to the
 source.
 
 .. seealso::
 
-   |mysql-d11n|: |sql.load-data-infile|
-      |mysql-doc.load-data|
+   MySQL Documentation: :mysql:`LOAD DATA INFILE`
+      http://dev.mysql.com/doc/refman/8.0/en/load-data.html
 
-To obtain the logical backup and then bulk load into |TokuDB|, follow these
+To obtain the logical backup and then bulk load into *TokuDB*, follow these
 steps:
 
 1. *Create a logical backup of the original table.* The easiest way to achieve
-   this is using |sql.select-into-outfile|. Keep in mind that the file will be
+   this is using :mysql:`SELECT ... INTO OUTFILE`. Keep in mind that the file will be
    created on the server:  :mysql:`SELECT * FROM table INTO OUTFILE 'file.csv';`
 
 #. *Copy the output file* either to the destination server or the client machine
    from which you plan to load it.
 
-#. *Load the data into the server* using |sql.load-data-infile|. If loading from
+#. *Load the data into the server* using :mysql:`LOAD DATA INFILE`. If loading from
    a machine other than the server use the keyword ``LOCAL`` to point to the
    file on local machine. Keep in mind that you will need enough disk space on
    the temporary directory on the server since the local file will be copied
-   onto the server by the |MySQL| client utility:
+   onto the server by the *MySQL* client utility:
    :mysql:`LOAD DATA [LOCAL] INFILE 'file.csv';`
 
-It is possible to create the CSV file using either |mysqldump| or the
-|MySQL| client utility as well, in which case the resulting file will reside on
+It is possible to create the CSV file using either :program:`mysqldump` or the
+*MySQL* client utility as well, in which case the resulting file will reside on
 a local directory. In these 2 cases you have to make sure to use the correct
-command line options to create a file compatible with |sql.load-data-infile|.
+command line options to create a file compatible with :mysql:`LOAD DATA INFILE`.
 
 The bulk loader will use more space than normal for logs and temporary files
 while running, make sure that your file system has enough disk space to process
@@ -111,18 +111,18 @@ the raw data.
 
 .. note::
 
-   Please read the original |mysql-d11n| to understand the needed privileges and
-   replication issues around |sql.load-data-infile|.
+   Please read the original MySQL Documentation to understand the needed privileges and
+   replication issues around :mysql:`LOAD DATA INFILE`.
 
 Considerations to Run TokuDB in Production
 ================================================================================
 
-In most cases, the default options should be left in-place to run |TokuDB|,
+In most cases, the default options should be left in-place to run *TokuDB*,
 however it is a good idea to review some of the configuration parameters.
 
 .. rubric:: Memory allocation
 
-|TokuDB| will allocate 50% of the installed RAM for its own cache (global
+*TokuDB* will allocate 50% of the installed RAM for its own cache (global
 variable :variable:`tokudb_cache_size`). While this is optimal in most
 situations, there are cases where it may lead to memory over allocation. If the
 system tries to allocate more memory than is available, the machine will begin
@@ -136,7 +136,7 @@ Running other memory heavy processes on the same server as TokuDB
    server processes like additional database instances, http server, application
    server, e-mail server, monitoring systems and others. In order to properly
    configure TokuDB's memory consumption, it's important to understand how much
-   free memory will be left and assign a sensible value for |TokuDB|. There is
+   free memory will be left and assign a sensible value for *TokuDB*. There is
    no fixed rule, but a conservative choice would be 50% of available RAM while
    all the other processes are running. If the result is under 2 GB, you should
    consider moving some of the other processes to a different system or using a
@@ -151,8 +151,8 @@ Running other memory heavy processes on the same server as TokuDB
 
       tokudb_cache_size = 4G
 
-System using |InnoDB| and |TokuDB|
-   When using both the |TokuDB| and |InnoDB| storage engines, you need to manage
+System using *InnoDB* and *TokuDB*
+   When using both the *TokuDB* and *InnoDB* storage engines, you need to manage
    the cache size for each. For example, on a server with 16 GB of RAM you could
    use the following values in your configuration file:
  
@@ -161,24 +161,24 @@ System using |InnoDB| and |TokuDB|
       innodb_buffer_pool_size = 2G
       tokudb_cache_size = 8G
 
-Using |TokuDB| with Federated or FederatedX tables
-   The Federated engine in |MySQL| and FederatedX in |MariaDB| allow you to
+Using *TokuDB* with Federated or FederatedX tables
+   The Federated engine in *MySQL* and FederatedX in *MariaDB* allow you to
    connect to a table on a remote server and query it as if it were a local
-   table (please see the |mysql-d11n|: 14.11. The FEDERATED Storage
+   table (please see the MySQL Documentation: 14.11. The FEDERATED Storage
    Engine for details). When accessing the remote table, these engines could
    import the complete table contents to the local server to execute a query. In
    this case, you will have to make sure that there is enough free memory on the
    server to handle these remote tables. For example, if your remote table is 8
    GB in size, the server has to have more than 8 GB of free RAM to process
    queries against that table without going into swapping or causing a kernel
-   panic and crash the |MySQL| process. There are no parameters to limit the
+   panic and crash the *MySQL* process. There are no parameters to limit the
    amount of memory that the Federated or FederatedX engine will allocate while
    importing the remote dataset.
 
 Specifying the Location for Files
 ================================================================================
 
-As with |InnoDB|, it is possible to specify different locations than the default
+As with *InnoDB*, it is possible to specify different locations than the default
 for TokuDB's data, log and temporary files. This way you may distribute the load
 and control the disk space. The following variables control file location:
 
@@ -198,7 +198,7 @@ flush these delete messages down to the basement nodes in order to allow for
 faster access. The way to perform this operation is via the ``OPTIMIZE``
 command.
 
-The following extensions to the ``OPTIMIZE`` command have been added in |TokuDB|
+The following extensions to the ``OPTIMIZE`` command have been added in *TokuDB*
 version 7.5.5:
 
 .. contents::

@@ -1045,7 +1045,8 @@ static TYPELIB index_type_typelib = {array_elements(index_type_names) - 1,
                                      nullptr};
 
 // TODO: 0 means don't wait at all, and we don't support it yet?
-static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ULONG(lock_wait_timeout,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                           "Number of seconds to wait for lock", nullptr,
                           nullptr, /*default*/ 1, /*min*/ 1,
                           /*max*/ RDB_MAX_LOCK_WAIT_SECONDS, 0);
@@ -1067,7 +1068,7 @@ static MYSQL_THDVAR_BOOL(
     nullptr, false);
 
 static MYSQL_THDVAR_BOOL(
-    trace_sst_api, PLUGIN_VAR_RQCMDARG,
+    trace_sst_api, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Generate trace output in the log for each call to the SstFileWriter",
     nullptr, nullptr, false);
 
@@ -1123,13 +1124,13 @@ static MYSQL_THDVAR_BOOL(
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
 static MYSQL_THDVAR_BOOL(
-    blind_delete_primary_key, PLUGIN_VAR_RQCMDARG,
+    blind_delete_primary_key, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Deleting rows by primary key lookup, without reading rows (Blind Deletes)."
     " Blind delete is disabled if the table has secondary key",
     nullptr, nullptr, false);
 
 static MYSQL_THDVAR_BOOL(
-    enable_iterate_bounds, PLUGIN_VAR_OPCMDARG,
+    enable_iterate_bounds, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Enable rocksdb iterator upper/lower bounds in read options.", nullptr,
     nullptr, true);
 
@@ -1232,7 +1233,8 @@ static MYSQL_SYSVAR_BOOL(
     "Use write batches for replication thread instead of tx api", nullptr,
     nullptr, false);
 
-static MYSQL_THDVAR_BOOL(skip_bloom_filter_on_read, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(skip_bloom_filter_on_read,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Skip using bloom filter for reads", nullptr, nullptr,
                          false);
 
@@ -1245,22 +1247,24 @@ static MYSQL_SYSVAR_ULONG(max_row_locks, rocksdb_max_row_locks,
                           /*max*/ RDB_MAX_ROW_LOCKS, 0);
 
 static MYSQL_THDVAR_ULONGLONG(
-    write_batch_max_bytes, PLUGIN_VAR_RQCMDARG,
+    write_batch_max_bytes, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Maximum size of write batch in bytes. 0 means no limit.", nullptr, nullptr,
     /* default */ 0, /* min */ 0, /* max */ SIZE_T_MAX, 1);
 
 static MYSQL_THDVAR_ULONGLONG(
-    write_batch_flush_threshold, PLUGIN_VAR_RQCMDARG,
+    write_batch_flush_threshold,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Maximum size of write batch in bytes before flushing. Only valid if "
     "rocksdb_write_policy is WRITE_UNPREPARED. 0 means no limit.",
     nullptr, nullptr, /* default */ 0, /* min */ 0, /* max */ SIZE_T_MAX, 1);
 
 static MYSQL_THDVAR_BOOL(
-    lock_scanned_rows, PLUGIN_VAR_RQCMDARG,
+    lock_scanned_rows, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Take and hold locks on rows that are scanned but not updated", nullptr,
     nullptr, false);
 
-static MYSQL_THDVAR_ULONG(bulk_load_size, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ULONG(bulk_load_size,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                           "Max #records in a batch for bulk-load mode", nullptr,
                           nullptr,
                           /*default*/ RDB_DEFAULT_BULK_LOAD_SIZE,
@@ -1415,7 +1419,7 @@ static MYSQL_SYSVAR_ENUM(
     rocksdb::InfoLogLevel::ERROR_LEVEL, &info_log_level_typelib);
 
 static MYSQL_THDVAR_INT(
-    perf_context_level, PLUGIN_VAR_RQCMDARG,
+    perf_context_level, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Perf Context Level for rocksdb internal timer stat collection", nullptr,
     nullptr,
     /* default */ rocksdb::PerfLevel::kUninitialized,
@@ -1887,7 +1891,8 @@ static MYSQL_SYSVAR_UINT(flush_log_at_trx_commit,
                          /* min */ FLUSH_LOG_NEVER,
                          /* max */ FLUSH_LOG_BACKGROUND, 0);
 
-static MYSQL_THDVAR_BOOL(write_disable_wal, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(write_disable_wal,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "WriteOptions::disableWAL for RocksDB",
                          rocksdb_check_write_disable_wal, nullptr,
                          rocksdb::WriteOptions().disableWAL);
@@ -1896,11 +1901,13 @@ static MYSQL_THDVAR_BOOL(write_disable_wal_save, PLUGIN_VAR_INVISIBLE,
                          rocksdb::WriteOptions().disableWAL);
 
 static MYSQL_THDVAR_BOOL(
-    write_ignore_missing_column_families, PLUGIN_VAR_RQCMDARG,
+    write_ignore_missing_column_families,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "WriteOptions::ignore_missing_column_families for RocksDB", nullptr,
     nullptr, rocksdb::WriteOptions().ignore_missing_column_families);
 
-static MYSQL_THDVAR_BOOL(skip_fill_cache, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(skip_fill_cache,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Skip filling block cache on read requests", nullptr,
                          nullptr, false);
 
@@ -1909,13 +1916,15 @@ static MYSQL_THDVAR_BOOL(
     "Allowing statement based binary logging which may break consistency",
     nullptr, nullptr, false);
 
-static MYSQL_THDVAR_UINT(records_in_range, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_UINT(records_in_range,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Used to override the result of records_in_range(). "
                          "Set to a positive number to override",
                          nullptr, nullptr, 0,
                          /* min */ 0, /* max */ INT_MAX, 0);
 
-static MYSQL_THDVAR_UINT(force_index_records_in_range, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_UINT(force_index_records_in_range,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Used to override the result of records_in_range() "
                          "when FORCE INDEX is used.",
                          nullptr, nullptr, 0,
@@ -2151,20 +2160,24 @@ static MYSQL_SYSVAR_BOOL(
     "Logging queries that got snapshot conflict errors into *.err log", nullptr,
     nullptr, rocksdb_print_snapshot_conflict_queries);
 
-static MYSQL_THDVAR_INT(checksums_pct, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_INT(checksums_pct,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                         "How many percentages of rows to be checksummed",
                         nullptr, nullptr, RDB_MAX_CHECKSUMS_PCT,
                         /* min */ 0, /* max */ RDB_MAX_CHECKSUMS_PCT, 0);
 
-static MYSQL_THDVAR_BOOL(store_row_debug_checksums, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(store_row_debug_checksums,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Include checksums when writing index/table records",
                          nullptr, nullptr, false /* default value */);
 
-static MYSQL_THDVAR_BOOL(verify_row_debug_checksums, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(verify_row_debug_checksums,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Verify checksums when reading index/table records",
                          nullptr, nullptr, false /* default value */);
 
-static MYSQL_THDVAR_BOOL(master_skip_tx_api, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(master_skip_tx_api,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Skipping holding any lock on row access. "
                          "Not effective on slave.",
                          nullptr, nullptr, false);
@@ -3145,12 +3158,6 @@ class Rdb_transaction {
           table_name = "./" + table_name;
         }
 
-        // Currently, unique indexes only checked in the inplace alter path,
-        // but not in allow_sk bulk load path.
-        bool is_unique_index =
-            table_arg &&
-            table_arg->key_info[keydef->get_keyno()].flags & HA_NOSAME;
-
         // Unable to find key definition or table name since the
         // table could have been dropped.
         // TODO(herman): there is a race here between dropping the table
@@ -3174,6 +3181,13 @@ class Rdb_transaction {
           }
           return HA_ERR_NO_SUCH_TABLE;
         }
+
+        // Currently, unique indexes only checked in the inplace alter path,
+        // but not in allow_sk bulk load path.
+        bool is_unique_index =
+            table_arg &&
+            table_arg->key_info[keydef->get_keyno()].flags & HA_NOSAME;
+
         const std::string &index_name = keydef->get_name();
         Rdb_index_merge &rdb_merge = it->second;
 
@@ -3198,7 +3212,7 @@ class Rdb_transaction {
                 !keydef->value_matches_prefix(merge_key, cur_prefix)) {
               // This is a new group, so clear any rows buffered from a prior
               // group.
-              free_root(&mem_root, MYF(MY_KEEP_PREALLOC));
+              mem_root.ClearForReuse();
               keys.clear();
               materialized = false;
 
@@ -3504,6 +3518,8 @@ class Rdb_transaction {
 
     /* Commit the current transaction */
     if (commit_no_binlog()) return true;
+
+    DEBUG_SYNC(m_thd, "rocksdb.flush_batch");
 
     /* Start another one */
     start_tx();
@@ -5681,14 +5697,6 @@ static int rocksdb_init_internal(void *const p) {
   // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.
   static_assert(sizeof(longlong) == 8, "Assuming that longlong is 8 bytes.");
 
-  if (THDVAR(nullptr, write_disable_wal) &&
-      rocksdb_flush_log_at_trx_commit == FLUSH_LOG_SYNC) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Invalid argument: Sync writes "
-                    "(rocksdb_flush_log_at_trx_commit == 1) has to enable WAL");
-    DBUG_RETURN(1);
-  }
-
   // Lock the handlertons initialized status flag for writing
   Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(), true);
   SHIP_ASSERT(!rdb_get_hton_init_state()->initialized());
@@ -5696,6 +5704,14 @@ static int rocksdb_init_internal(void *const p) {
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) {
     DBUG_RETURN(HA_EXIT_FAILURE);
+  }
+
+  if (THDVAR(nullptr, write_disable_wal) &&
+      rocksdb_flush_log_at_trx_commit == FLUSH_LOG_SYNC) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Invalid argument: Sync writes "
+                    "(rocksdb_flush_log_at_trx_commit == 1) has to enable WAL");
+    DBUG_RETURN(1);
   }
 
 #ifdef FB_HAVE_WSENV
@@ -6070,6 +6086,40 @@ static int rocksdb_init_internal(void *const p) {
   }
 
   if (rocksdb_persistent_cache_size_mb > 0) {
+    // TODO: This is the limitations in RocksDB.
+    // 1. Persistent cache size RocksDB has to be at least cache_file_size.
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:112
+    // Status ValidateSettings() const {
+    // ...
+    // if (cache_size < cache_file_size ...) {
+    // ...
+    // cache_file_size is set here.
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:165
+    // uint32_t cache_file_size = 100ULL * 1024 * 1024;
+    //
+    // 2. rocksdb_persistent_cache_path required persistent cache parameter
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:104
+    // Status ValidateSettings() const {
+    // ...
+    // if (!env || path.empty()) {
+    // ...
+    static constexpr int persistent_cache_size_mb_min = 100;
+    if (rocksdb_persistent_cache_size_mb < persistent_cache_size_mb_min) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Invalid value for rocksdb_persistent_cache_size_mb. It "
+                      "has to be at least %i",
+                      persistent_cache_size_mb_min);
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+    if (!strlen(rocksdb_persistent_cache_path)) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Specify rocksdb_persistent_cache_size_path");
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+
     std::shared_ptr<rocksdb::PersistentCache> pcache;
     uint64_t cache_size_bytes = rocksdb_persistent_cache_size_mb * 1024 * 1024;
     status = rocksdb::NewPersistentCache(
@@ -15599,7 +15649,7 @@ bool ha_rocksdb::use_read_free_rpl() const {
 }
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
-uchar *ha_rocksdb::get_blob_buffer(uint current_size) {
+uchar *blob_buffer::get_blob_buffer(uint current_size) {
   auto output = m_blob_buffer_current;
   m_blob_buffer_current = m_blob_buffer_current + current_size;
   assert((m_blob_buffer_current - m_blob_buffer_start) <=
@@ -15607,7 +15657,7 @@ uchar *ha_rocksdb::get_blob_buffer(uint current_size) {
   return output;
 }
 
-bool ha_rocksdb::reset_blob_buffer(uint total_size) {
+bool blob_buffer::reset_blob_buffer(uint total_size) {
   if (m_blob_buffer_start == nullptr) {
     m_blob_buffer_start = reinterpret_cast<uchar *>(
         my_malloc(PSI_NOT_INSTRUMENTED, total_size, MYF(0)));
@@ -15623,7 +15673,7 @@ bool ha_rocksdb::reset_blob_buffer(uint total_size) {
   return false;
 }
 
-void ha_rocksdb::release_blob_buffer() {
+void blob_buffer::release_blob_buffer() {
   if (m_blob_buffer_start != nullptr) {
     my_free(m_blob_buffer_start);
     m_blob_buffer_start = nullptr;
@@ -15642,10 +15692,22 @@ double ha_rocksdb::read_time(uint index, uint ranges, ha_rows rows) {
 }
 
 void ha_rocksdb::print_error(int error, myf errflag) {
-  if (error == HA_ERR_ROCKSDB_STATUS_BUSY) {
-    error = HA_ERR_LOCK_DEADLOCK;
+  switch (error) {
+    case HA_ERR_ROCKSDB_STATUS_BUSY:
+      handler::print_error(HA_ERR_LOCK_DEADLOCK, errflag);
+      break;
+    case HA_ERR_LOCK_WAIT_TIMEOUT:
+      if (error == HA_ERR_LOCK_WAIT_TIMEOUT && my_core::thd_killed(ha_thd())) {
+        my_error(ER_QUERY_TIMEOUT, errflag,
+                 table_share->table_name.str /*, error*/);
+      } else {
+        handler::print_error(error, errflag);
+      }
+      break;
+    default:
+      handler::print_error(error, errflag);
+      break;
   }
-  handler::print_error(error, errflag);
 }
 
 std::string rdb_corruption_marker_file_name() {

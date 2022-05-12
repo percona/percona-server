@@ -760,6 +760,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
       <td>name of the changed system variable</td></tr>
@@ -774,7 +777,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
+  00 00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -786,6 +789,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
       <td>name of the changed schema</td></tr>
@@ -798,7 +804,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  01 05 04 74 65 73 74
+  01 00 05 04 74 65 73 74
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -813,6 +819,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
   <td>is_tracked</td>
   <td>`0x31` ("1") if state tracking got enabled.</td></tr>
@@ -825,7 +834,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  03 02 01 31
+  03 02 00 01 31
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -1410,6 +1419,13 @@ int Protocol_classic::read_packet() {
   }
 
   bad_packet = true;
+  /*
+    XXX: This place seems erroneous.
+    -1 means request of current thread shutdown and
+    1 is just return with error (see do_command() description).
+    Now all errors except NET_ERROR_SOCKET_UNUSABLE request shutdown,
+    probably NET_ERROR_SOCKET_RECOVERABLE should be here instead of it.
+  */
   return m_thd->net.error == NET_ERROR_SOCKET_UNUSABLE ? 1 : -1;
 }
 
@@ -3512,7 +3528,7 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
   if (pos == nullptr) return true;
 
   int string_length = DECIMAL_MAX_STR_LENGTH + 1;
-  int error MY_ATTRIBUTE((unused)) =
+  int error [[maybe_unused]] =
       decimal2string(d, pos + 1, &string_length, prec, dec);
 
   // decimal2string() can only fail with E_DEC_TRUNCATED or E_DEC_OVERFLOW.

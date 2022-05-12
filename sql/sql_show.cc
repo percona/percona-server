@@ -33,6 +33,7 @@
 #include <functional>
 #include <memory>
 #include <new>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -67,7 +68,6 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "scope_guard.h"         // Scope_guard
 #include "sql/auth/auth_acls.h"  // DB_ACLS
 #include "sql/auth/auth_common.h"
@@ -1049,8 +1049,8 @@ class Show_create_error_handler : public Internal_error_handler {
      failed is not available at this point. The only way for us to check is by
      reconstructing the actual error message and see if it's the same.
   */
-  // MY_ATTRIBUTE((unused)) This applies to CHECK_ERRMSG_FORMAT = ON
-  const char *get_view_access_denied_message(THD *thd MY_ATTRIBUTE((unused))) {
+  // [[maybe_unused]] This applies to CHECK_ERRMSG_FORMAT = ON
+  const char *get_view_access_denied_message(THD *thd [[maybe_unused]]) {
     if (!m_view_access_denied_message_ptr) {
       m_view_access_denied_message_ptr = m_view_access_denied_message;
       snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
@@ -1082,7 +1082,7 @@ class Show_create_error_handler : public Internal_error_handler {
           is_handled = false;
           break;
         }
-        // Fall through
+        [[fallthrough]];
       case ER_COLUMNACCESS_DENIED_ERROR:
       // ER_VIEW_NO_EXPLAIN cannot happen here.
       case ER_PROCACCESS_DENIED_ERROR:
@@ -2234,18 +2234,19 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   packet->append(STRING_WITH_LEN("\n)"));
+
+  /**
+    Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
+    This is done only while binlogging CREATE TABLE AS SELECT.
+  */
+  if (!thd->lex->query_block->field_list_is_empty() &&
+      (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
+    packet->append(STRING_WITH_LEN(" START TRANSACTION"));
+  }
+
   bool show_tablespace = false;
   if (!foreign_db_mode) {
     show_table_options = true;
-
-    /**
-      Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
-      This is done only while binlogging CREATE TABLE AS SELECT.
-    */
-    if (!thd->lex->query_block->field_list_is_empty() &&
-        (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
-      packet->append(STRING_WITH_LEN(" START TRANSACTION"));
-    }
 
     // Show tablespace name only if it is explicitly provided by user.
     if (share->tmp_table) {
@@ -2758,17 +2759,17 @@ class List_process_list : public Do_THD_Impl {
     const bool is_utility_user = acl_is_utility_user(
         inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
 
-    mysql_mutex_lock(&inspect_thd->LOCK_thd_protocol);
-    if ((!(inspect_thd->get_protocol() &&
-           inspect_thd->get_protocol()->connection_alive()) &&
-         !inspect_thd->system_thread) ||
-        (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                    strcmp(inspect_sctx_user.str, m_user))) ||
-        is_utility_user) {
-      mysql_mutex_unlock(&inspect_thd->LOCK_thd_protocol);
-      return;
+    {
+      MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
+      if ((!(inspect_thd->get_protocol() &&
+             inspect_thd->get_protocol()->connection_alive()) &&
+           !inspect_thd->system_thread) ||
+          (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+                      strcmp(inspect_sctx_user.str, m_user))) ||
+          is_utility_user) {
+        return;
+      }
     }
-    mysql_mutex_unlock(&inspect_thd->LOCK_thd_protocol);
 
     thread_info *thd_info = new (m_client_thd->mem_root) thread_info;
 
@@ -3003,13 +3004,15 @@ class Fill_process_list : public Do_THD_Impl {
             : client_priv_user;
     ulonglong now_utime = my_micro_time();
 
-    if ((!inspect_thd->get_protocol()->connection_alive() &&
-         !inspect_thd->system_thread) ||
-        (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                  strcmp(inspect_sctx_user.str, user))) ||
-        is_utility_user)
-      return;
-
+    {
+      MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
+      if ((!inspect_thd->get_protocol()->connection_alive() &&
+           !inspect_thd->system_thread) ||
+          (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+                    strcmp(inspect_sctx_user.str, user))) ||
+          is_utility_user)
+        return;
+    }
     DBUG_EXECUTE_IF(
         "test_fill_proc_with_x_root",
         if (0 == strcmp(inspect_sctx_user.str, "x_root")) {
@@ -3674,7 +3677,7 @@ static int send_thread_stats(THD *thd, const thread_stats_t &all_thread_stats,
 */
 
 static int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
-                                  Item *cond MY_ATTRIBUTE((unused))) noexcept {
+                                  Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_user_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3707,7 +3710,7 @@ static int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
 */
 
 static int fill_schema_client_stats(
-    THD *thd, TABLE_LIST *tables, Item *cond MY_ATTRIBUTE((unused))) noexcept {
+    THD *thd, TABLE_LIST *tables, Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_client_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3726,7 +3729,7 @@ static int fill_schema_client_stats(
 }
 
 static int fill_schema_thread_stats(
-    THD *thd, TABLE_LIST *tables, Item *cond MY_ATTRIBUTE((unused))) noexcept {
+    THD *thd, TABLE_LIST *tables, Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_thread_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3745,7 +3748,7 @@ static int fill_schema_thread_stats(
 
 // Sends the global table stats back to the client.
 static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
-                                   Item *cond MY_ATTRIBUTE((unused))) {
+                                   Item *cond [[maybe_unused]]) {
   DBUG_ENTER("fill_schema_table_stats");
 
   TABLE *const table = tables->table;
@@ -3789,7 +3792,7 @@ static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
 
 // Sends the global index stats back to the client.
 static int fill_schema_index_stats(THD *thd, TABLE_LIST *tables,
-                                   Item *cond MY_ATTRIBUTE((unused))) {
+                                   Item *cond [[maybe_unused]]) {
   TABLE *const table = tables->table;
   DBUG_ENTER("fill_schema_index_stats");
 
@@ -3872,7 +3875,10 @@ extern ST_SCHEMA_TABLE schema_tables[];
 bool schema_table_store_record(THD *thd, TABLE *table) {
   int error;
   if ((error = table->file->ha_write_row(table->record[0]))) {
-    if (create_ondisk_from_heap(thd, table, error, false, nullptr)) return true;
+    if (create_ondisk_from_heap(thd, table, error, /*insert_last_record=*/true,
+                                /*ignore_last_dup=*/false,
+                                /*is_duplicate=*/nullptr))
+      return true;
   }
   return false;
 }
@@ -3906,7 +3912,9 @@ int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk) {
   @return false on success, true on error.
 */
 bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error) {
-  return (create_ondisk_from_heap(thd, table, error, false, nullptr));
+  return (create_ondisk_from_heap(
+      thd, table, error, /*insert_last_record=*/true,
+      /*ignore_last_dup=*/false, /*is_duplicate=*/nullptr));
 }
 
 /**
@@ -4229,13 +4237,13 @@ static int store_temporary_table_record(THD *thd, TABLE *table,
     table->field[8]->store(static_cast<longlong>(file->stats.index_file_length),
                            true);
     if (file->stats.create_time) {
-      thd->variables.time_zone->gmt_sec_to_TIME(
+      thd->time_zone()->gmt_sec_to_TIME(
           &time, static_cast<my_time_t>(file->stats.create_time));
       table->field[9]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[9]->set_notnull();
     }
     if (file->stats.update_time) {
-      thd->variables.time_zone->gmt_sec_to_TIME(
+      thd->time_zone()->gmt_sec_to_TIME(
           &time, static_cast<my_time_t>(file->stats.update_time));
       table->field[10]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[10]->set_notnull();
@@ -4318,7 +4326,7 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
 };
 
 static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables,
-                                        Item *cond MY_ATTRIBUTE((unused))) {
+                                        Item *cond [[maybe_unused]]) {
   DBUG_ENTER("fill_global_temporary_tables");
 
   Fill_global_temporary_tables fill_global_temporary_tables(thd, tables);

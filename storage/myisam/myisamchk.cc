@@ -525,7 +525,7 @@ TYPELIB myisam_stats_method_typelib = {
 /* Read options */
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt MY_ATTRIBUTE((unused)),
+                           const struct my_option *opt [[maybe_unused]],
                            char *argument) {
   switch (optid) {
     case 'a':
@@ -1093,7 +1093,7 @@ static int myisamchk(MI_CHECK *param, char *filename) {
         if (param->testflag & (T_EXTEND | T_MEDIUM))
           (void)init_key_cache(dflt_key_cache, opt_key_cache_block_size,
                                (size_t)param->use_buffers, 0, 0);
-        MY_ATTRIBUTE((unused))
+        [[maybe_unused]]
         int init_res =
             init_io_cache(&param->read_cache, datafile,
                           (uint)param->read_buffer_length, READ_CACHE,
@@ -1630,15 +1630,15 @@ err:
 
 static int not_killed = 0;
 
-volatile int *killed_ptr(MI_CHECK *param MY_ATTRIBUTE((unused))) {
+volatile int *killed_ptr(MI_CHECK *param [[maybe_unused]]) {
   return &not_killed; /* always NULL */
 }
 
 /* print warnings and errors */
 /* VARARGS */
 
-void mi_check_print_info(MI_CHECK *param MY_ATTRIBUTE((unused)),
-                         const char *fmt, ...) {
+void mi_check_print_info(MI_CHECK *param [[maybe_unused]], const char *fmt,
+                         ...) {
   va_list args;
 
   va_start(args, fmt);

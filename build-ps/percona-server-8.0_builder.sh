@@ -24,6 +24,8 @@ Usage: $0 [OPTIONS]
         --perconaft_branch  Branch for PerconaFT
         --tokubackup_repo   TokuBackup repo
         --tokubackup_branch Btanch for TokuBackup
+        --zenfs_repo        ZenFS repo
+        --zenfs_branch      Branch for ZenFS
         --rpm_release       RPM version( default = 1)
         --deb_release       DEB version( default = 1)
         --debug             Build debug tarball
@@ -63,8 +65,10 @@ parse_arguments() {
             --install_deps=*) INSTALL="$val" ;;
             --perconaft_branch=*) PERCONAFT_BRANCH="$val" ;;
             --tokubackup_branch=*)      TOKUBACKUP_BRANCH="$val" ;;
+            --zenfs_branch=*)      ZENFS_BRANCH="$val" ;;
             --perconaft_repo=*) PERCONAFT_REPO="$val" ;;
             --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
+            --zenfs_repo=*) ZENFS_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
@@ -167,12 +171,12 @@ get_sources(){
             echo "InnoDB version differs from defined in version file"
             exit 1
         fi
-        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
         if [ ${FT_TAG} = 0 ]; then
             echo "There is no TAG for PerconaFT. Please set it and re-run build!"
             exit 1
         fi
-        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        TOKUBACKUP_TAG=$(git ls-remote --tags https://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
         if [ ${TOKUBACKUP_TAG} = 0 ]; then
             echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
             exit 1
@@ -192,6 +196,8 @@ get_sources(){
     echo "PERCONAFT_BRANCH=${PERCONAFT_BRANCH}" >> ../percona-server-8.0.properties
     echo "TOKUBACKUP_REPO=${TOKUBACKUP_REPO}" >> ../percona-server-8.0.properties
     echo "TOKUBACKUP_BRANCH=${TOKUBACKUP_BRANCH}" >> ../percona-server-8.0.properties
+    echo "ZENFS_REPO=${ZENFS_REPO}" >> ../percona-server-8.0.properties
+    echo "ZENFS_BRANCH=${ZENFS_BRANCH}" >> ../percona-server-8.0.properties
     export TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}
     echo "TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-8.0.properties
     BOOST_PACKAGE_NAME=$(cat cmake/boost.cmake|grep "SET(BOOST_PACKAGE_NAME"|awk -F '"' '{print $2}')
@@ -254,7 +260,23 @@ get_sources(){
 
     fi
     #
+
+    if [ ! ${ZENFS_REPO} = 0 ]; then
+        rm -rf ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
+        git clone ${ZENFS_REPO} ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
+    fi
+    if [ ! ${ZENFS_BRANCH} = 0 ]; then
+        cd ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
+        git checkout ${ZENFS_BRANCH}
+        cd -
+    fi
+
     git submodule update
+    cd storage/rocksdb/rocksdb_plugins/zenfs
+    ZEN_VER=$(git describe --abbrev=7 --dirty)
+    sed -i "s/^VERSION=.*/VERSION=$ZEN_VER/" generate-version.sh
+    ./generate-version.sh
+    cd -
     cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost -DWITH_ZLIB=bundled
     make dist
     #
@@ -273,6 +295,7 @@ get_sources(){
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
     rsync -av extra/libzbd/ ${PSDIR}/extra/libzbd --exclude .git
     rsync -av storage/rocksdb/rocksdb_plugins/ ${PSDIR}/storage/rocksdb/rocksdb_plugins --exclude .git
+    rsync -av extra/libkmip/ ${PSDIR}/extra/libkmip/ --exclude .git
     #
     cd ${PSDIR}
     # set tokudb version - can be seen with show variables like '%version%'
@@ -389,6 +412,7 @@ install_deps() {
         fi
         if [ "x${RHEL}" = "x7" ]; then
             yum -y install devtoolset-10
+            yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
             source /opt/rh/devtoolset-10/enable
         fi
 	 if [ "x${RHEL}" = "x6" ]; then
@@ -453,6 +477,7 @@ install_deps() {
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
         apt-get -y install libmecab2 mecab mecab-ipadic
+        apt-get -y install libudev-dev
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
@@ -947,20 +972,20 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.26-16"
+BRANCH="release-8.0.27-18"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
-REPO="git://github.com/percona/percona-server.git"
+REPO="https://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=26
-MYSQL_VERSION_EXTRA=-16
-PRODUCT_FULL=Percona-Server-8.0.26
+MYSQL_VERSION_PATCH=27
+MYSQL_VERSION_EXTRA=-18
+PRODUCT_FULL=Percona-Server-8.0.27
 BOOST_PACKAGE_NAME=boost_1_73_0
-PERCONAFT_BRANCH=Percona-Server-8.0.22-13
-TOKUBACKUP_BRANCH=Percona-Server-8.0.22-13
+PERCONAFT_BRANCH=Percona-Server-8.0.27-18
+TOKUBACKUP_BRANCH=Percona-Server-8.0.27-18
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

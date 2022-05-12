@@ -83,8 +83,7 @@ bool Item_row::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-void Item_row::illegal_method_call(
-    const char *method MY_ATTRIBUTE((unused))) const {
+void Item_row::illegal_method_call(const char *method [[maybe_unused]]) const {
   DBUG_TRACE;
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
   assert(0);
@@ -116,7 +115,7 @@ bool Item_row::fix_fields(THD *thd, Item **) {
     // item->is_null() may have raised an error.
     if (thd->is_error()) return true;
 
-    set_nullable(is_nullable() | item->is_nullable());
+    set_nullable(is_nullable() || item->is_nullable());
     add_accum_properties(item);
   }
   if (types_assigned) set_data_type(MYSQL_TYPE_NULL);

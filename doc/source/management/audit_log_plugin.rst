@@ -735,12 +735,12 @@ are:
     :vartype: Numeric
     :default: 0 (don't rotate the log file)
 
-This variable is used to specify the maximum audit log file size. Upon reaching
-this size the log will be rotated. The rotated log files will be present in the
-same same directory as the current log file. A sequence number will be appended
-to the log file name upon rotation. This variable has effect only when
-:variable:`audit_log_handler` is set to ``FILE``.
-
+This variable is measured in bytes and specifies the maximum size of the audit log file. Upon reaching
+this size, the audit log will be rotated. The rotated log files are present in
+the same directory as the current log file. The sequence number is appended to
+the log file name upon rotation. For this variable to take effect, set the
+:variable:`audit_log_handler` variable to ``FILE``.
+ 
 .. variable:: audit_log_rotations
 
     :cli: Yes

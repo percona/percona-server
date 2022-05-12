@@ -917,6 +917,36 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       goto err;
   }
 
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_INFO))) {
+    // Query_tables
+    std::string tbl_list_str = "";
+    if (thd->lex->query_tables != nullptr) {
+      std::stringstream tbl_list;
+      for (TABLE_LIST *table = thd->lex->query_tables; table;
+           table = table->next_global) {
+        tbl_list << table->get_table_name() << ",";
+      }
+      tbl_list_str = tbl_list.str();
+      tbl_list_str.pop_back();
+    }
+
+    // Query_digest
+    uchar digest_buf[PARSER_SERVICE_DIGEST_LENGTH];
+    const size_t digest_size = PARSER_SERVICE_DIGEST_LENGTH * 2;
+    char digest_str[digest_size + sizeof('\0')];
+
+    if (!mysql_parser_get_statement_digest(thd, digest_buf)) {
+      for (int i = 0; i < PARSER_SERVICE_DIGEST_LENGTH; ++i) {
+        snprintf(digest_str + i * 2, digest_size, "%02x", digest_buf[i]);
+      }
+    }
+
+    if (my_b_printf(&log_file, "# Query_tables: %s Query_digest: %s\n",
+                    tbl_list_str.c_str(), digest_str) == (uint)-1) {
+      goto err;
+    }
+  }
+
   if (thd->db().str && strcmp(thd->db().str, db)) {  // Database changed
     if (my_b_printf(&log_file, "use %s;\n", thd->db().str) == (uint)-1)
       goto err;
@@ -2152,6 +2182,9 @@ bool File_query_log::set_rotated_name(const bool need_lock) {
     }
 
     if (need_lock) mysql_mutex_lock(&LOCK_global_system_variables);
+    if (opt_slow_logname != NULL) {
+      my_free(opt_slow_logname);
+    }
     opt_slow_logname =
         my_strdup(key_memory_LOG_name, log_file_name, MYF(MY_WME));
     if (need_lock) mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -2487,7 +2520,7 @@ my_thread_id log_get_thread_id(THD *thd) { return thd->thread_id(); }
                                         LOG_ITEM_* tag, [[key], value]
   @retval          int                  return value of log_line_submit()
 */
-int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
+int log_vmessage(int log_type [[maybe_unused]], va_list fili) {
   char buff[LOG_BUFF_MAX];
   log_item_class lic;
   log_line ll;

@@ -14,9 +14,9 @@ TokuDB Variables
 
    We recommend :ref:`migrate-myrocks`.
       
-   Starting with Percona 8.0.28-18, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
 
-Like all storage engines, |TokuDB| has variables to tune performance and
+Like all storage engines, *TokuDB* has variables to tune performance and
 control behavior. Fractal Tree algorithms are designed for near optimal
 performance and TokuDB's default settings should work well in most situations,
 eliminating the need for complex and time consuming tuning in most cases.
@@ -408,7 +408,7 @@ TokuDB Server Variables
   :default: OFF
 
 When set to ``ON`` errors will be printed to the client during the ``ALTER
-TABLE`` operations on |TokuDB| tables.
+TABLE`` operations on *TokuDB* tables.
 
 .. variable:: tokudb_analyze_delete_fraction
 
@@ -421,11 +421,11 @@ TABLE`` operations on |TokuDB| tables.
   :range: ``0.0`` - ``1.000000``
 
 This variables controls whether or not deleted rows in the fractal tree are
-reported to the client and to the |MySQL| error log during an ``ANALYZE TABLE``
-operation on a |TokuDB| table. When set to ``1``, nothing is reported. When set
+reported to the client and to the *MySQL* error log during an ``ANALYZE TABLE``
+operation on a *TokuDB* table. When set to ``1``, nothing is reported. When set
 to ``0.1`` and at least 10% of the rows scanned by ``ANALYZE`` were deleted
 rows that are not yet garbage collected, a report is returned to the client and
-the |MySQL| error log.
+the *MySQL* error log.
 
 .. variable:: tokudb_backup_allowed_prefix
 
@@ -517,7 +517,7 @@ more information see :ref:`toku_backup`.
   :dyn: No
   :vartype: String
 
-This read-only server variable documents the version of the |TokuBackup|
+This read-only server variable documents the version of the *TokuBackup*
 plugin. For more information see :ref:`toku_backup`.
 
 .. variable:: tokudb_backup_throttle
@@ -587,13 +587,13 @@ ON DUPLICATE KEY UPDATE``.
   :dyn: No
   :vartype: Numeric
 
-This variable configures the size in bytes of the |TokuDB| cache table. The
+This variable configures the size in bytes of the *TokuDB* cache table. The
 default cache table size is 1/2 of physical memory. Percona highly recommends
 using the default setting if using buffered I/O, if using direct I/O then
 consider setting this parameter to 80% of available memory.
 
 Consider decreasing :variable:`tokudb_cache_size` if excessive swapping is
-causing performance problems. Swapping may occur when running multiple |MySQL|
+causing performance problems. Swapping may occur when running multiple *MySQL*
 server instances or if other running applications use large amounts of physical
 memory.
 
@@ -676,7 +676,7 @@ Default of ``0`` uses old algorithm to set pool size to ``num_cpu_threads/4``.
   :default: 60
 
 This variable specifies the time in seconds between the beginning of one
-checkpoint and the beginning of the next. The default time between |TokuDB|
+checkpoint and the beginning of the next. The default time between *TokuDB*
 checkpoints is 60 seconds. We recommend leaving this variable unchanged.
 
 .. variable:: tokudb_cleaner_iterations
@@ -795,8 +795,8 @@ inserts and queries while the index is being created.
   :vartype: String
   :default: ``NULL``
 
-This variable configures the directory name where the |TokuDB| tables are
-stored. The default value is ``NULL`` which uses the location of the |MySQL|
+This variable configures the directory name where the *TokuDB* tables are
+stored. The default value is ``NULL`` which uses the location of the *MySQL*
 data directory. For more information check :ref:`tokudb_files_and_file_types`
 and :ref:`tokudb_file_management`.
 
@@ -810,9 +810,9 @@ and :ref:`tokudb_file_management`.
   :range: 0 - 18446744073709551615
   :default: 0
 
-This variable enables mysqld debug printing to ``STDERR`` for |TokuDB|.
+This variable enables mysqld debug printing to ``STDERR`` for *TokuDB*.
 Produces tremendous amounts of output that is nearly useless to anyone but a
-|TokuDB| developer, not recommended for any production use at all. It is a mask
+*TokuDB* developer, not recommended for any production use at all. It is a mask
 value ``ULONG``::
 
   #define TOKUDB_DEBUG_INIT                   (1<<0)
@@ -847,7 +847,7 @@ within their corresponding database directory within the
 :variable:`tokudb_data_dir` or system `datadir`. Existing table files
 will not be automatically relocated to their corresponding database directory.
 If you rename a table, while this variable is enabled, the mapping in the
-|Percona FT| directory file will be updated and the files will be renamed on
+*Percona FT* directory file will be updated and the files will be renamed on
 disk to reflect the new table name. For more information check
 :ref:`tokudb_files_and_file_types` and :ref:`tokudb_file_management`.
 
@@ -860,7 +860,7 @@ disk to reflect the new table name. For more information check
   :vartype: Boolean
   :default: OFF
 
-When enabled, |TokuDB| employs Direct I/O rather than Buffered I/O for writes.
+When enabled, *TokuDB* employs Direct I/O rather than Buffered I/O for writes.
 When using Direct I/O, consider increasing :variable:`tokudb_cache_size` from
 its default of 1/2 physical memory.
 
@@ -885,7 +885,7 @@ there are bugs. Not for use in production.
   :vartype: Boolean
   :default: OFF
 
-|TokuDB| attempts to aggressively prefetch additional blocks of rows, which is
+*TokuDB* attempts to aggressively prefetch additional blocks of rows, which is
 helpful for most range queries but may create unnecessary I/O for range queries
 with ``LIMIT`` clauses. Prefetching is ``ON`` by default, with a value of
 ``0``, it can be disabled by setting this variable to ``1``.
@@ -912,7 +912,7 @@ expansions:
   DROP COLUMN column_b;
 
 By default, :variable:`tokudb_disable_slow_alter` is disabled, and the engine
-reports back to |MySQL| that this is unsupported resulting in the following
+reports back to *MySQL* that this is unsupported resulting in the following
 output:
 
 .. code-block:: text
@@ -1050,7 +1050,7 @@ check to see if the lock was killed.
   :default: NULL
 
 This variable contains a JSON document that describes the last lock conflict
-seen by the current |MySQL| client. It gets set when a blocked lock request
+seen by the current *MySQL* client. It gets set when a blocked lock request
 times out or a lock deadlock is detected.
 
 The :variable:`tokudb_lock_timeout_debug` session variable must have bit ``0``
@@ -1091,14 +1091,14 @@ try again. More information is available in :ref:`Known Issues
   :range: 0-18446744073709551615
   :default: 100000000
 
-This variable limits the amount of memory (in bytes) that the |TokuDB| bulk
+This variable limits the amount of memory (in bytes) that the *TokuDB* bulk
 loader will use for each loader instance. Increasing this value may provide
 a performance benefit when loading extremely large tables with several
 secondary indexes.
 
 .. note::
 
-  Memory allocated to a loader is taken from the |TokuDB| cache, defined in
+  Memory allocated to a loader is taken from the *TokuDB* cache, defined in
   :variable:`tokudb_cache_size`, and may impact the running workload's
   performance as existing cached data must be ejected for the loader to begin.
 
@@ -1170,18 +1170,18 @@ The following values are available:
   :vartype: String
   :default: NULL
 
-This variable specifies the directory where the |TokuDB| log files are stored.
-The default value is ``NULL`` which uses the location of the |MySQL| data
+This variable specifies the directory where the *TokuDB* log files are stored.
+The default value is ``NULL`` which uses the location of the *MySQL* data
 directory. Configuring a separate log directory is somewhat involved. Please
 contact Percona support for more details. For more information check
 :ref:`tokudb_files_and_file_types` and :ref:`tokudb_file_management`.
 
 .. warning::
 
-  After changing |TokuDB| log directory path, the old |TokuDB| recovery log
-  file should be moved to new directory prior to start of |MySQL| server and
+  After changing *TokuDB* log directory path, the old *TokuDB* recovery log
+  file should be moved to new directory prior to start of *MySQL* server and
   log file's owner must be the ``mysql`` user. Otherwise server will fail to
-  initialize the |TokuDB| store engine restart.
+  initialize the *TokuDB* store engine restart.
 
 .. variable:: tokudb_max_lock_memory
 
@@ -1267,7 +1267,7 @@ nodes per second are optimized. The default ``0`` imposes no limit.
   :vartype: Boolean
   :default: ON
 
-By default |TokuDB| preemptively grabs an entire table lock on empty tables. If
+By default *TokuDB* preemptively grabs an entire table lock on empty tables. If
 one transaction is doing the loading, such as when the user is doing a table
 load into an empty table, this default provides a considerable speedup.
 
@@ -1357,9 +1357,9 @@ on compression algorithms see :ref:`Compression Details <tokudb_compression>`.
   :vartype: Boolean
   :default: ON
 
-The |TokuDB| replication code will run row events from the binary log with
+The *TokuDB* replication code will run row events from the binary log with
 :ref:`tokudb_read_free_replication` when the replica is in read-only mode. This
-variable is used to disable the replica read only check in the |TokuDB|
+variable is used to disable the replica read only check in the *TokuDB*
 replication code.
 
 This allows Read-Free-Replication to run when the replica is NOT read-only. By
@@ -1376,14 +1376,14 @@ implications!
   :vartype: Boolean
   :default: ON
 
-When disabled, |TokuDB| replication replicas skip row lookups for ``delete row``
+When disabled, *TokuDB* replication replicas skip row lookups for ``delete row``
 log events and ``update row`` log events, which eliminates all associated read
 I/O for these operations.
 
 .. warning::
 
-  |TokuDB| :ref:`tokudb_read_free_replication` will not propagate ``UPDATE``
-  and ``DELETE`` events reliably if |TokuDB| table is missing the primary key
+  *TokuDB* :ref:`tokudb_read_free_replication` will not propagate ``UPDATE``
+  and ``DELETE`` events reliably if *TokuDB* table is missing the primary key
   which will eventually lead to data inconsistency on the replica.
 
 .. note::
@@ -1414,7 +1414,7 @@ set to a non-zero value for testing.
   :vartype: Boolean
   :default: ON
 
-When disabled, |TokuDB| replication replicas skip uniqueness checks on inserts
+When disabled, *TokuDB* replication replicas skip uniqueness checks on inserts
 and updates, which eliminates all associated read I/O for these operations.
 
 .. note::
@@ -1447,7 +1447,7 @@ set to a non-zero value for testing.
 
 When this variable is set to ``ON`` during the startup server will check all
 the status files and remove the embedded :file:`.frm` metadata. This variable
-can be used to assist in |TokuDB| data recovery. **WARNING:** Use this variable
+can be used to assist in *TokuDB* data recovery. **WARNING:** Use this variable
 only if you know what you're doing otherwise it could lead to data loss.
 
 .. variable:: tokudb_support_xa
@@ -1470,7 +1470,7 @@ performs an ``fsync()``.
   :dyn: No
   :vartype: String
 
-This variable specifies the directory where the |TokuDB| bulk loader stores
+This variable specifies the directory where the *TokuDB* bulk loader stores
 temporary files. The bulk loader can create large temporary files while it is
 loading a table, so putting these temporary files on a disk separate from the
 data directory can be useful.
@@ -1486,7 +1486,7 @@ could indicate that the disk has run out of space.
 
 For example, it can make sense to use a high-performance disk for the data
 directory and a very inexpensive disk for the temporary directory. The default
-location for temporary files is the |MySQL| data directory.
+location for temporary files is the *MySQL* data directory.
 
 For more information check :ref:`tokudb_files_and_file_types` and
 :ref:`tokudb_file_management`.
@@ -1499,7 +1499,7 @@ For more information check :ref:`tokudb_files_and_file_types` and
   :dyn: No
   :vartype: String
 
-This read-only variable documents the version of the |TokuDB| storage engine.
+This read-only variable documents the version of the *TokuDB* storage engine.
 
 .. variable:: tokudb_write_status_frequency
 

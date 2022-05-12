@@ -67,7 +67,7 @@ static void gen_rnd_email_deinit(UDF_INIT *initid) {
  * @return A random email address.
  */
 static char *gen_rnd_email(UDF_INIT *initid, UDF_ARGS *args,
-                           char *result MY_ATTRIBUTE((unused)),
+                           char *result [[maybe_unused]],
                            unsigned long *length, char *is_null,
                            char *is_error) {
   DBUG_ENTER("gen_rnd_email");

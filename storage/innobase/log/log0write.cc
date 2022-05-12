@@ -1969,9 +1969,11 @@ static lsn_t log_writer_wait_on_checkpoint(log_t &log, lsn_t last_write_lsn,
 
     if (!log.m_allow_checkpoints.load()) {
       if (srv_force_recovery < 4) {
-        ib::fatal(ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES);
+        ib::fatal(UT_LOCATION_HERE,
+                  ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES);
       } else {
-        ib::fatal(ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED);
+        ib::fatal(UT_LOCATION_HERE,
+                  ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED);
       }
     }
 
@@ -2925,6 +2927,7 @@ bool log_read_encryption() {
   if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
              Encryption::KEY_MAGIC_RK_V1, Encryption::MAGIC_SIZE) == 0) {
     // can only happen during the upgrade
+    ut::aligned_free(log_block_buf);
     ib::error(ER_REDO_ENCRYPTION_CANT_UPGRADE_OLD_VERSION);
     return false;
   }
@@ -2985,6 +2988,7 @@ bool log_read_encryption() {
             : static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt);
     if (existing_redo_encryption_mode != set_encryption &&
         srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
+      ut::aligned_free(log_block_buf);
       ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
                 log_encrypt_name(existing_redo_encryption_mode),
                 log_encrypt_name(
@@ -3038,7 +3042,7 @@ bool log_read_encryption() {
   return (true);
 }
 
-bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
+bool log_file_header_fill_encryption(byte *buf, const byte *key, const byte *iv,
                                      bool is_boot, bool encrypt_key) {
   byte encryption_info[Encryption::INFO_SIZE];
 

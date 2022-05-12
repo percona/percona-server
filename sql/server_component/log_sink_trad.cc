@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_sink_trad.h"
 #include "log_sink_perfschema.h"  // log_sink_pfs_event
 #include "my_systime.h"           // my_micro_time()
+#include "mysys/buffered_error_log.h"
 #include "sql/log.h"  // log_write_errstream(), log_prio_from_label()
 
 extern int log_item_inconsistent(log_item *li);
@@ -81,7 +82,7 @@ static inline ssize_t parse_trad_field(const char *parse_from,
 */
 log_service_error log_sink_trad_parse_log_line(const char *line_start,
                                                size_t line_length) {
-  char timestamp[iso8601_size];
+  char timestamp[iso8601_size];  // space for timestamp + '\0'
   char label[16];
   char msg[LOG_BUFF_MAX];
   ssize_t len;
@@ -97,9 +98,10 @@ log_service_error log_sink_trad_parse_log_line(const char *line_start,
   // parse timestamp
   if ((len = parse_trad_field(start, &end, line_end)) <= 0)
     return LOG_SERVICE_PARSE_ERROR;
-  if (len > iso8601_size) return LOG_SERVICE_ARGUMENT_TOO_LONG;
+  if (len >= iso8601_size) return LOG_SERVICE_ARGUMENT_TOO_LONG;
+
   memcpy(timestamp, start, len);
-  timestamp[len] = '\0';
+  timestamp[len] = '\0';  // terminate target buffer
   start = end + 1;
   e.m_timestamp = iso8601_timestamp_to_microseconds(timestamp, len);
 
@@ -201,7 +203,7 @@ log_service_error log_sink_trad_parse_log_line(const char *line_start,
 
   @retval          int                  number of added fields, if any
 */
-int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
+int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
   const char *label = "", *msg = "";
   int c, out_fields = 0;
   size_t msg_len = 0, iso_len = 0, label_len = 0, subsys_len = 0;
@@ -386,8 +388,23 @@ int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
         log_sink_trad_last = microtime;
       }
 
+      bool log_to_buffered_error_log = false;
+      bool log_only_to_buffered_error_log = false;
+
+      // Add product specific buffered_error_log logic based on subsys & prio
+      // here
+      DBUG_EXECUTE_IF("redirect_message_to_buffered_error_log", {
+        log_to_buffered_error_log = true;
+        // also log to the normal log for MTR
+      });
+
+      if (log_to_buffered_error_log) {
+        buffered_error_log.log(buff_line, len);
+      }
+
       // write log-event to log-file
-      log_write_errstream(buff_line, len);
+      if (!log_only_to_buffered_error_log || !buffered_error_log.is_enabled())
+        log_write_errstream(buff_line, len);
     }
   }
 

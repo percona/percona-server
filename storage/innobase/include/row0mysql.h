@@ -111,12 +111,12 @@ void row_mysql_prebuilt_free_compress_heap(row_prebuilt_t *prebuilt) noexcept;
 @param[in,out]	len	in: data length, out: length of decomprssed data
 @param[in]	dict_data	optional dictionary data used for decompression
 @param[in]	dict_data_len	optional dictionary data length
-@param[in]	prebuilt	use prebuilt->compress_heap only here
+@param[in]	compress_heap
 @return pointer to the uncompressed data */
 MY_NODISCARD
 const byte *row_decompress_column(const byte *data, ulint *len,
                                   const byte *dict_data, ulint dict_data_len,
-                                  row_prebuilt_t *prebuilt);
+                                  mem_heap_t **compress_heap);
 
 /** Compress blob/text/varchar column using zlib
 @param[in]	data	data in MySQL (uncompressed) format
@@ -160,11 +160,11 @@ remember also to set the null bit in the mysql record header!
 @param[in] need_decompression If the data need to be compressed
 @param[in] dict_data Optional compression dictionary
 @param[in] dict_data_len Optional compression dictionary data
-@param[in] prebuilt Use prebuilt->compress_heap only here */
+@param[in] compress_heap */
 void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
                               ulint len, bool need_decompression,
                               const byte *dict_data, ulint dict_data_len,
-                              row_prebuilt_t *prebuilt);
+                              mem_heap_t **compress_heap);
 
 /** Reads a reference to a BLOB in the MySQL format.
 @param[out] len                 BLOB length.
@@ -173,12 +173,12 @@ void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
 @param[in] need_compression     if the data need to be compressed
 @param[in] dict_data            optional compression dictionary data
 @param[in] dict_data_len        optional compression dictionary data length
-@param[in] prebuilt             use prebuilt->compress_heap only heap
+@param[in] compress_heap
 @return pointer to BLOB data */
 const byte *row_mysql_read_blob_ref(ulint *len, const byte *ref, ulint col_len,
                                     bool need_compression,
                                     const byte *dict_data, ulint dict_data_len,
-                                    row_prebuilt_t *prebuilt);
+                                    mem_heap_t **compress_heap);
 
 /** Converts InnoDB geometry data format to MySQL data format. */
 void row_mysql_store_geometry(
@@ -240,8 +240,7 @@ byte *row_mysql_store_col_in_innobase_format(
                                dictionary data */
     ulint dict_data_len,       /*!< in: optional compression
                                dictionary data length */
-    row_prebuilt_t *prebuilt); /*!< in: use prebuilt->compress_heap
-                               only here */
+    mem_heap_t **compress_heap); /*!< in: compress_heap */
 /** Handles user errors and lock waits detected by the database engine.
  @return true if it was a lock wait and we should continue running the
  query thread */
@@ -276,10 +275,9 @@ void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, trx_t *trx);
  It is not compatible with another AUTO_INC or exclusive lock on the
  table.
  @return error code or DB_SUCCESS */
-dberr_t row_lock_table_autoinc_for_mysql(
-    row_prebuilt_t *prebuilt) /*!< in: prebuilt struct in the MySQL
+[[nodiscard]] dberr_t row_lock_table_autoinc_for_mysql(
+    row_prebuilt_t *prebuilt); /*!< in: prebuilt struct in the MySQL
                               table handle */
-    MY_ATTRIBUTE((warn_unused_result));
 
 /** Sets a table lock on the table mentioned in prebuilt.
 @param[in,out]	prebuilt	table handle
@@ -290,8 +288,8 @@ dberr_t row_lock_table(row_prebuilt_t *prebuilt);
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS*/
-dberr_t row_insert_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_insert_for_mysql(const byte *mysql_rec,
+                                           row_prebuilt_t *prebuilt);
 
 /** Builds a dummy query graph used in selects. */
 void row_prebuild_sel_graph(row_prebuilt_t *prebuilt); /*!< in: prebuilt struct
@@ -313,8 +311,8 @@ ibool row_table_got_default_clust_index(
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
-dberr_t row_update_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_update_for_mysql(const byte *mysql_rec,
+                                           row_prebuilt_t *prebuilt);
 
 /** Delete all rows for the given table by freeing/truncating indexes.
 @param[in,out]	table	table handler */
@@ -339,8 +337,7 @@ void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs);
 /** Checks if a table name contains the string "/#sql" which denotes temporary
  tables in MySQL.
  @return true if temporary table */
-bool row_is_mysql_tmp_table_name(const char *name)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_is_mysql_tmp_table_name(const char *name);
 /*!< in: table name in the form
 'database/tablename' */
 
@@ -353,12 +350,12 @@ upd_node_t *row_create_update_node_for_mysql(
     mem_heap_t *heap);   /*!< in: mem heap from which allocated */
 /** Does a cascaded delete or set null in a foreign key operation.
  @return error code or DB_SUCCESS */
-dberr_t row_update_cascade_for_mysql(
+[[nodiscard]] dberr_t row_update_cascade_for_mysql(
     que_thr_t *thr,      /*!< in: query thread */
     upd_node_t *node,    /*!< in: update node used in the cascade
                          or set null operation */
     dict_table_t *table) /*!< in: table where we do the operation */
-    MY_ATTRIBUTE((nonnull, warn_unused_result));
+    MY_ATTRIBUTE((nonnull));
 
 /** Locks the data dictionary exclusively for performing a table create or other
  data dictionary modification operation.
@@ -396,19 +393,18 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	mode		keyring encryption mode
 @param[in]	keyring_encryption_key_id	keyring encryption info
 @return error code or DB_SUCCESS */
-dberr_t row_create_table_for_mysql(
+[[nodiscard]] dberr_t row_create_table_for_mysql(
     dict_table_t *table, const char *compression,
     const HA_CREATE_INFO *create_info, trx_t *trx,
     const fil_encryption_t mode, /*!< in: encryption mode */
     const KeyringEncryptionKeyIdInfo
-        &keyring_encryption_key_id) /*!< in: encryption key_id */
-    MY_ATTRIBUTE((warn_unused_result));
+        &keyring_encryption_key_id); /*!< in: encryption key_id */
 
 /** Does an index creation operation for MySQL. TODO: currently failure
  to create an index results in dropping the whole table! This is no problem
  currently as all indexes must be created at the same time as the table.
  @return error number or DB_SUCCESS */
-dberr_t row_create_index_for_mysql(
+[[nodiscard]] dberr_t row_create_index_for_mysql(
     dict_index_t *index,        /*!< in, own: index definition
                                 (will be freed) */
     trx_t *trx,                 /*!< in: transaction handle */
@@ -418,8 +414,7 @@ dberr_t row_create_index_for_mysql(
                                 index columns, which are
                                 then checked for not being too
                                 large. */
-    dict_table_t *handler)      /* ! in/out: table handler. */
-    MY_ATTRIBUTE((warn_unused_result));
+    dict_table_t *handler);     /* ! in/out: table handler. */
 
 /** Loads foreign key constraints for the table being created. This
  function should be called after the indexes for a table have been
@@ -431,9 +426,8 @@ dberr_t row_create_index_for_mysql(
  @param[in]	name		table full name in normalized form
  @param[in]	dd_table	MySQL dd::Table for the table
  @return error code or DB_SUCCESS */
-dberr_t row_table_load_foreign_constraints(trx_t *trx, const char *name,
-                                           const dd::Table *dd_table)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_table_load_foreign_constraints(
+    trx_t *trx, const char *name, const dd::Table *dd_table);
 
 /** The master thread in srv0srv.cc calls this regularly to drop tables which
  we must drop in background after queries to them have ended. Such lazy
@@ -443,12 +437,11 @@ ulint row_drop_tables_for_mysql_in_background(void);
 
 /** Sets an exclusive lock on a table.
  @return error code or DB_SUCCESS */
-dberr_t row_mysql_lock_table(
-    trx_t *trx,          /*!< in/out: transaction */
-    dict_table_t *table, /*!< in: table to lock */
-    enum lock_mode mode, /*!< in: LOCK_X or LOCK_S */
-    const char *op_info) /*!< in: string for trx->op_info */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_mysql_lock_table(
+    trx_t *trx,           /*!< in/out: transaction */
+    dict_table_t *table,  /*!< in: table to lock */
+    enum lock_mode mode,  /*!< in: LOCK_X or LOCK_S */
+    const char *op_info); /*!< in: string for trx->op_info */
 
 /** Drop a tablespace as part of dropping or renaming a table.
 This deletes the fil_space_t if found and the file on disk.
@@ -482,17 +475,15 @@ inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
  means that this function deletes the .ibd file and assigns a new table id for
  the table. Also the flag table->ibd_file_missing is set TRUE.
  @return error code or DB_SUCCESS */
-dberr_t row_discard_tablespace_for_mysql(
+[[nodiscard]] dberr_t row_discard_tablespace_for_mysql(
     const char *name, /*!< in: table name */
-    trx_t *trx)       /*!< in: transaction handle */
-    MY_ATTRIBUTE((warn_unused_result));
+    trx_t *trx);      /*!< in: transaction handle */
 /** Imports a tablespace. The space id in the .ibd file must match the space id
  of the table in the data dictionary.
  @return error code or DB_SUCCESS */
-dberr_t row_import_tablespace_for_mysql(
-    dict_table_t *table,      /*!< in/out: table */
-    row_prebuilt_t *prebuilt) /*!< in: prebuilt struct in MySQL */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_import_tablespace_for_mysql(
+    dict_table_t *table,       /*!< in/out: table */
+    row_prebuilt_t *prebuilt); /*!< in: prebuilt struct in MySQL */
 
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
@@ -508,10 +499,10 @@ dberr_t row_drop_database_for_mysql(const char *name, trx_t *trx, ulint *found);
 @param[in,out]	trx		transaction
 @param[in]      replay          whether in replay stage
 @return error code or DB_SUCCESS */
-dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
-                                   const dd::Table *dd_table, trx_t *trx,
-                                   bool replay)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_rename_table_for_mysql(const char *old_name,
+                                                 const char *new_name,
+                                                 const dd::Table *dd_table,
+                                                 trx_t *trx, bool replay);
 
 /** Read the total number of records in a consistent view.
 @param[in,out]  trx             Covering transaction.
@@ -533,10 +524,10 @@ in the read view of the current transaction.
 @param[in]      check_keys  True if called form check table.
 @param[out]     n_rows      Number of entries seen in the consistent read.
 @return DB_SUCCESS or other error */
-dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
-                                 size_t n_threads, bool check_keys,
-                                 ulint *n_rows)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt,
+                                               dict_index_t *index,
+                                               size_t n_threads,
+                                               bool check_keys, ulint *n_rows);
 /** Initialize this module */
 void row_mysql_init(void);
 
@@ -1015,6 +1006,15 @@ struct SysIndexCallback {
   virtual void operator()(mtr_t *mtr, btr_pcur_t *pcur) noexcept = 0;
 };
 
+/** Get the updated parent field value from the update vector for the
+given col_no.
+@param[in]      foreign         foreign key information
+@param[in]      update          updated parent vector.
+@param[in]      col_no          base column position of the child table to check
+@return updated field from the parent update vector, else NULL */
+dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
+                                                upd_t *update, uint32_t col_no);
+
 /** Get the computed value by supplying the base column values.
 @param[in,out]	row		the data row
 @param[in]	col		virtual column
@@ -1034,8 +1034,7 @@ dfield_t *innobase_get_computed_value(
     const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
     mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
     THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign, row_prebuilt_t *prebuilt);
-
+    upd_t *parent_update, dict_foreign_t *foreign, mem_heap_t **compress_heap);
 /** Parse out multi-values from a MySQL record
 @param[in]      mysql_table     MySQL table structure
 @param[in]      f_idx           field index of the multi-value column

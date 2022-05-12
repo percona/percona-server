@@ -72,7 +72,6 @@ ENDFOREACH()
 MYSQL_ADD_EXECUTABLE(merge_keyring_vault_tests-t
   ${ALL_KEYRING_VAULT_TESTS}
   ENABLE_EXPORTS
-  EXCLUDE_ON_SOLARIS
   ADD_TEST merge_keyring_vault_tests)
 
 TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t

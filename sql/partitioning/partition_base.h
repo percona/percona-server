@@ -947,7 +947,7 @@ class Partition_base : public handler,
   void set_part_info(partition_info *part_info, bool early) override {
     Partition_helper::set_part_info_low(part_info, early);
   }
-  uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const override {
+  uint alter_flags(uint flags [[maybe_unused]]) const override {
     return (HA_PARTITION_FUNCTION_SUPPORTED | HA_INPLACE_CHANGE_PARTITION);
   }
 

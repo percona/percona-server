@@ -56,8 +56,8 @@ static void gen_rnd_ssn_deinit(UDF_INIT *initid) {
  * @return A random U.S. Social Security number.
  */
 static char *gen_rnd_ssn(UDF_INIT *initid,
-                         UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                         char *result MY_ATTRIBUTE((unused)),
+                         UDF_ARGS *args [[maybe_unused]],
+                         char *result [[maybe_unused]],
                          unsigned long *length, char *, char *) {
   DBUG_ENTER("gen_rnd_ssn");
 

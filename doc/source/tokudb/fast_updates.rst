@@ -14,18 +14,18 @@
 
    We recommend :ref:`migrate-myrocks`.
       
-   Starting with Percona 8.0.28-18, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
 
 Introduction
 ============
 
 Update intensive applications can have their throughput limited by the random
 read capacity of the storage system. The cause of the throughput limit is the
-read-modify-write algorithm that |MySQL| uses to process update statements
+read-modify-write algorithm that *MySQL* uses to process update statements
 (read a row from the storage engine, apply the updates to it, write the new row
 back to the storage engine).
 
-To address this throughput limit, |TokuDB| provides an experimental fast update
+To address this throughput limit, *TokuDB* provides an experimental fast update
 feature, which uses a different update algorithm. Update expressions of the SQL
 statement are encoded into tiny programs that are stored in an update Fractal
 Tree message. This update message is injected into the root of the Fractal Tree
@@ -112,7 +112,7 @@ If the event id’s are random, then the throughput of this application would be
 limited by the random read capacity of the storage system since each ``INSERT``
 statement has to determine if this `event_id` exists in the table.
 
-|TokuDB| replaces the primary key existence check with an insertion of an
+*TokuDB* replaces the primary key existence check with an insertion of an
 “upsert” message into the Fractal Tree index. This “upsert” message contains a
 copy of the row and a program that increments event_count. As the Fractal Tree
 buffer’s get filled, this “upsert” message is flushed down the tree.

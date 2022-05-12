@@ -402,6 +402,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_servers.h"  // FOREIGN_SERVER, get_server_by_name
+#include "sql_common.h"
 #include "template_utils.h"
 #include "unsafe_string_append.h"
 
@@ -459,8 +460,8 @@ static PSI_memory_info all_federated_memory[] = {
 
 #ifdef HAVE_PSI_INTERFACE
 static void init_federated_psi_keys(void) {
-  const char *category MY_ATTRIBUTE((unused)) = "federated";
-  int count MY_ATTRIBUTE((unused));
+  const char *category [[maybe_unused]] = "federated";
+  int count [[maybe_unused]];
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count = static_cast<int>(array_elements(all_federated_mutexes));
@@ -1371,7 +1372,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
             }
             break;
           }
-          // Fall through.
+          [[fallthrough]];
         case HA_READ_KEY_OR_NEXT:
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
           if (emit_key_part_name(&tmp, key_part) ||
@@ -1390,7 +1391,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
               goto err;
             break;
           }
-          // Fall through.
+          [[fallthrough]];
         case HA_READ_KEY_OR_PREV:
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
           if (emit_key_part_name(&tmp, key_part) ||
@@ -1449,7 +1450,6 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table) {
   Field **field;
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
   FEDERATED_SHARE *share = nullptr, tmp_share;
-  MEM_ROOT mem_root;
   DBUG_TRACE;
 
   /*
@@ -1458,7 +1458,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table) {
   */
   query.length(0);
 
-  init_alloc_root(fe_key_memory_federated_share, &mem_root, 256, 0);
+  MEM_ROOT mem_root(fe_key_memory_federated_share, 256);
 
   mysql_mutex_lock(&federated_mutex);
 
@@ -1530,7 +1530,7 @@ static int free_share(FEDERATED_SHARE *share) {
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
     MEM_ROOT mem_root = std::move(share->mem_root);
-    free_root(&mem_root, MYF(0));
+    mem_root.Clear();
   }
   mysql_mutex_unlock(&federated_mutex);
 
@@ -1601,7 +1601,7 @@ int ha_federated::close(void) {
     it will reconnect again and quit silently.
   */
   if (mysql && (!mysql->net.vio || !vio_is_connected(mysql->net.vio)))
-    mysql->net.error = 2;
+    mysql->net.error = NET_ERROR_SOCKET_UNUSABLE;
 
   /* Disconnect from mysql */
   mysql_close(mysql);
@@ -2538,7 +2538,7 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result) {
   @param[in]  record  record data (unused)
 */
 
-void ha_federated::position(const uchar *record MY_ATTRIBUTE((unused))) {
+void ha_federated::position(const uchar *record [[maybe_unused]]) {
   DBUG_TRACE;
 
   assert(stored_result);
@@ -2990,14 +2990,29 @@ int ha_federated::real_connect() {
 }
 
 int ha_federated::real_query(const char *query, size_t length) {
+  THD *thd = current_thd;
   int rc = 0;
+  ulong len = static_cast<ulong>(length);
   DBUG_TRACE;
 
   if (!mysql && (rc = real_connect())) goto end;
 
   if (!query || !length) goto end;
 
-  rc = mysql_real_query(mysql, query, static_cast<ulong>(length));
+  rc = mysql_real_query(mysql, query, len);
+  if (rc) {
+    /*
+      We want to reconnect here because error can occur on reading query
+      result in the case of timeout exceeding. See PS-7999 for details.
+    */
+    if (!mysql || (mysql_errno(mysql) != CR_SERVER_LOST &&
+                   mysql->net.error != NET_ERROR_SOCKET_UNUSABLE))
+      goto end;
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    if (!mysql->reconnect || mysql_reconnect(mysql)) goto end;
+    rc = mysql_real_query(mysql, query, len);
+  }
 
 end:
   return rc;

@@ -116,6 +116,8 @@ SET SESSION long_query_time = @old_long_query_time;
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL slow_query_log = @old_slow_query_log;
 SET GLOBAL general_log = @old_general_log;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;
 
 --echo #-----------------------------------------------------------------------
 --echo # Multi-threaded tests

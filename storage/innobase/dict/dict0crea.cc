@@ -304,18 +304,18 @@ dberr_t dict_build_tablespace_for_table(
     bool exists;
     if (os_file_status(filepath, &exists, &type)) {
       if (exists) {
-        ut_free(filepath);
+        ut::free(filepath);
         return DB_TABLESPACE_EXISTS;
       }
     } else {
-      ut_free(filepath);
+      ut::free(filepath);
       return DB_IO_ERROR;
     }
 
     err = log_ddl->write_delete_space_log(trx, table, space, filepath, false,
                                           false);
     if (err != DB_SUCCESS) {
-      ut_free(filepath);
+      ut::free(filepath);
       return err;
     }
 
@@ -338,7 +338,7 @@ dberr_t dict_build_tablespace_for_table(
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
                          size, mode, keyring_encryption_key_id);
 
-    ut_free(filepath);
+    ut::free(filepath);
 
     DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
                       crash_injection_after_create_counter++);

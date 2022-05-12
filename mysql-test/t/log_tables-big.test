@@ -37,6 +37,7 @@ disconnect con2;
 
 --source include/wait_until_count_sessions.inc
 
-TRUNCATE mysql.slow_log;
-
 set @@global.log_output=default;
+
+TRUNCATE mysql.general_log;
+TRUNCATE mysql.slow_log;

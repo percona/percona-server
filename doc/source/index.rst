@@ -35,6 +35,15 @@ Installation
    installation
    installation/post-installation
 
+Run in Docker
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   installation/docker
+
 Scalability Improvements
 ================================================================================
 
@@ -79,6 +88,7 @@ Flexibility Improvements
    flexibility/binlogging_replication_improvements
    flexibility/extended_set_var
    flexibility/sequence_table
+   flexibility/slowlog_rotation
 
 Reliability Improvements
 ================================================================================
@@ -124,6 +134,7 @@ Security Improvements
   security/data-at-rest-encryption
   security/vault
   security/using-keyring-plugin
+  security/using-kmip
   security/rotating-master-key
   security/encrypting-tables
   security/encrypting-tablespaces
@@ -165,6 +176,7 @@ Percona MyRocks
 
    MyRocks Introduction <myrocks/index>
    MyRocks Installation <myrocks/install>
+   MyRocks Supported Features <myrocks/added-features>
    MyRocks Limitations <myrocks/limitations>
    MyRocks Differences <myrocks/differences>
    MyRocks Information Schema Tables <myrocks/information-schema-tables>
@@ -196,7 +208,7 @@ TokuDB
    tokudb/tokudb_faq
    tokudb/removing_tokudb
 
-Reference
+Release notes
 ================================================================================
 
 .. toctree::
@@ -204,6 +216,14 @@ Reference
    :glob:
 
    release-notes/release-notes_index
+
+Reference
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
    upstream-bug-fixes
    ps-variables
    development

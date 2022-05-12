@@ -181,7 +181,7 @@ These functions generate random values for specific requirements.
             +-------------------------------+
             | gen_rnd_us_phone()            |
             +-------------------------------+
-            | 1-555-635-5709                 |
+            | 1-555-635-5709                |
             +-------------------------------+
     * - gen_rnd_ssn()
       - Generates a random, non-legitimate US Social Security Number in an ``AAA-BBB-CCCC`` format. This function should only be used for test purposes.

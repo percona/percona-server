@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <vector>
 
 #include "btr0sea.h"
+#include "ddl0ddl.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -67,7 +68,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0ext.h"
 #include "row0import.h"
 #include "row0ins.h"
-#include "row0merge.h"
 #include "row0mysql.h"
 #include "row0pread.h"
 #include "row0row.h"
@@ -358,8 +358,8 @@ static void *column_zip_zalloc(void *opaque, uInt items, uInt size) noexcept {
 /** Deallocate memory for zlib.
 @param[in]      opaque  memory heap
 @param[in]      address object to free */
-static void column_zip_free(void *opaque MY_ATTRIBUTE((unused)),
-                            void *address MY_ATTRIBUTE((unused))) noexcept {}
+static void column_zip_free(void *opaque [[maybe_unused]],
+                            void *address [[maybe_unused]]) noexcept {}
 
 /** Configure the zlib allocator to use the given memory heap.
 @param[in,out]  stream  zlib stream
@@ -384,11 +384,11 @@ static void column_zip_set_alloc(void *stream, mem_heap_t *heap) noexcept {
 @param[in]      lenlen          bytes used to store the length of data
 @param[in]      dict_data       optional dictionary data used for compression
 @param[in]      dict_data_len   optional dictionary data length
-@param[in]      prebuilt        use prebuilt->compress only here
+@param[in]      compress_heap
 @return pointer to the compressed data */
 byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
                           const byte *dict_data, ulint dict_data_len,
-                          row_prebuilt_t *prebuilt) {
+                          mem_heap_t **compress_heap) {
   int err = 0;
   ulint comp_len = *len;
   ulint buf_len = *len + zip_column_prefix_max_length;
@@ -399,10 +399,10 @@ byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
 
   int window_bits = wrap ? MAX_WBITS : -MAX_WBITS;
 
-  if (!prebuilt->compress_heap)
-    prebuilt->compress_heap = mem_heap_create(ut_max(UNIV_PAGE_SIZE, buf_len));
+  if (!*compress_heap)
+    *compress_heap = mem_heap_create(ut_max(UNIV_PAGE_SIZE, buf_len));
 
-  buf = static_cast<byte *>(mem_heap_zalloc(prebuilt->compress_heap, buf_len));
+  buf = static_cast<byte *>(mem_heap_zalloc(*compress_heap, buf_len));
 
   if (*len < srv_compressed_columns_threshold ||
       srv_compressed_columns_zip_level == Z_NO_COMPRESSION)
@@ -416,7 +416,7 @@ byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
   c_stream.next_out = ptr;
   c_stream.avail_out = comp_len;
 
-  column_zip_set_alloc(&c_stream, prebuilt->compress_heap);
+  column_zip_set_alloc(&c_stream, *compress_heap);
 
   err = deflateInit2(&c_stream, srv_compressed_columns_zip_level, Z_DEFLATED,
                      window_bits, MAX_MEM_LEVEL,
@@ -490,11 +490,11 @@ do_not_compress:
 @param[in,out]  len     in: data length; out: length of decompressed data
 @param[in]      dict_data       optional dictionary data used for decompression
 @param[in]      dict_data_len   optional dictionary data length
-@param[in]      prebuilt        use prebuilt->compress_heap only here
+@param[in]      compress_heap
 @return pointer to the uncompressed data */
 const byte *row_decompress_column(const byte *data, ulint *len,
                                   const byte *dict_data, ulint dict_data_len,
-                                  row_prebuilt_t *prebuilt) {
+                                  mem_heap_t **compress_heap) {
   ulint buf_len = 0;
   byte *buf;
   int err = 0;
@@ -513,11 +513,11 @@ const byte *row_decompress_column(const byte *data, ulint *len,
                              &reserved);
 
   if (reserved != default_zip_column_reserved_value) {
-    ib::fatal() << "unsupported compressed BLOB header format\n";
+    ib::fatal(UT_LOCATION_HERE) << "unsupported compressed BLOB header format\n";
   }
 
   if (alg != default_zip_column_algorithm_value) {
-    ib::fatal() << "unsupported 'algorithm' value in the compressed BLOB "
+    ib::fatal(UT_LOCATION_HERE) << "unsupported 'algorithm' value in the compressed BLOB "
                    "header\n";
   }
 
@@ -554,13 +554,13 @@ const byte *row_decompress_column(const byte *data, ulint *len,
   data += lenlen;
 
   /* data is compressed, decompress it*/
-  if (!prebuilt->compress_heap) {
-    prebuilt->compress_heap =
+  if (!*compress_heap) {
+    *compress_heap =
         mem_heap_create(ut_max(UNIV_PAGE_SIZE, uncomp_len));
   }
 
   buf_len = uncomp_len;
-  buf = static_cast<byte *>(mem_heap_zalloc(prebuilt->compress_heap, buf_len));
+  buf = static_cast<byte *>(mem_heap_zalloc(*compress_heap, buf_len));
 
   /* init d_stream */
   d_stream.next_in = const_cast<Bytef *>(data);
@@ -568,7 +568,7 @@ const byte *row_decompress_column(const byte *data, ulint *len,
   d_stream.next_out = buf;
   d_stream.avail_out = buf_len;
 
-  column_zip_set_alloc(&d_stream, prebuilt->compress_heap);
+  column_zip_set_alloc(&d_stream, *compress_heap);
 
   window_bits = wrap ? MAX_WBITS : -MAX_WBITS;
   err = inflateInit2(&d_stream, window_bits);
@@ -595,15 +595,15 @@ const byte *row_decompress_column(const byte *data, ulint *len,
     case Z_OK:
       break;
     case Z_BUF_ERROR:
-      ib::fatal() << "zlib buf error, this shouldn't happen\n";
+      ib::fatal(UT_LOCATION_HERE) << "zlib buf error, this shouldn't happen\n";
       break;
     default:
-      ib::fatal() << "failed to decompress column, error: " << err << '\n';
+      ib::fatal(UT_LOCATION_HERE) << "failed to decompress column, error: " << err << '\n';
   }
 
   if (err == Z_OK) {
     if (buf_len != uncomp_len) {
-      ib::fatal() << "failed to decompress blob column, may be corrupted\n";
+      ib::fatal(UT_LOCATION_HERE) << "failed to decompress blob column, may be corrupted\n";
     }
     *len = buf_len;
     return buf;
@@ -624,11 +624,11 @@ remember also to set the null bit in the mysql record header!
 @param[in] need_decompression If the data need to be compressed
 @param[in] dict_data Optional compression dictionary
 @param[in] dict_data_len Optional compression dictionary data
-@param[in] prebuilt Use prebuilt->compress_heap only here */
+@param[in] compress_heap */
 void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
                               ulint len, bool need_decompression,
                               const byte *dict_data, ulint dict_data_len,
-                              row_prebuilt_t *prebuilt) {
+                              mem_heap_t **compress_heap) {
   /* MySQL might assume the field is set to zero except the length and
   the pointer fields */
 
@@ -651,7 +651,7 @@ void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
 
   if (need_decompression)
     ptr = row_decompress_column((const byte *)data, &len, dict_data,
-                                dict_data_len, prebuilt);
+                                dict_data_len, compress_heap);
 
   if (ptr)
     memcpy(dest + col_len - 8, &ptr, sizeof ptr);
@@ -664,7 +664,7 @@ void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
 const byte *row_mysql_read_blob_ref(ulint *len, const byte *ref, ulint col_len,
                                     bool need_compression,
                                     const byte *dict_data, ulint dict_data_len,
-                                    row_prebuilt_t *prebuilt) {
+                                    mem_heap_t **compress_heap) {
   byte *data = nullptr;
   byte *ptr = nullptr;
 
@@ -674,7 +674,7 @@ const byte *row_mysql_read_blob_ref(ulint *len, const byte *ref, ulint col_len,
 
   if (need_compression) {
     ptr = row_compress_column(data, len, col_len - 8, dict_data, dict_data_len,
-                              prebuilt);
+                              compress_heap);
     if (ptr) data = ptr;
   }
 
@@ -848,8 +848,7 @@ byte *row_mysql_store_col_in_innobase_format(
                               dictionary data */
     ulint dict_data_len,      /*!< in: optional compression
                               dictionary data length */
-    row_prebuilt_t *prebuilt) /*!< in: use prebuilt->compress_heap
-                              only here */
+    mem_heap_t **compress_heap) /*!< in: compress_heap */
 {
   const byte *ptr = mysql_data;
   const dtype_t *dtype;
@@ -903,7 +902,7 @@ byte *row_mysql_store_col_in_innobase_format(
           row_mysql_read_true_varchar(&col_len, mysql_data, lenlen);
       if (need_compression)
         ptr = row_compress_column(tmp_ptr, &col_len, lenlen, dict_data,
-                                  dict_data_len, prebuilt);
+                                  dict_data_len, compress_heap);
       else
         ptr = tmp_ptr;
     } else {
@@ -988,7 +987,7 @@ byte *row_mysql_store_col_in_innobase_format(
   } else if (type == DATA_BLOB) {
     ptr =
         row_mysql_read_blob_ref(&col_len, mysql_data, col_len, need_compression,
-                                dict_data, dict_data_len, prebuilt);
+                                dict_data, dict_data_len, compress_heap);
   } else if (DATA_GEOMETRY_MTYPE(type)) {
     /* We use blob to store geometry data except DATA_POINT
     internally, but in MySQL Layer the datatype is always blob. */
@@ -1080,7 +1079,7 @@ static void row_mysql_convert_row_to_innobase(
           mysql_rec + templ->mysql_col_offset, templ->mysql_col_len,
           dict_table_is_comp(prebuilt->table), templ->compressed,
           reinterpret_cast<const byte *>(templ->zip_dict_data.str),
-          templ->zip_dict_data.length, prebuilt);
+          templ->zip_dict_data.length, &prebuilt->compress_heap);
 
       /* server has issue regarding handling BLOB virtual fields,
       and we need to duplicate it with our own memory here */
@@ -1130,7 +1129,7 @@ handle_new_error:
         trx_rollback_to_savepoint(trx, nullptr);
         break;
       }
-    /* fall through */
+      [[fallthrough]];
     case DB_DUPLICATE_KEY:
     case DB_FOREIGN_DUPLICATE_KEY:
     case DB_TOO_BIG_RECORD:
@@ -1185,7 +1184,7 @@ handle_new_error:
       break;
 
     case DB_MUST_GET_MORE_FILE_SPACE:
-      ib::fatal(ER_IB_MSG_972)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_972)
           << "The database cannot continue operation because"
              " of lack of space. You must add a new data file"
              " to my.cnf and restart the database.";
@@ -1210,7 +1209,7 @@ handle_new_error:
              " foreign constraints and try again";
       break;
     default:
-      ib::fatal(ER_IB_MSG_975)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_975)
           << "Unknown error code " << err << ": " << ut_strerr(err);
   }
 
@@ -1401,7 +1400,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
   btr_pcur_reset(prebuilt->pcur);
   btr_pcur_reset(prebuilt->clust_pcur);
 
-  ut_free(prebuilt->mysql_template);
+  ut::free(prebuilt->mysql_template);
 
   if (prebuilt->ins_graph) {
     que_graph_free_recursive(prebuilt->ins_graph);
@@ -1445,7 +1444,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
       ptr += 4;
     }
 
-    ut_free(base);
+    ut::free(base);
   }
 
   if (prebuilt->rtr_info) {
@@ -2421,7 +2420,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   return (DB_SUCCESS);
 }
 
-typedef std::vector<btr_pcur_t, ut_allocator<btr_pcur_t>> cursors_t;
+typedef std::vector<btr_pcur_t, ut::allocator<btr_pcur_t>> cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
@@ -3520,8 +3519,8 @@ error_handling:
   trx->op_info = "";
   trx->dict_operation = TRX_DICT_OP_NONE;
 
-  ut_free(table_name);
-  ut_free(index_name);
+  ut::free(table_name);
+  ut::free(index_name);
 
   return (err);
 }
@@ -3663,7 +3662,7 @@ loop:
     if (thd != nullptr) {
       /* All these kind of table should not be
       intrinsic ones, so this is no need later. */
-      UT_DELETE(thd_to_innodb_session(thd));
+      ut::delete_(thd_to_innodb_session(thd));
       thd_to_innodb_session(thd) = nullptr;
     }
 
@@ -3705,7 +3704,7 @@ loop:
     if (thd != nullptr) {
       /* All these kind of table should not be
       intrinsic ones, so this is no need later. */
-      UT_DELETE(thd_to_innodb_session(thd));
+      ut::delete_(thd_to_innodb_session(thd));
       thd_to_innodb_session(thd) = nullptr;
     }
 
@@ -3728,9 +3727,9 @@ already_dropped:
                           << ut_get_name(nullptr, drop->table_name)
                           << " in background drop queue.",
 
-      ut_free(drop->table_name);
+      ut::free(drop->table_name);
 
-  ut_free(drop);
+  ut::free(drop);
 
   mutex_exit(&row_drop_list_mutex);
 
@@ -3765,7 +3764,7 @@ static ibool row_add_table_to_background_drop_list(
   }
 
   auto drop = static_cast<row_mysql_drop_t *>(
-      ut_malloc_nokey(sizeof(row_mysql_drop_t)));
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(row_mysql_drop_t)));
 
   drop->table_name = mem_strdup(name);
 
@@ -4608,7 +4607,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
 funct_exit:
 
-  ut_free(filepath);
+  ut::free(filepath);
 
   if (locked_dictionary) {
     row_mysql_unlock_data_dictionary(trx);
@@ -4636,8 +4635,7 @@ funct_exit:
   return err;
 }
 
-MY_ATTRIBUTE((warn_unused_result))
-bool row_is_mysql_tmp_table_name(const char *name) {
+[[nodiscard]] bool row_is_mysql_tmp_table_name(const char *name) {
   return (strstr(name, "/" TEMP_FILE_PREFIX) != nullptr);
   /* return(strstr(name, "/@0023sql") != NULL); */
 }
@@ -4855,67 +4853,47 @@ funct_exit:
   return (err);
 }
 
-/** Read the total number of records in a consistent view.
-@param[in,out]  trx             Covering transaction.
-@param[in]  indexes             Indexes to scan.
-@param[in]  max_threads         Maximum number of threads to use.
-@param[out] n_rows              Number of rows seen.
-@return DB_SUCCESS or error code. */
 dberr_t row_mysql_parallel_select_count_star(
-    trx_t *trx, std::vector<dict_index_t *> &indexes, size_t max_threads,
+    trx_t *trx, std::vector<dict_index_t *> &indexes, size_t n_threads,
     ulint *n_rows) {
+  ut_a(n_threads > 1);
   ut_a(!indexes.empty());
   using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
 
   Shards n_recs;
   Counter::clear(n_recs);
 
-  struct alignas(ut::INNODB_CACHE_LINE_SIZE) Check_interrupt {
-    size_t m_count{};
-    const buf_block_t *m_prev_block{};
-  };
-
-  Check_interrupt checker[Parallel_reader::MAX_THREADS] = {};
-
-  Parallel_reader reader(max_threads);
-
   const Parallel_reader::Scan_range FULL_SCAN;
 
-  // clang-format off
-  bool success{};
+  Parallel_reader reader(n_threads);
+
+  dberr_t err{DB_SUCCESS};
 
   for (auto index : indexes) {
     Parallel_reader::Config config(FULL_SCAN, index);
 
-    success =
-      reader.add_scan(trx, config, [&](const Parallel_reader::Ctx *ctx) {
+    err = reader.add_scan(trx, config, [&](const Parallel_reader::Ctx *ctx) {
       Counter::inc(n_recs, ctx->thread_id());
-
-      auto &check = checker[ctx->thread_id()];
-
-      if (ctx->m_block != check.m_prev_block) {
-        check.m_prev_block = ctx->m_block;
-
-        ++check.m_count;
-      }
-      return (DB_SUCCESS);
+      return DB_SUCCESS;
     });
 
-    if (!success) {
+    if (err != DB_SUCCESS) {
       break;
     }
   }
-  // clang-format on
 
-  auto err = success ? reader.run() : DB_ERROR;
+  if (err == DB_SUCCESS) {
+    err = reader.run(n_threads);
+  }
 
   if (err == DB_OUT_OF_RESOURCES) {
+    ut_a(n_threads > 0);
+
     ib::warn(ER_INNODB_OUT_OF_RESOURCES)
         << "Resource not available to create threads for parallel scan."
         << " Falling back to single thread mode.";
 
-    reader.fallback_to_single_threaded_mode();
-    err = reader.run();
+    err = reader.run(0);
   }
 
   if (err == DB_SUCCESS) {
@@ -4926,17 +4904,12 @@ dberr_t row_mysql_parallel_select_count_star(
     });
   }
 
-  return (err);
+  return err;
 }
 
-/** Scan the rows in parallel.
-@param[in,out] trx              Transaction covering the scan.
-@param[in] index                (Cluster) Index to scan.
-@param[in] max_threads          Maximum threads to use for the scan.
-@param[out] n_rows              Number of rows seen.
-@return DB_SUCCESS or error code. */
 static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
-                                    size_t max_threads, ulint *n_rows) {
+                                    size_t n_threads, ulint *n_rows) {
+  ut_a(n_threads > 1);
   using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
 
   Shards n_recs{};
@@ -4947,49 +4920,29 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
   Counter::clear(n_recs);
   Counter::clear(n_corrupt);
 
-  using Tuples = std::vector<dtuple_t *, ut_allocator<dtuple_t *>>;
-  using Heaps = std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>>;
-  using Blocks =
-      std::vector<const buf_block_t *, ut_allocator<const buf_block_t *>>;
+  using Tuples = std::vector<dtuple_t *, ut::allocator<dtuple_t *>>;
+  using Heaps = std::vector<mem_heap_t *, ut::allocator<mem_heap_t *>>;
+  using Buf_block_allocator = ut::allocator<const buf_block_t *>;
+  using Blocks = std::vector<const buf_block_t *, Buf_block_allocator>;
 
+  Heaps heaps;
   Tuples prev_tuples;
   Blocks prev_blocks;
 
-  Heaps heaps;
-
-  for (size_t i = 0; i < max_threads; ++i) {
-    heaps.push_back(mem_heap_create(100));
+  for (size_t i = 0; i < n_threads; ++i) {
+    heaps.push_back(mem_heap_create(4096));
   }
 
-  /* Check for transaction interrupted every 1000 rows. */
-  size_t counter = 1000;
-
-  Parallel_reader reader(max_threads);
-
+  Parallel_reader reader(n_threads);
   Parallel_reader::Scan_range full_scan;
-
   Parallel_reader::Config config(full_scan, index);
 
-  // clang-format off
-  dberr_t err = reader.add_scan(
-    trx, config, [&](const Parallel_reader::Ctx* ctx) {
-
+  auto err = reader.add_scan(trx, config, [&](const Parallel_reader::Ctx *ctx) {
     const auto rec = ctx->m_rec;
     const auto block = ctx->m_block;
     const auto id = ctx->thread_id();
 
     Counter::inc(n_recs, id);
-
-    /* Only check the THD state for the first thread. */
-    if (id == 0) {
-      --counter;
-
-      if (counter == 0 && trx_is_interrupted(trx)) {
-        return (DB_INTERRUPTED);
-      }
-
-      counter = 1000;
-    }
 
     auto heap = heaps[id];
 
@@ -5027,9 +4980,9 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
         Counter::inc(n_corrupt, id);
 
         ib::error(ER_IB_ERR_INDEX_RECORDS_WRONG_ORDER)
-          << "Index records in a wrong order in " << index->name
-          << " of table " << index->table->name << ": " << *prev_tuple
-          << ", " << rec_offsets_print(rec, offsets);
+            << "Index records in a wrong order in " << index->name
+            << " of table " << index->table->name << ": " << *prev_tuple << ", "
+            << rec_offsets_print(rec, offsets);
         /* Continue reading */
       } else if (dict_index_is_unique(index) && !contains_null &&
                  matched_fields >=
@@ -5037,9 +4990,9 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
         Counter::inc(n_dups, id);
 
         ib::error(ER_IB_ERR_INDEX_DUPLICATE_KEY)
-          << "Duplicate key in " << index->name << " of table "
-          << index->table->name << ": " << *prev_tuple << ", "
-          << rec_offsets_print(rec, offsets);
+            << "Duplicate key in " << index->name << " of table "
+            << index->table->name << ": " << *prev_tuple << ", "
+            << rec_offsets_print(rec, offsets);
       }
     }
 
@@ -5052,25 +5005,23 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
     prev_tuples[id] = row_rec_to_index_entry(rec, index, offsets, heap);
 
-    return (DB_SUCCESS);
+    return DB_SUCCESS;
   });
 
-  // clang-format off
-
   if (err == DB_SUCCESS) {
-    prev_tuples.resize(max_threads);
-    prev_blocks.resize(max_threads);
+    prev_tuples.resize(n_threads);
+    prev_blocks.resize(n_threads);
 
-    err = reader.run();
+    err = reader.run(n_threads);
   }
 
   if (err == DB_OUT_OF_RESOURCES) {
+    ut_a(n_threads > 0);
     ib::warn(ER_INNODB_OUT_OF_RESOURCES)
-      << "Resource not available to create threads for parallel scan."
-      << " Falling back to single thread mode.";
+        << "Resource not available to create threads for parallel scan."
+        << " Falling back to single thread mode.";
 
-    reader.fallback_to_single_threaded_mode();
-    err = reader.run();
+    err = reader.run(0);
   }
 
   for (auto heap : heaps) {
@@ -5079,22 +5030,23 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
   if (Counter::total(n_dups) > 0) {
     ib::error(ER_IB_ERR_FOUND_N_DUPLICATE_KEYS)
-      << "Found " << Counter::total(n_dups) << " duplicate rows in "
-      << index->name;
+        << "Found " << Counter::total(n_dups) << " duplicate rows in "
+        << index->name;
 
     err = DB_DUPLICATE_KEY;
   }
 
   if (Counter::total(n_corrupt) > 0) {
-    ib::error(ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER) << "Found " << Counter::total(n_corrupt)
-                << " rows in the wrong order in " << index->name;
+    ib::error(ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER)
+        << "Found " << Counter::total(n_corrupt)
+        << " rows in the wrong order in " << index->name;
 
     err = DB_INDEX_CORRUPT;
   }
 
   *n_rows = Counter::total(n_recs);
 
-  return (err);
+  return err;
 }
 
 dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
@@ -5126,10 +5078,9 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
       prebuilt->select_lock_type == LOCK_NONE && index->is_clustered() &&
       (check_keys || prebuilt->trx->mysql_n_tables_locked == 0) &&
       !prebuilt->ins_sel_stmt) {
+    auto n_threads = Parallel_reader::available_threads(max_threads, false);
 
-    max_threads = Parallel_reader::available_threads(max_threads);
-
-    if (max_threads > 0) {
+    if (n_threads > 1) {
       /* No INSERT INTO  ... SELECT  and non-locking selects only. */
       trx_start_if_not_started_xa(prebuilt->trx, false);
 
@@ -5139,16 +5090,19 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
 
       ut_a(prebuilt->table == index->table);
 
-      std::vector<dict_index_t*> indexes;
+      std::vector<dict_index_t *> indexes;
 
       indexes.push_back(index);
 
       if (!check_keys) {
-        return (row_mysql_parallel_select_count_star(trx, indexes, max_threads,
-                                                     n_rows));
+        return row_mysql_parallel_select_count_star(trx, indexes, n_threads,
+                                                    n_rows);
       }
 
-      return (parallel_check_table(trx, index, max_threads, n_rows));
+      return parallel_check_table(trx, index, n_threads, n_rows);
+    } else if (n_threads == 1) {
+      /* If there is a single thread available then we do a sync scan. */
+      Parallel_reader::release_threads(n_threads);
     }
   }
 
@@ -5167,7 +5121,8 @@ skip_parallel_read:
 
   ulint cnt = 1000;
   ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-  auto buf = static_cast<byte *>(ut_malloc_nokey(bufsize));
+  auto buf = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, bufsize));
   auto heap = mem_heap_create(100);
 
   auto ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
@@ -5197,12 +5152,12 @@ loop:
                                   " table "
                                << index->table->name << " returned " << ret;
     }
-      /* Fall through */
-      /* (this error is ignored by CHECK TABLE) */
+      /* fall through (this error is ignored by CHECK TABLE) */
+      [[fallthrough]];
     case DB_END_OF_INDEX:
       ret = DB_SUCCESS;
     func_exit:
-      ut_free(buf);
+      ut::free(buf);
       mem_heap_free(heap);
 
       return (ret);
@@ -5299,6 +5254,8 @@ void row_mysql_init(void) {
 
 /** Close this module */
 void row_mysql_close(void) {
+  if (!row_mysql_drop_list_inited) return;
+
   ut_a(UT_LIST_GET_LEN(row_mysql_drop_list) == 0);
 
   mutex_free(&row_drop_list_mutex);
@@ -5338,8 +5295,8 @@ bool row_prebuilt_t::skip_concurrency_ticket() const {
 
   /* Skip concurrency ticket while implicitly updating GTID table. This is to
   avoid deadlock otherwise possible with low innodb_thread_concurrency.
-  Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket -> wait for GTID flush
-  GTID Background: Write to GTID table -> wait for innodb ticket. */
+  Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket -> wait for GTID
+  flush GTID Background: Write to GTID table -> wait for innodb ticket. */
   auto thd = trx->mysql_thd;
   if (thd == nullptr) {
     thd = current_thd;

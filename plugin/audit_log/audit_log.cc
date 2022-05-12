@@ -1339,18 +1339,24 @@ static MYSQL_THDVAR_STR(query_stack,
                             PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
                         "Query stack.", nullptr, nullptr, "");
 
-static int audit_log_exclude_accounts_validate(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *save, st_mysql_value *value) {
+static const char *val_strmake(MYSQL_THD thd,
+                               struct st_mysql_value *mysql_val) {
+  char buf[STRING_BUFFER_USUAL_SIZE];
+  int len = sizeof(buf);
+  const char *val = mysql_val->val_str(mysql_val, buf, &len);
+
+  if (val != NULL) val = thd_strmake(thd, val, len);
+
+  return val;
+}
+
+static int audit_log_exclude_accounts_validate(MYSQL_THD thd,
+                                               SYS_VAR *var [[maybe_unused]],
+                                               void *save,
+                                               st_mysql_value *value) {
   if (audit_log_include_accounts) return 1;
 
-  const char *new_val;
-  char buf[80];
-  int len = sizeof(buf);
-
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save) = val_strmake(thd, value);
 
   return 0;
 }
@@ -1381,18 +1387,13 @@ static MYSQL_SYSVAR_STR(exclude_accounts, audit_log_exclude_accounts,
                         audit_log_exclude_accounts_validate,
                         audit_log_exclude_accounts_update, nullptr);
 
-static int audit_log_include_accounts_validate(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *save, st_mysql_value *value) {
+static int audit_log_include_accounts_validate(MYSQL_THD thd,
+                                               SYS_VAR *var [[maybe_unused]],
+                                               void *save,
+                                               st_mysql_value *value) {
   if (audit_log_exclude_accounts) return 1;
 
-  const char *new_val;
-  char buf[80];
-  int len = sizeof(buf);
-
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save) = val_strmake(thd, value);
 
   return 0;
 }
@@ -1422,18 +1423,13 @@ static MYSQL_SYSVAR_STR(
     audit_log_include_accounts_validate, audit_log_include_accounts_update,
     nullptr);
 
-static int audit_log_exclude_databases_validate(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *save, st_mysql_value *value) {
+static int audit_log_exclude_databases_validate(MYSQL_THD thd,
+                                                SYS_VAR *var [[maybe_unused]],
+                                                void *save,
+                                                st_mysql_value *value) {
   if (audit_log_include_databases) return 1;
 
-  const char *new_val;
-  char buf[80];
-  int len = sizeof(buf);
-
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save) = val_strmake(thd, value);
 
   return 0;
 }
@@ -1464,18 +1460,13 @@ static MYSQL_SYSVAR_STR(exclude_databases, audit_log_exclude_databases,
                         audit_log_exclude_databases_validate,
                         audit_log_exclude_databases_update, nullptr);
 
-static int audit_log_include_databases_validate(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *save, st_mysql_value *value) {
+static int audit_log_include_databases_validate(MYSQL_THD thd,
+                                                SYS_VAR *var [[maybe_unused]],
+                                                void *save,
+                                                st_mysql_value *value) {
   if (audit_log_exclude_databases) return 1;
 
-  const char *new_val;
-  char buf[80];
-  int len = sizeof(buf);
-
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save) = val_strmake(thd, value);
 
   return 0;
 }
@@ -1505,18 +1496,13 @@ static MYSQL_SYSVAR_STR(
     audit_log_include_databases_validate, audit_log_include_databases_update,
     nullptr);
 
-static int audit_log_exclude_commands_validate(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *save, st_mysql_value *value) {
+static int audit_log_exclude_commands_validate(MYSQL_THD thd,
+                                               SYS_VAR *var [[maybe_unused]],
+                                               void *save,
+                                               st_mysql_value *value) {
   if (audit_log_include_commands) return 1;
 
-  const char *new_val;
-  char buf[80];
-  int len = sizeof(buf);
-
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save) = val_strmake(thd, value);
 
   return 0;
 }
@@ -1547,18 +1533,13 @@ static MYSQL_SYSVAR_STR(exclude_commands, audit_log_exclude_commands,
                         audit_log_exclude_commands_validate,
                         audit_log_exclude_commands_update, nullptr);
 
-static int audit_log_include_commands_validate(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *save, st_mysql_value *value) {
+static int audit_log_include_commands_validate(MYSQL_THD thd,
+                                               SYS_VAR *var [[maybe_unused]],
+                                               void *save,
+                                               st_mysql_value *value) {
   if (audit_log_exclude_commands) return 1;
 
-  const char *new_val;
-  char buf[80];
-  int len = sizeof(buf);
-
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save) = val_strmake(thd, value);
 
   return 0;
 }

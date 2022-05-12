@@ -21,6 +21,10 @@ Specific information on the supported platforms, products, and versions are desc
 |Percona Server| is certified for Red Hat Enterprise Linux 8. This certification is based on common and secure best practices, and successful interoperability with the operating system. Percona Server is listed in the `Red Hat Ecosystem Catalog <https://catalog.redhat.com/software/applications/detail/5869161>`_. 
 
 
+.. note:: 
+
+    The RPM packages for Red Hat Enterprise Linux 7 (and compatible derivatives)  do not support TLSv1.3, as it requires OpenSSL 1.1.1, which is currently not available on this platform. 
+  
 
 What's in each RPM package?
 ===========================
@@ -94,9 +98,13 @@ You can install Percona yum repository by running the following commands as a ``
 
    |Percona Server| 8.0 also provides the :ref:`TokuDB storage engine
    <tokudb_intro>` and :ref:`MyRocks <myrocks_intro>` storage engines which can
-   be installed as plugins. For more information on how
-   to install and enable the |TokuDB| storage review the :ref:`tokudb_installation`
-   document. For information on how to install and enable |MyRocks| review the
+   be installed as plugins. 
+
+   Starting with Percona Server for MySQL :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds. For more information, see :ref:`tokudb_intro`.
+
+   For more information on how to install and enable the |TokuDB| storage review the :ref:`tokudb_installation` document. 
+
+   For information on how to install and enable |MyRocks| review the
    section :ref:`myrocks_install`.
 
 Percona `yum` Testing repository

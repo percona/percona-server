@@ -6,18 +6,15 @@ Percona TokuBackup
 
 .. Important:: 
 
-   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
-    
+   Starting with Percona Server for MySQL :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds.
+
    Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
 
-   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+   We recommend :ref:`migrate-myrocks`. To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
 
-   We recommend :ref:`migrate-myrocks`.
-      
-   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
 
-
-Percona |TokuBackup| is an open-source hot backup utility for |MySQL| servers running the |TokuDB| storage engine (including |Percona Server| and |MariaDB|). It does not lock your database during backup. The |TokuBackup| library intercepts system calls that write files and duplicates the writes to the backup directory.
+Percona *TokuBackup* is an open-source hot backup utility for *MySQL* servers running the *TokuDB* storage engine (including *Percona Server for MySQL* and *MariaDB*). It does not lock your database during backup. The *TokuBackup* library intercepts system calls that write files and duplicates the writes to the backup directory.
 
 .. note:: This feature is currently considered *tech preview* and should not be used in a production environment. 
 
@@ -27,11 +24,11 @@ Percona |TokuBackup| is an open-source hot backup utility for |MySQL| servers ru
 Installing From Binaries
 ------------------------
 
-The installation of |TokuBackup| can be performed with the |ps-admin| script.
+The installation of *TokuBackup* can be performed with the **ps-admin** script.
 
-To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|.
+To install *Percona TokuBackup* complete the following steps. Run the following commands as root or by using the **sudo** command.
 
-1. Run |ps-admin.enable-tokubackup| to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
+1. Run **ps-admin.enable-tokubackup** to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
 
    .. admonition:: Output
 
@@ -50,8 +47,8 @@ To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|
 	 INFO: Successfully added preload-hotbackup option into /etc/my.cnf
 	 PLEASE RESTART MYSQL SERVICE AND RUN THIS SCRIPT AGAIN TO FINISH INSTALLATION!
 
-2. Restart mysql service: |service.mysql.restart|
-3. Run |ps-admin.enable-tokubackup| again to finish the installation of the |TokuBackup| plugin.
+2. Restart mysql service: :bash:`service mysql restart
+3. Run :program:`ps-admin --enable-tokubackup` again to finish the installation of the *TokuBackup* plugin.
 
    .. admonition:: Output
 
@@ -75,8 +72,8 @@ To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|
 Making a Backup
 ---------------
 
-To run |Percona TokuBackup|, the backup destination directory must
-exist, be writable and owned by the same user under which |MySQL|
+To run *Percona TokuBackup*, the backup destination directory must
+exist, be writable and owned by the same user under which *MySQL*
 server is running (usually ``mysql``) and empty.
 
 Once this directory is created, the backup can be run using the
@@ -100,14 +97,14 @@ find out the reason.
 Restoring From Backup
 ---------------------
 
-|Percona TokuBackup| does not have any functionality for restoring a
+*Percona TokuBackup* does not have any functionality for restoring a
 backup. You can use :command:`rsync` or :command:`cp` to restore the
 files. You should check that the restored files have the correct
 ownership and permissions.
 
 .. note::
 
-   Make sure that the datadir is empty and that |MySQL| server is shut
+   Make sure that the datadir is empty and that *MySQL* server is shut
    down before restoring from backup. You can't restore to a datadir
    of a running mysqld instance (except when importing a partial
    backup).
@@ -124,7 +121,7 @@ Since attributes of files are preserved, in most cases you will need to change t
 
   $ chown -R mysql:mysql /var/lib/mysql
 
-If you have changed default |TokuDB| data directory (:variable:`tokudb_data_dir`) or |TokuDB| log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately:
+If you have changed default *TokuDB* data directory (:variable:`tokudb_data_dir`) or *TokuDB* log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately:
 
 .. code-block:: bash
 
@@ -144,7 +141,7 @@ Advanced Configuration
 Monitoring Progress
 *******************
 
-|TokuBackup| updates the *PROCESSLIST* state while the backup is in progress. You can see the output by running ``SHOW PROCESSLIST`` or ``SHOW FULL PROCESSLIST``.
+*TokuBackup* updates the *PROCESSLIST* state while the backup is in progress. You can see the output by running ``SHOW PROCESSLIST`` or ``SHOW FULL PROCESSLIST``.
 
 Excluding Source Files
 **********************
@@ -192,7 +189,7 @@ The default is ``null``, backups have no restricted locations. This read-only va
 Reporting Errors
 ****************
 
-|Percona TokuBackup| uses two variables to capture errors. They are :variable:`tokudb_backup_last_error` and :variable:`tokudb_backup_last_error_string`. When |TokuBackup| encounters an error, these will report on the error number and the error string respectively. For example, the following output shows these parameters following an attempted backup to a directory that was not empty:
+*Percona TokuBackup* uses two variables to capture errors. They are :variable:`tokudb_backup_last_error` and :variable:`tokudb_backup_last_error_string`. When *TokuBackup* encounters an error, these will report on the error number and the error string respectively. For example, the following output shows these parameters following an attempted backup to a directory that was not empty:
 
 .. code-block:: mysql
 
@@ -257,7 +254,7 @@ information.
 
 .. important::
 
-    As of |MySQL| 8.0.22, the ``SHOW SLAVE STATUS`` statement is
+    As of *MySQL* 8.0.22, the ``SHOW SLAVE STATUS`` statement is
     `deprecated <https://dev.mysql.com/doc/refman/8.0/en/show-replicas.html>`_.
     Use ``SHOW REPLICA STATUS`` instead.
     
@@ -299,30 +296,26 @@ A sample Bash script has this information:
 Limitations and known issues
 ----------------------------
 
-* You must disable |InnoDB| asynchronous IO if backing up |InnoDB| tables with |TokuBackup|. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is ``innodb_use_native_aio=0``.
+* You must disable *InnoDB* asynchronous IO if backing up *InnoDB* tables with *TokuBackup*. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is ``innodb_use_native_aio=0``.
 
 * To be able to run Point-In-Time-Recovery you'll need to manually get the binary log position.
 
-* Transactional storage engines (|TokuDB| and |InnoDB|) will perform recovery on the backup copy of the database when it is first started.
+* Transactional storage engines (*TokuDB* and *InnoDB*) will perform recovery on the backup copy of the database when it is first started.
 
-* Tables using non-transactional storage engines (|MyISAM|) are not locked during the copy and may report issues when starting up the backup. It is best to avoid operations that modify these tables at the end of a hot backup operation (adding/changing users, stored procedures, etc.).
+* Tables using non-transactional storage engines (*MyISAM*) are not locked during the copy and may report issues when starting up the backup. It is best to avoid operations that modify these tables at the end of a hot backup operation (adding/changing users, stored procedures, etc.).
 
 * The database is copied locally to the path specified in :file:`/path/to/backup`. This folder must exist, be writable, be empty, and contain enough space for a full copy of the database.
 
-* |TokuBackup| always makes a backup of the |MySQL| :variable:`datadir` and optionally the :variable:`tokudb_data_dir`, :variable:`tokudb_log_dir`, and the binary log folder. The latter three are only backed up separately if they are not the same as or contained in the |MySQL| :variable:`datadir`. None of these three folders can be a parent of the |MySQL| :variable:`datadir`.
+* *TokuBackup* always makes a backup of the *MySQL* :variable:`datadir` and optionally the :variable:`tokudb_data_dir`, :variable:`tokudb_log_dir`, and the binary log folder. The latter three are only backed up separately if they are not the same as or contained in the *MySQL* :variable:`datadir`. None of these three folders can be a parent of the *MySQL* :variable:`datadir`.
 
-* No other directory structures are supported. All |InnoDB|, |MyISAM|, and other storage engine files must be within the |MySQL| :variable:`datadir`.
+* No other directory structures are supported. All *InnoDB*, *MyISAM*, and other storage engine files must be within the *MySQL* :variable:`datadir`.
 
-* |TokuBackup| does not follow symbolic links.
+* *TokuBackup* does not follow symbolic links.
 
-* |TokuBackup| does not backup |MySQL| configuration file(s).
+* *TokuBackup* does not backup *MySQL* configuration file(s).
 
-* |TokuBackup| does not backup tablespaces if they are out of :variable:`datadir`.
+* *TokuBackup* does not backup tablespaces if they are out of :variable:`datadir`.
 
-* Due to upstream bug :mysqlbug:`80183`, |TokuBackup| can't recover backed-up table data if backup was taken while running ``OPTIMIZE TABLE`` or ``ALTER TABLE ... TABLESPACE``.
+* Due to upstream bug :mysqlbug:`80183`, *TokuBackup* can't recover backed-up table data if backup was taken while running ``OPTIMIZE TABLE`` or ``ALTER TABLE ... TABLESPACE``.
 
-* |TokuBackup| doesn't support incremental backups.
-
-
-.. include:: ../.res/replace.txt
-.. include:: ../.res/replace.program.txt
+* *TokuBackup* doesn't support incremental backups.

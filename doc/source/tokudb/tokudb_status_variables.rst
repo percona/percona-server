@@ -6,17 +6,15 @@ TokuDB Status Variables
 
 .. Important:: 
 
-   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
-    
+   Starting with Percona Server for MySQL :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds.
+
    Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
 
-   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+   We recommend :ref:`migrate-myrocks`. To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
 
-   We recommend :ref:`migrate-myrocks`.
-      
-   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
 
-|TokuDB| status variables provide details about the inner workings of |TokuDB|
+*TokuDB* status variables provide details about the inner workings of *TokuDB*
 storage engine and they can be useful in tuning the storage engine to a
 particular environment. 
 
@@ -606,7 +604,7 @@ used to store a new or modified row on disk.
 
 This variable shows the maximum number of bytes that were stored on disk as a
 new or modified row. This is the maximum uncompressed size of any row stored in
-|TokuDB| that was created or modified since the server started.
+*TokuDB* that was created or modified since the server started.
 
 .. variable:: Tokudb_LEAF_ENTRY_APPLY_GC_BYTES_IN
 
@@ -696,7 +694,7 @@ use for any purpose.
 
 This variable shows the number of times a non-checkpoint client thread waited
 for the multi-operation lock. It is an internal ``rwlock`` that is similar in
-nature to the |InnoDB| kernel mutex, it effectively halts all access to the
+nature to the *InnoDB* kernel mutex, it effectively halts all access to the
 PerconaFT API when write locked. The ``begin`` phase of the checkpoint takes
 this lock for a brief period.
 
@@ -814,7 +812,7 @@ executed.
 
 .. variable:: Tokudb_CACHETABLE_CLEANER_PERIOD
 
-|TokuDB| includes a cleaner thread that optimizes indexes in the background.
+*TokuDB* includes a cleaner thread that optimizes indexes in the background.
 This variable is the time, in seconds, between the completion of a group of
 cleaner operations and the beginning of the next group of cleaner operations.
 The cleaner operations run on a background thread performing work that does not

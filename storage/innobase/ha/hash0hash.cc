@@ -138,6 +138,8 @@ hash_table_t *hash_create(ulint n) /*!< in: number of array cells */
 /** Frees a hash table. */
 void hash_table_free(hash_table_t *table) /*!< in, own: hash table */
 {
+  if (!table) return;
+
   ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
   ut::free(table->cells);

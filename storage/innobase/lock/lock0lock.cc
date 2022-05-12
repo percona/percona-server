@@ -390,6 +390,8 @@ void lock_sys_close(void) {
     lock_latest_err_file = nullptr;
   }
 
+  if (!lock_sys) return;
+
   hash_table_free(lock_sys->rec_hash);
   hash_table_free(lock_sys->prdt_hash);
   hash_table_free(lock_sys->prdt_page_hash);

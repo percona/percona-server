@@ -52,6 +52,7 @@
 #include <limits>
 
 #include "include/compression.h"
+#include "mysys/buffered_error_log.h"
 
 #include "my_loglevel.h"
 #include "mysql/components/services/log_builtins.h"
@@ -2048,8 +2049,8 @@ export bool fix_delay_key_write(sys_var *, THD *, enum_var_type) {
    Make sure we don't have an active TABLE FOR BACKUP lock when setting
    delay_key_writes=ALL dynamically.
 */
-static bool check_delay_key_write(sys_var *self [[maybe_unused]],
-                                  THD *thd, set_var *var) {
+static bool check_delay_key_write(sys_var *self [[maybe_unused]], THD *thd,
+                                  set_var *var) {
   assert(delay_key_write_options != DELAY_KEY_WRITE_ALL ||
          !thd->backup_tables_lock.is_acquired());
 
@@ -4086,6 +4087,13 @@ static Sys_var_charptr Sys_secure_file_priv(
     CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
     DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
 
+static Sys_var_charptr Sys_secure_log_path(
+    "secure_log_path",
+    "Limit location of general log, slow log and buffered error log"
+    "within specified directory",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_secure_log_path),
+    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""));
+
 static bool fix_server_id(sys_var *, THD *thd, enum_var_type) {
   // server_id is 'MYSQL_PLUGIN_IMPORT ulong'
   // So we cast here, rather than change its type.
@@ -6058,7 +6066,21 @@ static bool check_log_path(sys_var *self, THD *, set_var *var) {
 
   if (my_access(path, (F_OK | W_OK))) return true;  // directory is not writable
 
+  if (!is_secure_log_path((path))) return true;
+
   return false;
+}
+
+static bool check_log_path_allow_empty(sys_var *self, THD *thd, set_var *var) {
+  if (!var->value) return false;
+
+  if (!var->save_result.string_value.str) return false;
+
+  if (strlen(var->save_result.string_value.str) == 0) return false;
+
+  if (!check_log_path(self, thd, var)) return false;
+
+  return true;
 }
 
 static bool fix_general_log_file(sys_var *, THD *, enum_var_type) {
@@ -6138,9 +6160,9 @@ static Sys_var_charptr Sys_slow_log_path(
     "Log slow queries to given log file. "
     "Defaults logging to hostname-slow.log. Must be enabled to activate "
     "other slow log options",
-    GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
-    DEFAULT(nullptr), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_log_path),
-    ON_UPDATE(fix_slow_log_file));
+    PREALLOCATED GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 
 static Sys_var_have Sys_have_compress(
     "have_compress", "have_compress",
@@ -6236,9 +6258,11 @@ static Sys_var_ulong sys_log_slow_rate_limit(
 
 static double opt_slow_query_log_always_write_time;
 
-static bool update_slow_query_log_always_write_time(
-    sys_var *self [[maybe_unused]], THD *thd [[maybe_unused]],
-    enum_var_type type [[maybe_unused]]) noexcept {
+static bool update_slow_query_log_always_write_time(sys_var *self
+                                                    [[maybe_unused]],
+                                                    THD *thd [[maybe_unused]],
+                                                    enum_var_type type
+                                                    [[maybe_unused]]) noexcept {
   slow_query_log_always_write_time =
       double2ulonglong(opt_slow_query_log_always_write_time * 1e6);
   return false;
@@ -7819,8 +7843,8 @@ static bool check_set_default_table_encryption_access(sys_var *self
   return true;
 }
 
-static bool check_set_default_table_encryption(
-    sys_var *self [[maybe_unused]], THD *thd, set_var *var) {
+static bool check_set_default_table_encryption(sys_var *self [[maybe_unused]],
+                                               THD *thd, set_var *var) {
   return check_set_default_table_encryption_access(self, thd, var) ||
          check_set_default_table_encryption_exclusions(thd, var);
 }
@@ -8077,6 +8101,26 @@ static Sys_var_enum Sys_terminology_use_previous(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
 
+std::size_t buffered_error_log_size;
+
+static bool buffered_error_log_size_update(sys_var *, THD *, enum_var_type) {
+  buffered_error_log.resize(buffered_error_log_size * 1024);
+  return false;
+}
+
+static Sys_var_charptr Sys_var_buffered_error_log_filename(
+    "buffered_error_log_filename", "Filename of the buffered error log",
+    GLOBAL_VAR(buffered_error_log_filename), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_log_path_allow_empty));
+
+static Sys_var_ulonglong Sys_var_buffered_error_log_size(
+    "buffered_error_log_size", "Size of the buffered error log (kB)",
+    GLOBAL_VAR(buffered_error_log_size), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULLONG_MAX), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(buffered_error_log_size_update));
+
 #ifndef NDEBUG
-    Debug_shutdown_actions Debug_shutdown_actions::instance;
+Debug_shutdown_actions Debug_shutdown_actions::instance;
 #endif

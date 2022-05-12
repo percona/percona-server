@@ -1300,6 +1300,7 @@ void log_set_dict_persist_margin(log_t &log, sn_t margin) {
 }
 
 void log_set_dict_max_allowed_checkpoint_lsn(log_t &log, lsn_t max_lsn) {
+  if (!log_sys) return;
   log_limits_mutex_enter(log);
   log.dict_max_allowed_checkpoint_lsn = max_lsn;
   log_limits_mutex_exit(log);

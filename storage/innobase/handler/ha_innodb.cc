@@ -1784,29 +1784,28 @@ static void innodb_space_shutdown() {
 static int innodb_shutdown(handlerton *, ha_panic_function) {
   DBUG_TRACE;
 
+  hash_table_free(innobase_open_tables);
+  innobase_open_tables = nullptr;
+
+  for (auto file : innobase_sys_files) {
+    ut::delete_(file);
+  }
+  innobase_sys_files.clear();
+  innobase_sys_files.shrink_to_fit();
+
+  if (mutex_monitor) mutex_free(&master_key_id_mutex);
+  srv_shutdown();
+  innodb_space_shutdown();
+
   if (innodb_inited) {
-    innodb_inited = false;
-    hash_table_free(innobase_open_tables);
-    innobase_open_tables = nullptr;
-
-    for (auto file : innobase_sys_files) {
-      ut::delete_(file);
-    }
-    innobase_sys_files.clear();
-    innobase_sys_files.shrink_to_fit();
-
-    mutex_free(&master_key_id_mutex);
-    srv_shutdown();
-    innodb_space_shutdown();
-
     mysql_mutex_destroy(&innobase_share_mutex);
     mysql_mutex_destroy(&commit_cond_m);
     mysql_cond_destroy(&commit_cond);
     mysql_mutex_destroy(&resume_encryption_cond_m);
     mysql_cond_destroy(&resume_encryption_cond);
-
-    os_event_global_destroy();
   }
+
+  os_event_global_destroy();
 
   innobase::component_services::deinitialize_service_handles();
 
@@ -5862,8 +5861,8 @@ static int innodb_init(void *p) {
 
   os_event_global_init();
 
-  if (int error = innodb_init_params()) {
-    return error;
+  if (innodb_init_params()) {
+    return innodb_init_abort();
   }
 
   /* After this point, error handling has to use

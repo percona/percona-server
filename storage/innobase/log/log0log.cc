@@ -684,7 +684,7 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
 }
 
 void log_sys_close() {
-  ut_a(log_sys != nullptr);
+  if (!log_sys_object) return;
 
   log_t &log = *log_sys;
 

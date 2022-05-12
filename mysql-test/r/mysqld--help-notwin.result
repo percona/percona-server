@@ -242,6 +242,10 @@ The following options may be given as the first argument:
  values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
+ --buffered-error-log-filename=name 
+ Filename of the buffered error log
+ --buffered-error-log-size=# 
+ Size of the buffered error log (kB)
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
  that this is a limit per thread!
@@ -1394,6 +1398,9 @@ The following options may be given as the first argument:
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
+ --secure-log-path=name 
+ Limit location of general log, slow log and buffered
+ error logwithin specified directory
  --select-into-buffer-size[=#] 
  Buffer size for SELECT INTO OUTFILE/DUMPFILE.
  --select-into-disk-sync 
@@ -1760,6 +1767,8 @@ binlog-transaction-compression-level-zstd 3
 binlog-transaction-dependency-history-size 25000
 binlog-transaction-dependency-tracking COMMIT_ORDER
 block-encryption-mode aes-128-ecb
+buffered-error-log-filename 
+buffered-error-log-size 0
 bulk-insert-buffer-size 8388608
 caching-sha2-password-digest-rounds 5000
 caching-sha2-password-private-key-path private_key.pem
@@ -2068,6 +2077,7 @@ rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
 secondary-engine-cost-threshold 100000
+secure-log-path 
 select-into-buffer-size 131072
 select-into-disk-sync FALSE
 select-into-disk-sync-delay 0

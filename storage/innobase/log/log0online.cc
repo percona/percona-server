@@ -125,6 +125,9 @@ static const constexpr auto LOG_BLOCK_SIZE_NO_TRL =
 static const constexpr auto LOG_BLOCK_BOUNDARY_LSN_PAD =
     LOG_BLOCK_HDR_SIZE + LOG_BLOCK_TRL_SIZE;
 
+/** Database log parsing inited */
+static bool log_online_inited = false;
+
 /** The buffer for reading log data, filled in by recv_read_log_recs and moved
 in chunks to the parse buffer while skipping log block headers and trailers. */
 class log_read_buffer final : public log_buffer<FOLLOW_SCAN_SIZE> {
@@ -875,6 +878,7 @@ static bool log_online_is_bitmap_file(
 
 void log_online_init(void) noexcept {
   mutex_create(LATCH_ID_LOG_ONLINE, &log_bmp_sys_mutex);
+  log_online_inited = true;
 }
 
 /** Initialize the dynamic part of the log tracking subsystem */
@@ -1050,7 +1054,12 @@ void log_online_read_shutdown(void) noexcept {
 }
 
 /** Shut down the constant part of the log tracking subsystem */
-void log_online_shutdown(void) noexcept { mutex_free(&log_bmp_sys_mutex); }
+void log_online_shutdown(void) noexcept {
+  if (!log_online_inited) return;
+
+  mutex_free(&log_bmp_sys_mutex);
+  log_online_inited = false;
+}
 
 /** Parse the log data in the parse buffer for the (space, page) pairs and add
 them to the modified page set as necessary.  Removes the fully-parsed records

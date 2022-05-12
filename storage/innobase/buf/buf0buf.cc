@@ -6739,10 +6739,14 @@ ulint buf_pool_check_no_pending_io(void) {
   ulint i;
   ulint pending_io = 0;
 
+  if (!buf_pool_ptr) return 0;
+
   for (i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
 
     buf_pool = buf_pool_from_array(i);
+
+    if (!buf_pool) continue;
 
     pending_io += buf_pool->n_pend_reads;
 
@@ -6825,6 +6829,8 @@ const char *buf_block_t::get_page_type_str() const noexcept {
 #ifndef UNIV_HOTBACKUP
 /** Frees the buffer pool instances and the global data structures. */
 void buf_pool_free_all() {
+  if (!buf_pool_ptr) return;
+
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     buf_pool_t *ptr = &buf_pool_ptr[i];
 

@@ -144,6 +144,7 @@ std::string random_us_phone() {
   return std::string("1")
       .append("-")
       .append("555")
+      .append("-")
       .append(random_number(3))
       .append("-")
       .append(random_number(4));

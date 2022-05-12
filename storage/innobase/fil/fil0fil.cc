@@ -4132,7 +4132,11 @@ void Fil_system::close_all_files() {
 
 /** Closes all open files. There must not be any pending i/o's or not flushed
 modifications in the files. */
-void fil_close_all_files() { fil_system->close_all_files(); }
+void fil_close_all_files() {
+  if (!fil_system) return;
+
+  fil_system->close_all_files();
+}
 
 /** Close log files.
 @param[in]	free_all	If set then free all instances */
@@ -4335,6 +4339,7 @@ for concurrency control.
 @param[in]	space_id	Tablespace ID
 @return the tablespace, or nullptr if missing or being deleted */
 fil_space_t *fil_space_acquire(space_id_t space_id) {
+  if (!fil_system) return nullptr;
   return fil_system->space_acquire(space_id, false);
 }
 
@@ -9315,6 +9320,8 @@ possibly cached by the OS.
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_LOG, can be
 ORred. */
 void fil_flush_file_spaces(uint8_t purpose) {
+  if (!fil_system) return;
+
   fil_system->flush_file_spaces(purpose);
 }
 

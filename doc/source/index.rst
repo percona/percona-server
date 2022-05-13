@@ -45,7 +45,7 @@ In-place upgrades
    upgrading_guide
    upgrading_using_percona_repos
    upgrading_tokudb_myrocks
-   upgrading_using_standalone_pakages
+   upgrading_using_standalone_packages
 
 Run in Docker
 ================================================================================

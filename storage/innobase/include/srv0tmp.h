@@ -80,7 +80,7 @@ inline const char *get_purpose_str(enum tbsp_purpose purpose) {
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t open_or_create(bool create_new_db);
 
-/** Sesssion Temporary tablespace */
+/** Session Temporary tablespace */
 class Tablespace {
  public:
   Tablespace();
@@ -215,7 +215,7 @@ class Tablespace_pool {
   using Pool = std::list<Tablespace *, ut::allocator<Tablespace *>>;
 
   /** Tablespace_pool constructor
-  @param[in]    init_size    Initial size of the tablespace pool */
+  @param[in] init_size    Initial size of the tablespace pool */
   Tablespace_pool(size_t init_size);
 
   /** Destructor */
@@ -275,6 +275,15 @@ class Tablespace_pool {
                   [](ibt::Tablespace *ts) { ts->rotate_encryption_key(); });
 
     release();
+  }
+
+  /** Gets current pool size.
+  @return Number of tablespaces in the pool, both active and free ones. */
+  size_t get_size() {
+    acquire();
+    size_t current_size = m_active->size() + m_free->size();
+    release();
+    return current_size;
   }
 
  private:

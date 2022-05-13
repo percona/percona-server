@@ -225,10 +225,10 @@ include/assert.inc [Maximum InnoDB transaction ID should not have moved during R
 include/assert.inc [No bitmap data must exist with START_LSN > @max_end_lsn]
 include/assert.inc [No bitmap data must exist with END_LSN > @max_end_lsn]
 CREATE TABLE ICP_COPY (
-space_id INT NOT NULL,
-page_id INT NOT NULL,
-start_lsn BIGINT NOT NULL,
-end_lsn BIGINT NOT NULL,
+space_id INT UNSIGNED NOT NULL,
+page_id INT UNSIGNED NOT NULL,
+start_lsn BIGINT UNSIGNED NOT NULL,
+end_lsn BIGINT UNSIGNED NOT NULL,
 INDEX page_id(space_id, page_id)) ENGINE=InnoDB;
 INSERT INTO ICP_COPY SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
 WHERE END_LSN <= @max_end_lsn;

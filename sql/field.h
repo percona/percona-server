@@ -1116,7 +1116,7 @@ class Field {
     This method was expressly written for `SELECT UNIX_TIMESTAMP(field)`
     to avoid conversion from timestamp to MYSQL_TIME and back.
   */
-  virtual bool get_timestamp(struct timeval *tm, int *warnings) const;
+  virtual bool get_timestamp(my_timeval *tm, int *warnings) const;
   /**
     Stores a timestamp value in timeval format in a field.
 
@@ -1148,7 +1148,7 @@ class Field {
    Since this interface relies on the caller to truncate the value according to
    this Field's scale, it will work with all constructs that we currently allow.
   */
-  virtual void store_timestamp(const timeval *) { assert(false); }
+  virtual void store_timestamp(const my_timeval *) { assert(false); }
 
   virtual void set_default();
 
@@ -2883,9 +2883,9 @@ class Field_temporal_with_date_and_time : public Field_temporal_with_date {
     The value must be properly rounded or truncated according
     to the number of fractional second digits.
   */
-  virtual void store_timestamp_internal(const struct timeval *tm) = 0;
+  virtual void store_timestamp_internal(const my_timeval *tm) = 0;
   bool convert_TIME_to_timestamp(const MYSQL_TIME *ltime, const Time_zone &tz,
-                                 struct timeval *tm, int *error);
+                                 my_timeval *tm, int *error);
 
  public:
   /**
@@ -2903,7 +2903,7 @@ class Field_temporal_with_date_and_time : public Field_temporal_with_date {
       : Field_temporal_with_date(ptr_arg, null_ptr_arg, null_bit_arg,
                                  auto_flags_arg, field_name_arg,
                                  MAX_DATETIME_WIDTH, dec_arg) {}
-  void store_timestamp(const struct timeval *tm) override;
+  void store_timestamp(const my_timeval *tm) override;
 };
 
 /**
@@ -2961,7 +2961,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
                                         int *error) final;
   bool get_date_internal(MYSQL_TIME *ltime) const final;
   bool get_date_internal_at_utc(MYSQL_TIME *ltime) const final;
-  void store_timestamp_internal(const struct timeval *tm) final;
+  void store_timestamp_internal(const my_timeval *tm) final;
 
  public:
   static const int PACK_LENGTH = 4;
@@ -2979,7 +2979,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
   void sql_type(String &str) const final;
   bool zero_pack() const final { return false; }
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
-  bool get_timestamp(struct timeval *tm, int *warnings) const final;
+  bool get_timestamp(my_timeval *tm, int *warnings) const final;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
   Field_timestamp *clone(MEM_ROOT *mem_root) const final {
     assert(type() == MYSQL_TYPE_TIMESTAMP);
@@ -3019,7 +3019,7 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
   type_conversion_status store_internal(const MYSQL_TIME *ltime,
                                         int *error) final;
   my_time_flags_t date_flags(const THD *thd) const final;
-  void store_timestamp_internal(const struct timeval *tm) override;
+  void store_timestamp_internal(const my_timeval *tm) override;
 
  public:
   /**
@@ -3063,7 +3063,7 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
   void sql_type(String &str) const final;
 
-  bool get_timestamp(struct timeval *tm, int *warnings) const final;
+  bool get_timestamp(my_timeval *tm, int *warnings) const final;
   /* Validate the value stored in a field */
   type_conversion_status validate_stored_val(THD *thd) final;
 
@@ -3318,7 +3318,7 @@ class Field_datetime : public Field_temporal_with_date_and_time {
                                         int *error) final;
   bool get_date_internal(MYSQL_TIME *ltime) const final;
   my_time_flags_t date_flags(const THD *thd) const final;
-  void store_timestamp_internal(const struct timeval *tm) final;
+  void store_timestamp_internal(const my_timeval *tm) final;
 
  public:
   static const int PACK_LENGTH = 8;
@@ -3377,7 +3377,7 @@ class Field_datetimef : public Field_temporal_with_date_and_timef {
   type_conversion_status store_internal(const MYSQL_TIME *ltime,
                                         int *error) final;
   my_time_flags_t date_flags(const THD *thd) const final;
-  void store_timestamp_internal(const struct timeval *tm) final;
+  void store_timestamp_internal(const my_timeval *tm) final;
 
  public:
   /**
@@ -4305,9 +4305,7 @@ class Field_typed_array final : public Field_json {
   void sql_type(String &str) const final;
   void make_send_field(Send_field *field) const final;
   void set_field_index(uint16 f_index) final override;
-#ifndef NDEBUG
   Field *get_conv_field();
-#endif
 };
 
 class Field_enum : public Field_str {

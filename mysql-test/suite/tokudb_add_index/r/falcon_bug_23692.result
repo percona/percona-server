@@ -40,6 +40,8 @@ hex(a)
 SELECT hex(a) FROM t3 WHERE a LIKE 'a%';
 hex(a)
 CREATE TABLE t4 (a varchar(5) character set ucs2, key(a)) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t4 VALUES (0x00420000), (0x00420009), (0x0041001f), (0x0042), (0x00420020), (0x00420042);
 SELECT hex(a) FROM t4 WHERE a < 'a';
 hex(a)

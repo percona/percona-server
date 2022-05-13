@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,13 +65,13 @@ struct Merge_file_sort::Cursor : private ut::Non_copyable {
     affects the entire file. Each block will be read exactly once. */
     {
       const auto flags = POSIX_FADV_SEQUENTIAL | POSIX_FADV_NOREUSE;
-      posix_fadvise(m_file->m_fd, 0, 0, flags);
+      posix_fadvise(m_file->m_file.get(), 0, 0, flags);
     }
 #endif /* POSIX_FADV_SEQUENTIAL */
   }
 
   /** Prepare the cursor for reading.
-  @param[in] range              Rangs to merge in a pass.
+  @param[in] range              Ranges to merge in a pass.
   @param[in] buffer_size        IO Buffer size to use for reading.
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t prepare(Range range, size_t buffer_size) noexcept;
@@ -111,12 +111,12 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
 
   /** Constructor.
   @param[in,out] ctx            DDL context.
-  @param[in] fd                 File to write to.
+  @param[in] file               File to write to.
   @param[in] io_buffer          Buffer to store records and write to file. */
-  Output_file(ddl::Context &ctx, os_fd_t fd, IO_buffer io_buffer,
-              IO_buffer crypt_buffer) noexcept
+  Output_file(ddl::Context &ctx, const Unique_os_file_descriptor &file,
+              IO_buffer io_buffer, IO_buffer crypt_buffer) noexcept
       : m_ctx(ctx),
-        m_fd(fd),
+        m_file(file),
         m_buffer(io_buffer),
         m_ptr(m_buffer.first),
         m_crypt_buffer(crypt_buffer),
@@ -182,7 +182,7 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
   ddl::Context &m_ctx;
 
   /** File to write to. */
-  os_fd_t m_fd{OS_FD_CLOSED};
+  const Unique_os_file_descriptor &m_file;
 
   /** Buffer to write to (output buffer). */
   IO_buffer m_buffer;
@@ -332,7 +332,7 @@ dberr_t Merge_file_sort::Output_file::write(const mrec_t *mrec,
   if (unlikely(m_ptr + rec_size + need >= m_buffer.first + m_buffer.second)) {
     const size_t n_write = m_ptr - m_buffer.first;
     const auto len = ut_uint64_align_down(n_write, IO_BLOCK_SIZE);
-    auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset,
+    auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset,
                            m_crypt_buffer.first, m_space_id);
 
     if (err != DB_SUCCESS) {
@@ -378,7 +378,7 @@ dberr_t Merge_file_sort::Output_file::flush() noexcept {
   }
 
   const auto len = ut_uint64_align_up(m_ptr - m_buffer.first, IO_BLOCK_SIZE);
-  const auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset,
+  const auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset,
                                m_crypt_buffer.first, m_space_id);
 
   m_offset += len;
@@ -423,7 +423,7 @@ dberr_t Merge_file_sort::merge_rows(Cursor &cursor,
   const mrec_t *mrec{};
 
   while ((err = cursor.fetch(mrec, offsets)) == DB_SUCCESS) {
-    /* If we are simply appending from a single partion then enable duplicate
+    /* If we are simply appending from a single partition then enable duplicate
     key checking for the write phase. */
     auto dup = cursor.size() == 0 ? m_merge_ctx->m_dup : nullptr;
 
@@ -511,7 +511,7 @@ dberr_t Merge_file_sort::sort(Builder *builder,
   /* This is the output file for the first pass. */
   auto tmpfd = ddl::file_create_low(builder->tmpdir());
 
-  if (tmpfd != OS_FD_CLOSED) {
+  if (tmpfd.is_open()) {
     MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
   } else {
     return DB_OUT_OF_RESOURCES;
@@ -534,7 +534,7 @@ dberr_t Merge_file_sort::sort(Builder *builder,
     }
 
     /* Swap the input file with the output file and repeat. */
-    std::swap(tmpfd, file->m_fd);
+    tmpfd.swap(file->m_file);
     file->m_write_offsets = std::move(output_file.m_write_offsets);
     std::swap(offsets, m_next_offsets);
 
@@ -544,8 +544,6 @@ dberr_t Merge_file_sort::sort(Builder *builder,
       file->m_size = output_file.get_size();
     }
   }
-
-  file_destroy_low(tmpfd);
 
   ut_a(err != DB_SUCCESS || file->m_n_recs == m_n_rows);
 

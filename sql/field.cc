@@ -2138,7 +2138,7 @@ bool Field::get_time(MYSQL_TIME *ltime) const {
   return !(res = val_str(&tmp)) || str_to_time_with_warn(res, ltime);
 }
 
-bool Field::get_timestamp(struct timeval *tm, int *warnings) const {
+bool Field::get_timestamp(my_timeval *tm, int *warnings) const {
   MYSQL_TIME ltime;
   assert(!is_null());
   return get_date(&ltime, TIME_FUZZY_DATE) ||
@@ -2928,8 +2928,10 @@ type_conversion_status Field_new_decimal::store(
         thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
         ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "decimal",
         errmsg.ptr(), field_name, da->current_row_for_condition());
-    return err != E_DEC_BAD_NUM ? decimal_err_to_type_conv_status(err)
-                                : store_value(&decimal_value);
+    if (err == E_DEC_BAD_NUM) return store_value(&decimal_value);
+    // Ensure that we always store something for virtual generated columns.
+    if (is_virtual_gcol()) (void)store_value(&decimal_value);
+    return decimal_err_to_type_conv_status(err);
   }
 
   if (err != 0) {
@@ -4648,7 +4650,7 @@ type_conversion_status Field_temporal::store(const char *str, size_t len,
       if (convert_time_zone_displacement(current_thd->time_zone(), &tmp_ltime))
         return TYPE_ERR_BAD_VALUE;
       // check for boundary conditions by converting to a timeval
-      struct timeval tm_not_used;
+      my_timeval tm_not_used;
       if (datetime_with_no_zero_in_date_to_timeval(
               &tmp_ltime, *current_thd->time_zone(), &tm_not_used,
               &status.warnings)) {
@@ -4926,20 +4928,19 @@ type_conversion_status Field_temporal_with_date::validate_stored_val(THD *) {
 ** Common code for data types with date and time: DATETIME, TIMESTAMP
 *****************************************************************************/
 
-void Field_temporal_with_date_and_time::store_timestamp(
-    const struct timeval *tm) {
+void Field_temporal_with_date_and_time::store_timestamp(const my_timeval *tm) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  if (!my_time_fraction_remainder(tm->tv_usec, decimals())) {
+  if (!my_time_fraction_remainder(tm->m_tv_usec, decimals())) {
     store_timestamp_internal(tm);
     return;
   }
-  struct timeval tm2 = *tm;
+  my_timeval tm2 = *tm;
   my_timeval_round(&tm2, decimals());
   store_timestamp_internal(&tm2);
 }
 
 bool Field_temporal_with_date_and_time::convert_TIME_to_timestamp(
-    const MYSQL_TIME *ltime, const Time_zone &tz, struct timeval *tm,
+    const MYSQL_TIME *ltime, const Time_zone &tz, my_timeval *tm,
     int *warnings) {
   /*
     No need to do check_date(TIME_NO_ZERO_IN_DATE),
@@ -4947,9 +4948,15 @@ bool Field_temporal_with_date_and_time::convert_TIME_to_timestamp(
     store_time(), number_to_datetime() or str_to_datetime().
   */
   if (datetime_with_no_zero_in_date_to_timeval(ltime, tz, tm, warnings)) {
-    tm->tv_sec = tm->tv_usec = 0;
+    tm->m_tv_sec = tm->m_tv_usec = 0;
     return true;
   }
+  // Check if the time since epoch fits in TIMESTAMP.
+  if (tm->m_tv_sec > TYPE_TIMESTAMP_MAX_VALUE) {
+    tm->m_tv_sec = tm->m_tv_usec = 0;
+    *warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
+  }
+
   return false;
 }
 
@@ -5041,7 +5048,7 @@ my_time_flags_t Field_timestamp::date_flags(const THD *thd) const {
 type_conversion_status Field_timestamp::store_internal(const MYSQL_TIME *ltime,
                                                        int *warnings) {
   THD *thd = current_thd;
-  struct timeval tm;
+  my_timeval tm;
   convert_TIME_to_timestamp(ltime, *thd->time_zone(), &tm, warnings);
   const type_conversion_status error =
       time_warning_to_type_conversion_status(*warnings);
@@ -5073,22 +5080,22 @@ bool Field_timestamp::get_date_internal_at(const Time_zone *tz,
 /**
    Get TIMESTAMP field value as seconds since begging of Unix Epoch
 */
-bool Field_timestamp::get_timestamp(struct timeval *tm, int *) const {
+bool Field_timestamp::get_timestamp(my_timeval *tm, int *) const {
   if (is_null()) return true;
-  tm->tv_usec = 0;
+  tm->m_tv_usec = 0;
   if (table && table->s->db_low_byte_first) {
-    tm->tv_sec = sint4korr(ptr);
+    tm->m_tv_sec = sint4korr(ptr);
     return false;
   }
-  tm->tv_sec = longget(ptr);
+  tm->m_tv_sec = longget(ptr);
   return false;
 }
 
-void Field_timestamp::store_timestamp_internal(const struct timeval *tm) {
+void Field_timestamp::store_timestamp_internal(const my_timeval *tm) {
   if (table && table->s->db_low_byte_first)
-    int4store(ptr, tm->tv_sec);
+    int4store(ptr, tm->m_tv_sec);
   else
-    longstore(ptr, (uint32)tm->tv_sec);
+    longstore(ptr, (uint32)tm->m_tv_sec);
 }
 
 type_conversion_status Field_timestamp::store_packed(longlong nr) {
@@ -5193,14 +5200,14 @@ my_time_flags_t Field_timestampf::date_flags(const THD *thd) const {
   return date_flags;
 }
 
-void Field_timestampf::store_timestamp_internal(const struct timeval *tm) {
+void Field_timestampf::store_timestamp_internal(const my_timeval *tm) {
   my_timestamp_to_binary(tm, ptr, dec);
 }
 
 type_conversion_status Field_timestampf::store_internal(const MYSQL_TIME *ltime,
                                                         int *warnings) {
   THD *thd = current_thd;
-  struct timeval tm;
+  my_timeval tm;
   convert_TIME_to_timestamp(ltime, *thd->time_zone(), &tm, warnings);
   const type_conversion_status error =
       time_warning_to_type_conversion_status(*warnings);
@@ -5239,7 +5246,7 @@ bool Field_timestampf::get_date_internal_at_utc(MYSQL_TIME *ltime) const {
   return get_date_internal_at(my_tz_UTC, ltime);
 }
 
-bool Field_timestampf::get_timestamp(struct timeval *tm, int *) const {
+bool Field_timestampf::get_timestamp(my_timeval *tm, int *) const {
   THD *thd = current_thd;
   thd->time_zone_used = true;
   assert(!is_null());
@@ -5249,9 +5256,9 @@ bool Field_timestampf::get_timestamp(struct timeval *tm, int *) const {
 
 bool Field_timestampf::get_date_internal_at(const Time_zone *tz,
                                             MYSQL_TIME *ltime) const {
-  struct timeval tm;
+  my_timeval tm;
   my_timestamp_from_binary(&tm, ptr, dec);
-  if (tm.tv_sec == 0) return true;
+  if (tm.m_tv_sec == 0) return true;
   tz->gmt_sec_to_TIME(ltime, tm);
   return false;
 }
@@ -5508,8 +5515,22 @@ longlong Field_timef::val_time_temporal() const {
 
 type_conversion_status Field_timef::store_internal(const MYSQL_TIME *ltime,
                                                    int *warnings) {
-  type_conversion_status rc =
-      store_packed(TIME_to_longlong_time_packed(*ltime));
+  /*
+    If time zone displacement information is present in "ltime"
+    - adjust the value to UTC based on the time zone
+    - convert to the local time zone
+ */
+  MYSQL_TIME temp_time;
+  const MYSQL_TIME *time;
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
+    temp_time = *ltime;
+    time = &temp_time;
+    if (convert_time_zone_displacement(current_thd->time_zone(), &temp_time))
+      return TYPE_ERR_BAD_VALUE;
+  } else {
+    time = ltime;
+  }
+  type_conversion_status rc = store_packed(TIME_to_longlong_time_packed(*time));
   if (rc == TYPE_OK && non_zero_date(*ltime)) {
     /*
       The DATE part got lost; we warn, like in Field_newdate::store_internal,
@@ -5670,7 +5691,23 @@ my_time_flags_t Field_newdate::date_flags(const THD *thd) const {
 
 type_conversion_status Field_newdate::store_internal(const MYSQL_TIME *ltime,
                                                      int *warnings) {
-  my_date_to_binary(ltime, ptr);
+  /*
+    If time zone displacement information is present in "ltime"
+    - adjust the value to UTC based on the time zone
+    - convert to the local time zone
+  */
+  MYSQL_TIME temp_time;
+  const MYSQL_TIME *time;
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
+    temp_time = *ltime;
+    time = &temp_time;
+    if (convert_time_zone_displacement(current_thd->time_zone(), &temp_time))
+      return TYPE_ERR_BAD_VALUE;
+  } else {
+    time = ltime;
+  }
+
+  my_date_to_binary(time, ptr);
   if (non_zero_time(*ltime)) {
     *warnings |= MYSQL_TIME_NOTE_TRUNCATED;
     return TYPE_NOTE_TIME_TRUNCATED;
@@ -5798,7 +5835,7 @@ my_time_flags_t Field_datetime::date_flags(const THD *thd) const {
   return date_flags;
 }
 
-void Field_datetime::store_timestamp_internal(const timeval *tm) {
+void Field_datetime::store_timestamp_internal(const my_timeval *tm) {
   MYSQL_TIME mysql_time;
   THD *thd = current_thd;
   thd->variables.time_zone->gmt_sec_to_TIME(&mysql_time, *tm);
@@ -5954,7 +5991,7 @@ my_time_flags_t Field_datetimef::date_flags(const THD *thd) const {
   return date_flags;
 }
 
-void Field_datetimef::store_timestamp_internal(const timeval *tm) {
+void Field_datetimef::store_timestamp_internal(const my_timeval *tm) {
   MYSQL_TIME mysql_time;
   THD *thd = current_thd;
   thd->variables.time_zone->gmt_sec_to_TIME(&mysql_time, *tm);
@@ -9933,9 +9970,7 @@ size_t Field_typed_array::get_key_image(uchar *buff, size_t length,
   return m_conv_item->field->get_key_image(buff, length, type);
 }
 
-#ifndef NDEBUG
 Field *Field_typed_array::get_conv_field() { return m_conv_item->field; }
-#endif
 
 Field *Field_typed_array::new_key_field(MEM_ROOT *root, TABLE *new_table,
                                         uchar *new_ptr, uchar *, uint) const {

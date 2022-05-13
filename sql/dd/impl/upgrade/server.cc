@@ -21,11 +21,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/upgrade/server.h"
-#include "sql/dd/upgrade/server.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
+
+#include "sql/dd/upgrade/server.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -83,7 +84,7 @@ void Bootstrap_error_handler::my_message_bootstrap(uint error, const char *str,
                                                    myf MyFlags) {
   set_abort_on_error(error);
   my_message_sql(error, str, MyFlags);
-  if (m_log_error)
+  if (should_log_error(error))
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .subsys(LOG_SUBSYSTEM_TAG)
@@ -115,6 +116,21 @@ void Bootstrap_error_handler::set_log_error(bool log_error) {
   m_log_error = log_error;
 }
 
+bool Bootstrap_error_handler::should_log_error(uint error) {
+  return (m_log_error ||
+          (!m_allowlist_errors.empty() &&
+           m_allowlist_errors.find(error) != m_allowlist_errors.end()));
+}
+
+void Bootstrap_error_handler::set_allowlist_errors(std::set<uint> &errors) {
+  assert(m_allowlist_errors.empty());
+  m_allowlist_errors = errors;
+}
+
+void Bootstrap_error_handler::clear_allowlist_errors() {
+  m_allowlist_errors.clear();
+}
+
 Bootstrap_error_handler::~Bootstrap_error_handler() {
   // Skip reverting to old error handler in case someone else
   // has updated the hook.
@@ -124,6 +140,7 @@ Bootstrap_error_handler::~Bootstrap_error_handler() {
 
 bool Bootstrap_error_handler::m_log_error = true;
 bool Bootstrap_error_handler::abort_on_error = false;
+std::set<uint> Bootstrap_error_handler::m_allowlist_errors;
 
 /***************************************************************************
  * Routine_event_context_guard implementation
@@ -542,6 +559,14 @@ static bool check_tables(THD *thd, std::unique_ptr<Schema> &schema,
 
   auto process_table = [&](std::unique_ptr<dd::Table> &table) {
     invalid_triggers(thd, schema->name().c_str(), *table);
+
+    // The TokuDB engine was removed in 8.0.28 Don't upgrade if it is used.
+    if (my_strcasecmp(system_charset_info, table->engine().c_str(), "TokuDB") ==
+        0) {
+      (*error_count)++;
+      LogErr(ERROR_LEVEL, ER_PERCONA_UNSUPPORTED_ENGINE, schema->name().c_str(),
+             table->name().c_str(), table->engine().c_str());
+    }
 
     // Check for usage of prefix key index in PARTITION BY KEY() function.
     dd::warn_on_deprecated_prefix_key_partition(

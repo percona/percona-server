@@ -39,8 +39,8 @@
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 %{!?with_ssl: %global ssl_option -DWITH_SSL=system}
 
-# By default a build will be done including the TokuDB
-%{!?with_tokudb: %global tokudb 1}
+# By default a build will be done excluding the TokuDB
+%{!?with_tokudb: %global tokudb 0}
 
 # By default a build will be done including the RocksDB
 %{!?with_rocksdb: %global rocksdb 1}
@@ -436,6 +436,12 @@ Obsoletes:      mysql-router-devel
 This package contains the development header files and libraries
 necessary to develop Percona MySQL Router applications.
 
+%package   -n   percona-icu-data-files
+Summary:        MySQL packaging of ICU data files
+
+%description -n percona-icu-data-files
+This package contains ICU data files needer by MySQL regular expressions.
+
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
@@ -510,6 +516,8 @@ mkdir debug
            -DWITH_ZSTD=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
+           -DWITH_FIDO=bundled \
+           -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -557,6 +565,8 @@ mkdir release
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
+           -DWITH_FIDO=bundled \
+           -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -915,12 +925,14 @@ fi
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.*
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.*
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.*
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -970,6 +982,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1382,6 +1395,13 @@ fi
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
+
+%files -n percona-icu-data-files
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l
+%{_libdir}/mysql/private/icudt69l/unames.icu
+%{_libdir}/mysql/private/icudt69l/brkitr
 
 %changelog
 * Fri Feb 12 2021 Percona Development Team <info@percona.com> - 8.0.22-13

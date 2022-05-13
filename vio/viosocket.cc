@@ -379,6 +379,7 @@ int vio_socket_timeout(Vio *vio, uint which [[maybe_unused]], bool old_mode) {
   DBUG_TRACE;
 
 #if defined(_WIN32)
+  (void)old_mode;  // maybe_unused
   {
     int optname;
     DWORD timeout = 0;
@@ -581,10 +582,17 @@ int vio_cancel(Vio *vio, int how) {
 }
 
 #ifndef NDEBUG
+
+#ifdef _WIN32
+#define SOCKET_PRINTF_FORMAT "%llu"
+#else
+#define SOCKET_PRINTF_FORMAT "%d"
+#endif
+
 void vio_description(Vio *vio, char *buf) {
   switch (vio->type) {
     case VIO_TYPE_SOCKET:
-      snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (%d)",
+      snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (" SOCKET_PRINTF_FORMAT ")",
                mysql_socket_getfd(vio->mysql_socket));
       break;
 #ifdef _WIN32
@@ -596,7 +604,7 @@ void vio_description(Vio *vio, char *buf) {
       break;
 #endif
     default:
-      snprintf(buf, VIO_DESCRIPTION_SIZE, "TCP/IP (%d)",
+      snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (" SOCKET_PRINTF_FORMAT ")",
                mysql_socket_getfd(vio->mysql_socket));
       break;
   }

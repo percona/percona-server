@@ -1,4 +1,4 @@
-.. _upgrading_using_standalone_pakages:
+.. _upgrading_using_standalone_packages:
 
 =====================================
 Upgrading using Standalone Packages

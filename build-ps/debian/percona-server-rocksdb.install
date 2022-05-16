@@ -1,5 +1,4 @@
 usr/lib/mysql/plugin/ha_rocksdb.so
 usr/lib/mysql/plugin/debug/ha_rocksdb.so
 usr/bin/ldb
-usr/bin/mysql_ldb
 usr/bin/sst_dump

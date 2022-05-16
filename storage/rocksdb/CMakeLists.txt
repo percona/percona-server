@@ -376,9 +376,6 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
   MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb.cc ${ROCKSDB_TOOL_SOURCES})
   TARGET_LINK_LIBRARIES(ldb ${rocksdb_static_libs})
 
-  MYSQL_ADD_EXECUTABLE(mysql_ldb ${CMAKE_CURRENT_SOURCE_DIR}/tools/mysql_ldb.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(mysql_ldb ${rocksdb_static_libs})
-
   IF (WITH_ZENFS_UTILITY)
     FIND_PATH(GFLAGS_INCLUDE_DIR
       NAMES gflags/gflags.h)

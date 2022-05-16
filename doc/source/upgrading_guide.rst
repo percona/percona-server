@@ -29,10 +29,10 @@ The following list summarizes a number of the changes in the 8.0 series and has 
 
    Review other `Percona blogs <https://www.percona.com/blog/>`__ that contain upgrade information.
 
-Implemented in release :rn:`8.0.15-5`, *Percona Server for MySQL* uses the upstream
+Implemented in release :ref:`8.0.15-5`, *Percona Server for MySQL* uses the upstream
 implementation of binary log file encryption and relay log file encryption.
 
-The :variable:`encrypt-binlog` variable is
+The :ref:`encrypt-binlog` variable is
 removed, and the related command-line option `--encrypt-binlog` is not
 supported. It is important to remove the `encrypt-binlog` variable from your
 configuration file before you attempt to upgrade either from another release

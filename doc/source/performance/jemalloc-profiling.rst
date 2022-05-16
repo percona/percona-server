@@ -4,13 +4,13 @@
 Jemalloc Memory Allocation Profiling
 =================================================
 
-Implemented in :rn:`8.0.25-15`, |Percona Server| can take advantage of the memory-profiling ability of the jemalloc allocator. This ability provides a method to investigate memory-related issues.
+Implemented in :ref:`8.0.25-15`, *Percona Server for MySQL* can take advantage of the memory-profiling ability of the jemalloc allocator. This ability provides a method to investigate memory-related issues.
 
 
 Requirements
 ----------------
 
-This memory-profiling requires :ref:`jemalloc_detected`. This read-only variable returns ``true`` if jemalloc with the profiling-enabled option is being used by |Percona Server|. 
+This memory-profiling requires :ref:`jemalloc_detected`. This read-only variable returns ``true`` if jemalloc with the profiling-enabled option is being used by *Percona Server for MySQL*. 
 
 As root, customize jemalloc with the following flags:
 
@@ -39,7 +39,7 @@ The following is an example of the required commands:
 
     Ensure the ``libjemalloc.so`` exists in the LD path.
 
-Use |Percona Server| with jemalloc with profiling enabled
+Use *Percona Server for MySQL* with jemalloc with profiling enabled
 ----------------------------------------------------------
 
 To detect if jemalloc is set, run the following command:
@@ -132,7 +132,7 @@ Run the following command:
 PERFORMANCE_SCHEMA Tables
 ---------------------------------
 
-In :rn:8.0.25.14, the following tables are implemented to retrieve memory allocation statistics for a running instance or return the cumulative number of allocations requested or allocations returned for a running instance.
+In :ref:`8.0.25.14`, the following tables are implemented to retrieve memory allocation statistics for a running instance or return the cumulative number of allocations requested or allocations returned for a running instance.
 
 More information about the stats that are returned can be found in `jemalloc <http://jemalloc.net/jemalloc.3.html>`__.
 
@@ -200,7 +200,7 @@ Description: This read-only variable returns ``true`` if jemalloc with profiling
 
     * Jemalloc is installed and compiled with profiling enabled
 
-    * |Percona Server| is configured to use jemalloc by using the environment variable ``LD_PRELOAD``. 
+    * *Percona Server for MySQL* is configured to use jemalloc by using the environment variable ``LD_PRELOAD``. 
 
     * The environment variable ``MALLOC_CONF`` is set to ``prof:true``.
 

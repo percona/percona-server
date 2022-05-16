@@ -30,26 +30,39 @@ This is addressed by delegating all the LRU flushes to the to the LRU manager
 thread, never attempting to evict a page or perform a LRU single page flush by
 a query thread, and introducing a backoff algorithm to reduce buffer pool free
 list mutex pressure on empty buffer pool free lists. This is controlled through
-a new system variable :variable:`innodb_empty_free_list_algorithm`.
+a new system variable :ref:`innodb_empty_free_list_algorithm`.
 
-.. variable:: innodb_empty_free_list_algorithm
+.. _innodb_empty_free_list_algorithm:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :values: legacy, backoff
-   :default: legacy
+.. rubric:: ``innodb_empty_free_list_algorithm``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config File
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - legacy, backoff
+   * - Default
+     - legacy
 
 When ``legacy`` option is set, server will use the upstream algorithm and when
-the ``backoff`` is selected, |Percona| implementation will be used.
+the ``backoff`` is selected, *Percona* implementation will be used.
 
 .. _lru_manager_threads:
 
 Multi-threaded LRU flusher
 ==========================
 
-|Percona Server| features a true multi-threaded LRU flushing. In this scheme,
+*Percona Server for MySQL* features a true multi-threaded LRU flushing. In this scheme,
 each buffer pool instance has its own dedicated LRU manager thread that is
 tasked with performing LRU flushes and evictions to refill the free list of that
 buffer pool instance. Existing multi-threaded flusher no longer does any LRU
@@ -65,13 +78,13 @@ flushing and is tasked with flush list flushing only.
   instance, introducing the risk that the right flushing mode will not happen
   for a particular instance because it is being flushed in the other mode.
 
-The following |InnoDB| metrics are no longer accounted, as their semantics do
+The following *InnoDB* metrics are no longer accounted, as their semantics do
 not make sense under the current LRU flushing design:
 ``buffer_LRU_batch_flush_avg_time_slot``, ``buffer_LRU_batch_flush_avg_pass``,
 ``buffer_LRU_batch_flush_avg_time_thread``,
 ``buffer_LRU_batch_flush_avg_time_est``.
 
-The need for |InnoDB| recovery thread writer threads is also removed,
+The need for *InnoDB* recovery thread writer threads is also removed,
 consequently all associated code is deleted.
 
 .. _doublewrite_buffer:
@@ -79,34 +92,58 @@ consequently all associated code is deleted.
 Doublewrite buffer
 ===========================
 
-As of |Percona Server| 8.0.20-11, the parallel doublewrite buffer is replaced with the `MySQL implementation <https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html>`_.
+As of *Percona Server for MySQL* 8.0.20-11, the parallel doublewrite buffer is replaced with the `MySQL implementation <https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html>`_.
 
-.. variable:: innodb_parallel_doublewrite_path
+.. _innodb_parallel_doublewrite_path:
 
-   :cli: Yes
-   :scope: Global
-   :dyn: No
-   :vartype: String
-   :default: ``xb_doublewrite``
+.. rubric:: ``innodb_parallel_doublewrite_path``
 
-As of |Percona Server| 8.0.20-11, this variable is considered **deprecated** and has no effect. You should use `innodb_doublewrite_dir <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_doublewrite_dir>`_.
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - ``xb_doublewrite``
+
+As of *Percona Server for MySQL* 8.0.20-11, this variable is considered **deprecated** and has no effect. You should use `innodb_doublewrite_dir <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_doublewrite_dir>`_.
 
 This variable is used to specify the location of the parallel doublewrite file.
 It accepts both absolute and relative paths. In the latter case they are
 treated as relative to the data directory.
 
-|Percona Server| has introduced several options, only available in builds
+*Percona Server for MySQL* has introduced several options, only available in builds
 compiled with ``UNIV_PERF_DEBUG`` C preprocessor define.
 
-.. variable:: innodb_sched_priority_master
+.. _innodb_sched_priority_master:
 
-   :cli: Yes
-   :scope: Global
-   :dyn: Yes
-   :vartype: Boolean
+.. rubric:: ``innodb_sched_priority_master``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
 
 This variable can be added to the configuration file.
-
 
 Other Reading
 =============

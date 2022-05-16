@@ -50,7 +50,7 @@ associated with it.
 @param[in] type the minilog record type
 @return true if the record has (space; page) in it */
 static constexpr bool log_online_rec_has_page(mlog_id_t type) noexcept {
-  static_assert(MLOG_BIGGEST_TYPE == 66,
+  static_assert(MLOG_BIGGEST_TYPE == 76,
                 "New MTR types must be reviewed for page presence");
   return type != MLOG_MULTI_REC_END && type != MLOG_DUMMY_RECORD &&
          type != MLOG_COMP_PAGE_CREATE_SDI && type != MLOG_PAGE_CREATE_SDI &&

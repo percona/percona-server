@@ -1531,7 +1531,6 @@ fi
 %{_libdir}/mysql/plugin/ha_rocksdb.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_rocksdb.so
 %attr(755, root, root) %{_bindir}/ldb
-%attr(755, root, root) %{_bindir}/mysql_ldb
 %attr(755, root, root) %{_bindir}/sst_dump
 %if 0%{?zenfs}
 %attr(755, root, root) %{_bindir}/zenfs

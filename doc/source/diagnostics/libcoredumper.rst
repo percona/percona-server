@@ -6,7 +6,7 @@ Using libcoredumper
 
 :Availability: This tool is in tech preview.
 
-This feature was implemented in |Percona Server| 8.0.21-12 and has been tested
+This feature was implemented in *Percona Server for MySQL* 8.0.21-12 and has been tested
 against the version's supported platforms. The tool may not be supported on future platforms. You should test before putting this tool into production.
 
 A core dump file is the documented moment of a computer when either the computer or an application exits. Developers examine the dump as one of the tasks when searching for the cause of a failure.

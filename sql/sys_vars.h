@@ -1180,7 +1180,7 @@ class Sys_var_version : public Sys_var_charptr {
         Sys_var_charptr::global_value_ptr(thd, keycache_name));
     if (version_ptr == nullptr || *version_ptr == nullptr) return nullptr;
 
-    sys_var *suffix_var = find_sys_var(thd, STRING_WITH_LEN("version_suffix"));
+    sys_var *suffix_var = find_static_system_variable("version_suffix");
     if (suffix_var == nullptr)
       return reinterpret_cast<const uchar *>(version_ptr);
 

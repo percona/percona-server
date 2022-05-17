@@ -865,32 +865,22 @@ class source_dirs {
   }
 
   const char *find_plug_in_sys_var(const char *name, THD *thd) {
-    const char *result = nullptr;
-    String name_to_find(name, &my_charset_bin);
-    LEX_STRING component_name = name_to_find.lex_string();
-
-    // 5.7 change the interface to get_system_var and requires a
-    // Parse_context, which is something that must be provided (not nullptr)
-    // and something that we do not have available to us. We now
-    // re-implement some of what get_system_var does to get at these
-    // variables
-    sys_var *var = find_sys_var(thd, component_name.str, component_name.length);
-
-    if (!var) {
+    auto var_tracker = System_variable_tracker::make_tracker(name);
+    if (var_tracker.access_system_variable(thd)) {
       return nullptr;
     }
 
-    Item_func_get_system_var *item = new Item_func_get_system_var(
-        var, OPT_GLOBAL, &component_name, nullptr, 0);
-    item->resolve_type(thd);
-    item->quick_fix_field();
-    String scratch;
-    String *str = item->val_str(&scratch);
-    if (str) {
-      result = my_strdup(tokudb_backup_mem_key, str->ptr(), MYF(MY_FAE));
+    auto item = Item_func_get_system_var(var_tracker, OPT_GLOBAL);
+
+    item.resolve_type(thd);
+    item.quick_fix_field();
+    String str;
+
+    if (!item.val_str(&str)) {
+      return nullptr;
     }
 
-    return result;
+    return my_strdup(tokudb_backup_mem_key, str.ptr(), MYF(MY_FAE));
   }
 
   // is directory "a" a child of directory "b"

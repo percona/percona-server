@@ -1,0 +1,1 @@
+--initialize --innodb-directories=$MYSQL_TMP_DIR

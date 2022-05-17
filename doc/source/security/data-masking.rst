@@ -6,10 +6,10 @@
 Data Masking
 ==================================================================
 
-This feature was implemented in |Percona Server| version :rn:`8.0.17-8`.
+This feature was implemented in *Percona Server for MySQL* version :ref:`8.0.17-8`.
 
 The Percona Data Masking plugin is a free and Open Source implementation of the
-|MySQL|'s data masking plugin. Data Masking provides a set of functions to hide
+*MySQL*'s data masking plugin. Data Masking provides a set of functions to hide
 sensitive data with modified content.
 
 Data masking can have either of the characteristics:
@@ -273,6 +273,6 @@ Copy the dictionary files to a directory accessible to MySQL. The `secure-file-p
 The `UNINSTALL PLUGIN <https://dev.mysql.com/doc/refman/8.0/en/uninstall-plugin.html>`_ statement disables and uninstalls the plugin.
 
 .. seealso::
-    |MySQL| Documentation
+    *MySQL* Documentation
     https://dev.mysql.com/doc/refman/8.0/en/data-masking-reference.html
     https://dev.mysql.com/doc/refman/8.0/en/data-masking-functions.html

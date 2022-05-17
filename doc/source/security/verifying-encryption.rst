@@ -95,5 +95,5 @@ INFORMATION_SCHEMA.SCHEMATA table:
 
 .. seealso::
 
-   |MariaDB| Documentation
+   *MariaDB* Documentation
     https://mariadb.com/kb/en/library/information-schema-innodb_tablespaces_encryption-table/

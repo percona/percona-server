@@ -12154,11 +12154,16 @@ and set the encryption flag in table flags
 dberr_t create_table_info_t::enable_master_key_encryption(dict_table_t *table) {
   const char *encrypt = m_create_info->encrypt_type.str;
 
-  /* if table is part of tablespace - no need for retrieving
+  if (Encryption::is_none(encrypt)) return (DB_SUCCESS);
+
+  /* If table is part of tablespace - no need for retrieving
   master key as tablespace key was already decrypted
-  either by validate_first_page or during tablespace creation */
-  if (Encryption::is_none(encrypt) || !(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE))
+  either by validate_first_page or during tablespace creation.
+  Just set the encryption flag and return. */
+  if (!(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
+    DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
     return (DB_SUCCESS);
+  }
 
   /* Set the encryption flag. */
   byte *master_key = nullptr;

@@ -6,7 +6,7 @@ Gap locks detection
 
 The `Gap locks
 <https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-gap-locks>`_
-detection is based on a Facebook |MySQL| patch.
+detection is based on a Facebook *MySQL* patch.
 
 If a transactional storage engine does not support gap locks (for example
 MyRocks) and a gap lock is being attempted while the transaction isolation

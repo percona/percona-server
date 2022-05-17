@@ -28,7 +28,7 @@ You should also consider the following:
   By default, MyRocks prevents creating indexes with non-binary collations
   (including ``latin1``).
   You can optionally use it by setting
-  :variable:`rocksdb_strict_collation_exceptions` to ``t1``
+  :ref:`rocksdb_strict_collation_exceptions` to ``t1``
   (table names with regex format),
   but non-binary covering indexes other than ``latin1``
   (excluding ``german1``) still require a primary key lookup
@@ -61,17 +61,17 @@ You should also consider the following:
 
    .. warning::
 
-      If you are loading large data without enabling `rocksdb_bulk_load`
-      or `rocksdb_commit_in_the_middle`, please make sure transaction
-      size is small enough. All modifications of the ongoing transactions are
-      kept in memory.
+    If you are loading large data without enabling :ref:`rocksdb_bulk_load`
+    or :ref:`rocksdb_commit_in_the_middle`, please make sure transaction
+    size is small enough. All modifications of the ongoing transactions are
+    kept in memory.
 
-* With partitioned tables that use the |TokuDB| or |MyRocks| storage engine,
+* With partitioned tables that use the *TokuDB* or *MyRocks* storage engine,
   the upgrade only works with native partitioning.
 
   .. seealso::
 
-     |MySQL| Documentation: Preparing Your Installation for Upgrade
+     *MySQL* Documentation: Preparing Your Installation for Upgrade
         https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html
 
 .. include:: ../.res/replace.concept.txt

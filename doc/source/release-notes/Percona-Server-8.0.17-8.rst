@@ -1,7 +1,7 @@
-.. rn:: 8.0.17-8:
+.. _8.0.17-8:
 
 ================================================================================
-|Percona Server| |release|
+*Percona Server for MySQL* 8.0.17-8
 ================================================================================
 
 |Percona| announces the release of |Percona Server| |release| on |date|
@@ -36,14 +36,14 @@ delay-ported to version 8.0.
 Bugs Fixed
 ================================================================================
 
-- Changed the default of :variable:`innodb_empty_free_list_algorithm` to
+- Changed the default of :ref:`innodb_empty_free_list_algorithm` to
   ``backoff``. Bugs fixed :psbug:`5881`
 
 - When the Adaptive Hash Index (AHI) was enabled or disabled, there was an AHI
   overhead during DDL operations. Bugs fixed :psbug:`5747`.
 
-- An upgrade to :rn:`8.0.16-7` with encrypted tablespace fails on
-  :variable:`innodb_dynamic_metadata`. Bugs fixed :psbug:`5874`.
+- An upgrade to :ref:`8.0.16-7` with encrypted tablespace fails on
+  :ref:`innodb_dynamic_metadata`. Bugs fixed :psbug:`5874`.
 
 - The ``rocksdb.ttl_primary`` test case sometimes fails. Bugs fixed
   :psbug:`5722` (Louis Hust)
@@ -67,7 +67,7 @@ Bugs Fixed
 
 - The metadata for every InnoDB table contains encryption information, either a
   'Y' or an 'N' value based on the ENCRYPTION clause or the
-  :variable:`default_table_encryption` value. You are unable to switch the storage
+  :ref:`default_table_encryption` value. You are unable to switch the storage
   engine from InnoDB to MyRocks because MyRocks does not support the ENCRYPTION
   clause. Bugs fixed :psbug:`5865`.
 

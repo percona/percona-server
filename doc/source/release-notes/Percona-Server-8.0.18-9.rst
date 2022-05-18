@@ -1,7 +1,7 @@
-.. rn:: 8.0.18-9:
+.. _8.0.18-9:
 
 ================================================================================
-|Percona Server| |release|
+*Percona Server for MySQL* 8.0.18-9
 ================================================================================
 
 |Percona| announces the release of |Percona Server| |release| on |date| (downloads are available `here <https://www.percona.com/downloads/Percona-Server-8.0/>`__ and from the `Percona Software Repositories <https://www.percona.com/doc/percona-server/8.0/installation.html#installing-from-binaries>`__).
@@ -20,7 +20,7 @@ addition to enterprise-grade features developed by Percona.
 Bugs Fixed
 ================================================================================
 
-- Setting the ``none`` value for :variable:`slow_query_log_use_global_control`
+- Setting the ``none`` value for :ref:`slow_query_log_use_global_control`
   generates an error. Bugs fixed :psbug:`5813`.
 
 - If `pam_krb5

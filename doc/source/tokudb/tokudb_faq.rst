@@ -32,7 +32,7 @@ TokuDB and the File System
 
 .. rubric:: How can I determine which files belong to the various tables and indexes in my schemas?
 
-The :table:`tokudb_file_map` plugin lists all Fractal Tree Indexes and their corresponding data files. The ``internal_file_name`` is the actual file name (in the data folder).
+The :ref:`tokudb_file_map` plugin lists all Fractal Tree Indexes and their corresponding data files. The ``internal_file_name`` is the actual file name (in the data folder).
 
 .. code-block:: sql
 
@@ -55,13 +55,13 @@ Full Disks
 
 The disk system may fill up during bulk load operations, such as ``LOAD DATA IN FILE`` or ``CREATE INDEX``, or during incremental operations like ``INSERT``.
 
-In the bulk case, running out of disk space will cause the statement to fail with ``ERROR 1030 (HY000): Got error 1 from storage engine``. The temporary space used by the bulk loader will be released. If this happens, you can use a separate physical disk for the temporary files (for more information, see :variable:`tokudb_tmp_dir`). If server runs out of free space *TokuDB* will assert the server to prevent data corruption to existing data files.
+In the bulk case, running out of disk space will cause the statement to fail with ``ERROR 1030 (HY000): Got error 1 from storage engine``. The temporary space used by the bulk loader will be released. If this happens, you can use a separate physical disk for the temporary files (for more information, see :ref:`tokudb_tmp_dir`). If server runs out of free space *TokuDB* will assert the server to prevent data corruption to existing data files.
 
 Otherwise, disk space can run low during non-bulk operations. When available space is below a user-configurable reserve (5% by default) inserts are prevented and transactions that perform inserts are aborted. If the disk becomes completely full then *TokuDB* will freeze until some disk space is made available.
 
 Details about the disk system:
 
-* There is a free-space reserve requirement, which is a user-configurable parameter given as a percentage of the total space in the file system. The default reserve is five percent. This value is available in the global variable :variable:`tokudb_fs_reserve_percent`. We recommend that this reserve be at least half the size of your physical memory.
+* There is a free-space reserve requirement, which is a user-configurable parameter given as a percentage of the total space in the file system. The default reserve is five percent. This value is available in the global variable :ref:`tokudb_fs_reserve_percent`. We recommend that this reserve be at least half the size of your physical memory.
 
   *TokuDB* polls the file system every five seconds to determine how much free space is available. If the free space dips below the reserve, then further table inserts are prohibited. Any transaction that attempts to insert rows will be aborted. Inserts are re-enabled when twice the reserve is available in the file system (so freeing a small amount of disk storage will not be sufficient to resume inserts). Warning messages are sent to the system error log when free space dips below twice the reserve and again when free space dips below the reserve.
 
@@ -99,7 +99,7 @@ The fine print:
 
 * Even if there are no other storage engines or other applications running, it is still possible for *TokuDB* to consume more disk space when operations such as row delete and query are performed, or when checkpoints are taken. This can happen because *TokuDB* can write cached information when it is time-efficient rather than when inserts are issued by the application, because operations in addition to insert (such as delete) create log entries, and also because of internal fragmentation of *TokuDB* data files.
 
-* The :variable:`tokudb_fs_reserve_percent` variable can not be changed once the system has started. It can only be set in :file:`my.cnf` or on the mysqld command line.
+* The :ref:`tokudb_fs_reserve_percent` variable can not be changed once the system has started. It can only be set in :file:`my.cnf` or on the mysqld command line.
 
 Backup
 ------
@@ -109,13 +109,13 @@ Backup
 Taking backups with :ref:`toku_backup`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*TokuDB* is capable of performing online backups with :ref:`toku_backup`. To perform a backup, execute ``backup to '/path/to/backup';``. This will create backup of the server and return when complete. The backup can be used by another server using a copy of the binaries on the source server. You can view the progress of the backup by executing ``SHOW PROCESSLIST;``. *TokuBackup* produces a copy of your running *MySQL* server that is consistent at the end time of the backup process. The thread copying files from source to destination can be throttled by setting the :variable:`tokudb_backup_throttle` server variable. For more information check :ref:`toku_backup`.
+*TokuDB* is capable of performing online backups with :ref:`toku_backup`. To perform a backup, execute ``backup to '/path/to/backup';``. This will create backup of the server and return when complete. The backup can be used by another server using a copy of the binaries on the source server. You can view the progress of the backup by executing ``SHOW PROCESSLIST;``. *TokuBackup* produces a copy of your running *MySQL* server that is consistent at the end time of the backup process. The thread copying files from source to destination can be throttled by setting the :ref:`tokudb_backup_throttle` server variable. For more information check :ref:`toku_backup`.
 
   The following conditions apply:
 
   * Currently, *TokuBackup* only supports tables using the *TokuDB* storage engine and the *MyISAM* tables in the ``mysql`` database. 
 
-    .. warning:: You must disable *InnoDB* asynchronous IO if backing up *InnoDB* tables via *TokuBackup* utility. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is :variable:`innodb_use_native_aio` to ``0``.
+    .. warning:: You must disable *InnoDB* asynchronous IO if backing up *InnoDB* tables via *TokuBackup* utility. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is :ref:`innodb_use_native_aio` to ``0``.
 
   * Transactional storage engines (*TokuDB* and *InnoDB*) will perform recovery on the backup copy of the database when it is first started.
 
@@ -123,7 +123,7 @@ Taking backups with :ref:`toku_backup`
 
   * The database is copied locally to the path specified in :file:`/path/to/backup`. This folder must exist, be writable, be empty, and contain enough space for a full copy of the database.
 
-  * *TokuBackup* always makes a backup of the *MySQL* ``datadir`` and optionally the :variable:`tokudb_data_dir`, :variable:`tokudb_log_dir`, and the binary log folder. The latter three are only backed up separately if they are not the same as or contained in the *MySQL* ``datadir``. None of these three folders can be a parent of the *MySQL* ``datadir``.
+  * *TokuBackup* always makes a backup of the *MySQL* ``datadir`` and optionally the :ref:`tokudb_data_dir`, :ref:`tokudb_log_dir`, and the binary log folder. The latter three are only backed up separately if they are not the same as or contained in the *MySQL* ``datadir``. None of these three folders can be a parent of the *MySQL* ``datadir``.
 
   * A folder is created in the given backup destination for each of the source folders.
 

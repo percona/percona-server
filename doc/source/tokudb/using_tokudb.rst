@@ -126,10 +126,10 @@ TokuDB enables you to add indexes to an existing table and still perform inserts
 and queries on that table while the index is being created.
 
 The ``ONLINE`` keyword is not used. Instead, the value of the
-:variable:`tokudb_create_index_online` client session variable is examined.
+:ref:`tokudb_create_index_online` client session variable is examined.
 
 Hot index creation is invoked using the ``CREATE INDEX`` command after setting
-:variable:`tokudb_create_index_online` to ``on`` as follows:
+:ref:`tokudb_create_index_online` to ``on`` as follows:
 
 .. code-block:: mysql
 
@@ -140,7 +140,7 @@ Hot index creation is invoked using the ``CREATE INDEX`` command after setting
 
 Alternatively, using the ``ALTER TABLE`` command for creating an index will
 create the index offline (with the table unavailable for inserts or queries),
-regardless of the value of :variable:`tokudb_create_index_online`. The only way
+regardless of the value of :ref:`tokudb_create_index_online`. The only way
 to hot create an index is to use the ``CREATE INDEX`` command.
 
 Hot creating an index will be slower than creating the index offline, and
@@ -259,10 +259,10 @@ recommend that users use the default settings unless they have profiled their
 system with high compression in place.
 
 The table is compressed using whichever row format is specified in the session
-variable :variable:`tokudb_row_format`. If no row format is set nor is
-:variable:`tokudb_row_format`, the ``QUICKLZ`` compression algorithm is used.
+variable :ref:`tokudb_row_format`. If no row format is set nor is
+:ref:`tokudb_row_format`, the ``QUICKLZ`` compression algorithm is used.
 
-The :variable:`row_format` and :variable:`tokudb_row_format` variables accept
+The :ref:`row_format` and :ref:`tokudb_row_format` variables accept
 the following values:
 
 .. list-table::

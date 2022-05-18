@@ -42,7 +42,6 @@
 #include <string>
 
 #include "lex_string.h"
-#include "m_string.h"  // native_strncasecmp
 #include "my_aes.h"
 #include "libbinlogevents/include/binlog_event.h"
 #include "libbinlogevents/include/control_events.h"

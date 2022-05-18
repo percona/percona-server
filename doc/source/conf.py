@@ -29,7 +29,7 @@ sys.path.append(os.path.abspath('ext'))
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.todo',
               'sphinx.ext.coverage', 'sphinx.ext.ifconfig',
-              'sphinx.ext.extlinks', 'psdom']
+              'sphinx.ext.extlinks']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -68,11 +68,6 @@ release = ".".join([version, '28-19'])
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = []
-
-# The reST default role (used for this markup: `text`) to use for all documents.
-#default_role = None
-
-primary_domain = 'psdom'
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 #add_function_parentheses = True

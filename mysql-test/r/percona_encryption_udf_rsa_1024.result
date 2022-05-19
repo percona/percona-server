@@ -1,0 +1,155 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+CREATE TEMPORARY TABLE digest_type(
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+digest_name VARCHAR(64) NOT NULL,
+builtin_template VARCHAR(64),
+PRIMARY KEY(id)
+);
+INSERT INTO digest_type(digest_name, builtin_template) VALUES
+('MD5' , 'MD5(@message)'),
+('SHA1', 'SHA(@message)'),
+('SHA224', 'SHA2(@message, 224)'),
+('SHA256', 'SHA2(@message, 256)'),
+('SHA384', 'SHA2(@message, 384)'),
+('SHA512', 'SHA2(@message, 512)'),
+('MD4'       , NULL),
+('RIPEMD160' , NULL)
+;
+
+** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
+
+** [RSA] checking asymmertic algorithm functions
+** [RSA][1024] checking asymmetric algorithm functions
+**** [RSA][1024] generating private key
+**** [RSA][1024] deriving public key
+**** [RSA][1024] checking operations on NULL message
+****** [RSA][1024] checking encryption with public key of NULL message
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+****** [RSA][1024] checking encryption with private key of NULL message
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+**** [RSA][1024][message_len=0] checking operations
+****** [RSA][1024][message_len=0] checking encryption with public key
+****** [RSA][1024][message_len=0] checking decryption with private key
+****** [RSA][1024][message_len=0] checking encryption with private key
+****** [RSA][1024][message_len=0] checking decryption with public key
+****** [RSA][1024][message_len=0] checking sign/verify functionality
+******** [RSA][1024][message_len=0][MD5] calculating digest
+******** [RSA][1024][message_len=0][MD5] calculating signature
+******** [RSA][1024][message_len=0][MD5] verifying signature
+******** [RSA][1024][message_len=0][SHA1] calculating digest
+******** [RSA][1024][message_len=0][SHA1] calculating signature
+******** [RSA][1024][message_len=0][SHA1] verifying signature
+******** [RSA][1024][message_len=0][SHA224] calculating digest
+******** [RSA][1024][message_len=0][SHA224] calculating signature
+******** [RSA][1024][message_len=0][SHA224] verifying signature
+******** [RSA][1024][message_len=0][SHA256] calculating digest
+******** [RSA][1024][message_len=0][SHA256] calculating signature
+******** [RSA][1024][message_len=0][SHA256] verifying signature
+******** [RSA][1024][message_len=0][SHA384] calculating digest
+******** [RSA][1024][message_len=0][SHA384] calculating signature
+******** [RSA][1024][message_len=0][SHA384] verifying signature
+******** [RSA][1024][message_len=0][SHA512] calculating digest
+******** [RSA][1024][message_len=0][SHA512] calculating signature
+******** [RSA][1024][message_len=0][SHA512] verifying signature
+******** [RSA][1024][message_len=0][MD4] calculating digest
+******** [RSA][1024][message_len=0][MD4] calculating signature
+******** [RSA][1024][message_len=0][MD4] verifying signature
+******** [RSA][1024][message_len=0][RIPEMD160] calculating digest
+******** [RSA][1024][message_len=0][RIPEMD160] calculating signature
+******** [RSA][1024][message_len=0][RIPEMD160] verifying signature
+**** [RSA][1024][message_len=1] checking operations
+****** [RSA][1024][message_len=1] checking encryption with public key
+****** [RSA][1024][message_len=1] checking decryption with private key
+****** [RSA][1024][message_len=1] checking encryption with private key
+****** [RSA][1024][message_len=1] checking decryption with public key
+****** [RSA][1024][message_len=1] checking sign/verify functionality
+******** [RSA][1024][message_len=1][MD5] calculating digest
+******** [RSA][1024][message_len=1][MD5] calculating signature
+******** [RSA][1024][message_len=1][MD5] verifying signature
+******** [RSA][1024][message_len=1][SHA1] calculating digest
+******** [RSA][1024][message_len=1][SHA1] calculating signature
+******** [RSA][1024][message_len=1][SHA1] verifying signature
+******** [RSA][1024][message_len=1][SHA224] calculating digest
+******** [RSA][1024][message_len=1][SHA224] calculating signature
+******** [RSA][1024][message_len=1][SHA224] verifying signature
+******** [RSA][1024][message_len=1][SHA256] calculating digest
+******** [RSA][1024][message_len=1][SHA256] calculating signature
+******** [RSA][1024][message_len=1][SHA256] verifying signature
+******** [RSA][1024][message_len=1][SHA384] calculating digest
+******** [RSA][1024][message_len=1][SHA384] calculating signature
+******** [RSA][1024][message_len=1][SHA384] verifying signature
+******** [RSA][1024][message_len=1][SHA512] calculating digest
+******** [RSA][1024][message_len=1][SHA512] calculating signature
+******** [RSA][1024][message_len=1][SHA512] verifying signature
+******** [RSA][1024][message_len=1][MD4] calculating digest
+******** [RSA][1024][message_len=1][MD4] calculating signature
+******** [RSA][1024][message_len=1][MD4] verifying signature
+******** [RSA][1024][message_len=1][RIPEMD160] calculating digest
+******** [RSA][1024][message_len=1][RIPEMD160] calculating signature
+******** [RSA][1024][message_len=1][RIPEMD160] verifying signature
+**** [RSA][1024][message_len=58] checking operations
+****** [RSA][1024][message_len=58] checking encryption with public key
+****** [RSA][1024][message_len=58] checking decryption with private key
+****** [RSA][1024][message_len=58] checking encryption with private key
+****** [RSA][1024][message_len=58] checking decryption with public key
+****** [RSA][1024][message_len=58] checking sign/verify functionality
+******** [RSA][1024][message_len=58][MD5] calculating digest
+******** [RSA][1024][message_len=58][MD5] calculating signature
+******** [RSA][1024][message_len=58][MD5] verifying signature
+******** [RSA][1024][message_len=58][SHA1] calculating digest
+******** [RSA][1024][message_len=58][SHA1] calculating signature
+******** [RSA][1024][message_len=58][SHA1] verifying signature
+******** [RSA][1024][message_len=58][SHA224] calculating digest
+******** [RSA][1024][message_len=58][SHA224] calculating signature
+******** [RSA][1024][message_len=58][SHA224] verifying signature
+******** [RSA][1024][message_len=58][SHA256] calculating digest
+******** [RSA][1024][message_len=58][SHA256] calculating signature
+******** [RSA][1024][message_len=58][SHA256] verifying signature
+******** [RSA][1024][message_len=58][SHA384] calculating digest
+******** [RSA][1024][message_len=58][SHA384] calculating signature
+******** [RSA][1024][message_len=58][SHA384] verifying signature
+******** [RSA][1024][message_len=58][SHA512] calculating digest
+******** [RSA][1024][message_len=58][SHA512] calculating signature
+******** [RSA][1024][message_len=58][SHA512] verifying signature
+******** [RSA][1024][message_len=58][MD4] calculating digest
+******** [RSA][1024][message_len=58][MD4] calculating signature
+******** [RSA][1024][message_len=58][MD4] verifying signature
+******** [RSA][1024][message_len=58][RIPEMD160] calculating digest
+******** [RSA][1024][message_len=58][RIPEMD160] calculating signature
+******** [RSA][1024][message_len=58][RIPEMD160] verifying signature
+**** [RSA][1024][message_len=117] checking operations
+****** [RSA][1024][message_len=117] checking encryption with public key
+****** [RSA][1024][message_len=117] checking decryption with private key
+****** [RSA][1024][message_len=117] checking encryption with private key
+****** [RSA][1024][message_len=117] checking decryption with public key
+****** [RSA][1024][message_len=117] checking sign/verify functionality
+******** [RSA][1024][message_len=117][MD5] calculating digest
+******** [RSA][1024][message_len=117][MD5] calculating signature
+******** [RSA][1024][message_len=117][MD5] verifying signature
+******** [RSA][1024][message_len=117][SHA1] calculating digest
+******** [RSA][1024][message_len=117][SHA1] calculating signature
+******** [RSA][1024][message_len=117][SHA1] verifying signature
+******** [RSA][1024][message_len=117][SHA224] calculating digest
+******** [RSA][1024][message_len=117][SHA224] calculating signature
+******** [RSA][1024][message_len=117][SHA224] verifying signature
+******** [RSA][1024][message_len=117][SHA256] calculating digest
+******** [RSA][1024][message_len=117][SHA256] calculating signature
+******** [RSA][1024][message_len=117][SHA256] verifying signature
+******** [RSA][1024][message_len=117][SHA384] calculating digest
+******** [RSA][1024][message_len=117][SHA384] calculating signature
+******** [RSA][1024][message_len=117][SHA384] verifying signature
+******** [RSA][1024][message_len=117][SHA512] calculating digest
+******** [RSA][1024][message_len=117][SHA512] calculating signature
+******** [RSA][1024][message_len=117][SHA512] verifying signature
+******** [RSA][1024][message_len=117][MD4] calculating digest
+******** [RSA][1024][message_len=117][MD4] calculating signature
+******** [RSA][1024][message_len=117][MD4] verifying signature
+******** [RSA][1024][message_len=117][RIPEMD160] calculating digest
+******** [RSA][1024][message_len=117][RIPEMD160] calculating signature
+******** [RSA][1024][message_len=117][RIPEMD160] verifying signature
+**** [RSA][1024] checking operations on oversize message
+****** [RSA][1024] checking encryption of oversize message with public key
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+****** [RSA][1024] checking encryption of oversize message with private key
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+UNINSTALL COMPONENT 'file://component_encryption_udf';

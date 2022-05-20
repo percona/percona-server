@@ -308,7 +308,9 @@ get_sources(){
     sed -i "s:@@PERCONA_VERSION@@:${MYSQL_VERSION_EXTRA#-}:g" build-ps/percona-server.spec
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/percona-server.spec
     sed -i "s:@@RPM_RELEASE@@:${RPM_RELEASE}:g" build-ps/percona-server.spec
-
+    if [ "x${RHEL}" = "x6" ]; then
+        sed -i "s:-DWITH_ENCRYPTION_UDF=ON:-DWITH_ENCRYPTION_UDF=OFF:g" build-ps/percona-server.spec
+    fi
     cd ${WORKDIR}/percona-server
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
 

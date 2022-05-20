@@ -158,6 +158,7 @@ usr/lib/mysql/plugin/component_keyring_kmip.so
 usr/lib/mysql/plugin/debug/authentication_oci_client.so
 usr/lib/mysql/plugin/debug/component_keyring_kmip.so
 usr/lib/mysql/plugin/authentication_fido_client.so
+usr/lib/mysql/plugin/component_encryption_udf.so
 
 # support files
 usr/share/mysql/dictionary.txt

@@ -1060,9 +1060,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
-%if 0%{?rhel} > 7
+%if 0%{?rhel} > 6
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_encryption_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_encryption_udf.so
 %endif
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_kms.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_kms.so
 #
 #%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
 #%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql

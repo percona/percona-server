@@ -9,6 +9,8 @@
 
 --source include/master-slave.inc
 
+call mtr.add_suppression(".*read free replication is disabled for table.*continue with rows lookup");
+
 --let $safe_load_data_dir = `SELECT @@global.secure_file_priv`
 --let $server_1_binlog_record_file = $safe_load_data_dir/bug93917_server_1.txt
 --let $server_2_binlog_record_file = $safe_load_data_dir/bug93917_server_2.txt

@@ -20,7 +20,7 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
-call mtr.add_suppression("read free replication is disabled for TokuDB/RocksDB table");
+call mtr.add_suppression("read free replication is disabled for table");
 
 --connection master
 CREATE TABLE t (a int(11), b char(20)) ENGINE = TokuDB;

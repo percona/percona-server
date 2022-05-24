@@ -10096,7 +10096,7 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
         if (!table->s->rfr_lookup_warning)
         {
           sql_print_warning("Slave: read free replication is disabled "
-                            "for TokuDB/RocksDB table `%s.%s` "
+                            "for table `%s.%s` "
                             "as it does not have implicit primary key, "
                             "continue with rows lookup",
                             print_slave_db_safe(table->s->db.str),

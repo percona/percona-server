@@ -1,0 +1,13 @@
+Useful links
+========================
+
+- The `Percona Server for MySQL installation instructions <https://www.percona.com/doc/percona-server/5.7/installation.html>`__
+
+- The `Percona Server In-Place Upgrading Guide: From 5.6 to 5.7 <https://www.percona.com/doc/percona-server/5.7/upgrading_guide_56_57.html>`__
+
+- The `Percona Software downloads <https://www.percona.com/downloads/>`__
+
+- The `Percona Server for MySQL GitHub location <https://github.com/percona/percona-server>`__
+
+- To contribute to the documentation, review the `Documentation Contribution Guide <https://github.com/percona/percona-server/blob/8.0/doc/source/contributing.md>`__
+

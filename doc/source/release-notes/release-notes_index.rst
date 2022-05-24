@@ -1,10 +1,11 @@
-==================================
-|Percona Server| 5.7 Release notes
-==================================
+=============================================
+*Percona Server for MySQL* 5.7 Release notes
+=============================================
 
 .. toctree::
    :maxdepth: 1
 
+   Percona-Server-5.7.38-41
    Percona-Server-5.7.36-39
    Percona-Server-5.7.35-38
    Percona-Server-5.7.34-37

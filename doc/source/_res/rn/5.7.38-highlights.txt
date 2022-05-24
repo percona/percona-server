@@ -1,0 +1,10 @@
+Release Highlights
+=================================================
+
+Improvements and bug fixes provided by Oracle for *MySQL* 5.7.38 and included in Percona Server for MySQL are the following:
+
+* If a statement cannot be parsed, for example, if the statement contains syntax errors, that statement is not written to the slow query log.
+* Loading an encrypted table failed if purge threads processed the undo records for that table.
+* There was a memory leak when mysqldump was used on more than one table with the `--order-by-primary` option. The memory allocated to sort each row in a table is now released after every table.
+
+Find the full list of bug fixes and changes in the `MySQL 5.7.38 Release Notes <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-38.html>`__.

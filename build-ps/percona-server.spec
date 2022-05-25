@@ -258,6 +258,10 @@ Requires(preun):  /sbin/service
 Obsoletes:      mariadb-connector-c-config
 %endif
 
+%if 0%{?tokudb} == 0
+Obsoletes:      percona-server-tokudb
+%endif
+
 %description -n percona-server-server
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server

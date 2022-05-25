@@ -25,6 +25,7 @@ Build-Depends: bison,
                libwrap0-dev,
                libcurl4-openssl-dev,
                libldap2-dev
+Conflicts: percona-server-tokudb
 Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
 Vcs-Git: git://github.com/percona/percona-server.git -b 8.0

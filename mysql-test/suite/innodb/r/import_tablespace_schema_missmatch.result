@@ -11,7 +11,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY);
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table location flags do not match. The source table uses a DATA DIRECTORY but the destination table does not.)
+Warnings:
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t1.cfg', will attempt to import without schema verification
 DROP TABLE t1;
 #
 # Test-case-2
@@ -21,9 +22,15 @@ FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+SELECT * from t1;
+id
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table location flags do not match. The source table does not use a DATA DIRECTORY but the destination table does.)
+SELECT * FROM t1;
+id
+1
+2
+3
 DROP TABLE t1;
 #
 # Bug #30190199 ERROR WHEN IMPORTING TABLESPACE WITH DIFFERENT DATA
@@ -38,7 +45,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY);
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table location flags do not match. The source table uses a DATA DIRECTORY but the destination table does not.)
 DROP TABLE t1;
 #
 # Test-case-4
@@ -50,8 +56,33 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table location flags do not match. The source table does not use a DATA DIRECTORY but the destination table does.)
 DROP TABLE t1;
 #
 # Cleanup
 #
+#
+# Bug 76142: InnoDB tablespace import fails when importing table w/ different data directory
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR';
+INSERT INTO t2 VALUES (3);
+FLUSH TABLE t2 FOR EXPORT;
+UNLOCK TABLES;
+ALTER TABLE t2 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+ALTER TABLE t2 IMPORT TABLESPACE;
+INSERT INTO t2 VALUES (2);
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+INSERT INTO t1 VALUES (4);
+SELECT * FROM t1;
+a
+3
+4
+SELECT * FROM t2;
+a
+1
+2
+DROP TABLE t1, t2;

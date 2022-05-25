@@ -33,10 +33,12 @@ leak:/usr/bin/perl
 leak:/lib64/libperl.so.*
 leak:/bin/bash
 leak:/usr/bin/sed
+leak:/usr/bin/awk
 leak:/usr/bin/python2.7
 leak:/usr/bin/zip
 leak:/usr/bin/python3.8
 leak:/usr/bin/python3.9
+leak:/usr/bin/python3.10
 leak:/usr/bin/grep
 leak:/usr/bin/ps
 leak:/usr/bin/*g++-*

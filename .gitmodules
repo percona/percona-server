@@ -6,7 +6,7 @@
 	url = https://github.com/percona/Percona-TokuBackup.git
 [submodule "storage/rocksdb/rocksdb"]
 	path = storage/rocksdb/rocksdb
-	url = https://github.com/facebook/rocksdb.git
+	url = https://github.com/percona/rocksdb.git
 [submodule "storage/rocksdb/rocksdb_plugins/zenfs"]
 	path = storage/rocksdb/rocksdb_plugins/zenfs
 	url = https://github.com/westerndigitalcorporation/zenfs.git

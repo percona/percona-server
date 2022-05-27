@@ -18,10 +18,15 @@
 
 #include "mysql/plugin_audit.h"
 
+#include <map>
 #include <string_view>
 #include <variant>
 
 namespace audit_log_filter {
+
+using AuditRecordFieldsList = std::map<std::string, std::string>;
+
+constexpr std::string_view CONNECTION_TYPE_FIELD_NAME = "connection_type";
 
 struct AuditRecordGeneral {
   std::string_view event_class_name;
@@ -131,6 +136,124 @@ using AuditRecordVariant =
  */
 AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
                                     const void *event);
+
+/**
+ * @brief Convert connection_type pseudo-constant to numeric value.
+ *
+ * @param type Connection type
+ */
+void update_connection_type_pseudo_to_numeric(std::string &type);
+
+/**
+ * @brief Get fields list from AuditRecordGeneral event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordGeneral &record);
+
+/**
+ * @brief Get fields list from AuditRecordConnection event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordConnection &record);
+
+/**
+ * @brief Get fields list from AuditRecordParse event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordParse &record);
+
+/**
+ * @brief Get fields list from AuditRecordTableAccess event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordTableAccess &record);
+
+/**
+ * @brief Get fields list from AuditRecordGlobalVariable event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordGlobalVariable &record);
+
+/**
+ * @brief Get fields list from AuditRecordServerStartup event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordServerStartup &record);
+
+/**
+ * @brief Get fields list from AuditRecordServerShutdown event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordServerShutdown &record);
+
+/**
+ * @brief Get fields list from AuditRecordCommand event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordCommand &record);
+
+/**
+ * @brief Get fields list from AuditRecordQuery event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordQuery &record);
+
+/**
+ * @brief Get fields list from AuditRecordStoredProgram event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordStoredProgram &record);
+
+/**
+ * @brief Get fields list from AuditRecordAuthentication event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordAuthentication &record);
+
+/**
+ * @brief Get fields list from AuditRecordMessage event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordMessage &record);
+
+/**
+ * @brief Get fields list from AuditRecordUnknown event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record);
 
 }  // namespace audit_log_filter
 

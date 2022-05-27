@@ -45,6 +45,13 @@ MYSQL_ADD_PLUGIN(audit_log_filter
                  log_writer_strategy/perf.cc
                  log_writer_strategy/semisync.cc
                  log_writer_strategy/sync.cc
+                 event_field_condition/field.cc
+                 event_field_condition/and.cc
+                 event_field_condition/or.cc
+                 event_field_condition/not.cc
+                 event_field_condition/variable.cc
+                 event_field_condition/function.cc
+                 event_field_condition/bool.cc
                  MODULE_ONLY MODULE_OUTPUT_NAME "audit_log_filter")
 
 IF(UNIX)

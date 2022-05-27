@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -92,7 +92,7 @@ dberr_t dict_build_table_def(
           strcmp(tbl_name.c_str(), innodb_dd_table[table->id - 1].name) == 0);
 
   } else {
-    dict_table_assign_new_id(table, trx);
+    dict_table_assign_new_id(table);
   }
 
   dberr_t err = dict_build_tablespace_for_table(table, create_info, trx, mode,
@@ -102,9 +102,17 @@ dberr_t dict_build_table_def(
 }
 
 /** Builds a tablespace to store various objects.
+<<<<<<< HEAD
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @param[in]      keyring_encryption_key_id info on keyring encryption key
+||||||| 6846e6b2f72
+@param[in,out]	trx		DD transaction
+@param[in,out]	tablespace	Tablespace object describing what to build.
+=======
+@param[in,out]  trx             DD transaction
+@param[in,out]  tablespace      Tablespace object describing what to build.
+>>>>>>> mysql-8.0.29
 @return DB_SUCCESS or error code. */
 dberr_t dict_build_tablespace(
     trx_t *trx, Tablespace *tablespace, fil_encryption_t mode,
@@ -179,7 +187,7 @@ dberr_t dict_build_tablespace(
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
   ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-  bool ret = fsp_header_init(space, size, &mtr, false);
+  bool ret = fsp_header_init(space, size, &mtr);
   mtr_commit(&mtr);
 
   DBUG_EXECUTE_IF("fil_ibd_create_log",
@@ -349,7 +357,7 @@ dberr_t dict_build_tablespace_for_table(
 
     mtr_start(&mtr);
 
-    bool ret = fsp_header_init(table->space, size, &mtr, false);
+    bool ret = fsp_header_init(table->space, size, &mtr);
 
     if (ret) {
       fil_set_autoextend_size(
@@ -451,8 +459,8 @@ void dict_build_index_def(const dict_table_t *table, /*!< in: table */
 }
 
 /** Creates an index tree for the index if it is not a member of a cluster.
-@param[in,out]	index	InnoDB index object
-@param[in,out]	trx	transaction
+@param[in,out]  index   InnoDB index object
+@param[in,out]  trx     transaction
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
   mtr_t mtr;
@@ -485,9 +493,7 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
 
   dberr_t err = DB_SUCCESS;
 
-  page_no =
-      btr_create(index->type, index->space, dict_table_page_size(index->table),
-                 index->id, index, &mtr);
+  page_no = btr_create(index->type, index->space, index->id, index, &mtr);
 
   index->page = page_no;
   index->trx_id = trx->id;
@@ -517,8 +523,8 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
 }
 
 /** Drop an index tree belonging to a temporary table.
-@param[in]	index		index in a temporary table
-@param[in]	root_page_no	index root page number */
+@param[in]      index           index in a temporary table
+@param[in]      root_page_no    index root page number */
 void dict_drop_temporary_table_index(const dict_index_t *index,
                                      page_no_t root_page_no) {
   ut_ad(dict_sys_mutex_own() || index->table->is_intrinsic());
@@ -539,9 +545,9 @@ void dict_drop_temporary_table_index(const dict_index_t *index,
 }
 
 /** Check whether a column is in an index by the column name
-@param[in]	col_name	column name for the column to be checked
-@param[in]	index		the index to be searched
-@return	true if this column is in the index, otherwise, false */
+@param[in]      col_name        column name for the column to be checked
+@param[in]      index           the index to be searched
+@return true if this column is in the index, otherwise, false */
 static bool dict_index_has_col_by_name(const char *col_name,
                                        const dict_index_t *index) {
   for (ulint i = 0; i < index->n_fields; i++) {
@@ -556,9 +562,9 @@ static bool dict_index_has_col_by_name(const char *col_name,
 
 /** Check whether the foreign constraint could be on a column that is
 part of a virtual index (index contains virtual column) in the table
-@param[in]	fk_col_name	FK column name to be checked
-@param[in]	table		the table
-@return	true if this column is indexed with other virtual columns */
+@param[in]      fk_col_name     FK column name to be checked
+@param[in]      table           the table
+@return true if this column is indexed with other virtual columns */
 bool dict_foreign_has_col_in_v_index(const char *fk_col_name,
                                      const dict_table_t *table) {
   /* virtual column can't be Primary Key, so start with secondary index */
@@ -576,9 +582,9 @@ bool dict_foreign_has_col_in_v_index(const char *fk_col_name,
 
 /** Check whether the foreign constraint could be on a column that is
 a base column of some indexed virtual columns.
-@param[in]	col_name	column name for the column to be checked
-@param[in]	table		the table
-@return	true if this column is a base column, otherwise, false */
+@param[in]      col_name        column name for the column to be checked
+@param[in]      table           the table
+@return true if this column is a base column, otherwise, false */
 bool dict_foreign_has_col_as_base_col(const char *col_name,
                                       const dict_table_t *table) {
   /* Loop through each virtual column and check if its base column has
@@ -602,8 +608,8 @@ bool dict_foreign_has_col_as_base_col(const char *col_name,
 }
 
 /** Check if a foreign constraint is on the given column name.
-@param[in]	col_name	column name to be searched for fk constraint
-@param[in]	table		table to which foreign key constraint belongs
+@param[in]      col_name        column name to be searched for fk constraint
+@param[in]      table           table to which foreign key constraint belongs
 @return true if fk constraint is present on the table, false otherwise. */
 static bool dict_foreign_base_for_stored(const char *col_name,
                                          const dict_table_t *table) {
@@ -633,9 +639,9 @@ static bool dict_foreign_base_for_stored(const char *col_name,
 /** Check if a foreign constraint is on columns served as base columns
 of any stored column. This is to prevent creating SET NULL or CASCADE
 constraint on such columns
-@param[in]	local_fk_set	set of foreign key objects, to be added to
+@param[in]      local_fk_set    set of foreign key objects, to be added to
 the dictionary tables
-@param[in]	table		table to which the foreign key objects in
+@param[in]      table           table to which the foreign key objects in
 local_fk_set belong to
 @return true if yes, otherwise, false */
 bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
@@ -672,8 +678,8 @@ bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
 
 /** Check if a column is in foreign constraint with CASCADE properties or
 SET NULL
-@param[in]	table		table
-@param[in]	col_name	name for the column to be checked
+@param[in]      table           table
+@param[in]      col_name        name for the column to be checked
 @return true if the column is in foreign constraint, otherwise, false */
 bool dict_foreigns_has_this_col(const dict_table_t *table,
                                 const char *col_name) {
@@ -702,10 +708,7 @@ bool dict_foreigns_has_this_col(const dict_table_t *table,
   return (false);
 }
 
-/** Assign a new table ID and put it into the table cache and the transaction.
-@param[in,out]	table	Table that needs an ID
-@param[in,out]	trx	Transaction */
-void dict_table_assign_new_id(dict_table_t *table, trx_t *trx) {
+void dict_table_assign_new_id(dict_table_t *table) {
   if (table->is_intrinsic()) {
     /* There is no significance of this table->id (if table is
     intrinsic) so assign it default instead of something meaningful
@@ -717,10 +720,10 @@ void dict_table_assign_new_id(dict_table_t *table, trx_t *trx) {
 }
 
 /** Create in-memory tablespace dictionary index & table
-@param[in]	space		tablespace id
-@param[in]	space_discarded	true if space is discarded
-@param[in]	in_flags	space flags to use when space_discarded is true
-@param[in]	is_create	true when creating SDI index
+@param[in]      space           tablespace id
+@param[in]      space_discarded true if space is discarded
+@param[in]      in_flags        space flags to use when space_discarded is true
+@param[in]      is_create       true when creating SDI index
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
                                          uint32_t in_flags, bool is_create) {
@@ -756,11 +759,12 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 
   /* 18 = strlen(SDI) + Max digits of 4 byte spaceid (10) + 1 */
   char table_name[18];
-  mem_heap_t *heap = mem_heap_create(DICT_HEAP_SIZE);
+  mem_heap_t *heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
   snprintf(table_name, sizeof(table_name), "SDI_" SPACE_ID_PF, space);
 
-  dict_table_t *table =
-      dict_mem_table_create(table_name, space, 5, 0, 0, table_flags, 0);
+  constexpr size_t n_cols_sdi = 5;
+  dict_table_t *table = dict_mem_table_create(table_name, space, n_cols_sdi, 0,
+                                              0, table_flags, 0);
 
   dict_mem_table_add_col(table, heap, "type", DATA_INT,
                          DATA_NOT_NULL | DATA_UNSIGNED, 4, true);
@@ -772,6 +776,12 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
                          DATA_NOT_NULL | DATA_UNSIGNED, 4, true);
   dict_mem_table_add_col(table, heap, "data", DATA_BLOB, DATA_NOT_NULL, 0,
                          true);
+
+  /* Initialize row version and column counts for new table */
+  table->current_row_version = 0;
+  table->initial_col_count = n_cols_sdi;
+  table->current_col_count = table->initial_col_count;
+  table->total_col_count = table->initial_col_count;
 
   table->id = dict_sdi_get_table_id(space);
 
@@ -829,7 +839,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
     dict_mem_table_free(table);
     table = exist;
   } else {
-    dict_table_add_to_cache(table, TRUE, heap);
+    dict_table_add_to_cache(table, true);
   }
 
   mem_heap_free(heap);

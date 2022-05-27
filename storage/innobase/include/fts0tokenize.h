@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,9 +43,6 @@ inline bool true_word_char(char c, bool extra_word_chars, char ch) {
   return result;
 }
 
-/** Check if a char is misc word */
-#define misc_word_char(X) 0
-
 /** Boolean search syntax */
 static const char *fts_boolean_syntax = DEFAULT_FTB_SYNTAX;
 
@@ -70,6 +67,7 @@ struct FT_WORD {
 
 /** Tokenizer for ngram referring to ft_get_word(ft_parser.c) in MyISAM.
 Differences: a. code format changed; b. stopword processing removed.
+<<<<<<< HEAD
 @param[in]	cs	charset
 @param[in,out]	start	doc start pointer
 @param[in,out]	end	doc end pointer
@@ -83,9 +81,35 @@ Differences: a. code format changed; b. stopword processing removed.
 inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
                           uchar **start, uchar *end, FT_WORD *word,
                           MYSQL_FTPARSER_BOOLEAN_INFO *info) {
+||||||| 6846e6b2f72
+@param[in]	cs	charset
+@param[in,out]	start	doc start pointer
+@param[in,out]	end	doc end pointer
+@param[in,out]	word	token
+@param[in,out]	info	token info
+@retval	0	eof
+@retval	1	word found
+@retval	2	left bracket
+@retval	3	right bracket
+@retval	4	stopword found */
+inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
+                          FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *info) {
+=======
+@param[in]      cs      charset
+@param[in,out]  start   doc start pointer
+@param[in,out]  end     doc end pointer
+@param[in,out]  word    token
+@param[in,out]  info    token info
+@retval 0       eof
+@retval 1       word found
+@retval 2       left bracket
+@retval 3       right bracket
+@retval 4       stopword found */
+inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
+                          FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *info) {
+>>>>>>> mysql-8.0.29
   uchar *doc = *start;
   int ctype;
-  uint mwc;
   uint length;
   int mbl;
 
@@ -150,25 +174,31 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
       info->weight_adjust = info->wasign = 0;
     }
 
-    mwc = length = 0;
+    length = 0;
     for (word->pos = doc; doc < end;
          length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, doc, end);
 
+<<<<<<< HEAD
       if (extra_word_chars && *doc == FTB_RQUOT) {
         break;
       } else if (true_word_char(ctype, extra_word_chars, *doc)) {
         mwc = 0;
       } else if (!misc_word_char(*doc) || mwc) {
+||||||| 6846e6b2f72
+      if (true_word_char(ctype, *doc)) {
+        mwc = 0;
+      } else if (!misc_word_char(*doc) || mwc) {
+=======
+      if (!true_word_char(ctype, *doc)) {
+>>>>>>> mysql-8.0.29
         break;
-      } else {
-        mwc++;
       }
     }
 
     /* Be sure *prev is true_word_char. */
     info->prev = 'A';
-    word->len = (uint)(doc - word->pos) - mwc;
+    word->len = (uint)(doc - word->pos);
 
     if ((info->trunc = (doc < end && *doc == FTB_TRUNC))) {
       doc++;

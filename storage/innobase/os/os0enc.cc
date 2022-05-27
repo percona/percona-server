@@ -300,9 +300,9 @@ const char *Encryption::to_string(Type type) noexcept {
       return ("KEYRING");
   }
 
-  ut_ad(0);
+  ut_d(ut_error);
 
-  return ("<UNKNOWN>");
+  ut_o(return ("<UNKNOWN>"));
 }
 
 void Encryption::random_value(byte *value) noexcept {
@@ -792,7 +792,7 @@ void Encryption::get_master_key(uint32_t *master_key_id,
 @param[in]	is_boot		if it's for bootstrap
 @return true if success */
 bool Encryption::fill_encryption_info(const byte *key, const byte *iv,
-                                      byte *encrypt_info, bool is_boot,
+                                      byte *encrypt_info,
                                       bool encrypt_key) noexcept {
   byte *master_key = nullptr;
   uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
@@ -1122,7 +1122,7 @@ bool Encryption::is_encrypted_log(const byte *block) noexcept {
   return (log_block_get_encrypt_bit(block));
 }
 
-bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
+bool Encryption::encrypt_log_block(const IORequest &, byte *src_ptr,
                                    byte *dst_ptr) noexcept {
   ulint len = 0;
   ulint main_len;
@@ -1517,7 +1517,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
                src_len - FIL_PAGE_DATA) != 0) {
       ut_print_buf(stderr, src, src_len);
       ut_print_buf(stderr, check_buf, src_len);
-      ut_ad(0);
+      ut_d(ut_error);
     }
     ut::free(buf2);
     ut::free(check_buf);
@@ -1530,7 +1530,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   return dst;
 }
 
-dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
+dberr_t Encryption::decrypt_log_block(const IORequest &, byte *src,
                                       byte *dst) noexcept {
   ulint main_len;
   ulint remain_len;
@@ -1640,7 +1640,7 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
 }
 
 dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
-                                byte *dst, ulint dst_len) noexcept {
+                                byte *dst) noexcept {
   file::Block *block;
   byte *ptr = src;
   dberr_t ret;
@@ -1698,7 +1698,7 @@ dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
 }
 
 dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
-                            byte *dst, ulint dst_len) noexcept {
+                            byte *dst, ulint) noexcept {
   ulint data_len;
   ulint main_len;
   ulint remain_len;

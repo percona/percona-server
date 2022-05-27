@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 #include "storage/perfschema/table_processlist.h"
 
 #include <assert.h>
+#include <ctime>
+
 #include "lex_string.h"
 #include "my_compiler.h"
 
@@ -63,9 +65,14 @@ Plugin_table table_processlist::m_table_def(
     "  TIME BIGINT,\n"
     "  STATE VARCHAR(64),\n"
     "  INFO LONGTEXT,\n"
+<<<<<<< HEAD
     "  TIME_MS BIGINT unsigned not null,\n"
     "  ROWS_SENT BIGINT unsigned not null,\n"
     "  ROWS_EXAMINED BIGINT unsigned not null,\n"
+||||||| 6846e6b2f72
+=======
+    "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY'),\n"
+>>>>>>> mysql-8.0.29
     "  PRIMARY KEY (ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -103,16 +110,16 @@ int table_processlist::set_access(void) {
     return 0;
   }
 
+  if (thd->security_context()->check_access(PROCESS_ACL)) {
+    /* PROCESS_ACL granted. */
+    m_row_priv.m_auth = PROCESSLIST_ALL;
+    return 0;
+  }
+
   LEX_CSTRING client_priv_user = thd->security_context()->priv_user();
   if (client_priv_user.length == 0) {
     /* Anonymous user. */
     m_row_priv.m_auth = PROCESSLIST_DENIED;
-    return 0;
-  }
-
-  if (thd->security_context()->check_access(PROCESS_ACL)) {
-    /* PROCESS_ACL granted. */
-    m_row_priv.m_auth = PROCESSLIST_ALL;
     return 0;
   }
 
@@ -174,7 +181,7 @@ int table_processlist::make_row(PFS_thread *pfs) {
   }
 
   /* Ignore background threads. */
-  if (pfs->m_username_length == 0 || pfs->m_processlist_id == 0)
+  if (pfs->m_user_name.length() == 0 || pfs->m_processlist_id == 0)
     return HA_ERR_RECORD_DELETED;
 
   m_row.m_processlist_id = pfs->m_processlist_id;
@@ -183,32 +190,32 @@ int table_processlist::make_row(PFS_thread *pfs) {
   pfs->m_session_lock.begin_optimistic_lock(&session_lock);
 
   /* Maintain user/host compatibility with the legacy SHOW PROCESSLIST. */
-  const char *username = pfs->m_username;
-  uint username_len = pfs->m_username_length;
-  uint hostname_len = pfs->m_hostname_length;
+  const char *username = pfs->m_user_name.ptr();
+  uint username_len = pfs->m_user_name.length();
+  uint hostname_len = pfs->m_host_name.length();
+  bool user_name_set = false;
 
   if (pfs->m_class->is_system_thread()) {
     if (username_len == 0 ||
         (!strncmp(username, "root", 4) && username_len == 4)) {
       username = "system user";
       username_len = strlen(username);
+      m_row.m_user_name.set(username, username_len);
       hostname_len = 0;
+      user_name_set = true;
     }
   } else {
     if (username_len == 0) {
       username = "unauthenticated user";
       username_len = strlen(username);
+      m_row.m_user_name.set(username, username_len);
       hostname_len = 0;
+      user_name_set = true;
     }
   }
 
-  m_row.m_username_length = username_len;
-  if (unlikely(m_row.m_username_length > sizeof(m_row.m_username))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  if (m_row.m_username_length != 0) {
-    memcpy(m_row.m_username, username, username_len);
+  if (!user_name_set) {
+    m_row.m_user_name = pfs->m_user_name;
   }
 
   m_row.m_hostname_length = hostname_len;
@@ -217,7 +224,7 @@ int table_processlist::make_row(PFS_thread *pfs) {
   }
 
   if (m_row.m_hostname_length != 0) {
-    memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
+    memcpy(m_row.m_hostname, pfs->m_host_name.ptr(), m_row.m_hostname_length);
   }
 
   if (!pfs->m_session_lock.end_optimistic_lock(&session_lock)) {
@@ -230,16 +237,16 @@ int table_processlist::make_row(PFS_thread *pfs) {
       Do not loop waiting for a stable value.
       Just return NULL values.
     */
-    m_row.m_username_length = 0;
+    m_row.m_user_name.reset();
     m_row.m_hostname_length = 0;
   }
 
   /* Enforce row filtering. */
   if (m_row_priv.m_auth == PROCESSLIST_USER_ONLY) {
-    if (m_row.m_username_length != m_row_priv.m_priv_user_length) {
+    if (m_row.m_user_name.length() != m_row_priv.m_priv_user_length) {
       return HA_ERR_RECORD_DELETED;
     }
-    if (strncmp(m_row.m_username, m_row_priv.m_priv_user,
+    if (strncmp(m_row.m_user_name.ptr(), m_row_priv.m_priv_user,
                 m_row_priv.m_priv_user_length) != 0) {
       return HA_ERR_RECORD_DELETED;
     }
@@ -248,14 +255,7 @@ int table_processlist::make_row(PFS_thread *pfs) {
   /* Protect this reader against statement attributes changes */
   pfs->m_stmt_lock.begin_optimistic_lock(&stmt_lock);
 
-  m_row.m_dbname_length = pfs->m_dbname_length;
-  if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  if (m_row.m_dbname_length != 0) {
-    memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
-  }
+  m_row.m_db_name = pfs->m_db_name;
 
   m_row.m_processlist_info_ptr = &pfs->m_processlist_info[0];
   m_row.m_processlist_info_length = pfs->m_processlist_info_length;
@@ -270,7 +270,7 @@ int table_processlist::make_row(PFS_thread *pfs) {
       Do not loop waiting for a stable value.
       Just return NULL values.
     */
-    m_row.m_dbname_length = 0;
+    m_row.m_db_name.reset();
     m_row.m_processlist_info_length = 0;
   }
 
@@ -300,23 +300,27 @@ int table_processlist::make_row(PFS_thread *pfs) {
       m_row.m_processlist_state_length = 64;
     }
   } else {
+    m_row.m_processlist_state_ptr = "";
     m_row.m_processlist_state_length = 0;
   }
 
-  m_row.m_port = pfs->m_peer_port;
-
-  if (m_row.m_hostname_length > 0 && m_row.m_port != 0) {
+  if (m_row.m_hostname_length > 0 && pfs->m_peer_port != 0) {
     /* Create HOST:PORT. */
     std::string host(m_row.m_hostname, m_row.m_hostname_length);
-    std::string host_ip = host + ":" + std::to_string(m_row.m_port);
+    std::string host_ip = host + ":" + std::to_string(pfs->m_peer_port);
     m_row.m_hostname_length =
         std::min((int)HOST_AND_PORT_LENGTH, (int)host_ip.length());
     memcpy(m_row.m_hostname, host_ip.c_str(), m_row.m_hostname_length);
   }
 
+<<<<<<< HEAD
   m_row.m_start_time_usec = pfs->m_start_time_usec;
   m_row.m_rows_sent = pfs->m_rows_sent;
   m_row.m_rows_examined = pfs->m_rows_examined;
+||||||| 6846e6b2f72
+=======
+  m_row.m_secondary = pfs->m_secondary;
+>>>>>>> mysql-8.0.29
 
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
@@ -344,14 +348,14 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 1: /* USER */
-          if (m_row.m_username_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_username,
-                                   m_row.m_username_length);
+          if (m_row.m_user_name.length() > 0) {
+            set_field_varchar_utf8(f, m_row.m_user_name.ptr(),
+                                   m_row.m_user_name.length());
           } else {
             f->set_null();
           }
           break;
-        case 2: /* HOST */
+        case 2: /* HOST (and PORT) */
           if (m_row.m_hostname_length > 0) {
             set_field_varchar_utf8(f, m_row.m_hostname,
                                    m_row.m_hostname_length);
@@ -360,8 +364,9 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 3: /* DB */
-          if (m_row.m_dbname_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_dbname, m_row.m_dbname_length);
+          if (m_row.m_db_name.length() > 0) {
+            set_field_varchar_utf8(f, m_row.m_db_name.ptr(),
+                                   m_row.m_db_name.length());
           } else {
             f->set_null();
           }
@@ -376,7 +381,7 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 5: /* TIME */
           if (m_row.m_start_time) {
-            time_t now = my_time(0);
+            time_t now = time(nullptr);
             ulonglong elapsed =
                 (now > m_row.m_start_time ? now - m_row.m_start_time : 0);
             set_field_ulonglong(f, elapsed);
@@ -397,6 +402,7 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
             f->set_null();
           }
           break;
+<<<<<<< HEAD
         case 8: /* TIME_MS */
           if (m_row.m_start_time_usec) {
             auto now = my_micro_time();
@@ -414,6 +420,11 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 10: /* ROWS_EXAMINED */
           set_field_ulonglong(f, m_row.m_rows_examined);
+||||||| 6846e6b2f72
+=======
+        case 8: /* EXECUTION_ENGINE */
+          set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
+>>>>>>> mysql-8.0.29
           break;
         default:
           assert(false);

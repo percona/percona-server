@@ -16,6 +16,9 @@
 #include "plugin/audit_log_filter/audit_record.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
 
+#include <cstring>
+#include <unordered_map>
+
 namespace audit_log_filter {
 namespace {
 const std::string_view kClassNameGeneral{"general"};
@@ -284,6 +287,18 @@ std::string_view event_subclass_to_string(
 
   return kNameUnknown;
 }
+
+inline std::string lexcstring_to_string(const MYSQL_LEX_CSTRING *cstring) {
+  return cstring != nullptr && cstring->str != nullptr &&
+                 std::strlen(cstring->str) > 0
+             ? cstring->str
+             : "";
+}
+
+inline std::string lexcstring_len_to_string(const MYSQL_LEX_CSTRING *cstring) {
+  return cstring != nullptr ? std::to_string(cstring->length) : "0";
+}
+
 }  // namespace
 
 AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
@@ -424,6 +439,205 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
   return AuditRecordVariant{
       std::in_place_index<12>,
       AuditRecordUnknown{kNameUnknown, kNameUnknown, event_class, event}};
+}
+
+void update_connection_type_pseudo_to_numeric(std::string &type) {
+  static const std::unordered_map<std::string, std::string>
+      connection_type_pseudo{
+          {"::undefined", "0"},  {"::tcp/ip", "1"}, {"::socket", "2"},
+          {"::named_pipe", "3"}, {"::ssl", "4"},    {"::shared_memory", "5"},
+      };
+
+  const auto it = connection_type_pseudo.find(type);
+  if (it != connection_type_pseudo.cend()) {
+    type = it->second;
+  }
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordGeneral &record) {
+  const auto *event = record.event;
+  return {
+      {"general_error_code", std::to_string(event->general_error_code)},
+      {"general_thread_id", std::to_string(event->general_thread_id)},
+      {"general_user.str", lexcstring_to_string(&event->general_user)},
+      {"general_user.length", lexcstring_len_to_string(&event->general_user)},
+      {"general_command.str", lexcstring_to_string(&event->general_command)},
+      {"general_command.length",
+       lexcstring_len_to_string(&event->general_command)},
+      {"general_query.str", lexcstring_to_string(&event->general_query)},
+      {"general_query.length", lexcstring_len_to_string(&event->general_query)},
+      {"general_host.str", lexcstring_to_string(&event->general_host)},
+      {"general_host.length", lexcstring_len_to_string(&event->general_host)},
+      {"general_sql_command.str",
+       lexcstring_to_string(&event->general_sql_command)},
+      {"general_sql_command.length",
+       lexcstring_len_to_string(&event->general_sql_command)},
+      {"general_external_user.str",
+       lexcstring_to_string(&event->general_external_user)},
+      {"general_external_user.length",
+       lexcstring_len_to_string(&event->general_external_user)},
+      {"general_ip.str", lexcstring_to_string(&event->general_ip)},
+      {"general_ip.length", lexcstring_len_to_string(&event->general_ip)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordConnection &record) {
+  const auto *event = record.event;
+  return {
+      {"status", std::to_string(event->status)},
+      {"connection_id", std::to_string(event->connection_id)},
+      {"user.str", lexcstring_to_string(&event->user)},
+      {"user.length", lexcstring_len_to_string(&event->user)},
+      {"priv_user.str", lexcstring_to_string(&event->priv_user)},
+      {"priv_user.length", lexcstring_len_to_string(&event->priv_user)},
+      {"external_user.str", lexcstring_to_string(&event->external_user)},
+      {"external_user.length", lexcstring_len_to_string(&event->external_user)},
+      {"proxy_user.str", lexcstring_to_string(&event->proxy_user)},
+      {"proxy_user.length", lexcstring_len_to_string(&event->proxy_user)},
+      {"host.str", lexcstring_to_string(&event->host)},
+      {"host.length", lexcstring_len_to_string(&event->host)},
+      {"ip.str", lexcstring_to_string(&event->ip)},
+      {"ip.length", lexcstring_len_to_string(&event->ip)},
+      {"database.str", lexcstring_to_string(&event->database)},
+      {"database.length", lexcstring_len_to_string(&event->database)},
+      {"connection_type", std::to_string(event->connection_type)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordParse &record) {
+  const auto *event = record.event;
+  return {
+      {"query.str", lexcstring_to_string(&event->query)},
+      {"query.length", lexcstring_len_to_string(&event->query)},
+      {"rewritten_query.str", lexcstring_to_string(event->rewritten_query)},
+      {"rewritten_query.length",
+       lexcstring_len_to_string(event->rewritten_query)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordTableAccess &record) {
+  const auto *event = record.event;
+  return {
+      {"connection_id", std::to_string(event->connection_id)},
+      {"sql_command_id", std::to_string(event->sql_command_id)},
+      {"query.str", lexcstring_to_string(&event->query)},
+      {"query.length", lexcstring_len_to_string(&event->query)},
+      {"table_database.str", lexcstring_to_string(&event->table_database)},
+      {"table_database.length",
+       lexcstring_len_to_string(&event->table_database)},
+      {"table_name.str", lexcstring_to_string(&event->table_name)},
+      {"table_name.length", lexcstring_len_to_string(&event->table_name)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordGlobalVariable &record) {
+  const auto *event = record.event;
+  return {
+      {"connection_id", std::to_string(event->connection_id)},
+      {"sql_command_id", std::to_string(event->sql_command_id)},
+      {"variable_name.str", lexcstring_to_string(&event->variable_name)},
+      {"variable_name.length", lexcstring_len_to_string(&event->variable_name)},
+      {"variable_value.str", lexcstring_to_string(&event->variable_value)},
+      {"variable_value.length",
+       lexcstring_len_to_string(&event->variable_value)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordServerStartup &record [[maybe_unused]]) {
+  return {};
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordServerShutdown &record) {
+  const auto *event = record.event;
+  return {
+      {"exit_code", std::to_string(event->exit_code)},
+      {"reason", std::to_string(event->reason)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordCommand &record) {
+  const auto *event = record.event;
+  return {
+      {"status", std::to_string(event->status)},
+      {"connection_id", std::to_string(event->connection_id)},
+      {"command_id", std::to_string(event->command_id)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordQuery &record) {
+  const auto *event = record.event;
+  return {
+      {"status", std::to_string(event->status)},
+      {"connection_id", std::to_string(event->connection_id)},
+      {"sql_command_id", std::to_string(event->sql_command_id)},
+      {"query.str", lexcstring_to_string(&event->query)},
+      {"query.length", lexcstring_len_to_string(&event->query)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordStoredProgram &record) {
+  const auto *event = record.event;
+  return {
+      {"connection_id", std::to_string(event->connection_id)},
+      {"sql_command_id", std::to_string(event->sql_command_id)},
+      {"query.str", lexcstring_to_string(&event->query)},
+      {"query.length", lexcstring_len_to_string(&event->query)},
+      {"database.str", lexcstring_to_string(&event->database)},
+      {"database.length", lexcstring_len_to_string(&event->database)},
+      {"name.str", lexcstring_to_string(&event->name)},
+      {"name.length", lexcstring_len_to_string(&event->name)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordAuthentication &record) {
+  const auto *event = record.event;
+  return {
+      {"status", std::to_string(event->status)},
+      {"connection_id", std::to_string(event->connection_id)},
+      {"sql_command_id", std::to_string(event->sql_command_id)},
+      {"query.str", lexcstring_to_string(&event->query)},
+      {"query.length", lexcstring_len_to_string(&event->query)},
+      {"user.str", lexcstring_to_string(&event->user)},
+      {"user.length", lexcstring_len_to_string(&event->user)},
+      {"host.str", lexcstring_to_string(&event->host)},
+      {"host.length", lexcstring_len_to_string(&event->host)},
+      {"authentication_plugin.str",
+       lexcstring_to_string(&event->authentication_plugin)},
+      {"authentication_plugin.length",
+       lexcstring_len_to_string(&event->authentication_plugin)},
+      {"new_user.str", lexcstring_to_string(&event->new_user)},
+      {"new_user.length", lexcstring_len_to_string(&event->new_user)},
+      {"new_host.str", lexcstring_to_string(&event->new_host)},
+      {"new_host.length", lexcstring_len_to_string(&event->new_host)},
+      {"is_role", std::to_string(event->is_role)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordMessage &record) {
+  const auto *event = record.event;
+  return {
+      {"component.str", lexcstring_to_string(&event->component)},
+      {"component.length", lexcstring_len_to_string(&event->component)},
+      {"producer.str", lexcstring_to_string(&event->producer)},
+      {"producer.length", lexcstring_len_to_string(&event->producer)},
+      {"message.str", lexcstring_to_string(&event->message)},
+      {"message.length", lexcstring_len_to_string(&event->message)},
+  };
+}
+
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record
+                                              [[maybe_unused]]) {
+  return {};
 }
 
 }  // namespace audit_log_filter

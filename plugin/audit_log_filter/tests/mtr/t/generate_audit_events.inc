@@ -15,7 +15,14 @@
 # AuditRecordCommand,
 # AuditRecordQuery,
 CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT);
 INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+INSERT INTO t1 VALUES (2);
+UPDATE t1 SET c1 = 3 WHERE c1 = 2;
+DELETE FROM t1 WHERE c1 = 3;
 
 # AuditRecordStoredProgram
 DELIMITER //;
@@ -27,7 +34,7 @@ DELIMITER ;//
 CALL p1();
 
 DROP PROCEDURE p1;
-DROP TABLE t1;
+DROP TABLE t1, t2, t3;
 
 # AuditRecordGlobalVariable
 SELECT @@global.audit_log_filter.file;

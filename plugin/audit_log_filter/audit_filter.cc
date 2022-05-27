@@ -15,6 +15,7 @@
 
 #include "plugin/audit_log_filter/audit_filter.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
+#include "plugin/audit_log_filter/audit_record.h"
 
 namespace audit_log_filter {
 
@@ -40,10 +41,15 @@ AuditAction AuditEventFilter::apply(
     return action;
   }
 
+  const auto event_fields =
+      std::visit([](const auto &rec) { return get_audit_record_fields(rec); },
+                 audit_record);
+
   auto event_subclass_name = std::visit(
       [](const auto &rec) { return rec.event_subclass_name; }, audit_record);
 
-  auto subclass_action = rule->get_event_subclass_action(event_subclass_name);
+  auto subclass_action = rule->get_event_subclass_action(
+      event_class_name, event_subclass_name, event_fields);
 
   if (subclass_action == AuditAction::None) {
     return class_action;

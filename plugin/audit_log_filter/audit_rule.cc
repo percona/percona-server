@@ -16,10 +16,23 @@
 #include "plugin/audit_log_filter/audit_rule.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
 
+#include "plugin/audit_log_filter/event_field_condition/and.h"
+#include "plugin/audit_log_filter/event_field_condition/bool.h"
+#include "plugin/audit_log_filter/event_field_condition/field.h"
+#include "plugin/audit_log_filter/event_field_condition/function.h"
+#include "plugin/audit_log_filter/event_field_condition/not.h"
+#include "plugin/audit_log_filter/event_field_condition/or.h"
+#include "plugin/audit_log_filter/event_field_condition/variable.h"
+
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
+#include <string>
+
 namespace audit_log_filter {
+
+using EventFieldConditionType = event_field_condition::EventFieldConditionType;
+using EventFieldConditionBase = event_field_condition::EventFieldConditionBase;
 
 AuditRule::AuditRule(const char *rule_name, const char *rule_str)
     : AuditRule{0, rule_name, rule_str} {}
@@ -81,7 +94,7 @@ AuditAction AuditRule::get_global_action() const noexcept {
 AuditAction AuditRule::get_event_class_action(
     const std::string_view event_class_name) const noexcept {
   assert(m_json_rule_parsed);
-  auto it = m_class_to_action_map.find(event_class_name);
+  auto it = m_class_to_action_map.find(event_class_name.data());
 
   if (it == m_class_to_action_map.end()) {
     return AuditAction::None;
@@ -91,15 +104,21 @@ AuditAction AuditRule::get_event_class_action(
 }
 
 AuditAction AuditRule::get_event_subclass_action(
-    const std::string_view event_subclass_name) const noexcept {
+    const std::string_view event_class_name,
+    const std::string_view event_subclass_name,
+    const AuditRecordFieldsList &fields) const noexcept {
   assert(m_json_rule_parsed);
-  auto it = m_subclass_to_action_map.find(event_subclass_name);
 
-  if (it == m_subclass_to_action_map.end()) {
-    return AuditAction::None;
+  std::stringstream subclass_key;
+  subclass_key << event_class_name << "." << event_subclass_name;
+
+  const auto cond = m_subclass_to_condition_map.find(subclass_key.str());
+
+  if (cond != m_subclass_to_condition_map.cend()) {
+    return cond->second->check_applies(fields);
   }
 
-  return it->second;
+  return AuditAction::None;
 }
 
 bool AuditRule::parse_json_rule() noexcept {
@@ -228,7 +247,8 @@ bool AuditRule::parse_event_class_obj(
       // There is a subclass specific definition, it will provide actual action
       action = AuditAction::Skip;
 
-      if (!parse_event_subclass(event_class_obj["event"])) {
+      if (!parse_event_subclass(event_class_obj["name"].GetString(),
+                                event_class_obj["event"])) {
         return false;
       }
     }
@@ -270,6 +290,7 @@ bool AuditRule::parse_event_class_obj(
 }
 
 bool AuditRule::parse_event_subclass(
+    const std::string &class_name,
     const rapidjson::Value &event_subclass_obj) noexcept {
   /*
    * Parse event subclass, 'event' may be an object or an array of objects
@@ -288,7 +309,7 @@ bool AuditRule::parse_event_subclass(
    * "event": { "name": [ "read", "insert" ] }
    */
   if (event_subclass_obj.IsObject()) {
-    if (!parse_event_subclass_obj(event_subclass_obj)) {
+    if (!parse_event_subclass_obj(class_name, event_subclass_obj)) {
       return false;
     }
   } else if (event_subclass_obj.IsArray()) {
@@ -302,7 +323,7 @@ bool AuditRule::parse_event_subclass(
         return false;
       }
 
-      if (!parse_event_subclass_obj(*it)) {
+      if (!parse_event_subclass_obj(class_name, *it)) {
         return false;
       }
     }
@@ -318,6 +339,7 @@ bool AuditRule::parse_event_subclass(
 }
 
 bool AuditRule::parse_event_subclass_obj(
+    const std::string &class_name,
     const rapidjson::Value &event_subclass_obj) noexcept {
   assert(event_subclass_obj.IsObject());
 
@@ -329,24 +351,12 @@ bool AuditRule::parse_event_subclass_obj(
     return false;
   }
 
-  AuditAction action = AuditAction::Log;
-  if (event_subclass_obj.HasMember("log")) {
-    if (event_subclass_obj["log"].IsBool()) {
-      if (!event_subclass_obj["log"].GetBool()) {
-        action = AuditAction::Skip;
-      }
-    } else {
-      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Wrong JSON filter '%s' format, "
-                      "'log' must be of bool type",
-                      m_rule_name.c_str());
-      return false;
-    }
-  }
+  std::vector<std::string> cond_keys;
 
   if (event_subclass_obj["name"].IsString()) {
-    m_subclass_to_action_map.insert(
-        {event_subclass_obj["name"].GetString(), action});
+    std::stringstream cond_key;
+    cond_key << class_name << "." << event_subclass_obj["name"].GetString();
+    cond_keys.push_back(cond_key.str());
   } else if (event_subclass_obj["name"].IsArray()) {
     for (auto it = event_subclass_obj["name"].Begin();
          it != event_subclass_obj["name"].End(); ++it) {
@@ -358,7 +368,9 @@ bool AuditRule::parse_event_subclass_obj(
         return false;
       }
 
-      m_subclass_to_action_map.insert({it->GetString(), action});
+      std::stringstream cond_key;
+      cond_key << class_name << "." << it->GetString();
+      cond_keys.push_back(cond_key.str());
     }
   } else {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -368,7 +380,406 @@ bool AuditRule::parse_event_subclass_obj(
     return false;
   }
 
+  AuditAction action = AuditAction::Log;
+
+  if (event_subclass_obj.HasMember("log")) {
+    if (event_subclass_obj["log"].IsBool()) {
+      if (!event_subclass_obj["log"].GetBool()) {
+        action = AuditAction::Skip;
+      }
+    } else if (event_subclass_obj["log"].IsObject()) {
+      return parse_event_field(cond_keys, event_subclass_obj["log"]);
+    } else {
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Wrong JSON filter '%s' format, "
+                      "'log' must be of bool or object type",
+                      m_rule_name.c_str());
+      return false;
+    }
+  }
+
+  for (const auto &cond_key : cond_keys) {
+    m_subclass_to_condition_map.insert(
+        {cond_key,
+         std::make_unique<event_field_condition::EventFieldConditionBool>(
+             action)});
+  }
+
   return true;
+}
+
+bool AuditRule::parse_event_field(
+    const std::vector<std::string> &cond_keys,
+    const rapidjson::Value &event_field_obj) noexcept {
+  /*
+   * Parse event field, must be an object containing field name and value
+   *
+   * "log": {
+   *   "field": { "name": "general_command.str", "value": "Query" }
+   * }
+   */
+  assert(event_field_obj.IsObject());
+
+  auto cond_type = get_condition_type(event_field_obj);
+
+  if (cond_type == EventFieldConditionType::Unknown) {
+    return false;
+  }
+
+  auto cond = parse_condition_obj(event_field_obj, cond_type);
+
+  if (cond == nullptr) {
+    return false;
+  }
+
+  for (const auto &cond_key : cond_keys) {
+    m_subclass_to_condition_map.insert({cond_key, cond});
+  }
+
+  return true;
+}
+
+EventFieldConditionType AuditRule::get_condition_type(
+    const rapidjson::Value &json) noexcept {
+  /*
+   * There may be one of the following conditions provided:
+   *
+   * "log": { "field": { } }
+   * "log": { "and": [ ] }
+   * "log": { "or": [ ] }
+   * "log": { "not": { } }
+   * "log": { "variable": { } }
+   * "log": { "function": { } }
+   */
+  if (json.MemberCount() != 1) {
+    LogPluginErrMsg(
+        ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+        "Wrong JSON filter '%s' format, "
+        "there must be only one condition specified for 'log' field",
+        m_rule_name.c_str());
+    return EventFieldConditionType::Unknown;
+  }
+
+  const auto &condition = json.MemberBegin();
+
+  if (!condition->name.IsString()) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Wrong JSON filter '%s' format, "
+                    "the 'log' condition name must be of string type",
+                    m_rule_name.c_str());
+    return EventFieldConditionType::Unknown;
+  }
+
+  const std::string condition_name{condition->name.GetString()};
+
+  if (condition_name == "field") {
+    return EventFieldConditionType::Field;
+  } else if (condition_name == "and") {
+    return EventFieldConditionType::And;
+  } else if (condition_name == "or") {
+    return EventFieldConditionType::Or;
+  } else if (condition_name == "not") {
+    return EventFieldConditionType::Not;
+  } else if (condition_name == "variable") {
+    return EventFieldConditionType::Variable;
+  } else if (condition_name == "function") {
+    return EventFieldConditionType::Function;
+  }
+
+  LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Wrong JSON filter '%s' format, "
+                  "unknown 'log' condition name '%s'",
+                  m_rule_name.c_str(), condition_name.c_str());
+
+  return EventFieldConditionType::Unknown;
+}
+
+std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
+    const rapidjson::Value &event_field_obj,
+    EventFieldConditionType cond_type) noexcept {
+  switch (cond_type) {
+    case EventFieldConditionType::Field: {
+      /*
+       * Parse 'field', must be an object containing field name and value
+       *
+       * "log": {
+       *   "field": { "name": "general_command.str", "value": "Query" }
+       * }
+       */
+      if (!event_field_obj["field"].IsObject()) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "condition definition 'field' must be of object type",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      if (!event_field_obj["field"].HasMember("name") ||
+          !event_field_obj["field"].HasMember("value") ||
+          !event_field_obj["field"]["name"].IsString() ||
+          !event_field_obj["field"]["value"].IsString()) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "event field definition 'field' must have field 'name' "
+                        "and 'value' provided as strings",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      std::string field_name{event_field_obj["field"]["name"].GetString()};
+      std::string field_value{event_field_obj["field"]["value"].GetString()};
+
+      if (field_name == CONNECTION_TYPE_FIELD_NAME) {
+        /*
+         * Handle special case for 'connection_type' field. It may contain
+         * symbolic pseudo-constants that may be given instead of the literal
+         * numeric values for connection type:
+         *   0 or "::undefined": Undefined
+         *   1 or "::tcp/ip": TCP/IP
+         *   2 or "::socket": Socket
+         *   3 or "::named_pipe": Named pipe
+         *   4 or "::ssl": TCP/IP with encryption
+         *   5 or "::shared_memory": Shared memory
+         */
+        update_connection_type_pseudo_to_numeric(field_value);
+      }
+
+      return std::make_shared<event_field_condition::EventFieldConditionField>(
+          std::move(field_name), std::move(field_value));
+    }
+    case EventFieldConditionType::And: {
+      /*
+       * Parse 'and' condition, must be an array containing a list of other
+       * condition objects
+       *
+       * "log": {
+       *   "and": [
+       *     { ... },
+       *     { ... }
+       *   ]
+       * }
+       */
+      if (!event_field_obj["and"].IsArray()) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "condition definition 'and' must be of array type",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      std::vector<std::shared_ptr<EventFieldConditionBase>> sub_conditions;
+
+      for (auto it = event_field_obj["and"].Begin();
+           it != event_field_obj["and"].End(); ++it) {
+        if (!it->IsObject()) {
+          LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                          "Wrong JSON filter '%s' format, "
+                          "a member of 'and' condition must be of object type",
+                          m_rule_name.c_str());
+          return nullptr;
+        }
+
+        auto sub_cond_type = get_condition_type(*it);
+
+        if (sub_cond_type == EventFieldConditionType::Unknown) {
+          return nullptr;
+        }
+
+        auto condition = parse_condition_obj(*it, sub_cond_type);
+
+        if (condition == nullptr) {
+          return nullptr;
+        }
+
+        sub_conditions.push_back(std::move(condition));
+      }
+
+      if (sub_conditions.size() < 2) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "there should be at least two fields provided for "
+                        "'and' condition",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      return std::make_shared<event_field_condition::EventFieldConditionAnd>(
+          std::move(sub_conditions));
+    }
+    case EventFieldConditionType::Or: {
+      /*
+       * Parse 'or' condition, must be an array containing a list of other
+       * condition objects
+       *
+       * "log": {
+       *   "or": [
+       *     { ... },
+       *     { ... }
+       *   ]
+       * }
+       */
+      if (!event_field_obj["or"].IsArray()) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "condition definition 'or' must be of array type",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      std::vector<std::shared_ptr<EventFieldConditionBase>> sub_conditions;
+
+      for (auto it = event_field_obj["or"].Begin();
+           it != event_field_obj["or"].End(); ++it) {
+        if (!it->IsObject()) {
+          LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                          "Wrong JSON filter '%s' format, "
+                          "a member of 'or' condition must be of object type",
+                          m_rule_name.c_str());
+          return nullptr;
+        }
+
+        auto sub_cond_type = get_condition_type(*it);
+
+        if (sub_cond_type == EventFieldConditionType::Unknown) {
+          return nullptr;
+        }
+
+        auto condition = parse_condition_obj(*it, sub_cond_type);
+
+        if (condition == nullptr) {
+          return nullptr;
+        }
+
+        sub_conditions.push_back(std::move(condition));
+      }
+
+      if (sub_conditions.size() < 2) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "there should be at least two fields provided for "
+                        "'or' condition",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      return std::make_shared<event_field_condition::EventFieldConditionOr>(
+          std::move(sub_conditions));
+    }
+    case EventFieldConditionType::Not: {
+      /*
+       * Parse 'not' condition, must be an object containing another condition
+       *
+       * "log": {
+       *   "not": { ... }
+       * }
+       */
+      if (!event_field_obj["not"].IsObject()) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "condition definition 'not' must be of object type",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      auto sub_cond_type = get_condition_type(event_field_obj["not"]);
+
+      if (sub_cond_type == EventFieldConditionType::Unknown) {
+        return nullptr;
+      }
+
+      auto condition =
+          parse_condition_obj(event_field_obj["not"], sub_cond_type);
+
+      if (condition == nullptr) {
+        return nullptr;
+      }
+
+      return std::make_shared<event_field_condition::EventFieldConditionNot>(
+          std::move(condition));
+    }
+    case EventFieldConditionType::Variable: {
+      /*
+       * Parse 'variable' condition, must be an object containing variable name
+       * and expected result as strings
+       *
+       * "log": {
+       *   "variable": {
+       *     "name": "variable_name",
+       *     "value": comparison_value
+       *   }
+       * }
+       */
+      if (!event_field_obj["variable"].IsObject()) {
+        LogPluginErrMsg(
+            ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+            "Wrong JSON filter '%s' format, "
+            "condition definition 'variable' must be of object type",
+            m_rule_name.c_str());
+        return nullptr;
+      }
+
+      if (!event_field_obj["variable"].HasMember("name") ||
+          !event_field_obj["variable"].HasMember("value") ||
+          !event_field_obj["variable"]["name"].IsString() ||
+          !event_field_obj["variable"]["value"].IsString()) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "event field definition 'variable' must have field "
+                        "'name' and 'value' provided as strings",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      return std::make_shared<
+          event_field_condition::EventFieldConditionVariable>(
+          event_field_obj["variable"]["name"].GetString(),
+          event_field_obj["variable"]["value"].GetString());
+    }
+    case EventFieldConditionType::Function: {
+      /*
+       * Parse 'function' condition, must be an object containing function name
+       * and passed arguments as strings
+       *
+       * "log": {
+       *   "function": {
+       *     "name": "function_name",
+       *     "args": arguments
+       *   }
+       * }
+       */
+      if (!event_field_obj["function"].IsObject()) {
+        LogPluginErrMsg(
+            ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+            "Wrong JSON filter '%s' format, "
+            "condition definition 'function' must be of object type",
+            m_rule_name.c_str());
+        return nullptr;
+      }
+
+      if (!event_field_obj["function"].HasMember("name") ||
+          !event_field_obj["function"].HasMember("args") ||
+          !event_field_obj["function"]["name"].IsString() ||
+          !event_field_obj["function"]["args"].IsString()) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "event field definition 'function' must have field "
+                        "'name' and 'args' provided as strings",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      std::vector<std::string> args{
+          event_field_obj["function"]["args"].GetString()};
+
+      return std::make_shared<
+          event_field_condition::EventFieldConditionFunction>(
+          event_field_obj["function"]["name"].GetString(), args);
+    }
+    default:
+      assert(false);
+  }
+
+  return nullptr;
 }
 
 }  // namespace audit_log_filter

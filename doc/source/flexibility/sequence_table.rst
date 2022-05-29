@@ -81,7 +81,7 @@ The following is an example of using the function to populate a table with a set
 
 .. code-block:: mysql
 
-    mysql> SELECT FLOOR(RAND()) * 100) AS result FROM SEQUENCE_TABLE(4) AS tt;
+    mysql> SELECT FLOOR(RAND() * 100) AS result FROM SEQUENCE_TABLE(4) AS tt;
     +--------+
     | result |
     +--------+

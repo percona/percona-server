@@ -1894,7 +1894,9 @@ IF(WITH_PROTOBUF STREQUAL "bundled" OR WITH_FIDO STREQUAL "bundled")
   ENDIF()
 ENDIF()
 
-ADD_SUBDIRECTORY(extra/libkmip)
+IF(WITH_COMPONENT_KEYRING_KMIP)
+  ADD_SUBDIRECTORY(extra/libkmip)
+ENDIF()
 
 #
 # Setup maintainer mode options by the end. Platform checks are

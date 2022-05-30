@@ -334,7 +334,13 @@ bool Regex_list_handler::set_patterns(
     // Note that this means the delimiter can not be part of a regular
     // expression.  This is currently not a problem as we are using the comma
     // character as a delimiter and commas are not valid in table names.
-    m_pattern.reset(new std::regex(norm_pattern, flags));
+
+    // std::regex implementation on MacOS X does not allow empty strings in
+    // constructors
+    if (norm_pattern.empty())
+      m_pattern.reset(new std::regex);
+    else
+      m_pattern.reset(new std::regex(norm_pattern, flags));
   } catch (const std::regex_error &e) {
     // This pattern is invalid.
     pattern_valid = false;

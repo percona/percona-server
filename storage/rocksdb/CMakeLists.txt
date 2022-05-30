@@ -154,6 +154,8 @@ ENDIF()
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_definitions(-DOS_LINUX)
+ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  add_definitions(-DOS_MACOSX)
 ENDIF()
 
 ROCKSDB_SET_DEFINTIONS()
@@ -265,7 +267,10 @@ IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
 ENDIF()
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-ldl")
+IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  SET(rocksdb_static_libs ${rocksdb_static_libs} "-lrt")
+ENDIF()
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}

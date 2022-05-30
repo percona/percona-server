@@ -153,10 +153,12 @@ class AuditRule {
    * @param cond_keys List of keys used to find event field related condition,
    *                  made of event class and subclass names concatenated
    *                  with a dot
+   * @param cond_action Action applied to an event in case condition matches
    * @param event_field_obj JSON object representing audit event field info
    * @return true in case of success, false otherwise
    */
   bool parse_event_field(const std::vector<std::string> &cond_keys,
+                         AuditAction cond_action,
                          const rapidjson::Value &event_field_obj) noexcept;
 
   /**
@@ -174,12 +176,13 @@ class AuditRule {
    *
    * @param event_field_obj JSON object representing audit event field condition
    * @param cond_type Condition type, one of @ref EventFieldConditionType
+   * @param cond_action Action applied to an event in case condition matches
    * @return Logical condition instance
    */
   std::shared_ptr<event_field_condition::EventFieldConditionBase>
-  parse_condition_obj(
-      const rapidjson::Value &event_field_obj,
-      event_field_condition::EventFieldConditionType cond_type) noexcept;
+  parse_condition_obj(const rapidjson::Value &event_field_obj,
+                      event_field_condition::EventFieldConditionType cond_type,
+                      AuditAction cond_action) noexcept;
 
  private:
   uint64_t m_filter_id;

@@ -28,7 +28,7 @@ class EventFieldConditionVariable : public EventFieldConditionBase {
    */
  public:
   EventFieldConditionVariable(std::string name, std::string expected_value,
-                              AuditAction action = AuditAction::Log);
+                              AuditAction action);
 
   /**
    * @brief Check if logical condition applies to provided event fields.

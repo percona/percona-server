@@ -27,7 +27,7 @@ class EventFieldConditionOr : public EventFieldConditionBase {
  public:
   explicit EventFieldConditionOr(
       std::vector<std::shared_ptr<EventFieldConditionBase>> conditions,
-      AuditAction action = AuditAction::Log);
+      AuditAction action);
 
   /**
    * @brief Check if logical condition applies to provided event fields.

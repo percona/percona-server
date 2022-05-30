@@ -385,6 +385,20 @@ struct MYSQL_XID {
       max,                                                                 \
       blk}
 
+#define MYSQL_SYSVAR_UINT64_T(name, varname, opt, comment, check, update, def, \
+                              min, max, blk)                                   \
+  DECLARE_MYSQL_SYSVAR_SIMPLE(name, uint64_t) = {                              \
+      PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | ((opt)&PLUGIN_VAR_MASK),     \
+      #name,                                                                   \
+      comment,                                                                 \
+      check,                                                                   \
+      update,                                                                  \
+      &varname,                                                                \
+      def,                                                                     \
+      min,                                                                     \
+      max,                                                                     \
+      blk}
+
 #define MYSQL_SYSVAR_ENUM(name, varname, opt, comment, check, update, def, \
                           typelib)                                         \
   DECLARE_MYSQL_SYSVAR_TYPELIB(name, unsigned long) = {                    \

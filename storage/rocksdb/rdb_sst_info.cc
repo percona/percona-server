@@ -141,7 +141,8 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::commit() {
     if (m_tracing) {
       LogPluginErrMsg(INFORMATION_LEVEL, 0,
                       "SST Tracing: Adding file %s, smallest key: %s, "
-                      "largest key: %s, file size: %lu, num_entries: %lu",
+                      "largest key: %s, file size: %" PRIu64
+                      ", num_entries: %" PRIu64,
                       fileinfo.file_path.c_str(),
                       generateKey(fileinfo.smallest_key).c_str(),
                       generateKey(fileinfo.largest_key).c_str(),

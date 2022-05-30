@@ -25,8 +25,7 @@ namespace audit_log_filter::event_field_condition {
 class EventFieldConditionNot : public EventFieldConditionBase {
  public:
   explicit EventFieldConditionNot(
-      std::shared_ptr<EventFieldConditionBase> condition,
-      AuditAction action = AuditAction::Log);
+      std::shared_ptr<EventFieldConditionBase> condition, AuditAction action);
 
   /**
    * @brief Check if logical condition applies to provided event fields.

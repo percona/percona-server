@@ -30,6 +30,12 @@
 #include <string>
 
 namespace audit_log_filter {
+namespace {
+
+const std::string CONDITION_TAG_LOG{"log"};
+const std::string CONDITION_TAG_ABORT{"abort"};
+
+}  // namespace
 
 using EventFieldConditionType = event_field_condition::EventFieldConditionType;
 using EventFieldConditionBase = event_field_condition::EventFieldConditionBase;
@@ -227,6 +233,14 @@ bool AuditRule::parse_event_class_obj(
     return false;
   }
 
+  if (event_class_obj.HasMember("abort")) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Wrong JSON filter '%s' format, "
+                    "'abort' condition should be set for subclass only",
+                    m_rule_name.c_str());
+    return false;
+  }
+
   AuditAction action = AuditAction::Log;
   if (event_class_obj.HasMember("log")) {
     if (event_class_obj["log"].IsBool()) {
@@ -380,15 +394,34 @@ bool AuditRule::parse_event_subclass_obj(
     return false;
   }
 
-  AuditAction action = AuditAction::Log;
+  const auto has_log = event_subclass_obj.HasMember("log");
+  const auto has_abort = event_subclass_obj.HasMember("abort");
 
-  if (event_subclass_obj.HasMember("log")) {
-    if (event_subclass_obj["log"].IsBool()) {
-      if (!event_subclass_obj["log"].GetBool()) {
+  if (has_log && has_abort) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Wrong JSON filter '%s' format, there must be only one "
+                    "condition provided, 'log' or 'abort'",
+                    m_rule_name.c_str());
+    return false;
+  }
+
+  AuditAction action = AuditAction::Log;
+  std::string condition_tag = CONDITION_TAG_LOG;
+
+  if (has_abort) {
+    action = AuditAction::Block;
+    condition_tag = CONDITION_TAG_ABORT;
+  }
+
+  if (event_subclass_obj.HasMember(condition_tag.c_str())) {
+    const auto &condition_obj = event_subclass_obj[condition_tag.c_str()];
+
+    if (condition_obj.IsBool()) {
+      if (!condition_obj.GetBool()) {
         action = AuditAction::Skip;
       }
-    } else if (event_subclass_obj["log"].IsObject()) {
-      return parse_event_field(cond_keys, event_subclass_obj["log"]);
+    } else if (condition_obj.IsObject()) {
+      return parse_event_field(cond_keys, action, condition_obj);
     } else {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Wrong JSON filter '%s' format, "
@@ -409,7 +442,7 @@ bool AuditRule::parse_event_subclass_obj(
 }
 
 bool AuditRule::parse_event_field(
-    const std::vector<std::string> &cond_keys,
+    const std::vector<std::string> &cond_keys, const AuditAction cond_action,
     const rapidjson::Value &event_field_obj) noexcept {
   /*
    * Parse event field, must be an object containing field name and value
@@ -426,7 +459,7 @@ bool AuditRule::parse_event_field(
     return false;
   }
 
-  auto cond = parse_condition_obj(event_field_obj, cond_type);
+  auto cond = parse_condition_obj(event_field_obj, cond_type, cond_action);
 
   if (cond == nullptr) {
     return false;
@@ -496,7 +529,8 @@ EventFieldConditionType AuditRule::get_condition_type(
 
 std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
     const rapidjson::Value &event_field_obj,
-    EventFieldConditionType cond_type) noexcept {
+    const EventFieldConditionType cond_type,
+    const AuditAction cond_action) noexcept {
   switch (cond_type) {
     case EventFieldConditionType::Field: {
       /*
@@ -545,7 +579,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
       }
 
       return std::make_shared<event_field_condition::EventFieldConditionField>(
-          std::move(field_name), std::move(field_value));
+          std::move(field_name), std::move(field_value), cond_action);
     }
     case EventFieldConditionType::And: {
       /*
@@ -585,7 +619,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
           return nullptr;
         }
 
-        auto condition = parse_condition_obj(*it, sub_cond_type);
+        auto condition = parse_condition_obj(*it, sub_cond_type, cond_action);
 
         if (condition == nullptr) {
           return nullptr;
@@ -604,7 +638,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
       }
 
       return std::make_shared<event_field_condition::EventFieldConditionAnd>(
-          std::move(sub_conditions));
+          std::move(sub_conditions), cond_action);
     }
     case EventFieldConditionType::Or: {
       /*
@@ -644,7 +678,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
           return nullptr;
         }
 
-        auto condition = parse_condition_obj(*it, sub_cond_type);
+        auto condition = parse_condition_obj(*it, sub_cond_type, cond_action);
 
         if (condition == nullptr) {
           return nullptr;
@@ -663,7 +697,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
       }
 
       return std::make_shared<event_field_condition::EventFieldConditionOr>(
-          std::move(sub_conditions));
+          std::move(sub_conditions), cond_action);
     }
     case EventFieldConditionType::Not: {
       /*
@@ -687,15 +721,15 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
         return nullptr;
       }
 
-      auto condition =
-          parse_condition_obj(event_field_obj["not"], sub_cond_type);
+      auto condition = parse_condition_obj(event_field_obj["not"],
+                                           sub_cond_type, cond_action);
 
       if (condition == nullptr) {
         return nullptr;
       }
 
       return std::make_shared<event_field_condition::EventFieldConditionNot>(
-          std::move(condition));
+          std::move(condition), cond_action);
     }
     case EventFieldConditionType::Variable: {
       /*
@@ -733,7 +767,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
       return std::make_shared<
           event_field_condition::EventFieldConditionVariable>(
           event_field_obj["variable"]["name"].GetString(),
-          event_field_obj["variable"]["value"].GetString());
+          event_field_obj["variable"]["value"].GetString(), cond_action);
     }
     case EventFieldConditionType::Function: {
       /*
@@ -773,7 +807,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
 
       return std::make_shared<
           event_field_condition::EventFieldConditionFunction>(
-          event_field_obj["function"]["name"].GetString(), args);
+          event_field_obj["function"]["name"].GetString(), args, cond_action);
     }
     default:
       assert(false);

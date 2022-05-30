@@ -407,7 +407,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Blocked audit event '%s' with class %i", ev_name.data(),
                     event_class);
-    return 0;
+    return 1;
   }
 
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,

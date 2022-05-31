@@ -962,7 +962,6 @@ rocksdb_force_compute_memtable_stats_cachetime	0
 rocksdb_force_flush_memtable_and_lzero_now	OFF
 rocksdb_force_flush_memtable_now	ON
 rocksdb_force_index_records_in_range	0
-rocksdb_hash_index_allow_collision	ON
 rocksdb_ignore_unknown_options	ON
 rocksdb_index_type	kBinarySearch
 rocksdb_info_log_level	error_level
@@ -993,7 +992,6 @@ rocksdb_max_total_wal_size	2147483648
 rocksdb_merge_buf_size	67108864
 rocksdb_merge_combine_read_size	1073741824
 rocksdb_merge_tmp_file_removal_delay_ms	0
-rocksdb_new_table_reader_for_compaction_inputs	OFF
 rocksdb_no_block_cache	OFF
 rocksdb_no_create_column_family	OFF
 rocksdb_override_cf_options	

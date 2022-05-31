@@ -53,19 +53,11 @@
 
 /* MyRocks header files */
 #include "./rdb_buff.h"
-#include "./rdb_comparator.h"
 #include "./rdb_global.h"
 #include "./rdb_index_merge.h"
 #include "./rdb_perf_context.h"
 #include "./rdb_sst_info.h"
 #include "./rdb_utils.h"
-
-/**
-  @note MyRocks Coding Conventions:
-  MyRocks code follows the baseline MySQL coding conventions, available at
-  http://dev.mysql.com/doc/internals/en/coding-guidelines.html, with several
-  refinements (@see /storage/rocksdb/README file).
-*/
 
 /**
   @note MyRocks Coding Conventions:

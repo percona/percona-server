@@ -1471,14 +1471,6 @@ static MYSQL_SYSVAR_ULONG(compaction_readahead_size,
                           rocksdb_db_options->compaction_readahead_size,
                           /* min */ 0L, /* max */ ULONG_MAX, 0);
 
-static MYSQL_SYSVAR_BOOL(
-    new_table_reader_for_compaction_inputs,
-    *static_cast<bool *>(
-        &rocksdb_db_options->new_table_reader_for_compaction_inputs),
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "DBOptions::new_table_reader_for_compaction_inputs for RocksDB", nullptr,
-    nullptr, rocksdb_db_options->new_table_reader_for_compaction_inputs);
-
 static MYSQL_SYSVAR_UINT(
     access_hint_on_compaction_start, rocksdb_access_hint_on_compaction_start,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -1822,13 +1814,6 @@ static MYSQL_SYSVAR_ENUM(index_type, rocksdb_index_type,
                          nullptr, nullptr,
                          (uint64_t)rocksdb_tbl_options->index_type,
                          &index_type_typelib);
-
-static MYSQL_SYSVAR_BOOL(
-    hash_index_allow_collision,
-    *static_cast<bool *>(&rocksdb_tbl_options->hash_index_allow_collision),
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "BlockBasedTableOptions::hash_index_allow_collision for RocksDB", nullptr,
-    nullptr, rocksdb_tbl_options->hash_index_allow_collision);
 
 static MYSQL_SYSVAR_BOOL(
     no_block_cache, *static_cast<bool *>(&rocksdb_tbl_options->no_block_cache),
@@ -2465,7 +2450,6 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(track_and_verify_wals_in_manifest),
     MYSQL_SYSVAR(stats_level),
     MYSQL_SYSVAR(access_hint_on_compaction_start),
-    MYSQL_SYSVAR(new_table_reader_for_compaction_inputs),
     MYSQL_SYSVAR(compaction_readahead_size),
     MYSQL_SYSVAR(allow_concurrent_memtable_write),
     MYSQL_SYSVAR(enable_write_thread_adaptive_yield),
@@ -2478,7 +2462,6 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(cache_index_and_filter_with_high_priority),
     MYSQL_SYSVAR(pin_l0_filter_and_index_blocks_in_cache),
     MYSQL_SYSVAR(index_type),
-    MYSQL_SYSVAR(hash_index_allow_collision),
     MYSQL_SYSVAR(no_block_cache),
     MYSQL_SYSVAR(block_size),
     MYSQL_SYSVAR(block_size_deviation),
@@ -3296,6 +3279,14 @@ class Rdb_transaction {
           while ((rc2 = rdb_merge.next(&merge_key, &merge_val)) == 0) {
             if (cur_prefix.size() == 0 ||
                 !keydef->value_matches_prefix(merge_key, cur_prefix)) {
+              if (keydef->m_is_reverse_cf && materialized) {
+                // Write sentinel before moving to next prefix.
+                rc2 = sst_info->put(cur_prefix, rocksdb::Slice());
+                if (rc2 != 0) {
+                  break;
+                }
+              }
+
               // This is a new group, so clear any rows buffered from a prior
               // group.
               mem_root.ClearForReuse();
@@ -3329,6 +3320,14 @@ class Rdb_transaction {
             if (!materialized) {
               // Bulk load the keys if threshold is exceeded.
               if (keys.size() >= keydef->partial_index_threshold()) {
+                if (!keydef->m_is_reverse_cf) {
+                  // Write sentinel
+                  rc2 = sst_info->put(cur_prefix, rocksdb::Slice());
+                  if (rc2 != 0) {
+                    break;
+                  }
+                }
+
                 for (const auto &k : keys) {
                   if ((rc2 = sst_info->put(k.first, k.second) != 0)) {
                     break;
@@ -3362,6 +3361,14 @@ class Rdb_transaction {
             }
 
             if (rc2) break;
+          }
+
+          if (!rc2 && keydef->m_is_reverse_cf && materialized) {
+            // Write sentinel before moving to next prefix.
+            rc2 = sst_info->put(cur_prefix, rocksdb::Slice());
+            if (rc2 != 0) {
+              break;
+            }
           }
         } else {
           struct unique_sk_buf_info sk_info;
@@ -4823,10 +4830,6 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
   return HA_EXIT_SUCCESS;
 }
 
-/**
- do nothing for prepare/commit by xid
- this is needed to avoid crashes in XA scenarios
-*/
 static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
                                             XID *const xid) {
   DBUG_ENTER_FUNC();
@@ -4916,10 +4919,6 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   dst->set_data(tmp_data.data(), tmp_data.length());
 }
 
-/**
-  Reading last committed binary log info from RocksDB system row.
-  The info is needed for crash safe slave/master to work.
-*/
 static int rocksdb_recover(handlerton *hton, XA_recover_txn *txn_list, uint len,
                            MEM_ROOT *mem_root) {
   if (len == 0 || txn_list == nullptr) {
@@ -5165,7 +5164,7 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
                            txn.m_waiting_key.c_str()))};
       deadlock_info.path.push_back(get_dl_txn_info(txn, gl_index_id));
     }
-    DBUG_ASSERT_IFF(path_entry.limit_exceeded, path_entry.path.empty());
+    assert_IFF(path_entry.limit_exceeded, path_entry.path.empty());
     /* print the first txn in the path to display the full deadlock cycle */
     if (!path_entry.path.empty() && !path_entry.limit_exceeded) {
       const auto &deadlocking_txn = *(path_entry.path.end() - 1);
@@ -10708,20 +10707,22 @@ int ha_rocksdb::update_write_sk(const TABLE *const table_arg,
   if (kd.is_partial_index() && !bulk_load_sk) {
     // TODO(mung) - We've already calculated prefix len when locking. If we
     // cache that value, we can avoid recalculating here.
-    uint size = kd.pack_record(table, m_pack_buffer, row_info.new_data,
-                               m_sk_packed_tuple, nullptr, false, 0,
-                               kd.partial_index_keyparts());
-    rocksdb::Slice prefix_slice(
-        reinterpret_cast<const char *>(m_sk_packed_tuple), size);
-    // Shared lock on prefix should have already been acquired in
-    // check_and_lock_sk. Check if this prefix has been materialized.
-    Rdb_iterator_base iter(ha_thd(), m_key_descr_arr[kd.get_keyno()],
-                           m_pk_descr, m_tbl_def);
-    rc = iter.seek(kd.m_is_reverse_cf ? HA_READ_PREFIX_LAST : HA_READ_KEY_EXACT,
-                   prefix_slice, false, prefix_slice, true /* read current */);
+    int size = kd.pack_record(table_arg, m_pack_buffer, row_info.new_data,
+                              m_sk_packed_tuple, nullptr, false, 0,
+                              kd.partial_index_keyparts());
+    const rocksdb::Slice prefix_slice =
+        rocksdb::Slice((const char *)m_sk_packed_tuple, size);
+
+    rocksdb::PinnableSlice value;
+    const rocksdb::Status s = row_info.tx->get_for_update(
+        kd, prefix_slice, &value, false /* exclusive */,
+        false /* do validate */, false /* no_wait */);
+    if (!s.ok() && !s.IsNotFound()) {
+      return row_info.tx->set_status_error(table_arg->in_use, s, kd, m_tbl_def);
+    }
 
     // We can skip updating the index, if the prefix is not materialized.
-    if (rc == HA_ERR_END_OF_FILE || rc == HA_ERR_KEY_NOT_FOUND) {
+    if (s.IsNotFound()) {
       return 0;
     }
   }
@@ -12317,7 +12318,8 @@ void ha_rocksdb::records_in_range_internal(uint inx, key_range *const min_key,
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   // Getting statistics, including from Memtables
-  uint8_t include_flags = rocksdb::DB::INCLUDE_FILES;
+  rocksdb::DB::SizeApproximationFlags include_flags =
+      rocksdb::DB::SizeApproximationFlags::INCLUDE_FILES;
   rdb->GetApproximateSizes(kd.get_cf(), &r, 1, &sz, include_flags);
   *row_count = rows * ((double)sz / (double)disk_size);
   *total_size = sz;
@@ -12776,7 +12778,8 @@ int ha_rocksdb::adjust_handler_stats_sst_and_memtable(ha_statistics *ha_stats,
     auto r = ha_rocksdb::get_range(*pk_def, buf);
     uint64_t sz = 0;
 
-    uint8_t include_flags = rocksdb::DB::INCLUDE_FILES;
+    rocksdb::DB::SizeApproximationFlags include_flags =
+        rocksdb::DB::SizeApproximationFlags::INCLUDE_FILES;
 
     // recompute SST files stats only if records count is 0
     if (ha_stats->records == 0) {

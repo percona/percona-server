@@ -12,7 +12,7 @@ SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
 SELECT audit_log_filter_set_filter('log_general_query', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_command.str", "value": "Query"}}}}}}');
 SELECT audit_log_filter_set_user('%', 'log_general_query');
 --source generate_audit_events.inc
---let $search_tag=[<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>.*<NAME>Query</NAME>]
+--let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>.*<NAME>Query</NAME>
 --source check_all_events_with_tag.inc
 
 --echo #
@@ -42,7 +42,7 @@ SELECT audit_log_filter_set_user('%', 'log_table_access_or');
 SELECT audit_log_filter_set_filter('log_table_access_and', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"and": [{"field": {"name": "table_name.str", "value": "t1"}}, {"field": {"name": "query.str", "value": "INSERT INTO t1 VALUES (2)"}}]}}}}}');
 SELECT audit_log_filter_set_user('%', 'log_table_access_and');
 --source generate_audit_events.inc
---let $search_tag=[<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<SQLTEXT>INSERT\sINTO\st1\sVALUES\s\(2\)</SQLTEXT>.*<TABLE>t1</TABLE>]
+--let $search_tag=<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<SQLTEXT>INSERT\sINTO\st1\sVALUES\s\(2\)</SQLTEXT>.*<TABLE>t1</TABLE>
 --source check_all_events_with_tag.inc
 
 --echo #

@@ -17,7 +17,7 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_exclusive');
 audit_log_filter_set_user('%', 'log_exclusive')
 OK
-Tag [^<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>] Ok
+No tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
 #
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';

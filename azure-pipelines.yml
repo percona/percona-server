@@ -356,6 +356,7 @@ jobs:
         -DWITH_BOOST=$(BOOST_DIR)
         -DCMAKE_C_COMPILER_LAUNCHER=$CCACHE_BIN
         -DCMAKE_CXX_COMPILER_LAUNCHER=$CCACHE_BIN
+        -DWITH_ROCKSDB=ON
         -DWITH_KEYRING_VAULT=ON
         -DWITH_KEYRING_VAULT_TEST=ON
         -DWITH_PAM=ON
@@ -364,7 +365,6 @@ jobs:
       if [[ "$OS_NAME" == "Darwin" ]]; then
         CMAKE_OPT+="
           -DMYSQL_MAINTAINER_MODE=OFF
-          -DWITH_ROCKSDB=OFF
           -DWITH_TOKUDB=OFF
           -DWITH_PROTOBUF=system
           -DWITH_SYSTEM_LIBS=ON
@@ -375,7 +375,6 @@ jobs:
       else
         CMAKE_OPT+="
           -DMYSQL_MAINTAINER_MODE=ON
-          -DWITH_ROCKSDB=ON
           -DWITH_TOKUDB=ON
           -DWITH_CURL=system
           -DWITH_MECAB=system

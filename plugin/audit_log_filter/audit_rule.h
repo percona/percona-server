@@ -18,7 +18,7 @@
 
 #include "plugin/audit_log_filter/audit_action.h"
 #include "plugin/audit_log_filter/audit_record.h"
-#include "plugin/audit_log_filter/event_field_condition/base.h"
+#include "plugin/audit_log_filter/event_field_condition/function.h"
 
 #include "mysql/plugin_audit.h"
 
@@ -30,6 +30,8 @@
 #include <unordered_map>
 
 namespace audit_log_filter {
+
+using namespace event_field_condition;
 
 class AuditRule {
  public:
@@ -167,7 +169,7 @@ class AuditRule {
    * @param event_field_obj JSON object representing audit event field info
    * @return One of condition types defined by @ref EventFieldConditionType
    */
-  event_field_condition::EventFieldConditionType get_condition_type(
+  EventFieldConditionType get_condition_type(
       const rapidjson::Value &event_field_obj) noexcept;
 
   /**
@@ -179,10 +181,20 @@ class AuditRule {
    * @param cond_action Action applied to an event in case condition matches
    * @return Logical condition instance
    */
-  std::shared_ptr<event_field_condition::EventFieldConditionBase>
-  parse_condition_obj(const rapidjson::Value &event_field_obj,
-                      event_field_condition::EventFieldConditionType cond_type,
-                      AuditAction cond_action) noexcept;
+  std::shared_ptr<EventFieldConditionBase> parse_condition_obj(
+      const rapidjson::Value &event_field_obj,
+      EventFieldConditionType cond_type, AuditAction cond_action) noexcept;
+
+  /**
+   * @brief Parse function arguments in a filtering rule represented
+   *        by a JSON string.
+   *
+   * @param function_args_obj JSON object representing function arguments
+   * @param args Container to store parsed arguments in
+   * @return true in case of success, false otherwise
+   */
+  bool parse_function_args_obj(const rapidjson::Value &function_args_obj,
+                               FunctionArgsList &args) noexcept;
 
  private:
   uint64_t m_filter_id;
@@ -193,9 +205,7 @@ class AuditRule {
   bool m_json_rule_format_valid;
   AuditAction m_global_action;
   std::unordered_map<std::string, AuditAction> m_class_to_action_map;
-  std::unordered_map<
-      std::string,
-      std::shared_ptr<event_field_condition::EventFieldConditionBase>>
+  std::unordered_map<std::string, std::shared_ptr<EventFieldConditionBase>>
       m_subclass_to_condition_map;
 };
 

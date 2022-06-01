@@ -37,9 +37,6 @@ const std::string CONDITION_TAG_ABORT{"abort"};
 
 }  // namespace
 
-using EventFieldConditionType = event_field_condition::EventFieldConditionType;
-using EventFieldConditionBase = event_field_condition::EventFieldConditionBase;
-
 AuditRule::AuditRule(const char *rule_name, const char *rule_str)
     : AuditRule{0, rule_name, rule_str} {}
 
@@ -433,9 +430,7 @@ bool AuditRule::parse_event_subclass_obj(
 
   for (const auto &cond_key : cond_keys) {
     m_subclass_to_condition_map.insert(
-        {cond_key,
-         std::make_unique<event_field_condition::EventFieldConditionBool>(
-             action)});
+        {cond_key, std::make_unique<EventFieldConditionBool>(action)});
   }
 
   return true;
@@ -578,7 +573,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
         update_connection_type_pseudo_to_numeric(field_value);
       }
 
-      return std::make_shared<event_field_condition::EventFieldConditionField>(
+      return std::make_shared<EventFieldConditionField>(
           std::move(field_name), std::move(field_value), cond_action);
     }
     case EventFieldConditionType::And: {
@@ -637,8 +632,8 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
         return nullptr;
       }
 
-      return std::make_shared<event_field_condition::EventFieldConditionAnd>(
-          std::move(sub_conditions), cond_action);
+      return std::make_shared<EventFieldConditionAnd>(std::move(sub_conditions),
+                                                      cond_action);
     }
     case EventFieldConditionType::Or: {
       /*
@@ -696,8 +691,8 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
         return nullptr;
       }
 
-      return std::make_shared<event_field_condition::EventFieldConditionOr>(
-          std::move(sub_conditions), cond_action);
+      return std::make_shared<EventFieldConditionOr>(std::move(sub_conditions),
+                                                     cond_action);
     }
     case EventFieldConditionType::Not: {
       /*
@@ -728,8 +723,8 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
         return nullptr;
       }
 
-      return std::make_shared<event_field_condition::EventFieldConditionNot>(
-          std::move(condition), cond_action);
+      return std::make_shared<EventFieldConditionNot>(std::move(condition),
+                                                      cond_action);
     }
     case EventFieldConditionType::Variable: {
       /*
@@ -764,8 +759,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
         return nullptr;
       }
 
-      return std::make_shared<
-          event_field_condition::EventFieldConditionVariable>(
+      return std::make_shared<EventFieldConditionVariable>(
           event_field_obj["variable"]["name"].GetString(),
           event_field_obj["variable"]["value"].GetString(), cond_action);
     }
@@ -791,29 +785,112 @@ std::shared_ptr<EventFieldConditionBase> AuditRule::parse_condition_obj(
       }
 
       if (!event_field_obj["function"].HasMember("name") ||
-          !event_field_obj["function"].HasMember("args") ||
-          !event_field_obj["function"]["name"].IsString() ||
-          !event_field_obj["function"]["args"].IsString()) {
+          !event_field_obj["function"]["name"].IsString()) {
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
-                        "event field definition 'function' must have field "
-                        "'name' and 'args' provided as strings",
+                        "missing 'function' name or not a string",
                         m_rule_name.c_str());
         return nullptr;
       }
 
-      std::vector<std::string> args{
-          event_field_obj["function"]["args"].GetString()};
+      const std::string function_name{
+          event_field_obj["function"]["name"].GetString()};
 
-      return std::make_shared<
-          event_field_condition::EventFieldConditionFunction>(
-          event_field_obj["function"]["name"].GetString(), args, cond_action);
+      if (!EventFieldConditionFunction::check_function_name(function_name)) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "unknown function name '%s'",
+                        m_rule_name.c_str(), function_name.c_str());
+        return nullptr;
+      }
+
+      FunctionArgsList args;
+
+      if (event_field_obj["function"].HasMember("args") &&
+          !parse_function_args_obj(event_field_obj["function"]["args"], args)) {
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Wrong JSON filter '%s' format, "
+                        "wrong function args format provided",
+                        m_rule_name.c_str());
+        return nullptr;
+      }
+
+      if (!EventFieldConditionFunction::validate_args(function_name, args)) {
+        return nullptr;
+      }
+
+      return std::make_shared<EventFieldConditionFunction>(function_name, args,
+                                                           cond_action);
     }
     default:
       assert(false);
   }
 
   return nullptr;
+}
+
+bool AuditRule::parse_function_args_obj(
+    const rapidjson::Value &function_args_obj,
+    FunctionArgsList &args) noexcept {
+  /*
+   * Parse 'function' arguments list, must be an array of objects with each
+   * object containing argument type and its value along with the value source
+   *
+   * "function": {
+   *   "name": "string_find",
+   *   "args": [
+   *     { "string": { "field": "table_name.str" } },
+   *     { "string": { "string": "some str" } }
+   *   ]
+   * }
+   */
+  if (!function_args_obj.IsArray()) {
+    return false;
+  }
+
+  for (auto it = function_args_obj.Begin(); it != function_args_obj.End();
+       ++it) {
+    if (!it->IsObject() || it->MemberCount() != 1) {
+      return false;
+    }
+
+    const auto arg_json = it->MemberBegin();
+
+    if (!arg_json->name.IsString() || !arg_json->value.IsObject() ||
+        arg_json->value.MemberCount() != 1) {
+      return false;
+    }
+
+    const auto arg_value_json = arg_json->value.MemberBegin();
+
+    if (!arg_value_json->name.IsString()) {
+      return false;
+    }
+
+    const std::string arg_type_name = arg_json->name.GetString();
+    const std::string arg_source_name = arg_value_json->name.GetString();
+
+    const auto arg_type =
+        EventFieldConditionFunction::get_function_arg_type(arg_type_name);
+    const auto arg_source_type =
+        EventFieldConditionFunction::get_function_arg_source_type(
+            arg_source_name);
+
+    if (arg_type == FunctionArgType::None ||
+        arg_source_type == FunctionArgSourceType::None) {
+      return false;
+    }
+
+    if (arg_type == FunctionArgType::String &&
+        !arg_value_json->value.IsString()) {
+      return false;
+    }
+
+    args.push_back(
+        {arg_type, arg_source_type, arg_value_json->value.GetString()});
+  }
+
+  return true;
 }
 
 }  // namespace audit_log_filter

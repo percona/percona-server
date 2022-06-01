@@ -23,6 +23,18 @@
 
 namespace audit_log_filter::event_field_condition {
 
+enum class FunctionArgType { String, None };
+
+enum class FunctionArgSourceType { String, Field, None };
+
+struct FunctionArg {
+  FunctionArgType arg_type;
+  FunctionArgSourceType source_type;
+  std::string value;
+};
+
+using FunctionArgsList = std::vector<FunctionArg>;
+
 class EventFieldConditionFunction : public EventFieldConditionBase {
   /*
    * TODO: Add support for functions:
@@ -30,7 +42,7 @@ class EventFieldConditionFunction : public EventFieldConditionBase {
    *    string_find(text, substr)
    */
  public:
-  EventFieldConditionFunction(std::string name, std::vector<std::string> args,
+  EventFieldConditionFunction(std::string name, FunctionArgsList args,
                               AuditAction action);
 
   /**
@@ -42,9 +54,48 @@ class EventFieldConditionFunction : public EventFieldConditionBase {
   [[nodiscard]] AuditAction check_applies(
       const AuditRecordFieldsList &fields) const noexcept override;
 
+  /**
+   * @brief Check if function is supported.
+   *
+   * @param name Function name
+   * @return true in case function is supported, false otherwise
+   */
+  static bool check_function_name(const std::string &name) noexcept;
+
+  /**
+   * @brief Get function argument type.
+   *
+   * @param type_name Argument type name
+   * @return Argument type defined by @ref FunctionArgType,
+   *         @ref FunctionArgType::None in case unknown type name is provided
+   */
+  static FunctionArgType get_function_arg_type(
+      const std::string &type_name) noexcept;
+
+  /**
+   * @brief Get function argument value source type.
+   *
+   * @param type_name Source type name
+   * @return Value source type defined by @ref FunctionArgSourceType,
+   *         @ref FunctionArgSourceType::None in case unknown type name
+   *         is provided
+   */
+  static FunctionArgSourceType get_function_arg_source_type(
+      const std::string &type_name) noexcept;
+
+  /**
+   * @brief Validate function arguments.
+   *
+   * @param func_name Function name
+   * @param args Function arguments list
+   * @return true in case arguments are valid, false otherwise
+   */
+  static bool validate_args(const std::string &func_name,
+                            const FunctionArgsList &args) noexcept;
+
  private:
   std::string m_name;
-  std::vector<std::string> m_args;
+  FunctionArgsList m_args;
 };
 
 }  // namespace audit_log_filter::event_field_condition

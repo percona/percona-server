@@ -4,7 +4,7 @@
  Removing TokuDB storage engine
 ================================
 
-In case you want remove the TokuDB storage engine from |Percona Server| without causing any errors, the following is the recommended procedure:
+In case you want remove the TokuDB storage engine from *Percona Server for MySQL* without causing any errors, the following is the recommended procedure:
 
 Change the tables from TokuDB to InnoDB
 ---------------------------------------

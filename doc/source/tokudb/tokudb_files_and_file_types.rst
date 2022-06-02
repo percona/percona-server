@@ -32,38 +32,38 @@ around.
 tokudb.environment
 ------------------
 
-This file is the root of the |Percona FT| file set and contains various bits of
+This file is the root of the *Percona FT* file set and contains various bits of
 metadata about the system, such as creation times, current file format
 versions, etc.
 
-|Percona FT| will create/expect this file in the directory specified by the
+*Percona FT* will create/expect this file in the directory specified by the
 MySQL source/glossary.rst`datadir`.
 
 tokudb.rollback
 ---------------
 
-Every transaction within |Percona FT| maintains its own transaction rollback
-log. These logs are stored together within a single |Percona FT| dictionary
-file and take up space within the |Percona FT| cachetable (just like any other
-|Percona FT| dictionary).
+Every transaction within *Percona FT* maintains its own transaction rollback
+log. These logs are stored together within a single *Percona FT* dictionary
+file and take up space within the *Percona FT* cachetable (just like any other
+*Percona FT* dictionary).
 
 The transaction rollback logs will ``undo`` any changes made by a transaction
 if the transaction is explicitly rolled back, or rolled back via recovery as a
 result of an uncommitted transaction when a crash occurs.
 
-|Percona FT| will create/expect this file in the directory specified by the
+*Percona FT* will create/expect this file in the directory specified by the
 MySQL source/glossary.rst`datadir`.
 
 tokudb.directory
 ----------------
 
-|Percona FT| maintains a mapping of a dictionary name (example:
+*Percona FT* maintains a mapping of a dictionary name (example:
 ``sbtest.sbtest1.main``) to an internal file name (example:
 ``_sbtest_sbtest1_main_xx_x_xx.tokudb``). This mapping is stored within this
-single |Percona FT| dictionary file and takes up space within the |Percona FT|
-cachetable just like any other |Percona FT| dictionary.
+single *Percona FT* dictionary file and takes up space within the *Percona FT*
+cachetable just like any other *Percona FT* dictionary.
 
-|Percona FT| will create/expect this file in the directory specified by the
+*Percona FT* will create/expect this file in the directory specified by the
 MySQL source/glossary.rst`datadir`.
 
 Dictionary files
@@ -82,26 +82,26 @@ table there will be:
 These are typically named:
 ``_<database>_<table>_<key>_<internal_txn_id>.tokudb``
 
-|Percona FT| creates/expects these files in the directory specified by
-:variable:`tokudb_data_dir` if set, otherwise the MySQL ``datadir`` is used.
+*Percona FT* creates/expects these files in the directory specified by
+:ref:`tokudb_data_dir` if set, otherwise the MySQL ``datadir`` is used.
 
 Recovery log files
 ------------------
 
-The |Percona FT| recovery log records every operation that modifies a
-|Percona FT| dictionary. Periodically, the system will take a snapshot of the
+The *Percona FT* recovery log records every operation that modifies a
+*Percona FT* dictionary. Periodically, the system will take a snapshot of the
 system called a checkpoint. This checkpoint ensures that the modifications
-recorded within the |Percona FT| recovery logs have been applied to the
+recorded within the *Percona FT* recovery logs have been applied to the
 appropriate dictionary files up to a known point in time and synced to disk.
 
 These files have a rolling naming convention, but use:
 ``log<log_file_number>.tokulog<log_file_format_version>``.
 
-|Percona FT| creates/expects these files in the directory specified by
-:variable:`tokudb_log_dir` if set, otherwise the MySQL source/glossary.rst`datadir` is
+*Percona FT* creates/expects these files in the directory specified by
+:ref:`tokudb_log_dir` if set, otherwise the MySQL source/glossary.rst`datadir` is
 used.
 
-|Percona FT| does not track what log files should or shouldn't be present. Upon
+*Percona FT* does not track what log files should or shouldn't be present. Upon
 startup, it discovers the logs in the log directory, and replays them in order.
 If the wrong logs are present, the recovery aborts and possibly damages the
 dictionaries.
@@ -109,7 +109,7 @@ dictionaries.
 Temporary files
 ---------------
 
-|Percona FT| might need to create some temporary files in order to perform some
+*Percona FT* might need to create some temporary files in order to perform some
 operations. When the bulk loader is active, these temporary files might grow to
 be quite large.
 
@@ -117,15 +117,15 @@ As different operations start and finish, the files will come and go.
 
 There are no temporary files left behind upon a clean shutdown,
 
-|Percona FT| creates/expects these files in the directory specified by
-:variable:`tokudb_tmp_dir` if set. If not, the :variable:`tokudb_data_dir` is
+*Percona FT* creates/expects these files in the directory specified by
+:ref:`tokudb_tmp_dir` if set. If not, the :ref:`tokudb_data_dir` is
 used if set, otherwise the MySQL source/glossary.rst`datadir` is used.
 
 Lock files
 ----------
 
-|Percona FT| uses lock files to prevent multiple processes from accessing and
-writing to the files in the assorted |Percona FT| functionality areas. Each
+*Percona FT* uses lock files to prevent multiple processes from accessing and
+writing to the files in the assorted *Percona FT* functionality areas. Each
 lock file will be in the same directory as the file(s) that it is protecting.
 
 These empty files are only used as semaphores across processes. They are safe
@@ -142,7 +142,7 @@ the data set.
 
 ``__tokudb_lock_dont_delete_me_temp``
 
-|Percona FT| is extremely pedantic about validating its data set. If a file
+*Percona FT* is extremely pedantic about validating its data set. If a file
 goes missing or unfound, or seems to contain some nonsensical data, it will
 assert, abort or fail to start. It does this not to annoy you, but to try to
 protect you from doing any further damage to your data.

@@ -28,16 +28,29 @@ This is addressed by delegating all the LRU flushes to the to the LRU manager
 thread, never attempting to evict a page or perform a LRU single page flush by
 a query thread, and introducing a backoff algorithm to reduce buffer pool free
 list mutex pressure on empty buffer pool free lists. This is controlled through
-a new system variable :variable:`innodb_empty_free_list_algorithm`.
+a new system variable :ref:`innodb_empty_free_list_algorithm`.
 
-.. variable:: innodb_empty_free_list_algorithm
+.. _innodb_empty_free_list_algorithm:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :values: legacy, backoff
-   :default: backoff
+.. rubric:: ``innodb_empty_free_list_algorithm``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config File
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - legacy, backoff
+   * - Default
+     - backoff
 
 When ``legacy`` option is set, server will used the upstream algorithm and when
 the ``backoff`` is selected, Percona implementation will be used.
@@ -47,7 +60,7 @@ the ``backoff`` is selected, Percona implementation will be used.
 Multi-threaded LRU flusher
 ==========================
 
-|Percona Server| :rn:`5.7.10-3` has introduced a true multi-threaded LRU
+*Percona Server for MySQL* :ref:`5.7.10-3` has introduced a true multi-threaded LRU
 flushing. In this scheme, each buffer pool instance has its own dedicated LRU
 manager thread that is tasked with performing LRU flushes and evictions to
 refill the free list of that buffer pool instance. Existing multi-threaded
@@ -89,7 +102,7 @@ bottleneck with increased flusher parallelism, limiting the effect of extra
 cleaner threads. In addition, single page flushes, if they are performed, are
 subject to above and also contend on the doublewrite mutex.
 
-To address these issues |Percona Server| :rn:`5.7.11-4` has introduced private
+To address these issues *Percona Server for MySQL* :ref:`5.7.11-4` has introduced private
 doublewrite buffers for each buffer pool instance, for each batch flushing mode
 (LRU or flush list). For example, with four buffer pool instances, there will
 be eight doublewrite shards. Only one flusher thread can access any shard at a
@@ -106,7 +119,7 @@ are read and any torn pages are restored. If it's found on a clean instance
 startup, the server startup is aborted with an error message.
 
 The location of the doublewrite file is governed by a new
-:variable:`innodb_parallel_doublewrite_path` global, read-only system variable.
+:ref:`innodb_parallel_doublewrite_path` global, read-only system variable.
 It defaults to :file:`xb_doublewrite` in the data directory. The variable
 accepts both absolute and relative paths. In the latter case they are treated
 as relative to the data directory. The doublewrite file is not a tablespace
@@ -115,64 +128,80 @@ from InnoDB internals point of view.
 The legacy InnoDB doublewrite buffer in the system tablespace continues to
 address doublewrite needs of single page flushes, and they are free to use the
 whole of that buffer (128 pages by default) instead of the last eight pages as
-currently used. Note that single page flushes will not happen in |Percona
-Server| unless :variable:`innodb_empty_free_list_algorithm` is set to
+currently used. Note that single page flushes will not happen in *Percona Server for MySQL* unless :ref:`innodb_empty_free_list_algorithm` is set to
 ``legacy`` value.
 
 The existing system tablespace is not touched in any way for this feature
 implementation, ensuring that cleanly-shutdown instances may be freely moved
 between different server flavors.
 
-Interaction with :variable:`innodb_flush_method`
+Interaction with :ref:`innodb_flush_method`
 ------------------------------------------------
 
-Regardless of :variable:`innodb_flush_method` setting, the parallel doublewrite
+Regardless of :ref:`innodb_flush_method` setting, the parallel doublewrite
 file is opened with ``O_DIRECT`` flag to remove OS caching, then its access is
 further governed by the exact value set: if it's set to ``O_DSYNC``, the
 parallel doublewrite is opened with ``O_SYNC`` flag too. Further, if it's one
 of ``O_DSYNC``, ``O_DIRECT_NO_FSYNC``, or ``ALL_O_DIRECT``, then the
 doublewrite file is not flushed after a batch of writes to it is completed.
-With other :variable:`innodb_flush_method` values the doublewrite buffer is
+With other :ref:`innodb_flush_method` values the doublewrite buffer is
 flushed only if setting ``O_DIRECT`` has failed.
 
-.. variable:: innodb_parallel_doublewrite_path
+.. _innodb_parallel_doublewrite_path:
 
-   :cli: Yes
-   :scope: Global
-   :dyn: No
-   :vartype: String
-   :default: ``xb_doublewrite``
+.. rubric:: ``innodb_parallel_doublewrite_path``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - ``xb_doublewrite``
 
 This variable is used to specify the location of the parallel doublewrite file.
 It accepts both absolute and relative paths. In the latter case they are
 treated as relative to the data directory.
 
-|Percona Server| has introduced several options, only available in builds
+*Percona Server for MySQL* has introduced several options, only available in builds
 compiled with ``UNIV_PERF_DEBUG`` C preprocessor define.
 
-.. variable:: innodb_sched_priority_master
+.. _innodb_sched_priority_master:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :vartype: Boolean
+.. rubric:: ``innodb_sched_priority_master``
 
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
 
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
+  * :ref:`5.7.10-1`: Feature partially ported from *Percona Server for MySQL* 5.6
 
-        * Feature partially ported from |Percona Server| 5.6
+  * :ref:`5.7.10-3`: Implemented support for multi-threaded LRU
 
-  * :rn:`5.7.10-3`
-
-        * Implemented support for multi-threaded LRU
-
-  * :rn:`5.7.11-4`
-
-        * Implemented support for parallel doublewrite buffer
+  * :ref:`5.7.11-4`: Implemented support for parallel doublewrite buffer
 
 Other Reading
 =============

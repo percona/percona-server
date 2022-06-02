@@ -9,22 +9,34 @@ Because InnoDB is a complex storage engine it must be configured properly in ord
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
-
-    * Feature ported from |Percona Server| 5.6
+  * :ref:`5.7.10-1`: Feature ported from Percona Server for MySQL 5.6
 
 System Variables
 ================
 
-.. variable:: innodb_use_global_flush_log_at_trx_commit
+.. _innodb_use_global_flush_log_at_trx_commit:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :type: Boolean
-   :default: True
-   :range: True/False
+.. rubric:: ``innodb_use_global_flush_log_at_trx_commit``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config File
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - True
+   * - Range
+     - True/False
 
 This variable enables or disables the effect of the per-session value of
 the `innodb_flush_log_at_trx_commit` variable.
@@ -52,18 +64,33 @@ global `innodb_use_flush_log_at_trx_commit` value.
 
   SET innodb_use_global_flush_log_at_trx_commit=1
 
-.. variable:: innodb_flush_method
+.. _innodb_flush_method:
 
-   :Version Info: - :rn:`5.7.10-3` - Ported from |Percona Server| 5.6
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :Dyn: No
-   :vartype: Enumeration
-   :default: ``fdatasync``
-   :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``ALL_O_DIRECT``
+.. rubric:: ``innodb_flush_method``
 
-This is an existing MySQL 5.7 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method InnoDB uses to flush its data and log files. (See :variable:`innodb_flush_method` in the MySQL 5.7 `Reference Manual <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
+Ported from Percona Server for MySQL 5.6 in :ref:`5.7.10-3`.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config File
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - Enumeration
+   * - Default
+     - ``fdatasync``
+   * - Allowed values
+     - ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``ALL_O_DIRECT``
+
+This is an existing MySQL 5.7 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method InnoDB uses to flush its data and log files. (See :ref:`innodb_flush_method` in the MySQL 5.7 `Reference Manual <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
 
 The following values are allowed:
 
@@ -82,9 +109,9 @@ The following values are allowed:
   * ``ALL_O_DIRECT``: 
     use O_DIRECT to open data files, log files, and parallel doublewrite files
     and use ``fsync()`` to flush the data files but not the log files or 
-    parallel doublewrite files. This option is recommended when |InnoDB| log files are big (more than 8GB), 
+    parallel doublewrite files. This option is recommended when *InnoDB* log files are big (more than 8GB), 
     otherwise, there may be performance degradation. **Note**: When using this option on *ext4* filesystem 
-    variable :variable:`innodb_log_block_size` 
+    variable :ref:`innodb_log_block_size` 
     should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
 
 Status Variables

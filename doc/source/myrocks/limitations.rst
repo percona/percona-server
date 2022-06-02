@@ -37,7 +37,7 @@ You should also consider the following:
   By default, MyRocks prevents creating indexes with non-binary collations
   (including ``latin1``).
   You can optionally use it by setting
-  :variable:`rocksdb_strict_collation_exceptions` to ``t1``
+  :ref:`rocksdb_strict_collation_exceptions` to ``t1``
   (table names with regex format),
   but non-binary covering indexes other than ``latin1``
   (excluding ``german1``) still require a primary key lookup
@@ -74,8 +74,8 @@ You should also consider the following:
 
    .. warning::
 
-    If you are loading large data without enabling :variable:`rocksdb_bulk_load`
-    or :variable:`rocksdb_commit_in_the_middle`, please make sure transaction
+    If you are loading large data without enabling :ref:`rocksdb_bulk_load`
+    or :ref:`rocksdb_commit_in_the_middle`, please make sure transaction
     size is small enough. All modifications of the ongoing transactions are
     kept in memory.
 

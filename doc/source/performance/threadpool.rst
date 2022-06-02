@@ -233,9 +233,7 @@ The following values are allowed:
    * - Default
      - 4294967295
 
-This variable controls the high priority queue policy. Each new connection is
-assigned this many tickets to enter the high priority queue. Setting this
-variable to ``0`` disables the high priority queue.
+This variable controls the high priority queue policy. Each new connection is assigned this many tickets to enter the high priority queue. Setting this variable to ``0`` disables the high priority queue.
 
 .. _thread_pool_max_threads:
 
@@ -448,5 +446,5 @@ Other Reading
 =============
 
  * `Thread pool in MariaDB 5.5  <https://kb.askmonty.org/en/threadpool-in-55/>`_
-
  * `Thread pool implementation in Oracle MySQL <http://mikaelronstrom.blogspot.com/2011_10_01_archive.html>`_
+

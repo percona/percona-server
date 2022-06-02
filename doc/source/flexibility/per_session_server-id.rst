@@ -45,3 +45,4 @@ Other Reading
 
  * `MDEV-500 <https://mariadb.atlassian.net/browse/MDEV-500>`_ -  Session variable for server_id 
  * Upstream bug :mysqlbug:`35125` -  allow the ability to set the server_id for a connection for logging to binary log
+   

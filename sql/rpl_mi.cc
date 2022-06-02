@@ -404,7 +404,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (from->get_info(&temp_master_log_pos,
                      (ulong) BIN_LOG_HEADER_SIZE) ||
       from->get_info(host, sizeof(host), (char *) 0) ||
-      from->get_info(user, sizeof(user), (char *) "test") ||
+      from->get_info(user, sizeof(user), (char *) 0) ||
       from->get_info(password, sizeof(password), (char *) 0) ||
       from->get_info((int *) &port, (int) MYSQL_PORT) ||
       from->get_info((int *) &connect_retry,

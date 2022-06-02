@@ -6,11 +6,11 @@
 
 TokuDB is a highly scalable, zero-maintenance downtime MySQL storage engine that delivers indexing-based query acceleration, improved replication performance, unparalleled compression, and live schema modification. The TokuDB storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces replica lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing.
 
-|Percona Server| is compatible with the separately available TokuDB storage engine package. The TokuDB engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 5.7 releases and does not require any specially adapted version of |Percona Server|.
+*Percona Server for MySQL* is compatible with the separately available TokuDB storage engine package. The TokuDB engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard *Percona Server for MySQL* 5.7 releases and does not require any specially adapted version of *Percona Server for MySQL*.
 
 .. warning::
 
-  Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.7/LATEST/>`_ TokuDB engine should be used with |Percona Server| 5.7. A TokuDB engine downloaded from other sources is not compatible. TokuDB file formats are not the same across MySQL variants. Migrating from one variant to any other variant requires a logical data dump and reload.
+  Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.7/LATEST/>`_ TokuDB engine should be used with *Percona Server for MySQL* 5.7. A TokuDB engine downloaded from other sources is not compatible. TokuDB file formats are not the same across MySQL variants. Migrating from one variant to any other variant requires a logical data dump and reload.
 
 Additional features unique to TokuDB include:
 

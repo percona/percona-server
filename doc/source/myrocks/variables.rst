@@ -236,6 +236,8 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Local
+   * - :variable:`rocksdb_enable_native_partition`
+     - No
    * - :variable:`rocksdb_enable_pipelined_write`
      - Yes
      - No
@@ -904,8 +906,7 @@ Disabled by default.
 Enable this only if you are certain that there are no row conflicts,
 for example, when setting up a new MyRocks instance from a MySQL dump.
 
-Enabling this variable will also enable
-the :variable:`rocksdb_commit_in_the_middle` variable.
+When the `rocksdb_bulk_load` variable is enabled, it behaves as if the variable `rocksdb_commit_in_the_middle` is enabled, even if the variable `rocksdb_commit_in_the_middle` is disabled.
 
 .. variable:: rocksdb_bulk_load_size
 
@@ -1005,8 +1006,8 @@ Enabled by default.
 Specifies whether to commit rows implicitly
 when a batch contains more than the value of
 :variable:`rocksdb_bulk_load_size`.
-This is disabled by default
-and will be enabled if :variable:`rocksdb_bulk_load` is enabled.
+This variable is disabled by default. 
+When the `rocksdb_bulk_load` variable is enabled, it behaves as if the variable `rocksdb_commit_in_the_middle` is enabled, even if the variable `rocksdb_commit_in_the_middle` is disabled.
 
 .. variable:: rocksdb_commit_time_batch_for_recovery
 
@@ -1388,6 +1389,18 @@ failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.. variable:: rocksdb_
 Enables the rocksdb iterator upper bounds and lower bounds in read options.
 
 The default value is ``TRUE``.
+
+.. variable:: rocksdb_enable_native_partition
+
+  :cli: ``--rocksdb-enable-native-partition``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+This variable is **experimental** and should not be used in production.
+
+This variable enables native partitioning and may be used when upgrading to 8.0.
 
 .. variable:: rocksdb_enable_pipelined_write
 
@@ -2134,7 +2147,25 @@ for the MyRocks MTR test suites.
 
 Specifies the level of information to capture with the Perf Context plugins.
 Default value is ``0``.
-Allowed range is up to ``4``.
+Allowed range is up to ``5``.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Value
+     - Description
+   * - 0
+     - Unknown setting
+   * - 1
+     - Disable perf stats
+   * - 2 
+     - Enable only count stats
+   * - 3
+     - Enable count stats and time stats except for mutexes
+   * - 4
+     - Enable count stats, time stats, except for wall time or CPU time for mutexes
+   * - 5 
+     - Enable count and time stats
 
 .. variable:: rocksdb_persistent_cache_path
 

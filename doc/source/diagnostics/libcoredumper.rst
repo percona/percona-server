@@ -6,7 +6,7 @@ Using libcoredumper
 
 :Availability: This feature is **Experimental** quality.
 
-This feature was implemented in |Percona Server| 5.7.31-34 and has been tested against the supported operating systems for this version. The tool is experimental and may not be tested against newer operating systems in the future.
+This feature was implemented in *Percona Server for MySQL* 5.7.31-34 and has been tested against the supported operating systems for this version. The tool is experimental and may not be tested against newer operating systems in the future.
 
 The documented moment of a computer when either the computer or an application crashed is a core dump file. Developers examine the dump as one of the tasks when searching for the cause of a failure. 
 

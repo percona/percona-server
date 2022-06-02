@@ -4,19 +4,15 @@
  Thread Pool
 =============
 
+Servers continually execute queries from multiple clients. In *MySQL*, for each connection query, the server creates a thread, processes the query, and then destroys the thread. This method can have disadvantages because the server must consume resources to create, process, and destroy the thread. Therefore when the number of connections grows, the server performance drops. Too many active threads impact performance because of context switching, and thread contention.
 
-This feature enables the server to keep the top performance even with a large
-number of client connections by introducing a dynamic thread pool. By using the
-thread pool server would decrease the number of threads, which will then reduce
-the context switching and hot locks contentions. Using the thread pool will have
-the most effect with ``OLTP`` workloads (relatively short CPU-bound queries).
+A thread pool is distinct from connection pooling. A thread pool has the following advantages:
 
-The *thread-pool* feature introduces a dynamic *thread-pool* that enables the
-server to keep the top performance even with a large number of client
-connections. With *thread-pool* enabled, the server decreases the number of
-threads, which then reduces the context switching and hot locks
-contentions. Using the *thread-pool* has the most effect on ``OLTP`` workloads
-(relatively short CPU-bound queries).
+* Limits the number of threads running on the server
+
+* Minimizes wasting resources by creating and then destroying threads
+
+This feature ensures that multiple connections using a thread pool will not cause the server to churn through resources or cause a server exit when the server runs out of memory. A thread pool reuses threads and is most efficient for the short queries associated with transactions. 
 
 To enable the *thread-pool* feature, the :ref:`thread_handling` variable
 should be set to the ``pool-of-threads`` value. This can be done by adding the

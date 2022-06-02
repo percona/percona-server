@@ -834,7 +834,9 @@ Implemented in :ref:`5.7.19-17`.
 
 Specifies whether to commit rows implicitly
 when a batch contains more than the value of
+
 :ref:`rocksdb_bulk_load_size`.
+
 This variable is disabled by default. 
 When the `rocksdb_bulk_load` variable is enabled, it behaves as if the variable `rocksdb_commit_in_the_middle` is enabled, even if the variable `rocksdb_commit_in_the_middle` is disabled.
 

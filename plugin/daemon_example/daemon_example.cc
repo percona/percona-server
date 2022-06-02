@@ -27,6 +27,7 @@
 #include <mysql/plugin.h>
 #include <my_dir.h>
 #include "my_thread.h"
+#include "my_atomic.h"
 #include "my_sys.h"                             // my_write, my_malloc
 #include "m_string.h"                           // strlen
 #include "sql_plugin.h"                         // st_plugin_int
@@ -56,6 +57,7 @@ struct mysql_heartbeat_context
 {
   my_thread_handle heartbeat_thread;
   File heartbeat_file;
+  int32 done;
 };
 
 void *mysql_heartbeat(void *p)
@@ -66,7 +68,7 @@ void *mysql_heartbeat(void *p)
   time_t result;
   struct tm tm_tmp;
 
-  while(1)
+  while(my_atomic_load32(&con->done) != 1)
   {
     sleep(5);
 
@@ -125,6 +127,7 @@ static int daemon_example_plugin_init(void *p)
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);
   unlink(heartbeat_filename);
   con->heartbeat_file= my_open(heartbeat_filename, O_CREAT|O_RDWR, MYF(0));
+  con->done= 0;
 
   /*
     No threads exist at this point in time, so this is thread safe.
@@ -142,7 +145,6 @@ static int daemon_example_plugin_init(void *p)
 
   my_thread_attr_init(&attr);
   my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
-
 
   /* now create the thread */
   if (my_thread_create(&con->heartbeat_thread, &attr, mysql_heartbeat,
@@ -181,7 +183,7 @@ static int daemon_example_plugin_deinit(void *p)
   struct tm tm_tmp;
   void *dummy_retval;
 
-  my_thread_cancel(&con->heartbeat_thread);
+  my_atomic_store32(&con->done, 1);
 
   localtime_r(&result, &tm_tmp);
   my_snprintf(buffer, sizeof(buffer),

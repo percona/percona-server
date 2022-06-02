@@ -25,6 +25,7 @@
 #include "logger.h"
 #include <iostream>
 #include <locale>
+#include <memory>
 
 ostream &operator<<(ostream &os, const Datetime &dt)
 {

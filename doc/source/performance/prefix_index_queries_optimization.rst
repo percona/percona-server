@@ -4,7 +4,7 @@
 Prefix Index Queries Optimization
 =================================
 
-|Percona Server| has ported Prefix Index Queries Optimization feature from
+*Percona Server for MySQL* 5.6 has ported Prefix Index Queries Optimization feature from
 Facebook patch for MySQL.
 
 Prior to this InnoDB would always fetch the clustered index for all prefix
@@ -15,20 +15,40 @@ record from the secondary index and avoid the extra lookup.
 Status Variables
 ================
 
-.. variable:: Innodb_secondary_index_triggered_cluster_reads
+.. _Innodb_secondary_index_triggered_cluster_reads:
 
-     :version 5.7.18-14: Implemented
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_secondary_index_triggered_cluster_reads``
+
+Implemented in :ref:`5.7.18-14`.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Data type
+     - Numeric
+   * - Scope
+     - Global
 
 This variable shows the number of times secondary index lookup triggered
 cluster lookup.
 
-.. variable:: Innodb_secondary_index_triggered_cluster_reads_avoided
+.. _Innodb_secondary_index_triggered_cluster_reads_avoided:
 
-     :version 5.7.18-14: Implemented
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_secondary_index_triggered_cluster_reads_avoided``
+
+Implemented in :ref:`5.7.18-14`.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Data type
+     - Numeric
+   * - Scope
+     - Global
 
 This variable shows the number of times prefix optimization avoided
 triggering cluster lookup.

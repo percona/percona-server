@@ -1699,12 +1699,12 @@ public:
     make_root();
   }
 
-  Mock_SEL_ARG(Type type_arg, int initial_use_count, int expected_use_count)
+  Mock_SEL_ARG(Type type_arg, int initial_use_count, int expected_use_count,uint8 initial_part = 1)
     : m_expected_use_count(expected_use_count)
   {
     make_root();
     type= type_arg;
-    part= 1;
+    part= initial_part;
     left= NULL;
     use_count= initial_use_count;
     min_flag= 0;
@@ -2064,6 +2064,25 @@ TEST_F(OptRangeTest, AppendRange)
   uchar value= 42;
   append_range(&out, &kp, &value, &value, NEAR_MIN | NEAR_MAX);
   EXPECT_STREQ("42 < my_field < 42", out.c_ptr());
+}
+
+TEST_F(OptRangeTest, CloneSpatialKey) {
+  Fake_RANGE_OPT_PARAM param(thd(), &m_alloc, 2, false);
+  Mock_SEL_ARG key1(SEL_ARG::KEY_RANGE, 1, 0,1);
+  Mock_SEL_ARG key2(SEL_ARG::MAYBE_KEY, 2, 0,2);
+  // dummy field
+  Mock_field_long field1("geom1");
+  key1.field = &field1;
+  key1.left = &null_element;
+  key1.next_key_part = NULL;
+  key1.min_flag |= GEOM_FLAG;
+  key1.rkey_func_flag = HA_READ_MBR_CONTAIN;
+  // check if tree is cloned along with gis flag.
+  SEL_ARG *cloned_key1 = key_and(&param, &key1, &key2, CLONE_KEY2_MAYBE);
+  EXPECT_NE(cloned_key1, &key1);
+  EXPECT_EQ(cloned_key1->rkey_func_flag, key1.rkey_func_flag);
+  key1.use_count = 0;
+  key2.use_count = 0;
 }
 
 }

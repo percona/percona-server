@@ -679,7 +679,7 @@ This variable is used to specify which events should be logged. Possible values 
     :vartype: Numeric
     :default: 0 (don't rotate the log file)
 
-This variable specifies the maximum size of the audit log file. Upon reaching
+This variable is measured in bytes and specifies the maximum size of the audit log file. Upon reaching
 this size, the audit log will be rotated. The rotated log files are present in
 the same directory as the current log file. The sequence number is appended to
 the log file name upon rotation. For this variable to take effect, set the

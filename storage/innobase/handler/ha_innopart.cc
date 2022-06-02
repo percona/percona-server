@@ -197,7 +197,14 @@ Ha_innopart_share::open_one_table_part(
 		&& (m_table_share->fields
 		    != dict_table_get_n_user_cols(ib_table)
 		       + dict_table_get_n_v_cols(ib_table) - 1))) {
-		ib::warn() << "Partition `" << get_partition_name(part_id)
+        /* We may end up here when doing ha_innopart::open(), so before
+        populate_partition_name_hash() was called. In such a case
+        get_partition_name() returns nullptr. Fall back to any other
+        informative string instead of trying to print nullptr. */
+        const char *part_name = get_partition_name(part_id)
+                                ? get_partition_name(part_id)
+                                : ib_table->name.m_name;
+		ib::warn() << "Partition `" << (part_name ? part_name : "nullptr")
 			<< "` contains " << dict_table_get_n_user_cols(ib_table)
 			<< " user defined columns in InnoDB, but "
 			<< m_table_share->fields
@@ -459,7 +466,10 @@ Ha_innopart_share::close_table_parts()
 	mutex_enter(&dict_sys->mutex);
 	if (m_table_parts != NULL) {
 		for (uint i = 0; i < m_tot_parts; i++) {
-			if (m_table_parts[i] != NULL) {
+            // If the partition is corrupted, it was not opened.
+            ut_a(m_table_parts[i] == NULL || m_table_parts[i]->get_ref_count() > 0
+                 || m_table_parts[i]->corrupted);
+			if (m_table_parts[i] != NULL && !m_table_parts[i]->corrupted)  {
 				dict_table_close(m_table_parts[i], TRUE, TRUE);
 			}
 		}
@@ -1049,8 +1059,6 @@ share_error:
 	m_upd_buf = NULL;
 	m_upd_buf_size = 0;
 
-	/* Get pointer to a table object in InnoDB dictionary cache. */
-	ib_table = m_part_share->get_table_part(0);
 
 	m_pcur_parts = NULL;
 	m_clust_pcur_parts = NULL;
@@ -1080,42 +1088,47 @@ share_error:
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
-	bool	no_tablespace;
 
-	/* TODO: Should we do this check for every partition during ::open()? */
 	/* TODO: refactor this in ha_innobase so it can increase code reuse. */
-	if (dict_table_is_discarded(ib_table)) {
+	for (uint part_id = 0; part_id < m_tot_parts; part_id++) {
+		bool	no_tablespace;
+		ib_table = m_part_share->get_table_part(part_id);
+		if (dict_table_is_discarded(ib_table)) {
 
-		ib_senderrf(thd,
-			IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
-			table->s->table_name.str);
+			ib_senderrf(thd,
+				IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
+				table->s->table_name.str);
 
-		/* Allow an open because a proper DISCARD should have set
-		all the flags and index root page numbers to FIL_NULL that
-		should prevent any DML from running but it should allow DDL
-		operations. */
+			/* Allow an open because a proper DISCARD should have set
+			all the flags and index root page numbers to FIL_NULL that
+			should prevent any DML from running but it should allow DDL
+			operations. */
 
-		no_tablespace = false;
+			no_tablespace = false;
 
-	} else if (ib_table->file_unreadable) {
+		} else if (ib_table->file_unreadable || ib_table->corrupted) {
 
-		ib_senderrf(
-			thd, IB_LOG_LEVEL_WARN,
-			ER_TABLESPACE_MISSING, norm_name);
+			ib_senderrf(
+				thd, IB_LOG_LEVEL_WARN,
+				ER_TABLESPACE_MISSING, norm_name);
 
-		/* This means we have no idea what happened to the tablespace
-		file, best to play it safe. */
+			/* This means we have no idea what happened to the tablespace
+			file, best to play it safe. */
 
-		no_tablespace = true;
-	} else {
-		no_tablespace = false;
+			no_tablespace = true;
+		} else {
+			no_tablespace = false;
+		}
+
+		if (!thd_tablespace_op(thd) && no_tablespace) {
+			set_my_errno(ENOENT);
+			close();
+			DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+		}
 	}
 
-	if (!thd_tablespace_op(thd) && no_tablespace) {
-                set_my_errno(ENOENT);
-		close();
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-	}
+	/* Get pointer to a table object in InnoDB dictionary cache. */
+	ib_table = m_part_share->get_table_part(0);
 
 	m_prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
 
@@ -1346,6 +1359,7 @@ share_error:
 		close();  // Frees all the above.
 		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 	}
+	m_reuse_mysql_template = false;
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
@@ -1579,6 +1593,7 @@ ha_innopart::update_partition(
 	m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
 	if (m_prebuilt->sql_stat_start == 0) {
 		clear_bit(m_sql_stat_start_parts, part_id);
+		m_reuse_mysql_template = true;
 	}
 	m_last_part = part_id;
 	DBUG_VOID_RETURN;
@@ -4224,6 +4239,7 @@ ha_innopart::start_stmt(
 		memset(m_sql_stat_start_parts, 0,
 		       UT_BITS_IN_BYTES(m_tot_parts));
 	}
+	m_reuse_mysql_template = false;
 	return(error);
 }
 
@@ -4357,6 +4373,7 @@ ha_innopart::external_lock(
 		memset(m_sql_stat_start_parts, 0,
 		       UT_BITS_IN_BYTES(m_tot_parts));
 	}
+	m_reuse_mysql_template = false;
 	return(error);
 }
 

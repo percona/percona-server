@@ -233,6 +233,6 @@ Do not use one or more dot characters (.) when defining the values for the follo
 
 * `log_bin <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#option_mysqld_log-bin>`__
 
-* `log_bin_index <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#option_mysqld_log-bin-index>`__
+* `log_bin_index <c>`__
 
 MySQL and **XtraBackup** handle the value in different ways and this difference causes unpredictable behavior.

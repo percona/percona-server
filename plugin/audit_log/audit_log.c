@@ -35,6 +35,7 @@
 #include "buffer.h"
 #include "audit_handler.h"
 #include "filter.h"
+#include "sql_const.h"
 
 #define PLUGIN_VERSION 0x0002
 
@@ -239,12 +240,12 @@ void xml_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
     { 0,  0, NULL },
     { 0,  0, NULL },
     { 0,  0, NULL },
+    { '\b',  0, NULL },
+    { '\t', 4, "&#9;" },
+    { '\n', 5, "&#10;" },
     { 0,  0, NULL },
-    { '\t', 5, "&#9;" },
-    { '\n', 6, "&#10;" },
-    { 0,  0, NULL },
-    { 0,  0, NULL },
-    { '\r', 6, "&#13;" },
+    { '\f',  0, NULL },
+    { '\r', 5, "&#13;" },
     { 0,  0, NULL },
     { 0,  0, NULL },
     { 0,  0, NULL },
@@ -556,7 +557,7 @@ char *audit_log_audit_record(char *buf, size_t buflen,
                               orig_argc - 1, orig_argv + 1));
 
   /* make sure that record is not truncated */
-  DBUG_ASSERT(buf + *outlen <= buf + buflen);
+  assert(buf + *outlen <= buf + buflen);
 
   return buf;
 }
@@ -621,8 +622,8 @@ char *audit_log_general_record(char *buf, size_t buflen,
                        "\"ip\":\"%s\","
                        "\"db\":\"%s\"}}\n",
 
-                     "\"%s\",\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\","
-                     "\"%s\",\"%s\",\"%s\",\"%s\"\n" };
+                     ("\"%s\",\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\","
+                      "\"%s\",\"%s\",\"%s\",\"%s\"\n") };
 
   query_length= my_charset_utf8mb4_general_ci.mbmaxlen *
                 event->general_query.length;
@@ -693,7 +694,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
                     status, query, user, host, external_user, ip, db);
 
   /* make sure that record is not truncated */
-  DBUG_ASSERT(endptr + *outlen <= buf + buflen);
+  assert(endptr + *outlen <= buf + buflen);
 
   return endptr;
 }
@@ -754,8 +755,8 @@ char *audit_log_connection_record(char *buf, size_t buflen,
                        "\"ip\":\"%s\","
                        "\"db\":\"%s\"}}\n",
 
-                     "\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\",\"%s\","
-                     "\"%s\",\"%s\",\"%s\",\"%s\"\n" };
+                     ("\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\",\"%s\","
+                      "\"%s\",\"%s\",\"%s\",\"%s\"\n") };
 
   user= escape_string(event->user.str, event->user.length,
                       endptr, endbuf - endptr, &endptr, NULL);
@@ -774,7 +775,7 @@ char *audit_log_connection_record(char *buf, size_t buflen,
   database= escape_string(event->database.str, event->database.length,
                           endptr, endbuf - endptr, &endptr, NULL);
 
-  DBUG_ASSERT((endptr - buf) * 2 +
+  assert((endptr - buf) * 2 +
               strlen(format_string[audit_log_format]) +
               strlen(name) +
               MAX_RECORD_ID_SIZE +
@@ -793,7 +794,7 @@ char *audit_log_connection_record(char *buf, size_t buflen,
                     proxy_user, host, ip, database);
 
   /* make sure that record is not truncated */
-  DBUG_ASSERT(endptr + *outlen <= buf + buflen);
+  assert(endptr + *outlen <= buf + buflen);
 
   return endptr;
 }
@@ -809,7 +810,7 @@ size_t audit_log_header(MY_STAT *stat, char *buf, size_t buflen)
                      "",
                      "" };
 
-  DBUG_ASSERT(strcmp(system_charset_info->csname, "utf8") == 0);
+  assert(strcmp(system_charset_info->csname, "utf8") == 0);
 
   log_file_time= stat->st_mtime;
 
@@ -1150,13 +1151,13 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
                                    unsigned int event_class,
                                    const void *event)
 {
-  DBUG_ASSERT(audit_log_include_accounts == NULL ||
+  assert(audit_log_include_accounts == NULL ||
               audit_log_exclude_accounts == NULL);
 
-  DBUG_ASSERT(audit_log_include_databases == NULL ||
+  assert(audit_log_include_databases == NULL ||
               audit_log_exclude_databases == NULL);
 
-  DBUG_ASSERT(audit_log_include_commands == NULL ||
+  assert(audit_log_include_commands == NULL ||
               audit_log_exclude_commands == NULL);
 
   if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
@@ -1200,7 +1201,7 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
     if (event_connection->status == 0)
     {
       /* track default DB change */
-      DBUG_ASSERT(event_connection->database.length <= sizeof(local->db));
+      assert(event_connection->database.length <= sizeof(local->db));
       memcpy(local->db, event_connection->database.str,
              event_connection->database.length);
       local->db[event_connection->database.length]= 0;
@@ -1264,7 +1265,7 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
       /* Database is about to be changed. Server doesn't provide database
       name in STATUS event, so remember it now. */
 
-      DBUG_ASSERT(event_general->general_query.length <= sizeof(local->db));
+      assert(event_general->general_query.length <= sizeof(local->db));
       memcpy(local->db, event_general->general_query.str,
              event_general->general_query.length);
       local->db[event_general->general_query.length]= 0;
@@ -1385,7 +1386,7 @@ int audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                           event_general->general_error_code,
                                           event_general, local->db,
                                           &len);
-        DBUG_ASSERT(log_rec);
+        assert(log_rec);
       }
       if (log_rec)
         audit_log_write(log_rec, len);
@@ -1593,24 +1594,31 @@ static MYSQL_THDVAR_STR(query_stack,
                         PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
                         "Query stack.", NULL, NULL, "");
 
+static const char *val_strmake(MYSQL_THD              thd,
+                               struct st_mysql_value *mysql_val)
+{
+  char        buf[STRING_BUFFER_USUAL_SIZE];
+  int         len= sizeof(buf);
+  const char *val= mysql_val->val_str(mysql_val, buf, &len);
+
+  if (val != NULL)
+    val= thd_strmake(thd, val, len);
+
+  return val;
+}
+
 static
 int
 audit_log_exclude_accounts_validate(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          MYSQL_THD thd,
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_include_accounts)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1624,7 +1632,7 @@ void audit_log_exclude_accounts_update(
 {
   const char *new_val= *(const char **)(save);
 
-  DBUG_ASSERT(audit_log_include_accounts == NULL);
+  assert(audit_log_include_accounts == NULL);
 
   my_free(audit_log_exclude_accounts);
   audit_log_exclude_accounts= NULL;
@@ -1651,21 +1659,15 @@ static MYSQL_SYSVAR_STR(exclude_accounts, audit_log_exclude_accounts,
 static
 int
 audit_log_include_accounts_validate(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          MYSQL_THD thd,
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_exclude_accounts)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1679,7 +1681,7 @@ void audit_log_include_accounts_update(
 {
   const char *new_val= *(const char **)(save);
 
-  DBUG_ASSERT(audit_log_exclude_accounts == NULL);
+  assert(audit_log_exclude_accounts == NULL);
 
   my_free(audit_log_include_accounts);
   audit_log_include_accounts= NULL;
@@ -1710,16 +1712,10 @@ audit_log_exclude_databases_validate(
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_include_databases)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1733,7 +1729,7 @@ void audit_log_exclude_databases_update(
 {
   const char *new_val= *(const char **)(save);
 
-  DBUG_ASSERT(audit_log_include_databases == NULL);
+  assert(audit_log_include_databases == NULL);
 
   my_free(audit_log_exclude_databases);
   audit_log_exclude_databases= NULL;
@@ -1760,21 +1756,15 @@ static MYSQL_SYSVAR_STR(exclude_databases, audit_log_exclude_databases,
 static
 int
 audit_log_include_databases_validate(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          MYSQL_THD thd,
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_exclude_databases)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1788,7 +1778,7 @@ void audit_log_include_databases_update(
 {
   const char *new_val= *(const char **)(save);
 
-  DBUG_ASSERT(audit_log_exclude_databases == NULL);
+  assert(audit_log_exclude_databases == NULL);
 
   my_free(audit_log_include_databases);
   audit_log_include_databases= NULL;
@@ -1814,21 +1804,15 @@ static MYSQL_SYSVAR_STR(include_databases, audit_log_include_databases,
 static
 int
 audit_log_exclude_commands_validate(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          MYSQL_THD thd,
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_include_commands)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1842,7 +1826,7 @@ void audit_log_exclude_commands_update(
 {
   const char *new_val= *(const char **)(save);
 
-  DBUG_ASSERT(audit_log_include_commands == NULL);
+  assert(audit_log_include_commands == NULL);
 
   my_free(audit_log_exclude_commands);
   audit_log_exclude_commands= NULL;
@@ -1869,21 +1853,15 @@ static MYSQL_SYSVAR_STR(exclude_commands, audit_log_exclude_commands,
 static
 int
 audit_log_include_commands_validate(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          MYSQL_THD thd,
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_exclude_commands)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1897,7 +1875,7 @@ void audit_log_include_commands_update(
 {
   const char *new_val= *(const char **)(save);
 
-  DBUG_ASSERT(audit_log_exclude_commands == NULL);
+  assert(audit_log_exclude_commands == NULL);
 
   my_free(audit_log_include_commands);
   audit_log_include_commands= NULL;

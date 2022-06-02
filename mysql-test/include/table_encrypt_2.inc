@@ -6,7 +6,7 @@ eval CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="$encryption_type";
 DROP TABLE t1;
 
 # Restart the server with keyring loaded
---let $restart_parameters="$KEYRING2_RESTART_PARAM"
+--let $restart_parameters="$keyring2_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
@@ -43,7 +43,7 @@ INSERT INTO t1 select * from t1;
 SELECT * FROM t1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING2_RESTART_PARAM"
+--let $restart_parameters="$keyring2_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
@@ -69,14 +69,14 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING2_RESTART_PARAM"
+--let $restart_parameters="$keyring2_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 LIMIT 10;
 DROP TABLE t1;
 
---let $restart_parameters="$KEYRING1_RESTART_PARAM --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log"
+--let $restart_parameters="$keyring1_restart_param --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 

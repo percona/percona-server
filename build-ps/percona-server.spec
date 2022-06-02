@@ -413,6 +413,8 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -449,6 +451,8 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -621,6 +625,8 @@ else
       if [ -L /etc/my.cnf ] && [ "x${real_file}" == "x/etc/percona-server.cnf" ]; then
           rm -rf /etc/my.cnf
           update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
+          update-alternatives --set my.cnf /etc/percona-server.cnf
+          update-alternatives --auto my.cnf
       else
           echo " -------------"
           echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
@@ -1106,6 +1112,9 @@ fi
 
 
 %changelog
+* Mon Feb 22 2021 Percona Development Team <info@percona.com> - 5.7.33-36
+- Release 5.7.33-36
+
 * Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>
 - Added RocksDB
 

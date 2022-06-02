@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ static void handle_bootstrap_impl(THD *thd)
         thd->variables.option_bits|= OPTION_BIN_LOG;
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
       }
     }
@@ -224,7 +224,7 @@ static void handle_bootstrap_impl(THD *thd)
         break;
 
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
       }
 
@@ -350,6 +350,21 @@ int bootstrap(MYSQL_FILE *file)
   thd->security_context()->set_master_access(~(ulong)0);
 
   thd->set_new_thread_id();
+
+  DBUG_EXECUTE_IF("bootstrap_crash", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("bootstrap_hang", {
+    while (1)
+      my_sleep(1000000);
+  });
+  DBUG_EXECUTE_IF("bootstrap_buffer_overrun", {
+    int *mem = static_cast<int *>(my_malloc(PSI_NOT_INSTRUMENTED, 127, 0));
+    // Allocations are usually aligned, so even if 127 bytes were requested,
+    // it's mostly safe to assume there are 128 bytes. Writing into the last
+    // byte is safe for the rest of the code, but still enough to trigger
+    // AddressSanitizer (ASAN) or Valgrind.
+    my_atomic_store32(mem + (128 / sizeof(*mem)) - 1, 1);
+    my_free(mem);
+  });
 
   bootstrap_file=file;
 

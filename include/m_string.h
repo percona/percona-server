@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,9 @@
 #include <string.h>
 
 #define bfill please_use_memset_rather_than_bfill
+#ifdef bzero
+#undef bzero
+#endif
 #define bzero please_use_memset_rather_than_bzero
 #define bmove please_use_memmove_rather_than_bmove
 #define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
@@ -326,7 +329,7 @@ static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
     const uchar *start_words= (const uchar *)(intptr)
        ((((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
 
-    DBUG_ASSERT(end_words > ptr);
+    assert(end_words > ptr);
     while (end > end_words && end[-1] == 0x20)
       end--;
     if (end[-1] == 0x20 && start_words < end_words)

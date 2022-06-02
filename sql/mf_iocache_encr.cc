@@ -79,7 +79,7 @@ static void set_iv_from_nonces(io_cache_aes_block_buffer& iv,
   int encryption_result MY_ATTRIBUTE((unused))= my_aes_encrypt(nonce_block,
     sizeof(nonce_block), iv, key, sizeof(key), io_cache_nonce_aes_mode,
     NULL, FALSE);
-  DBUG_ASSERT(encryption_result == sizeof(nonce_block));
+  assert(encryption_result == sizeof(nonce_block));
 }
 
 static int my_b_encr_read(IO_CACHE *info, uchar *Buffer, size_t Count)
@@ -125,7 +125,7 @@ static int my_b_encr_read(IO_CACHE *info, uchar *Buffer, size_t Count)
     int length;
     io_cache_aes_block_buffer iv= {0};
 
-    DBUG_ASSERT(pos_in_file % info->buffer_length == 0);
+    assert(pos_in_file % info->buffer_length == 0);
 
     if (info->end_of_file - pos_in_file >= info->buffer_length)
       wlength= crypt_data->block_length;
@@ -153,12 +153,12 @@ static int my_b_encr_read(IO_CACHE *info, uchar *Buffer, size_t Count)
       DBUG_RETURN(1);
     }
 
-    DBUG_ASSERT(static_cast<uint>(length) <= info->buffer_length);
+    assert(static_cast<uint>(length) <= info->buffer_length);
 
     copied= MY_MIN(Count, length - pos_offset);
 
     if (copied) {
-      DBUG_ASSERT(Buffer != NULL);
+      assert(Buffer != NULL);
       memcpy(Buffer, info->buffer + pos_offset, copied);
       Count-= copied;
       Buffer+= copied;
@@ -195,13 +195,13 @@ static int my_b_encr_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
       DBUG_RETURN(0);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (info->pos_in_file == 0) crypt_data->block_length= 0;
 #endif
 
   if (info->seek_not_done)
   {
-    DBUG_ASSERT(info->pos_in_file % info->buffer_length == 0);
+    assert(info->pos_in_file % info->buffer_length == 0);
     size_t wpos=
       info->pos_in_file / info->buffer_length * crypt_data->block_length;
 
@@ -253,15 +253,15 @@ static int my_b_encr_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
         block_length should be always the same. that is, encrypting
         buffer_length bytes should *always* produce block_length bytes
       */
-      DBUG_ASSERT(crypt_data->block_length == 0 ||
+      assert(crypt_data->block_length == 0 ||
                   crypt_data->block_length == wlength);
-      DBUG_ASSERT(static_cast<uint>(elength) <= length + MY_AES_BLOCK_SIZE);
+      assert(static_cast<uint>(elength) <= length + MY_AES_BLOCK_SIZE);
       crypt_data->block_length= wlength;
     }
     else
     {
       /* if we write a partial block, it *must* be the last write */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       info->write_function= 0;
 #endif
       crypt_data->last_block_length= wlength;

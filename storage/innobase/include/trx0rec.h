@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -112,6 +112,13 @@ trx_undo_rec_get_pars(
 					externally stored fild */
 	undo_no_t*	undo_no,	/*!< out: undo log record number */
 	table_id_t*	table_id);	/*!< out: table id */
+
+/** Reads from an undo log record the table ID
+@param[in]	undo_rec	Undo log record
+@return the table ID */
+table_id_t
+trx_undo_rec_get_table_id(const trx_undo_rec_t* undo_rec)
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*******************************************************************//**
 Builds a row reference from an undo log record.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -394,6 +394,12 @@ DECLARE_THREAD(buf_resize_thread)(
 /*==============================*/
 	void*	arg);				/*!< in: a dummy parameter
 						required by os_thread_create */
+
+/** Checks if innobase_should_madvise_buf_pool() value has changed since we've
+last check and if so, then updates buf_pool_should_madvise and calls madvise
+for all chunks in all srv_buf_pool_instances.
+@see buf_pool_should_madvise comment for a longer explanation. */
+void buf_pool_update_madvise();
 
 /********************************************************************//**
 Clears the adaptive hash index on all pages in the buffer pool. */
@@ -1932,6 +1938,13 @@ public:
 	@param bpage	buffer block to be compared */
 	virtual void adjust(const buf_page_t*) = 0;
 
+	/** Adjust the value of hp for moving. This happens
+	when some other thread working on the same list
+	attempts to relocate the hp of the page.
+	@param bpage	buffer block to be compared
+	@param dpage	buffer block to be moved to */
+	void move(const buf_page_t *bpage, buf_page_t *dpage);
+
 protected:
 	/** Disable copying */
 	HazardPointer(const HazardPointer&);
@@ -2090,11 +2103,18 @@ struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */
-	BufListMutex	LRU_list_mutex; /*!< LRU list mutex */
-	BufListMutex	free_list_mutex;/*!< free and withdraw list mutex */
-	BufListMutex	zip_free_mutex; /*!< buddy allocator mutex */
-	BufListMutex	zip_hash_mutex; /*!< zip_hash mutex */
-	ib_mutex_t	flush_state_mutex;/*!< Flush state protection
+	BufListMutex	chunks_mutex; /*!< protects (de)allocation of chunks:
+					- changes to chunks, n_chunks are performed
+					while holding this latch,
+					- reading buf_pool_should_madvise requires
+					holding this latch for any buf_pool_t
+					- writing to buf_pool_should_madvise requires
+					holding these latches for all buf_pool_t-s */
+	BufListMutex	LRU_list_mutex;	 /*!< LRU list mutex */
+	BufListMutex	free_list_mutex; /*!< free and withdraw list mutex */
+	BufListMutex	zip_free_mutex;	 /*!< buddy allocator mutex */
+	BufListMutex	zip_hash_mutex;	 /*!< zip_hash mutex */
+	ib_mutex_t	flush_state_mutex; /*!< Flush state protection
 					mutex */
 	BufPoolZipMutex	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
@@ -2129,8 +2149,6 @@ struct buf_pool_t{
 					indexed by (space_id, offset).
 					page_hash is protected by an
 					array of mutexes. */
-	hash_table_t*	page_hash_old;	/*!< old pointer to page_hash to be
-					freed after resizing buffer pool */
 	hash_table_t*	zip_hash;	/*!< hash table of buf_block_t blocks
 					whose frames are allocated to the
 					zip buddy system,
@@ -2170,6 +2188,8 @@ struct buf_pool_t{
 					used during scan of flush_list
 					while doing flush list batch.
 					Protected by flush_list_mutex */
+	FlushHp			oldest_hp;/*!< entry pointer to scan the oldest
+					page except for system temporary */
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/*!< base node of the modified block
 					list */
@@ -2295,6 +2315,41 @@ struct buf_pool_t{
 					individual watch page is protected by
 					a corresponding individual page_hash
 					latch. */
+
+	/** A wrapper for buf_pool_t::allocator.alocate_large which also advices the
+	OS that this chunk should not be dumped to a core file if that was requested.
+	Emits a warning to the log and disables @@global.core_file if advising was
+	requested but could not be performed, but still return true as the allocation
+	itself succeeded.
+	@param[in]	  mem_size  number of bytes to allocate
+	@param[in/out]  chunk     mem and mem_pfx fields of this chunk will be updated
+	to contain information about allocated memory region
+	@return true if allocated successfully */
+	bool
+	allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk, bool populate);
+
+	/** A wrapper for buf_pool_t::allocator.deallocate_large which also advices
+	the OS that this chunk can be dumped to a core file.
+	Emits a warning to the log and disables @@global.core_file if advising was
+	requested but could not be performed.
+	@param[in]  chunk   mem and mem_pfx fields of this chunk will be used to
+	locate the memory region to free */
+	void
+	deallocate_chunk(buf_chunk_t *chunk);
+
+	/** Advices the OS that all chunks in this buffer pool instance can be dumped
+	to a core file.
+	Emits a warning to the log if could not succeed.
+	@return true if succeeded, false if no OS support or failed */
+	bool
+	madvise_dump();
+
+	/** Advices the OS that all chunks in this buffer pool instance should not
+	be dumped to a core file.
+	Emits a warning to the log if could not succeed.
+	@return true if succeeded, false if no OS support or failed */
+	bool
+	madvise_dont_dump();
 
 #if BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN
 # error "BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN"

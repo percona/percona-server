@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -140,11 +140,6 @@ ADD_CONVENIENCE_LIBRARY(mysqlpump_lib ${MYSQLPUMP_LIB_SOURCES})
 TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})
 
-ADD_COMPILE_FLAGS(
-  compression_writer.cc
-  mysqldump_tool_chain_maker.cc
-  COMPILE_FLAGS -I${LZ4_INCLUDE_DIR}
-)
 MYSQL_ADD_EXECUTABLE(mysqlpump  program.cc)
 
 TARGET_LINK_LIBRARIES(mysqlpump mysqlpump_lib ${LOCAL_BOOST_LIB})

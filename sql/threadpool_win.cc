@@ -332,7 +332,7 @@ int start_io(connection_t *connection, PTP_CALLBACK_INSTANCE instance)
     return -1;
   }
 
-  DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || 
+  assert(vio->type == VIO_TYPE_TCPIP || 
     vio->type == VIO_TYPE_SSL ||
     vio->type == VIO_TYPE_NAMEDPIPE);
 
@@ -728,7 +728,7 @@ void tp_set_max_threads(uint val)
 
 void tp_wait_begin(THD *thd, int type)
 {
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   /*
     Signal to the threadpool whenever callback can run long. Currently, binlog

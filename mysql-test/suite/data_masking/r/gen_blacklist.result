@@ -10,15 +10,21 @@ Dictionary load success
 SELECT gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities');
 gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities')
 Dictionary load success
-SELECT gen_blacklist('Moscow', 'DE_Cities', 'US_Cities');
-gen_blacklist('Moscow', 'DE_Cities', 'US_Cities')
-Moscow
+SELECT gen_dictionary_load('../../std_data/data_masking/long_entries_cities.txt', 'long_entries_cities');
+gen_dictionary_load('../../std_data/data_masking/long_entries_cities.txt', 'long_entries_cities')
+Dictionary load success
+include/assert.inc [Return the same string if it is not present in the source dict]
+include/assert.inc [Return an entry of the dest dict if the string is present in the source dict]
+include/assert.inc [Long entries in the dest dict are not trimmed]
 SELECT gen_dictionary_drop('de_cities');
 gen_dictionary_drop('de_cities')
 Dictionary removed
 SELECT gen_dictionary_drop('us_cities');
 gen_dictionary_drop('us_cities')
 Dictionary removed
+SELECT gen_dictionary_drop('long_entries_cities');
+gen_dictionary_drop('long_entries_cities')
+Dictionary removed
+DROP FUNCTION gen_blacklist;
 DROP FUNCTION gen_dictionary_load;
 DROP FUNCTION gen_dictionary_drop;
-DROP FUNCTION gen_blacklist;

@@ -1,7 +1,7 @@
 #ifndef SQL_USER_CACHE_INCLUDED
 #define SQL_USER_CACHE_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "partitioned_rwlock.h"         // Partitioned_rwlock
 
 #include "prealloced_array.h"
+#include "log_event.h"
 
 /* Forward Declarations */
 class String;
@@ -48,8 +49,8 @@ class ACL_HOST_AND_IP
   const char *calc_ip(const char *ip_arg, long *val, char end);
 
 public:
-  const char *get_host() const { return hostname; }
-  size_t get_host_len() { return hostname_length; }
+  const char *get_host() const { return hostname ? hostname : ""; }
+  size_t get_host_len() const { return hostname_length; }
 
   bool has_wildcard()
   {
@@ -64,9 +65,8 @@ public:
   }
 
   void update_hostname(const char *host_arg);
-
   bool compare_hostname(const char *host_arg, const char *ip_arg);
-
+  bool is_null() const { return hostname == NULL; }
 };
 
 class ACL_ACCESS {
@@ -159,7 +159,7 @@ public:
     user= user_arg && *user_arg ? strdup_root(mem, user_arg) : NULL;
   }
 
-  bool check_validity(bool check_no_resolve);
+  void check_validity(bool check_no_resolve);
 
   bool matches(const char *host_arg, const char *user_arg, const char *ip_arg,
                 const char *proxied_user_arg, bool any_proxy_user);
@@ -176,12 +176,12 @@ public:
   {
     return (((!user && (!user_arg || !user_arg[0])) ||
              (user && user_arg && !strcmp(user, user_arg))) &&
-            ((!host.get_host() && (!host_arg || !host_arg[0])) ||
-             (host.get_host() && host_arg && !strcmp(host.get_host(), host_arg))));
+            ((host.is_null() && (!host_arg || !host_arg[0])) ||
+             (!host.is_null() && host_arg && !strcmp(host.get_host(), host_arg))));
   }
 
 
-  void print_grant(String *str);
+  void print_grant(THD *thd, String *str);
 
   void set_data(ACL_PROXY_USER *grant)
   {
@@ -204,6 +204,12 @@ public:
                                const LEX_CSTRING &proxied_user,
                                bool with_grant,
                                const char *grantor);
+
+  size_t get_user_length() const { return user ? strlen(user) : 0; }
+
+  size_t get_proxied_user_length() const {
+    return proxied_user ? strlen(proxied_user) : 0;
+  }
 };
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

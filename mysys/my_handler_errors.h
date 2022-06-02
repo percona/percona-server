@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,8 +77,8 @@ static const char *handler_error_messages[]=
   "There's no partition in table for the given value",
   "Row-based binlogging of row failed",
   "Index needed in foreign key constraint",
-  "Upholding foreign key constraints would lead to a duplicate key error in "
-  "some other table",
+  ("Upholding foreign key constraints would lead to a duplicate key error in "
+   "some other table"),
   "Table needs to be upgraded before it can be used",
   "Table is read only",
   "Failed to get next auto increment value",

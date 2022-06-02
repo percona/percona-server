@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -307,6 +307,11 @@ IF (UNIX)
   LIST(APPEND TESTS path auth_utils)
 ENDIF()
 
+OPTION(WITH_FAILING_GUNIT_TESTS "Build deliberately failing GUint tests" OFF)
+IF (WITH_FAILING_GUNIT_TESTS)
+    LIST(APPEND TESTS junit_integration)
+ENDIF()
+
 # Add tests (link them with gunit/gmock libraries and the server libraries) 
 SET(SERVER_TESTS
   copy_info
@@ -322,6 +327,7 @@ SET(SERVER_TESTS
   item_filter
   item_func_case
   item_func_now_local
+  item_func_rlike
   item_timefunc
   item_like
   join_tab_sort
@@ -498,4 +504,5 @@ ENDIF(MERGE_UNITTESTS)
 
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
+ADD_SUBDIRECTORY(locks)
 ADD_SUBDIRECTORY(keyring_vault)

@@ -385,7 +385,7 @@ static int io_poll_wait(int pollfd, native_event *events, int maxevents,
             (timeout_ms >= 0)?&ts:NULL);
   }
   while (ret == -1 && errno == EINTR);
-  DBUG_ASSERT(nget < INT_MAX);
+  assert(nget < INT_MAX);
   return (int)nget;
 }
 
@@ -720,7 +720,7 @@ static connection_t * listener(worker_thread_t *current_thread,
     
     if (cnt <=0)
     {
-      DBUG_ASSERT(thread_group->shutdown);
+      assert(thread_group->shutdown);
       break;
     }
 
@@ -1134,7 +1134,7 @@ static connection_t *get_event(worker_thread_t *current_thread,
   int err=0;
 
   mysql_mutex_lock(&thread_group->mutex);
-  DBUG_ASSERT(thread_group->active_thread_count >= 0);
+  assert(thread_group->active_thread_count >= 0);
 
   for(;;) 
   {
@@ -1264,8 +1264,8 @@ static void wait_begin(thread_group_t *thread_group)
   thread_group->active_thread_count--;
   thread_group->waiting_thread_count++;
 
-  DBUG_ASSERT(thread_group->active_thread_count >=0);
-  DBUG_ASSERT(thread_group->connection_count > 0);
+  assert(thread_group->active_thread_count >=0);
+  assert(thread_group->connection_count > 0);
 
 #ifdef THREADPOOL_CREATE_THREADS_ON_WAIT
   if ((thread_group->active_thread_count == 0) && 
@@ -1423,11 +1423,11 @@ void tp_post_kill_notification(THD *thd)
 void tp_wait_begin(THD *thd, int type)
 {
   DBUG_ENTER("tp_wait_begin");
-  DBUG_ASSERT(thd);
+  assert(thd);
   connection_t *connection = (connection_t *)thd->event_scheduler.data;
   if (connection)
   {
-    DBUG_ASSERT(!connection->waiting);
+    assert(!connection->waiting);
     connection->waiting= true;
     wait_begin(connection->thread_group);
   }
@@ -1442,12 +1442,12 @@ void tp_wait_begin(THD *thd, int type)
 void tp_wait_end(THD *thd) 
 { 
   DBUG_ENTER("tp_wait_end");
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   connection_t *connection = (connection_t *)thd->event_scheduler.data;
   if (connection)
   {
-    DBUG_ASSERT(connection->waiting);
+    assert(connection->waiting);
     connection->waiting = false;
     wait_end(connection->thread_group);
   }
@@ -1507,7 +1507,7 @@ static int change_group(connection_t *c,
   Vio* vio= c->thd->get_protocol_classic()->get_vio();
   int fd = mysql_socket_getfd(vio->mysql_socket);
 
-  DBUG_ASSERT(c->thread_group == old_group);
+  assert(c->thread_group == old_group);
 
   /* Remove connection from the old group. */
   mysql_mutex_lock(&old_group->mutex);
@@ -1717,7 +1717,6 @@ void tp_set_threadpool_size(uint size)
       if(!success)
       {
         sql_print_error("io_poll_create() failed, errno=%d\n", errno);
-        break;
       }
     }  
     mysql_mutex_unlock(&all_groups[i].mutex);

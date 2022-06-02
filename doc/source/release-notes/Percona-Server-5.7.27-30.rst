@@ -1,13 +1,13 @@
 .. rn:: 5.7.27-30
 
 ================================================================================
-|Percona Server| |release|
+|Percona Server| 5.7.27-30
 ================================================================================
 
-Percona is glad to announce the release of |Percona Server| |release| on |date|. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.27-30/>`_
+Percona is glad to announce the release of |Percona Server| 5.7.27-30 on August 22, 2019. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.27-30/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
-This release is based on `MySQL 5.7.27 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-27.html>`_ and includes all the bug fixes in it. |Percona Server| |release| is now the current GA
+This release is based on `MySQL 5.7.27 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-27.html>`_ and includes all the bug fixes in it. |Percona Server| 5.7.27-30 is now the current GA
 (Generally Available) release in the 5.7 series.
 
 All software developed by Percona is open-source and free.
@@ -41,7 +41,7 @@ Bugs Fixed
 
 - When Adaptive Hash Index (AHI) is enabled or disabled, there is an AHI overhead during DDL operations. Bug fixed :psbug:`5747`.
 
-- An instance started with the default values but setting the :ref:`ps.data-at-rest-encryption.redo-log` to encrypt without specifying the keyring plugin parameters does not fail or throw an error. Bug fixed :psbug:`5476`.
+- An instance started with the default values but setting the `redo-log` to encrypt without specifying the keyring plugin parameters does not fail or throw an error. Bug fixed :psbug:`5476`.
 
 - Setting the encryption to ``ON`` for the system tablespace generates the encryption key and encrypts system temporary tablespace pages. Resetting encryption to ``OFF`` , all subsequent pages are written to the temporary tablespace without encryption. To allow any encrypted tables to be decrypted, the generated keys are not erased. Modifying the :variable:`innodb_temp_tablespace_encrypt` does not affect file-per-table temporary tables. This type of table is encrypted if ``ENCRYPTION`` ='Y' is set during the table creation. Bug fixed :psbug:`5736`.
 
@@ -83,5 +83,5 @@ Other bugs fixed:
 :psbug:`5820`, and
 :psbug:`5839`.
 
-.. |date| replace:: August 22, 2019
-.. |release| replace:: 5.7.27-30
+.. August 22, 2019 replace:: August 22, 2019
+.. 5.7.27-30 replace:: 5.7.27-30

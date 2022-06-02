@@ -44,6 +44,7 @@ class ha_tokupart : public native_part::Partition_base {
     handler *clone(const char *name, MEM_ROOT *mem_root) override;
     ulong index_flags(uint inx, uint part, bool all_parts) const override;
     const char **bas_ext() const override;
+    Table_flags default_table_flags() const override;
 };
 
 #endif  // _HA_TOKUPART_H

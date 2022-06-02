@@ -508,7 +508,7 @@ The following options may be given as the first argument:
  Choose how verbose the messages to your slow log will be.
  Multiple flags allowed in a comma-separated string.
  [microtime, query_plan, innodb, profiling,
- profiling_use_getrusage]
+ profiling_use_getrusage, minimal, standard, full]
  --log-statements-unsafe-for-binlog 
  Log statements considered unsafe when using statement
  based binary logging.
@@ -674,9 +674,9 @@ The following options may be given as the first argument:
  Syntax: myisam-recover-options[=option[,option...]],
  where option can be DEFAULT, BACKUP, FORCE, QUICK, or OFF
  --myisam-repair-threads=# 
- If larger than 1, when repairing a MyISAM table all
- indexes will be created in parallel, with one thread per
- index. The value of 1 disables parallel repair
+ DEPRECATED. If larger than 1, when repairing a MyISAM
+ table all indexes will be created in parallel, with one
+ thread per index. The value of 1 disables parallel repair
  --myisam-sort-buffer-size=# 
  The buffer that is allocated when sorting the index when
  doing a REPAIR or when creating indexes with CREATE INDEX
@@ -743,8 +743,9 @@ The following options may be given as the first argument:
  firstmatch, duplicateweedout,
  subquery_materialization_cost_based, block_nested_loop,
  batched_key_access, use_index_extensions,
- condition_fanout_filter, derived_merge, favor_range_scan}
- and val is one of {on, off, default}
+ condition_fanout_filter, derived_merge,
+ prefer_ordering_index, favor_range_scan} and val is one
+ of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -1088,6 +1089,15 @@ The following options may be given as the first argument:
  replicate-wild-ignore-table=foo%.bar% will not do updates
  to tables in databases that start with foo and whose
  table names start with bar.
+ --replication-optimize-for-static-plugin-config 
+ Optional flag that blocks plugin install/uninstall and
+ allows skipping the acquisition of the lock to read from
+ the plugin list and the usage of read-optimized
+ spin-locks. Use only when plugin hook callback needs
+ optimization (a lot of semi-sync slaves, for instance).
+ --replication-sender-observe-commit-only 
+ Optional flag that allows for only calling back observer
+ hooks at commit.
  --report-host=name  Hostname or IP of the slave to be reported to the master
  during slave registration. Will appear in the output of
  SHOW SLAVE HOSTS. Leave unset if you do not want the
@@ -1378,6 +1388,8 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-validate-user-plugins to disable.)
  -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
+ --version-suffix=name 
+ version_suffix
  --wait-timeout=#    The number of seconds the server waits for activity on a
  connection before closing it
 
@@ -1589,7 +1601,7 @@ old-passwords 0
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,prefer_ordering_index=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
@@ -1680,6 +1692,8 @@ relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
 replicate-same-server-id FALSE
+replication-optimize-for-static-plugin-config FALSE
+replication-sender-observe-commit-only FALSE
 report-host (No default value)
 report-password (No default value)
 report-port 0

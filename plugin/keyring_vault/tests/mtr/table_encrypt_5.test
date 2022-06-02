@@ -1,33 +1,54 @@
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
-
 --source include/have_keyring_vault_plugin.inc
---source include/not_repeat.inc
---source generate_default_mount_conf_files.inc
---source is_vault_server_up.inc
 
 # Waiting time when (re)starting the server
 --let $explicit_default_counter=10000
 
-# Create mount points
---let MOUNT_POINT_SERVICE_OP=CREATE
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---source mount_point_service.inc
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+
+--source parse_combination.inc
+
+--let $conf_file1 = $MYSQLTEST_VARDIR/keyring_vault1.conf
+--let $conf_file2 = $MYSQLTEST_VARDIR/keyring_vault2.conf
+
+--let $mount_point_service_op = CREATE
+
+--let $vault_conf_file = $conf_file1
+--let $vault_conf_mount_point_suffix = _1
+--source generate_conf_file.inc
 --source mount_point_service.inc
 
---let $keyring_plugin_name=keyring_vault
---let $keyring1_restart_param= restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$KEYRING_CONF_FILE_1 $KEYRING_VAULT_PLUGIN_OPT
---let $keyring2_restart_param= restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$KEYRING_CONF_FILE_2 $KEYRING_VAULT_PLUGIN_OPT
---let $install_keyring_statement=INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN'
---let $select_keyring_variable_statement=SELECT @@global.keyring_vault_config
---let $set_keyring_variable_to_keyring1=SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1'
+--let $vault_conf_file = $conf_file2
+--let $vault_conf_mount_point_suffix = _2
+--source generate_conf_file.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --source mount_point_service.inc
+}
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open credentials file.'");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
+call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
+--enable_query_log
+
+--let $keyring_plugin_name = keyring_vault
+--let $keyring1_restart_param = restart: $KEYRING_VAULT_PLUGIN_OPT $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1
+--let $keyring2_restart_param = restart: $KEYRING_VAULT_PLUGIN_OPT $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file2
+--let $install_keyring_statement = INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN'
+--let $select_keyring_variable_statement = SELECT @@global.keyring_vault_config
+--let $set_keyring_variable_to_keyring1 = SET @@global.keyring_vault_config='$conf_file1'
 --source include/table_encrypt_5.inc
 
 # Delete mount points
---let MOUNT_POINT_SERVICE_OP=DELETE
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
+--let $mount_point_service_op = DELETE
+--let $vault_conf_mount_point_suffix = _1
 --source mount_point_service.inc
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
---source mount_point_service.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --let $vault_conf_mount_point_suffix = _2
+  --source mount_point_service.inc
+}
+
+# Removing .conf files
+--remove_file $conf_file1
+--remove_file $conf_file2

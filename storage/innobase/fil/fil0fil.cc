@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -727,7 +727,10 @@ retry:
 
 		/* Read the first page of the tablespace */
 
-		buf2 = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
+		const ulint buf2_size = recv_recovery_is_on()
+			? (2 * UNIV_PAGE_SIZE) : UNIV_PAGE_SIZE;
+		buf2 = static_cast<byte*>(
+			ut_malloc_nokey(buf2_size + UNIV_PAGE_SIZE));
 
 		/* Align the memory for file i/o if we might have O_DIRECT
 		set */
@@ -737,8 +740,7 @@ retry:
 		IORequest	request(IORequest::READ);
 
 		success = os_file_read(
-			request,
-			node->handle, page, 0, UNIV_PAGE_SIZE);
+			request, node->handle, page, 0, buf2_size);
 
 		srv_stats.page0_read.add(1);
 		space_id = fsp_header_get_space_id(page);
@@ -845,6 +847,20 @@ retry:
 			space->size_in_header = size;
 			space->free_limit = free_limit;
 			space->free_len = free_len;
+
+			/* Set estimated value for space->compression_type
+			during recovery process. */
+			if (recv_recovery_is_on()
+			    && (Compression::is_compressed_page(
+					page + page_size.physical())
+			        || Compression::is_compressed_encrypted_page(
+					page + page_size.physical()))) {
+				ut_ad(buf2_size >= (2 * UNIV_PAGE_SIZE));
+				Compression::meta_t header;
+				Compression::deserialize_header(
+					page + page_size.physical(), &header);
+				space->compression_type = header.m_algorithm;
+			}
 		}
 
 		ut_free(buf2);
@@ -1676,18 +1692,23 @@ fil_space_get_flags(
 	return(flags);
 }
 
-/** Check if table is mark for truncate.
+/** Check if tablespace exists and is marked for truncation.
 @param[in]	id	space id
+@return true if tablespace is missing.
 @return true if tablespace is marked for truncate. */
 bool
 fil_space_is_being_truncated(
 	ulint id)
 {
-	bool	mark_for_truncate;
+	bool flag = true;
+	fil_space_t* space;
 	mutex_enter(&fil_system->mutex);
-	mark_for_truncate = fil_space_get_by_id(id)->is_being_truncated;
+	space = fil_space_get_space(id);
+	if (space != NULL) {
+		flag = space->is_being_truncated;
+        }
 	mutex_exit(&fil_system->mutex);
-	return(mark_for_truncate);
+	return(flag);
 }
 
 /** Open each fil_node_t of a named fil_space_t if not already open.
@@ -3278,12 +3299,8 @@ fil_reinit_space_header_for_table(
 	row_mysql_unlock_data_dictionary(trx);
 	DEBUG_SYNC_C("trunc_table_index_dropped_release_dict_lock");
 
-	/* Lock the search latch in shared mode to prevent user
-	from disabling AHI during the scan */
-	btr_search_s_lock_all();
 	DEBUG_SYNC_C("simulate_buffer_pool_scan");
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_ALL_NO_WRITE, 0);
-	btr_search_s_unlock_all();
 
 	row_mysql_lock_data_dictionary(trx);
 

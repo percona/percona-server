@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,7 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
     TABLE *t= tables[i];
 
     /* Protect against 'fake' partially initialized TABLE_SHARE */
-    DBUG_ASSERT(t->s->table_category != TABLE_UNKNOWN_CATEGORY);
+    assert(t->s->table_category != TABLE_UNKNOWN_CATEGORY);
 
     /*
       Table I/O to performance schema tables is performed
@@ -182,11 +182,11 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
       type. For table to be locked for read we must own metadata lock
       of MDL_SHARED_READ or stronger type).
     */
-    DBUG_ASSERT(t->s->tmp_table ||
-                thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                   t->s->db.str, t->s->table_name.str,
-                                   t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE ?
-                                   MDL_SHARED_WRITE : MDL_SHARED_READ));
+    assert(t->s->tmp_table ||
+           thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                        t->s->db.str, t->s->table_name.str,
+                                                        t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE ?
+                                                        MDL_SHARED_WRITE : MDL_SHARED_READ));
 
     /*
       Prevent modifications to base tables if READ_ONLY is activated.
@@ -386,7 +386,7 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
   DBUG_PRINT("info", ("count %d", count));
   for (i=1 ; i <= count ; i++, tables++)
   {
-    DBUG_ASSERT((*tables)->reginfo.lock_type >= TL_READ);
+    assert((*tables)->reginfo.lock_type >= TL_READ);
     lock_type=F_WRLCK;				/* Lock exclusive */
     if ((*tables)->db_stat & HA_READ_ONLY ||
 	((*tables)->reginfo.lock_type >= TL_READ &&
@@ -471,7 +471,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   TABLE **table=sql_lock->table;
   for (i=found=0 ; i < sql_lock->table_count ; i++)
   {
-    DBUG_ASSERT(sql_lock->table[i]->lock_position == i);
+    assert(sql_lock->table[i]->lock_position == i);
     if ((uint) sql_lock->table[i]->reginfo.lock_type > TL_WRITE_ALLOW_WRITE)
     {
       swap_variables(TABLE *, *table, sql_lock->table[i]);
@@ -523,7 +523,7 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
         TABLE *tbl;
         uint lock_data_end;
 
-        DBUG_ASSERT(table->lock_position == i);
+        assert(table->lock_position == i);
 
         /* Unlock the table. */
         mysql_unlock_some_tables(thd, &table, /* table count */ 1);
@@ -558,7 +558,7 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
         {
           tbl= locked->table[j];
           tbl->lock_position--;
-          DBUG_ASSERT(tbl->lock_position == j);
+          assert(tbl->lock_position == j);
           tbl->lock_data_start-= removed_locks;
         }
 
@@ -702,7 +702,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
   TABLE **to, **table_buf;
   DBUG_ENTER("get_lock_data");
 
-  DBUG_ASSERT((flags == GET_LOCK_UNLOCK) || (flags == GET_LOCK_STORE_LOCKS));
+  assert((flags == GET_LOCK_UNLOCK) || (flags == GET_LOCK_STORE_LOCKS));
   DBUG_PRINT("info", ("count %zu", count));
 
   for (i=tables=lock_count=0 ; i < count ; i++)
@@ -742,8 +742,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
     if ((table=table_ptr[i])->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
       continue;
     lock_type= table->reginfo.lock_type;
-    DBUG_ASSERT(lock_type != TL_WRITE_DEFAULT && lock_type != TL_READ_DEFAULT &&
-                lock_type != TL_WRITE_CONCURRENT_DEFAULT);
+    assert(lock_type != TL_WRITE_DEFAULT && lock_type != TL_READ_DEFAULT &&
+           lock_type != TL_WRITE_CONCURRENT_DEFAULT);
     locks_start= locks;
     locks= table->file->store_lock(thd, locks,
                                    (flags & GET_LOCK_UNLOCK) ? TL_IGNORE :
@@ -942,7 +942,7 @@ bool lock_tablespace_names(
   char *tablespace= NULL;
   while ((tablespace= it++))
   {
-    DBUG_ASSERT(strlen(tablespace));
+    assert(strlen(tablespace));
 
     MDL_request *tablespace_request= new (thd->mem_root) MDL_request;
     if (tablespace_request == NULL)
@@ -998,7 +998,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
     return TRUE;
   }
 
-  DBUG_ASSERT(name);
+  assert(name);
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
   if (thd->global_read_lock.can_acquire_protection())
@@ -1139,9 +1139,9 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
   {
     MDL_request mdl_request;
 
-    DBUG_ASSERT(! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
-                                                               "", "",
-                                                               MDL_SHARED));
+    assert(! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                                          "", "",
+                                                          MDL_SHARED));
 
     /*
       Do not allow upgrading backup locks to FTWRL. Otherwise we can end up
@@ -1194,7 +1194,7 @@ void Global_read_lock::unlock_global_read_lock(THD *thd)
 {
   DBUG_ENTER("unlock_global_read_lock");
 
-  DBUG_ASSERT(m_mdl_global_shared_lock && m_state);
+  assert(m_mdl_global_shared_lock && m_state);
 
   if (m_mdl_blocks_commits_lock)
   {
@@ -1280,8 +1280,8 @@ bool Global_backup_lock::acquire(THD *thd)
 
   DBUG_ENTER("Global_backup_lock::acquire");
 
-  DBUG_ASSERT(m_lock == NULL);
-  DBUG_ASSERT(!thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "",
+  assert(m_lock == NULL);
+  assert(!thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "",
                                                             "", MDL_SHARED));
 
   MDL_REQUEST_INIT(&mdl_request, m_namespace, "", "", MDL_SHARED,
@@ -1306,8 +1306,8 @@ void Global_backup_lock::release(THD *thd)
 {
   DBUG_ENTER("Global_backup_lock::release");
 
-  DBUG_ASSERT(m_lock != NULL);
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
+  assert(m_lock != NULL);
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
                                                            MDL_SHARED));
 
   thd->mdl_context.release_lock(m_lock);
@@ -1330,14 +1330,14 @@ void Global_backup_lock::set_explicit_locks_duration(THD *thd)
   if (m_lock)
     thd->mdl_context.set_lock_duration(m_lock, MDL_EXPLICIT);
 
-  DBUG_ASSERT((m_lock != NULL) ==
+  assert((m_lock != NULL) ==
               thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
                                                            MDL_SHARED));
 
   if (m_prot_lock)
     thd->mdl_context.set_lock_duration(m_prot_lock, MDL_EXPLICIT);
 
-  DBUG_ASSERT((m_prot_lock != NULL) ==
+  assert((m_prot_lock != NULL) ==
               thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
                                                      MDL_INTENTION_EXCLUSIVE));
 
@@ -1364,7 +1364,7 @@ bool Global_backup_lock::acquire_protection(THD *thd,
 
   DBUG_ENTER("Global_backup_lock::acquire_protection");
 
-  DBUG_ASSERT(duration != MDL_EXPLICIT ||
+  assert(duration != MDL_EXPLICIT ||
               !thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "",
                                                 "", MDL_INTENTION_EXCLUSIVE));
 
@@ -1408,8 +1408,8 @@ void Global_backup_lock::release_protection(THD *thd)
 {
   DBUG_ENTER("Global_backup_lock::release_protection");
 
-  DBUG_ASSERT(m_prot_lock != NULL);
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
+  assert(m_prot_lock != NULL);
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
                                              MDL_INTENTION_EXCLUSIVE));
 
   thd->mdl_context.release_lock(m_prot_lock);

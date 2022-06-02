@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include <my_global.h>
 #include <mysql/plugin_keyring.h>
+#include <my_rnd.h>
 #include "keyring.h"
 #include "buffered_file_io.h"
 

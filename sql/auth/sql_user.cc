@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -38,7 +38,7 @@
 #include "sql_user_table.h"
 #include <set>
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define HASH_STRING_WITH_QUOTE \
         "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
 #endif
@@ -122,7 +122,7 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
           /*
             With old_passwords == 2 the scrambled password will be binary.
           */
-          DBUG_ASSERT(thd->variables.old_passwords == 2);
+          assert(thd->variables.old_passwords == 2);
           str->append("<secret>");
         }
         str->append("'");
@@ -437,7 +437,7 @@ bool set_and_validate_user_attributes(THD *thd,
   const char *inbuf;
   char *password= NULL;
 
-  DBUG_ASSERT(!acl_is_utility_user(Str->user.str, Str->host.str, NULL));
+  assert(!acl_is_utility_user(Str->user.str, Str->host.str, NULL));
 
   what_to_set= 0;
   /* update plugin,auth str attributes */
@@ -688,7 +688,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
                       host,user,new_password));
-  DBUG_ASSERT(host != 0);                        // Ensured by parent
+  assert(host != 0);                        // Ensured by parent
 
   if (check_change_password(thd, host, user, new_password, new_password_len))
     DBUG_RETURN(1);
@@ -743,7 +743,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       goto end;
   }
 
-  DBUG_ASSERT(acl_user->plugin.length != 0);
+  assert(acl_user->plugin.length != 0);
   
   if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
     DBUG_RETURN(1);
@@ -850,7 +850,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
     query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%s'",
                           acl_user->user ? acl_user->user : "",
-                          acl_user->host.get_host() ? acl_user->host.get_host() : "",
+                          acl_user->host.get_host(),
                           hash_str_escaped);
   }
   else
@@ -864,7 +864,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
     query_length= sprintf(buff, "ALTER USER '%-.120s'@'%-.120s' IDENTIFIED WITH '%-.120s' AS '%s'",
                           acl_user->user ? acl_user->user : "",
-                          acl_user->host.get_host() ? acl_user->host.get_host() : "",
+                          acl_user->host.get_host(),
                           acl_user->plugin.str,
                           hash_str_escaped);
   }
@@ -879,7 +879,7 @@ end:
     acl_notify_htons(thd, buff, query_length);
 
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
@@ -1006,8 +1006,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     }
     if (! user)
       user= "";
-    if (! host)
-      host= "";
 
 #ifdef EXTRA_DEBUG
     DBUG_PRINT("loop",("scan struct: %u  index: %zu  user: '%s'  host: '%s'",
@@ -1418,7 +1416,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
   {
     /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    assert(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
       thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
@@ -1556,7 +1554,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
@@ -1602,7 +1600,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
   {
     /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    assert(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
       thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
@@ -1685,7 +1683,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
@@ -1731,7 +1729,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
   {
     /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    assert(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
       thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
@@ -1753,7 +1751,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
       continue;
     }  
-    DBUG_ASSERT(user_to != 0); /* Syntax enforces pairs of users. */
+    assert(user_to != 0); /* Syntax enforces pairs of users. */
 
     /*
       Search all in-memory structures and grant tables
@@ -1823,7 +1821,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
@@ -2073,7 +2071,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   }
 
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);

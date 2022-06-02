@@ -94,7 +94,7 @@ void audit_log_flush(audit_log_buffer_t *log)
     log->flush_pos+= flushlen;
     log->state= LOG_RECORD_COMPLETE;
   }
-  DBUG_ASSERT(log->write_pos >= log->flush_pos);
+  assert(log->write_pos >= log->flush_pos);
   mysql_cond_broadcast(&log->flushed_cond);
   mysql_mutex_unlock(&log->mutex);
 }
@@ -205,7 +205,7 @@ loop:
     if (wrlen < len)
       memcpy(log->buf, buf + wrlen, len - wrlen);
     log->write_pos= log->write_pos + len;
-    DBUG_ASSERT(log->write_pos >= log->flush_pos);
+    assert(log->write_pos >= log->flush_pos);
   }
   else
   {

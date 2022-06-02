@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2010, 2015, MariaDB
 
@@ -402,7 +402,7 @@ Unique::reset()
     file_ptrs.clear();
     MY_ATTRIBUTE((unused)) int reinit_res=
       reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
-    DBUG_ASSERT(reinit_res == 0);
+    assert(reinit_res == 0);
   }
   elements= 0;
 }
@@ -503,7 +503,7 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
   // read_to_buffer() needs only rec_length.
   Sort_param sort_param;
   sort_param.rec_length= key_length;
-  DBUG_ASSERT(!sort_param.using_addon_fields());
+  assert(!sort_param.using_addon_fields());
 
   /*
     Invariant: queue must contain top element from each tree, until a tree
@@ -519,7 +519,7 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
     bytes_read= read_to_buffer(file, top, &sort_param);
     if (bytes_read == (uint) (-1))
       goto end;
-    DBUG_ASSERT(bytes_read);
+    assert(bytes_read);
     queue.push(top);
   }
   top= queue.top();
@@ -660,7 +660,7 @@ bool Unique::get(TABLE *table)
   if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
-    DBUG_ASSERT(table->sort.sorted_result == NULL);
+    assert(table->sort.sorted_result == NULL);
     if ((record_pointers= table->sort.sorted_result= (uchar*)
 	 my_malloc(key_memory_Filesort_info_record_pointers,
                    size * tree.elements_in_tree, MYF(0))))

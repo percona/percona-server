@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_setup.py\fR
+.\"     Title: ndb_setup.py
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 03/21/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_SETUP\&.PY" "1" "03/21/2022" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,11 +28,27 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndb_setup.py \- Start browser\-based Auti\-Installer for NDB Cluster
+ndb_setup.py \- Start browser\-based Auto\-Installer for NDB Cluster
 .SH "SYNOPSIS"
 .HP \w'\fBndb_setup\&.py\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBndb_setup\&.py [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+This feature is deprecated and should be avoided\&. It is subject to removal in a future version of NDB Cluster\&.
+.sp .5v
+.RE
 .PP
 \fBndb_setup\&.py\fR
 starts the NDB Cluster Auto\-Installer and opens the installer\*(Aqs Start page in the default Web browser\&.
@@ -59,7 +75,7 @@ or other administrative account\&.
 This section describes usage of and program options for the command\-line tool only\&. For information about using the Auto\-Installer GUI that is spawned when
 \fBndb_setup\&.py\fR
 is invoked, see
-Section\ \&21.2.1, \(lqThe NDB Cluster Auto-Installer (NDB 7.5)\(rq\&.
+Section\ \&21.3.8, \(lqThe NDB Cluster Auto-Installer (NDB 7.5) (No longer supported)\(rq\&.
 Usage
 .PP
 All platforms:
@@ -93,7 +109,7 @@ The following table includes all options that are supported by the NDB Cluster i
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.43.\ \&Command\-line options for the ndb_setup\&.py program
+.B Table\ \&21.43.\ \&Command\-line options used with the program ndb_setup\&.py
 .TS
 allbox tab(:);
 lB lB lB.
@@ -119,48 +135,48 @@ lB l l
 lB l l.
 T{
 .PP
-\fB--browser-start-page=filename\fR,
+\fB--browser-start-page=path\fR,
 .PP
-\fB \fR\fB-s\fR\fB \fR
+\fB \fR\fB-s path\fR\fB \fR
 T}:T{
 Page that web browser opens when starting
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
-\fB--ca-certs-file=filename\fR,
+\fB--ca-certs-file=path\fR,
 .PP
-\fB \fR\fB-a\fR\fB \fR
+\fB \fR\fB-a path\fR\fB \fR
 T}:T{
 File containing list of client certificates allowed to connect to server
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
-\fB--cert-file=filename\fR,
+\fB--cert-file=path\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c path\fR\fB \fR
 T}:T{
 File containing X509 certificate identifying server
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
 \fB--debug-level=level\fR,
 .PP
-\fB \fR\fB-d\fR\fB \fR
+\fB \fR\fB-d level\fR\fB \fR
 T}:T{
 Python logging module debug level; one of DEBUG, INFO, WARNING
               (default), ERROR, or CRITICAL
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -171,18 +187,18 @@ T}:T{
 Print help message
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
-\fB--key-file=file\fR,
+\fB--key-file=path\fR,
 .PP
-\fB \fR\fB-k\fR\fB \fR
+\fB \fR\fB-k path\fR\fB \fR
 T}:T{
 Specify file containing private key (if not included in --cert-file)
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -193,40 +209,40 @@ T}:T{
 Do not open start page in browser, merely start tool
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
 \fB--port=#\fR,
 .PP
-\fB \fR\fB-p\fR\fB \fR
+\fB \fR\fB-p #\fR\fB \fR
 T}:T{
 Specify port used by web server
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
-\fB--server-log-file=file\fR,
+\fB--server-log-file=path\fR,
 .PP
-\fB \fR\fB-o\fR\fB \fR
+\fB \fR\fB-o path\fR\fB \fR
 T}:T{
 Log requests to this file; use '-' to force logging to stderr instead
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
-\fB--server-name=name\fR,
+\fB--server-name=host\fR,
 .PP
-\fB \fR\fB-N\fR\fB \fR
+\fB \fR\fB-N host\fR\fB \fR
 T}:T{
 Name of server to connect to
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -237,7 +253,7 @@ T}:T{
 Use unencrypted (HTTP) client/server connection
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -248,7 +264,7 @@ T}:T{
 Use encrypted (HTTPS) client/server connection
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 .TE
 .sp 1
@@ -271,7 +287,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---browser-start-page=filename
+--browser-start-page=path
 T}
 T{
 Type
@@ -307,7 +323,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ca-certs-file=filename
+--ca-certs-file=path
 T}
 T{
 Type
@@ -342,7 +358,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---cert-file=filename
+--cert-file=path
 T}
 T{
 Type
@@ -458,7 +474,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---key-file=file
+--key-file=path
 T}
 T{
 Type
@@ -564,7 +580,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---server-log-file=file
+--server-log-file=path
 T}
 T{
 Type
@@ -612,7 +628,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---server-name=name
+--server-name=host
 T}
 T{
 Type
@@ -680,7 +696,7 @@ Make the browser use a secure (HTTPS) connection with the server\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

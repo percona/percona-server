@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1209,15 +1209,14 @@ trx_sys_close(void)
 		}
 	}
 
-	rseg_array = ((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
-
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
 		rseg = trx_sys->pending_purge_rseg_array[i];
 
 		if (rseg != NULL) {
-			trx_rseg_mem_free(rseg, rseg_array);
+			trx_rseg_mem_free(rseg,
+				trx_sys->pending_purge_rseg_array);
 		}
 	}
 

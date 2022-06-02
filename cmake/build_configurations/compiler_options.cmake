@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -46,15 +46,21 @@ IF(UNIX)
     ENDIF()
   ENDIF()
 
+  IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    SET(SECTIONS_FLAG "-ffunction-sections -fdata-sections")
+  ELSE()
+    SET(SECTIONS_FLAG)
+  ENDIF()
+
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_C_FLAGS "-fno-omit-frame-pointer -fno-strict-aliasing")
     IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
-      SET(COMMON_C_FLAGS             "-fabi-version=2 ${COMMON_C_FLAGS}")
+      SET(COMMON_C_FLAGS "-fabi-version=2 ${COMMON_C_FLAGS}")
     ENDIF()
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
-      SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
+      STRING_PREPEND(COMMON_C_FLAGS "-fno-inline ")
     ENDIF()
     # Disable expensive-optimization if shift-or-optimization bug effective
     IF(HAVE_C_SHIFT_OR_OPTIMIZATION_BUG)
@@ -71,11 +77,13 @@ IF(UNIX)
     IF(C_NO_EXPENSIVE_OPTIMIZATIONS)
       SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -fno-expensive-optimizations")
     ENDIF()
-    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_C_FLAGS}")
+    IF(NOT DISABLE_SHARED)
+      STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
+    ENDIF()
+    STRING_PREPEND(CMAKE_C_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-fno-omit-frame-pointer -fno-strict-aliasing")
     IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
       SET(COMMON_CXX_FLAGS             "-fabi-version=2 ${COMMON_CXX_FLAGS}")
     ENDIF()
@@ -84,7 +92,7 @@ IF(UNIX)
                     OUTPUT_VARIABLE GXX_VERSION)
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
-      SET(COMMON_CXX_FLAGS             "-fno-inline ${COMMON_CXX_FLAGS}")
+      STRING_PREPEND(COMMON_CXX_FLAGS "-fno-inline ")
     ENDIF()
     # Disable expensive-optimization if shift-or-optimization bug effective
     IF(HAVE_CXX_SHIFT_OR_OPTIMIZATION_BUG)
@@ -93,52 +101,58 @@ IF(UNIX)
     # Disable floating point expression contractions to avoid result differences
     IF(HAVE_CXX_FLOATING_POINT_FUSED_MADD)
       IF(HAVE_CXX_FP_CONTRACT_FLAG)
-	SET(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -ffp-contract=off")
+	STRING_APPEND(COMMON_CXX_FLAGS " -ffp-contract=off")
       ELSE()
         SET(CXX_NO_EXPENSIVE_OPTIMIZATIONS TRUE)
       ENDIF()
     ENDIF()
     IF(CXX_NO_EXPENSIVE_OPTIMIZATIONS)
-      SET(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -fno-expensive-optimizations")
+      STRING_APPEND(COMMON_CXX_FLAGS " -fno-expensive-optimizations")
     ENDIF()
-    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_CXX_FLAGS}")
+    IF(NOT DISABLE_SHARED)
+      STRING_PREPEND(COMMON_CXX_FLAGS "-fPIC ")
+    ENDIF()
+    STRING_PREPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
 
   # Default Clang flags
   IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
-    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_C_FLAGS}")
+    SET(COMMON_C_FLAGS "-fno-omit-frame-pointer -fno-strict-aliasing")
+    IF(NOT DISABLE_SHARED)
+      STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
+    ENDIF()
+    STRING_PREPEND(CMAKE_C_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
-    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_CXX_FLAGS}")
+    SET(COMMON_CXX_FLAGS "-fno-omit-frame-pointer -fno-strict-aliasing")
+    IF(NOT DISABLE_SHARED)
+      STRING_PREPEND(COMMON_CXX_FLAGS  "-fPIC ")
+    ENDIF()
+    STRING_PREPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
 
   # Solaris flags
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    IF(CMAKE_SYSTEM_VERSION VERSION_GREATER "5.9")
-      # Link mysqld with mtmalloc on Solaris 10 and later
-      SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
-    ENDIF() 
+    # Link mysqld with mtmalloc on Solaris 10 and later
+    SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
+
     # Possible changes to the defaults set above for gcc/linux.
     # Vectorized code dumps core in 32bit mode.
     IF(CMAKE_COMPILER_IS_GNUCC AND 32BIT)
       CHECK_C_COMPILER_FLAG("-ftree-vectorize" HAVE_C_FTREE_VECTORIZE)
       IF(HAVE_C_FTREE_VECTORIZE)
-        SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fno-tree-vectorize")
+        STRING_APPEND(COMMON_C_FLAGS " -fno-tree-vectorize")
       ENDIF()
     ENDIF()
     IF(CMAKE_COMPILER_IS_GNUCXX AND 32BIT)
       CHECK_CXX_COMPILER_FLAG("-ftree-vectorize" HAVE_CXX_FTREE_VECTORIZE)
       IF(HAVE_CXX_FTREE_VECTORIZE)
-        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fno-tree-vectorize")
+        STRING_APPEND(COMMON_CXX_FLAGS " -fno-tree-vectorize")
       ENDIF()
     ENDIF()
 
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+      # Reduce size of debug binaries, by omitting function declarations.
       SET(SUNPRO_FLAGS     "-xdebuginfo=no%decl")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xbuiltin=%all")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xlibmil")
@@ -152,12 +166,46 @@ IF(UNIX)
       ENDIF()
 
       SET(COMMON_C_FLAGS            "-g ${SUNPRO_FLAGS}")
-      SET(COMMON_CXX_FLAGS          "-g0 ${SUNPRO_FLAGS}")
-      SET(COMMON_CXX_FLAGS          "${COMMON_CXX_FLAGS} -std=c++03")
-      SET(CMAKE_C_FLAGS_DEBUG       "${COMMON_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS_DEBUG     "${COMMON_CXX_FLAGS}")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-xO3 ${COMMON_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-xO3 ${COMMON_CXX_FLAGS}")
+      SET(COMMON_CXX_FLAGS          "-g0 ${SUNPRO_FLAGS} -std=c++03")
+      # For SunPro, append our own flags rather than prepending below.
+      # We need -g0 and the misc -x flags above to reduce the size of binaries.
+      STRING_APPEND(CMAKE_C_FLAGS_DEBUG            " ${COMMON_C_FLAGS}")
+      STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG          " ${COMMON_CXX_FLAGS}")
+      STRING_APPEND(CMAKE_C_FLAGS_RELWITHDEBINFO   " -xO3 ${COMMON_C_FLAGS}")
+      STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO3 ${COMMON_CXX_FLAGS}")
+      STRING_APPEND(CMAKE_C_FLAGS_RELEASE          " -xO3 ${COMMON_C_FLAGS}")
+      STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE        " -xO3 ${COMMON_CXX_FLAGS}")
+      STRING_APPEND(CMAKE_C_FLAGS_MINSIZEREL       " -xO3 ${COMMON_C_FLAGS}")
+      STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL     " -xO3 ${COMMON_CXX_FLAGS}")
+      SET(COMMON_C_FLAGS "")
+      SET(COMMON_CXX_FLAGS "")
     ENDIF()
   ENDIF()
+
+  # Use STRING_PREPEND here, so command-line input can override our defaults.
+  STRING_PREPEND(CMAKE_C_FLAGS                  "${COMMON_C_FLAGS} ")
+  STRING_PREPEND(CMAKE_C_FLAGS_RELWITHDEBINFO   "${SECTIONS_FLAG} ")
+  STRING_PREPEND(CMAKE_C_FLAGS_RELEASE          "${SECTIONS_FLAG} ")
+  STRING_PREPEND(CMAKE_C_FLAGS_MINSIZEREL       "${SECTIONS_FLAG} ")
+
+  STRING_PREPEND(CMAKE_CXX_FLAGS                "${COMMON_CXX_FLAGS} ")
+  STRING_PREPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SECTIONS_FLAG} ")
+  STRING_PREPEND(CMAKE_CXX_FLAGS_RELEASE        "${SECTIONS_FLAG} ")
+  STRING_PREPEND(CMAKE_CXX_FLAGS_MINSIZEREL     "${SECTIONS_FLAG} ")
+
+  # We need -O3 by default for RelWithDebInfo in order to avoid
+  # performance regressions from earlier releases.
+  # To disable this (and everything else in this file),
+  # do 'cmake -DWITH_DEFAULT_COMPILER_OPTIONS=NO'.
+  IF(LINUX)
+    FOREACH(flag
+        CMAKE_C_FLAGS_RELEASE
+        CMAKE_C_FLAGS_RELWITHDEBINFO
+        CMAKE_CXX_FLAGS_RELEASE
+        CMAKE_CXX_FLAGS_RELWITHDEBINFO
+        )
+      STRING(REPLACE "-O2"  "-O3" "${flag}" "${${flag}}")
+    ENDFOREACH()
+  ENDIF()
+
 ENDIF()

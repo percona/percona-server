@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,8 @@ Migrate_keyring::Migrate_keyring()
   m_source_plugin_handle= NULL;
   m_destination_plugin_handle= NULL;
   mysql= NULL;
+  m_argc = 0;
+  m_argv = NULL;
 }
 
 /**

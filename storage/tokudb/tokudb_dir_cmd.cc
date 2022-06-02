@@ -230,7 +230,7 @@ cleanup:
 
 static void tokenize(const char *cmd_str,
                      std::vector<std::string> /*out*/ &tokens) {
-    DBUG_ASSERT(cmd_str);
+    assert(cmd_str);
 
     bool was_escape = false;
     const char *token_begin = cmd_str;
@@ -266,8 +266,8 @@ void process_dir_cmd(THD *thd,
                      const char *cmd_str,
                      const dir_cmd_callbacks &cb) {
 
-    DBUG_ASSERT(thd);
-    DBUG_ASSERT(cmd_str);
+    assert(thd);
+    assert(cmd_str);
 
     std::vector<std::string> tokens;
     tokenize(cmd_str, tokens);

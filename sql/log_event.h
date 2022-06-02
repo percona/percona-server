@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,12 +107,12 @@ int ignored_error_code(int err_code);
    @param COND   Condition to check
    @param ERRNO  Error number to return in non-debug builds
 */
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
   do { if (!(COND)) return ERRNO; } while (0)
 #else
 #define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
-  DBUG_ASSERT(COND)
+  assert(COND)
 #endif
 
 #define LOG_READ_EOF    -1
@@ -1121,10 +1121,10 @@ private:
   */
   virtual void set_mts_isolate_group()
   {
-    DBUG_ASSERT(ends_group() ||
-                get_type_code() == binary_log::QUERY_EVENT ||
-                get_type_code() == binary_log::EXEC_LOAD_EVENT ||
-                get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
+    assert(ends_group() ||
+           get_type_code() == binary_log::QUERY_EVENT ||
+           get_type_code() == binary_log::EXEC_LOAD_EVENT ||
+           get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
     common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
   }
 
@@ -1757,7 +1757,7 @@ public:
     Log_event(header(), footer(), Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
     crypto_scheme(crypto_scheme_arg), key_version(key_version_arg)
   {
-    DBUG_ASSERT(crypto_scheme == 1);
+    assert(crypto_scheme == 1);
     is_valid_param= crypto_scheme == 1;
     memcpy(nonce, nonce_arg, Binlog_crypt_data::BINLOG_NONCE_LENGTH);
   }
@@ -2903,7 +2903,7 @@ public:
 #ifdef MYSQL_CLIENT
   table_def *create_table_def()
   {
-    DBUG_ASSERT(m_colcnt > 0);
+    assert(m_colcnt > 0);
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
@@ -3125,7 +3125,7 @@ public:
           We should just compare bitmaps for Delete, Write
           or Update rows events.
         */
-        DBUG_ASSERT(0);
+        assert(0);
     }
     return res;
   }
@@ -3248,7 +3248,7 @@ private:
   int unpack_current_row(const Relay_log_info *const rli,
                          MY_BITMAP const *cols)
   {
-    DBUG_ASSERT(m_table);
+    assert(m_table);
 
     ASSERT_OR_RETURN_ERROR(m_curr_row <= m_rows_end, HA_ERR_CORRUPT_EVENT);
     return ::unpack_row(rli, m_table, m_width, m_curr_row, cols,
@@ -3285,7 +3285,7 @@ private:
    */
   inline bool is_auto_inc_in_extra_columns()
   {
-    DBUG_ASSERT(m_table);
+    assert(m_table);
     return (m_table->next_number_field &&
             m_table->next_number_field->field_index >= m_width);
   }
@@ -3794,7 +3794,7 @@ public:
     DBUG_PRINT("enter", ("incident: %d", incident));
     if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
       is_valid_param= true;
-    DBUG_ASSERT(message == NULL && message_length == 0);
+    assert(message == NULL && message_length == 0);
     DBUG_VOID_RETURN;
   }
 
@@ -3809,7 +3809,7 @@ public:
     DBUG_PRINT("enter", ("incident: %d", incident));
     if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
       is_valid_param= true;
-    DBUG_ASSERT(message == NULL && message_length == 0);
+    assert(message == NULL && message_length == 0);
     if (!(message= (char*) my_malloc(key_memory_Incident_log_event_message,
                                            msg.length+1, MYF(MY_WME))))
     {

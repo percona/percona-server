@@ -29,7 +29,7 @@ It is recommended to install Percona software from official repositories:
 
    * For Debian or Ubuntu::
 
-      $ sudo apt-get install percona-server-rocksdb-5.7
+      $ sudo apt install percona-server-rocksdb-5.7
 
    * For RHEL or CentOS::
 
@@ -42,6 +42,10 @@ you should see the following output::
  * Run the following script to enable the RocksDB storage engine in Percona Server:
 
         ps-admin --enable-rocksdb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
+
+.. _enable-myrocks:
+
+.. rubric:: Enable MyRocks with ps-admin
 
 Run the ``ps-admin`` script as system root user or with :program:`sudo`
 and provide the MySQL root user credentials
@@ -143,7 +147,7 @@ remove the Percona MyRocks package:
 
 * For Debian or Ubuntu::
 
-  $ sudo apt-get remove percona-server-rocksdb-5.7
+  $ sudo apt remove percona-server-rocksdb-5.7
 
 * For RHEL or CentOS::
 

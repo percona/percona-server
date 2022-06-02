@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -63,6 +63,16 @@ struct buf_chunk_t{
 	size_t	mem_size() const {
 		return(mem_pfx.m_size);
 	}
+
+	/** Advices the OS that this chunk should not be dumped to a core file.
+	Emits a warning to the log if could not succeed.
+	@return true if succeeded, false if no OS support or failed */
+	bool madvise_dump();
+
+	/** Advices the OS that this chunk should be dumped to a core file.
+	Emits a warning to the log if could not succeed.
+	@return true if succeeded, false if no OS support or failed */
+	bool madvise_dont_dump();
 };
 
 /*********************************************************************//**

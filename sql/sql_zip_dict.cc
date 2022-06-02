@@ -112,7 +112,7 @@ int mysql_create_zip_dict(THD* thd, const char* name, ulong name_len,
         my_error(error, MYF(0));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         error= ER_UNKNOWN_ERROR;
         my_error(error, MYF(0));
     }
@@ -205,7 +205,7 @@ int mysql_drop_zip_dict(THD* thd, const char* name, ulong name_len,
         my_error(error, MYF(0));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         error= ER_UNKNOWN_ERROR;
         my_error(error, MYF(0));
     }

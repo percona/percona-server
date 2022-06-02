@@ -4,11 +4,16 @@
  Installing |Percona Server| on Red Hat Enterprise Linux and CentOS
 ====================================================================
 
-Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The |Percona| :program:`yum` repository supports popular *RPM*-based operating systems, including the *Amazon Linux AMI*.
+Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The Percona :program:`yum` repository supports popular *RPM*-based operating systems, including the *Amazon Linux AMI*.
 
 The easiest way to install the *Percona Yum* repository is to install an *RPM* that configures :program:`yum` and installs the `Percona GPG key <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
 Specific information on the supported platforms, products, and versions are described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
+
+.. note:: 
+
+    The RPM packages for Red Hat Enterprise Linux 7 (and compatible derivatives) do not support TLSv1.3, as it requires OpenSSL 1.1.1, which is currently not available on this platform. 
+  
 
 What's in each RPM package?
 ===========================
@@ -39,21 +44,15 @@ Installing |Percona Server| from Percona ``yum`` repository
 You can install Percona yum repository by running the following command as a
 ``root`` user or with sudo:
 
-      $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+      yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
    .. admonition:: Output example
 
-      .. code-block:: guess
+      .. code-block:: bash
 
 	 Retrieving https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 	 Preparing...                ########################################### [100%]
          1:percona-release        ########################################### [100%]
-
-   To install |Percona Server| with SELinux policies, you also need the :program:`Percona-Server-selinux-*.noarch.rpm` package:
-
-   .. code-block:: bash
-
-      $ yum install http://repo.percona.com/centos/7/RPMS/x86_64/Percona-Server-selinux-56-5.6.42-rel84.2.el7.noarch.rpm
 
 2. Testing the repository
 
@@ -68,14 +67,14 @@ You can install Percona yum repository by running the following command as a
    .. code-block:: bash
 
      ...
-     Percona-Server-57-debuginfo.x86_64      5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-client-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-devel-57.x86_64          5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-server-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-shared-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-shared-compat-57.x86_64  5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-test-57.x86_64           5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-tokudb-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
+     Percona-Server-57-debuginfo.x86_64      5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-client-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-devel-57.x86_64          5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-server-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-shared-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-shared-compat-57.x86_64  5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-test-57.x86_64           5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-tokudb-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
      ...
 
      .. note:: 
@@ -96,7 +95,7 @@ You can install Percona yum repository by running the following command as a
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 Percona `yum` Testing repository
 --------------------------------
@@ -109,49 +108,56 @@ Percona offers pre-release builds from our testing repository. To subscribe to t
 Installing |Percona Server| using downloaded rpm packages
 =========================================================
 
-1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.10-3 release packages for *CentOS* 7:
+1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.31-34 release packages for *CentOS* 7:
 
    .. code-block:: bash
  
-     $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-3/binary/redhat/7/x86_64/Percona-Server-5.7.10-3-r63dafaf-el7-x86_64-bundle.tar
+     wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.31-34/binary/redhat/7/x86_64/Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
 
 2. You should then unpack the bundle to get the packages:
 
    .. code-block:: bash
 
-     $ tar xvf Percona-Server-5.7.10-3-r63dafaf-el7-x86_64-bundle.tar
+     tar xvf Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
     
    After you unpack the bundle you should see the following packages:  
 
    .. code-block:: bash
 
-     $ ls *.rpm
+     ls *.rpm
 
-     Percona-Server-57-debuginfo-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-client-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-devel-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-server-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-shared-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-shared-compat-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-test-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm
+     Percona-Server-57-debuginfo-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-client-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-devel-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-rocksdb-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-server-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-shared-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-shared-compat-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-test-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-tokudb-57-5.7.31-34.1.el7.x86_64.rpm
 
 
 3. Now you can install |Percona Server| 5.7 by running:
 
    .. code-block:: bash
 
-     rpm -ivh Percona-Server-server-57-5.7.10-3.1.el7.x86_64.rpm \
-     Percona-Server-client-57-5.7.10-3.1.el7.x86_64.rpm \
-     Percona-Server-shared-57-5.7.10-3.1.el7.x86_64.rpm
+     rpm -ivh Percona-Server-server-57-5.7.31-34.1.el7.x86_64.rpm \
+     Percona-Server-client-57-5.7.31-34.1.el7.x86_64.rpm \
+     Percona-Server-shared-57-5.7.31-34.1.el7.x86_64.rpm
 
-This will install only packages required to run the |Percona Server| 5.7. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by adding the ``Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm`` to the command above. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+This will install only packages required to run the |Percona Server| 5.7.
+
+Optionally, you can install either the :ref:`TokuDB <tokudb_intro>` storage engine, adding ``Percona-Server-tokudb-57-5.7.31-34.1.el7.x86_64.rpm``  or the :ref:`MyRocks <myrocks_intro>` storage engine, adding ``Percona-Server-rocksdb-57-5.7.31-34.1.el7.x86_64.rpm`` to the install command.
+
+You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
+
+You can find more information on how to install and enable the MyRocks storage engine in the :ref:`myrocks_install` guide.
 
 To install all the packages (for debugging, testing, etc.) you should run:
 
 .. code-block:: bash
 
-   $ rpm -ivh *.rpm
+   rpm -ivh *.rpm
 
 .. note::
 
@@ -185,6 +191,10 @@ You can use the following command to locate the Data directory:
 
 Running |Percona Server|
 ========================
+
+.. note::
+
+  *RHEL* 7 and *CentOS* 7 come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
 
 1. Starting the service
 
@@ -221,7 +231,7 @@ Running |Percona Server|
 
 .. note::
 
-  *RHEL* 7 and *CentOS* 7 come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
+  The *RHEL* 8 distributions and derivatives have added `system-wide cryptographic policies component <https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/security_hardening/using-the-system-wide-cryptographic-policies_security-hardening>`__. This component allows the configuration of cryptographic subsystems. 
 
 Uninstalling |Percona Server|
 =============================

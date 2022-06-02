@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex 
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
-  ${LZ4_INCLUDE_DIR}
 )
 INCLUDE_DIRECTORIES(SYSTEM
   ${BOOST_PATCHES_DIR}
@@ -128,6 +127,7 @@ SET(SQL_SHARED_SOURCES
   keycaches.cc
   lock.cc
   locking_service.cc
+  locks/shared_spin_lock.cc
   log.cc
   event_crypt.cc
   mdl.cc
@@ -279,7 +279,7 @@ SET(SQL_SOURCE
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
-  ../extra/lz4/xxhash.c
+  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.c
   ../sql-common/client.c
   ../sql-common/client_plugin.c
@@ -331,9 +331,14 @@ ENDIF()
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 ADD_COMPILE_FLAGS(
-  ../extra/lz4/xxhash.c
-  COMPILE_FLAGS -DXXH_NAMESPACE=MY_
+  ${BUNDLED_LZ4_PATH}/xxhash.c
+  COMPILE_FLAGS -DXXH_NAMESPACE=MY_ -I${BUNDLED_LZ4_PATH}
 )
+
+ADD_COMPILE_FLAGS(
+  rpl_write_set_handler.cc
+  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
+  )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32 AND CMAKE_SIZEOF_VOID_P MATCHES 8)
@@ -362,7 +367,7 @@ ENDIF()
 # Segfault in boost::geometry code at high optimization levels
 IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
-  IF(CMAKEBT MATCHES "^REL")
+  IF(CMAKEBT MATCHES "REL")
     ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
   ENDIF()
 ENDIF()
@@ -390,6 +395,22 @@ IF(HAVE_MISLEADING_INDENTATION)
     COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-free-nonheap-object")
+ENDIF()
+
+IF(MY_COMPILER_IS_GNU OR
+   MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-unused-label")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)
@@ -404,6 +425,14 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
     ../sql-common/client_authentication.cc
     COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
+ENDIF()
+
+# Suppress warnings for gcc-11 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-array-bounds FILES spatial.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES spatial.cc)
+  # a false positive with a bison-generated file (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
@@ -462,6 +491,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   sql_list.cc 
   ../sql-common/sql_string.cc
   thr_malloc.cc
+  locks/shared_spin_lock.cc
   )
 
 ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,10 +37,10 @@
 # We assume you have installed
 #     https://slproweb.com/products/Win32OpenSSL.html
 #     We look for "C:/Program Files/OpenSSL-Win64/"
-#     The .dll files must be in your PATH.
 # or
-#     http://brewformulas.org/Openssl
-#     We look for "/usr/local/opt/openssl"
+#     https://brew.sh
+#     https://formulae.brew.sh/formula/openssl@1.1
+#     We look for "/usr/local/opt/openssl@1.1"
 #     We look for the static libraries, rather than the .dylib ones.
 # When the package has been located, we treat it as if cmake had been
 # invoked with  -DWITH_SSL=</path/to/custom/openssl>
@@ -118,9 +118,35 @@ MACRO (MYSQL_CHECK_SSL)
     # have buggy implementations.
     IF((APPLE OR WIN32) AND NOT WITH_SSL_PATH AND WITH_SSL STREQUAL "system")
       IF(APPLE)
-        SET(WITH_SSL_PATH "/usr/local/opt/openssl")
+        SET(WITH_SSL_PATH "/usr/local/opt/openssl@1.1")
       ELSE()
         SET(WITH_SSL_PATH "C:/Program Files/OpenSSL-Win64/")
+      ENDIF()
+
+      # Note that several packages may come with ssl headers,
+      # e.g. Strawberry Perl, so ignore some system paths below.
+      IF(WIN32 AND NOT OPENSSL_ROOT_DIR AND WITH_SSL STREQUAL "system")
+        FILE(TO_CMAKE_PATH "$ENV{PROGRAMFILES}" _programfiles)
+        IF(SIZEOF_VOIDP EQUAL 8)
+          FIND_PATH(OPENSSL_WIN64
+            NAMES  "include/openssl/ssl.h"
+            PATHS "${_programfiles}/OpenSSL-Win64" "C:/OpenSSL-Win64/"
+            NO_SYSTEM_ENVIRONMENT_PATH
+            NO_CMAKE_SYSTEM_PATH
+            )
+          IF(OPENSSL_WIN64)
+            SET(OPENSSL_ROOT_DIR ${OPENSSL_WIN64})
+            FIND_LIBRARY(OPENSSL_LIBRARY
+              NAMES libssl_static
+              HINTS ${OPENSSL_ROOT_DIR}/lib)
+            FIND_LIBRARY(CRYPTO_LIBRARY
+              NAMES libcrypto_static
+              HINTS ${OPENSSL_ROOT_DIR}/lib)
+            IF(OPENSSL_LIBRARY AND CRYPTO_LIBRARY)
+              SET(FOUND_STATIC_SSL_LIBS 1)
+            ENDIF()
+          ENDIF()
+        ENDIF()
       ENDIF()
     ENDIF()
 
@@ -168,25 +194,52 @@ MACRO (MYSQL_CHECK_SSL)
     ENDIF()
 
     IF(OPENSSL_INCLUDE_DIR)
-      # Verify version number. Version information looks like:
-      #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
-      # Encoded as MNNFFPPS: major minor fix patch status
       FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
-        OPENSSL_VERSION_NUMBER
-        REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+        OPENSSL_MAJOR_VERSION
+        REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_MAJOR[\t ]+[0-9].*"
         )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
-        OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
-        OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
-        OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
+      IF(OPENSSL_MAJOR_VERSION STREQUAL "")
+        # Verify version number. Version information looks like:
+        #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
+        # Encoded as MNNFFPPS: major minor fix patch status
+        FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+          OPENSSL_VERSION_NUMBER
+          REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+          )
+        STRING(REGEX REPLACE
+          "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
+          OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+          )
+        STRING(REGEX REPLACE
+          "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
+          OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+          )
+        STRING(REGEX REPLACE
+          "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
+          OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
+          )
+      ELSE()
+        STRING(REGEX REPLACE
+          "^.*OPENSSL_VERSION_MAJOR[\t ]+([0-9]).*$" "\\1"
+          OPENSSL_MAJOR_VERSION "${OPENSSL_MAJOR_VERSION}"
+          )
+        FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+          OPENSSL_MINOR_VERSION
+          REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_MINOR[\t ]+[0-9].*"
+          )
+        STRING(REGEX REPLACE
+          "^.*OPENSSL_VERSION_MINOR[\t ]+([0-9]).*$" "\\1"
+          OPENSSL_MINOR_VERSION "${OPENSSL_MINOR_VERSION}"
+          )
+        FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+          OPENSSL_FIX_VERSION
+          REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_PATCH[\t ]+[0-9].*"
+          )
+        STRING(REGEX REPLACE
+          "^.*OPENSSL_VERSION_PATCH[\t ]+([0-9]).*$" "\\1"
+          OPENSSL_FIX_VERSION "${OPENSSL_FIX_VERSION}"
+          )
+      ENDIF()
     ENDIF()
     SET(OPENSSL_VERSION
       "${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}"
@@ -200,10 +253,13 @@ MACRO (MYSQL_CHECK_SSL)
          SET(FORCE_SSL_SOLARIS "-Wl,--undefined,address_of_sk_new_null")
        ENDIF()
     ENDIF()
+    IF("${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}" VERSION_GREATER "3.0.0")
+       ADD_DEFINITIONS(-DOPENSSL_SUPPRESS_DEPRECATED)
+    ENDIF()
     IF(OPENSSL_INCLUDE_DIR AND
        OPENSSL_LIBRARY   AND
        CRYPTO_LIBRARY      AND
-       OPENSSL_MAJOR_VERSION STREQUAL "1"
+       (OPENSSL_MAJOR_VERSION STREQUAL "1" OR OPENSSL_MAJOR_VERSION STREQUAL "3")
       )
       SET(OPENSSL_FOUND TRUE)
     ELSE()
@@ -267,7 +323,7 @@ MACRO (MYSQL_CHECK_SSL)
         SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBDL})
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
-      IF(WIN32 AND WITH_SSL STREQUAL "system")
+      IF(WIN32 AND WITH_SSL STREQUAL "system" AND NOT FOUND_STATIC_SSL_LIBS)
         MESSAGE(STATUS "Please do\nPATH=\"${WITH_SSL_PATH}bin\":$PATH")
         FILE(TO_NATIVE_PATH "${WITH_SSL_PATH}" WITH_SSL_PATH_XX)
         MESSAGE(STATUS "or\nPATH=\"${WITH_SSL_PATH_XX}bin\":$PATH")

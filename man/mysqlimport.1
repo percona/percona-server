@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqlimport\fR
+.\"     Title: mysqlimport
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 03/21/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQLIMPORT" "1" "03/21/2022" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -53,7 +53,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlimport [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR\fB \fR\fB\fItextfile1\fR\fR\fB [\fR\fB\fItextfile2\fR\fR\fB \&.\&.\&.]\fR
+mysqlimport [\fIoptions\fR] \fIdb_name\fR \fItextfile1\fR [\fItextfile2\fR \&.\&.\&.]
 .fi
 .if n \{\
 .RE
@@ -234,9 +234,9 @@ Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -251,9 +251,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
@@ -279,9 +279,8 @@ normally reads the
 [client]
 and
 [mysqlimport]
-groups\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+groups\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmysqlimport\fR
 also reads the
 [client_other]
@@ -495,7 +494,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -533,13 +532,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -680,7 +679,7 @@ options control handling of input rows that duplicate existing rows on unique ke
 \fB\-\-secure\-auth\fR
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
-As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
+As of MySQL 5\&.7\&.5, this option is deprecated;expect it to be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
 .if n \{\
 .sp
@@ -797,7 +796,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -876,8 +875,8 @@ Here is a sample session that demonstrates use of
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-e \*(AqCREATE TABLE imptest(id INT, n VARCHAR(30))\*(Aq test\fR
-shell> \fBed\fR
+$> \fBmysql \-e \*(AqCREATE TABLE imptest(id INT, n VARCHAR(30))\*(Aq test\fR
+$> \fBed\fR
 a
 100     Max Sydow
 101     Count Dracula
@@ -885,13 +884,13 @@ a
 w imptest\&.txt
 32
 q
-shell> \fBod \-c imptest\&.txt\fR
+$> \fBod \-c imptest\&.txt\fR
 0000000   1   0   0  \et   M   a   x       S   y   d   o   w  \en   1   0
 0000020   1  \et   C   o   u   n   t       D   r   a   c   u   l   a  \en
 0000040
-shell> \fBmysqlimport \-\-local test imptest\&.txt\fR
+$> \fBmysqlimport \-\-local test imptest\&.txt\fR
 test\&.imptest: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
-shell> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
+$> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
 +\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
 | id   | n             |
 +\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
@@ -905,7 +904,7 @@ shell> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

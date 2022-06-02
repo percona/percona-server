@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1842,7 +1842,9 @@ lock_rec_add_to_queue(
 
 		if (lock != NULL) {
 
-			lock_rec_set_nth_bit(lock, heap_no);
+			if (!lock_rec_get_nth_bit(lock, heap_no)) {
+				lock_rec_set_nth_bit(lock, heap_no);
+			}
 
 			return;
 		}

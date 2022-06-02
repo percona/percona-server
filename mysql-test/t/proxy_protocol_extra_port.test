@@ -14,3 +14,6 @@ SHOW GLOBAL STATUS LIKE 'Threads_connected';
 --disconnect conn1
 --connection default
 --source include/wait_until_count_sessions.inc
+
+--let $restart_parameters=restart:--proxy-protocol-networks=
+-- source include/restart_mysqld.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,9 @@ IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-but-set-variable")
   ENDIF()
 ENDIF()
+
+# Suppress 'sigignore' deprecation error
+ADD_COMPILE_FLAGS("daemon/memcached.c" COMPILE_FLAGS "-Wno-deprecated-declarations")
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
 		include/memcached/config_parser.h

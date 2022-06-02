@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "event_data_objects.h"
 
+#include "my_user.h"
 #include "sql_parse.h"                          // parse_sql
 #include "strfunc.h"                           // find_string_in_array
 #include "sql_db.h"                        // get_default_db_collation
@@ -404,6 +405,20 @@ Event_timed::init()
 }
 
 
+static void parse_user_host(const LEX_STRING &user_host, LEX_CSTRING &user,
+                            LEX_CSTRING &host, MEM_ROOT *mem_root)
+{
+  char *user_str= (char *)alloc_root(mem_root, USERNAME_LENGTH + 1);
+  user.str= user_str;
+
+  char *host_str= (char *)alloc_root(mem_root, HOSTNAME_LENGTH + 1);
+  host.str= host_str;
+
+  parse_user(user_host.str, user_host.length, user_str, &user.length,
+             host_str, &host.length);
+}
+
+
 /**
   Load an event's body from a row from mysql.event.
 
@@ -419,8 +434,6 @@ Event_timed::init()
 bool
 Event_job_data::load_from_row(THD *thd, TABLE *table)
 {
-  char *ptr;
-  size_t len;
   LEX_STRING tz_name;
 
   DBUG_ENTER("Event_job_data::load_from_row");
@@ -446,18 +459,7 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
   Event_creation_ctx::load_from_db(thd, &mem_root, dbname.str, name.str, table,
                                    &creation_ctx);
 
-  ptr= strchr(definer.str, '@');
-
-  if (! ptr)
-    ptr= definer.str;
-
-  len= ptr - definer.str;
-  definer_user.str= strmake_root(&mem_root, definer.str, len);
-  definer_user.length= len;
-  len= definer.length - len - 1;
-  /* 1:because of @ */
-  definer_host.str= strmake_root(&mem_root, ptr + 1, len);
-  definer_host.length= len;
+  parse_user_host(definer, definer_user, definer_host, &mem_root);
 
   sql_mode= (sql_mode_t) table->field[ET_FIELD_SQL_MODE]->val_int();
 
@@ -527,7 +529,7 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
     Hence, if ET_FIELD_EXECUTE_AT is empty there is an error.
   */
   execute_at_null= table->field[ET_FIELD_EXECUTE_AT]->is_null();
-  DBUG_ASSERT(!(starts_null && ends_null && !expression && execute_at_null));
+  assert(!(starts_null && ends_null && !expression && execute_at_null));
   if (!expression && !execute_at_null)
   {
     if (table->field[ET_FIELD_EXECUTE_AT]->get_date(&time,
@@ -618,9 +620,6 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
 bool
 Event_timed::load_from_row(THD *thd, TABLE *table)
 {
-  char *ptr;
-  size_t len;
-
   DBUG_ENTER("Event_timed::load_from_row");
 
   if (Event_queue_element::load_from_row(thd, table))
@@ -643,18 +642,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
                         (const char *) name.str);
   }
 
-  ptr= strchr(definer.str, '@');
-
-  if (! ptr)
-    ptr= definer.str;
-
-  len= ptr - definer.str;
-  definer_user.str= strmake_root(&mem_root, definer.str, len);
-  definer_user.length= len;
-  len= definer.length - len - 1;
-  /* 1:because of @ */
-  definer_host.str= strmake_root(&mem_root, ptr + 1,  len);
-  definer_host.length= len;
+  parse_user_host(definer, definer_user, definer_host, &mem_root);
 
   created= table->field[ET_FIELD_CREATED]->val_int();
   modified= table->field[ET_FIELD_MODIFIED]->val_int();
@@ -722,7 +710,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   DBUG_ENTER("get_next_time");
   DBUG_PRINT("enter", ("start: %lu  now: %lu", (long) start, (long) time_now));
 
-  DBUG_ASSERT(start <= time_now);
+  assert(start <= time_now);
 
   longlong months=0, seconds=0;
 
@@ -768,7 +756,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
     DBUG_RETURN(1);
     break;
   case INTERVAL_LAST:
-    DBUG_ASSERT(0);
+    assert(0);
   }
   DBUG_PRINT("info", ("seconds: %ld  months: %ld", (long) seconds, (long) months));
 
@@ -812,7 +800,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
         then next_time was set, but perhaps to the value that is less
         then time_now.  See below for elaboration.
       */
-      DBUG_ASSERT(negative || next_time > 0);
+      assert(negative || next_time > 0);
 
       /*
         If local_now < local_start, i.e. STARTS time is in the future
@@ -910,7 +898,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
     }
   }
 
-  DBUG_ASSERT(time_now < next_time);
+  assert(time_now < next_time);
 
   *next= next_time;
 
@@ -1431,7 +1419,7 @@ Event_job_data::execute(THD *thd, bool drop)
   {
     sp_head *sphead= thd->lex->sphead;
 
-    DBUG_ASSERT(sphead);
+    assert(sphead);
 
     if (thd->enable_slow_log)
       sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;

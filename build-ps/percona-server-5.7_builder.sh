@@ -164,12 +164,12 @@ get_sources(){
             echo "InnoDB version differs from defined in version file"
             exit 1
         fi
-        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
         if [ ${FT_TAG} = 0 ]; then
             echo "There is no TAG for PerconaFT. Please set it and re-run build!"
             exit 1
         fi
-        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        TOKUBACKUP_TAG=$(git ls-remote --tags https://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
         if [ ${TOKUBACKUP_TAG} = 0 ]; then
             echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
             exit 1
@@ -267,6 +267,7 @@ get_sources(){
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
     #
     cd ${PSDIR}
+    source ../../percona-server-5.7.properties
     # set tokudb version - can be seen with show variables like '%version%'
     sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     #
@@ -341,6 +342,7 @@ install_deps() {
             percona-release enable origin release
             yum -y install epel-release
             yum -y install selinux-policy-devel
+	    yum -y install autoconf
             yum -y install git pkg-config numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
             yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
             yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
@@ -349,8 +351,8 @@ install_deps() {
                 if [ $(uname -m) = x86_64 ]; then
                             yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils
                 else
-                            wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
-                            wget -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern https://raw.githubusercontent.com/cms-sw/cms-docker/master/slc6-vanilla/RPM-GPG-KEY-cern
+                            wget --no-check-certificate -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
+                            wget --no-check-certificate -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern https://raw.githubusercontent.com/cms-sw/cms-docker/master/slc6-vanilla/RPM-GPG-KEY-cern
                             yum -y install  devtoolset-2-gcc-c++ devtoolset-2-binutils libevent2-devel
                 fi
             elif [[ ${RHEL} = 7 ]]; then
@@ -359,6 +361,7 @@ install_deps() {
             fi
         else
             yum -y install perl.x86_64
+	    yum -y install libarchive
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
             yum -y install automake autoconf cmake jemalloc jemalloc-devel
             yum -y install libcurl-devel openldap-devel selinux-policy-devel
@@ -474,7 +477,7 @@ build_srpm(){
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
     #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
-    wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget --no-check-certificate http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -504,7 +507,7 @@ build_mecab_lib(){
     rm -rf ${MECAB_DIR}
     rm -rf ${MECAB_INSTALL_DIR}
     mkdir ${MECAB_INSTALL_DIR}
-    wget ${MECAB_LINK}
+    wget --no-check-certificate ${MECAB_LINK}
     tar xf ${MECAB_TARBAL}
     cd ${MECAB_DIR}
     ./configure --with-pic --prefix=/usr
@@ -525,7 +528,7 @@ build_mecab_dict(){
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}
-    wget ${MECAB_IPADIC_LINK}
+    wget --no-check-certificate ${MECAB_IPADIC_LINK}
     tar xf ${MECAB_IPADIC_TARBAL}
     cd ${MECAB_IPADIC_DIR}
     # these two lines should be removed if proper packages are created and used for builds
@@ -848,12 +851,12 @@ REPO="git://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-5.7
 MYSQL_VERSION_MAJOR=5
 MYSQL_VERSION_MINOR=7
-MYSQL_VERSION_PATCH=22
-MYSQL_VERSION_EXTRA=-22
-PRODUCT_FULL=Percona-Server-5.7.32-35
+MYSQL_VERSION_PATCH=37
+MYSQL_VERSION_EXTRA=-40
+PRODUCT_FULL=Percona-Server-5.7.37-40
 BOOST_PACKAGE_NAME=boost_1_59_0
-PERCONAFT_BRANCH=Percona-Server-5.7.32-35
-TOKUBACKUP_BRANCH=Percona-Server-5.7.32-35
+PERCONAFT_BRANCH=Percona-Server-5.7.37-40
+TOKUBACKUP_BRANCH=Percona-Server-5.7.37-40
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 if [ ${YASSL} = 1 ]; then
   TARBALL=1

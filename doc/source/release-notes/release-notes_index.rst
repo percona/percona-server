@@ -5,9 +5,9 @@
 .. toctree::
    :maxdepth: 1
 
-   Percona Server for MySQL 5.7.37-40 (2022-03-31) <Percona-Server-5.7.35-38.rst>
+   Percona Server for MySQL 5.7.37-40 (2022-03-31) <Percona-Server-5.7.37-40.rst>
 
-   Percona Server for MySQL 5.7.36-39 (2021-12-22) <Percona-Server-5.7.35-38.rst>
+   Percona Server for MySQL 5.7.36-39 (2021-12-22) <Percona-Server-5.7.36-39.rst>
 
    Percona Server for MySQL 5.7.35-38 (2021-08-18) <Percona-Server-5.7.35-38.rst>
 

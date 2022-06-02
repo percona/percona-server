@@ -94,6 +94,7 @@ myisam_repair_threads	1
 SET STATEMENT myisam_sort_buffer_size=800000,
 myisam_repair_threads=2 FOR OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	Warning	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 test.t1	optimize	status	OK
 ''
 '# Post-STATEMENT variable value'
@@ -199,6 +200,8 @@ SET STATEMENT myisam_repair_threads=2
 FOR SHOW SESSION VARIABLES LIKE 'myisam_repair_threads';
 Variable_name	Value
 myisam_repair_threads	2
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SHOW SESSION VARIABLES LIKE 'myisam_repair_threads';
 Variable_name	Value
 myisam_repair_threads	1
@@ -255,6 +258,8 @@ max_join_size=4444440000000 FOR
 SELECT myProc(123.45);
 myProc(123.45)
 6.17
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT No 1 variable value Pre-STATEMENT for No 2'
 SELECT @@myisam_sort_buffer_size,
@@ -273,6 +278,8 @@ binlog_format=row,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
 DROP FUNCTION myProc;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT No 2 variable value
 SELECT @@myisam_sort_buffer_size,
@@ -443,6 +450,8 @@ SELECT @@myisam_sort_buffer_size,
 @@keep_files_on_create,
 @@max_join_size;
 END|
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 'Test No 1 Post Value & Test 2 Pre values'
 SELECT @@myisam_sort_buffer_size,
@@ -464,6 +473,8 @@ max_join_size=4444440000000 FOR
 CALL p1();
 @@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
 400000	2	200000	ROW	0	4444440000000
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT No 2
 SELECT @@myisam_sort_buffer_size,
@@ -516,6 +527,9 @@ max_join_size=4444440000000 FOR
 CALL p2();
 @@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
 400000	3	300000	MIXED	0	3333330000000
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
@@ -576,6 +590,10 @@ CALL p3();
 400000	2	200000	ROW	0	4444440000000
 @@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
 400000	3	300000	MIXED	0	3333330000000
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
@@ -671,6 +689,9 @@ CALL p4();
 320000	2	220022	ROW	1	2222220000000
 @@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
 320000	2	220022	ROW	1	2222220000000
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
@@ -737,6 +758,9 @@ sort_buffer_size=230013,
 binlog_format=row,
 keep_files_on_create=ON,
 max_join_size=2323230000000;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
@@ -803,6 +827,8 @@ CALL p5();
 400000	2	200000	ROW	0	4444440000000
 @@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
 260000	3	230013	ROW	1	2323230000000
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,

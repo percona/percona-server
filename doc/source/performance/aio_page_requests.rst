@@ -26,16 +26,26 @@ requests at once, while only
 Version Specific Information
 ============================
 
- * :rn:`5.7.20-18`- Feature ported from the *Facebook MySQL* patch.
+ * :ref:`5.7.20-18`: Feature ported from the *Facebook MySQL* patch.
 
 Status Variables
 ================
 
-.. variable:: Innodb_buffered_aio_submitted
+.. _Innodb_buffered_aio_submitted:
 
-  :version 5.7.20-18: Implemented
-  :vartype: Numeric
-  :scope: Global
+.. rubric:: ``Innodb_buffered_aio_submitted``
+
+Implemented in :ref:`5.7.20-18`.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Data type
+     - Numeric
+   * - Scope
+     - Global
 
 This variable shows the number of submitted buffered asynchronous I/O requests.
 

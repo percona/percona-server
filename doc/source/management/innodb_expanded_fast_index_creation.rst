@@ -10,7 +10,7 @@ Expanded Fast Index Creation
 
 Percona has implemented several changes related to MySQL's fast index creation feature. Fast index creation was implemented in MySQL as a way to speed up the process of adding or dropping indexes on tables with many rows. 
 
-This feature implements a session variable that enables extended fast index creation. Besides optimizing DDL directly, :variable:`expand_fast_index_creation` may also optimize index access for subsequent DML statements because using it results in much less fragmented indexes.
+This feature implements a session variable that enables extended fast index creation. Besides optimizing DDL directly, :ref:`expand_fast_index_creation` may also optimize index access for subsequent DML statements because using it results in much less fragmented indexes.
 
 :command:`mysqldump`
 --------------------
@@ -39,12 +39,12 @@ Internally, ``OPTIMIZE TABLE`` is mapped to ``ALTER TABLE ... ENGINE=innodb`` fo
 Caveats
 -------
 
-InnoDB fast index creation uses temporary files in tmpdir for all indexes being created. So make sure you have enough tmpdir space when using :variable:`expand_fast_index_creation`. It is a session variable, so you can temporarily switch it off if you are short on tmpdir space and/or don’t want this optimization to be used for a specific table. 
+InnoDB fast index creation uses temporary files in tmpdir for all indexes being created. So make sure you have enough tmpdir space when using :ref:`expand_fast_index_creation`. It is a session variable, so you can temporarily switch it off if you are short on tmpdir space and/or don’t want this optimization to be used for a specific table. 
 
 There’s also a number of cases when this optimization is not applicable:
   * ``UNIQUE`` indexes in ``ALTER TABLE`` are ignored to enforce uniqueness where necessary when copying the data to a temporary table;
 
-  * ``ALTER TABLE`` and ``OPTIMIZE TABLE`` always process tables containing foreign keys as if :variable:`expand_fast_index_creation` is OFF to avoid dropping keys that are part of a FOREIGN KEY constraint;
+  * ``ALTER TABLE`` and ``OPTIMIZE TABLE`` always process tables containing foreign keys as if :ref:`expand_fast_index_creation` is OFF to avoid dropping keys that are part of a FOREIGN KEY constraint;
 
   * :command:`mysqldump --innodb-optimize-keys` ignores foreign keys because InnoDB requires a full table rebuild on foreign key changes. So adding them back with a separate ``ALTER TABLE`` after restoring the data from a dump would actually make the restore slower;
 
@@ -55,21 +55,32 @@ There’s also a number of cases when this optimization is not applicable:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6
+  * :ref:`5.7.10-1`: Feature ported from *Percona Server for MySQL* 5.6
 
 System Variables
 ================
 
-.. variable:: expand_fast_index_creation
+.. _expand_fast_index_creation:
 
-     :cli: Yes
-     :conf: No
-     :scope: Local/Global
-     :dyn: Yes
-     :vartype: Boolean
-     :default: OFF
-     :range: ON/OFF
+.. rubric:: ``expand_fast_index_creation``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - No
+   * - Scope
+     - Local/Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - ON/OFF
 
 Other Reading
 =============

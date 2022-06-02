@@ -3788,19 +3788,18 @@ static bool is_number(const char *str,
     nonzero if not possible to get unique filename.
 */
 
-static int find_uniq_filename(char *name, ulong *next, bool need_next)
+static int find_uniq_filename(char *name)
 {
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
   struct st_my_dir     *dir_info;
   struct fileinfo *file_info;
-  ulong                 max_found= 0, number= 0;
+  ulong                 max_found= 0, next= 0, number= 0;
   size_t		buf_length, length;
   char			*start, *end;
   int                   error= 0;
   DBUG_ENTER("find_uniq_filename");
 
-  *next= 0;
   length= dirname_part(buff, name, &buf_length);
   start=  name + length;
   end=    strend(start);
@@ -3835,8 +3834,8 @@ updating the index files.", max_found);
     goto end;
   }
 
-  *next= (need_next || max_found == 0) ? max_found + 1 : max_found;
-  if (sprintf(ext_buf, "%06lu", *next) < 0)
+  next= max_found + 1;
+  if (sprintf(ext_buf, "%06lu", next)<0)
   {
     error= 1;
     goto end;
@@ -3857,48 +3856,36 @@ index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
     goto end;
   }
 
-  if (sprintf(end, "%06lu", *next) < 0)
+  if (sprintf(end, "%06lu", next)<0)
   {
     error= 1;
     goto end;
   }
 
   /* print warning if reaching the end of available extensions. */
-  if ((*next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
+  if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
     sql_print_warning("Next log extension: %lu. \
 Remaining log filename extensions: %lu. \
-Please consider archiving some logs.", *next, (MAX_LOG_UNIQUE_FN_EXT - *next));
+Please consider archiving some logs.", next, (MAX_LOG_UNIQUE_FN_EXT - next));
 
 end:
   DBUG_RETURN(error);
 }
 
-bool generate_new_log_name(char *new_name, ulong *new_ext,
-                           const char *log_name, bool is_binlog)
+int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name)
 {
   fn_format(new_name, log_name, mysql_data_home, "", 4);
   if (!fn_ext(log_name)[0])
   {
-    if (is_binlog || max_slowlog_size > 0)
-    {
-      ulong scratch;
-      if (find_uniq_filename(new_name, new_ext ? new_ext : &scratch,
-                             is_binlog))
+      if (find_uniq_filename(new_name))
       {
         my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
                         MYF(ME_FATALERROR), log_name);
         sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
-        return true;
+        return 1;
       }
-    }
-    else if (max_slowlog_size == 0 && new_ext)
-    {
-      /* For slow query log files, reset any extension counter in progress,
-      if max_slowlog_size has been reset back to zero, meaning no rotation */
-      *new_ext= (ulong)-1;
-    }
   }
-  return false;
+  return 0;
 }
 
 /**
@@ -3930,8 +3917,7 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
 {
   if (new_name && !my_stpcpy(log_file_name, new_name))
     return TRUE;
-  else if (!new_name && generate_new_log_name(log_file_name, NULL, log_name,
-                                              true))
+  else if (!new_name && generate_new_name(log_file_name, log_name))
     return TRUE;
 
   return FALSE;
@@ -7553,7 +7539,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     new file name in the current binary log file.
   */
   new_name_ptr= new_name;
-  if ((error= generate_new_log_name(new_name, NULL, name, true)))
+  if ((error= generate_new_name(new_name, name)))
   {
     // Use the old name if generation of new name fails.
     strcpy(new_name, name);

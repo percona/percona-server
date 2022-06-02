@@ -10,6 +10,11 @@ The easiest way to install the *Percona Yum* repository is to install an *RPM* t
 
 Specific information on the supported platforms, products, and versions are described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
+.. note:: 
+
+    The RPM packages for Red Hat Enterprise Linux 7 (and compatible derivatives) do not support TLSv1.3, as it requires OpenSSL 1.1.1, which is currently not available on this platform. 
+  
+
 What's in each RPM package?
 ===========================
 
@@ -187,6 +192,10 @@ You can use the following command to locate the Data directory:
 Running |Percona Server|
 ========================
 
+.. note::
+
+  *RHEL* 7 and *CentOS* 7 come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
+
 1. Starting the service
 
    |Percona Server| does not start automatically on *RHEL* and *CentOS* after
@@ -222,7 +231,7 @@ Running |Percona Server|
 
 .. note::
 
-  *RHEL* 7 and *CentOS* 7 come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
+  The *RHEL* 8 distributions and derivatives have added `system-wide cryptographic policies component <https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/security_hardening/using-the-system-wide-cryptographic-policies_security-hardening>`__. This component allows the configuration of cryptographic subsystems. 
 
 Uninstalling |Percona Server|
 =============================

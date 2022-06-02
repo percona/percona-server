@@ -4736,7 +4736,7 @@ prepare_inplace_alter_table_dict(
 		key_id= ha_alter_info->create_info->encryption_key_id;
 
 		// re-encrypting, check that key used to encrypt table is present
-		if (DICT_TF2_FLAG_SET(ctx->old_table, DICT_TF2_ENCRYPTION)) {
+		if (DICT_TF2_FLAG_IS_SET(ctx->old_table, DICT_TF2_ENCRYPTION)) {
 			if (Encryption::is_master_key_encryption(old_table->s->encrypt_type.str)) {
 				// re-encrypting from master key encryption
 				/* Check if keyring is ready. */
@@ -4800,7 +4800,7 @@ prepare_inplace_alter_table_dict(
 		} else if (!(ctx->new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE)
 		    && ha_alter_info->create_info->encrypt_type.length > 0
 		    && Encryption::is_master_key_encryption(encrypt)
-		    && !DICT_TF2_FLAG_SET(ctx->old_table,
+		    && !DICT_TF2_FLAG_IS_SET(ctx->old_table,
 					  DICT_TF2_ENCRYPTION)) {
 
 			dict_mem_table_free( ctx->new_table);

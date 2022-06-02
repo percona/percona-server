@@ -3913,7 +3913,7 @@ static lsn_t srv_shutdown_log() {
 
   srv_wake_log_tracker_thread();
 
-  if (srv_downgrade_logs) {
+  if (srv_downgrade_logs || dd_init_failed_during_upgrade) {
     ut_a(!srv_read_only_mode);
 
     log_files_downgrade(*log_sys);

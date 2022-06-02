@@ -483,6 +483,7 @@ jobs:
         -DWITH_PAM=ON
       "
 
+
       if [[ "$OS_NAME" == "Darwin" ]]; then
         CMAKE_OPT+="
           -DMYSQL_MAINTAINER_MODE=OFF

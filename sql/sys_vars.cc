@@ -5432,7 +5432,7 @@ static Sys_var_charptr Sys_slow_log_path(
        "slow_query_log_file", "Log slow queries to given log file. "
        "Defaults logging to hostname-slow.log. Must be enabled to activate "
        "other slow log options",
-       GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
+       PREALLOCATED GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 

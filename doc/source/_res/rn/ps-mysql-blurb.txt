@@ -1,0 +1,13 @@
+`Percona Server for MySQL <https://www.percona.com/software/mysql-database/percona-server>`_ 5.7.38-41
+includes all the features and bug fixes available in `MySQL 5.7.38 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-38.html>`__ in addition to enterprise-grade features developed by Percona.
+
+*Percona Server for MySQL* is a free, fully compatible, enhanced, and open
+source drop-in replacement for any *MySQL* database. It provides superior
+performance, scalability, and instrumentation.
+
+*Percona Server for MySQL* is trusted by thousands of enterprises to provide
+better performance and concurrency for their most demanding workloads. It
+delivers more value to *MySQL* server users with optimized performance,
+greater performance scalability and availability, enhanced backups, and
+increased visibility. `Commercial support contracts are available
+<https://www.percona.com/services/support/mysql-support>`__.

@@ -4721,6 +4721,9 @@ static void dump_table(char *table, char *db)
     {
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
+
+      my_free(order_by);
+      order_by = 0;
     }
 
     if (mysql_real_query(mysql, query_string.str, (ulong)query_string.length))
@@ -4773,6 +4776,9 @@ static void dump_table(char *table, char *db)
 
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
+
+      my_free(order_by);
+      order_by = 0;
     }
 
     if (!opt_xml && !opt_compact)
@@ -5761,8 +5767,6 @@ static int dump_all_tables_in_db(char *database)
     if (include_table((uchar*) hash_key, end - hash_key))
     {
       dump_table(table,database);
-      my_free(order_by);
-      order_by= 0;
       if (opt_dump_triggers && mysql_get_server_version(mysql) >= 50009)
       {
         if (dump_triggers_for_table(table, database))
@@ -5847,6 +5851,10 @@ static int dump_all_tables_in_db(char *database)
                                real_columns))
         verbose_msg("-- Warning: get_table_structure() failed with some internal "
                     "error for 'general_log' table\n");
+      if (order_by) {
+        my_free(order_by);
+        order_by = 0;
+      }
     }
     if (slow_log_table_exists)
     {
@@ -5855,6 +5863,10 @@ static int dump_all_tables_in_db(char *database)
                                real_columns))
         verbose_msg("-- Warning: get_table_structure() failed with some internal "
                     "error for 'slow_log' table\n");
+      if (order_by) {
+        my_free(order_by);
+        order_by = 0;
+      }
     }
   }
   if (flush_privileges && using_mysql_db)
@@ -6130,8 +6142,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     dump_routines_for_db(db);
   }
   free_root(&root, MYF(0));
-  my_free(order_by);
-  order_by= 0;
   if (opt_xml)
   {
     fputs("</database>\n", md_result_file);

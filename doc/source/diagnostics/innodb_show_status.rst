@@ -127,9 +127,7 @@ Makes InnoDB to write information about all lock wait timeout errors
 into the log file. 
 
 This allows to find out details about the failed transaction, and, most 
-importantly, the blocking transaction. Query string can be obtained from 
-:ref:`EVENTS_STATEMENTS_CURRENT` table, based on the 
-``PROCESSLIST_ID`` field, which corresponds to ``thread_id`` from the log
+importantly, the blocking transaction. Query string can be obtained from :ref:`EVENTS_STATEMENTS_CURRENT` table, based on the ``PROCESSLIST_ID`` field, which corresponds to ``thread_id`` from the log
 output.
 
 Taking into account that blocking transaction is often a multiple statement 

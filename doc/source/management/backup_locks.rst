@@ -4,7 +4,7 @@
  Backup Locks
 ==============
 
-|Percona Server| has implemented this feature to be a lightweight alternative to ``FLUSH TABLES WITH READ LOCK`` for both physical and logical backups. Three new statements are now available: ``LOCK TABLES FOR BACKUP``, ``LOCK BINLOG FOR BACKUP`` and ``UNLOCK BINLOG``.
+*Percona Server for MySQL* has implemented this feature to be a lightweight alternative to ``FLUSH TABLES WITH READ LOCK`` for both physical and logical backups. Three new statements are now available: ``LOCK TABLES FOR BACKUP``, ``LOCK BINLOG FOR BACKUP`` and ``UNLOCK BINLOG``.
 
 ``LOCK TABLES FOR BACKUP``
 ---------------------------
@@ -28,7 +28,7 @@ If an "unsafe" statement is executed in the same connection that is holding a ``
 
 .. _backup-safe_binlog_information:
 
-``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to InnoDB. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in InnoDB are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable |Percona XtraBackup| to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
+``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to InnoDB. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in InnoDB are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable *Percona XtraBackup* to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
 
 ``UNLOCK BINLOG``
 ------------------
@@ -53,16 +53,16 @@ Interaction with other global locks
 
 Both ``LOCK TABLES FOR BACKUP`` and ``LOCK BINLOG FOR BACKUP`` have no effect if the current connection already owns a ``FLUSH TABLES WITH READ LOCK`` lock, as it's a more restrictive lock. If ``FLUSH TABLES WITH READ LOCK`` is executed in a connection that has acquired ``LOCK TABLES FOR BACKUP`` or ``LOCK BINLOG FOR BACKUP``, ``FLUSH TABLES WITH READ LOCK`` fails with an error.
 
-If the server is operating in the read-only mode (i.e. :variable:`read_only` set to ``1``), statements that are unsafe for backups will be either blocked or fail with an error, depending on whether they are executed in the same connection that owns ``LOCK TABLES FOR BACKUP`` lock, or other connections.
+If the server is operating in the read-only mode (i.e. :ref:`read_only` set to ``1``), statements that are unsafe for backups will be either blocked or fail with an error, depending on whether they are executed in the same connection that owns ``LOCK TABLES FOR BACKUP`` lock, or other connections.
 
 MyISAM index and data buffering
 -------------------------------
 
 MyISAM key buffering is normally write-through, i.e. by the time each update to a MyISAM table is completed, all index updates are written to disk. The only exception is delayed key writing feature which is disabled by default. 
 
-When the global system variable :variable:`delay_key_write` is set to ``ALL``, key buffers for all MyISAM tables are not flushed between updates, so a physical backup of those tables may result in broken MyISAM indexes. To prevent this, ``LOCK TABLES FOR BACKUP`` will fail with an error if ``delay_key_write`` is set to ``ALL``. An attempt to set :variable:`delay_key_write` to ``ALL`` when there's an active backup lock will also fail with an error. 
+When the global system variable :ref:`delay_key_write` is set to ``ALL``, key buffers for all MyISAM tables are not flushed between updates, so a physical backup of those tables may result in broken MyISAM indexes. To prevent this, ``LOCK TABLES FOR BACKUP`` will fail with an error if ``delay_key_write`` is set to ``ALL``. An attempt to set :ref:`delay_key_write` to ``ALL`` when there's an active backup lock will also fail with an error. 
 
-Another option to involve delayed key writing is to create MyISAM tables with the DELAY_KEY_WRITE option and set the :variable:`delay_key_write` variable to ``ON`` (which is the default). In this case, ``LOCK TABLES FOR BACKUP`` will not be able to prevent stale index files from appearing in the backup. Users are encouraged to set :variable:`delay_key_writes` to ``OFF`` in the configuration file, :file:`my.cnf`, or repair MyISAM indexes after restoring from a physical backup created with backup locks.
+Another option to involve delayed key writing is to create MyISAM tables with the DELAY_KEY_WRITE option and set the :ref:`delay_key_write` variable to ``ON`` (which is the default). In this case, ``LOCK TABLES FOR BACKUP`` will not be able to prevent stale index files from appearing in the backup. Users are encouraged to set :ref:`delay_key_writes` to ``OFF`` in the configuration file, :file:`my.cnf`, or repair MyISAM indexes after restoring from a physical backup created with backup locks.
 
 MyISAM may also cache data for bulk inserts, e.g. when executing multi-row INSERTs or ``LOAD DATA`` statements. Those caches, however, are flushed between statements, so have no effect on physical backups as long as all statements updating MyISAM tables are blocked.
 
@@ -77,69 +77,133 @@ Option :option:`lock-for-backup` is mutually exclusive with :option:`lock-all-ta
 
 If the backup locks feature is not supported by the target server, but :option:`lock-for-backup` is specified on the command line, ``mysqldump`` aborts with an error.
 
-|Percona XtraBackup| provides the `--backup-locks <https://www.percona.com/doc/percona-xtrabackup/2.4/innobackupex/innobackupex_option_reference.html#cmdoption-innobackupex-backup-locks>`_ option. If you disable this option, ``Flush Table with Read Lock`` is used on the backup stage.
+*Percona XtraBackup* provides the `--backup-locks <https://www.percona.com/doc/percona-xtrabackup/2.4/innobackupex/innobackupex_option_reference.html#cmdoption-innobackupex-backup-locks>`_ option. If you disable this option, ``Flush Table with Read Lock`` is used on the backup stage.
 
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
-        Feature ported from |Percona Server| 5.6
+  * :ref:`5.7.10-1`: Feature ported from *Percona Server for MySQL* 5.6
 
 System Variables
 ================
 
-.. variable:: have_backup_locks
+.. _have_backup_locks:
 
-     :cli: Yes
-     :conf: No
-     :scope: Global
-     :dyn: No
-     :vartype: Boolean
-     :default: YES
+.. rubric:: ``have_backup_locks``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - No
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - Boolean
+   * - Default
+     - YES
 
 This is a server variable implemented to help other utilities decide what locking strategy can be implemented for a server. When available, the backup locks feature is supported by the server and the variable value is always ``YES``.
 
-.. variable:: have_backup_safe_binlog_info
+.. _have_backup_safe_binlog_info:
 
-     :cli: Yes
-     :conf: No
-     :scope: Global
-     :dyn: No
-     :vartype: Boolean
-     :default: YES
+.. rubric:: ``have_backup_safe_binlog_info``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - No
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - Boolean
+   * - Default
+     - YES
 
 This is a server variable implemented to help other utilities decide if ``LOCK BINLOG FOR BACKUP`` can be avoided in some cases. When the necessary server-side functionality is available, this server system variable exists and its value is always ``YES``.
 
 Status Variables
 ================
 
-.. variable:: Com_lock_tables_for_backup
+.. _Com_lock_tables_for_backup:
 
-     :vartype: Numeric
-     :scope: Global/Session
+.. rubric:: ``Com_lock_tables_for_backup``
 
-.. variable:: Com_lock_binlog_for_backup
+.. list-table::
+   :header-rows: 1
 
-     :vartype: Numeric
-     :scope: Global/Session
+   * - Option
+     - Description
+   * - Scope
+     - Global/Session
+   * - Data type
+     - Numeric
 
-.. variable:: Com_unlock_binlog
+.. _Com_lock_binlog_for_backup:
 
-     :vartype: Numeric
-     :scope: Global/Session
+.. rubric:: ``Com_lock_binlog_for_backup``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global/Session
+   * - Data type
+     - Numeric
+
+.. _Com_unlock_binlog:
+
+.. rubric:: ``Com_unlock_binlog``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global/Session
+   * - Data type
+     - Numeric
 
 These status variables indicate the number of times the corresponding statements have been executed.
 
 Client Command Line Parameter
 =============================
 
-.. option:: lock-for-backup
+.. _lock-for-backup:
 
-     :cli: Yes
-     :scope: Global
-     :dyn: No
-     :vartype: String
-     :default: Off
+.. rubric:: ``lock-for-backup``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - Off
 
 When used together with the :option:`--single-transaction` option, the option makes ``mysqldump`` issue ``LOCK TABLES FOR BACKUP`` before starting the dump operation to prevent unsafe statements that would normally result in an inconsistent backup.
 

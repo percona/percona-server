@@ -21,8 +21,8 @@ item that contains ``a`` or ``i`` will be ignored. Another word that can't be
 searched is ``east``, this one will find no matches because ``a`` is on the
 FTS stopword list.
 
-To resolve this issue, in |Percona Server| :rn:`5.7.20-18` a new
-:variable:`innodb_ft_ignore_stopwords` variable has been implemented
+To resolve this issue, in *Percona Server for MySQL* :ref:`5.7.20-18` a new
+:ref:`innodb_ft_ignore_stopwords` variable has been implemented
 which controls whether InnoDB Full-Text Search should ignore stopword list.
 
 Although this variable is introduced to resolve n-gram issues, it affects
@@ -34,7 +34,7 @@ words from the list. Tokens shorter than `innodb_ft_min_token_size
 or longer than `innodb_ft_max_token_size
 <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_ft_max_token_size>`_
 are also considered stopwords. Therefore, when
-:variable:`innodb_ft_ignore_stopwords` is set to ``ON`` even for non-ngram
+:ref:`innodb_ft_ignore_stopwords` is set to ``ON`` even for non-ngram
 FTS, ``innodb_ft_min_token_size`` / ``innodb_ft_max_token_size`` will be
 ignored meaning that in this case very short and very long words will
 also be indexed.
@@ -42,14 +42,27 @@ also be indexed.
 System Variables
 ----------------
 
-.. variable:: innodb_ft_ignore_stopwords
+.. _innodb_ft_ignore_stopwords:
 
-  :cli: Yes
-  :conf: Yes
-  :scope: Session, Global
-  :dyn: Yes
-  :vartype: Boolean
-  :default: ``OFF``
+.. rubric:: ``innodb_ft_ignore_stopwords``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global, Session
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
 
 When enabled, this variable will instruct InnoDB Full Text Search
 parser to ignore the stopword list when building/updating an FTS index.
@@ -61,8 +74,8 @@ Punctuation Marks in Full-Text Search
 
 By default, full text search is unable to find words with various punctuation
 characters in boolean search mode, although those characters are
-indexed with ngram parser. A new variable :variable:`ft_query_extra_word_chars`
-was introduced in |Percona Server| :rn:`5.7.21-20` to solve this issue.
+indexed with ngram parser. A new variable :ref:`ft_query_extra_word_chars`
+was introduced in *Percona Server for MySQL* :ref:`5.7.21-20` to solve this issue.
 
 When it's enabled, all the non-whitespace symbols are considered to be
 word symbols by FTS query parser, except for the boolean search syntax
@@ -76,14 +89,27 @@ return documents.
 System Variables
 ----------------
 
-.. variable:: ft_query_extra_word_chars
+.. _ft_query_extra_word_chars:
 
-  :cli: Yes
-  :conf: Yes
-  :scope: Session, Global
-  :dyn: Yes
-  :vartype: Boolean
-  :default: ``OFF``
+.. rubric:: ``ft_query_extra_word_chars``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global, Session
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
 
 When enabled, this variable will make all non-whitespace symbols (including
 punctuation marks) to be treated as word symbols in full-text search queries.

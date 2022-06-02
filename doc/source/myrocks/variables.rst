@@ -832,8 +832,7 @@ Implemented in :ref:`5.7.19-17`.
    * - Default
      - ``OFF``
 
-Specifies whether to commit rows implicitly
-when a batch contains more than the value of :ref:`rocksdb_bulk_load_size`.
+Specifies whether to commit rows implicitly when a batch contains more than the value of :ref:`rocksdb_bulk_load_size`.
 
 This variable is disabled by default. 
 

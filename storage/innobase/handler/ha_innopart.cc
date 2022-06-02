@@ -1059,17 +1059,10 @@ share_error:
 	m_upd_buf = NULL;
 	m_upd_buf_size = 0;
 
-	/* Get pointer to a table object in InnoDB dictionary cache. */
-	ib_table = m_part_share->get_table_part(0);
 
 	m_pcur_parts = NULL;
 	m_clust_pcur_parts = NULL;
 	m_pcur_map = NULL;
-
-    if (ib_table->corrupted) {
-        close();
-        DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    }
 
 	/* TODO: Handle mismatching #P# vs #p# in upgrading to new DD instead!
 	See bug#58406, The problem exists when moving partitioned tables
@@ -1095,42 +1088,47 @@ share_error:
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
-	bool	no_tablespace;
 
-	/* TODO: Should we do this check for every partition during ::open()? */
 	/* TODO: refactor this in ha_innobase so it can increase code reuse. */
-	if (dict_table_is_discarded(ib_table)) {
+	for (uint part_id = 0; part_id < m_tot_parts; part_id++) {
+		bool	no_tablespace;
+		ib_table = m_part_share->get_table_part(part_id);
+		if (dict_table_is_discarded(ib_table)) {
 
-		ib_senderrf(thd,
-			IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
-			table->s->table_name.str);
+			ib_senderrf(thd,
+				IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
+				table->s->table_name.str);
 
-		/* Allow an open because a proper DISCARD should have set
-		all the flags and index root page numbers to FIL_NULL that
-		should prevent any DML from running but it should allow DDL
-		operations. */
+			/* Allow an open because a proper DISCARD should have set
+			all the flags and index root page numbers to FIL_NULL that
+			should prevent any DML from running but it should allow DDL
+			operations. */
 
-		no_tablespace = false;
+			no_tablespace = false;
 
-	} else if (ib_table->file_unreadable) {
+		} else if (ib_table->file_unreadable || ib_table->corrupted) {
 
-		ib_senderrf(
-			thd, IB_LOG_LEVEL_WARN,
-			ER_TABLESPACE_MISSING, norm_name);
+			ib_senderrf(
+				thd, IB_LOG_LEVEL_WARN,
+				ER_TABLESPACE_MISSING, norm_name);
 
-		/* This means we have no idea what happened to the tablespace
-		file, best to play it safe. */
+			/* This means we have no idea what happened to the tablespace
+			file, best to play it safe. */
 
-		no_tablespace = true;
-	} else {
-		no_tablespace = false;
+			no_tablespace = true;
+		} else {
+			no_tablespace = false;
+		}
+
+		if (!thd_tablespace_op(thd) && no_tablespace) {
+			set_my_errno(ENOENT);
+			close();
+			DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+		}
 	}
 
-	if (!thd_tablespace_op(thd) && no_tablespace) {
-                set_my_errno(ENOENT);
-		close();
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-	}
+	/* Get pointer to a table object in InnoDB dictionary cache. */
+	ib_table = m_part_share->get_table_part(0);
 
 	m_prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
 

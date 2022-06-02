@@ -362,6 +362,12 @@ jobs:
         -DWITH_PAM=ON
       "
 
+      if [[ ( "$(Compiler)" == "gcc" ) && ( $(bc <<< "$(CompilerVer) < 8.1") -eq 1 ) ]]; then
+        CMAKE_OPT+="
+          -DWITH_ROUTER=OFF
+        "
+      fi
+
       if [[ "$OS_NAME" == "Darwin" ]]; then
         CMAKE_OPT+="
           -DMYSQL_MAINTAINER_MODE=OFF

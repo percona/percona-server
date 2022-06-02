@@ -1,0 +1,5 @@
+Deprecation and removal
+=================================================
+
+* The ``myisam_repair_threads`` system variable is deprecated. Values other than 1 (the default) for ``myisam_repair_threads`` throw a warning. Support for this variable may be removed in future versions. 
+* **myisamchk** ``--parallel-recover`` option is deprecated. Support for this option may be removed in future versions.

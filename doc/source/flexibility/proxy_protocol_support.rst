@@ -25,19 +25,31 @@ As a special exception, it is forbidden for the proxied IP address to be either 
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-    Feature ported from |Percona Server| 5.6
+  * :ref:`5.7.10-1`:
+    Feature ported from *Percona Server for MySQL* 5.6
 
 System Variables
 ================
 
-.. variable:: proxy_protocol_networks
+.. _proxy_protocol_networks:
 
-  :cli: Yes
-  :conf: Yes
-  :scope: Global
-  :dyn: No
-  :default: ``(empty string)``
+.. rubric:: ``proxy_protocol_networks``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Default
+     - ``(empty string)``
 
 This variable is a global-only, read-only variable. The available values are:
 

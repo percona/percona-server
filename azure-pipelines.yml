@@ -476,6 +476,12 @@ jobs:
         -DWITH_PAM=ON
       "
 
+      if [[ ( "$(Compiler)" == "gcc" ) && ( $(bc <<< "$(CompilerVer) < 8.1") -eq 1 ) ]]; then
+        CMAKE_OPT+="
+          -DWITH_ROUTER=OFF
+        "
+      fi
+
       if [[ "$OS_NAME" == "Darwin" ]]; then
         OPENSSL_PREFIX=$(brew --prefix openssl@3)
         CMAKE_OPT+="

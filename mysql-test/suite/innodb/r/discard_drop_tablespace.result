@@ -1,5 +1,5 @@
 #
-# Bug PS#8190 ASSERT AFTER DISCARD TABLESPACE followed by Drop Table
+# Bug PS#8190 Assertion Failure buf0buf.cc:4318:page_size.equals_to(space_page_size)
 #
 CREATE TABLE tt_4 (ipkey INT, i1 INT AUTO_INCREMENT, v2 VARCHAR(11), i3 INT, v4 VARCHAR(12), i5 INT,  PRIMARY KEY(ipkey), INDEX tt_4i0(i5, i3 DESC, v2 DESC) , INDEX tt_4i1(i3, i1, v4 ASC) , INDEX tt_4i2(i5, v2, i1) , INDEX tt_4i3(ipkey DESC, i5 ASC, i3 DESC, v4 ASC, v2 DESC) , INDEX tt_4i4(i1 DESC, v2 DESC, v4, i3)  ) ENCRYPTION='N' ENGINE=InnoDB ;
 INSERT INTO tt_4  ( ipkey ,i1 ,v2 ,i3 ,v4 ,i5 ) VALUES( 3996, 40643, '3UpuyZ', 40507, 'vABx6pjGVGit', 9934 ) ;
@@ -420,3 +420,6 @@ UPDATE tt_4 SET v4 = '0XDERmZU' WHERE ipkey = 48453 ;
 DELETE FROM tt_4 WHERE i3 = 28565 ;
 ALTER TABLE tt_4 DISCARD TABLESPACE ;
 DROP TABLE tt_4 ;
+CREATE TABLE t1(a INT) ENGINE=innodb;
+ALTER TABLE t1 DISCARD TABLESPACE;
+DROP TABLE t1;

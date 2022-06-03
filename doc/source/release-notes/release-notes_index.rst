@@ -8,6 +8,8 @@
 .. toctree::
    :maxdepth: 1
 
+   Percona-Server-8.0.28-20
+
    Percona-Server-8.0.28-19
     
    Percona Server for MySQL 8.0.27-18 (2022-03-02) <Percona-Server-8.0.27-18.rst>

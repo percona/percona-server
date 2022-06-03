@@ -4,14 +4,19 @@
 *Percona Server for MySQL* 8.0.28-19 (2022-05-12)
 ================================================================================
 
+`Percona Server for MySQL <https://www.percona.com/software/mysql-database/percona-server>`_ 8.0.28-19
+includes all the features and bug fixes available in the
+`MySQL 8.0.28 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-28.html>`__
+in addition to enterprise-grade features developed by Percona.
+
 .. include:: ../_res/rn/ps-mysql-blurb.txt
 
 .. contents::
    :local:
 
-.. include:: ../_res/rn/8.0.28-highlights.txt
+.. include:: ../_res/rn/8.0.28-19-highlights.txt
 
-.. include:: ../_res/rn/deprecated.txt
+.. include:: ../_res/rn/8.0.28-19-deprecated.txt
 
 Improvement
 =================================================

@@ -1,10 +1,10 @@
 Useful links
 ========================
 
-- This location contains the `Percona Server for MySQL installation instructions <https://www.percona.com/doc/percona-server/LATEST/installation.html>`__.
+- The `Percona Server for MySQL installation instructions <https://www.percona.com/doc/percona-server/LATEST/installation.html>`__
 
-- This location contains the `Percona Software downloads <https://www.percona.com/downloads/>`__.
+- The `Percona Software downloads <https://www.percona.com/downloads/>`__
 
-- This location contains the `Percona Server for MySQL GitHub repository <https://github.com/percona/percona-server>`__. 
+- The `Percona Server for MySQL GitHub location <https://github.com/percona/percona-server>`__ 
 
-- To contribute to the documentation, the `Percona Server for MySQL Documentation Contribution Guide provides the instructions <https://github.com/percona/percona-server/blob/8.0/doc/source/contributing.md>`__.
+- To contribute to the documentation, review the `Documentation Contribution Guide <https://github.com/percona/percona-server/blob/8.0/doc/source/contributing.md>`__

@@ -79,9 +79,12 @@ inline void SetJoinConditions(const mem_root_deque<Table_ref *> &join_list);
 
 inline void DestroyFakeTables(
     const std::unordered_map<string, Fake_TABLE *> &fake_tables) {
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wunused-variable")
   for (const auto &[name, table] : fake_tables) {
     destroy(table);
   }
+  MY_COMPILER_DIAGNOSTIC_POP()
 }
 
 namespace optimizer_test {

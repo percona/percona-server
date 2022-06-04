@@ -44,6 +44,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
@@ -230,7 +231,10 @@ class CostingReceiver {
 
   size_t num_access_paths() const {
     size_t access_paths = 0;
+    MY_COMPILER_DIAGNOSTIC_PUSH()
+    MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wunused-variable")
     for (const auto &[nodes, pathset] : m_access_paths) {
+      MY_COMPILER_DIAGNOSTIC_POP()
       access_paths += pathset.paths.size();
     }
     return access_paths;
@@ -3449,8 +3453,11 @@ void CostingReceiver::ProposeNestedLoopJoin(
       const CachedPropertiesForPredicate &properties =
           edge->expr->properties_for_equijoin_conditions[join_cond_idx];
 
+      MY_COMPILER_DIAGNOSTIC_PUSH()
+      MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wunused-variable")
       const auto [already_applied_as_sargable, subsumed] =
           AlreadyAppliedAsSargable(condition, left_path, right_path);
+      MY_COMPILER_DIAGNOSTIC_POP()
       if (!subsumed) {
         equijoin_predicates.SetBit(join_cond_idx);
         inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
@@ -3565,8 +3572,11 @@ double CostingReceiver::FindAlreadyAppliedSelectivity(
     const CachedPropertiesForPredicate &properties =
         edge->expr->properties_for_equijoin_conditions[join_cond_idx];
 
+    MY_COMPILER_DIAGNOSTIC_PUSH()
+    MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wunused-variable")
     const auto [already_applied_as_sargable, subsumed] =
         AlreadyAppliedAsSargable(condition, left_path, right_path);
+    MY_COMPILER_DIAGNOSTIC_POP()
     if (already_applied_as_sargable) {
       // This predicate was already applied as a ref access earlier.
       // Make sure not to double-count its selectivity, and also

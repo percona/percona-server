@@ -1,0 +1,218 @@
+--source include/have_udf.inc
+
+--echo ***
+--echo *** creating test UDF functions
+--echo ***
+--replace_result $TEST_UDF_WRAPPERS_LIB TEST_UDF_WRAPPERS_LIB
+eval CREATE FUNCTION wrapped_udf_string RETURNS STRING SONAME '$TEST_UDF_WRAPPERS_LIB';
+--replace_result $TEST_UDF_WRAPPERS_LIB TEST_UDF_WRAPPERS_LIB
+eval CREATE FUNCTION wrapped_udf_real RETURNS REAL SONAME '$TEST_UDF_WRAPPERS_LIB';
+--replace_result $TEST_UDF_WRAPPERS_LIB TEST_UDF_WRAPPERS_LIB
+eval CREATE FUNCTION wrapped_udf_int RETURNS INTEGER SONAME '$TEST_UDF_WRAPPERS_LIB';
+
+
+--echo ***
+--echo *** checking 'wrapped_udf_string()'
+--echo ***
+
+--echo
+--echo * regardless of the exception thrown from the 'wrapped_udf_string_impl' class constructor
+--echo * it will always be translated into 'ER_CANT_INITIALIZE_UDF' client error code
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_string() AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_string('', '', '') AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_string('', '', '', '') AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_string('', '', '', '', '') AS result;
+
+
+--echo
+--echo * for NULL parameter NULL is expected to be returned
+--echo * string parameters are expected to be wrapped into '{' and '}'
+--echo * integer and real values are expected to be converted to strings and then wrapped into '{' and '}'
+--let $assert_text = Checking wrapped_udf_string(): NULL
+--let $assert_cond = wrapped_udf_string(NULL) IS NULL
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_string(): ""
+--let $assert_cond = wrapped_udf_string("") = "{}"
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_string(): " "
+--let $assert_cond = wrapped_udf_string(" ") = "{ }"
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_string(): "abc"
+--let $assert_cond = wrapped_udf_string("abc") = "{abc}"
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_string(): "42"
+--let $assert_cond = wrapped_udf_string("42") = "{42}"
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_string(): "0.5"
+--let $assert_cond = wrapped_udf_string("0.5") = "{0.5}"
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_string(): 42
+--let $assert_cond = wrapped_udf_string(42) = "{42}"
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_string(): 0.5
+--let $assert_cond = wrapped_udf_string(0.5) = "{0.5}"
+--source include/assert.inc
+
+--echo ***
+--echo *** checking 'wrapped_udf_real()'
+--echo ***
+
+--echo
+--echo * regardless of the exception thrown from the 'wrapped_udf_real_impl' class constructor
+--echo * it will always be translated into 'ER_CANT_INITIALIZE_UDF' client error code
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_real() AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_real('', '', '') AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_real('', '', '', '') AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_real('', '', '', '', '') AS result;
+
+--echo
+--echo * for NULL parameter NULL is expected to be returned
+--echo * real parameters are expected to be incremented by 0.25
+--echo * integer parameters are expected to be converted to reals and incremented by 0.25
+--echo * strings containing proper integer/real values are expected to be converted to reals and incremented by 0.25
+--echo * strings containing invalid numeric values are expected to be converted to 0.0 and incremented by 0.25
+--let $assert_text = Checking wrapped_udf_real(): NULL
+--let $assert_cond = wrapped_udf_real(NULL) IS NULL
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_real(): ""
+--let $assert_cond = wrapped_udf_real("") = 0.25
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_real(): " "
+--let $assert_cond = wrapped_udf_real(" ") = 0.25
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_real(): "abc"
+--let $assert_cond = wrapped_udf_real("abc") = 0.25
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_real(): "42"
+--let $assert_cond = wrapped_udf_real("42") = 42.25
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_real(): "0.5"
+--let $assert_cond = wrapped_udf_real("0.5") = 0.75
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_real(): 42
+--let $assert_cond = wrapped_udf_real(42) = 42.25
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_real(): 0.5
+--let $assert_cond = wrapped_udf_real(0.5) = 0.75
+--source include/assert.inc
+
+--echo ***
+--echo *** checking 'wrapped_udf_int()'
+--echo ***
+
+--echo
+--echo * regardless of the exception thrown from the 'wrapped_udf_int_impl' class constructor
+--echo * it will always be translated into 'ER_CANT_INITIALIZE_UDF' client error code
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_int() AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_int('', '', '') AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_int('', '', '', '') AS result;
+--error ER_CANT_INITIALIZE_UDF
+SELECT wrapped_udf_int('', '', '', '', '') AS result;
+
+--echo
+--echo * for NULL parameter NULL is expected to be returned
+--echo * real parameters are expected to be converted to integers and incremented by 100
+--echo * integer parameters are expected to be incremented by 100
+--echo * strings containing proper integer/real values are expected to be converted to integers and incremented by 100
+--echo * strings containing invalid numeric values are expected to be converted to 0 and incremented by 100
+--let $assert_text = Checking wrapped_udf_int(): NULL
+--let $assert_cond = wrapped_udf_int(NULL) IS NULL
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_int(): ""
+--let $assert_cond = wrapped_udf_int("") = 100
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_int(): " "
+--let $assert_cond = wrapped_udf_int(" ") = 100
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_int(): "abc"
+--let $assert_cond = wrapped_udf_int("abc") = 100
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_int(): "42"
+--let $assert_cond = wrapped_udf_int("42") = 142
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_int(): "1.75"
+--let $assert_cond = wrapped_udf_int("1.75") = 101
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_int(): 42
+--let $assert_cond = wrapped_udf_int(42) = 142
+--source include/assert.inc
+--let $assert_text = Checking wrapped_udf_int(): 1.75
+--let $assert_cond = wrapped_udf_int(1.75) = 102
+--source include/assert.inc
+
+--echo ***
+--echo *** checking error codes / messages generated by throwing exceptions
+--echo ***
+
+--echo
+--echo * calling with a NULL for the second argument (marked as not nullable) must set
+--echo * error code to ER_UDF_ERROR
+--echo * if the second argument is not NULL, it is just ignored
+--error ER_UDF_ERROR
+SELECT wrapped_udf_string('42', NULL) AS result;
+SELECT wrapped_udf_string('42', '42') AS result;
+--error ER_UDF_ERROR
+SELECT wrapped_udf_real(42.0, NULL) AS result;
+SELECT wrapped_udf_real(42.0, 42.0) AS result;
+--error ER_UDF_ERROR
+SELECT wrapped_udf_int(42, NULL) AS result;
+SELECT wrapped_udf_int(42, 42) AS result;
+
+--echo
+--echo * calling with special value '100' calls "my_error(ER_DA_OOM, MYF(0));" and throws
+--echo * 'mysqlpp::udf_exception' with sentinel
+--echo * Wrappers are expected not to overwrite error code set previously ('ER_DA_OOM')
+--error ER_DA_OOM
+SELECT wrapped_udf_string('100') AS result;
+--error ER_DA_OOM
+SELECT wrapped_udf_real(100.0) AS result;
+--error ER_DA_OOM
+SELECT wrapped_udf_int(100) AS result;
+
+--echo
+--echo * calling with special value '101' throws 'mysqlpp::udf_exception' with custom MySQL client
+--echo * error code ER_WRAPPED_UDF_EXCEPTION
+--error ER_WRAPPED_UDF_EXCEPTION
+SELECT wrapped_udf_string('101') AS result;
+--error ER_WRAPPED_UDF_EXCEPTION
+SELECT wrapped_udf_real(101.0) AS result;
+--error ER_WRAPPED_UDF_EXCEPTION
+SELECT wrapped_udf_int(101) AS result;
+
+--echo
+--echo * calling with special value '102' throws 'std::runtime_error' (an exception derived from 'std::exception')
+--echo * and we expect 'ER_UDF_ERROR' with custom error message to be returned
+--error ER_UDF_ERROR
+SELECT wrapped_udf_string('102') AS result;
+--error ER_UDF_ERROR
+SELECT wrapped_udf_real(102.0) AS result;
+--error ER_UDF_ERROR
+SELECT wrapped_udf_int(102) AS result;
+
+--echo
+--echo * calling with special value '103' throws a constant '42' (a instance of a type that is not derived from 'std::exception')
+--echo * and we expect 'ER_UDF_ERROR' with generic error message to be returned
+--error ER_UDF_ERROR
+SELECT wrapped_udf_string('103') AS result;
+--error ER_UDF_ERROR
+SELECT wrapped_udf_real(103.0) AS result;
+--error ER_UDF_ERROR
+SELECT wrapped_udf_int(103) AS result;
+
+--echo ***
+--echo *** dropping test UDF functions
+--echo ***
+DROP FUNCTION wrapped_udf_int;
+DROP FUNCTION wrapped_udf_real;
+DROP FUNCTION wrapped_udf_string;

@@ -1,0 +1,9 @@
+# Public / Internal Oracle Bug #74578 / #18823979
+# Although the bug was fixed in MySQL Server 5.5.49, the test case was never added.
+# Here is an excerpt from the release notes: 
+#  * Character set conversion operations on NULL parameters to prepared statements could
+#    cause a server exit. (Bug #18823979)
+SET collation_connection=utf32_unicode_ci;
+PREPARE stmt FROM 'SELECT ?=?';
+SET @user_id='';
+EXECUTE stmt USING @user_id, @id;

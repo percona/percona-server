@@ -1,0 +1,5 @@
+CREATE TABLE t1(a CHAR);
+INSERT INTO t1 VALUES();
+UPDATE t1 SET a = 1 ORDER BY CAST(ST_Distance(1, 1) AS DECIMAL);
+ERROR 22023: Invalid GIS data provided to function st_distance.
+DROP TABLE t1;

@@ -1,0 +1,73 @@
+--let $log_error=$MYSQLTEST_VARDIR/tmp/percona_log_connection_error.err
+--let log_file=percona_log_connection_error.err
+--let log_file_full_path=$log_error
+--let grep_pattern= Too many connections
+
+--let $restart_parameters=restart:--log-error=$log_error
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+SET GLOBAL max_connections=1;
+let $port=`SELECT Variable_value FROM performance_schema.session_variables WHERE Variable_name LIKE 'port'`;
+let $socket=`SELECT Variable_value FROM performance_schema.session_variables WHERE Variable_name LIKE 'socket'`;
+
+CREATE USER nonprivuser@localhost;
+
+SET GLOBAL LOG_ERROR_VERBOSITY = 1;
+
+--source include/count_sessions.inc
+
+--connect (conn0,localhost,root,,)
+connection conn0;
+replace_result $port port $socket socket;
+--error ER_CON_COUNT_ERROR
+--connect(conn1,localhost,root,,)
+disconnect conn0;
+SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
+
+connection default;
+
+--source include/log_grep.inc
+
+SET GLOBAL LOG_ERROR_VERBOSITY = 2;
+--connect (conn1,localhost,root,,)
+replace_result $port port $socket socket;
+--error ER_CON_COUNT_ERROR
+--connect (conn0,localhost,root,,)
+disconnect conn1;
+SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
+
+--source include/log_grep.inc
+
+connection default;
+SET GLOBAL LOG_ERROR_VERBOSITY = 1;
+--connect (conn0,localhost,root,,)
+replace_result $port port $socket socket;
+--error ER_CON_COUNT_ERROR
+--connect(conn1,localhost,root,,)
+disconnect conn0;
+SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
+
+--source include/log_grep.inc
+
+connection default;
+
+--echo #
+--echo # Bug 1583553: Error log "Too many connections" warning is not printed for the first after the limit non-SUPER login attempt
+--echo #
+SET GLOBAL LOG_ERROR_VERBOSITY = 2;
+
+replace_result $port port $socket socket;
+--error ER_CON_COUNT_ERROR
+--connect (conn0,localhost,nonprivuser,,)
+
+--source include/wait_until_count_sessions.inc
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--source include/log_grep.inc
+
+DROP USER nonprivuser@localhost;
+
+--remove_file $log_error

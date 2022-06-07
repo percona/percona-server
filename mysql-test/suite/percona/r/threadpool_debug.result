@@ -1,0 +1,17 @@
+#
+# Debug build tests for pool of threads
+#
+#
+# Bug 1642230 (handle_fatal_signal (sig=11) in THD::set_new_thread_id)
+#
+call mtr.add_suppression("Out of memory");
+SET @saved_debug= @@GLOBAL.debug;
+SET GLOBAL debug= '+d,simulate_resource_failure';
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+SET GLOBAL debug= '-d,simulate_resource_failure';
+SET GLOBAL debug= '+d,simulate_tp_alloc_connection_oom';
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+SET GLOBAL debug= '-d,simulate_tp_alloc_connection_oom';
+SET GLOBAL debug= @saved_debug;

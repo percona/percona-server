@@ -1,0 +1,12 @@
+CREATE TABLE t1(a INT UNSIGNED,
+PRIMARY KEY USING HASH (a))
+ENGINE=INNODB default CHARSET=utf8 COLLATE=utf8_unicode_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+INSERT INTO t1 VALUES(1);
+ALTER TABLE t1 MODIFY a CHAR(1);
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+DELETE FROM t1;
+DROP TABLE t1;

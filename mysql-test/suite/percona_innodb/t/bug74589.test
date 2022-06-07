@@ -1,0 +1,12 @@
+# Bug 74589. A severe error occurred during the log apply phase of an online
+# "ALTER TABLE" operation that was converting a table with a UTF-8 charset to
+# "ROW_FORMAT=REDUNDANT"
+
+CREATE TABLE t1(a INT UNSIGNED,
+                PRIMARY KEY USING HASH (a))
+                ENGINE=INNODB default CHARSET=utf8 COLLATE=utf8_unicode_ci;
+INSERT INTO t1 VALUES(1);
+ALTER TABLE t1 MODIFY a CHAR(1);
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+DELETE FROM t1;
+DROP TABLE t1;

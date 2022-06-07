@@ -1,0 +1,22 @@
+SELECT @@global.slow_query_log_use_global_control;
+
+--echo #
+--echo # Bug PS-5813: Setting 'none' value for slow_query_log_use_global_control throwing error.
+--echo #
+
+SET @saved_slow_query_log_use_global_control=@@GLOBAL.slow_query_log_use_global_control;
+
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+SET GLOBAL slow_query_log_use_global_control=none;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+SET GLOBAL slow_query_log_use_global_control=log_slow_verbosity;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+SET GLOBAL slow_query_log_use_global_control=NONE;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+SET GLOBAL slow_query_log_use_global_control=all;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+SET GLOBAL slow_query_log_use_global_control='';
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+
+SET GLOBAL slow_query_log_use_global_control=@saved_slow_query_log_use_global_control;
+

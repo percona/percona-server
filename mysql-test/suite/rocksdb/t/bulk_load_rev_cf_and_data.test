@@ -1,0 +1,7 @@
+--source include/have_rocksdb.inc
+--source include/big_test.inc
+
+--let pk_cf=rev:cf1
+--let data_order_desc=1
+
+--source suite/rocksdb/include/bulk_load.inc

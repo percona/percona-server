@@ -1,0 +1,7 @@
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_unsorted_errors.err
+SET rocksdb_bulk_load=1;
+SET rocksdb_bulk_load_allow_unsorted=1;
+ERROR 42000: Variable 'rocksdb_bulk_load_allow_unsorted' can't be set to the value of '1'
+SET rocksdb_bulk_load=0;
+Pattern "Cannot change this setting while bulk load is enabled" found
+# restart

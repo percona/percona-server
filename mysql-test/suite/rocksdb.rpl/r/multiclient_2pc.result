@@ -1,0 +1,25 @@
+set @@global.max_binlog_size = 4096;
+create table t1 (a int primary key, b int, c varchar(255)) engine=rocksdb;
+'con1'
+set session debug="d,crash_commit_after_log";
+set debug_sync='rocksdb.prepared SIGNAL parked WAIT_FOR go';
+insert into t1 values (1, 1, "iamtheogthealphaandomega");;
+'con2'
+insert into t1 values (2, 1, "i_am_just_here_to_trigger_a_flush");
+set @@global.rocksdb_flush_log_at_trx_commit = 0;
+set @@global.sync_binlog = 0;
+SET debug_sync='now WAIT_FOR parked';
+set @@global.rocksdb_flush_log_at_trx_commit = 2;
+set @@global.sync_binlog = 1;
+insert into t1 values (1000000, 1, "i_am_just_here_to_trigger_a_flush");
+set debug_sync='now SIGNAL go';
+**found 'prepare' log entry**
+**found 'commit' log entry**
+select * from t1 where a=1;
+a	b	c
+1	1	iamtheogthealphaandomega
+select count(*) from t1;
+count(*)
+4096
+drop table t1;
+# restart

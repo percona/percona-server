@@ -1,0 +1,49 @@
+--source include/count_sessions.inc
+
+--let $log_error_path= $MYSQLTEST_VARDIR/log/pplwtt.err
+
+#
+# Restart server with custom error log path to avoid false triggering
+# with --repeat option. There is no need to restart it with default options
+# at the end of the test as it is usually done by mysql-test-run.pl if
+# the current server options do not concide with the next test options.
+#
+--let $restart_parameters= restart:--log-error=$log_error_path
+--let $do_not_echo_parameters= 1
+--source include/restart_mysqld.inc
+
+SET @innodb_lock_wait_timeout_saved = @@GLOBAL.innodb_lock_wait_timeout;
+SET @innodb_print_lock_wait_timeout_info_saved =
+  @@GLOBAL.innodb_print_lock_wait_timeout_info;
+
+SET GLOBAL innodb_lock_wait_timeout = 1;
+SET GLOBAL innodb_print_lock_wait_timeout_info = true;
+
+CREATE TABLE t (i INT) ENGINE = InnoDB;
+INSERT INTO t (i) VALUES(1);
+
+START TRANSACTION;
+SELECT * FROM t WHERE i = 1 LOCK IN SHARE MODE;
+
+--connect(con0, localhost, root,,)
+START TRANSACTION;
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t WHERE i = 1;
+COMMIT;
+--disconnect con0
+
+--connection default
+DELETE FROM t WHERE i = 1;
+COMMIT;
+
+--echo Grepping the error log for lock wait timeout info
+--let SEARCH_FILE= $log_error_path
+--let SEARCH_PATTERN= Lock wait timeout info:
+--source include/search_pattern.inc
+--remove_file $log_error_path
+
+DROP TABLE t;
+SET GLOBAL innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+SET GLOBAL innodb_print_lock_wait_timeout_info =
+  @innodb_print_lock_wait_timeout_info_saved;
+--source include/wait_until_count_sessions.inc

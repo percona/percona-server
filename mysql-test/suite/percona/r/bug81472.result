@@ -1,0 +1,49 @@
+SET sql_mode = '';
+SET default_storage_engine = MyISAM;
+CREATE TABLE t1(a TEXT NOT NULL) ROW_FORMAT=DYNAMIC, ENGINE=NotPresent;
+Warnings:
+Warning	1286	Unknown storage engine 'NotPresent'
+Warning	1266	Using storage engine MyISAM for table 't1'
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 (a) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06390645064400BB USING utf8mb3));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (0xAEA5);
+Warnings:
+Warning	1366	Incorrect string value: '\xAE\xA5' for column 'a' at row 1
+INSERT INTO t1 VALUES (_ucs2 0x0184),(_ucs2 0x0185),(_ucs2 0x0186),(_ucs2 0x0187);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SET @@session.max_join_size = 8;
+INSERT INTO t1 VALUES (Point(-1*0e0, -1*0e0)), (Point(0, 0));
+Warnings:
+Warning	1366	Incorrect string value: '\x80\x00\x00\x00\x00\x00...' for column 'a' at row 1
+INSERT INTO t1 VALUES (1), (1);
+INSERT INTO t1 VALUES ('00:00:01.000015');
+INSERT INTO t1 VALUES (0x40);
+INSERT INTO t1 VALUES ('test000001'), ('test000002'), ('test000003');
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES ('2007-03-08 12:00:00');
+INSERT INTO t1 VALUES(0xA9A7);
+Warnings:
+Warning	1366	Incorrect string value: '\xA9\xA7' for column 'a' at row 1
+INSERT INTO t1 SET a = 0x6c;
+INSERT INTO t1 VALUES(0xABA8);
+Warnings:
+Warning	1366	Incorrect string value: '\xAB\xA8' for column 'a' at row 1
+INSERT IGNORE INTO t1 VALUES ('abc');
+INSERT INTO t1 VALUES (0xA9EA);
+Warnings:
+Warning	1366	Incorrect string value: '\xA9\xEA' for column 'a' at row 1
+INSERT INTO t1 VALUES ('a');
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES ('1000-00-00');
+SET max_join_size = 1;
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1 = 2 HAVING a NOT IN ( SELECT a FROM t1 UNION SELECT a + 1 FROM t1 ) OR min_a != 1;
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
+DROP TABLE t1;

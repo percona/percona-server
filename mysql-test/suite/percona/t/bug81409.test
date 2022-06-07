@@ -1,0 +1,8 @@
+#
+# Bug #23280059 / #81409 "get_point crashes at spatial.cc:111"
+# fixed in 5.5.52, 5.6.33, 5.7.15
+# The optimizer failed to check a function return value for an area
+# calculation, leading to a server exit.
+#
+--error ER_SRS_NOT_FOUND
+SELECT ST_Area(ST_AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))));

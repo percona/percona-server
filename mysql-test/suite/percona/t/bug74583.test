@@ -1,0 +1,12 @@
+# Testcase for bug 74583
+
+# This test can't work in GTID mode.
+--source include/rpl/set_gtid_mode_off.inc
+
+create temporary table t1(id int);
+handler t1 open as a1;
+BINLOG ' SOgWTg8CAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8='; DROP DATABASE test;CREATE DATABASE test;USE test;
+create temporary table t1(id int);
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

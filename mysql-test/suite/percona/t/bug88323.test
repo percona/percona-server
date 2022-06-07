@@ -1,0 +1,13 @@
+--echo #
+--echo # handle_fatal_signal (sig=11) in Item_direct_view_ref::fix_fields
+--echo #
+CREATE PROCEDURE p1(IN i1 TEXT CHARACTER SET 'Binary' COLLATE 'Binary')NO SQL SHOW EVENTS;
+XA BEGIN 'xid2';
+
+XA END 'xid2';
+--error ER_XAER_RMFAIL
+CALL p1(@b);
+XA COMMIT 'xid2' ONE PHASE;
+CALL p1(@a);
+CALL p1(@b);
+DROP PROCEDURE p1;

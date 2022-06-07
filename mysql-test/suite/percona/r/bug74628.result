@@ -1,0 +1,5 @@
+SET @@SESSION.sql_buffer_result= 1;
+CREATE TABLE t1(grp INT, a INT UNSIGNED, c CHAR, d CHAR);
+SELECT grp, GROUP_CONCAT(c ORDER BY 2) FROM t1 GROUP BY grp;
+ERROR 42S22: Unknown column '2' in 'order clause'
+DROP TABLE t1;

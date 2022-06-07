@@ -1,0 +1,10 @@
+#
+# Bug #18740222 / #75943 "handle_fatal_signal (sig=11) in get_interval_info"
+# fixed in 5.5.50, 5.6.31, 5.7.13, 5.8.0
+# Some string functions returned one or a combination of their parameters as
+# their result. If one of the parameters had a non-ASCII character set, the
+# result string had the same character set, resulting in incorrect behavior
+# when an ASCII string was expected.
+#
+SET NAMES utf8mb3, collation_connection = 'utf16_bin';
+SELECT '2010-10-10 10:10:10' + INTERVAL ST_GeometryType(ST_GeomFromText('POINT(1 1)')) hour_second;

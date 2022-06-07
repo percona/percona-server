@@ -1,0 +1,50 @@
+CREATE TABLE t1 (a INT);
+SET @old_log_slow_admin_statements=@@global.log_slow_admin_statements;
+SET @old_log_slow_sp_statements=@@global.log_slow_sp_statements;
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+CREATE PROCEDURE test()
+BEGIN
+INSERT INTO t1 VALUES(0);
+CREATE INDEX i ON t1(a);
+INSERT INTO t1 VALUES(1);
+END^
+SET GLOBAL log_slow_admin_statements=OFF;
+SET GLOBAL log_slow_sp_statements=ON;
+[log_start.inc] percona_log_slow_admin_stmt_sp_1
+call test();
+[log_stop.inc] percona_log_slow_admin_stmt_sp_1
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: INSERT INTO t1 VALUES\(0\);
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: CREATE INDEX i ON t1\(a\);
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: INSERT INTO t1 VALUES\(1\);
+[log_grep.inc] lines:   1
+DROP INDEX i ON t1;
+SET GLOBAL log_slow_admin_statements=ON;
+SET GLOBAL log_slow_sp_statements=OFF;
+[log_start.inc] percona_log_slow_admin_stmt_sp_1
+call test();
+[log_stop.inc] percona_log_slow_admin_stmt_sp_1
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: INSERT INTO t1 VALUES\(0\);
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: CREATE INDEX i ON t1\(a\);
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: INSERT INTO t1 VALUES\(1\);
+[log_grep.inc] lines:   0
+DROP INDEX i ON t1;
+SET GLOBAL log_slow_admin_statements=ON;
+SET GLOBAL log_slow_sp_statements=ON;
+[log_start.inc] percona_log_slow_admin_stmt_sp_1
+call test();
+[log_stop.inc] percona_log_slow_admin_stmt_sp_1
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: INSERT INTO t1 VALUES\(0\);
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: CREATE INDEX i ON t1\(a\);
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_log_slow_admin_stmt_sp_1 pattern: INSERT INTO t1 VALUES\(1\);
+[log_grep.inc] lines:   1
+DROP TABLE t1;
+DROP PROCEDURE test;
+SET GLOBAL log_slow_admin_statements=@old_log_slow_admin_statements;
+SET GLOBAL log_slow_sp_statements=@old_log_slow_sp_statements;

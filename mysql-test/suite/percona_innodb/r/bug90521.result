@@ -1,0 +1,16 @@
+#
+# [MySQL 8.0 GA Release Build] Assertion: !trx->declared_to_be_inside_innodb
+#
+CREATE TABLE t1(c1 DATE) PARTITION BY HASH(DAYOFWEEK(c1));
+SET @saved_innodb_thread_sleep_delay=@@GLOBAL.innodb_thread_sleep_delay;
+SET @saved_innodb_concurrency_tickets=@@GLOBAL.innodb_concurrency_tickets;
+SET GLOBAL innodb_concurrency_tickets=4294967296;
+Warnings:
+Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '4294967296'
+SET @saved_innodb_thread_concurrency=@@GLOBAL.innodb_thread_concurrency;
+SET GLOBAL innodb_thread_concurrency=1;
+INSERT INTO t1 VALUES(NULL);
+DROP TABLE t1;
+SET GLOBAL innodb_concurrency_tickets=@saved_innodb_concurrency_tickets;
+SET GLOBAL innodb_thread_concurrency=@saved_innodb_thread_concurrency;
+SET GLOBAL innodb_thread_sleep_delay=@saved_innodb_thread_sleep_delay;

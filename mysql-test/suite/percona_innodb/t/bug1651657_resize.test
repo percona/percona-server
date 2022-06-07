@@ -1,0 +1,9 @@
+# Test buffer pool shrink with backoff algorithm.
+set @old_innodb_empty_free_list_algorithm = @@innodb_empty_free_list_algorithm;
+set global innodb_empty_free_list_algorithm="backoff";
+
+SET @@GLOBAL.innodb_buffer_pool_size = 19922944;
+
+SELECT @@GLOBAL.innodb_buffer_pool_size;
+
+SET @@GLOBAL.innodb_empty_free_list_algorithm=@old_innodb_empty_free_list_algorithm;

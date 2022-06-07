@@ -1,0 +1,5 @@
+CREATE TABLE t1 (a INT) ENGINE=rocksdb;
+SELECT COUNT(*) from t1;
+COUNT(*)
+400
+DROP TABLE t1;

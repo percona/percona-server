@@ -1,0 +1,7 @@
+set session rocksdb_merge_buf_size=250;
+set session rocksdb_merge_combine_read_size=1000;
+set session rocksdb_merge_tmp_file_removal_delay_ms=1000;
+CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i)) ENGINE = ROCKSDB;
+ALTER TABLE t1 ADD INDEX kj(j), ALGORITHM=INPLACE;
+include/assert.inc [Alter should have taken at least 10 seconds]
+DROP TABLE t1;

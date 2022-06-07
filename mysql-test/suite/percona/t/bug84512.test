@@ -1,0 +1,13 @@
+--echo #
+--echo # Segmentation fault in prepare_inner() at sql_call.cc
+--echo #
+# The testcase is from 88268, which was marked duplicate
+create table t1(a int,b CHAR (1),key b(b(1))) engine=InnoDB;
+CREATE TEMPORARY TABLE t1(a INT)ENGINE=MERGE UNION=(`test/1`.`t/1`);
+create PROCEDURE p1()create user xyz@localhost;
+DROP TABLE t1;
+create trigger ai after insert on t1 for each row call p1(new.a);
+--error ER_SP_WRONG_NO_OF_ARGS
+insert into t1 values(0,0);
+DROP TABLE t1;
+DROP PROCEDURE p1;

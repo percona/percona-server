@@ -2073,7 +2073,7 @@ static size_t my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc, uchar *dst,
     if (dst < de) *dst++ = s_res & 0xFF;
   }
 
-  if (dst < de) {
+  if (dst < de && !(flags & MY_STRXFRM_NOPAD_WITH_SPACE)) {
     /*
       PAD SPACE behavior.
 

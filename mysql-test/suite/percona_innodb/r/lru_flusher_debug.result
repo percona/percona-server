@@ -1,0 +1,15 @@
+#
+# Debug build tests for Percona LRU flusher and related flushing changes
+#
+#
+# Bug 1657026: Lack of free pages in the buffer pool is not diagnosed with
+# innodb_empty_free_list_algorithm=backoff
+#
+# restart:--innodb_buffer_pool_size=20M --log-error=SEARCH_FILE
+SET @@debug="+d,simulate_lack_of_pages";
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+include/assert.inc [With the bug present, Innodb_buffer_pool_wait_free stays at zero]
+# restart
+DROP TABLE t1;
+Pattern "Difficult to find free blocks" found
+Pattern "END OF INNODB MONITOR OUTPUT" found

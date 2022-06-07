@@ -1,0 +1,42 @@
+--let $generated_expression_length = 1
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+
+--let $generated_expression_length = 126
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 127
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 128
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 129
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 130
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+
+--let $generated_expression_length = 254
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 255
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 256
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 257
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 258
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+
+--let $generated_expression_length = 766
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 767
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 768
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 769
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 770
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+
+--let $generated_expression_length = 3070
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 3071
+--source ../include/xtradb_compressed_columns_virtual_set.inc
+--let $generated_expression_length = 3072
+--source ../include/xtradb_compressed_columns_virtual_set.inc

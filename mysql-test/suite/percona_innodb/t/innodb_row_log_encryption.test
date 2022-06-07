@@ -1,0 +1,9 @@
+--source include/have_debug_sync.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+--let $keyring_restart_param=restart: --innodb-sort-buffer-size=64k --innodb_encrypt_online_alter_logs=ON
+
+--source include/innodb_row_log_encryption.inc
+
+--source suite/component_keyring_file/inc/teardown_component.inc

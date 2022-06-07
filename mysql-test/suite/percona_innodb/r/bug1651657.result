@@ -1,0 +1,5 @@
+include/assert.inc [Small buffer pool instances should use legacy]
+call mtr.add_suppression("InnoDB: innodb_empty_free_list_algorithm = 'backoff' requires at least 20MB buffer pool instances.");
+SET GLOBAL innodb_empty_free_list_algorithm="backoff";
+ERROR 42000: Variable 'innodb_empty_free_list_algorithm' can't be set to the value of 'backoff'
+include/assert.inc [Small buffer pool instances should use legacy]

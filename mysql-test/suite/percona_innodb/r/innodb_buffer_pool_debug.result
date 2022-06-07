@@ -1,0 +1,19 @@
+SET @old_innodb_buffer_pool_evict = @@innodb_buffer_pool_evict;
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE = InnoDB ROW_FORMAT = COMPRESSED;
+SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+DROP TABLE t1;
+#
+# Bug 1553166: InnoDB: Failing assertion: block->n_pointers == 0 in buf0lru.cc line 2259
+#
+CREATE TABLE t1(i INT)ROW_FORMAT=COMPRESSED;
+CREATE TABLE t2(cdate date,note char(1));
+XA START '1553166';
+INSERT INTO t2 VALUES('2001-01-01',1),('2001-01-01',2);
+INSERT INTO t1 VALUES(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),(1);
+DELETE FROM t1 .*,test.t2.*,a.* USING t1,t2,t1 AS a;
+SET GLOBAL innodb_buffer_pool_evict='uncompressed';
+XA END '1553166';
+XA PREPARE '1553166';
+XA COMMIT '1553166';
+DROP TABLE t1, t2;
+SET GLOBAL innodb_buffer_pool_evict = @old_innodb_buffer_pool_evict;

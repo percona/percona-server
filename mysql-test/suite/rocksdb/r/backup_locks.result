@@ -244,6 +244,8 @@ CREATE TEMPORARY TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
 CREATE TEMPORARY TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
 INSERT INTO tt_myisam VALUES(5);
 INSERT INTO tt_memory VALUES(5);
+Warnings:
+Warning	6414	Combining the storage engines MEMORY and MyISAM is deprecated, but the statement or transaction updates both the MEMORY table test.tt_memory and the MyISAM table test.tt_myisam.
 INSERT INTO tt_csv VALUES(5);
 INSERT INTO tt_blackhole VALUES(5);
 INSERT INTO tt_archive VALUES(5);
@@ -330,6 +332,8 @@ CREATE TEMPORARY TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
 CREATE TEMPORARY TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
 INSERT INTO tt_myisam VALUES(5);
 INSERT INTO tt_memory VALUES(5);
+Warnings:
+Warning	6414	Combining the storage engines MEMORY and MyISAM is deprecated, but the statement or transaction updates both the MEMORY table test.tt_memory and the MyISAM table test.tt_myisam.
 INSERT INTO tt_csv VALUES(5);
 INSERT INTO tt_blackhole VALUES(5);
 INSERT INTO tt_archive VALUES(5);

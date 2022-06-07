@@ -20,6 +20,8 @@ INSERT INTO t1 VALUES
 ('AAAAAAAAAJ','AAAAAAAAAJ'), ('AAAAAAAAAK','AAAAAAAAAK');
 set session internal_tmp_mem_storage_engine='memory';
 set tmp_table_size=1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 set session debug="d,raise_error";
 SELECT MAX(a) FROM t1 GROUP BY a,b;
 ERROR 23000: Can't write; duplicate key in table 'tmp_table'

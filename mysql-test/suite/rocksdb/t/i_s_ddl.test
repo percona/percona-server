@@ -1,0 +1,25 @@
+--source include/have_rocksdb.inc
+
+#
+# Information Schema Data Dictionary/DDL information
+#
+--let i_s_plugin=rocksdb_ddl
+--source suite/rocksdb/include/i_s_basic.inc
+
+CREATE TABLE is_ddl_t1 (i INT, j INT, k INT, l INT,
+                        PRIMARY KEY (i), KEY (j), KEY (k, l) COMMENT 'kl_cf')
+                        ENGINE = ROCKSDB;
+
+CREATE TABLE is_ddl_t2 (x INT, y INT, z INT,
+                        PRIMARY KEY (z, y) COMMENT 'zy_cf',
+                        KEY (x)) ENGINE = ROCKSDB;
+
+CREATE TABLE is_ddl_t3 (a INT, b INT, c INT, PRIMARY KEY (a)) ENGINE = ROCKSDB
+                        COMMENT "ttl_duration=3600;";
+
+SELECT TABLE_SCHEMA,TABLE_NAME,PARTITION_NAME,INDEX_NAME,INDEX_TYPE,KV_FORMAT_VERSION,CF,TTL_DURATION,INDEX_FLAGS FROM INFORMATION_SCHEMA.ROCKSDB_DDL WHERE TABLE_NAME like 'is_ddl_t%' ORDER BY TABLE_SCHEMA, TABLE_NAME, PARTITION_NAME, INDEX_NAME;
+
+# cleanup
+DROP TABLE is_ddl_t1;
+DROP TABLE is_ddl_t2;
+DROP TABLE is_ddl_t3;

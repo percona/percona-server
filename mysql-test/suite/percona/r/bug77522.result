@@ -1,0 +1,9 @@
+call mtr.add_suppression("Can't open and lock privilege tables");
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2(id2 INT, b2 BIT);
+FLUSH TABLES t1, t2 FOR EXPORT;
+FLUSH PRIVILEGES;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+SELECT grantee, table_catalog, privilege_type FROM information_schema.user_privileges;
+UNLOCK TABLES;
+DROP TABLE t1, t2;

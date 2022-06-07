@@ -1,0 +1,35 @@
+########################################################################
+# Tests for the backup-safe binlog info feature
+########################################################################
+
+--source include/have_myisam.inc
+--source include/have_log_bin.inc
+
+# Deletes all the binary logs
+RESET BINARY LOGS AND GTIDS;
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2(a INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES(2);
+
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $binlog_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+
+LOCK TABLES FOR BACKUP;
+
+--exec echo "restart: --log-error=$MYSQLTEST_VARDIR/log/my_restart.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err
+--let SEARCH_PATTERN= \[InnoDB\] Last MySQL binlog file position 0 $binlog_pos, file name $binlog_file
+--source include/search_pattern.inc
+
+--remove_file $SEARCH_FILE
+
+DROP TABLE t1;

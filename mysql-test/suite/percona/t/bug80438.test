@@ -1,0 +1,10 @@
+#
+# Bug #22760390 / #80438 "handle_fatal_signal (sig=11) in my_decimal::operator | sql/my_decimal.h:139"
+# fixed in 5.6.32, 5.7.14
+# ST_Distance() could raise an assertion for NULL return values.
+#
+CREATE TABLE t1(a CHAR);
+INSERT INTO t1 VALUES();
+--error ER_GIS_INVALID_DATA
+UPDATE t1 SET a = 1 ORDER BY CAST(ST_Distance(1, 1) AS DECIMAL);
+DROP TABLE t1;

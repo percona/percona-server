@@ -1,0 +1,15 @@
+select @@global.rocksdb_block_size;
+@@global.rocksdb_block_size
+4096
+call mtr.add_suppression("option 'rocksdb-block-size': unsigned value 12 adjusted to 1024");
+# restart:--rocksdb_block_size=12
+select @@global.rocksdb_block_size;
+@@global.rocksdb_block_size
+1024
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a)) ENGINE=ROCKSDB;
+INSERT INTO t1(a) VALUES (0.0);
+SELECT t1.a FROM t1 GROUP BY t1.a;
+a
+0
+DROP TABLE t1;
+# restart

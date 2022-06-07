@@ -1,0 +1,11 @@
+CREATE TABLE t1 (pk int primary key) ENGINE=ROCKSDB;
+CREATE TABLE t2 (pk int primary key) ENGINE=ROCKSDB PARTITION BY KEY(pk) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# restart
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/validate_datadic.err --rocksdb_validate_tables=2
+"Expect errors that we are missing two .frm files"
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/validate_datadic.err --rocksdb_validate_tables=2
+"Expect an error that we have an extra .frm file"
+# restart
+DROP TABLE t1, t2;

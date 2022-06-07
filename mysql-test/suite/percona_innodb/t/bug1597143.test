@@ -1,0 +1,21 @@
+SET @saved_innodb_log_write_ahead_size=@@GLOBAL.innodb_log_write_ahead_size;
+SET GLOBAL innodb_log_write_ahead_size=8192;
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+SET GLOBAL innodb_log_write_ahead_size=16384;
+
+INSERT INTO t1 VALUES (2);
+
+SET GLOBAL innodb_log_write_ahead_size=512;
+
+INSERT INTO t1 VALUES (3);
+
+SET GLOBAL innodb_log_write_ahead_size=2048;
+
+INSERT INTO t1 VALUES (4);
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_log_write_ahead_size=@saved_innodb_log_write_ahead_size;

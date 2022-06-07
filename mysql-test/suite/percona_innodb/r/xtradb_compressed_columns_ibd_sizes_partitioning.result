@@ -1,0 +1,360 @@
+# *******************************
+# *** Field type: BLOB
+# *** Partitioning: simple
+# *******************************
+# Requiring innodb_file_per_table.
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 1;
+# Defining compression dictionary content.
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
+# Creating three tables with identical structure but different
+# column compression attributes.
+CREATE TABLE t1(
+id INT,
+a BLOB
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t2(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t3(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
+# Filling tables with a big number of records.
+# Checking tables integrity. All records must have the same value.
+number_of_rows_for_uncompressed_matches
+1
+number_of_rows_for_compressed_matches
+1
+number_of_rows_for_dictionary_compressed_matches
+1
+# Checking .ibd file sizes for filled tables.
+# Checking if the size of the 'compressed' table is smaller than 'uncompressed' one.
+comressed_is_smaller_than_uncompressed
+1
+# Checking if the size of the 'dictionary_compressed' table is smaller than 'compressed' one.
+dictionary_comressed_is_smaller_than_compressed
+1
+# Cleaning up.
+DROP TABLE ibd_info, t1, t2, t3;
+DROP COMPRESSION_DICTIONARY names;
+# Restoring innodb_file_per_table
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+# *******************************
+# *** Field type: TEXT
+# *** Partitioning: simple
+# *******************************
+# Requiring innodb_file_per_table.
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 1;
+# Defining compression dictionary content.
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
+# Creating three tables with identical structure but different
+# column compression attributes.
+CREATE TABLE t1(
+id INT,
+a TEXT
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t2(
+id INT,
+a TEXT COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t3(
+id INT,
+a TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
+# Filling tables with a big number of records.
+# Checking tables integrity. All records must have the same value.
+number_of_rows_for_uncompressed_matches
+1
+number_of_rows_for_compressed_matches
+1
+number_of_rows_for_dictionary_compressed_matches
+1
+# Checking .ibd file sizes for filled tables.
+# Checking if the size of the 'compressed' table is smaller than 'uncompressed' one.
+comressed_is_smaller_than_uncompressed
+1
+# Checking if the size of the 'dictionary_compressed' table is smaller than 'compressed' one.
+dictionary_comressed_is_smaller_than_compressed
+1
+# Cleaning up.
+DROP TABLE ibd_info, t1, t2, t3;
+DROP COMPRESSION_DICTIONARY names;
+# Restoring innodb_file_per_table
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+# *******************************
+# *** Field type: JSON
+# *** Partitioning: simple
+# *******************************
+# Requiring innodb_file_per_table.
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 1;
+# Defining compression dictionary content.
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
+# Creating three tables with identical structure but different
+# column compression attributes.
+CREATE TABLE t1(
+id INT,
+a JSON
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t2(
+id INT,
+a JSON COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t3(
+id INT,
+a JSON COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (4096) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
+# Filling tables with a big number of records.
+# Checking tables integrity. All records must have the same value.
+number_of_rows_for_uncompressed_matches
+1
+number_of_rows_for_compressed_matches
+1
+number_of_rows_for_dictionary_compressed_matches
+1
+# Checking .ibd file sizes for filled tables.
+# Checking if the size of the 'compressed' table is smaller than 'uncompressed' one.
+comressed_is_smaller_than_uncompressed
+1
+# Checking if the size of the 'dictionary_compressed' table is smaller than 'compressed' one.
+dictionary_comressed_is_smaller_than_compressed
+1
+# Cleaning up.
+DROP TABLE ibd_info, t1, t2, t3;
+DROP COMPRESSION_DICTIONARY names;
+# Restoring innodb_file_per_table
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+# *******************************
+# *** Field type: BLOB
+# *** Partitioning: sub
+# *******************************
+# Requiring innodb_file_per_table.
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 1;
+# Defining compression dictionary content.
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
+# Creating three tables with identical structure but different
+# column compression attributes.
+CREATE TABLE t1(
+id INT,
+a BLOB
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t2(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t3(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
+# Filling tables with a big number of records.
+# Checking tables integrity. All records must have the same value.
+number_of_rows_for_uncompressed_matches
+1
+number_of_rows_for_compressed_matches
+1
+number_of_rows_for_dictionary_compressed_matches
+1
+# Checking .ibd file sizes for filled tables.
+# Checking if the size of the 'compressed' table is smaller than 'uncompressed' one.
+comressed_is_smaller_than_uncompressed
+1
+# Checking if the size of the 'dictionary_compressed' table is smaller than 'compressed' one.
+dictionary_comressed_is_smaller_than_compressed
+1
+# Cleaning up.
+DROP TABLE ibd_info, t1, t2, t3;
+DROP COMPRESSION_DICTIONARY names;
+# Restoring innodb_file_per_table
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+# *******************************
+# *** Field type: TEXT
+# *** Partitioning: sub
+# *******************************
+# Requiring innodb_file_per_table.
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 1;
+# Defining compression dictionary content.
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
+# Creating three tables with identical structure but different
+# column compression attributes.
+CREATE TABLE t1(
+id INT,
+a TEXT
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t2(
+id INT,
+a TEXT COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t3(
+id INT,
+a TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
+# Filling tables with a big number of records.
+# Checking tables integrity. All records must have the same value.
+number_of_rows_for_uncompressed_matches
+1
+number_of_rows_for_compressed_matches
+1
+number_of_rows_for_dictionary_compressed_matches
+1
+# Checking .ibd file sizes for filled tables.
+# Checking if the size of the 'compressed' table is smaller than 'uncompressed' one.
+comressed_is_smaller_than_uncompressed
+1
+# Checking if the size of the 'dictionary_compressed' table is smaller than 'compressed' one.
+dictionary_comressed_is_smaller_than_compressed
+1
+# Cleaning up.
+DROP TABLE ibd_info, t1, t2, t3;
+DROP COMPRESSION_DICTIONARY names;
+# Restoring innodb_file_per_table
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+# *******************************
+# *** Field type: JSON
+# *** Partitioning: sub
+# *******************************
+# Requiring innodb_file_per_table.
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 1;
+# Defining compression dictionary content.
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
+# Creating three tables with identical structure but different
+# column compression attributes.
+CREATE TABLE t1(
+id INT,
+a JSON
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t2(
+id INT,
+a JSON COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t3(
+id INT,
+a JSON COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (8192) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
+# Filling tables with a big number of records.
+# Checking tables integrity. All records must have the same value.
+number_of_rows_for_uncompressed_matches
+1
+number_of_rows_for_compressed_matches
+1
+number_of_rows_for_dictionary_compressed_matches
+1
+# Checking .ibd file sizes for filled tables.
+# Checking if the size of the 'compressed' table is smaller than 'uncompressed' one.
+comressed_is_smaller_than_uncompressed
+1
+# Checking if the size of the 'dictionary_compressed' table is smaller than 'compressed' one.
+dictionary_comressed_is_smaller_than_compressed
+1
+# Cleaning up.
+DROP TABLE ibd_info, t1, t2, t3;
+DROP COMPRESSION_DICTIONARY names;
+# Restoring innodb_file_per_table
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;

@@ -1,0 +1,50 @@
+#
+# PS-9306 : MySQL 8.0.38, 8.4.1 and 9.0.0 crashes on restart if database has 10K tables or more
+#
+CREATE DATABASE test_8k;
+CREATE PROCEDURE create_tables(start_index INT, end_index INT)
+BEGIN
+DECLARE i INT;
+SET i = start_index;
+WHILE i < end_index DO
+SET @table_name = CONCAT('table_', i);
+SET @create_stmt = CONCAT('CREATE TABLE IF NOT EXISTS test_8k.', @table_name, ' (id INT PRIMARY KEY AUTO_INCREMENT, data VARCHAR(255));');
+PREPARE stmt FROM @create_stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+SET i = i + 1;
+END WHILE;
+END|
+CALL create_tables(0*1024,(0+1)*1024);
+CALL create_tables(1*1024,(1+1)*1024);
+CALL create_tables(2*1024,(2+1)*1024);
+CALL create_tables(3*1024,(3+1)*1024);
+CALL create_tables(4*1024,(4+1)*1024);
+CALL create_tables(5*1024,(5+1)*1024);
+CALL create_tables(6*1024,(6+1)*1024);
+CALL create_tables(7*1024,(7+1)*1024);
+# restart
+CREATE PROCEDURE drop_tables(start_index INT, end_index INT)
+BEGIN
+DECLARE i INT;
+SET i = start_index;
+WHILE i < end_index DO
+SET @table_name = CONCAT('table_', i);
+SET @create_stmt = CONCAT('DROP TABLE test_8k.', @table_name, ';');
+PREPARE stmt FROM @create_stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+SET i = i + 1;
+END WHILE;
+END|
+CALL drop_tables(0*1024,(0+1)*1024);
+CALL drop_tables(1*1024,(1+1)*1024);
+CALL drop_tables(2*1024,(2+1)*1024);
+CALL drop_tables(3*1024,(3+1)*1024);
+CALL drop_tables(4*1024,(4+1)*1024);
+CALL drop_tables(5*1024,(5+1)*1024);
+CALL drop_tables(6*1024,(6+1)*1024);
+CALL drop_tables(7*1024,(7+1)*1024);
+DROP DATABASE test_8k;
+DROP PROCEDURE create_tables;
+DROP PROCEDURE drop_tables;

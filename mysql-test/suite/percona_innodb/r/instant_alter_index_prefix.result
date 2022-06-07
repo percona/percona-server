@@ -1,0 +1,38 @@
+without prefix field in the index
+CREATE TABLE t1 (c1 TINYTEXT COLLATE ascii_bin NOT NULL, c2 DATETIME(3) NOT NULL, c3 TEXT, UNIQUE KEY (c1(30)));
+INSERT INTO t1 (c1, c2, c3) VALUE ('k1','2021-12-21','something');
+INSERT INTO t1 (c1, c2, c3) VALUE ('k3','2021-12-21','something else');
+ALTER TABLE t1 ADD COLUMN c4 VARCHAR(18) NOT NULL, ALGORITHM=INSTANT;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+UPDATE t1 SET c4 = 'value' WHERE c1 = 'k1';
+# Restart the server and reload the table to see if tables are corrupted.
+# Kill and restart
+# Run a select to confirm that the database started up successfully
+SELECT * FROM t1;
+c1	c2	c3	c4
+k1	2021-12-21 00:00:00.000	something	value
+k3	2021-12-21 00:00:00.000	something else	
+DROP TABLE t1;
+with prefix field in the index
+CREATE TABLE t1 (c1 TINYTEXT COLLATE ascii_bin NOT NULL, c2 DATETIME(3) NOT NULL, c3 TEXT, PRIMARY KEY (c1(30)));
+INSERT INTO t1 (c1, c2, c3) VALUE ('k1','2021-12-21','something');
+INSERT INTO t1 (c1, c2, c3) VALUE ('k3','2021-12-21','something else');
+ALTER TABLE t1 ADD COLUMN c4 VARCHAR(18) NOT NULL, ALGORITHM=INSTANT;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+UPDATE t1 SET c4 = 'value' WHERE c1 = 'k1';
+# Restart the server and reload the table to see if tables are corrupted.
+# Kill and restart
+# Run a select to confirm that the database started up successfully
+SELECT * FROM t1;
+c1	c2	c3	c4
+k1	2021-12-21 00:00:00.000	something	value
+k3	2021-12-21 00:00:00.000	something else	
+DROP TABLE t1;

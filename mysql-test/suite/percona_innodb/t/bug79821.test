@@ -1,0 +1,16 @@
+--echo #
+--echo # Bug #22486025 / #79821 "InnoDB: Failing assertion: key_len != 0 || find_flag != HA_READ_KEY_EXACT"
+--echo # fixed in 5.7.21, 8.0.4
+--echo # A "wrong key column" error was added to address an unsupported index creation scenario
+--echo #
+
+SET sql_mode = '';
+CREATE TEMPORARY TABLE t1 (c1 INT NOT NULL) ENGINE=InnoDB;
+CREATE TABLE t1(c1 CHAR(0) NOT NULL);
+DROP TABLE t1;
+ALTER TABLE t1 ADD COLUMN c4 INT COMMENT 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+SET big_tables = 1;
+INSERT INTO t1 VALUES(0, 0);
+--error ER_WRONG_KEY_COLUMN
+SELECT AVG(sum_c1) FROM (SELECT SUM(c1) AS sum_c1 FROM t1 GROUP BY c1) AS t1;
+DROP TABLE t1;

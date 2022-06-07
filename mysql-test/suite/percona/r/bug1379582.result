@@ -1,0 +1,12 @@
+SET GLOBAL DEBUG='+d,after_thread_setup';
+SET DEBUG_SYNC='before_fill_schema_processlist
+                            SIGNAL fill_schema_processlist
+                            WAIT_FOR thread_setup';
+SELECT count(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE TIME_MS > 999999999999999;
+SET DEBUG_SYNC='now WAIT_FOR fill_schema_processlist';
+count(*)
+0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG='';

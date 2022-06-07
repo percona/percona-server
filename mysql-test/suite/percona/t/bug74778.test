@@ -1,0 +1,6 @@
+# Bug 74778. Renaming the mysql.procs_priv table and executing SHOW GRANTS
+# resulted in a server exit.
+
+RENAME TABLE mysql.procs_priv TO procs_priv_backup;
+SHOW grants;
+RENAME TABLE procs_priv_backup TO mysql.procs_priv;

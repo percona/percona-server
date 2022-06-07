@@ -1,0 +1,34 @@
+--source include/have_rocksdb.inc
+
+#
+# Information Schema lock information
+#
+--let i_s_plugin=rocksdb_locks
+--source suite/rocksdb/include/i_s_basic.inc
+
+set session transaction isolation level read committed;
+
+create table t1 (a int, primary key(a) comment 'lock_info_cf1') engine=rocksdb;
+insert into t1 values (1);
+insert into t1 values (2);
+
+create table t2 (a int, primary key(a) comment 'lock_info_cf2') engine=rocksdb;
+insert into t2 values (1);
+insert into t2 values (2);
+
+set autocommit=0;
+select * from t1 for update;
+select * from t2 for update;
+
+use information_schema;
+--replace_column 2 _txn_id_ 3 _key_
+select rocksdb_ddl.cf, rocksdb_locks.transaction_id, rocksdb_locks.key
+from rocksdb_locks
+left join rocksdb_ddl
+on rocksdb_locks.column_family_id=rocksdb_ddl.column_family
+order by rocksdb_ddl.cf;
+
+use test;
+
+DROP TABLE t1;
+DROP TABLE t2;

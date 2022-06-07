@@ -1,0 +1,7 @@
+SELECT @@GLOBAL.have_backup_locks="YES";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.have_backup_locks;
+
+SHOW GLOBAL VARIABLES LIKE 'have_backup_locks';
+
+SHOW SESSION VARIABLES LIKE 'have_backup_locks';

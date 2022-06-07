@@ -1,0 +1,38 @@
+#
+# Bug 1581949 (Querying GLOBAL_TEMPORARY_TABLES crashes if temp-table owning threads execute new queries)
+#
+# connection con2
+SET DEBUG_SYNC="dispatch_create_table_command_before_thd_root_free SIGNAL con2_ready WAIT_FOR thd_root_free";
+CREATE TEMPORARY TABLE t1 (a VARCHAR(256)) ENGINE=MyISAM;
+# connection default
+SET DEBUG_SYNC="now WAIT_FOR con2_ready";
+SET DEBUG_SYNC="start_handler_ha_open_cloned SIGNAL con_default_ready WAIT_FOR finish";
+SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, TABLE_ROWS FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+# connection con1
+SET DEBUG_SYNC="now WAIT_FOR con_default_ready";
+SET DEBUG_SYNC="now SIGNAL thd_root_free";
+# connection con2
+SET DEBUG_SYNC="now SIGNAL finish";
+# connection default
+TABLE_SCHEMA	TABLE_NAME	ENGINE	TABLE_ROWS
+test	t1	MyISAM	0
+#
+# Bug 1614849 (INFORMATION_SCHEMA.TABLES (or other schema info table) and GLOBAL_TEMPORARY_TABLES queries running in parallel may crash or hang)
+#
+# connection con1
+SET DEBUG_SYNC="fill_schema_table_stats SIGNAL tables_query_ready WAIT_FOR tables_query_finish";
+SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS;
+# connection con2
+SET DEBUG_SYNC="now WAIT_FOR tables_query_ready";
+SET DEBUG_SYNC="fill_global_temporary_tables_thd_item_at_tables_debug_sync SIGNAL temp_tables_query_ready WAIT_FOR temp_tables_query_finish";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+# connection default
+SET DEBUG_SYNC="now WAIT_FOR temp_tables_query_ready";
+SET DEBUG_SYNC="now SIGNAL tables_query_finish";
+# connection con1
+# connection default
+SET DEBUG_SYNC="now SIGNAL temp_tables_query_finish";
+# connection con2
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+# connection default
+SET DEBUG_SYNC="reset";

@@ -1,0 +1,9 @@
+# Test for bug 74628 (handle_fatal_signal (sig=11) in st_join_table::cleanup | sql/sql_select.cc:3010)
+
+SET @@SESSION.sql_buffer_result= 1;
+CREATE TABLE t1(grp INT, a INT UNSIGNED, c CHAR, d CHAR);
+
+--error ER_BAD_FIELD_ERROR
+SELECT grp, GROUP_CONCAT(c ORDER BY 2) FROM t1 GROUP BY grp;
+
+DROP TABLE t1;

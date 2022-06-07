@@ -1,0 +1,44 @@
+CREATE TABLE t1 (a INT PRIMARY KEY);
+SET binlog_format= mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+RESET BINARY LOGS AND GTIDS;
+XA START 'xatest';
+INSERT INTO t1 VALUES (1);
+XA END 'xatest';
+XA PREPARE 'xatest';
+XA COMMIT 'xatest';
+XA START 'xatest';
+INSERT INTO t1 VALUES (2);
+XA END 'xatest';
+XA COMMIT 'xatest' ONE PHASE;
+BEGIN;
+INSERT INTO t1 VALUES (3);
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+SHOW BINLOG EVENTS LIMIT 1,30;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Previous_gtids	1	#	
+binlog.000001	#	Anonymous_Gtid	1	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	#	Query	1	#	XA START X'786174657374',X'',1
+binlog.000001	#	Table_map	1	#	table_id: NN (test.t1)
+binlog.000001	#	Write_rows	1	#	table_id: NN flags: STMT_END_F
+binlog.000001	#	Query	1	#	XA END X'786174657374',X'',1
+binlog.000001	#	XA_prepare	1	#	XA PREPARE X'786174657374',X'',1
+binlog.000001	#	Anonymous_Gtid	1	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	#	Query	1	#	XA COMMIT X'786174657374',X'',1
+binlog.000001	#	Anonymous_Gtid	1	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	#	Query	1	#	XA START X'786174657374',X'',1
+binlog.000001	#	Table_map	1	#	table_id: NN (test.t1)
+binlog.000001	#	Write_rows	1	#	table_id: NN flags: STMT_END_F
+binlog.000001	#	Query	1	#	XA END X'786174657374',X'',1
+binlog.000001	#	XA_prepare	1	#	XA COMMIT X'786174657374',X'',1 ONE PHASE
+binlog.000001	#	Anonymous_Gtid	1	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	#	Query	1	#	BEGIN
+binlog.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (3)
+binlog.000001	#	Xid	1	#	COMMIT /* xid=XX */
+DROP TABLE t1;

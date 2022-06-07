@@ -1,0 +1,7 @@
+--source include/have_pool_of_threads.inc
+
+--echo #
+--echo # Test that threadpool manages kill_idle_transaction timeouts correctly
+--echo #
+
+--source ../include/percona_kill_idle_trx_non_trx_se.inc

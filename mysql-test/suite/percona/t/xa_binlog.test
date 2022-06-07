@@ -1,0 +1,31 @@
+--source include/have_log_bin.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+# Fix binlog format (otherwise SHOW BINLOG EVENTS will fluctuate).
+SET binlog_format= mixed;
+
+RESET BINARY LOGS AND GTIDS;
+
+XA START 'xatest';
+INSERT INTO t1 VALUES (1);
+XA END 'xatest';
+XA PREPARE 'xatest';
+XA COMMIT 'xatest';
+
+XA START 'xatest';
+INSERT INTO t1 VALUES (2);
+XA END 'xatest';
+XA COMMIT 'xatest' ONE PHASE;
+
+BEGIN;
+INSERT INTO t1 VALUES (3);
+COMMIT;
+
+SELECT * FROM t1 ORDER BY a;
+
+--replace_column 2 # 5 #
+--replace_regex /xid=[0-9]+/xid=XX/ /table_id: [0-9]+/table_id: NN/
+SHOW BINLOG EVENTS LIMIT 1,30;
+
+DROP TABLE t1;

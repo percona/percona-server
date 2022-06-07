@@ -1,0 +1,31 @@
+-- source include/have_log_bin.inc
+
+SET @old_binlog_format=@@binlog_format;
+
+SET GLOBAL binlog_format='STATEMENT';
+SET SESSION binlog_format='STATEMENT';
+
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
+# Deletes all the binary logs
+RESET BINARY LOGS AND GTIDS;
+
+create table t1 (word varchar(20));
+
+--let $binlog_start_pos=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+# simple test for simple statement and various events
+insert into t1 values ("abirvalg");
+flush logs;
+
+# Strangely but this works
+--disable_query_log
+select "--- --start-position --" as "";
+--enable_query_log
+--let $mysqlbinlog_parameters=--short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --compress binlog.000001
+--source include/rpl/mysqlbinlog.inc
+
+drop table t1;
+
+SET GLOBAL binlog_format = @old_binlog_format;

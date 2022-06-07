@@ -1,0 +1,13 @@
+# Bug PS-1095: Issues then thread_pool_stall_timeout is above 2.1 seconds
+--source include/have_pool_of_threads.inc
+
+CREATE TABLE t1 (i int);
+
+# Sleep 9 seconds first: wait_disconnect keeps issuing SQL statements
+--sleep 9
+--source include/wait_until_disconnected.inc
+
+--connect
+--connection default
+DROP TABLE t1;
+

@@ -1,0 +1,6 @@
+# Let's make this test generic for servers linked with OpenSSL ver < 1.1.1 (without TLSv1.3) and >= 1.1.1 (with TLSv1.3)
+# --tls-ciphersuites=       - no default TLSv1.3 ciphers
+# --ssl-cipher=             - we need only this TLSv1.2 cipher
+# --tls-version=            - server accepts only TLSv1.2
+
+--ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 --tls-ciphersuites= --tls-version=TLSv1.2

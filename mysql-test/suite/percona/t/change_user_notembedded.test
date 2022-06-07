@@ -1,0 +1,22 @@
+#
+# MDEV-3915 COM_CHANGE_USER allows fast password brute-forcing
+#
+SELECT "A testcase needs at leat one query executed";
+--source include/count_sessions.inc
+connect (test,localhost,root,,);
+connection test;
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
+change_user foo,bar;
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
+change_user foo;
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
+change_user foo,bar;
+change_user;
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
+change_user foo,bar;
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
+change_user foo,bar;
+change_user;
+disconnect test;
+connection default;
+--source include/wait_until_count_sessions.inc

@@ -1,8 +1,9 @@
 select * from performance_schema.setup_threads;
 select * from performance_schema.setup_threads
-order by name limit 12;
+order by name limit 13;
 NAME	ENABLED	HISTORY	PROPERTIES	VOLATILITY	DOCUMENTATION
 thread/innodb/buf_dump_thread	YES	YES	singleton	0	NULL
+thread/innodb/buf_lru_manager_thread	YES	YES		0	NULL
 thread/innodb/buf_resize_thread	YES	YES	singleton	0	NULL
 thread/innodb/bulk_alloc_thread	YES	YES	singleton	0	NULL
 thread/innodb/bulk_flusher_thread	YES	YES		0	NULL

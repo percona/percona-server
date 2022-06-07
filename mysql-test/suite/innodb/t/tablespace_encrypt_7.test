@@ -565,3 +565,5 @@ DROP TABLESPACE encrypt_ts;
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+--error 0,1
+remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup;

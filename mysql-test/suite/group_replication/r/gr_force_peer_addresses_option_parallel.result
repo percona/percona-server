@@ -36,6 +36,7 @@ include/assert.inc [group_replication_force_members is empty]
 # 4. Try set group_replication_force_members on
 #    server1 again, it will succeed.
 [connection server1]
+SET DEBUG_SYNC='RESET';
 SET GLOBAL group_replication_force_members= "";
 include/assert.inc [group_replication_force_members is empty]
 

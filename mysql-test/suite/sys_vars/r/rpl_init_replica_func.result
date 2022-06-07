@@ -3,7 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+CREATE TABLE t1(a INT);
+DROP TABLE t1;
 connection slave
+include/sync_slave_sql_with_master.inc
 SET @start_max_connections= @@global.max_connections;
 SET @start_init_replica= @@global.init_replica;
 SET NAMES utf8;
@@ -24,30 +27,10 @@ SELECT @@global.init_replica = 'SET @@global.max_connections = @@global.max_conn
 1
 Expect 1
 include/assert.inc [@@global.max_connections = @start_max_connections]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_to_start.inc
+include/restart_slave.inc
 include/assert.inc [@@global.max_connections = @start_max_connections + 1]
 SET @@global.init_replica = "SET @a=5";
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-RESET BINARY LOGS AND GTIDS;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_to_start.inc
+include/restart_slave.inc
 SHOW VARIABLES LIKE 'init_replica';
 Variable_name	Value
 init_replica	SET @a=5

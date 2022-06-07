@@ -28,7 +28,7 @@ while ($wait_counter)
 {
     --disable_abort_on_error
     --disable_result_log
-    --connect ($con_name,localhost,$con_user_name)
+    --connect ($con_name,127.0.0.1,$con_user_name,,,$con_port,)
     --enable_result_log
     --enable_abort_on_error
 

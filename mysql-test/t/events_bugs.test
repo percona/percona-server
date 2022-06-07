@@ -677,6 +677,37 @@ connection default;
 
 DROP USER mysqltest_u1@localhost;
 
+#
+# PS#8115: Check a user containing an '@' is processed correctly
+#
+
+--let $user= 'mysqltest_u1@corp'@'localhost'
+--let $event= e1
+--eval CREATE USER $user
+--eval GRANT EVENT ON events_test.* TO $user
+
+--eval CREATE DEFINER=$user EVENT $event ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO SELECT 1
+--eval SHOW CREATE EVENT $event
+
+--eval DROP EVENT $event
+--eval DROP USER $user
+
+# user with several '@' is processed correctly
+--let $user= 'mysqltest_u1@corp@comp'@'localhost'
+--let $event= e1
+--eval CREATE USER $user
+--eval GRANT EVENT ON events_test.* TO $user
+
+--eval CREATE DEFINER=$user EVENT $event ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO SELECT 1
+--eval SHOW CREATE EVENT $event
+
+--eval DROP EVENT $event
+--eval DROP USER $user
+
+# '@' is not allowed in the hostname
+--let $user= 'mysqltest_u1'@'localhost@corp'
+--error ER_UNKNOWN_ERROR
+--eval CREATE USER $user
 
 #
 # BUG#16420: Events: timestamps become UTC

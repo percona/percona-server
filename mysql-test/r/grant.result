@@ -680,6 +680,7 @@ GRANT SELECT ON mysqltest.t1 TO mysqltest1@'192.%';
 show grants for mysqltest1@'192.%';
 Grants for mysqltest1@192.%
 GRANT USAGE ON *.* TO `mysqltest1`@`192.%`
+GRANT DELETE ON `mysqltest`.`t1` TO 'mysqltest1'@'%'
 GRANT SELECT ON `mysqltest`.`t1` TO `mysqltest1`@`192.%`
 show grants for mysqltest1@'%';
 Grants for mysqltest1@%
@@ -737,6 +738,7 @@ show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO `mysqltest_8`@`%`
 GRANT SELECT ON `mysqltest`.* TO `mysqltest_8`@`%`
+GRANT SELECT ON `mysqltest`.* TO `mysqltest_8`@``
 select * from  information_schema.schema_privileges
 where grantee like "'mysqltest_8'%";
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
@@ -777,6 +779,7 @@ show grants for mysqltest_8@'';
 Grants for mysqltest_8@
 GRANT USAGE ON *.* TO `mysqltest_8`@``
 GRANT UPDATE (`a`) ON `test`.`t1` TO `mysqltest_8`@``
+GRANT UPDATE (a) ON `test`.`t1` TO `mysqltest_8`@`%`
 show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO `mysqltest_8`@`%`
@@ -786,10 +789,12 @@ show grants for mysqltest_8@'';
 Grants for mysqltest_8@
 GRANT USAGE ON *.* TO `mysqltest_8`@``
 GRANT UPDATE (`a`) ON `test`.`t1` TO `mysqltest_8`@``
+GRANT UPDATE (a) ON `test`.`t1` TO `mysqltest_8`@`%`
 show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO `mysqltest_8`@`%`
 GRANT UPDATE (`a`) ON `test`.`t1` TO `mysqltest_8`@`%`
+GRANT UPDATE (a) ON `test`.`t1` TO `mysqltest_8`@`%`
 select * from  information_schema.column_privileges;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_8'@'%'	def	test	t1	a	UPDATE	NO
@@ -820,6 +825,7 @@ show grants for mysqltest_8@'';
 Grants for mysqltest_8@
 GRANT USAGE ON *.* TO `mysqltest_8`@``
 GRANT UPDATE ON `test`.`t1` TO `mysqltest_8`@``
+GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@'%'
 show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO `mysqltest_8`@`%`
@@ -829,10 +835,12 @@ show grants for mysqltest_8@'';
 Grants for mysqltest_8@
 GRANT USAGE ON *.* TO `mysqltest_8`@``
 GRANT UPDATE ON `test`.`t1` TO `mysqltest_8`@``
+GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@'%'
 show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO `mysqltest_8`@`%`
 GRANT UPDATE ON `test`.`t1` TO `mysqltest_8`@`%`
+GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@'%'
 select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql');
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_8'@'%'	def	test	t1	UPDATE	NO
@@ -866,11 +874,13 @@ show grants for mysqltest_8@'';
 Grants for mysqltest_8@
 GRANT USAGE ON *.* TO `mysqltest_8`@``
 GRANT ALL PRIVILEGES ON `mysqltest`.* TO `mysqltest_8`@``
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@''
 GRANT UPDATE, UPDATE (`a`) ON `test`.`t1` TO `mysqltest_8`@``
 show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO `mysqltest_8`@`%`
 GRANT ALL PRIVILEGES ON `mysqltest`.* TO `mysqltest_8`@`%`
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@''
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
@@ -884,11 +894,14 @@ show grants for mysqltest_8@'';
 Grants for mysqltest_8@
 GRANT USAGE ON *.* TO `mysqltest_8`@``
 GRANT ALL PRIVILEGES ON `mysqltest`.* TO `mysqltest_8`@``
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@''
 GRANT UPDATE, UPDATE (`a`) ON `test`.`t1` TO `mysqltest_8`@``
 show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO `mysqltest_8`@`%`
 GRANT ALL PRIVILEGES ON `mysqltest`.* TO `mysqltest_8`@`%`
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@''
+GRANT UPDATE, UPDATE (a) ON `test`.`t1` TO 'mysqltest_8'@''
 drop user mysqltest_8@'';
 show grants for mysqltest_8@'';
 ERROR 42000: There is no such grant defined for user 'mysqltest_8' on host ''

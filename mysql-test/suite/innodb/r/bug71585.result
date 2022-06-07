@@ -1,0 +1,14 @@
+CREATE TABLE files (
+`PATH` varchar(150) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
+`CONTENTS` mediumtext COLLATE utf8_unicode_ci NOT NULL,
+PRIMARY KEY (`PATH`)
+) ENGINE=innodb DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+Warnings:
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO `files` (PATH,CONTENTS) VALUES ('X',repeat('0',8104));
+update files set path='x' where path='X';
+update files set path='X' where path='x';
+DROP TABLE files;

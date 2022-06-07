@@ -1,3 +1,5 @@
+--source include/have_ipv6.inc
+
 --echo ## Scenario 1 - A ###################################################
 
 CREATE USER 'user'@'localhost';

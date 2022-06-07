@@ -1,0 +1,9 @@
+#
+# Bug #23296299 / #81457 "handle_fatal_signal (sig=11) in my_tosort_utf32"
+# fixed in 5.5.52.
+# Certain internal character-handling functions could fail to handle a
+# too-large character and cause a server exit.
+#
+SET collation_connection = utf32_general_ci;
+CREATE TEMPORARY TABLE t1 AS SELECT 'This is temp. t' A;
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('b', 0);

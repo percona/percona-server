@@ -1752,6 +1752,18 @@ GROUP BY id
 ORDER BY l DESC;
 
 --echo #
+--echo # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
+--echo #
+
+SET NAMES utf8 COLLATE utf8_general_ci;
+--let ENGINE=InnoDB
+--source include/ctype_utf8_ilseq.inc
+--let ENGINE=MyISAM
+--source include/ctype_utf8_ilseq.inc
+--let ENGINE=HEAP
+--source include/ctype_utf8_ilseq.inc
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
 

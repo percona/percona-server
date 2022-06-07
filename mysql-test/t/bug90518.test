@@ -1,0 +1,11 @@
+--echo #
+--echo # [MySQL 8.0 GA Release Build] handle_fatal_signal (sig=11) in I_P_List_iterator
+--echo #
+SET max_error_count=0;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE VIEW v1(a) AS SELECT a FROM t1;
+DROP TABLE IF EXISTS t1;
+--disable_result_log
+SHOW TABLE STATUS;
+--enable_result_log
+DROP VIEW v1;

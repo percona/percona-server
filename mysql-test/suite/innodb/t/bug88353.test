@@ -1,0 +1,11 @@
+--echo #
+--echo # InnoDB: Assertion failure: ha_innodb.cc:3258:m_prebuilt->magic_n == 78540783
+--echo #
+CREATE TEMPORARY TABLE t1(c1 DOUBLE,c2 BLOB,c3 YEAR) ENGINE=InnoDB;
+ALTER TABLE t1 MODIFY c2 VARCHAR(1024) CHARACTER SET 'Binary' COLLATE 'Binary';
+ALTER TABLE t1 ADD INDEX(c2),ADD UNIQUE (c2);
+SET @saved_innodb_default_row_format=@@GLOBAL.innodb_default_row_format;
+SET @@GLOBAL.innodb_default_row_format=compact;
+TRUNCATE t1;
+DROP TEMPORARY TABLE t1;
+SET @@GLOBAL.innodb_default_row_format=@saved_innodb_default_row_format;

@@ -19,7 +19,7 @@ if ($explicit_default_wait_counter)
   --let $wait_counter= $explicit_default_wait_counter
 }
 if ($VALGRIND_TEST) {
-  --let $wait_counter= 20000
+  --let $wait_counter= 30000
   if ($add_wait_counter) {
     --expr $wait_counter= $wait_counter + $add_wait_counter
   }
@@ -40,13 +40,16 @@ while ($mysql_errno)
   # Strangely enough, the server might return "Too many connections"
   # while being shutdown, thus 1040 is an "allowed" error
   # See BUG#36228
-  --error 0,1040,1053,2002,2003,2006,2013,1045,ER_SECURE_TRANSPORT_REQUIRED,2016,2017,ER_CLIENT_INTERACTION_TIMEOUT
+  --error 0,1040,1053,2002,2003,2006,2013,1045,ER_CANNOT_FIND_KEY_IN_KEYRING,ER_SECURE_TRANSPORT_REQUIRED,2016,2017,ER_CLIENT_INTERACTION_TIMEOUT
   show session status;
   if ($mysql_errno == 1045){
     --let mysql_errno=0
   }
   if ($mysql_errname == ER_SECURE_TRANSPORT_REQUIRED){
     --let mysql_errno=0
+  }
+  if ($mysql_errname == ER_CANNOT_FIND_KEY_IN_KEYRING){
+    --let mysql_errno=0;
   }
   --dec $counter
   if (!$counter)

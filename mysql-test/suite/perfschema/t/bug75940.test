@@ -1,0 +1,4 @@
+# MySQL bug #75940: Mutex issue in sql/sql_show.cc resulting in sig6. Source likely fill_variables
+# The original code now gone - this test no longer is a regression test for the original crash
+select variable_name from performance_schema.session_variables where variable_name=
+       (select variable_name from performance_schema.session_variables where variable_name= 'BASEDIR');

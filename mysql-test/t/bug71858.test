@@ -1,0 +1,14 @@
+# Testcase for http://bugs.mysql.com/bug.php?id=71858 (bug 1286186):
+
+# mysqld: /home/openxs/bzr/percona-5.6/sql/mdl.h:348:
+# void MDL_key::mdl_key_init(MDL_key::enum_mdl_namespace, const char*, const char*): Assertion `strlen(db) <= (64*3) && strlen(name) <= (64*3)' failed.
+
+SELECT table_schema, table_name, column_name, column_type FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_NAME IN ( 'ooooooooooooooooooooooooooooooooooooo' 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa '
+'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb cc' 'ccccccccccccc' 'wwwwwwwwwwwwwwwwwww' 'rrrrrrrrrrrrrrrr'
+'tttttttttttttttttttt' 'yyyyyyyyyyyyyyyyyyy' 'uuuuuuuuuuuuuuuuuuuuuuuuuuuu' 'iiiiiiiiiiiiiiiiiiiiiiiiiiiiii'
+'oooooooooooooooooooo' 'ppppppppppppppppppppppppppppp' 'jjjjjjjjjjjj' 'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk'
+'lllllllllllllllllllllllllllllllllllllll' 'zzzzzzzzzzzzzzz' 'xxxxxxxxxxxxxxxxx' 'cccccccccc'
+'vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv' 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' ) AND TABLE_SCHEMA='AA_BBB' AND COLUMN_TYPE='PRI'
+ORDER BY 2;

@@ -1,0 +1,91 @@
+#
+# Test slow-logging of statements in stored procedures
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS test_outer;
+DROP PROCEDURE IF EXISTS test_inner;
+--enable_warnings
+
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+
+delimiter ^;
+CREATE PROCEDURE test_inner()
+BEGIN
+   SELECT 2;
+END^
+delimiter ;^
+
+delimiter ^;
+CREATE PROCEDURE test_outer()
+BEGIN
+   SELECT 1;
+   CALL test_inner();
+END^
+delimiter ;^
+
+PREPARE stmt FROM "CALL test_outer()";
+
+SET GLOBAL log_slow_sp_statements=ON;
+--let log_file=percona.slow_extended.sp1
+--source include/log_start.inc
+SELECT "log_always";
+CALL test_outer();
+EXECUTE stmt;
+--source include/log_stop.inc
+--let grep_pattern=log_always
+--source include/log_grep.inc
+--let grep_pattern=SELECT 1;
+--source include/log_grep.inc
+--let grep_pattern=SELECT 2;
+--source include/log_grep.inc
+--let grep_pattern=CALL test_
+--source include/log_grep.inc
+--let grep_pattern=# Stored_routine: test.test_outer
+--source include/log_grep.inc
+--let grep_pattern=# Stored_routine: test.test_inner
+--source include/log_grep.inc
+
+SET GLOBAL log_slow_sp_statements=OFF;
+--let log_file=percona.slow_extended.sp2
+--source include/log_start.inc
+SELECT "log_always";
+CALL test_outer();
+EXECUTE stmt;
+--source include/log_stop.inc
+--let grep_pattern=log_always
+--source include/log_grep.inc
+--let grep_pattern=SELECT 1;
+--source include/log_grep.inc
+--let grep_pattern=SELECT 2;
+--source include/log_grep.inc
+--let grep_pattern=CALL test_
+--source include/log_grep.inc
+--let grep_pattern=# Stored_routine: test.test_
+--source include/log_grep.inc
+
+SET GLOBAL log_slow_sp_statements=OFF_NO_CALLS;
+--let log_file=percona.slow_extended.sp3
+--source include/log_start.inc
+SELECT "log_always";
+CALL test_outer();
+EXECUTE stmt;
+--source include/log_stop.inc
+--let grep_pattern=log_always
+--source include/log_grep.inc
+--let grep_pattern=SELECT 1;
+--source include/log_grep.inc
+--let grep_pattern=SELECT 2;
+--source include/log_grep.inc
+--let grep_pattern=CALL test_
+--source include/log_grep.inc
+--let grep_pattern=# Stored_routine: test.test_
+--source include/log_grep.inc
+
+DROP PROCEDURE test_outer;
+DROP PROCEDURE test_inner;
+
+SET GLOBAL log_slow_sp_statements=default;
+SET SESSION long_query_time=default;
+SET SESSION min_examined_row_limit=default;
+--source include/log_cleanup.inc

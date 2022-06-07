@@ -1,0 +1,5 @@
+CREATE TABLE t0(a GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(a)) ENGINE=MyISAM;
+HANDLER t0 OPEN;
+HANDLER t0 READ a = (0);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+DROP TABLE t0;

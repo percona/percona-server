@@ -1,0 +1,41 @@
+SET SESSION expand_fast_index_creation=ON;
+CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX z(a));
+ALTER TABLE t1 ADD INDEX y(b);
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(id int auto_increment primary key, a int, index(a)) engine=InnoDB;
+ALTER TABLE t1 ADD j int;
+INSERT INTO t1(a) VALUES (1);
+SELECT * FROM t1 FORCE INDEX (PRIMARY);
+id	a	j
+1	1	NULL
+SELECT * FROM t1 FORCE INDEX (a);
+id	a	j
+1	1	NULL
+DROP TABLE t1;
+#
+# Bug 1529555: InnoDB: Failing assertion: id != srv_tmp_space.space_id() in fsp_space_modify_check
+#
+CREATE TEMPORARY TABLE t1(a CHAR (1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t1(a) VALUES ('a'), ('a'), ('a'), ('a'), ('a'), (0);
+ALTER TABLE t1 ADD INDEX (a);
+affected rows: 6
+info: Records: 6  Duplicates: 0  Warnings: 0
+SELECT * FROM t1 FORCE INDEX (a) ORDER BY a;
+a	b
+0	NULL
+a	NULL
+a	NULL
+a	NULL
+a	NULL
+a	NULL
+DROP TABLE t1;
+#
+# Bug 1554622: InnoDB: Failing assertion: fil_space_get_type(id) == FIL_TYPE_TABLESPACE in file fsp0fsp.cc line 778
+#
+CREATE TEMPORARY TABLE t1(id int, key id (id)) engine=innodb;
+INSERT INTO t1 VALUES(0xABE3);
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SELECT * FROM t1;
+id
+44003
+DROP TABLE t1;

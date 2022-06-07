@@ -1,0 +1,4 @@
+# restart:--character-set-server=utf16le
+SET @@global.ft_boolean_syntax = '# -><()~*:11&1';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of '# -><()~*:11&1'
+# restart

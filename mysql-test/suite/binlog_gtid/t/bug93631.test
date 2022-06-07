@@ -1,0 +1,12 @@
+--echo #
+--echo # Bug 93631: wrong error returned or crash if mysql.gtid_executed is inaccessible
+--echo #
+
+# Percona disabled for debug builds until https://bugs.mysql.com/bug.php?id=96524 is fixed
+--source include/have_nodebug.inc
+
+CREATE DATABASE transforms;
+
+FLUSH BINARY LOGS;
+
+DROP DATABASE transforms;

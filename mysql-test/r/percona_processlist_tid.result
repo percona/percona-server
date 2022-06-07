@@ -1,0 +1,3 @@
+SELECT COUNT(*) = 0 AS must_be_true FROM performance_schema.threads WHERE thread_os_id NOT IN (SELECT lwp_no FROM lwp_table);
+must_be_true
+1

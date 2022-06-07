@@ -86,14 +86,12 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_message_service_delete_me
 SET @@GLOBAL.DEBUG= '-d,group_replication_message_service_delete_messages';
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_message_service_delete_messages_continue";
 
-
 --echo
 --echo ############################################################
 --echo # 4. Assert server1 received messages transmitted by GR message
 --echo #    delivery
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-011071' AND data LIKE '%Service message recv TAG: "$tag"%'
 --source include/wait_condition.inc
-
 
 --echo
 --echo ##############################################################
@@ -119,6 +117,7 @@ SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_s
 --let $assert_text= 'The sum of bytes allocated must be zero after stopping GR'
 --let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/message_service_received_message"
 --source include/assert.inc
+
 
 
 --echo

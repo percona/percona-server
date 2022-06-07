@@ -1,0 +1,28 @@
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/percona_log_connection_error.err
+SET GLOBAL max_connections=1;
+CREATE USER nonprivuser@localhost;
+SET GLOBAL LOG_ERROR_VERBOSITY = 1;
+connect(localhost,root,,test,port,socket);
+ERROR HY000: Too many connections
+[log_grep.inc] file: percona_log_connection_error.err pattern: Too many connections
+[log_grep.inc] lines:   0
+SET GLOBAL LOG_ERROR_VERBOSITY = 2;
+connect(localhost,root,,test,port,socket);
+ERROR HY000: Too many connections
+[log_grep.inc] file: percona_log_connection_error.err pattern: Too many connections
+[log_grep.inc] lines:   1
+SET GLOBAL LOG_ERROR_VERBOSITY = 1;
+connect(localhost,root,,test,port,socket);
+ERROR HY000: Too many connections
+[log_grep.inc] file: percona_log_connection_error.err pattern: Too many connections
+[log_grep.inc] lines:   1
+#
+# Bug 1583553: Error log "Too many connections" warning is not printed for the first after the limit non-SUPER login attempt
+#
+SET GLOBAL LOG_ERROR_VERBOSITY = 2;
+connect(localhost,nonprivuser,,test,port,socket);
+ERROR 08004: Too many connections
+# restart
+[log_grep.inc] file: percona_log_connection_error.err pattern: Too many connections
+[log_grep.inc] lines:   2
+DROP USER nonprivuser@localhost;

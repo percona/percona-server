@@ -1,0 +1,48 @@
+call mtr.add_suppression("\\[Error\\] InnoDB: keyring error: please check that a keyring plugin is loaded");
+call mtr.add_suppression("\\[Error\\] InnoDB: Can't set temporary tablespace to be encrypted because keyring plugin is not available");
+# without keyring plugin, try to enable encryption of temporary
+# tablespace
+SELECT @@innodb_temp_tablespace_encrypt;
+@@innodb_temp_tablespace_encrypt
+0
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;
+Warnings:
+Warning	1210	 Temporary tablespace couldn't be encrypted. Check if keyring plugin is loaded.
+SELECT @@innodb_temp_tablespace_encrypt;
+@@innodb_temp_tablespace_encrypt
+0
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` cannot contain an ENCRYPTED table.
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='N';
+DROP TABLE t01;
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
+# in innodb_read_only mode, temp tablespace cannot be encrypted
+SELECT @@innodb_temp_tablespace_encrypt;
+@@innodb_temp_tablespace_encrypt
+0
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;
+Warnings:
+Warning	1210	 Temporary tablespace cannot be encrypted in innodb_read_only mode
+SELECT @@innodb_temp_tablespace_encrypt;
+@@innodb_temp_tablespace_encrypt
+0
+# startup failure when innodb_temp_tablespace =ON and no keyring plugin
+Pattern found.
+# restart:<hidden args>
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+INSERT INTO t01 VALUES (1), (2), (3);
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;
+SHOW WARNINGS;
+Level	Code	Message
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` can contain only an ENCRYPTED tables.
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+INSERT INTO t01 VALUES (1), (2), (3);
+SET GLOBAL innodb_encrypt_tables=ON;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+SET GLOBAL innodb_encrypt_tables=OFF;
+INSERT INTO t01 VALUES (1), (2), (3);
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+INSERT INTO t01 VALUES (1), (2), (3);
+SET GLOBAL innodb_temp_tablespace_encrypt = OFF;

@@ -1,0 +1,27 @@
+#################### secure_file_priv_noarg.test #######################
+#                                                                      #
+# Test for BP  5.5-prevent-in-outfile-option                           #
+#     extend --secure-file-priv. when it is specified without argument #
+#     disable LOAD DATA INFILE, SELECT INTO OUTFILE, LOAD_FILE()       #
+#                                                                      #
+#                                                                      #
+# Creation:                                                            #
+# 2012-05-24 Sergei Glushchenko                                        #
+#                                                                      #
+#                                                                      #
+########################################################################
+CREATE TABLE t1 (c1 VARCHAR(50));
+INSERT INTO t1 VALUES ("one"),("two"),("three"),("four"),("five");
+SHOW VARIABLES LIKE 'secure_file_priv';
+--error ER_OPTION_PREVENTS_STATEMENT
+SELECT * FROM t1 INTO OUTFILE '/tmp/file1.txt';
+CREATE TABLE t3 (a TEXT, b TEXT, c TEXT, d TEXT);
+--disable_query_log
+--let $FILE_NAME=`SELECT concat(@@datadir,'../../std_data/loaddata1.dat')`
+--error ER_OPTION_PREVENTS_STATEMENT
+--eval LOAD DATA INFILE '$FILE_NAME' INTO TABLE t3 FIELDS TERMINATED BY ',';
+--eval LOAD DATA LOCAL INFILE '$FILE_NAME' INTO TABLE t3 FIELDS TERMINATED BY ',';
+--eval SELECT LOAD_FILE('$FILE_NAME') as c;
+--enable_query_log
+DROP TABLE t1;
+DROP TABLE t3;

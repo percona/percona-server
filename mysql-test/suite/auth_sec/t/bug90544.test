@@ -1,0 +1,6 @@
+--echo #
+--echo # handle_fatal_signal (sig=11) in hashtable_policy.h
+--echo #
+
+--error ER_OPTION_PREVENTS_STATEMENT
+SET ROLE ins;

@@ -50,6 +50,7 @@ DELETE FROM tmp;
 --let $dont_print_pattern= 0
 
 # Cleanup:
+SET DEBUG_SYNC= 'reset';
 
 DROP VIEW v_12;
 

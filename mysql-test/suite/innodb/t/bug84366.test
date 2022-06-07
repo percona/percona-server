@@ -1,0 +1,61 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Bug 84366: InnoDB index dives do not detect concurrent tree changes, return
+--echo # bogus estimates
+--echo #
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (key1 INT NOT NULL, key2 INT NOT NULL,
+                 INDEX i1(key1), INDEX i2(key2)) ENGINE = InnoDB;
+
+--disable_query_log
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+
+let $1=9;
+SET @d=2;
+while ($1)
+{
+  INSERT INTO t1 SELECT key1 + @d, key2 + @d FROM t1;
+  SET @d=@d*2;
+  dec $1;
+}
+--enable_query_log
+
+SET @@GLOBAL.innodb_purge_stop_now = TRUE;
+
+ALTER TABLE t1 ADD keyC INT NOT NULL, ADD INDEX iC(keyC);
+UPDATE t1 SET keyC = key1;
+
+ANALYZE TABLE t1;
+
+--connect(con1,localhost,root,,)
+
+EXPLAIN SELECT * FROM t1 WHERE key1 = 1 OR key2 = 2 OR keyC = 12;
+
+SET DEBUG_SYNC = "btr_estimate_n_rows_in_range_between_dives SIGNAL estimate_ready WAIT_FOR estimate_finish";
+
+send EXPLAIN SELECT * FROM t1 WHERE key1 = 1 OR key2 = 2 OR keyC = 12;
+
+connection default;
+SET DEBUG_SYNC = "now WAIT_FOR estimate_ready";
+
+SET @@GLOBAL.innodb_purge_run_now = TRUE;
+
+--source include/wait_innodb_all_purged.inc
+
+SET DEBUG_SYNC = "now SIGNAL estimate_finish";
+
+connection con1;
+reap;
+
+EXPLAIN SELECT * FROM t1 WHERE key1=1 or key2=2 or keyC=12;
+
+disconnect con1;
+connection default;
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,10 @@
+# Query rewrite plugin was installed.
+SET @saved_rewriter_verbose = @@global.rewriter_verbose;
+SET GLOBAL rewriter_verbose = 2;
+SELECT 1 "a%b_%d";
+a%b_%d
+1
+SET GLOBAL rewriter_verbose = @saved_rewriter_verbose;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

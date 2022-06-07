@@ -58,7 +58,7 @@ if (!$_binlog_start)
   # position.  The first event(Description Event) is always ignored. For
   # description event's length might be changed because of adding new events,
   # 'SHOW BINLOG EVENTS LIMIT 1' is used to get the right value.
-  --let $_binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
+  --let $_binlog_start= query_get_value($statement LIMIT 1 $_se_for_channel, End_log_pos, 1)
 }
 
 --let $statement= $statement FROM $_binlog_start
@@ -95,6 +95,10 @@ if ($show_binlog_events_mask_columns != '')
 if ($show_binlog_events_mask_columns == '')
 {
   --let $mask_columns = 2,4,5
+  if ($keep_server_id)
+  {
+    --let $mask_columns= 2, 5
+  }
 }
 let $script=
   s{/\* xid=.* \*/}{/\* XID # \*/};

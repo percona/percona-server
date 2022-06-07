@@ -13,5 +13,5 @@ COUNT(component_urn)
 UNINSTALL COMPONENT "file://component_test_component_init_then_register";
 #
 # check the component is actually un-installed
-SELECT * from mysql.component;
+SELECT * from mysql.component WHERE component_urn != 'file://component_percona_telemetry';
 component_id	component_group_id	component_urn

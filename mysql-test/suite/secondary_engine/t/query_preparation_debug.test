@@ -110,6 +110,7 @@ SET DEBUG_SYNC = 'now SIGNAL continue';
 --reap
 --disconnect conn1
 DROP TABLE t;
+SET DEBUG_SYNC= 'RESET';
 
 --echo #
 --echo # Bug#29615190: SELECTS ON TABLES OFFLOADED TO SECONDARY ENGINE ARE

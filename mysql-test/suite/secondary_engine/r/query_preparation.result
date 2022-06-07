@@ -1214,6 +1214,6 @@ FLUSH STATUS;
 CREATE TABLE tt AS SELECT * FROM t;
 SHOW STATUS LIKE 'Select_scan';
 Variable_name	Value
-Select_scan	1
+Select_scan	2
 DROP TABLE tt;
 DROP TABLE t;

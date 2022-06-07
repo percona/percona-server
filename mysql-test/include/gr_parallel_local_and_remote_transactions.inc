@@ -157,6 +157,7 @@ COMMIT;
 --let $rpl_connection_name= $local_server_connection2
 --source include/rpl_connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 

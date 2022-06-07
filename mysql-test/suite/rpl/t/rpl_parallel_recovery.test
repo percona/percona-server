@@ -21,8 +21,10 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/not_group_replication_plugin.inc
---source include/have_replica_parallel_type_logical_clock.inc
 --source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/only_mts_replica_parallel_type_logical_clock.inc
 
 --source extra/rpl_tests/rpl_parallel_recovery_core.test
 

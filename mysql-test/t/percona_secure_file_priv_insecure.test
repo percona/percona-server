@@ -1,0 +1,23 @@
+--echo #
+--echo # Test that --secure-file-priv=/ effectively disables security checks
+--echo #
+
+--let $insecure_file_path= /tmp/percona_secure_file_priv_insecure.txt
+--remove_files_wildcard /tmp percona_secure_file_priv_insecure.txt
+
+SHOW VARIABLES LIKE 'secure_file_priv';
+
+CREATE TABLE t1 (c1 VARCHAR(50));
+INSERT INTO t1 VALUES ("one"),("two"),("three"),("four"),("five");
+
+eval SELECT * FROM t1 INTO OUTFILE '$insecure_file_path';
+
+TRUNCATE TABLE t1;
+
+eval LOAD DATA INFILE '$insecure_file_path' INTO TABLE t1 FIELDS TERMINATED BY ',';
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+eval SELECT LOAD_FILE('$insecure_file_path') AS c;
+--remove_file $insecure_file_path

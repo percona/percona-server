@@ -1,0 +1,20 @@
+--echo #
+--echo # Bug #27225649, #27229072 / #88782 "Failing assertion: prebuilt->sql_stat_start || prebuilt->select_lock_type != LOC"
+--echo # fixed in 5.5.60, 5.6.40, 5.7.22, 8.0.11
+--echo # InnoDB: A REPLACE operation on a temporary table raised an assertion
+--echo #
+
+CREATE TEMPORARY TABLE t2(c1 INT);
+CREATE TEMPORARY TABLE t1(a int) ENGINE=InnoDB;
+
+ALTER TABLE t1 ADD UNIQUE INDEX(a);
+
+LOCK TABLES t1 READ, t2 READ;
+
+INSERT INTO t2 VALUES(8403+0.75);
+--error ER_BAD_FIELD_ERROR
+SELECT DAYNAME(c1) FROM t1;
+INSERT INTO t1 VALUES(0xAFBA);
+
+REPLACE INTO t1 SELECT * FROM t2;
+REPLACE INTO t1 SELECT * FROM t2;

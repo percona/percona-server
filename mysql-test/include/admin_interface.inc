@@ -4,6 +4,7 @@
 --echo #
 
 --disable_query_log
+CALL mtr.add_suppression("Too many connections");
 CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
 CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 --enable_query_log

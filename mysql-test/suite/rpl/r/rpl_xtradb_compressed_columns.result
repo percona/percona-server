@@ -1,0 +1,63 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# 
+# master:zip -> slave:zip
+# 
+CREATE COMPRESSION_DICTIONARY dict('long');
+CREATE TABLE t1(
+id BIGINT UNSIGNED NOT NULL,
+a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+id BIGINT UNSIGNED NOT NULL,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict
+) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1,master:t2,slave:t1,slave:t2]
+DROP TABLE t1, t2;
+DROP COMPRESSION_DICTIONARY dict;
+include/sync_slave_sql_with_master.inc
+# 
+# master:zip -> slave:non-zip
+# 
+CREATE COMPRESSION_DICTIONARY dict('long');
+CREATE TABLE t1(
+id BIGINT UNSIGNED NOT NULL,
+a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+id BIGINT UNSIGNED NOT NULL,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict
+) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 MODIFY a BLOB COLUMN_FORMAT DEFAULT;
+ALTER TABLE t2 MODIFY a BLOB COLUMN_FORMAT DEFAULT;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1,master:t2,slave:t1,slave:t2]
+DROP TABLE t1, t2;
+DROP COMPRESSION_DICTIONARY dict;
+include/sync_slave_sql_with_master.inc
+# 
+# master:non-zip -> slave:zip
+# 
+CREATE COMPRESSION_DICTIONARY dict('long');
+CREATE TABLE t1(
+id BIGINT UNSIGNED NOT NULL,
+a BLOB
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+id BIGINT UNSIGNED NOT NULL,
+a BLOB
+) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 MODIFY a BLOB COLUMN_FORMAT COMPRESSED;
+ALTER TABLE t2 MODIFY a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1,master:t2,slave:t1,slave:t2]
+DROP TABLE t1, t2;
+DROP COMPRESSION_DICTIONARY dict;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -1,0 +1,10 @@
+# Non transactional engines should ignore gap lock errors
+
+let $engine=memory;
+let $expect_gap_lock_errors=0;
+let $gap_lock_error_skip_partitioning=1;
+--source include/gap_lock_error_init.inc
+select sum(value) from gap1;
+update gap1 set gap1.value= (select count(*) from gap2);
+select sum(value) from gap1;
+--source include/gap_lock_error_cleanup.inc

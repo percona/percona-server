@@ -1,0 +1,11 @@
+SELECT @@GLOBAL.have_backup_safe_binlog_info="YES";
+@@GLOBAL.have_backup_safe_binlog_info="YES"
+1
+SELECT @@SESSION.have_backup_safe_binlog_info;
+ERROR HY000: Variable 'have_backup_safe_binlog_info' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'have_backup_safe_binlog_info';
+Variable_name	Value
+have_backup_safe_binlog_info	YES
+SHOW SESSION VARIABLES LIKE 'have_backup_safe_binlog_info';
+Variable_name	Value
+have_backup_safe_binlog_info	YES

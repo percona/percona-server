@@ -1,0 +1,39 @@
+CREATE TABLE t1 (
+pri1 INT UNSIGNED NOT NULL,
+dt DATETIME DEFAULT NULL,
+dop1 TEXT DEFAULT NULL ,
+PRIMARY KEY (pri1),
+INDEX uk_t1 (dt)
+)
+ENGINE = InnoDB
+AVG_ROW_LENGTH = 16384
+CHARACTER SET utf8mb3
+COLLATE utf8mb3_general_ci
+ROW_FORMAT = DYNAMIC;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t1(pri1, dt, dop1) VALUES(1, NOW(), '2222');
+CREATE PROCEDURE insert_test()
+BEGIN
+DECLARE pri1, pri3 INT;
+DECLARE pri2, comment VARCHAR(255);
+DECLARE dop1_1, dop2, dop3 VARCHAR(255) DEFAULT '222';
+SET pri1 = 1, pri2 = '1', pri3 = 1, comment = '123';
+INSERT INTO t1(pri1, dt, dop1)
+VALUES(pri1, NOW(), dop1_1)
+ON DUPLICATE KEY UPDATE dt = NOW(), dop1 = VALUES(dop1);
+END
+|
+CREATE PROCEDURE call_in_loop(iterations INT)
+BEGIN
+WHILE iterations > 0 DO
+CALL insert_test();
+SET iterations = iterations - 1;
+END WHILE;
+END
+|
+CALL call_in_loop(1000);
+DROP PROCEDURE call_in_loop;
+DROP PROCEDURE insert_test;
+DROP TABLE t1;

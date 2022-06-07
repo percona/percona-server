@@ -1,0 +1,32 @@
+CREATE TABLE t1(
+id VARCHAR(32) NOT NULL,
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+CREATE PROCEDURE fill_table(IN number_of_records BIGINT UNSIGNED)
+BEGIN
+DECLARE i BIGINT UNSIGNED DEFAULT 0;
+START TRANSACTION;
+WHILE i < number_of_records DO
+INSERT INTO t1 VALUES(MD5(i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+CALL fill_table(32 * 1024);
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	67358029
+include/assert.inc [(Fragmented table) The number of disjointed pages is much greater than the number of contiguous pages]
+include/assert.inc [(Fragmented table) Average seek distance for fragmented tables is >= 2]
+ALTER TABLE t1 ENGINE=InnoDB;
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	67358029
+include/assert.inc [(Defragmented table) The number of disjointed pages is much less than the number of contiguous pages]
+include/assert.inc [(Defragmented table) Average seek distance for fragmented tables is >= 2]
+include/assert.inc [(data + garbage) in the fragmented table is greater than (data + garbage) in the defragmented one]
+include/assert.inc [(garbage) in the fragmented table is greater than (garbage) in the defragmented one]
+FLUSH STATUS;
+include/assert.inc [All counters have been set to zero]
+DROP PROCEDURE fill_table;
+DROP TABLE t1;

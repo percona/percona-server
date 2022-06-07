@@ -32,12 +32,12 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 connection master;
 
 CREATE TABLE t (i INT, PRIMARY KEY(i), f CHAR(8)) engine = Innodb;
-CREATE TABLE n (d DATETIME, f CHAR(32)) engine = MyIsam;
+CREATE TABLE n (d INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f CHAR(32)) engine = MyIsam;
 
 DELIMITER |;
 CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW 
 BEGIN 
-  INSERT INTO n VALUES ( now(), concat( 'updated t: ', old.f, ' -> ', new.f ) ); 
+  INSERT INTO n (f) VALUES ( concat( 'updated t: ', old.f, ' -> ', new.f ) ); 
 END |
 DELIMITER ;|
 
@@ -80,7 +80,7 @@ while ($type)
   --error ER_LOCK_WAIT_TIMEOUT
   eval UPDATE IGNORE t SET f = 'magenta $type' WHERE f = 'red';
   eval INSERT INTO t VALUES (5 + ($type * 10),"brown");
-  INSERT INTO n VALUES (now(),"brown");
+  INSERT INTO n(f) VALUES ("brown");
   
   connection conn1;
   COMMIT;
@@ -115,7 +115,7 @@ while ($type)
   --error ER_LOCK_WAIT_TIMEOUT
   eval UPDATE IGNORE t SET f = 'dark blue $type' WHERE f = 'red';
   eval INSERT INTO t VALUES (6 + ($type * 10),"brown");
-  INSERT INTO n VALUES (now(),"brown");
+  INSERT INTO n(f) VALUES ("brown");
   
   connection conn1;
   COMMIT;

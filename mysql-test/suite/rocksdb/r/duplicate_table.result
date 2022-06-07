@@ -1,0 +1,10 @@
+CREATE TABLE t(id int primary key) engine=ROCKSDB;
+INSERT INTO t values (1), (2), (3);
+CREATE TABLE t(id int primary key) engine=ROCKSDB;
+ERROR 42S01: Table 't' already exists
+SELECT * FROM t;
+id
+1
+2
+3
+DROP TABLE t;

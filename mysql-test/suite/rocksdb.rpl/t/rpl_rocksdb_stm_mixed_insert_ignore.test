@@ -1,0 +1,14 @@
+#####################################
+# Wrapper for rpl_insert_ignore.test#
+#####################################
+-- source include/not_group_replication_plugin.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/not_ndb_default.inc
+-- source include/have_rocksdb.inc
+-- source include/master-slave.inc
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+-- let $engine_type=rocksdb
+-- source extra/rpl_tests/rpl_insert_ignore.test
+-- source include/rpl_end.inc

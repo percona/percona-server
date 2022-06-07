@@ -1,0 +1,6 @@
+--source include/have_rocksdb_as_default.inc
+
+let $trx_isolation = READ UNCOMMITTED;
+--source suite/rocksdb/include/transaction_isolation.inc
+--source suite/rocksdb/include/consistent_snapshot.inc
+

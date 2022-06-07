@@ -1,0 +1,1 @@
+--innodb_empty_free_list_algorithm=LEGACY --innodb_lru_scan_depth=100 --innodb_buffer_pool_size=5242880 --innodb_redo_log_capacity=200M

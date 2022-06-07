@@ -1,0 +1,11 @@
+SELECT @@GLOBAL.have_backup_locks="YES";
+@@GLOBAL.have_backup_locks="YES"
+1
+SELECT @@SESSION.have_backup_locks;
+ERROR HY000: Variable 'have_backup_locks' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'have_backup_locks';
+Variable_name	Value
+have_backup_locks	YES
+SHOW SESSION VARIABLES LIKE 'have_backup_locks';
+Variable_name	Value
+have_backup_locks	YES

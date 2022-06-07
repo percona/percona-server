@@ -1,0 +1,15 @@
+--echo #
+--echo # Bug #29300049 / #94176 "handle_fatal_signal (sig=11) in destroy"
+--echo # fixed in 5.7.27, 8.0.17
+--echo # HANDLER statements did not always work correctly with tables having
+--echo # generated columns.
+--echo #
+
+CREATE TABLE t1(
+  a CHAR(1),
+  b JSON AS(a NOT IN ('0', '1')) STORED
+);
+INSERT INTO t1(a) VALUES (NULL);
+HANDLER t1 OPEN;
+ALTER TABLE t1 CHANGE COLUMN a a CHAR(2);
+DROP TABLE t1;

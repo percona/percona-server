@@ -1,0 +1,6 @@
+# Testcase for MySQL bug #74422
+
+CREATE TABLE t1 (a char(1) CHARACTER SET utf8 PRIMARY KEY); INSERT INTO t1 VALUES('0');
+ALTER TABLE t1 row_format=redundant;
+
+DROP TABLE t1;

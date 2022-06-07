@@ -1,0 +1,8 @@
+--source include/not_windows.inc
+--source include/one_thread_per_connection.inc
+
+--echo #
+--echo # Test server signal handling with one-thread-per-connection handler
+--echo #
+
+--source include/percona_signal_handling.inc

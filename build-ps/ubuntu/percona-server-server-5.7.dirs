@@ -1,0 +1,4 @@
+etc/init.d
+etc/mysql/conf.d
+usr/lib/mysql
+usr/lib/mysql/plugin

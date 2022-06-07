@@ -1,0 +1,126 @@
+#!/bin/bash
+
+. /usr/share/debconf/confmodule
+
+MYSQLDATA=$(my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
+if [ -z "$MYSQLDATA" ];
+then
+    MYSQLDATA=/var/lib/mysql
+fi
+MYSQLFILES=/var/lib/mysql-files
+
+take_upstart_job_backup () {
+	if [ -e "/etc/init/mysql.conf" ] && [ -d "$MYSQLDATA" ];
+	then
+		mv /etc/init/mysql.conf $MYSQLDATA/.mysql.conf.backup
+	fi
+}
+
+check_exit_status() {
+        errcode=$1
+        if [ $errcode -gt 0 ];
+        then
+                exit $errcode
+        fi
+}
+
+MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')
+TOKUDB=$(dpkg -l | grep -c 'percona-server-tokudb-5.7')
+if [ $TOKUDB = 1 ]
+then
+  path=$(dpkg-query -L `dpkg -l | grep libjemalloc | awk '{print $2}'` | grep libjemalloc.so.1)
+  if [ ! -z $path ]
+  then
+    dir=$(dirname $(readlink -f $path))
+    for dir in "${MY_BASEDIR_VERSION}/lib/mysql" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
+      if [ -r "$dir/libjemalloc.so.1" ]; then
+        preload_value=$(grep "LD_PRELOAD" /etc/default/mysql | awk -F'=' '{print $2}')
+        if [ "x$preload_value" = "x0" ]; then
+            sed -i 's/^LD_PRELOAD.*//' /etc/default/mysql
+        fi
+        preload_exists=$(grep -c "LD_PRELOAD" /etc/default/mysql)
+        thp_exists=$(grep -c "THP_SETTING" /etc/default/mysql)
+        if [ $preload_exists = 0 ]
+        then
+            echo "LD_PRELOAD=$dir/libjemalloc.so.1" >> /etc/default/mysql
+        fi
+        if [ $thp_exists = 0 ]
+        then
+            echo "THP_SETTING=never" >> /etc/default/mysql
+        fi
+        break
+      fi
+    done
+  fi
+fi
+
+case "$1" in
+	configure)
+
+	if [ -z "$2" ];
+	then
+
+		set -e
+
+
+		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
+		then
+			db_get percona-server-server-5.7/root-pass && PASSWD=${RET}
+			if [ ! -z "${PASSWD}" ];
+			then
+				SQL=/var/lib/mysql-files/SQL
+				touch ${SQL}
+				chmod 600 ${SQL}
+				chown mysql:mysql ${SQL}
+
+				db_set percona-server-server-5.7/root-pass ""
+				db_set percona-server-server-5.7/re-root-pass ""
+				cat << EOF > ${SQL}
+USE mysql;
+UPDATE user SET authentication_string=PASSWORD('${PASSWD}') WHERE user='root';
+EOF
+				PASSWD=""
+				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on --init-file=${SQL} 2>&1 > /dev/null"
+				rm -f ${SQL}
+			else
+				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
+				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
+				while [ ! -e $(my_print_defaults mysqld | grep pid-file | cut -d= -f2) ]; do sleep 1; done
+				mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
+				mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
+				mysqladmin shutdown
+			fi
+		fi
+
+		set +e
+
+	fi
+
+	;;
+
+	abort-upgrade|abort-remove|abort-configure)
+
+	;;
+
+	*)
+	exit 1
+	;;
+esac
+
+db_stop
+
+take_upstart_job_backup
+
+#Some postinstall info about UDF
+#
+echo -e "\n\n * Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
+echo -e " * Run the following commands to create these functions:\n"
+echo -e "\tmysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
+echo -e "\tmysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
+echo -e "\tmysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
+echo -e "\n * See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_toolkit.html for more details\n\n"
+#
+
+#DEBHELPER#
+
+exit 0

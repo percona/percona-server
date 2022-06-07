@@ -1,0 +1,8 @@
+--source include/have_rocksdb.inc
+
+CREATE TABLE t(id int primary key) engine=ROCKSDB;
+INSERT INTO t values (1), (2), (3); 
+--error ER_TABLE_EXISTS_ERROR 
+CREATE TABLE t(id int primary key) engine=ROCKSDB;
+SELECT * FROM t;
+DROP TABLE t;

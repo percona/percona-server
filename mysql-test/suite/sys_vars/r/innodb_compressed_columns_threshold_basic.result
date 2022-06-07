@@ -1,0 +1,78 @@
+SET @start_global_value = @@global.innodb_compressed_columns_threshold;
+Default value
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+96
+Valid value 1..(2^32-1) or 1..(2^64-1)
+SELECT @@global.innodb_compressed_columns_threshold >= 1 AS default_is_in_range;
+default_is_in_range
+1
+SELECT @@session.innodb_compressed_columns_threshold;
+ERROR HY000: Variable 'innodb_compressed_columns_threshold' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'innodb_compressed_columns_threshold';
+Variable_name	Value
+innodb_compressed_columns_threshold	96
+SHOW SESSION VARIABLES LIKE 'innodb_compressed_columns_threshold';
+Variable_name	Value
+innodb_compressed_columns_threshold	96
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_threshold	96
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name = 'innodb_compressed_columns_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_threshold	96
+SET GLOBAL innodb_compressed_columns_threshold = 1024;
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+1024
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_threshold	1024
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name = 'innodb_compressed_columns_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_threshold	1024
+SET SESSION innodb_compressed_columns_threshold = 2048;
+ERROR HY000: Variable 'innodb_compressed_columns_threshold' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL innodb_compressed_columns_threshold = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_compressed_columns_threshold'
+SET GLOBAL innodb_compressed_columns_threshold = 1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_compressed_columns_threshold'
+SET GLOBAL innodb_compressed_columns_threshold = "foo";
+ERROR 42000: Incorrect argument type to variable 'innodb_compressed_columns_threshold'
+SET GLOBAL innodb_compressed_columns_threshold = 4294967295;
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+4294967295
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_threshold	4294967295
+SET GLOBAL innodb_compressed_columns_threshold = -7;
+Warnings:
+Warning	1292	Truncated incorrect innodb_compressed_columns_threshold value: '-7'
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+1
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_threshold	1
+SET GLOBAL innodb_compressed_columns_threshold = 0;
+Warnings:
+Warning	1292	Truncated incorrect innodb_compressed_columns_threshold value: '0'
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+1
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_threshold	1
+SET GLOBAL innodb_compressed_columns_threshold = 1;
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+1
+SET GLOBAL innodb_compressed_columns_threshold = @start_global_value;

@@ -1,0 +1,7 @@
+# Test for bug 74579 (handle_fatal_signal (sig=6) in filesort | sql/filesort.cc:415)
+
+CREATE TABLE t1 (pk1 INT KEY, b BIT, KEY(b));
+CREATE TABLE t2 (a INT, b2 CHAR, FULLTEXT KEY b2 (b2));
+EXPLAIN SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY(SELECT a FROM t2 WHERE b=12); UPDATE t2 SET a=1 ORDER BY a;
+
+DROP TABLE t1, t2;

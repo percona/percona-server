@@ -1,4 +1,5 @@
 set @@global.log_output = 'TABLE';
+truncate table mysql.slow_log;
 set session long_query_time=10;
 select get_lock('bug27638', 1);
 get_lock('bug27638', 1)

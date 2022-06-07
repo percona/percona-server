@@ -4,7 +4,8 @@
 #
 # The variable
 #     $engine_type       -- storage engine to be tested
-# has to be set before sourcing this script.
+#     $eval_before_analyze -- statement to execute before any analyze table
+# have to be set before sourcing this script.
 #
 # Note: The comments/expectations refer to MyISAM.
 #       They might be not valid for other storage engines.
@@ -120,24 +121,34 @@ select count(*) from t1;
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t0;
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
 --echo # One row results tests for cases where a single row matches all conditions
-if ($index_merge_random_rows_in_EXPLAIN)
+if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
-  --replace_column 10 # 11 #
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
+  explain select key1,key2 from t1 where key1=100 and key2=100;
 }
-explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
-explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
-# Mask cost values since it varies between runs how much of the indexes
-# are cached in InnoDB's buffer pool
---skip_if_hypergraph  # Depends on the query plan.
---replace_regex /(_cost": )"[0-9.]+"/\1"#"/
-explain format=json select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+  # Mask cost values since it varies between runs how much of the indexes
+  # are cached in InnoDB's buffer pool
+  --skip_if_hypergraph  # Depends on the query plan.
+  --replace_regex /(_cost": )"[0-9.]+"/\1"#"/
+  explain format=json select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+}
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 --echo # Several-rows results
@@ -146,39 +157,61 @@ insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
 --echo #  ROR-intersection, not covering
-if ($index_merge_random_rows_in_EXPLAIN)
+if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
-  --replace_column 10 # 11 #
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
+  explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
 }
-explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
 
 --echo #  ROR-intersection, covering
-if ($index_merge_random_rows_in_EXPLAIN)
+if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
-  --replace_column 10 # 11 #
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
+  explain select key1,key2 from t1 where key1=100 and key2=100;
 }
-explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 
 --echo #  ROR-union of ROR-intersections
-explain select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+}
 select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
-explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+}
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 --echo #  3-way ROR-intersection
-explain select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
+}
 select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
 
 --echo #  ROR-union(ROR-intersection, ROR-range)
 insert into t1 (key1,key2,key3,key4,filler1) values (101,101,101,101, 'key1234-101');
-explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
+}
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
 
 --echo # Run some ROR updates/deletes
@@ -188,6 +221,10 @@ update t1 set key1=200,key2=200 where key1=100 and key2=100;
 delete from t1 where key1=200 and key2=200;
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -195,16 +232,28 @@ select key1,key2,filler1 from t1 where key2=100 and key2=200;
 
 --echo # ROR-union(ROR-intersection) with one of ROR-intersection giving empty
 --echo # results
-explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+--replace_result key3 key34 key4 key34
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+}
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 delete from t1 where key3=100 and key4=100;
+
+# Force complete purge
+SET @@GLOBAL.innodb_fast_shutdown = 0;
+--source include/restart_mysqld.inc
 
 # reset default engine after restart
 eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -213,15 +262,21 @@ analyze table t1;
 # The relative order of keys inside 
 # "Using union(intersect(keyx,keyx),...)" doesn't matter
 --replace_result key2,key1 key1,key2 key4,key3 key3,key4
-explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+}
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 --echo # ROR-intersection with empty result
-if ($index_merge_random_rows_in_EXPLAIN)
+if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
-  --replace_column 10 # 11 #
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
+  explain select key1,key2 from t1 where key1=100 and key2=100;
 }
-explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 
 --echo # ROR-union tests with various cases.
@@ -232,33 +287,54 @@ insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+}
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, -1, 200,'key4');
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+}
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 200, -1,'key3');
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
+  explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+}
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
 --echo ##
@@ -277,11 +353,20 @@ if (!$index_merge_random_rows_in_EXPLAIN)
 --echo # Do many tests
 --echo # Check that keys that don't improve selectivity are skipped.
 #
-
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
 # Different value on 32 and 64 bit
+if ($random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 --replace_result sta_swt12a sta_swt21a sta_swt12a, sta_swt12a,
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 
+if ($random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
@@ -338,6 +423,7 @@ if ($index_merge_random_rows_in_EXPLAIN)
 }
 explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
+}
 
 drop table t0,t1;
 
@@ -369,6 +455,10 @@ select count(a) from t2 where b='BBBBBBBB';
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t2;
 -- enable_result_log
 -- enable_query_log
@@ -382,6 +472,10 @@ select count(a) from t2 ignore index(a,b) where a='AAAAAAAA' and b='AAAAAAAA';
 insert into t2 values ('ab', 'ab', 'uh', 'oh');
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t2;
 -- enable_result_log
 -- enable_query_log

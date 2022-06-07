@@ -27,14 +27,14 @@ perl;
 
   # Variables which we don't want to display in result file since
   # they depend on type of build
-  @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version debug-enable-extended-set-ops/;
+  @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version debug-enable-extended-set-ops version-suffix/;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit
               sha256-password-private-key-path sha256-password-public-key-path
               sha256-password-auto-generate-rsa-keys caching-sha2-password-auto-generate-rsa-keys
-              keyring-migration-socket mysqlx/;
+              keyring-migration-socket mysqlx thread-pool/;
 
   # And substitute the content some environment variables with their
   # names:

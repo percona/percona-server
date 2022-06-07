@@ -57,25 +57,25 @@ Id	User	Host	db	Command	Time	State	Info
 
 select * from performance_schema.processlist order by user, id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
 
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 Warnings:
 <Id>	1287	<Host>
 
@@ -88,40 +88,40 @@ Warnings:
 Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
 <Id>	1287	<Host>
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>
+<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST	<Time_ms>	<Rows_sent>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>
 Warnings:
 
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>
 
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 Warnings:
 <Id>	1287	<Host>
 

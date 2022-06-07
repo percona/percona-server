@@ -288,6 +288,7 @@ FOREIGN KEY (b) REFERENCES t1(a))
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	48
 DROP TABLE t2;
 CREATE TABLE t2
@@ -298,6 +299,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE CASCADE)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	33
 DROP TABLE t2;
 CREATE TABLE t2
@@ -308,6 +310,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE SET NULL)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	34
 DROP TABLE t2;
 CREATE TABLE t2
@@ -318,6 +321,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE NO ACTION)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	48
 DROP TABLE t2;
 CREATE TABLE t2
@@ -328,6 +332,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON UPDATE CASCADE)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	20
 DROP TABLE t2;
 CREATE TABLE t2
@@ -338,6 +343,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON UPDATE SET NULL)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	24
 DROP TABLE t2;
 CREATE TABLE t2
@@ -348,6 +354,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON UPDATE NO ACTION)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	48
 DROP TABLE t2;
 CREATE TABLE t2
@@ -358,6 +365,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE CASCADE ON UPDATE CASCADE)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	5
 DROP TABLE t2;
 CREATE TABLE t2
@@ -368,6 +376,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE CASCADE ON UPDATE SET NULL)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	9
 DROP TABLE t2;
 CREATE TABLE t2
@@ -378,6 +387,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE CASCADE ON UPDATE NO ACTION)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	33
 DROP TABLE t2;
 CREATE TABLE t2
@@ -388,6 +398,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE CASCADE ON UPDATE RESTRICT)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	1
 DROP TABLE t2;
 CREATE TABLE t2
@@ -398,6 +409,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE SET NULL ON UPDATE CASCADE)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	6
 DROP TABLE t2;
 CREATE TABLE t2
@@ -408,6 +420,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE SET NULL ON UPDATE SET NULL)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	10
 DROP TABLE t2;
 CREATE TABLE t2
@@ -418,6 +431,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE SET NULL ON UPDATE NO ACTION)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	34
 DROP TABLE t2;
 CREATE TABLE t2
@@ -428,6 +442,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE SET NULL ON UPDATE RESTRICT)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	2
 DROP TABLE t2;
 CREATE TABLE t2
@@ -438,6 +453,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE NO ACTION ON UPDATE CASCADE)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	20
 DROP TABLE t2;
 CREATE TABLE t2
@@ -448,6 +464,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE NO ACTION ON UPDATE SET NULL)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	24
 DROP TABLE t2;
 CREATE TABLE t2
@@ -458,6 +475,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE NO ACTION ON UPDATE NO ACTION)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	48
 DROP TABLE t2;
 CREATE TABLE t2
@@ -468,6 +486,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE NO ACTION ON UPDATE RESTRICT)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	16
 DROP TABLE t2;
 CREATE TABLE t2
@@ -478,6 +497,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE RESTRICT ON UPDATE CASCADE)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	4
 DROP TABLE t2;
 CREATE TABLE t2
@@ -488,6 +508,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE RESTRICT ON UPDATE SET NULL)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	8
 DROP TABLE t2;
 CREATE TABLE t2
@@ -498,6 +519,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE RESTRICT ON UPDATE NO ACTION)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	32
 DROP TABLE t2;
 CREATE TABLE t2
@@ -508,6 +530,7 @@ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE RESTRICT ON UPDATE RESTRICT)
 ENGINE=InnoDB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	0
 DROP TABLE t2;
 DROP TABLE t1;

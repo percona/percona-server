@@ -1,0 +1,5 @@
+#
+# handle_fatal_signal (sig=11) in hashtable_policy.h
+#
+SET ROLE ins;
+ERROR HY000: The MySQL server is running with the --skip-grant-tables option so it cannot execute this statement

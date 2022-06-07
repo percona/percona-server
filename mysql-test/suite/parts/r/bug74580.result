@@ -1,0 +1,10 @@
+SET @@collation_server=99;
+SET @saved_table_open_cache = @@GLOBAL.table_open_cache;
+SET @@GLOBAL.table_open_cache = 1;
+CREATE TABLE t1 (a CHAR (1)) ENGINE=InnoDB PARTITION BY RANGE COLUMNS(a)
+(PARTITION p0 VALUES LESS THAN (''),
+PARTITION p1 VALUES LESS THAN ('za'));
+ERROR HY000: Partition column values of incorrect type
+INSERT DELAYED INTO t1 VALUES (1, 0), (1, 0), (1, 0);
+ERROR 42S02: Table 'test.t1' doesn't exist
+SET @@GLOBAL.table_open_cache = @saved_table_open_cache;

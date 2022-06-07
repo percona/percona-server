@@ -13,6 +13,9 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 switched to session con2
+RUN SET DEBUG_SYNC= 'now WAIT_FOR opened'
+
+0 rows affected
 RUN SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL xxxx_new'
 
 0 rows affected
@@ -32,9 +35,9 @@ Mysqlx.Ok {
 }
 ok
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
 <ID>	1287	<HOST_NAME>
-<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
-<ID>	root	<HOST_NAME>	test	Query	<TIME>	STATE	SHOW PROCESSLIST
+<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL	0	0
+<ID>	root	<HOST_NAME>	test	Query	<TIME>	STATE	SHOW PROCESSLIST	0	0
 Warnings:
 DROP TABLE x;

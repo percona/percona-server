@@ -10,6 +10,7 @@ eval SHOW CREATE TABLE t1;
 if ($ls)
 {
    let $MYSQLD_DATADIR= `select @@datadir`;
-   --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR #p# #P# #sp# #SP#
+   --let $ADDITIONAL_REGEX="/$MYSQLD_DATADIR/MYSQLD_DATADIR/"
+   --source include/table_files_replace_pattern.inc
    --list_files $MYSQLD_DATADIR/test t1*
 }

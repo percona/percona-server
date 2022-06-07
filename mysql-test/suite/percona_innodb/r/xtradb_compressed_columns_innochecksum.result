@@ -1,0 +1,15 @@
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1(
+id INT PRIMARY KEY AUTO_INCREMENT,
+a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+SELECT space INTO @tablespace_id FROM information_schema.innodb_tablespaces
+WHERE name = CONCAT(DATABASE(), '/', 't1');
+SELECT path INTO @datafile_path FROM information_schema.innodb_datafiles
+WHERE space = @tablespace_id;
+# Shutdown the server
+# Output from innochecksum
+# Restart the server
+# restart
+DROP TABLE t1;
+SET @@GLOBAL.innodb_file_per_table= 1;

@@ -1,0 +1,29 @@
+SELECT @@global.encrypt_tmp_files;
+@@global.encrypt_tmp_files
+0
+SELECT @@session.encrypt_tmp_files;
+ERROR HY000: Variable 'encrypt_tmp_files' is a GLOBAL variable
+SELECT @@encrypt_tmp_files;
+@@encrypt_tmp_files
+0
+SHOW GLOBAL VARIABLES LIKE 'encrypt_tmp_files';
+Variable_name	Value
+encrypt_tmp_files	OFF
+SHOW SESSION VARIABLES LIKE 'encrypt_tmp_files';
+Variable_name	Value
+encrypt_tmp_files	OFF
+SHOW VARIABLES LIKE 'encrypt_tmp_files';
+Variable_name	Value
+encrypt_tmp_files	OFF
+SELECT * FROM performance_schema.global_variables WHERE variable_name = 'encrypt_tmp_files';
+VARIABLE_NAME	VARIABLE_VALUE
+encrypt_tmp_files	OFF
+SELECT * FROM performance_schema.session_variables WHERE variable_name = 'encrypt_tmp_files';
+VARIABLE_NAME	VARIABLE_VALUE
+encrypt_tmp_files	OFF
+SET GLOBAL encrypt_tmp_files = 1;
+ERROR HY000: Variable 'encrypt_tmp_files' is a read only variable
+SET SESSION encrypt_tmp_files = 1;
+ERROR HY000: Variable 'encrypt_tmp_files' is a read only variable
+SET encrypt_tmp_files = 1;
+ERROR HY000: Variable 'encrypt_tmp_files' is a read only variable

@@ -1,0 +1,31 @@
+SELECT @@global.slow_query_log_use_global_control;
+@@global.slow_query_log_use_global_control
+
+#
+# Bug PS-5813: Setting 'none' value for slow_query_log_use_global_control throwing error.
+#
+SET @saved_slow_query_log_use_global_control=@@GLOBAL.slow_query_log_use_global_control;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+SET GLOBAL slow_query_log_use_global_control=none;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+SET GLOBAL slow_query_log_use_global_control=log_slow_verbosity;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	log_slow_verbosity
+SET GLOBAL slow_query_log_use_global_control=NONE;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+SET GLOBAL slow_query_log_use_global_control=all;
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	log_slow_filter,log_slow_rate_limit,log_slow_verbosity,long_query_time,min_examined_row_limit
+SET GLOBAL slow_query_log_use_global_control='';
+SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+SET GLOBAL slow_query_log_use_global_control=@saved_slow_query_log_use_global_control;

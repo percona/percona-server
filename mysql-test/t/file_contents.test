@@ -23,7 +23,7 @@ if ($dir_bin =~ m|^/usr/|) {
     $dir_docs = $dir_docs[0];
   } else {
     # RedHat: version number in directory name
-    $dir_docs = glob "$dir_docs/MySQL-server*";
+    $dir_docs = glob "$dir_docs/Percona-Server-server*";
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
       # Skip the management-server directory in the documentation path for cluster release
@@ -43,9 +43,12 @@ if ($dir_bin =~ m|^/usr/|) {
     # Skip the management-server directory in the documentation path for cluster release
     @dir_docs = grep { (! /management/) } glob "$dir_docs/packages/mysql-*-server*";
     $dir_docs = $dir_docs[0];
+  } elsif (glob "$dir_docs/percona-server-server*") {
+    # Debian
+    $dir_docs = glob "$dir_docs/percona-server-server*";
   } else {
     # RedHat: version number in directory name
-    $dir_docs = glob "$dir_docs/MySQL-server*";
+    $dir_docs = glob "$dir_docs/Percona-Server-server*";
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
       @dir_docs = grep { (! /management/) } glob "$dir_bin/share/doc/mysql-*-server*";

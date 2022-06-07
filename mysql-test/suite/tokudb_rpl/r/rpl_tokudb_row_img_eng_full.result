@@ -3649,7 +3649,7 @@ c1	c2
 SET SQL_LOG_BIN=0;
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: MY-001032");
 call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Update_rows event on table test.t1; Can.t find record in .t1.* Error_code: MY-001032");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SET SQL_LOG_BIN=1;
 include/wait_for_slave_sql_error_and_skip.inc [errno=1032]
 DROP TABLE t1;

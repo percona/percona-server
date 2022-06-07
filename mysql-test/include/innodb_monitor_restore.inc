@@ -88,6 +88,9 @@ SET GLOBAL innodb_monitor_enable="os_log_pending_fsyncs";
 SET GLOBAL innodb_monitor_enable="os_log_pending_writes";
 SET GLOBAL innodb_monitor_enable="trx_rseg_history_len";
 
+# Percona-specific monitors
+SET GLOBAL innodb_monitor_enable="buffer_pages0_read";
+
 # NOTE:
 # The default value for below variables is an empty string
 # it assigning an empty string using the SET statement results

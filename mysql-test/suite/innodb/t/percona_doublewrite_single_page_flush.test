@@ -1,0 +1,35 @@
+#
+# Test the single-page flush code path in the doublewrite
+#
+
+# This test could be non-deterministic. If we observe this, convert it to a debug build
+# test that explicitly stops cleaner/LRU manager threads for the workload.
+
+call mtr.add_suppression("InnoDB: Resizing redo log from");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
+call mtr.add_suppression("InnoDB: New log files created, LSN=");
+
+# Must be "legacy" for the test to work
+SELECT @@GLOBAL.innodb_empty_free_list_algorithm;
+
+SET GLOBAL innodb_monitor_enable = buffer_LRU_single_flush_scanned;
+
+CREATE TABLE t1 (a INT, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, REPEAT("a", 4194304));
+let $i=5;
+while ($i)
+{
+  INSERT INTO t1 SELECT * FROM t1;
+  dec $i;
+}
+
+--let $assert_text= Single page flushes must have happened
+--let $assert_cond= COUNT > 0 FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME="buffer_LRU_single_flush_scanned"
+--source include/assert.inc
+
+SET GLOBAL innodb_monitor_disable = buffer_LRU_single_flush_scanned;
+SET GLOBAL innodb_monitor_reset = buffer_LRU_single_flush_scanned;
+
+DROP TABLE t1;
+
+--source include/innodb_monitor_restore.inc

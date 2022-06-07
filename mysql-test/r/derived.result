@@ -1610,7 +1610,7 @@ count(*)
 1000
 show status like 'Handler_write';
 Variable_name	Value
-Handler_write	1021
+Handler_write	1011
 set @@max_heap_table_size= @save_heap_size;
 set session internal_tmp_mem_storage_engine= @save_internal_tmp_mem_storage_engine;
 SET @@optimizer_switch= @optimizer_switch_saved;
@@ -4734,3 +4734,20 @@ Cat2	5
 Cat2	7
 NULL	NULL
 DROP TABLE t1;
+#
+# PS-8725 : Assertion `m_opened_table != nullptr' failed in temptable::Handler::opened_table_validate()
+# Bug#35105404: Server crashes with signal 11 and asserts in temptable code.
+#
+# Re-execution of statements involving MIN/MAX optimization and
+# derived/CTE table caused assertion failures.
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET optimizer_switch="derived_merge=off";
+PREPARE stmt1 FROM "WITH cte AS (VALUES ROW(1), ROW(5), ROW(3)) SELECT column_0 FROM cte WHERE cte.column_0 = (SELECT max(column_0) FROM cte WHERE column_0 < 5)";
+EXECUTE stmt1;
+column_0
+3
+EXECUTE stmt1;
+column_0
+3
+DEALLOCATE PREPARE stmt1;
+SET optimizer_switch= @optimizer_switch_saved;

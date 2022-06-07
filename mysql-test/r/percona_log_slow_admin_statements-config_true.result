@@ -1,0 +1,6 @@
+SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
+Variable_name	Value
+log_slow_admin_statements	ON
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME='log_slow_admin_statements';
+VARIABLE_NAME	VARIABLE_VALUE
+log_slow_admin_statements	ON

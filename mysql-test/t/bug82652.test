@@ -1,0 +1,37 @@
+#
+# Bug #24489302 / #82652 (#83899) "handle_fatal_signal (sig=11) in thr_multi_unlock"
+# fixed in 5.5.54, 5.6.35, 5.7.17, 8.0.1
+# The data structure used for ZEROFILL columns could experience memory
+# corruption, leading eventually to a server exit.
+#
+
+SET @@session.sql_buffer_result = 1;
+
+CREATE TEMPORARY TABLE t2(
+  c1 INT(1) ZEROFILL,
+  c2 NUMERIC(10, 10),
+  c3 YEAR,
+  PRIMARY KEY(c1)
+) ENGINE=Memory;
+
+CREATE TABLE t2(
+  c1 VARCHAR(1) BINARY CHARACTER SET "Binary" COLLATE "Binary",
+  c2 DOUBLE(255, 30),
+  c3 FLOAT(255, 10) UNSIGNED ZEROFILL,
+  PRIMARY KEY(c1)
+) ENGINE=InnoDB;
+
+CREATE TEMPORARY TABLE t3(
+  c1 DOUBLE(2, 2) ZEROFILL,
+  c2 TINYTEXT CHARACTER SET "Binary" COLLATE "Binary",
+  c3 VARCHAR(1) BINARY
+) ENGINE=InnoDB;
+DROP TABLE t2;
+
+--source include/turn_off_strict_mode.inc
+INSERT INTO t2 VALUES(4000000000000000, CURRENT_TIMESTAMP, '');
+ALTER TABLE t3 MODIFY c3 TINYTEXT CHARACTER SET "latin1" COLLATE "latin1_bin";
+INSERT INTO t3 SELECT * FROM t2;
+--source include/restore_strict_mode.inc
+
+DROP TABLE t2;

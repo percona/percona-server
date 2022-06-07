@@ -1,0 +1,7 @@
+--source include/have_rocksdb.inc
+
+#
+# Information Schema compaction statistics
+#
+--let i_s_plugin=rocksdb_compaction_stats
+--source suite/rocksdb/include/i_s_basic.inc

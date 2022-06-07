@@ -1,0 +1,1 @@
+--replicate-ignore-table=nothing.sensible --transaction-isolation=READ-COMMITTED --gtid_mode=off

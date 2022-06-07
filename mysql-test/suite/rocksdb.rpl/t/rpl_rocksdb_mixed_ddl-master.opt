@@ -1,0 +1,1 @@
+--loose-rocksdb-strict-collation-check=off --loose-rocksdb_unsafe_for_binlog=true

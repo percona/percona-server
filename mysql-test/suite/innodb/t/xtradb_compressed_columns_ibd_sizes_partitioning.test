@@ -1,0 +1,24 @@
+--let $number_of_steps = 13
+--let $partitioning = simple
+
+--let $field_type = BLOB
+--source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+
+--let $field_type = TEXT
+--source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+
+--let $field_type = JSON
+--source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+
+
+--let $number_of_steps = 14
+--let $partitioning = sub
+
+--let $field_type = BLOB
+--source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+
+--let $field_type = TEXT
+--source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+
+--let $field_type = JSON
+--source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc

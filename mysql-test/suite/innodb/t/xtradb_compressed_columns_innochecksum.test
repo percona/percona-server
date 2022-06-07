@@ -1,0 +1,43 @@
+--let $saved_innodb_file_per_table= `SELECT @@innodb_file_per_table`
+SET GLOBAL innodb_file_per_table = ON;
+
+--let $table_name= t1
+
+# Creating a table with a compressed column
+eval CREATE TABLE $table_name(
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+
+# Inserting a big number of records to the table
+--disable_query_log
+--let $number_of_records= 1024
+while($number_of_records)
+{
+  eval INSERT INTO $table_name(a) VALUES (REPEAT('abcd', 2));
+  eval INSERT INTO $table_name(a) VALUES (REPEAT('abcd', 128));
+  --dec $number_of_records
+}
+--enable_query_log
+
+# Identifying datafile name for the table
+eval SELECT space INTO @tablespace_id FROM information_schema.innodb_tablespaces
+  WHERE name = CONCAT(DATABASE(), '/', '$table_name');
+SELECT path INTO @datafile_path FROM information_schema.innodb_datafiles
+  WHERE space = @tablespace_id;
+
+--let $datafile_absolute_path = `SELECT CONCAT(@@datadir, REPLACE(@datafile_path, './', ''))`
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Output from innochecksum
+--exec $INNOCHECKSUM $datafile_absolute_path
+
+--echo # Restart the server
+--source include/start_mysqld.inc
+
+# Cleanup
+eval DROP TABLE $table_name;
+
+eval SET @@GLOBAL.innodb_file_per_table= $saved_innodb_file_per_table;

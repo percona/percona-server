@@ -1,0 +1,8 @@
+# Test for bug 74807 (handle_fatal_signal (sig=11) in do_div_mod | strings/decimal.c:2214)
+CREATE TABLE t1(a DATE NOT NULL,b INT);
+SET SESSION sql_mode='';
+insert into t1(b)values(7);
+SET SESSION sql_mode='traditional';
+SELECT 1 FROM t1 WHERE(SELECT a FROM t1)/ a;
+
+DROP TABLE t1;

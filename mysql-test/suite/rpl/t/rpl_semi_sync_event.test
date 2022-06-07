@@ -100,7 +100,7 @@ disable_warnings;
 UNINSTALL PLUGIN rpl_semi_sync_replica;
 
 connection master;
-source include/stop_dump_threads.inc;
+--source include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_source;
 enable_warnings;
 

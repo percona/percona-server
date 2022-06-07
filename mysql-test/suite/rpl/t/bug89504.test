@@ -1,0 +1,17 @@
+--echo #
+--echo # handle_fatal_signal (sig=11) in Trace::function_enter on INSTALL PLUGIN
+--echo #
+--source include/add_mtr_suppression_for_innodb_readonly.inc
+
+--replace_result $SEMISYNC_PLUGIN_OPT SEMISYNC_PLUGIN_OPT
+--let $restart_parameters=restart:$SEMISYNC_PLUGIN_OPT --innodb-force-recovery=6
+--source include/restart_mysqld.inc
+
+--source include/have_semisync_plugin.inc
+
+--replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN
+--error ER_DA_PLUGIN_INSTALL_ERROR
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

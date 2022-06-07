@@ -23,6 +23,8 @@ select * from performance_schema.session_variables where variable_name='innodb_u
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_undo_log_encrypt	OFF
 set global innodb_undo_log_encrypt=1;
+Warnings:
+Warning	7014	InnoDB: Undo log can't be encrypted if the keyring is not loaded.
 select @@global.innodb_undo_log_encrypt;
 @@global.innodb_undo_log_encrypt
 0

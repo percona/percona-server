@@ -1,0 +1,21 @@
+SET @start_value = @@global.slow_query_log_always_write_time;
+SELECT @start_value;
+@start_value
+10
+SET @@global.slow_query_log_always_write_time = DEFAULT;
+SELECT @@global.slow_query_log_always_write_time = 10;
+@@global.slow_query_log_always_write_time = 10
+1
+SET @@global.slow_query_log_always_write_time = 0;
+SELECT @@global.slow_query_log_always_write_time;
+@@global.slow_query_log_always_write_time
+0.000000
+SET @@global.slow_query_log_always_write_time = 700;
+SELECT @@global.slow_query_log_always_write_time;
+@@global.slow_query_log_always_write_time
+700.000000
+SET @@global.slow_query_log_always_write_time = 0.7;
+SELECT @@global.slow_query_log_always_write_time;
+@@global.slow_query_log_always_write_time
+0.700000
+SET GLOBAL slow_query_log_always_write_time = @start_value;

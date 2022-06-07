@@ -1,0 +1,14 @@
+#
+# Bug #23295423 / #25095876 / #25448037 /
+# #83816 "handle_fatal_signal (sig=11) in replace_user_table !" /
+# #84658 "SECURITY: SIG11 crash in update_user_table on SET PASSWORD" /
+# #81449 "handle_fatal_signal (sig=11) in handle_grant_table"
+#
+
+--source include/have_myisam.inc
+
+CALL mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
+
+CREATE TEMPORARY TABLE mysql.user(id INT) ENGINE=InnoDB;
+--error ER_CANNOT_USER
+DROP USER 'user\\_0'@0;

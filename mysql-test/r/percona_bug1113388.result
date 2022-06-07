@@ -1,0 +1,16 @@
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+SET SESSION old_alter_table=ON;
+SET DEBUG_SYNC= 'after_copy_data_between_tables SIGNAL optimize_ready WAIT_FOR i_s_stopped_1';
+OPTIMIZE TABLE t1;
+SET DEBUG_SYNC= 'now WAIT_FOR optimize_ready';
+SET DEBUG_SYNC= 'fill_global_temporary_tables_before_storing_rec SIGNAL i_s_stopped_1';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+COUNT(*)
+1
+SET SESSION old_alter_table=default;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

@@ -1,0 +1,86 @@
+#
+# Setting up MSR server topology
+#
+# server_1(A) -------------- server_3(C)
+#            \              /
+#             - server_2(B)-
+#
+include/rpl_init.inc [topology=1->2,2->3,1->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+#
+# Step 1: stopping slave on server_2(B)
+#
+[connection server_2]
+include/stop_slave.inc
+#
+# Step 2: setting up profiling for 'slave_relay_log_info' on server_3(C)
+#
+[connection server_3]
+set @save.replica_parallel_workers = @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers = 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
+INSERT INTO performance_schema.setup_objects VALUES ('TABLE', 'mysql', 'slave_relay_log_info', 'YES', 'YES');
+INSERT INTO performance_schema.setup_objects VALUES ('TABLE', 'mysql', 'slave_master_info', 'YES', 'YES');
+include/stop_slave.inc
+include/start_slave.inc
+#
+# Step 3: creating a table and inserting a few records on server_1(A)
+#
+[connection server_1]
+CREATE TABLE t1 (f1 INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1), (2), (3);
+START TRANSACTION;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3);
+COMMIT;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3);
+#
+# Step 4: syncing server_3(C) with server_1(A) and capturing initial value of IO waits
+#
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+# t1 records on server_3(C) after syncing with server_1(A) must match
+include/rpl_diff.inc
+#
+# Step 5: starting slave on server_2(B) and syncing server_2(B) with server_1(A)
+#
+[connection server_2]
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+# t1 records on server_2(B) after syncing with server_1(A) must match
+include/rpl_diff.inc
+#
+# Step 6: syncing server_3(C) with server_2(B)
+#
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
+# t1 records on server_3(C) after syncing with server_2(B) must match
+include/rpl_diff.inc
+include/assert.inc [number of IO waits for "slave_relay_log_info" must not change]
+include/assert.inc [number of IO waits for "slave_master_info" must not change]
+set @@global.replica_parallel_workers = @save.replica_parallel_workers;
+#
+# Cleaning up and final syncing
+#
+[connection server_1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
+[connection server_2]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+DELETE FROM performance_schema.setup_objects WHERE object_type = 'TABLE' AND object_schema = 'mysql' AND object_name = 'slave_relay_log_info';
+DELETE FROM performance_schema.setup_objects WHERE object_type = 'TABLE' AND object_schema = 'mysql' AND object_name = 'slave_master_info';
+include/rpl_end.inc
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_2';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';

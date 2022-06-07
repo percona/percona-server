@@ -1,0 +1,47 @@
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;
+INSERT INTO t VALUES
+(1,"aaaaabbbbbcccccdddddeeeeefffff"),
+(2,"aaaaabbbbbcccccdddddeeeeefffff"),
+(3,"aaaaabbbbbcccccdddddeeeeefffff"),
+(4,"aaaaabbbbbcccccdddddeeeeefffff"),
+(5,"aaaaabbbbbcccccdddddeeeeefffff");
+INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
+INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
+
+--source include/sync_slave_sql_with_master.inc
+
+SET @saved_long_query_time=@@GLOBAL.long_query_time;
+SET GLOBAL long_query_time=0;
+SET @saved_log_slow_replica_statements=@@GLOBAL.log_slow_replica_statements;
+SET GLOBAL log_slow_replica_statements=TRUE;
+SET @saved_log_slow_verbosity=@@GLOBAL.log_slow_verbosity;
+SET GLOBAL log_slow_verbosity='innodb';
+--source include/restart_slave_sql.inc
+
+--let log_file=percona.slow_extended.log_slow_replica_statements-innodb
+
+--source include/log_start.inc
+connection master;
+INSERT INTO t SELECT t.id,t.data from t;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/log_stop.inc
+ 
+--let $log_accept_any_innodb_io=1
+--source include/percona_slow_log_verbosity_grep.inc
+
+connection master;
+DROP TABLE t;
+
+connection slave;
+SET GLOBAL long_query_time=@saved_long_query_time;
+SET GLOBAL log_slow_replica_statements=@saved_log_slow_replica_statements;
+SET GLOBAL log_slow_verbosity=@saved_log_slow_verbosity;
+
+--source include/rpl_end.inc
+
+--source include/log_cleanup.inc

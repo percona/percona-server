@@ -1,0 +1,12 @@
+SELECT @@global.innodb_encrypt_online_alter_logs;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_encrypt_online_alter_logs = ON;
+--echo Expected error 'read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_encrypt_online_alter_logs = OFF;
+--echo Expected error 'read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_encrypt_online_alter_logs = "ENABLE";

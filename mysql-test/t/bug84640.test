@@ -1,0 +1,145 @@
+#
+# Bug #25451091 / #84640 "symlinks in CREATE TABLE ... DATA DIRECTORY"
+# lp:1654256 "MyISAM CREATE TABLE DATA DIRECTORY check race"
+#
+
+# This test does not work with var being a softlink.
+--source include/not_var_link.inc
+--source include/have_myisam.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # Tests for MyISAM handling of symlinks
+--echo #
+
+--let $datadir= `SELECT @@datadir`
+--let $tmpdir= `SELECT @@tmpdir`
+--let $custom_data_directory= $tmpdir/bug84640
+
+--echo #
+--echo # Bug 1654256: symlinks in CREATE TABLE ... DATA DIRECTORY, last path component
+--echo #
+
+--mkdir $custom_data_directory
+
+--replace_result $custom_data_directory custom_data_directory
+eval CREATE TABLE t1 (a INT) ENGINE=MyISAM DATA DIRECTORY='$custom_data_directory';
+
+INSERT INTO t1 VALUES (1), (2);
+
+FLUSH TABLES;
+
+--connect(con1,localhost,root,,)
+
+SET DEBUG_SYNC="before_opening_datafile SIGNAL open_ready WAIT_FOR finish_open";
+
+send SELECT * FROM t1;
+
+--connection default
+
+SET DEBUG_SYNC="now WAIT_FOR open_ready";
+
+--remove_file $custom_data_directory/t1.MYD
+--exec ln -s $datadir/mysql/user.MYD $custom_data_directory/t1.MYD
+
+SET DEBUG_SYNC="now SIGNAL finish_open";
+
+--connection con1
+
+--replace_result $custom_data_directory custom_data_directory
+--error 29
+reap;
+
+--disconnect con1
+--connection default
+
+SET DEBUG_SYNC= 'RESET';
+
+DROP TABLE t1;
+
+--remove_file $custom_data_directory/t1.MYD
+
+--echo #
+--echo # Bug 1654256: symlinks in CREATE TABLE ... INDEX DIRECTORY
+--echo #
+
+--let $custom_index_directory= $custom_data_directory
+
+--replace_result $custom_index_directory custom_index_directory
+eval CREATE TABLE t1 (a INT, KEY(a)) ENGINE=MyISAM INDEX DIRECTORY='$custom_index_directory';
+
+INSERT INTO t1 VALUES (1), (2);
+
+FLUSH TABLES;
+
+--connect(con1,localhost,root,,)
+
+SET DEBUG_SYNC="before_opening_indexfile SIGNAL open_ready WAIT_FOR finish_open";
+
+send SELECT * FROM t1 ORDER BY a;
+
+--connection default
+
+SET DEBUG_SYNC="now WAIT_FOR open_ready";
+
+--remove_file $custom_index_directory/t1.MYI
+--exec ln -s $datadir/mysql/user.MYI $custom_index_directory/t1.MYI
+
+SET DEBUG_SYNC="now SIGNAL finish_open";
+
+--connection con1
+
+--replace_result $custom_index_directory custom_index_directory
+--error ER_GET_ERRNO
+reap;
+
+--disconnect con1
+--connection default
+
+SET DEBUG_SYNC= 'RESET';
+
+DROP TABLE t1;
+
+--remove_file $custom_index_directory/t1.MYI
+
+--echo #
+--echo # Bug 1654256: symlinks in CREATE TABLE ... DATA DIRECTORY, middle path component
+--echo #
+
+--replace_result $custom_data_directory custom_data_directory
+eval CREATE TABLE user(a INT) ENGINE=MyISAM DATA DIRECTORY='$custom_data_directory';
+
+INSERT INTO user VALUES (1), (2);
+
+FLUSH TABLES;
+
+--connect(con1,localhost,root,,)
+
+SET DEBUG_SYNC="before_opening_datafile SIGNAL open_ready WAIT_FOR finish_open";
+send SELECT * FROM user;
+
+--connection default
+
+SET DEBUG_SYNC="now WAIT_FOR open_ready";
+
+--force-rmdir $custom_data_directory
+--exec ln -s $datadir/mysql $custom_data_directory
+
+SET DEBUG_SYNC="now SIGNAL finish_open";
+
+--connection con1
+
+--replace_result $custom_data_directory custom_data_directory
+--error 29
+reap;
+--disconnect con1
+--connection default
+
+SET DEBUG_SYNC= 'RESET';
+
+DROP TABLE user;
+
+--remove_file $custom_data_directory
+
+--source include/wait_until_count_sessions.inc

@@ -42,6 +42,10 @@ if ($do_file_tests)
     --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-data-dir t1*
     --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-idx-dir t1*
   }
+
+  --let TABLE_FILES_REPLACE_FILE=$ls_file
+  --source include/table_files_replace_pattern_in_file.inc
+
   eval SET @aux = load_file('$ls_file');
 
   # clean up
@@ -67,7 +71,6 @@ let $run= `SELECT @aux`;
 if ($run)
 {
    --vertical_results
-   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR #p# #P# #sp# #SP#
    SELECT state,
    REPLACE(create_command,'\n',' ') AS "Table definition",
    REPLACE(file_list     ,'\n',' ') AS "File list"

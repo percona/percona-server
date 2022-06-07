@@ -318,6 +318,7 @@ CALL mtr.add_suppression("Failed to find tablespace");
 CALL mtr.add_suppression("Ignoring tablespace");
 CALL mtr.add_suppression("Cannot rename");
 CALL mtr.add_suppression("Cannot calculate");
+call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace [0-9]+");
 CALL mtr.add_suppression("Cannot open datafile");
 CALL mtr.add_suppression("The error means the system cannot find");
 CALL mtr.add_suppression("File ./s/t_innodb.ibd");

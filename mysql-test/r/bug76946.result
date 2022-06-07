@@ -1,0 +1,8 @@
+CREATE TABLE t1(a INT KEY) ENGINE=innodb ROW_FORMAT=compressed;
+CREATE VIEW v1 AS SELECT t1a.* FROM t1,t1 AS t1a;
+DROP TABLE t1;
+CREATE VIEW t1 AS SELECT 1 AS a;
+REPLACE v1 SET a=10;
+ERROR HY000: The target table v1 of the INSERT is not insertable-into
+DROP VIEW t1;
+DROP VIEW v1;

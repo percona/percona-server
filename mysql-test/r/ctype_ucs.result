@@ -242,21 +242,25 @@ DROP TABLE t1;
 # Bug #51876 : crash/memory underrun when loading data with ucs2 
 #   and reverse() function
 #
+SET @sql_mode_save = @@sql_mode;
+SET sql_mode = _latin1 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 # Problem # 1 (original report): wrong parsing of ucs2 data
-SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp.txt';
+SELECT _latin1 '00' UNION SELECT _latin1 '10' INTO OUTFILE 'tmpp.txt';
 CREATE TABLE t1(a INT);
 LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
 (@b) SET a=REVERSE(@b);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1366	Incorrect integer value: '?' for column 'a' at row 1
+Warning	1366	Incorrect integer value: '?' for column 'a' at row 2
 # should return 2 zeroes (as the value is truncated)
 SELECT * FROM t1;
 a
 0
-1
+0
 DROP TABLE t1;
 # Problem # 2 : if you write and read ucs2 data to a file they're lost
-SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
+SELECT _latin1 '00' UNION SELECT _latin1 '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1(a INT);
@@ -270,6 +274,7 @@ a
 0
 1
 DROP TABLE t1;
+SET sql_mode = @sql_mode_save;
 create table t2(f1 Char(30));
 insert into t2 values ("103000"), ("22720000"), ("3401200"), ("78000");
 select lpad(f1, 12, "-o-/") from t2;

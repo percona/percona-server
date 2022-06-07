@@ -1,0 +1,43 @@
+SET @@session.sql_buffer_result = 1;
+CREATE TEMPORARY TABLE t2(
+c1 INT(1) ZEROFILL,
+c2 NUMERIC(10, 10),
+c3 YEAR,
+PRIMARY KEY(c1)
+) ENGINE=Memory;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE t2(
+c1 VARCHAR(1) BINARY CHARACTER SET "Binary" COLLATE "Binary",
+c2 DOUBLE(255, 30),
+c3 FLOAT(255, 10) UNSIGNED ZEROFILL,
+PRIMARY KEY(c1)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE TEMPORARY TABLE t3(
+c1 DOUBLE(2, 2) ZEROFILL,
+c2 TINYTEXT CHARACTER SET "Binary" COLLATE "Binary",
+c3 VARCHAR(1) BINARY
+) ENGINE=InnoDB;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+DROP TABLE t2;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+INSERT INTO t2 VALUES(4000000000000000, CURRENT_TIMESTAMP, '');
+Warnings:
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c3' at row 1
+ALTER TABLE t3 MODIFY c3 TINYTEXT CHARACTER SET "latin1" COLLATE "latin1_bin";
+INSERT INTO t3 SELECT * FROM t2;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DROP TABLE t2;

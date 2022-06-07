@@ -1,0 +1,59 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;
+INSERT INTO t VALUES
+(1,"aaaaabbbbbcccccdddddeeeeefffff"),
+(2,"aaaaabbbbbcccccdddddeeeeefffff"),
+(3,"aaaaabbbbbcccccdddddeeeeefffff"),
+(4,"aaaaabbbbbcccccdddddeeeeefffff"),
+(5,"aaaaabbbbbcccccdddddeeeeefffff");
+INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
+INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
+include/sync_slave_sql_with_master.inc
+SET @saved_long_query_time=@@GLOBAL.long_query_time;
+SET GLOBAL long_query_time=0;
+SET @saved_log_slow_replica_statements=@@GLOBAL.log_slow_replica_statements;
+SET GLOBAL log_slow_replica_statements=TRUE;
+SET @saved_log_slow_verbosity=@@GLOBAL.log_slow_verbosity;
+SET GLOBAL log_slow_verbosity='innodb';
+include/restart_slave.inc
+[log_start.inc] percona.slow_extended.log_slow_replica_statements-innodb
+INSERT INTO t SELECT t.id,t.data from t;
+include/sync_slave_sql_with_master.inc
+[log_stop.inc] percona.slow_extended.log_slow_replica_statements-innodb
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^# Query_time: \d+\.\d+  Lock_time: \d+\.\d+  Rows_sent: \d+  Rows_examined: \d+  Rows_affected: \d+  Bytes_sent: \d+$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^# Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d+\.\d+$
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*$
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: InnoDB_rec_lock_wait: 0\.0*
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: InnoDB_rec_lock_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: InnoDB_queue_wait: 0\.0*
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: InnoDB_queue_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^# No InnoDB statistics available for this query$
+[log_grep.inc] lines:   1
+DROP TABLE t;
+SET GLOBAL long_query_time=@saved_long_query_time;
+SET GLOBAL log_slow_replica_statements=@saved_log_slow_replica_statements;
+SET GLOBAL log_slow_verbosity=@saved_log_slow_verbosity;
+include/rpl_end.inc

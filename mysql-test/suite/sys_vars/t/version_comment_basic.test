@@ -35,9 +35,26 @@ SELECT COUNT(@@GLOBAL.version_comment);
 #   Check if Value can set                                         #
 ####################################################################
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--error ER_WRONG_TYPE_FOR_VAR
 SET @@GLOBAL.version_comment=1;
---echo Expected error 'Read only variable'
+--echo Expected error 'Incorrect argument type to variable'
+
+# save the start value
+SET @saved_version_comment = @@global.version_comment;
+
+SET GLOBAL version_comment = DEFAULT;
+
+SET GLOBAL version_comment = '';
+SELECT @@global.version_comment;
+
+SET GLOBAL version_comment = 'my_comment';
+SELECT @@global.version_comment;
+
+SET GLOBAL version_comment = 'my_comment2';
+SELECT @@global.version_comment;
+
+# restore the start value
+SET GLOBAL version_comment = @saved_version_comment;
 
 SELECT COUNT(@@GLOBAL.version_comment);
 --echo 1 Expected

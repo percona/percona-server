@@ -209,6 +209,7 @@ ALTER TABLE tsp TABLESPACE innodb_system;
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
 WHERE NAME LIKE '%tsp%' OR NAME LIKE '%myspace%' OR NAME LIKE '%innodb_system%';
 NAME	FILE_SIZE	AUTOEXTEND_SIZE
+innodb_system	0	0
 myspace	67108864	67108864
 myspace1	4194304	4194304
 SHOW CREATE TABLE tsp;

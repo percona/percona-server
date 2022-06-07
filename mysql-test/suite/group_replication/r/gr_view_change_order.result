@@ -46,4 +46,5 @@ include/assert.inc [Table t1 will contain 3 rows]
 [connection server1]
 include/assert.inc [Table t1 will contain 3 rows]
 DROP TABLE t1;
+SET DEBUG_SYNC= "RESET";
 include/group_replication_end.inc

@@ -1,0 +1,75 @@
+SET @start_global_value = @@global.innodb_compressed_columns_zip_level;
+Default value
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+6
+Valid value 0..9
+SELECT @@global.innodb_compressed_columns_zip_level <= 9 AND
+@@global.innodb_compressed_columns_zip_level >= 0 AS default_is_in_range;
+default_is_in_range
+1
+SELECT @@session.innodb_compressed_columns_zip_level;
+ERROR HY000: Variable 'innodb_compressed_columns_zip_level' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'innodb_compressed_columns_zip_level';
+Variable_name	Value
+innodb_compressed_columns_zip_level	6
+SHOW SESSION VARIABLES LIKE 'innodb_compressed_columns_zip_level';
+Variable_name	Value
+innodb_compressed_columns_zip_level	6
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_zip_level';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_zip_level	6
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name = 'innodb_compressed_columns_zip_level';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_zip_level	6
+SET GLOBAL innodb_compressed_columns_zip_level = 2;
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+2
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_zip_level';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_zip_level	2
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name = 'innodb_compressed_columns_zip_level';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_zip_level	2
+SET SESSION innodb_compressed_columns_zip_level = 4;
+ERROR HY000: Variable 'innodb_compressed_columns_zip_level' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL innodb_compressed_columns_zip_level = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_compressed_columns_zip_level'
+SET GLOBAL innodb_compressed_columns_zip_level = 1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_compressed_columns_zip_level'
+SET GLOBAL innodb_compressed_columns_zip_level = "foo";
+ERROR 42000: Incorrect argument type to variable 'innodb_compressed_columns_zip_level'
+SET GLOBAL innodb_compressed_columns_zip_level = 10;
+Warnings:
+Warning	1292	Truncated incorrect innodb_compressed_columns_zip_level value: '10'
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+9
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_zip_level';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_zip_level	9
+SET GLOBAL innodb_compressed_columns_zip_level = -7;
+Warnings:
+Warning	1292	Truncated incorrect innodb_compressed_columns_zip_level value: '-7'
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+0
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_compressed_columns_zip_level';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_compressed_columns_zip_level	0
+SET GLOBAL innodb_compressed_columns_zip_level = 0;
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+0
+SET GLOBAL innodb_compressed_columns_zip_level = 9;
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+9
+SET GLOBAL innodb_compressed_columns_zip_level = @start_global_value;

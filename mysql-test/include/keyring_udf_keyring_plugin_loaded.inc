@@ -67,70 +67,124 @@ select PLUGIN_NAME,PLUGIN_AUTHOR from information_schema.plugins where PLUGIN_NA
 
 # AES
 # Generate AES_128
-select keyring_key_generate('Rob_AES_128','AES',16);
-select keyring_key_fetch('Rob_AES_128') into @x;
+let key_id = `select CONCAT('Rob_AES_128', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','AES',16);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_AES_128');
-select keyring_key_length_fetch('Rob_AES_128');
-select keyring_key_remove('Rob_AES_128');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 # Generate AES_192
-select keyring_key_generate('Rob_AES_192','AES',24);
-select keyring_key_fetch('Rob_AES_192') into @x;
+let key_id = `select CONCAT('Rob_AES_192', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id', 'AES', 24);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_AES_192');
-select keyring_key_length_fetch('Rob_AES_192');
-select keyring_key_remove('Rob_AES_192');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 # Generate AES_256
-select keyring_key_generate('Rob_AES_256','AES',32);
-select keyring_key_fetch('Rob_AES_256') into @x;
+let key_id = `select CONCAT('Rob_AES_256', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','AES',32);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_AES_256');
-select keyring_key_length_fetch('Rob_AES_256');
-select keyring_key_remove('Rob_AES_256');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 # RSA
 # Generate RSA_1024
-select keyring_key_generate('Rob_RSA_1024','RSA',128);
-select keyring_key_fetch('Rob_RSA_1024') into @x;
+let key_id = `select CONCAT('Rob_RSA_1024', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','RSA',128);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_RSA_1024');
-select keyring_key_length_fetch('Rob_RSA_1024');
-select keyring_key_remove('Rob_RSA_1024');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 #Generate RSA_2048
-select keyring_key_generate('Rob_RSA_2048','RSA',256);
-select keyring_key_fetch('Rob_RSA_2048') into @x;
-select keyring_key_type_fetch('Rob_RSA_2048');
-select keyring_key_length_fetch('Rob_RSA_2048');
+let key_id = `select CONCAT('Rob_RSA_2048', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','RSA',256);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
 select LENGTH(@x);
-select keyring_key_remove('Rob_RSA_2048');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 #Generate RSA_4098
-select keyring_key_generate('Rob_RSA_4096','RSA',512);
-select keyring_key_fetch('Rob_RSA_4096') into @x;
-select keyring_key_type_fetch('Rob_RSA_4096');
-select keyring_key_length_fetch('Rob_RSA_4096');
+let key_id = `select CONCAT('Rob_RSA_4096', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','RSA',512);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
 select LENGTH(@x);
-select keyring_key_remove('Rob_RSA_4096');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 # DSA
 # Generate DSA 1024
-select keyring_key_generate('Rob_DSA_1024','DSA',128);
-select keyring_key_fetch('Rob_DSA_1024') into @x;
+let key_id = `select CONCAT('Rob_DSA_1024', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','DSA',128);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_DSA_1024');
-select keyring_key_length_fetch('Rob_DSA_1024');
-select keyring_key_remove('Rob_DSA_1024');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 # Generate DSA 2048
-select keyring_key_generate('Rob_DSA_2048','DSA',256);
-select keyring_key_fetch('Rob_DSA_2048') into @x;
+let key_id = `select CONCAT('Rob_DSA_2048', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','DSA',256);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_DSA_2048');
-select keyring_key_length_fetch('Rob_DSA_2048');
-select keyring_key_remove('Rob_DSA_2048');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 # Generate DSA 3072
-select keyring_key_generate('Rob_DSA_3072','DSA',384);
-select keyring_key_fetch('Rob_DSA_3072') into @x;
+let key_id = `select CONCAT('Rob_DSA_3072', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','DSA',384);
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_DSA_3072');
-select keyring_key_length_fetch('Rob_DSA_3072');
-select keyring_key_remove('Rob_DSA_3072');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 # Fetch not existing:
 select keyring_key_fetch('key') into @x;
@@ -142,11 +196,16 @@ select @x;
 
 --echo #Testing with AES_ENCRYPT/AES_DECRYPT
 
-select keyring_key_generate('AES_128','AES',16);
-select AES_ENCRYPT('secret message', keyring_key_fetch('AES_128')) into @cipher;
-select AES_DECRYPT(@cipher, keyring_key_fetch('AES_128'));
+let key_id = `select CONCAT('AES_128', '$server_uuid')`;
+--replace_result $key_id key_id
+select keyring_key_generate('$key_id','AES',16);
+--replace_result $key_id key_id
+select AES_ENCRYPT('secret message', keyring_key_fetch('$key_id')) into @cipher;
+--replace_result $key_id key_id
+select AES_DECRYPT(@cipher, keyring_key_fetch('$key_id'));
 
-select keyring_key_remove('AES_128');
+--replace_result $key_id key_id
+select keyring_key_remove('$key_id');
 
 # Fetch non-existent key - we should get empty string as result
 select keyring_key_fetch('Rob1');
@@ -182,9 +241,11 @@ select @x;
 
 --echo # Testing privileges
 
-select keyring_key_generate('roots_key', 'AES',16);
+let roots_key_id = `select CONCAT('roots_key', '$server_uuid')`;
+--replace_result $roots_key_id roots_key_id
+eval select keyring_key_generate('$roots_key_id', 'AES',16);
 
-create definer=root@localhost procedure shared_key() select keyring_key_fetch('roots_key');
+create definer=root@localhost procedure shared_key() select keyring_key_fetch('$roots_key_id');
 
 CREATE USER user_execute_test@localhost;
 connect(conn_no_execute, localhost, user_execute_test);
@@ -198,12 +259,17 @@ GRANT EXECUTE ON *.* TO 'user_execute_test'@'localhost';
 
 connect(conn_with_execute, localhost, user_execute_test);
 
-select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
-select keyring_key_generate('another_Rob_DSA_no_privilege','DSA',384);
+let key_id = `select CONCAT('Rob_DSA_no_privilege', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','DSA',384);
+let key_id = `select CONCAT('another_Rob_DSA_no_privilege', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','DSA',384);
 
 --echo #Check if user you can access another user's keys
+--replace_result $roots_key_id roots_key_id
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_remove('roots_key');
+eval select keyring_key_remove('$roots_key_id');
 
 --echo #Check that the user is able to access the key via procedure
 --replace_column 1 #
@@ -216,20 +282,31 @@ DROP PROCEDURE shared_key;
 --echo #Check if a user can create a key with id that already exist but belongs
 --echo #to another user.
 
-select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
+let key_id = `select CONCAT('Rob_DSA_no_privilege', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','DSA',384);
 
 --echo #Check if user with larger privileges can access another user's key
 
+let key_id = `select CONCAT('another_Rob_DSA_no_privilege', '$server_uuid')`;
+
+--replace_result $key_id key_id
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_remove('another_Rob_DSA_no_privilege');
+eval select keyring_key_remove('$key_id');
 
 --echo #Cleanup
 
-select keyring_key_remove('Rob_DSA_no_privilege');
-select keyring_key_remove('roots_key');
+let key_id = `select CONCAT('Rob_DSA_no_privilege', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
+--replace_result $roots_key_id roots_key_id
+eval select keyring_key_remove('$roots_key_id');
 connection conn_with_execute;
-select keyring_key_remove('Rob_DSA_no_privilege');
-select keyring_key_remove('another_Rob_DSA_no_privilege');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
+let key_id = `select CONCAT('another_Rob_DSA_no_privilege', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 connection default;
 disconnect conn_with_execute;

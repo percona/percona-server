@@ -1,0 +1,135 @@
+# tests the basic functionality of rocksdb_strict_collation,
+# rocksdb_strict_collation_exceptions, and my_regex functionality behind
+# rocksdb_strict_collation_exceptions
+--source include/have_rocksdb.inc
+
+call mtr.add_suppression("Invalid pattern");
+
+# ci non-indexed column is allowed
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT) ENGINE=ROCKSDB CHARSET UTF8MB3;
+# ci indexed column is not allowed
+ALTER TABLE t1 ADD INDEX (value);
+DROP TABLE t1;
+
+# ci indexed column is not allowed
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value3(50))) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t1;
+# ci indexed column with rocksdb_strict_collation_check=OFF is allowed.
+SET GLOBAL rocksdb_strict_collation_check=0;
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value3(50))) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t1;
+SET GLOBAL rocksdb_strict_collation_check=1;
+
+# cs indexed column is allowed
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value2)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t1;
+
+# cs latin1_bin is allowed
+CREATE TABLE t1 (id VARCHAR(20), value VARCHAR(50), value2 VARCHAR(50), value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET LATIN1 COLLATE LATIN1_BIN;
+# THIS SHOULD FAIL BUT IT DOES NOT
+ALTER TABLE t1 collate=latin1_general_ci;
+DROP TABLE t1;
+
+# cs utf8mb3_bin is allowed
+CREATE TABLE t1 (id VARCHAR(20), value VARCHAR(50), value2 VARCHAR(50), value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET UTF8MB3 COLLATE UTF8MB3_BIN;
+DROP TABLE t1;
+
+# cs mixed latin1_bin and utf8mb3_bin is allowed
+CREATE TABLE t1 (id VARCHAR(20) COLLATE LATIN1_BIN, value VARCHAR(50) COLLATE UTF8MB3_BIN, value2 VARCHAR(50) COLLATE LATIN1_BIN, value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t1;
+
+# ci indexed column is not allowed unless table name is in exception list
+SET GLOBAL rocksdb_strict_collation_exceptions=t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t1;
+CREATE TABLE t2 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t2;
+
+# test regex for exception list
+SET GLOBAL rocksdb_strict_collation_exceptions="t.*";
+CREATE TABLE t123 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t123;
+CREATE TABLE s123 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE s123;
+
+SET GLOBAL rocksdb_strict_collation_exceptions=".t.*";
+CREATE TABLE xt123 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE xt123;
+CREATE TABLE t123 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t123;
+
+# test multiple entries in the list with vertical bar
+SET GLOBAL rocksdb_strict_collation_exceptions="s.*|t.*";
+CREATE TABLE s1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE s1;
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t1;
+CREATE TABLE u1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE u1;
+
+# test allowing alters to create temporary tables
+SET GLOBAL rocksdb_strict_collation_exceptions='t1';
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+ALTER TABLE t1 AUTO_INCREMENT=1;
+DROP TABLE t1;
+CREATE TABLE t2 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE t2;
+CREATE TABLE t2 (id INT PRIMARY KEY, value VARCHAR(50)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+ALTER TABLE t2 ADD INDEX(value);
+DROP TABLE t2;
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.collation.err
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE
+--replace_result $SEARCH_FILE LOG_FILE
+--source include/restart_mysqld.inc
+
+# test invalid regex (missing end bracket)
+SET GLOBAL rocksdb_strict_collation_exceptions="[a-b";
+--let SEARCH_PATTERN=Invalid pattern in strict_collation_exceptions: \[a-b
+--source include/search_pattern.inc
+
+CREATE TABLE a (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE a;
+SET GLOBAL rocksdb_strict_collation_exceptions="[a-b]";
+CREATE TABLE a (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+CREATE TABLE b (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+CREATE TABLE c (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+DROP TABLE a, b, c;
+
+# test invalid regex (trailing escape)
+SET GLOBAL rocksdb_strict_collation_exceptions="abc\\";
+--let SEARCH_PATTERN=Invalid pattern in strict_collation_exceptions: abc\\\\
+--source include/search_pattern.inc
+
+# test bad regex (null caused a crash) - Issue 493
+SET GLOBAL rocksdb_strict_collation_exceptions=null;
+
+# test for errors instead of warnings
+--let $restart_parameters=restart:--rocksdb_error_on_suboptimal_collation=1
+--source include/restart_mysqld.inc
+
+SET GLOBAL rocksdb_strict_collation_check=1;
+
+# ci indexed column is not optimal, should emit a warning
+--error ER_UNSUPPORTED_COLLATION
+CREATE TABLE t1 (id INT primary key, value varchar(50), value2 varbinary(50), value3 text, index(value)) engine=rocksdb charset utf8mb3;
+
+# ci non-indexed column is allowed
+CREATE TABLE t1 (id INT primary key, value varchar(50), value2 varbinary(50), value3 text) engine=rocksdb charset utf8mb3;
+# ci indexed column is not allowed, should emit an error
+--error ER_UNSUPPORTED_COLLATION
+ALTER TABLE t1 ADD INDEX (value);
+DROP TABLE t1;
+
+# cs latin1_bin is allowed
+CREATE TABLE t1 (id varchar(20), value varchar(50), value2 varchar(50), value3 text, primary key (id), index(value, value2)) engine=rocksdb charset latin1 collate latin1_bin;
+# THIS SHOULD ERROR BUT IT DOES NOT
+ALTER TABLE t1 collate=latin1_general_ci;
+DROP TABLE t1;
+
+# cleanup
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+--remove_file $SEARCH_FILE

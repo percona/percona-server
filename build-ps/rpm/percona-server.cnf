@@ -1,0 +1,11 @@
+#
+# The Percona Server 5.7 configuration file.
+#
+#
+# * IMPORTANT: Additional settings that can override those from this file!
+#   The files must end with '.cnf', otherwise they'll be ignored.
+#   Please make any edits and changes to the appropriate sectional files
+#   included below.
+#
+!includedir /etc/my.cnf.d/
+!includedir /etc/percona-server.conf.d/

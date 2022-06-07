@@ -58,6 +58,7 @@ include/assert.inc [Verify table t1 has data]
 
 # Cleanup
 
+SET DEBUG_SYNC="RESET";
 [connection master]
 DROP TABLE t1;
 DROP TABLE t2;

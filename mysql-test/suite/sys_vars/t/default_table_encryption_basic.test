@@ -18,20 +18,20 @@ SHOW GRANTS FOR CURRENT_USER();
 --echo #
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET SESSION default_table_encryption=true;
+SET SESSION default_table_encryption=ON;
 
 SET SESSION default_table_encryption=false;
 
 SET SESSION default_table_encryption=DEFAULT;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET GLOBAL default_table_encryption=true;
+SET GLOBAL default_table_encryption=ON;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET PERSIST default_table_encryption=true;
+SET PERSIST default_table_encryption=ON;
 
 --error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
-SET PERSIST_ONLY default_table_encryption=true;
+SET PERSIST_ONLY default_table_encryption=ON;
 
 --echo #
 --echo # VARIABLE USED BY USER WITH TABLE_ENCRYPTION_ADMIN privilege.
@@ -48,20 +48,20 @@ SHOW GRANTS FOR CURRENT_USER();
 --echo #
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET SESSION default_table_encryption=true;
+SET SESSION default_table_encryption=ON;
 
 SET SESSION default_table_encryption=false;
 
 SET SESSION default_table_encryption=DEFAULT;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET GLOBAL default_table_encryption=true;
+SET GLOBAL default_table_encryption=ON;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET PERSIST default_table_encryption=true;
+SET PERSIST default_table_encryption=ON;
 
 --error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
-SET PERSIST_ONLY default_table_encryption=true;
+SET PERSIST_ONLY default_table_encryption=ON;
 
 --echo #
 --echo # VARIABLE USED BY USER WITH SYSTEM_VARIABLES_ADMIN privilege.
@@ -79,20 +79,20 @@ SHOW GRANTS FOR CURRENT_USER();
 --echo #
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET SESSION default_table_encryption=true;
+SET SESSION default_table_encryption=ON;
 
 SET SESSION default_table_encryption=false;
 
 SET SESSION default_table_encryption=DEFAULT;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET GLOBAL default_table_encryption=true;
+SET GLOBAL default_table_encryption=ON;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET PERSIST default_table_encryption=true;
+SET PERSIST default_table_encryption=ON;
 
 --error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
-SET PERSIST_ONLY default_table_encryption=true;
+SET PERSIST_ONLY default_table_encryption=ON;
 
 --echo #
 --echo # VARIABLE USED BY USER WITH BOTH TABLE_ENCRYPTION_ADMIN and 
@@ -109,11 +109,8 @@ SHOW GRANTS FOR CURRENT_USER();
 --echo # SET default_table_encryption
 --echo #
 
-SET SESSION default_table_encryption=true;
-SELECT @@session.default_table_encryption = true;
-
-SET SESSION default_table_encryption=false;
-SELECT @@session.default_table_encryption = false;
+SET SESSION default_table_encryption=ON;
+SELECT @@session.default_table_encryption;
 
 SET SESSION default_table_encryption=DEFAULT;
 SELECT @@session.default_table_encryption = false;
@@ -121,11 +118,17 @@ SELECT @@session.default_table_encryption = false;
 SET GLOBAL default_table_encryption=false;
 SELECT @@global.default_table_encryption = false;
 
-SET PERSIST default_table_encryption=true;
-SELECT @@global.default_table_encryption = true;
+SET GLOBAL default_table_encryption=OFF;
+SELECT @@global.default_table_encryption;
+
+SET PERSIST default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
+
+SET PERSIST default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
 
 --error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
-SET PERSIST_ONLY default_table_encryption=true;
+SET PERSIST_ONLY default_table_encryption=ON;
 
 --echo #
 --echo # VARIABLE USED BY USER WITH PERSIST_RO_VARIABLES_ADMIN,
@@ -142,17 +145,17 @@ SHOW GRANTS FOR CURRENT_USER();
 --echo # SET default_table_encryption
 --echo #
 
-SET SESSION default_table_encryption=true;
-SELECT @@session.default_table_encryption = true;
+SET SESSION default_table_encryption=ON;
+SELECT @@session.default_table_encryption;
 
-SET GLOBAL default_table_encryption=false;
-SELECT @@global.default_table_encryption = false;
+SET GLOBAL default_table_encryption=OFF;
+SELECT @@global.default_table_encryption;
 
-SET PERSIST default_table_encryption=true;
-SELECT @@global.default_table_encryption = true;
+SET PERSIST default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
 
-SET PERSIST_ONLY default_table_encryption=false;
-SELECT @@global.default_table_encryption = true;
+SET PERSIST_ONLY default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
 
 --echo #
 --echo # Test changing the value to invalid value
@@ -172,6 +175,8 @@ SET @@global.default_table_encryption = 'test';
 SELECT @@global.default_table_encryption;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.default_table_encryption = ' ';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.default_table_encryption = ONLINE_XYZ;
 SELECT @@global.default_table_encryption;
 
 --echo #
@@ -191,17 +196,17 @@ SHOW GRANTS FOR CURRENT_USER();
 --echo # SET default_table_encryption
 --echo #
 
-SET SESSION default_table_encryption=true;
-SELECT @@session.default_table_encryption = true;
+SET SESSION default_table_encryption=ON;
+SELECT @@session.default_table_encryption;
 
-SET GLOBAL default_table_encryption=false;
-SELECT @@global.default_table_encryption = false;
+SET GLOBAL default_table_encryption=OFF;
+SELECT @@global.default_table_encryption;
 
-SET PERSIST default_table_encryption=true;
-SELECT @@global.default_table_encryption = true;
+SET PERSIST default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
 
 --error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
-SET PERSIST_ONLY default_table_encryption=true;
+SET PERSIST_ONLY default_table_encryption=ON;
 
 connection default;
 disconnect con1;

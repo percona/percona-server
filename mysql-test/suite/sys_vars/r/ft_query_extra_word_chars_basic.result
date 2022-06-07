@@ -1,0 +1,99 @@
+SELECT @@GLOBAL.ft_query_extra_word_chars;
+@@GLOBAL.ft_query_extra_word_chars
+0
+SET @start_value= @@GLOBAL.ft_query_extra_word_chars;
+SELECT COUNT(@@GLOBAL.ft_query_extra_word_chars);
+COUNT(@@GLOBAL.ft_query_extra_word_chars)
+1
+SELECT COUNT(@@SESSION.ft_query_extra_word_chars);
+COUNT(@@SESSION.ft_query_extra_word_chars)
+1
+SET @@GLOBAL.ft_query_extra_word_chars=TRUE;
+SELECT @@GLOBAL.ft_query_extra_word_chars;
+@@GLOBAL.ft_query_extra_word_chars
+1
+SET @@GLOBAL.ft_query_extra_word_chars=FALSE;
+SELECT @@GLOBAL.ft_query_extra_word_chars;
+@@GLOBAL.ft_query_extra_word_chars
+0
+SET @@GLOBAL.ft_query_extra_word_chars=ON;
+SELECT @@GLOBAL.ft_query_extra_word_chars;
+@@GLOBAL.ft_query_extra_word_chars
+1
+SET @@GLOBAL.ft_query_extra_word_chars=OFF;
+SELECT @@GLOBAL.ft_query_extra_word_chars;
+@@GLOBAL.ft_query_extra_word_chars
+0
+SET @@GLOBAL.ft_query_extra_word_chars=0;
+SELECT @@GLOBAL.ft_query_extra_word_chars;
+@@GLOBAL.ft_query_extra_word_chars
+0
+SET @@GLOBAL.ft_query_extra_word_chars=1;
+SELECT @@GLOBAL.ft_query_extra_word_chars;
+@@GLOBAL.ft_query_extra_word_chars
+1
+SET @@SESSION.ft_query_extra_word_chars=TRUE;
+SELECT @@SESSION.ft_query_extra_word_chars;
+@@SESSION.ft_query_extra_word_chars
+1
+SET @@SESSION.ft_query_extra_word_chars=FALSE;
+SELECT @@SESSION.ft_query_extra_word_chars;
+@@SESSION.ft_query_extra_word_chars
+0
+SET @@SESSION.ft_query_extra_word_chars=ON;
+SELECT @@SESSION.ft_query_extra_word_chars;
+@@SESSION.ft_query_extra_word_chars
+1
+SET @@SESSION.ft_query_extra_word_chars=OFF;
+SELECT @@SESSION.ft_query_extra_word_chars;
+@@SESSION.ft_query_extra_word_chars
+0
+SET @@SESSION.ft_query_extra_word_chars=0;
+SELECT @@SESSION.ft_query_extra_word_chars;
+@@SESSION.ft_query_extra_word_chars
+0
+SET @@SESSION.ft_query_extra_word_chars=1;
+SELECT @@SESSION.ft_query_extra_word_chars;
+@@SESSION.ft_query_extra_word_chars
+1
+SELECT
+IF(@@GLOBAL.ft_query_extra_word_chars, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='ft_query_extra_word_chars';
+IF(@@GLOBAL.ft_query_extra_word_chars, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='ft_query_extra_word_chars';
+COUNT(VARIABLE_VALUE)
+1
+SELECT
+IF(@@SESSION.ft_query_extra_word_chars, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='ft_query_extra_word_chars';
+IF(@@SESSION.ft_query_extra_word_chars, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='ft_query_extra_word_chars';
+COUNT(VARIABLE_VALUE)
+1
+SELECT COUNT(@@ft_query_extra_word_chars);
+COUNT(@@ft_query_extra_word_chars)
+1
+SELECT COUNT(@@LOCAL.ft_query_extra_word_chars);
+COUNT(@@LOCAL.ft_query_extra_word_chars)
+1
+SELECT COUNT(@@SESSION.ft_query_extra_word_chars);
+COUNT(@@SESSION.ft_query_extra_word_chars)
+1
+SELECT COUNT(@@GLOBAL.ft_query_extra_word_chars);
+COUNT(@@GLOBAL.ft_query_extra_word_chars)
+1
+SET @@GLOBAL.ft_query_extra_word_chars=-20;
+ERROR 42000: Variable 'ft_query_extra_word_chars' can't be set to the value of '-20'
+SET @@GLOBAL.ft_query_extra_word_chars=2.5;
+ERROR 42000: Incorrect argument type to variable 'ft_query_extra_word_chars'
+SET @@GLOBAL.ft_query_extra_word_chars='foo';
+ERROR 42000: Variable 'ft_query_extra_word_chars' can't be set to the value of 'foo'
+SET @@GLOBAL.ft_query_extra_word_chars= @start_value;

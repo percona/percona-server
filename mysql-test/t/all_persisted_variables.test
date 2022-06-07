@@ -29,12 +29,14 @@
 # added, it is the responsibility of the Dev to edit $total_persistent_vars.
 ################################################################################
 
+# Percona Server has further restricted the platform to Linux-only due to some
+# Linux-specific InnoDB system variables
 --echo ***********************************************************************
 --echo * Run only on debug build,non-windows as few server variables are not
 --echo * available on all platforms.
 --echo ***********************************************************************
 --source include/have_debug.inc
---source include/not_windows.inc
+--source include/linux.inc
 --source include/have_binlog_format_row.inc
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_initialize not supported on this platform.");
@@ -50,7 +52,7 @@ let $total_global_vars=`SELECT COUNT(*)
    WHERE variable_name NOT LIKE 'ndb_%'
    AND variable_name NOT LIKE 'debug_%'
    AND variable_name NOT LIKE '%telemetry%'`;
-let $total_persistent_vars=441;
+let $total_persistent_vars=489;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

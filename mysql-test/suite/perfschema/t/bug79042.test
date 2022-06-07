@@ -1,0 +1,9 @@
+#
+# Test for bug 79042 (handle_fatal_signal (sig=11) at get_filename_hash_pins)
+#
+
+UPDATE performance_schema.setup_consumers SET enabled='NO' where name='thread_instrumentation';
+--disable_result_log
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES ORDER BY TABLE_ROWS;
+--enable_result_log
+UPDATE performance_schema.setup_consumers SET enabled='YES' where name='thread_instrumentation';

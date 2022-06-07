@@ -134,6 +134,32 @@ id	title
 3	good
 DROP TABLE t1;
 #
+# PS-3851: Percona Ver 5.6.39-83.1 Failing assertion: sym_node->table != NULL
+#
+CREATE TABLE `questions_and_answers` (
+`id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Unique ID',
+`keywords` text COMMENT 'CSV list of keywords related to this entry',
+PRIMARY KEY (`id`),
+FULLTEXT KEY `keywords` (`keywords`)
+) ENGINE=InnoDB AUTO_INCREMENT=3620 DEFAULT CHARSET=utf8 COMMENT='Main table for Q&A module ';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1854,'support, services, essay, writing, maths, help, advice, study, advice, advise, careers, employability, graduating, graduate, student_support, academic_support, academic_help');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1855,'accommodation, housing, halls, residence, live, living, bed, beds, acomodation, accomodation, accommidation, acomidation, hall, campus_living, uni_living, uni_halls, university_life, university_accommodation');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1856,'interview, interviews, audition, auditions, portfolio, review, admission, interview_preparation, booking, book, change_interview');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1857,'entry_requirements, application, admission, apply, applying, entry, criteria, requirements, mature, life, experience, A-level, A-levels, A_levels, AS, AS_Level, AS_Levels, BTEC, IB, baccalaureate, Access, diploma, course, UCAS, foundation, foundation_degree, level_2, l2');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1858,'alumni, alumnus, FOCUS, former, old, students, graduates');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1859,'results_day, sending_results, clearing, confirmation, results, can_I_apply_through_clearing, do_you_have_vacancies, do_you_have_spaces, do_you_have_places, confirming_your_place');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1860,'contact, contacts, recruitment, admissions, funding, finance, registry, support, careers, disabilities, accommodation, enrol, enrolment, sport, recreation, team');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1861,'food, eat, drink, eating, café, cafés, snacks');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1862,'faculty, faculties, schools, department, departments, courses, subject, subjects, structure, London, campus, CULC, subject_areas');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1863,'freshers, week, induction, students, starters, freshers_week, what\'s_on_at_freshers');
+INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1864,'loan, loans, financial, support, funding, scholarships, bursaries, bursary, busrarys');
+SET GLOBAL DEBUG='+d,fts_instrument_sync_request';
+ALTER TABLE `questions_and_answers` ALGORITHM=COPY;
+SET GLOBAL DEBUG='-d,fts_instrument_sync_request';
+DROP TABLE `questions_and_answers`;
+#
 # Bug #31310404 I_S_FTS_INDEX_CACHE_FILL_ONE_INDEX() IS NOT PROTECTED BY THE LOCK
 #
 CREATE TABLE t1 (

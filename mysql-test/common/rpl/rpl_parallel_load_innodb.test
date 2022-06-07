@@ -36,6 +36,7 @@ enable_query_log;
 let $databases = 16;
 
 connection slave;
+--source include/only_mts_replica_parallel_workers.inc
 
 call mtr.add_suppression('Replica: Error dropping database'); ## todo: fix
 

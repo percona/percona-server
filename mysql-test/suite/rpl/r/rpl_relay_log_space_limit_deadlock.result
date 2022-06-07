@@ -38,6 +38,7 @@ include/assert.inc ['There are 2 values in table t1']
 #
 # 5. Cleanup
 SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
+SET DEBUG_SYNC= 'RESET';
 [connection master]
 DROP TABLE t1;
 include/rpl/deinit.inc

@@ -3429,3 +3429,18 @@ FROM (SELECT a, b, count1, count2
       ORDER BY count1 desc, a, count2 desc, b) AS dt6;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # PS-8725 : Assertion `m_opened_table != nullptr' failed in temptable::Handler::opened_table_validate()
+--echo # Bug#35105404: Server crashes with signal 11 and asserts in temptable code.
+--echo #
+--echo # Re-execution of statements involving MIN/MAX optimization and
+--echo # derived/CTE table caused assertion failures.
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET optimizer_switch="derived_merge=off";
+PREPARE stmt1 FROM "WITH cte AS (VALUES ROW(1), ROW(5), ROW(3)) SELECT column_0 FROM cte WHERE cte.column_0 = (SELECT max(column_0) FROM cte WHERE column_0 < 5)";
+EXECUTE stmt1;
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+SET optimizer_switch= @optimizer_switch_saved;

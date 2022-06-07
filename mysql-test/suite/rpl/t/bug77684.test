@@ -1,0 +1,33 @@
+# Test case for bug #77684 (DROP TABLE IF EXISTS may brake replication if slave has replication filters)
+--source include/master-slave.inc
+
+# Test A (using fully-qualified table names) 
+--connection master
+CREATE DATABASE db1;
+
+CREATE TABLE db1.t1a (ID bigint primary key) ENGINE=InnoDB;
+
+CREATE TABLE db1.t2a (ID bigint NOT NULL AUTO_INCREMENT, DIVISION_ID bigint DEFAULT NULL, PRIMARY KEY (ID), KEY FK_T1A (DIVISION_ID), CONSTRAINT FK_T1A FOREIGN KEY (DIVISION_ID) REFERENCES db1.t1a (ID) ON DELETE CASCADE) ENGINE=InnoDB;
+
+--error ER_FK_CANNOT_DROP_PARENT
+DROP TABLE IF EXISTS db1.t1a;
+
+--sync_slave_with_master
+
+# Test B (using "USE" statement)
+--connection master
+USE db1;
+
+CREATE TABLE t1b (ID bigint primary key) ENGINE=InnoDB;
+
+CREATE TABLE t2b (ID bigint NOT NULL AUTO_INCREMENT, DIVISION_ID bigint DEFAULT NULL, PRIMARY KEY (ID), KEY FK_T1B (DIVISION_ID), CONSTRAINT FK_T1B FOREIGN KEY (DIVISION_ID) REFERENCES t1b (ID) ON DELETE CASCADE) ENGINE=InnoDB;
+
+--error ER_FK_CANNOT_DROP_PARENT
+DROP TABLE IF EXISTS t1b;
+
+--sync_slave_with_master
+
+--connection master
+DROP DATABASE db1;
+
+--source include/rpl_end.inc

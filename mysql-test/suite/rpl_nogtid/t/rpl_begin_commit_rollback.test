@@ -17,7 +17,7 @@
 #
 # BUG#43263 BEGIN skipped in some replicate-do-db cases
 # BUG#50407 mysqlbinlog --database=X produces bad output for SAVEPOINTs
-# BUG#55798 Slave SQL retry on transaction inserts extra data into non-transaction table
+# BUG#55798 Replica SQL retry on transaction inserts extra data into non-transaction table
 source include/force_myisam_default.inc;
 source include/have_myisam.inc;
 source include/have_binlog_format_statement.inc;
@@ -190,7 +190,7 @@ SELECT * FROM replicate_do_db.t2 WHERE s LIKE '% savepoint %';
 SELECT * FROM replicate_do_db.t1 WHERE a IN (30, 40);
 
 --echo
---echo # BUG#55798 Slave SQL retry on transaction inserts extra data into
+--echo # BUG#55798 Replica SQL retry on transaction inserts extra data into
 --echo # non-transaction table
 --echo # ----------------------------------------------------------------
 --echo # To verify that SQL thread does not retry a transaction which can

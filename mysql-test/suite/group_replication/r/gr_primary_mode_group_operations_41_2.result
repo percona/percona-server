@@ -50,6 +50,7 @@ SET @@GLOBAL.read_only= 0;
 LOCK TABLE t1 READ;
 [connection server_1]
 COMMIT;
+SET DEBUG_SYNC='RESET';
 [connection server_2]
 include/assert.inc [The stage should be "Multi-primary Switch: applying buffered transactions"]
 include/assert.inc [The estimated work is 1]
@@ -72,6 +73,7 @@ include/assert.inc [The completed work is 1]
 
 # 4. Unblock the debug point
 # Check the action terminates and no stages appear
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 [connection server2]

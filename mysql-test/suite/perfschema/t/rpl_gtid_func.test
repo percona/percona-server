@@ -43,6 +43,7 @@ insert into performance_schema.setup_objects
 select * from performance_schema.setup_objects
   order by object_type, object_schema, object_name;
 
+--replace_column 1 ?
 select digest, digest_text, count_star
   from performance_schema.events_statements_summary_by_digest
   where digest_text like "%in_%_digest%";
@@ -65,6 +66,7 @@ insert into performance_schema.setup_objects
 select * from performance_schema.setup_objects
   order by object_type, object_schema, object_name;
 
+--replace_column 1 ?
 select digest, digest_text, count_star
   from performance_schema.events_statements_summary_by_digest
   where digest_text like "%in_%_digest%";

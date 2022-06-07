@@ -43,7 +43,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_component_keyring_file.inc
 # Waiting time when (re)starting the server
---let $explicit_default_wait_counter=10000
+--let $explicit_default_wait_counter=15000
 
 --disable_query_log
 call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
@@ -119,11 +119,11 @@ ALTER TABLESPACE innodb_system ENCRYPTION='Y';
 --echo ---------------------------
 # Test: create temporary encrypted table,
 # Should fail, since temporary table cannot use ENCRYPTION clause.
---error ER_CANNOT_USE_ENCRYPTION_CLAUSE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
 SHOW WARNINGS;
 
---error ER_CANNOT_USE_ENCRYPTION_CLAUSE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 SHOW WARNINGS;
 

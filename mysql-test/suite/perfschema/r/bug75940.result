@@ -1,0 +1,4 @@
+select variable_name from performance_schema.session_variables where variable_name=
+(select variable_name from performance_schema.session_variables where variable_name= 'BASEDIR');
+variable_name
+basedir

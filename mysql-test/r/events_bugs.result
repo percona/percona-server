@@ -397,6 +397,24 @@ ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_ANY_DEFI
 DROP EVENT e1;
 ERROR HY000: Unknown event 'e1'
 DROP USER mysqltest_u1@localhost;
+CREATE USER 'mysqltest_u1@corp'@'localhost';
+GRANT EVENT ON events_test.* TO 'mysqltest_u1@corp'@'localhost';
+CREATE DEFINER='mysqltest_u1@corp'@'localhost' EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO SELECT 1;
+SHOW CREATE EVENT e1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`mysqltest_u1@corp`@`localhost` EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+DROP EVENT e1;
+DROP USER 'mysqltest_u1@corp'@'localhost';
+CREATE USER 'mysqltest_u1@corp@comp'@'localhost';
+GRANT EVENT ON events_test.* TO 'mysqltest_u1@corp@comp'@'localhost';
+CREATE DEFINER='mysqltest_u1@corp@comp'@'localhost' EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO SELECT 1;
+SHOW CREATE EVENT e1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`mysqltest_u1@corp@comp`@`localhost` EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+DROP EVENT e1;
+DROP USER 'mysqltest_u1@corp@comp'@'localhost';
+CREATE USER 'mysqltest_u1'@'localhost@corp';
+ERROR HY000: Malformed hostname (illegal symbol: '@')
 SET GLOBAL EVENT_SCHEDULER= OFF;
 SET @save_time_zone= @@TIME_ZONE;
 SET TIME_ZONE= '+00:00';

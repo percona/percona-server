@@ -426,12 +426,12 @@ insert into t1 select * from t0;
 explain select * from t0 left join t1 on (t0.key1=t1.key1)
 where t0.key1=3 or t0.key2=4;
 EXPLAIN
--> Nested loop left join  (rows=4)
-    -> Filter: ((t0.key1 = 3) or (t0.key2 = 4))  (rows=4)
-        -> Deduplicate rows sorted by row ID  (rows=4)
-            -> Index range scan on t0 using i1 over (key1 = 3)  (rows=2)
-            -> Index range scan on t0 using i2 over (key2 = 4)  (rows=2)
-    -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
+-> Nested loop left join  (...)
+    -> Filter: ((t0.key1 = 3) or (t0.key2 = 4))  (...)
+        -> Deduplicate rows sorted by row ID  (...)
+            -> Index range scan on t0 using i1 over (key1 = 3)  (...)
+            -> Index range scan on t0 using i2 over (key2 = 4)  (...)
+    -> Index lookup on t1 using i1 (key1=t0.key1)  (...)
 
 select * from t0 left join t1 on (t0.key1=t1.key1)
 where t0.key1=3 or t0.key2=4;
@@ -441,23 +441,14 @@ key1	key2	key3	key4	key5	key6	key7	key8	key1	key2	key3	key4	key5	key6	key7	key8
 explain
 select * from t0,t1 where (t0.key1=t1.key1) and ( t0.key1=3 or t0.key2=4);
 EXPLAIN
--> Nested loop inner join  (rows=4)
-    -> Filter: ((t0.key1 = 3) or (t0.key2 = 4))  (rows=4)
-        -> Deduplicate rows sorted by row ID  (rows=4)
-            -> Index range scan on t0 using i1 over (key1 = 3)  (rows=2)
-            -> Index range scan on t0 using i2 over (key2 = 4)  (rows=2)
-    -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
+-> Nested loop inner join  (...)
+    -> Filter: ((t0.key1 = 3) or (t0.key2 = 4))  (...)
+        -> Deduplicate rows sorted by row ID  (...)
+            -> Index range scan on t0 using i1 over (key1 = 3)  (...)
+            -> Index range scan on t0 using i2 over (key2 = 4)  (...)
+    -> Index lookup on t1 using i1 (key1=t0.key1)  (...)
 
 #  index_merge vs. ref
-explain
-select * from t0,t1 where (t0.key1=t1.key1) and
-(t0.key1=3 or t0.key2=4) and t1.key1<200;
-EXPLAIN
--> Nested loop inner join  (rows=2)
-    -> Filter: ((t0.key1 = 3) or (t0.key2 = 4))  (rows=2)
-        -> Index range scan on t0 using i1 over (key1 < 200), with index condition: (t0.key1 < 200)  (rows=2)
-    -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
-
 #  index_merge vs. ref
 explain
 select * from t0,t1 where (t0.key1=t1.key1) and
@@ -484,10 +475,10 @@ EXPLAIN
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 EXPLAIN
--> Nested loop inner join  (rows=4.07)
-    -> Index range scan on t0 using i1 over (key1 < 3), with index condition: (t0.key1 < 3)  (rows=2)
-    -> Filter: ((t1.key1 = t0.key1) or (t1.key8 = t0.key1))  (rows=2.03)
-        -> Index range scan on t1 (re-planned for each iteration)  (rows=1024)
+-> Nested loop inner join  (...)
+    -> Index range scan on t0 using i1 over (key1 < 3), with index condition: (t0.key1 < 3)  (...)
+    -> Filter: ((t1.key1 = t0.key1) or (t1.key8 = t0.key1))  (...)
+        -> Index range scan on t1 (re-planned for each iteration)  (...)
 
 #  index_merge inside union
 explain select * from t1 where key1=3 or key2=4
@@ -518,17 +509,26 @@ alter table t3 add keyA int not null, add index iA(keyA);
 alter table t3 add keyB int not null, add index iB(keyB);
 alter table t3 add keyC int not null, add index iC(keyC);
 update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
-SET @@GLOBAL.innodb_fast_shutdown = 0;
-# restart
-SET SESSION DEFAULT_STORAGE_ENGINE = RocksDB;
 explain select * from t3 where
 key1=1 or key2=2 or key3=3 or key4=4 or
 key5=5 or key6=6 or key7=7 or key8=8 or
 key9=9 or keyA=10 or keyB=11 or keyC=12;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7,i8,i9,iA,iB,iC	i1,i2,i3,i4,i5,i6,i7,i8,i9,iA,iB,iC	4,4,4,4,4,4,4,4,4,4,4,4	NULL	24	100.00	Using union(i1,i2,i3,i4,i5,i6,i7,i8,i9,iA,iB,iC); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`key1` AS `key1`,`test`.`t3`.`key2` AS `key2`,`test`.`t3`.`key3` AS `key3`,`test`.`t3`.`key4` AS `key4`,`test`.`t3`.`key5` AS `key5`,`test`.`t3`.`key6` AS `key6`,`test`.`t3`.`key7` AS `key7`,`test`.`t3`.`key8` AS `key8`,`test`.`t3`.`key9` AS `key9`,`test`.`t3`.`keyA` AS `keyA`,`test`.`t3`.`keyB` AS `keyB`,`test`.`t3`.`keyC` AS `keyC` from `test`.`t3` where ((`test`.`t3`.`key1` = 1) or (`test`.`t3`.`key2` = 2) or (`test`.`t3`.`key3` = 3) or (`test`.`t3`.`key4` = 4) or (`test`.`t3`.`key5` = 5) or (`test`.`t3`.`key6` = 6) or (`test`.`t3`.`key7` = 7) or (`test`.`t3`.`key8` = 8) or (`test`.`t3`.`key9` = 9) or (`test`.`t3`.`keyA` = 10) or (`test`.`t3`.`keyB` = 11) or (`test`.`t3`.`keyC` = 12))
+EXPLAIN
+-> Filter: ((t3.key1 = 1) or (t3.key2 = 2) or (t3.key3 = 3) or (t3.key4 = 4) or (t3.key5 = 5) or (t3.key6 = 6) or (t3.key7 = 7) or (t3.key8 = 8) or (t3.key9 = 9) or (t3.keyA = 10) or (t3.keyB = 11) or (t3.keyC = 12))  (rows=24)
+    -> Deduplicate rows sorted by row ID  (rows=24)
+        -> Index range scan on t3 using i1 over (key1 = 1)  (rows=2)
+        -> Index range scan on t3 using i2 over (key2 = 2)  (rows=2)
+        -> Index range scan on t3 using i3 over (key3 = 3)  (rows=2)
+        -> Index range scan on t3 using i4 over (key4 = 4)  (rows=2)
+        -> Index range scan on t3 using i5 over (key5 = 5)  (rows=2)
+        -> Index range scan on t3 using i6 over (key6 = 6)  (rows=2)
+        -> Index range scan on t3 using i7 over (key7 = 7)  (rows=2)
+        -> Index range scan on t3 using i8 over (key8 = 8)  (rows=2)
+        -> Index range scan on t3 using i9 over (key9 = 9)  (rows=2)
+        -> Index range scan on t3 using iA over (keyA = 10)  (rows=2)
+        -> Index range scan on t3 using iB over (keyB = 11)  (rows=2)
+        -> Index range scan on t3 using iC over (keyC = 12)  (rows=2)
+
 select * from t3 where
 key1=1 or key2=2 or key3=3 or key4=4 or
 key5=5 or key6=6 or key7=7 or key8=8 or
@@ -548,10 +548,12 @@ key1	key2	key3	key4	key5	key6	key7	key8	key9	keyA	keyB	keyC
 1016	1016	1016	1016	1016	1016	1016	8	1016	1016	1016	1016
 # Test for Bug#3183
 explain select * from t0 where key1 < 3 or key2 < 4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	4	100.00	Using sort_union(i1,i2); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 4))
+EXPLAIN
+-> Filter: ((t0.key1 < 3) or (t0.key2 < 4))  (rows=4)
+    -> Sort-deduplicate by row ID  (rows=4)
+        -> Index range scan on t0 using i1 over (key1 < 3)  (rows=2)
+        -> Index range scan on t0 using i2 over (key2 < 4)  (rows=2)
+
 # Bug#21277: InnoDB, wrong result set, index_merge strategy,
 #            second index not evaluated
 select * from t0 where key1 < 3 or key2 < 4;
@@ -583,11 +585,19 @@ explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
 where (a.key1 < 500000 or a.key2 < 3)
 and   (b.key1 < 500000 or b.key2 < 3);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	4	100.00	Using sort_union(i1,i2); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	4	100.00	Using sort_union(i1,i2); Using where; Using join buffer (hash join)
-Warnings:
-Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`test`.`a`.`key1` < 500000) or (`test`.`a`.`key2` < 3)) and ((`test`.`b`.`key1` < 500000) or (`test`.`b`.`key2` < 3)))
+EXPLAIN
+-> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (...)
+    -> Inner hash join (no condition)  (...)
+        -> Filter: ((b.key1 < 500000) or (b.key2 < 3))  (...)
+            -> Sort-deduplicate by row ID  (...)
+                -> Index range scan on b using i1 over (key1 < 500000)  (...)
+                -> Index range scan on b using i2 over (key2 < 3)  (...)
+        -> Hash
+            -> Filter: ((a.key1 < 500000) or (a.key2 < 3))  (...)
+                -> Sort-deduplicate by row ID  (...)
+                    -> Index range scan on a using i1 over (key1 < 500000)  (...)
+                    -> Index range scan on a using i2 over (key2 < 3)  (...)
+
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
 where (a.key1 < 500000 or a.key2 < 3)
@@ -599,11 +609,19 @@ explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
 where (a.key1 = 2 or a.key2 = 2)
 and   (b.key1 = 2 or b.key2 = 2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	4	100.00	Using union(i1,i2); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	4	100.00	Using union(i1,i2); Using where; Using join buffer (hash join)
-Warnings:
-Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`test`.`a`.`key1` = 1) or (`test`.`a`.`key2` = 1)) and ((`test`.`b`.`key1` = 1) or (`test`.`b`.`key2` = 1)))
+EXPLAIN
+-> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
+    -> Inner hash join (no condition)  (rows=16)
+        -> Filter: ((b.key1 = 2) or (b.key2 = 2))  (rows=4)
+            -> Deduplicate rows sorted by row ID  (rows=4)
+                -> Index range scan on b using i1 over (key1 = 2)  (rows=2)
+                -> Index range scan on b using i2 over (key2 = 2)  (rows=2)
+        -> Hash
+            -> Filter: ((a.key1 = 2) or (a.key2 = 2))  (rows=4)
+                -> Deduplicate rows sorted by row ID  (rows=4)
+                    -> Index range scan on a using i1 over (key1 = 2)  (rows=2)
+                    -> Index range scan on a using i2 over (key2 = 2)  (rows=2)
+
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
 where (a.key1 = 2 or a.key2 = 2)
@@ -619,11 +637,23 @@ explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 
 from t0 as a, t0 as b
 where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.key6=1 and a.key7 = 1 or a.key8=1)
 and (b.key1 = 1 and b.key2 = 1 and b.key3 = 1 and b.key4=1 and b.key5=1 and b.key6=1 and b.key7 = 1 or b.key8=1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i1,i2,i8	4,4,4	NULL	3	100.00	Using union(intersect(i1,i2),i8); Using where
-1	SIMPLE	b	NULL	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i1,i2,i8	4,4,4	NULL	3	100.00	Using union(intersect(i1,i2),i8); Using where; Using join buffer (hash join)
-Warnings:
-Note	1003	/* select#1 */ select max((((((((((`test`.`a`.`key1` + `test`.`b`.`key1`) + `test`.`a`.`key2`) + `test`.`b`.`key2`) + `test`.`a`.`key3`) + `test`.`b`.`key3`) + `test`.`a`.`key4`) + `test`.`b`.`key4`) + `test`.`a`.`key5`) + `test`.`b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` join `test`.`t0` `b` where ((((`test`.`a`.`key7` = 1) and (`test`.`a`.`key6` = 1) and (`test`.`a`.`key5` = 1) and (`test`.`a`.`key4` = 1) and (`test`.`a`.`key3` = 1) and (`test`.`a`.`key2` = 1) and (`test`.`a`.`key1` = 1)) or (`test`.`a`.`key8` = 1)) and (((`test`.`b`.`key7` = 1) and (`test`.`b`.`key6` = 1) and (`test`.`b`.`key5` = 1) and (`test`.`b`.`key4` = 1) and (`test`.`b`.`key3` = 1) and (`test`.`b`.`key2` = 1) and (`test`.`b`.`key1` = 1)) or (`test`.`b`.`key8` = 1)))
+EXPLAIN
+-> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
+    -> Inner hash join (no condition)  (rows=9)
+        -> Filter: (((b.key7 = 1) and (b.key6 = 1) and (b.key5 = 1) and (b.key4 = 1) and (b.key3 = 1) and (b.key2 = 1) and (b.key1 = 1)) or (b.key8 = 1))  (rows=3)
+            -> Deduplicate rows sorted by row ID  (rows=3)
+                -> Intersect rows sorted by row ID  (rows=1)
+                    -> Index range scan on b using i1 over (key1 = 1)  (rows=2)
+                    -> Index range scan on b using i2 over (key2 = 1)  (rows=2)
+                -> Index range scan on b using i8 over (key8 = 1)  (rows=2)
+        -> Hash
+            -> Filter: (((a.key7 = 1) and (a.key6 = 1) and (a.key5 = 1) and (a.key4 = 1) and (a.key3 = 1) and (a.key2 = 1) and (a.key1 = 1)) or (a.key8 = 1))  (rows=3)
+                -> Deduplicate rows sorted by row ID  (rows=3)
+                    -> Intersect rows sorted by row ID  (rows=1)
+                        -> Index range scan on a using i1 over (key1 = 1)  (rows=2)
+                        -> Index range scan on a using i2 over (key2 = 1)  (rows=2)
+                    -> Index range scan on a using i8 over (key8 = 1)  (rows=2)
+
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a, t0 as b
 where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.key6=1 and a.key7 = 1 or a.key8=1)
@@ -646,10 +676,12 @@ select count(*) from t1;
 count(*)
 8704
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	1	100.00	Using intersect(cola,colb); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
+EXPLAIN
+-> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (rows=1)
+    -> Intersect rows sorted by row ID  (rows=1)
+        -> Index range scan on t1 using cola over (cola = 'foo')  (rows=2)
+        -> Index range scan on t1 using colb over (colb = 'bar')  (rows=2)
+
 explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
 -> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (rows=1)
@@ -658,10 +690,12 @@ EXPLAIN
         -> Index range scan on t1 using colb over (colb = 'bar')  (rows=2)
 
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	1	100.00	Using intersect(cola,colb); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` FORCE INDEX (`colb`) FORCE INDEX (`cola`) where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
+EXPLAIN
+-> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (rows=1)
+    -> Intersect rows sorted by row ID  (rows=1)
+        -> Index range scan on t1 using cola over (cola = 'foo')  (rows=2)
+        -> Index range scan on t1 using colb over (colb = 'bar')  (rows=2)
+
 drop table t1;
 #
 # BUG#20256 - LOCK WRITE - MyISAM
@@ -733,10 +767,12 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 insert into t2 select * from t1;
 must use sort-union rather than union:
 explain select * from t1 where a=4 or b=4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	a,b	a,b	5,5	NULL	4	100.00	Using sort_union(a,b); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`filler` AS `filler`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 4) or (`test`.`t1`.`b` = 4))
+EXPLAIN
+-> Filter: ((t1.a = 4) or (t1.b = 4))  (rows=4)
+    -> Sort-deduplicate by row ID  (rows=4)
+        -> Index range scan on t1 using a over (a = 4)  (rows=2)
+        -> Index range scan on t1 using b over (b = 4)  (rows=2)
+
 select * from t1 where a=4 or b=4;
 a	filler	b
 4	4	0
@@ -757,10 +793,12 @@ a	filler	b
 5	qq	4
 must use union, not sort-union:
 explain select * from t2 where a=4 or b=4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index_merge	a,b	a,b	5,5	NULL	6	100.00	Using union(a,b); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` = 4) or (`test`.`t2`.`b` = 4))
+EXPLAIN
+-> Filter: ((t2.a = 4) or (t2.b = 4))  (...)
+    -> Deduplicate rows sorted by row ID  (...)
+        -> Index range scan on t2 using a over (a = 4)  (...)
+        -> Index range scan on t2 using b over (b = 4)  (...)
+
 select * from t2 where a=4 or b=4;
 a	filler	b
 4	4	0
@@ -803,13 +841,17 @@ The plan should be ALL/ALL/ALL(Range checked for each record (index map: 0x3)
 explain select * from t1 
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-1	SIMPLE	t3	NULL	ALL	a,b	NULL	NULL	NULL	1002	23.26	Range checked for each record (index map: 0x3); FirstMatch(t1)
+EXPLAIN
+-> Nested loop semijoin  (...)
+    -> Table scan on t1  (...)
+    -> Nested loop inner join  (...)
+        -> Filter: (t2.a = t1.a)  (...)
+            -> Table scan on t2  (...)
+        -> Filter: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (...)
+            -> Index range scan on t3 (re-planned for each iteration)  (...)
+
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and ((`test`.`t3`.`a` = `test`.`t2`.`b`) or (`test`.`t3`.`b` = `test`.`t2`.`b`) or (`test`.`t3`.`b` = (`test`.`t2`.`b` + 1))))
 select * from t1 
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
@@ -835,10 +877,15 @@ Warning	1292	Truncated incorrect sort_buffer_size value: '1'
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
 ORDER BY a,b;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	a,b	a,b	131,131	NULL	4	100.00	Using sort_union(a,b); Using where; Using filesort
+EXPLAIN
+-> Sort: t1.a, t1.b  (rows=4)
+    -> Filter: ((t1.a like 'a%') or (t1.b like 'b%'))  (rows=4)
+        -> Sort-deduplicate by row ID  (rows=4)
+            -> Index range scan on t1 using a over ('a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' <= a <= 'a???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????')  (rows=2)
+            -> Index range scan on t1 using b over ('b\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' <= b <= 'b???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????')  (rows=2)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`b`) FORCE INDEX (`a`) where ((`test`.`t1`.`a` like 'a%') or (`test`.`t1`.`b` like 'b%')) order by `test`.`t1`.`a`,`test`.`t1`.`b`
+Warning	1300	Invalid utf8mb3 character string: 'FFFFFF'
 # we don't actually care about the result : we're checking if it crashes
 SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
 ORDER BY a,b;
@@ -957,9 +1004,6 @@ select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=1
 key1	key2	key3	key4	filler1
 -1	-1	100	100	key4-key3
 delete from t1 where key3=100 and key4=100;
-SET @@GLOBAL.innodb_fast_shutdown = 0;
-# restart
-SET SESSION DEFAULT_STORAGE_ENGINE = RocksDB;
 # ROR-union with all ROR-intersections giving empty results
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4	filler1
@@ -996,20 +1040,24 @@ key1	key2	key3	key4	filler1
 ##
 # Check that the shortest key is used for ROR-intersection, covering and non-covering.
 explain select * from t1 where st_a=1 and st_b=1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	st_a,st_b	4,4	NULL	1	100.00	Using intersect(st_a,st_b); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`st_a` = 1))
+EXPLAIN
+-> Filter: ((t1.st_b = 1) and (t1.st_a = 1))  (cost=0.601 rows=1)
+    -> Intersect rows sorted by row ID  (cost=0.601 rows=1)
+        -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.125..0.25 rows=2)
+        -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.125..0.25 rows=2)
+
 explain select st_a,st_b from t1 where st_a=1 and st_b=1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	st_a,st_b	4,4	NULL	1	100.00	Using intersect(st_a,st_b); Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`st_b` AS `st_b` from `test`.`t1` where ((`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`st_a` = 1))
+EXPLAIN
+-> Filter: ((t1.st_b = 1) and (t1.st_a = 1))  (cost=0.601 rows=1)
+    -> Intersect rows sorted by row ID  (cost=0.601 rows=1)
+        -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.125..0.25 rows=2)
+        -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.125..0.25 rows=2)
+
 explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a	4	const	2	2.50	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a` from `test`.`t1` IGNORE INDEX (`st_a`) where ((`test`.`t1`.`st_b` = 1) and (`test`.`t1`.`st_a` = 1))
+EXPLAIN
+-> Filter: (t1.st_b = 1)  (cost=0.505 rows=0.05)
+    -> Index lookup on t1 using sta_swt12a (st_a=1)  (cost=0.505 rows=2)
+
 # Do many tests
 # Check that keys that don't improve selectivity are skipped.
 drop table t0,t1;
@@ -1030,10 +1078,11 @@ count(a)
 4
 # BUG#1:
 expla_or_bin select count(a_or_b) from t2 where a_or_b='AAAAAAAA' a_or_bnd a_or_b='AAAAAAAA';
-id	select_type	ta_or_ba_or_ble	pa_or_brtitions	type	possia_or_ble_keys	key	key_len	ref	rows	filtered	Extra_or_b
-1	SIMPLE	t2	NULL	ref	a_or_b,a_or_b	a_or_b	21	const	2	6.25	Using where
-Warnings:
-Note	1003	/* select#1 */ select count(`test`.`t2`.`a_or_b`) AS `count(a_or_b)` from `test`.`t2` where ((`test`.`t2`.`a_or_b` = 'AAAAAAAA') a_or_bnd (`test`.`t2`.`a_or_b` = 'AAAAAAAA'))
+EXPLAIN
+-> Aggrega_or_bte: count(t2.a_or_b)  (...)
+    -> Filter: ((t2.a_or_b = 'AAAAAAAA') a_or_bnd (t2.a_or_b = 'AAAAAAAA'))  (...)
+        -> Index lookup on t2 using a_or_b (a_or_b='AAAAAAAA')  (...)
+
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 count(a)
 4
@@ -1042,10 +1091,10 @@ count(a)
 4
 insert into t2 values ('ab', 'ab', 'uh', 'oh');
 explain select a from t2 where a='ab';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	21	const	2	100.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` = 'ab')
+EXPLAIN
+-> Filter: (t2.a = 'ab')  (...)
+    -> Index lookup on t2 using a (a='ab')  (...)
+
 drop table t2;
 #
 # BUG#25048 - ERROR 126 : Incorrect key file for table '.XXXX.MYI';
@@ -1408,9 +1457,6 @@ set @d=@d*2;
 alter table t1 add index i2(key2);
 alter table t1 add index i3(key3);
 update t1 set key2=key1,key3=key1;
-SET @@GLOBAL.innodb_fast_shutdown = 0;
-# restart
-SET SESSION DEFAULT_STORAGE_ENGINE = RocksDB;
 select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 key1	key2	key3
 31	31	31
@@ -1444,10 +1490,10 @@ EXPLAIN
 SELECT a
 FROM t1
 WHERE c = 1 AND b = 1 AND d = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	c,bd	c	5	const	2	50.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`d` = 1) and (`test`.`t1`.`b` = 1) and (`test`.`t1`.`c` = 1))
+EXPLAIN
+-> Filter: ((t1.d = 1) and (t1.b = 1))  (cost=0.6 rows=1)
+    -> Index lookup on t1 using c (c=1)  (cost=0.6 rows=2)
+
 CREATE TABLE t2 ( a INT )
 SELECT a
 FROM t1
@@ -1499,10 +1545,10 @@ FROM t1
 WHERE col_varchar_key >= 'l' OR 
 (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,col_int_key,col_varchar_key	col_varchar_key	10	NULL	2	78.12	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`col_varchar_key` >= 'l') or (((`test`.`t1`.`pk` = 141) or (`test`.`t1`.`col_varchar_key` <> 'l')) and ((`test`.`t1`.`pk` = 141) or (`test`.`t1`.`col_int_key` > 141))))
+EXPLAIN
+-> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (cost=2.73 rows=1.56)
+    -> Covering index scan on t1 using col_varchar_key  (cost=2.73 rows=2)
+
 SELECT col_int_key
 FROM t1
 WHERE col_varchar_key >= 'l' OR 

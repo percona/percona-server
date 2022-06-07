@@ -1,0 +1,88 @@
+Valid values are 'ON' and 'OFF'
+select @@global.innodb_sys_tablespace_encrypt in (0, 1);
+@@global.innodb_sys_tablespace_encrypt in (0, 1)
+1
+select @@global.innodb_sys_tablespace_encrypt;
+@@global.innodb_sys_tablespace_encrypt
+0
+select @@session.innodb_sys_tablespace_encrypt;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a GLOBAL variable
+show global variables like 'innodb_sys_tablespace_encrypt';
+Variable_name	Value
+innodb_sys_tablespace_encrypt	OFF
+show session variables like 'innodb_sys_tablespace_encrypt';
+Variable_name	Value
+innodb_sys_tablespace_encrypt	OFF
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+set global innodb_sys_tablespace_encrypt='ON';
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+select @@global.innodb_sys_tablespace_encrypt;
+@@global.innodb_sys_tablespace_encrypt
+0
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+set @@global.innodb_sys_tablespace_encrypt=0;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+select @@global.innodb_sys_tablespace_encrypt;
+@@global.innodb_sys_tablespace_encrypt
+0
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+set global innodb_sys_tablespace_encrypt=1;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+select @@global.innodb_sys_tablespace_encrypt;
+@@global.innodb_sys_tablespace_encrypt
+0
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+set @@global.innodb_sys_tablespace_encrypt='OFF';
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+select @@global.innodb_sys_tablespace_encrypt;
+@@global.innodb_sys_tablespace_encrypt
+0
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+set session innodb_sys_tablespace_encrypt='OFF';
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+set @@session.innodb_sys_tablespace_encrypt='ON';
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+set global innodb_sys_tablespace_encrypt=1.1;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+set global innodb_sys_tablespace_encrypt=1e1;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+set global innodb_sys_tablespace_encrypt=2;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+set global innodb_sys_tablespace_encrypt=-3;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+select @@global.innodb_sys_tablespace_encrypt;
+@@global.innodb_sys_tablespace_encrypt
+0
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_sys_tablespace_encrypt	OFF
+set global innodb_sys_tablespace_encrypt='AUTO';
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable

@@ -49,6 +49,9 @@ innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has cha
 innodb.log_logical_size                           : Bug#35543413 Test is shaky - needs to be fixed.
 innodb.set_concurrency_in_readonly                : Bug#35573783 innodb.set_concurrency_in_readonly is failing in trunk
 
+# innodb_fts suite test
+innodb_fts.sync_block : BUG#2232 percona https://jira.percona.com/browse/PS-2232
+
 # Tests that run ALTER on the "mysql" database
 innodb.mysql_ts_alter_encrypt_1                 : BUG#29531106 - ATTACHABLE_TRX(): ASSERTION `!M_THD->TRANSACTION_ROLLBACK_REQUEST' FAILED
 component_keyring_file.mysql_ts_alter_encrypt_1 : BUG#29531106 - ATTACHABLE_TRX(): ASSERTION `!M_THD->TRANSACTION_ROLLBACK_REQUEST' FAILED
@@ -59,6 +62,8 @@ main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow
 main.print_stacktrace : Bug#36027494 Add mtr test for my_print_stacktrace
 
 # Disabled due to InnoDB issues
+
+main.events_time_zone         : BUG#2179 percona https://jira.percona.com/browse/PS-2179
 
 # max_parts suite tests
 max_parts.innodb-import-partition-1                         : BUG#27413612 Fails consistently on hudson jobs. Disabled until bug is fixed.
@@ -74,6 +79,9 @@ max_parts.partition_max_sub_parts_list_innodb @windows      : BUG#27681900 Disab
 max_parts.partition_max_sub_parts_range_innodb @windows     : BUG#27681900 Disabling max_parts tests on windows.
 max_parts.innodb_partition_open_files_limit                 : BUG#27423163 Test times out consistently on Hudson.
 
+# percona suite test
+percona.bug100352 : BUG#100352 https://bugs.mysql.com/bug.php?id=100352
+
 # perfschema suite test
 perfschema.threads_history      : BUG#27712231
 perfschema.idx_compare_events_waits_current : BUG#27865960
@@ -86,10 +94,13 @@ rpl_gtid.rpl_async_conn_failover_restart @windows : BUG#34132168 Disabled until 
 rpl_gtid.rpl_gtid_truncate_memory_table_after_start_server : BUG#24351040
 rpl_gtid.rpl_gtid_perfschema_applier_xa_status           : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 rpl_gtid.rpl_gtid_mts_spco_deadlock_other_locks          : Bug#32499883 RPL_GTID.RPL_GTID_MTS_SPCO_DEADLOCK_OTHER_LOCKS FAILS ON PB2
+rpl_gtid.rpl_master_errors : BUG#4797 percona https://jira.percona.com/browse/PS-4797
 rpl_gtid.rpl_start_replica_until_pos_with_gtid_only      : Bug#33119241 START REPLICA UNTIL SOURCE_LOG_POS SHOULD NOT STOP ON REPLICA EVENTS
 
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
+rpl_nogtid.rpl_semi_sync_group_commit_deadlock : BUG#80581 percona https://bugs.mysql.com/bug.php?id=80581
+rpl_nogtid.rpl_semi_sync_non_group_commit_deadlock : BUG#80581 percona https://bugs.mysql.com/bug.php?id=80581
 rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG INJECTION WITH SELF LOGGING ENGINES IS BROKEN
 rpl_nogtid.rpl_nogtid_encryption_read             : Bug#36172046 Update rpl_nogtid.rpl_nogtid_encryption_read test to not use keyring_file
 
@@ -109,6 +120,17 @@ sys_vars.innodb_log_writer_threads_basic : Bug#32129814 SYS_VARS.INNODB_LOG_WRIT
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 Test fails too often.
 
 # x plugin suite tests
+
+# rocksdb suite tests
+rocksdb.cons_snapshot_serializable : BUG#0 MyRocks does not yet support ISO serializable
+rocksdb.level_read_uncommitted : BUG#0 MyRocks does not yet suppore ISO read uncommitted
+rocksdb.level_serializable : BUG#0 MyRocks does not yet support ISO serializable
+rocksdb.slow_query_log : BUG#26 MYR-26
+# 8.0
+rocksdb.allow_to_start_after_corruption : BUG#4584 PS-4584
+
+# rocksdb_rpl suite tests
+rocksdb_rpl.rpl_rocksdb_snapshot : BUG#0 LOCK BINLOG FOR BACKUP
 
 # Group Replication tests.
 

@@ -12,6 +12,31 @@
 
 --disable_query_log
 
+# Wait for any connections opened by a previous testcase (or the testcase
+# warning checker) to finish closing. Exclude binlog dump threads as these may
+# linger around indefinitely.
+--disable_result_log
+SET @expected_thread_count= 1;
+--let $event_scheduler_running= `SELECT @@event_scheduler = 'ON'`
+if ($event_scheduler_running == 1)
+{
+  SET @expected_thread_count= @expected_thread_count + 1;
+}
+--enable_result_log
+--let $wait_condition=SELECT COUNT(*)=@expected_thread_count FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND != 'Binlog Dump' AND COMMAND != 'Binlog Dump GTID';
+--source include/wait_condition.inc
+if (!$success)
+{
+  # For NDB tests CONNECTION_ID() and event scheduler's STATE can be different
+  # "before" and "after" the test, so replacing them with fixed values.
+  SELECT
+    IF(ID != CONNECTION_ID(), ID, 0) AS FIXED_ID, USER, HOST, DB, COMMAND, IF(USER <> 'event_scheduler', STATE, 'Scheduler state') AS FIXED_STATE, INFO
+  FROM
+    INFORMATION_SCHEMA.PROCESSLIST
+  ORDER BY
+    FIXED_ID ASC;
+}
+
 # We want to ensure all slave configuration is restored. But SHOW
 # REPLICA STATUS returns nothing for servers not configured as slaves,
 # and (after BUG#28796 was fixed) there is no way to de-configure a

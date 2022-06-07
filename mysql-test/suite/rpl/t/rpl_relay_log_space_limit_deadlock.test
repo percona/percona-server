@@ -25,7 +25,6 @@
 
 --source include/have_debug_sync.inc
 # this issue only happened on MTS
---source include/have_replica_parallel_workers.inc
 --source include/rpl/init_source_replica.inc
 
 --echo #
@@ -44,6 +43,7 @@ CREATE TABLE t1 (i INT);
 --echo #  - The wait time between MTS checkpoints is minimal
 
 --source include/rpl/connection_replica.inc
+--source include/have_replica_parallel_workers.inc
 
 SET @@GLOBAL.DEBUG= '+d,rpl_set_relay_log_limits';
 SET @@GLOBAL.DEBUG= '+d,rpl_before_forced_rotate';
@@ -97,6 +97,7 @@ INSERT INTO t1 VALUES (1);
 
 --replace_result $replica_checkpoint_period_value REPLICA_CHECKPOINT_PERIOD
 --eval SET @@GLOBAL.replica_checkpoint_period= $replica_checkpoint_period_value
+SET DEBUG_SYNC= 'RESET';
 
 --source include/rpl/connection_source.inc
 

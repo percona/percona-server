@@ -12,6 +12,7 @@
 # [--let $extra_debug_info = some text]
 # [--let $extra_debug_eval = expression parsable by include/eval.inc]
 # [--let $rpl_debug = 1]
+# [--let $assert_debug = SHOW SLAVE STATUS]
 # --source include/assert.inc
 #
 # Parameters:
@@ -48,6 +49,9 @@
 #
 # $extra_debug_info, $extra_debug_eval
 #   See include/rpl/debug/show_debug_info.inc
+#
+# $assert_debug
+#   If set, and the assert fails, an extra SQL statement to execute
 
 
 --let $include_filename= assert.inc [$assert_text]
@@ -92,6 +96,11 @@ if (!$eval_result)
   --echo Assertion condition: '$assert_cond'
   --echo Assertion condition, interpolated: '$assert_cond_interp'
   --echo Assertion result: '$assert_result'
+  if ($assert_debug)
+  {
+    --echo Assertion debug statement:
+    --eval $assert_debug
+  }
   if (!$assert_no_stop) {
     --die Test assertion failed in assert.inc
   }
@@ -102,6 +111,7 @@ if (!$eval_result)
 
 --let $assert_text=
 --let $assert_cond=
+--let $assert_debug=
 --let $eval_expr= $_assert_old_eval_expr
 --let $eval_result= $_assert_old_eval_result
 --let $eval_no_result= $_assert_old_eval_no_result

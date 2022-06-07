@@ -148,6 +148,7 @@ ROLLBACK;
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
+SET DEBUG_SYNC= 'RESET';
 SET GLOBAL DEBUG= @debug_save;
 
 

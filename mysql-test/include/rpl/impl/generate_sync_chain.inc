@@ -45,12 +45,13 @@
 #         a tail, such as 1->2->3->1->4->5. We should first sync the
 #         loop, and then the tail. To ensure all servers in the loop
 #         are synced, we must sync the loop two turns minus two
-#         servers. For example, the loop 1->2->3->4->5->1 is fully
+#         servers for data and minus one server for log positions. For
+#         example, the loop 1->2->3->4->5->1 is fully
 #         synced by this sequence of 1-step synchronizations:
-#         1->2->3->4->5->1->2->3->4. Hence we do this: in the list of
+#         1->2->3->4->5->1->2->3->4->5. Hence we do this: in the list of
 #         traversed servers (in order from grand-master to
 #         grand-slave), find the first occurrence of S. Take the
-#         sub-list starting at the 3rd server and ending at the first
+#         sub-list starting at the 2nd server and ending at the first
 #         occurrence of S. Append this sub-list it to the end of
 #         $rpl_sync_chain. Then append the entire list of traversed
 #         servers (in order from grand-master to grand-slave) to
@@ -91,11 +92,11 @@ while ($_rpl_start_server)
       {
         # Get sub-list of servers to prepend to server list.
         # E.g., if topology is 1->2->3->4->1->5, then at this point
-        # $_rpl_seen_list='1,2,3,4,1,5,' and we have to prepend '4,3,'
+        # $_rpl_seen_list='1,2,3,4,1,5,' and we have to prepend '2,3,4'
         # to it. Hence, the sub-list starts at position
-        # 1+2*($rpl_server_count_length+1) and ends at the first
+        # $rpl_server_count_length + 2 and ends at the first
         # occurrence of ',1,' in the list.
-        --let $_rpl_extra_list= `SELECT SUBSTRING('$_rpl_seen_list', 1 + 2 * ($rpl_server_count_length + 1), LOCATE(',$_rpl_server,', '$_rpl_seen_list') - 2 * ($rpl_server_count_length + 1))`
+        --let $_rpl_extra_list= `SELECT SUBSTRING('$_rpl_seen_list', $rpl_server_count_length + 2, LOCATE(',$_rpl_server,', '$_rpl_seen_list') - ($rpl_server_count_length + 1))`
         --let $_rpl_seen_list= $_rpl_extra_list$_rpl_seen_list
       }
       # Append the seen servers. Only need to append if the list

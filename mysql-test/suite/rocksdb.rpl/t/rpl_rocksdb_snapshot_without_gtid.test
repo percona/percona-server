@@ -1,0 +1,19 @@
+--source include/not_group_replication_plugin.inc
+--source include/have_rocksdb.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--connection master
+create table t1(a int primary key) engine=rocksdb;
+
+FLUSH LOGS;
+
+insert into t1 values(1);
+insert into t1 values(2);
+
+FLUSH LOGS;
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+drop table t1;
+-- source include/rpl_end.inc

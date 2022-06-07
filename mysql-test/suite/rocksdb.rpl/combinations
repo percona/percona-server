@@ -1,0 +1,14 @@
+[row-write-committed]
+binlog-format=row
+loose-rocksdb_write_policy=write_committed
+
+[row-write-prepared]
+binlog-format=row
+loose-rocksdb_write_policy=write_prepared
+loose-rocksdb_commit_time_batch_for_recovery=on
+
+[stmt]
+binlog-format=statement
+
+[mix]
+binlog-format=mixed

@@ -1,0 +1,11 @@
+#
+# Test for bug 79018 (handle_fatal_signal (sig=11) in Item_func::walk)
+#
+CREATE TABLE t0 (a BIGINT, b BIGINT AS (a = 0)) ENGINE=MYISAM;
+--error 1054
+ALTER TABLE t0 MODIFY c0 CHAR(0);
+--error 1054
+SELECT * FROM t0 WHERE c0=-0 AND c0=-0;
+--error 1054
+INSERT INTO t0 (UJIS,NAME) VALUES (0x0ECD, 'U+FF0D HALFWIDTH KATAKANA LETTER HE');
+DROP TABLE t0;

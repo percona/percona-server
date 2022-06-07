@@ -1,0 +1,77 @@
+SELECT COUNT(@@GLOBAL.version_suffix);
+COUNT(@@GLOBAL.version_suffix)
+1
+1 Expected
+SET @@GLOBAL.version_suffix=1;
+ERROR 42000: Incorrect argument type to variable 'version_suffix'
+Expected error 'Incorrect argument type to variable'
+SET @saved_version_suffix = @@global.version_suffix;
+SET GLOBAL version_suffix = DEFAULT;
+SET GLOBAL version_suffix = '';
+SET @version_base = @@global.version;
+SELECT @@global.version_suffix;
+@@global.version_suffix
+
+SET GLOBAL version_suffix = '-my_version';
+SELECT @@global.version_suffix;
+@@global.version_suffix
+-my_version
+include/assert.inc [Strings should be equal]
+SET GLOBAL version_suffix = '-my_version2';
+SELECT @@global.version_suffix;
+@@global.version_suffix
+-my_version2
+include/assert.inc [Strings should be equal]
+SET GLOBAL version_suffix = @saved_version_suffix;
+SELECT COUNT(@@GLOBAL.version_suffix);
+COUNT(@@GLOBAL.version_suffix)
+1
+1 Expected
+SELECT @@GLOBAL.version_suffix = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='version_suffix';
+@@GLOBAL.version_suffix = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.version_suffix);
+COUNT(@@GLOBAL.version_suffix)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='version_suffix';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+SELECT @@version_suffix = @@GLOBAL.version_suffix;
+@@version_suffix = @@GLOBAL.version_suffix
+1
+1 Expected
+SELECT COUNT(@@version_suffix);
+COUNT(@@version_suffix)
+1
+1 Expected
+SELECT COUNT(@@local.version_suffix);
+ERROR HY000: Variable 'version_suffix' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.version_suffix);
+ERROR HY000: Variable 'version_suffix' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.version_suffix);
+COUNT(@@GLOBAL.version_suffix)
+1
+1 Expected
+SELECT version_suffix = @@SESSION.version_suffix;
+ERROR HY000: Variable 'version_suffix' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SET GLOBAL version_suffix = NULL;
+SHOW GLOBAL VARIABLES LIKE 'a';
+Variable_name	Value
+SELECT @@GLOBAL.version_suffix;
+@@GLOBAL.version_suffix
+NULL
+SELECT COUNT(@@GLOBAL.version_suffix);
+COUNT(@@GLOBAL.version_suffix)
+0
+0 Expected
+SET GLOBAL version_suffix = @saved_version_suffix;

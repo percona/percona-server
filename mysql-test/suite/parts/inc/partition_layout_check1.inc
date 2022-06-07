@@ -44,6 +44,10 @@ if ($do_file_tests)
     --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-data-dir t1*
     --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-idx-dir t1*
   }
+
+  --let TABLE_FILES_REPLACE_FILE=$ls_file
+  --source include/table_files_replace_pattern_in_file.inc
+
   eval SET @aux = load_file('$ls_file');
 
   # clean up
@@ -69,7 +73,6 @@ if ($do_file_tests)
    if ($ls)
    {
       # Print the list of files into the protocol
-      replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR #p# #P# #sp# #SP# part_n part_N;
       SELECT file_list AS "unified filelist"
        FROM t0_definition WHERE state = 'old';
    }

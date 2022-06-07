@@ -1,0 +1,1 @@
+--remove_files_wildcard $MYSQLTEST_VARDIR *.slog

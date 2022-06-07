@@ -74,6 +74,7 @@ SET @@GLOBAL.DEBUG='d,group_replication_before_commit_hook_wait';
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = 'thread/group_rpl/THD_mysql_thread_handler_read_only_mode' AND PROCESSLIST_STATE = 'Waiting for global read lock'
 --source include/wait_condition.inc
 
+SET DEBUG_SYNC='now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached';
 SET DEBUG_SYNC='now SIGNAL continue_commit';
 SET @@GLOBAL.DEBUG= @debug_save;
 

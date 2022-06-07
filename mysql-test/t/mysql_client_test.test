@@ -23,8 +23,13 @@ SET GLOBAL general_log= 'ON';
 # server or run mysql-test-run --debug mysql_client_test and check
 # var/log/mysql_client_test.trace
 
+--source include/count_sessions.inc
 --exec echo "$MYSQL_CLIENT_TEST" > $LOG_DIR/mysql_client_test.out.log 2>&1
+--source include/wait_until_count_sessions.inc
+
+--source include/count_sessions.inc
 --exec $MYSQL_CLIENT_TEST --getopt-ll-test=25600M $PLUGIN_AUTH_CLIENT_OPT >> $LOG_DIR/mysql_client_test.out.log 2>&1
+--source include/wait_until_count_sessions.inc
 
 # End of 4.1 tests
 echo ok;

@@ -142,3 +142,4 @@ let $restart_parameters =;
 --source include/restart_mysqld.inc
 --force-rmdir $MYSQLD_DATADIR1
 --remove_file $MYSQL_TMP_DIR/data57.zip
+--remove_file $MYSQLD_LOG

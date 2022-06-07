@@ -1,5 +1,5 @@
 SET @@global.keyring_vault_config="MYSQLTEST_VARDIR/keyring_vault.conf";
-# restart:<hidden args>
+# restart
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='y';
 CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
 CREATE TABLE t3 (id INT, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='y';

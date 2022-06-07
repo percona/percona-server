@@ -1,0 +1,41 @@
+--echo #
+--echo # Bug 77591 (ALTER TABLE does not allow to change NULL/NOT NULL if foreign key exists)
+--echo #
+
+CREATE TABLE t1(x VARCHAR(36) DEFAULT NULL, UNIQUE(x)) ENGINE=InnoDB;
+
+CREATE TABLE t2(y VARCHAR(36) DEFAULT NULL,
+    FOREIGN KEY(y) REFERENCES t1(x)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ("foo"), (NULL), ("bar");
+INSERT INTO t2 VALUES ("foo"), (NULL), ("bar");
+
+SELECT * FROM t1 ORDER BY x ASC;
+SELECT * FROM t2 ORDER BY y ASC;
+
+--source include/turn_off_strict_mode.inc
+
+# With the bug present this fails with ER_FK_COLUMN_CANNOT_CHANGE_CHILD
+ALTER TABLE t1 CHANGE COLUMN x x VARCHAR(36) NOT NULL;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t2, t1;
+
+# Check that we still do not allow NULL -> NOT NULL transition for FK columns
+CREATE TABLE t1 (x INT PRIMARY KEY) ENGINE=InnoDB;
+
+CREATE TABLE t2 (y INT PRIMARY KEY, z INT DEFAULT NULL,
+       FOREIGN KEY(z) REFERENCES t1(x)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (0);
+
+INSERT INTO t2 VALUES (0, NULL);
+
+--error ER_FK_COLUMN_CANNOT_CHANGE
+ALTER TABLE t2 CHANGE COLUMN z z INT NOT NULL;
+
+--source include/restore_strict_mode.inc
+
+DROP TABLE t2, t1;

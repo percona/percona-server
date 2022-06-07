@@ -40,6 +40,7 @@ UPDATE t1 SET a=2 WHERE a=1;
 # 5. Signal the waiting thread on server_1 to resume.
 [connection server1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
@@ -93,6 +94,7 @@ include/sync_slave_sql_with_master.inc
 # 4. Signal the waiting thread on server_1 to resume.
 [connection server1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ########################################################################

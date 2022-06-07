@@ -108,6 +108,7 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --echo #    conflict detection and apply.
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC="RESET";
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc

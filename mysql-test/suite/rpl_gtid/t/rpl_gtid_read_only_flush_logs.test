@@ -1,0 +1,67 @@
+--source include/master-slave.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Bug 84350: Error 1290 executing flush logs in read-only slave
+--echo #
+
+CREATE USER 'reload_user'@'localhost';
+GRANT RELOAD ON *.* TO 'reload_user'@'localhost';
+
+SET @saved_read_only= @@GLOBAL.read_only;
+SET GLOBAL read_only= ON;
+
+--connect(con1,127.0.0.1,reload_user,,test,$SLAVE_MYPORT,)
+--echo # slave reload_user connection
+
+FLUSH LOGS;
+
+--connection master
+INSERT INTO t1 VALUES (2);
+--source include/sync_slave_sql_with_master.inc
+--connection con1
+
+FLUSH BINARY LOGS;
+
+--disconnect con1
+
+--echo #
+--echo # Bug 84437: super-read-only does not allow FLUSH LOGS on 5.7
+--echo #
+
+--connection slave
+--echo # slave root connection
+
+SET @saved_super_read_only= @@GLOBAL.super_read_only;
+SET GLOBAL super_read_only=ON;
+
+--connection master
+INSERT INTO t1 VALUES (3);
+--source include/sync_slave_sql_with_master.inc
+
+FLUSH LOGS;
+
+--connection master
+INSERT INTO t1 VALUES (4);
+--source include/sync_slave_sql_with_master.inc
+
+FLUSH BINARY LOGS;
+
+--connection master
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+
+SET GLOBAL super_read_only= @saved_super_read_only;
+SET GLOBAL read_only= @saved_read_only;
+
+DROP USER reload_user@localhost;
+
+--source include/wait_until_count_sessions.inc
+--connection master
+--source include/rpl_end.inc

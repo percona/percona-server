@@ -1,6 +1,6 @@
 /*first*/SELECT * FROM information_schema.processlist WHERE command LIKE 'query';
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist WHERE command LIKE 'query'
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist WHERE command LIKE 'query'	<TIME_MS>	0	0
 Warnings:
 <ID>	1287	<HOST_NAME>
 ##########################################
@@ -143,7 +143,7 @@ deinit thread
 ##########################################
 UNINSTALL PLUGIN test_sql_processlist;
 /*second*/SELECT * FROM information_schema.processlist WHERE command LIKE 'query';
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*second*/SELECT * FROM information_schema.processlist WHERE command LIKE 'query'
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*second*/SELECT * FROM information_schema.processlist WHERE command LIKE 'query'	<TIME_MS>	0	0
 Warnings:
 <ID>	1287	<HOST_NAME>

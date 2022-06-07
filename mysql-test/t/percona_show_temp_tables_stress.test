@@ -1,0 +1,76 @@
+--source include/have_myisam.inc
+
+CREATE USER event_runner1@localhost;
+GRANT ALL ON *.* TO event_runner1@localhost;
+
+CREATE USER event_runner2@localhost;
+GRANT ALL ON *.* TO event_runner2@localhost;
+
+delimiter |;
+CREATE DEFINER=event_runner1@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE
+DO
+  WHILE TRUE DO
+    SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+  END WHILE|
+
+CREATE DEFINER=event_runner2@localhost EVENT query_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE
+DO
+  WHILE TRUE DO
+    SELECT * FROM INFORMATION_SCHEMA.TABLES;
+  END WHILE|
+
+delimiter ;|
+
+--let $wait_condition= SELECT COUNT(*)= 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner1'
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)= 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner2'
+--source include/wait_condition.inc
+
+--let $i=400
+--echo # Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
+--disable_query_log
+while ($i)
+{
+  --eval CREATE TEMPORARY TABLE tmp_myisam_$i (a VARCHAR(256)) ENGINE=MyISAM
+  --eval CREATE TEMPORARY TABLE tmp_innodb_$i (a VARCHAR(256)) ENGINE=InnoDB
+  --eval CREATE TEMPORARY TABLE tmp_memory_$i (a VARCHAR(256)) ENGINE=MEMORY
+  --dec $i
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+
+--let $i=400
+--echo # Dropping the temp tables
+--disable_query_log
+while ($i)
+{
+  --eval DROP TEMPORARY TABLE tmp_myisam_$i
+  --eval DROP TEMPORARY TABLE tmp_innodb_$i
+  --eval DROP TEMPORARY TABLE tmp_memory_$i
+  --dec $i
+}
+--enable_query_log
+
+--let $ev_thread1_id= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner1'`
+--echo KILL CONNECTION \$ev_thread1_id
+--disable_query_log
+eval KILL CONNECTION $ev_thread1_id;
+--enable_query_log
+
+--let $ev_thread2_id= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner2'`
+--echo KILL CONNECTION \$ev_thread2_id
+--disable_query_log
+eval KILL CONNECTION $ev_thread2_id;
+--enable_query_log
+
+--source include/no_running_events.inc
+
+DROP EVENT query_temp_tables;
+DROP EVENT query_tables;
+
+DROP USER event_runner1@localhost;
+DROP USER event_runner2@localhost;

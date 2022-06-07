@@ -1,0 +1,114 @@
+# creating a simple table in which MD5 hash will be the primary key
+CREATE TABLE t1(
+  id VARCHAR(32) NOT NULL,
+  PRIMARY KEY(id)
+) ENGINE=InnoDB;
+
+# defining a stored procedure which fills the table in pseudo-random order,
+# generating a big number of page splits
+--delimiter |
+CREATE PROCEDURE fill_table(IN number_of_records BIGINT UNSIGNED)
+BEGIN
+  DECLARE i BIGINT UNSIGNED DEFAULT 0;
+  START TRANSACTION;
+  WHILE i < number_of_records DO
+    INSERT INTO t1 VALUES(MD5(i));
+    SET i = i + 1;
+  END WHILE;
+  COMMIT;
+END|
+
+--delimiter ;
+
+# filling the table
+CALL fill_table(32 * 1024);
+
+--let $magnitude_factor = 10
+
+# extracting initial values of the page fragmentation counters
+--let $pages_contiguous_initial     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_contiguous'         , Value, 1)
+--let $pages_disjointed_initial     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_disjointed'         , Value, 1)
+--let $pages_total_distance_initial = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_total_seek_distance', Value, 1)
+--let $data_size_initial            = query_get_value(SHOW STATUS LIKE 'innodb_scan_data_size'                , Value, 1)
+--let $deleted_recs_size_initial    = query_get_value(SHOW STATUS LIKE 'innodb_scan_deleted_recs_size'        , Value, 1)
+
+# performing a scan operation
+CHECKSUM TABLE t1;
+
+# extracting the values of page fragmentation counters after the scan
+--let $pages_contiguous_current     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_contiguous'         , Value, 1)
+--let $pages_disjointed_current     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_disjointed'         , Value, 1)
+--let $pages_total_distance_current = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_total_seek_distance', Value, 1)
+--let $data_size_current            = query_get_value(SHOW STATUS LIKE 'innodb_scan_data_size'                , Value, 1)
+--let $deleted_recs_size_current    = query_get_value(SHOW STATUS LIKE 'innodb_scan_deleted_recs_size'        , Value, 1)
+--let $pages_contiguous_delta     = `SELECT $pages_contiguous_current     - $pages_contiguous_initial`
+--let $pages_disjointed_delta     = `SELECT $pages_disjointed_current     - $pages_disjointed_initial`
+--let $pages_total_distance_delta = `SELECT $pages_total_distance_current - $pages_total_distance_initial`
+--let $data_size_delta1           = `SELECT $data_size_current            - $data_size_initial`
+--let $deleted_recs_size_delta1   = `SELECT $deleted_recs_size_current    - $deleted_recs_size_initial`
+
+# consistency asserts
+--let $assert_text= (Fragmented table) The number of disjointed pages is much greater than the number of contiguous pages
+--let $assert_cond= $pages_disjointed_delta > $pages_contiguous_delta * $magnitude_factor
+--source include/assert.inc
+--let $assert_text= (Fragmented table) Average seek distance for fragmented tables is >= 2
+--let $assert_cond= ($pages_total_distance_delta - $pages_contiguous_delta * 1) / IF($pages_disjointed_delta != 0, $pages_disjointed_delta, 1) >= 2
+--source include/assert.inc
+
+# reordering table records by the primary key (defragmenting)
+ALTER TABLE t1 ENGINE=InnoDB;
+
+# extracting initial values of the page fragmentation counters after defragmentation
+--let $pages_contiguous_initial     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_contiguous'         , Value, 1)
+--let $pages_disjointed_initial     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_disjointed'         , Value, 1)
+--let $pages_total_distance_initial = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_total_seek_distance', Value, 1)
+--let $data_size_initial            = query_get_value(SHOW STATUS LIKE 'innodb_scan_data_size'                , Value, 1)
+--let $deleted_recs_size_initial    = query_get_value(SHOW STATUS LIKE 'innodb_scan_deleted_recs_size'        , Value, 1)
+
+# performing a scan operation
+CHECKSUM TABLE t1;
+# extracting the values of page fragmentation counters after scanning the
+# defragmented table
+--let $pages_contiguous_current     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_contiguous'         , Value, 1)
+--let $pages_disjointed_current     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_disjointed'         , Value, 1)
+--let $pages_total_distance_current = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_total_seek_distance', Value, 1)
+--let $data_size_current            = query_get_value(SHOW STATUS LIKE 'innodb_scan_data_size'                , Value, 1)
+--let $deleted_recs_size_current    = query_get_value(SHOW STATUS LIKE 'innodb_scan_deleted_recs_size'        , Value, 1)
+--let $pages_contiguous_delta     = `SELECT $pages_contiguous_current     - $pages_contiguous_initial`
+--let $pages_disjointed_delta     = `SELECT $pages_disjointed_current     - $pages_disjointed_initial`
+--let $pages_total_distance_delta = `SELECT $pages_total_distance_current - $pages_total_distance_initial`
+--let $data_size_delta2           = `SELECT $data_size_current            - $data_size_initial`
+--let $deleted_recs_size_delta2   = `SELECT $deleted_recs_size_current    - $deleted_recs_size_initial`
+
+# consistency asserts
+--let $assert_text= (Defragmented table) The number of disjointed pages is much less than the number of contiguous pages
+--let $assert_cond= $pages_disjointed_delta * $magnitude_factor < $pages_contiguous_delta
+--source include/assert.inc
+--let $assert_text= (Defragmented table) Average seek distance for fragmented tables is >= 2
+--let $assert_cond= ($pages_total_distance_delta - $pages_contiguous_delta * 1) / IF($pages_disjointed_delta != 0, $pages_disjointed_delta, 1) >= 2
+--source include/assert.inc
+--let $assert_text= (data + garbage) in the fragmented table is greater than (data + garbage) in the defragmented one
+--let $assert_cond= $data_size_delta1 + $deleted_recs_size_delta1 > $data_size_delta2 + $deleted_recs_size_delta2
+--source include/assert.inc
+--let $assert_text= (garbage) in the fragmented table is greater than (garbage) in the defragmented one
+--let $assert_cond= $deleted_recs_size_delta1 > $deleted_recs_size_delta2
+--source include/assert.inc
+
+# resetting status variables
+FLUSH STATUS;
+
+# extracting the values of page fragmentation counters after the reset
+--let $pages_contiguous_current     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_contiguous'         , Value, 1)
+--let $pages_disjointed_current     = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_disjointed'         , Value, 1)
+--let $pages_total_distance_current = query_get_value(SHOW STATUS LIKE 'innodb_scan_pages_total_seek_distance', Value, 1)
+--let $data_size_current            = query_get_value(SHOW STATUS LIKE 'innodb_scan_data_size'                , Value, 1)
+--let $deleted_recs_size_current    = query_get_value(SHOW STATUS LIKE 'innodb_scan_deleted_recs_size'        , Value, 1)
+
+# consistency asserts
+--let $assert_text= All counters have been set to zero
+--let $assert_cond= ($pages_contiguous_current = 0) AND ($pages_disjointed_current = 0) AND ($pages_total_distance_current = 0) AND ($data_size_current = 0) AND ($deleted_recs_size_current = 0)
+--source include/assert.inc
+
+# cleanup
+DROP PROCEDURE fill_table;
+DROP TABLE t1;

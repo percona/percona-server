@@ -1,0 +1,15 @@
+################################################################################
+# Bug #1393682: Assertion `m_prot_lock != __null &&
+#               thd->mdl_context.is_lock_owner(m_namespace, "", "",
+#               MDL_INTENTION_EXCLUSIVE)' failed in in
+#               Global_backup_lock::release_protection
+################################################################################
+
+SET SESSION AUTOCOMMIT=0;
+
+CREATE TABLE t1(c1 INT UNSIGNED);
+FLUSH LOCAL TABLES t1 WITH READ LOCK;
+
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+
+DROP TABLE t1;

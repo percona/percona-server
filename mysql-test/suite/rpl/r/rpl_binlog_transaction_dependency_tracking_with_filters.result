@@ -3,6 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection slave]
 [connection master]
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
 Warnings:
@@ -136,8 +137,6 @@ SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_de
 Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@GLOBAL.replica_parallel_workers = @save_replica_parallel_workers;
-Warnings:
-Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();
 include/start_slave.inc

@@ -1,0 +1,52 @@
+SET @saved_innodb_thread_sleep_delay = @@GLOBAL.innodb_thread_sleep_delay;
+SET @saved_innodb_thread_concurrency = @@GLOBAL.innodb_thread_concurrency;
+SET GLOBAL innodb_thread_concurrency = 1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL inserted WAIT_FOR finish1';
+INSERT INTO t1 VALUES ();
+SET DEBUG_SYNC = 'now WAIT_FOR inserted';
+SET DEBUG_SYNC = 'user_thread_waiting SIGNAL waiting WAIT_FOR finish2';
+SET SESSION long_query_time=0;
+SET SESSION log_slow_verbosity='microtime,innodb';
+[log_start.inc] percona.slow_extended.innodb_debug
+INSERT INTO t1 VALUES ();
+SET DEBUG_SYNC = 'now WAIT_FOR waiting';
+SET DEBUG_SYNC = 'now SIGNAL finish2';
+SET DEBUG_SYNC = 'now SIGNAL finish1';
+SET DEBUG_SYNC = 'reset';
+[log_stop.inc] percona.slow_extended.innodb_debug
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^#.*Rows_affected: \d+$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^# Bytes_sent: \d+.*$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*$
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)$
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: InnoDB_rec_lock_wait: 0\.0*
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: InnoDB_rec_lock_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: InnoDB_queue_wait: 0\.0*
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: InnoDB_queue_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.innodb_debug pattern: ^# No InnoDB statistics available for this query$
+[log_grep.inc] lines:   0
+SET GLOBAL innodb_thread_concurrency = @saved_innodb_thread_concurrency;
+SET GLOBAL innodb_thread_sleep_delay = @saved_innodb_thread_sleep_delay;
+DROP TABLE t1;

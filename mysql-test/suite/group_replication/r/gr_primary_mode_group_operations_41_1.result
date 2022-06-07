@@ -56,6 +56,7 @@ include/assert.inc [The completed work is 1]
 include/assert.inc [The stage should be "Single-primary Switch: waiting for operation to complete on all members"]
 include/assert.inc [The estimated work is 2]
 include/assert.inc [The completed work is 1]
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 
@@ -154,6 +155,7 @@ include/assert.inc [The stage should be "Primary Switch: waiting for operation t
 include/assert.inc [The estimated work is 2]
 include/assert.inc [The completed work is 1]
 [connection server_1]
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 

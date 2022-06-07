@@ -1,6 +1,6 @@
 ###############################################################################
 # Bug#18364070  BACKPORT BUG#18236612 TO MYSQL-5.6
-# Problem & Analysis : When Slave SQL thread detects that Master was restarted
+# Problem & Analysis : When Replica SQL thread detects that Master was restarted
 #  with the help of information sent by Master through 'FormatDescription'
 #  event, slave SQL drops all the opened temporary tables in order to have
 #  proper cleanup. While slave SQL thread is dropping the temporary tables, it
@@ -20,7 +20,7 @@
 # This same test steps with gtid enabled mode, works to test the following
 # bug as well.
 # Bug#18069107 SLAVE CRASHES WITH GTIDS,TEMP TABLE, STOP IO_THREAD, START SLAVE
-# Problem & Analysis : When Slave SQL thread detects that Master was restarted
+# Problem & Analysis : When Replica SQL thread detects that Master was restarted
 #  with the help of information sent by Master through 'FormatDescription'
 #  event, slave SQL drops all the opened temporary tables in order to have
 #  proper cleanup. When Gtid mode is on and while slave SQL thread is

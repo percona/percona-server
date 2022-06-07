@@ -1,0 +1,42 @@
+SET @saved_transaction_isolation = @@session.transaction_isolation;
+SET @saved_binlog_format = @@session.binlog_format;
+
+#
+# READ-COMMITTED -> REPEATABLE-READ
+#
+SET @@session.transaction_isolation = "READ-COMMITTED";
+SET @@session.binlog_format = ROW;
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+SET @@session.transaction_isolation = "REPEATABLE-READ";
+SET @@session.binlog_format = STATEMENT;
+
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+DROP TABLE t1, t2;
+
+
+#
+# READ-UNCOMMITTED -> SERIALIZABLE
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+
+SET @@session.binlog_format = STATEMENT; 
+SET @@session.transaction_isolation = "READ-UNCOMMITTED";
+SELECT a FROM t1;
+SET @@session.transaction_isolation = "SERIALIZABLE";
+INSERT INTO t1(a) SELECT a FROM t2;
+
+
+--disable_query_log
+CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format.*");
+--enable_query_log
+
+# cleanup
+DROP TABLE t1, t2;
+SET @@session.transaction_isolation = @saved_transaction_isolation;
+SET @@session.binlog_format = @saved_binlog_format;

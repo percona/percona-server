@@ -1,0 +1,11 @@
+#
+# Bug #84824 / #25501659: handle_fatal_signal (sig=11) in get_addon_fields
+# fixed in 5.6.37, 5.7.19, 8.0.2
+# The server exited abnormally attempting to access invalid memory.
+#
+
+SET big_tables = 1;
+CREATE TABLE t1(a BINARY (1)) ROW_FORMAT=DYNAMIC ENGINE=InnoDB;
+SELECT NOT EXISTS(SELECT 1) FROM t1 JOIN t1 a USING(a) GROUP BY 1 WITH ROLLUP;
+
+DROP TABLE t1;

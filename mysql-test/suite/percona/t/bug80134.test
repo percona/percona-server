@@ -1,0 +1,24 @@
+#
+# Bug #22594514 / #80134 "handle_fatal_signal (sig=11) in Unique::~Unique | sql/uniques.cc:355"
+# fixed in 5.5.50, 5.6.31, 5.7.13, 5.8.0
+# Setting sort_buffer_size to a very large value could cause some operations
+# to fail with an out-of-memory error.
+#
+call mtr.add_suppression("option 'sort_buffer_size': unsigned value [0-9]+ adjusted to [0-9]+");
+call mtr.add_suppression("Out of memory \\(Needed [0-9]+ bytes\\)");
+
+--let $restart_parameters = restart:--sort-buffer-size=1125899906842624
+--source include/restart_mysqld.inc
+
+CREATE TABLE t1(a CHAR (1) KEY) ENGINE=Memory DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+INSERT INTO t1 VALUES(1);
+
+--disable_result_log
+--error 0,5
+DELETE t1 FROM t1, t1 AS t4;
+--enable_result_log
+
+DROP TABLE t1;
+
+--let $restart_parameters =
+--source include/restart_mysqld.inc

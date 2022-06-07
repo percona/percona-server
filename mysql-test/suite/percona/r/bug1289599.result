@@ -1,0 +1,17 @@
+call mtr.add_suppression("The plugin 'auth_socket' used to authenticate user .* is not loaded. Nobody can currently login using this account.");
+create table mysql_user_bak as select * from mysql.user;
+update mysql.user set plugin='auth_socket';
+flush privileges;
+connect(localhost,USER,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'USER'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'USER'@'localhost' (using password: NO)
+install plugin auth_socket soname 'auth_socket.so';
+connect(localhost,USER,,test,MASTER_PORT,MASTER_SOCKET);
+Got one of the listed errors
+ERROR 28000: Access denied for user 'USER'@'localhost' (using password: NO)
+update mysql.user set plugin='';
+delete from mysql.user;
+insert into mysql.user select * from mysql_user_bak;
+flush privileges;
+drop table mysql_user_bak;
+uninstall plugin auth_socket;

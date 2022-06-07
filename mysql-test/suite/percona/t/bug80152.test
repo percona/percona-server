@@ -1,0 +1,22 @@
+#
+# Bug #22602324 / #80152 "handle_fatal_signal (sig=11) in Trace::function_enter"
+# fixed in 5.7.13, 5.8.0
+# Replication: Setting certain semisynchronous-replication configurations on
+# the source server when semisynchronous replication was not enabled on it
+# might cause the server to exit. This fix prevents the unexpected exits to
+# occur in the situation.
+#
+--source include/have_semisync_plugin.inc
+
+--let $semisync_source_enabled = OFF
+--source include/rpl/install_semisync_source.inc
+
+SET @saved_rpl_semi_sync_source_wait_no_replica = @@global.rpl_semi_sync_source_wait_no_replica;
+
+SET GLOBAL rpl_semi_sync_source_wait_no_replica = 0;
+SET GLOBAL rpl_semi_sync_source_wait_no_replica = 1;
+SET GLOBAL rpl_semi_sync_source_wait_no_replica = 0;
+
+SET GLOBAL rpl_semi_sync_source_wait_no_replica = @saved_rpl_semi_sync_source_wait_no_replica;
+
+--source include/rpl/uninstall_semisync_source.inc

@@ -142,8 +142,6 @@ SET PERSIST_ONLY skip_external_locking = DEFAULT;
 ERROR HY000: Variable 'skip_external_locking' is a non persistent read only variable
 SET PERSIST_ONLY system_time_zone = DEFAULT;
 ERROR HY000: Variable 'system_time_zone' is a non persistent read only variable
-SET PERSIST_ONLY version_comment = DEFAULT;
-ERROR HY000: Variable 'version_comment' is a non persistent read only variable
 SET PERSIST_ONLY version_compile_machine = DEFAULT;
 ERROR HY000: Variable 'version_compile_machine' is a non persistent read only variable
 SET PERSIST_ONLY version_compile_os = DEFAULT;

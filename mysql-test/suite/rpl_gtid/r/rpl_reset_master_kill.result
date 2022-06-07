@@ -3,5 +3,6 @@ CALL mtr.add_suppression('The transaction owned GTID is already in the gtid_exec
 CREATE TABLE t1(c1 int);
 RESET BINARY LOGS AND GTIDS;
 ERROR HY000: Lost connection to MySQL server during query
+SET DEBUG_SYNC = 'RESET';
 DROP TABLE t1;
 # Removing debug point 'wait_for_kill_gtid_state_clear' from @@GLOBAL.debug

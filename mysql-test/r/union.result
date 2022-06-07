@@ -962,6 +962,8 @@ insert into t2 select * from t1;
 insert into t1 select * from t2;
 insert into t2 select * from t1;
 set local tmp_table_size=1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 select count(*) from (select * from t1 union all select * from t2 order by 1) b;
 count(*)
 21

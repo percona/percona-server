@@ -1,0 +1,36 @@
+CREATE TABLE t1 (
+c1 int,
+c2 int,
+PRIMARY KEY (c1, c2)
+)
+PARTITION BY LIST (c1)
+(PARTITION p0 VALUES IN (0),
+PARTITION p1 VALUES IN (1));
+INSERT INTO t1 VALUES (0, 0);
+INSERT INTO t1 SELECT 0, c2+1 FROM t1;
+INSERT INTO t1 SELECT 0, c2+2 FROM t1;
+INSERT INTO t1 SELECT 0, c2+4 FROM t1;
+INSERT INTO t1 SELECT 0, c2+8 FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT cardinality FROM information_schema.statistics WHERE table_name = 't1';
+CARDINALITY
+1
+16
+SELECT partition_name, table_rows FROM information_schema.partitions WHERE table_name = 't1';
+PARTITION_NAME	TABLE_ROWS
+p0	16
+p1	0
+SELECT cardinality FROM information_schema.statistics WHERE table_name = 't1';
+CARDINALITY
+1
+16
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT cardinality FROM information_schema.statistics WHERE table_name = 't1';
+CARDINALITY
+1
+16
+DROP TABLE t1;

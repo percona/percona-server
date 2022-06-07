@@ -1,0 +1,65 @@
+#
+# bp:innodb-fts-ngram-ignore-stopword-list
+# "A new InnoDB variable to control whether InnoDB FTS should ignore stopword list"
+#
+# lp:1679135 "Ignore INNODB_FT_DEFAULT_STOPWORD for ngram indexes"
+# Bug #84420 "stopwords and ngram indexes"
+#
+SET innodb_ft_ignore_stopwords = 0;
+CREATE TABLE articles (
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+body TEXT,
+PRIMARY KEY (id),
+FULLTEXT KEY ftx (body) WITH PARSER ngram
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO articles(body) VALUES('ea');
+INSERT INTO articles(body) VALUES('east');
+INSERT INTO articles(body) VALUES('east area');
+INSERT INTO articles(body) VALUES('east job');
+INSERT INTO articles(body) VALUES('eastnation');
+INSERT INTO articles(body) VALUES('eastway, try try');
+INSERT INTO articles(body) VALUES('wa');
+INSERT INTO articles(body) VALUES('wast');
+INSERT INTO articles(body) VALUES('wast area');
+INSERT INTO articles(body) VALUES('wast job');
+INSERT INTO articles(body) VALUES('wastnation');
+INSERT INTO articles(body) VALUES('wastway, try try');
+INSERT INTO articles(body) VALUES('oz');
+INSERT INTO articles(body) VALUES('ozst');
+INSERT INTO articles(body) VALUES('ozst area');
+INSERT INTO articles(body) VALUES('ozst job');
+INSERT INTO articles(body) VALUES('ozstnation');
+INSERT INTO articles(body) VALUES('ozstway, try try');
+# ngram parser checks
+include/assert.inc ['Empty set (ngram, table created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 0)']
+SET innodb_ft_ignore_stopwords = 1;
+include/assert.inc ['Empty set (ngram, table created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 1)']
+ALTER TABLE articles DROP INDEX ftx;
+ALTER TABLE articles ADD FULLTEXT KEY ftx(body) WITH PARSER ngram;
+include/assert.inc ['8 matches (ngram, table changed from ft_ignore_stopwords = 0 to 1 / query run with ft_ignore_stopwords = 1)']
+SET innodb_ft_ignore_stopwords = 0;
+include/assert.inc ['Empty set (ngram, table changed from ft_ignore_stopwords = 0 to 1 / query run with ft_ignore_stopwords = 0)']
+ALTER TABLE articles DROP INDEX ftx;
+ALTER TABLE articles ADD FULLTEXT KEY ftx(body) WITH PARSER ngram;
+include/assert.inc ['Empty set (ngram, table changed from ft_ignore_stopwords = 1 to 0 / query run with ft_ignore_stopwords = 0)']
+SET innodb_ft_ignore_stopwords = 1;
+include/assert.inc ['Empty set (ngram, table changed from ft_ignore_stopwords = 1 to 0 / query run with ft_ignore_stopwords = 1)']
+ALTER TABLE articles ENGINE=InnoDB;
+include/assert.inc ['8 matches (ngram, table reconstructed with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 1)']
+# non-ngram parser checks
+SET innodb_ft_ignore_stopwords = 0;
+ALTER TABLE articles DROP INDEX ftx;
+ALTER TABLE articles ADD FULLTEXT KEY ftx(body);
+include/assert.inc ['Empty set (non-ngram (short words), index created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 0)']
+include/assert.inc ['3 matches (non-ngram (regular words), index created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 0)']
+SET innodb_ft_ignore_stopwords = 1;
+include/assert.inc ['Empty set (non-ngram (short words), index created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 1)']
+include/assert.inc ['3 matches (non-ngram (regular words), index created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 1)']
+ALTER TABLE articles DROP INDEX ftx;
+ALTER TABLE articles ADD FULLTEXT KEY ftx(body);
+include/assert.inc ['1 match (non-ngram (short words), index created with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 1)']
+include/assert.inc ['3 matches (non-ngram (regular words), index created with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 1)']
+SET innodb_ft_ignore_stopwords = 0;
+include/assert.inc ['1 match (non-ngram (short words), index created with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 0)']
+include/assert.inc ['3 matches (non-ngram (regular words), index created with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 0)']
+DROP TABLE articles;

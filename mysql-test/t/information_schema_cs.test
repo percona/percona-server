@@ -1476,6 +1476,14 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 
 DROP TABLE ubig;
 
+#Bug 1083377
+create user mysqltest_1@localhost identified by 'password';
+connect (con1, localhost, mysqltest_1,password,);
+connection con1;
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+connection default;
+disconnect con1;
+drop user mysqltest_1@localhost;
 
 --echo End of 5.1 tests.
 

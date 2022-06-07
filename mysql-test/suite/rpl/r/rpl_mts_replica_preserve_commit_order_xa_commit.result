@@ -80,6 +80,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_commit_order_manager_after_wait_100';
 
 # Cleanup
 
+SET DEBUG_SYNC= 'RESET';
 [connection master]
 DROP TABLE t1;
 DROP TABLE t2;

@@ -20,7 +20,7 @@
 --source include/not_valgrind.inc
 --source include/have_component_keyring_file.inc
 # Waiting time when (re)starting the server
---let $explicit_default_wait_counter=10000
+--let $explicit_default_wait_counter=15000
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] \\[MY-013674\\] \\[InnoDB\\] Decrypting a page in doublewrite file failed: space_id=");

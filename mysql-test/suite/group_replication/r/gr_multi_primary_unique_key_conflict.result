@@ -37,6 +37,7 @@ UPDATE t1 SET b=6 WHERE c=4;
 # 5. Signal the waiting thread on server_1 to resume.
 [connection server1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
@@ -85,6 +86,7 @@ include/rpl/sync_to_replica.inc
 # 5. Signal the waiting thread on server_1 to resume.
 [connection server1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ########################################################################

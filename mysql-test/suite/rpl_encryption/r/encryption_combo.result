@@ -1,0 +1,121 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+#################
+# Initialization
+#################
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+connection server_2;
+include/rpl/stop_replica.inc
+#####################################################
+# Part 1: unencrypted master
+#####################################################
+connection server_1;
+CREATE TABLE table1_no_encryption (
+pk INT AUTO_INCREMENT PRIMARY KEY,
+ts TIMESTAMP NULL,
+b BLOB
+);
+INSERT INTO table1_no_encryption VALUES (NULL,NOW(),'data_no_encryption');
+INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
+FLUSH BINARY LOGS;
+SET binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
+INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
+Pattern "table1_no_encryption" found
+#####################################################
+# Part 2: restart master, now with binlog encryption
+#####################################################
+include/rpl/restart_server.inc [server_number=1 parameters: --binlog-encryption=1]
+connection server_1;
+connection server_1;
+connection server_1;
+connection default;
+connection master;
+connection master1;
+connection server_1;
+connection server_1_1;
+connection server_1;
+connection server_1;
+connection server_1;
+CREATE TABLE table2_to_encrypt (
+pk INT AUTO_INCREMENT PRIMARY KEY,
+ts TIMESTAMP NULL,
+b BLOB
+);
+INSERT INTO table2_to_encrypt VALUES (NULL,NOW(),'data_to_encrypt');
+INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
+FLUSH BINARY LOGS;
+SET binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
+INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
+# Here we try to find several plain texts that would appear in not encrypted binlog files.
+# The searches should fail as we expect the binlog files to be encrypted.
+Pattern "table2_to_encrypt" not found
+#####################################################
+# Part 3: restart master again without encryption
+#####################################################
+include/rpl/restart_server.inc [server_number=1 parameters: --binlog-encryption=0]
+connection server_1;
+connection server_1;
+connection server_1;
+connection default;
+connection master;
+connection master1;
+connection server_1;
+connection server_1_1;
+connection server_1;
+connection server_1;
+connection server_1;
+CREATE TABLE table3_no_encryption (
+pk INT AUTO_INCREMENT PRIMARY KEY,
+ts TIMESTAMP NULL,
+b BLOB
+);
+INSERT INTO table3_no_encryption VALUES (NULL,NOW(),'data_no_encryption');
+INSERT INTO table3_no_encryption SELECT NULL,NOW(),b FROM table3_no_encryption;
+INSERT INTO table3_no_encryption SELECT NULL,NOW(),b FROM table3_no_encryption;
+#####################################################
+# Check: resume replication and check that it works
+#####################################################
+connection server_2;
+include/rpl/start_replica.inc
+SHOW TABLES;
+Tables_in_test
+table1_no_encryption
+table2_to_encrypt
+table3_no_encryption
+##########
+# Cleanup
+##########
+connection server_1;
+SELECT COUNT(*) FROM table1_no_encryption;
+COUNT(*)
+8
+SELECT COUNT(*) FROM table2_to_encrypt;
+COUNT(*)
+8
+SELECT COUNT(*) FROM table3_no_encryption;
+COUNT(*)
+4
+DROP TABLE table1_no_encryption, table2_to_encrypt, table3_no_encryption;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

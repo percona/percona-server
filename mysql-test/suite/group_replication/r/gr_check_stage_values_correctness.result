@@ -72,5 +72,6 @@ Recovery thread is not visible in threads table.
 # 08. Cleanup.
 
 SET @@GLOBAL.DEBUG= @debug_save_2;
+SET DEBUG_SYNC='reset';
 DROP TABLE test.t1;
 include/group_replication_end.inc

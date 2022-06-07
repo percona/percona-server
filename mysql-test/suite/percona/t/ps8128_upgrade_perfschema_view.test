@@ -1,0 +1,37 @@
+# PS-8128: In-place upgrade of views that select from performance_schema is broken
+# https://jira.percona.com/browse/PS-8128
+
+--source include/not_valgrind.inc
+
+--echo # Prepare datadir
+--let $file= data57_upgrade_perfschema_view
+--copy_file $MYSQLTEST_VARDIR/std_data/$file.zip $MYSQL_TMP_DIR/$file.zip
+--file_exists $MYSQL_TMP_DIR/$file.zip
+--exec unzip -qo $MYSQL_TMP_DIR/$file.zip -d $MYSQL_TMP_DIR/$file
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/$file
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$file.log
+
+--echo # Stop the server created by default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Restart server to trigger upgrade
+--exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $wait_counter= 10000
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Check for errors
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= Resolving dependency for the view 'test.v1' failed. View is no more valid to use
+--source include/search_pattern.inc
+
+--echo # Stop the server
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+--file_exists $MYSQLD_DATADIR1/mysql_upgrade_info
+--remove_file $MYSQL_TMP_DIR/$file.zip
+--force-rmdir $MYSQL_TMP_DIR/$file
+--let $restart_parameters=
+--source include/start_mysqld.inc

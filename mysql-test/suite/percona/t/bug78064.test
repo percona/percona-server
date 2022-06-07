@@ -1,0 +1,16 @@
+#
+# Bug #21631855 / #78064 "handle_fatal_signal (sig=11) in ft_boolean_check_syntax_string | ft_parser.c:92"
+# fixed in 5.6.29, 5.7.11, 5.8.0
+# With character_set_server=utf16le, some values of ft_boolean_syntax could
+# cause a server exit for full-text searches.
+#
+--let $restart_parameters = restart:--character-set-server=utf16le
+--source include/restart_mysqld.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = '# -><()~*:11&1';
+
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+

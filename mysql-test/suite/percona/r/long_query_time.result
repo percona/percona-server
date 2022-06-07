@@ -1,0 +1,35 @@
+SET SESSION min_examined_row_limit=0;
+SET long_query_time=2;
+[log_start.inc] percona.slow_extended.long_query_time
+SET SESSION query_exec_time=1.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=3.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=5.1;
+SELECT 1;
+1
+1
+SET long_query_time=4;
+SET SESSION query_exec_time=1.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=3.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=5.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=default;
+SET long_query_time=2;
+[log_stop.inc] percona.slow_extended.long_query_time
+SET long_query_time=default;
+SET SESSION min_examined_row_limit=default;
+[log_grep.inc] file: percona.slow_extended.long_query_time pattern: Query_time
+[log_grep.inc] lines:   3

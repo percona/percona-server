@@ -1,0 +1,13 @@
+# Bug 1201681: Server with threadpool hangs during shutdown when there are
+#              open connections
+
+-- source include/have_pool_of_threads.inc
+
+--connect (con1,localhost,root,,)
+
+--source include/restart_mysqld.inc
+
+--connection con1
+SELECT 1;
+
+--disconnect con1

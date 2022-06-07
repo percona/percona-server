@@ -1,0 +1,3 @@
+SET @saved_ft_boolean_syntax = @@global.ft_boolean_syntax;
+SET GLOBAL ft_boolean_syntax = ' ~/!@#$%^&*()-';
+SET GLOBAL ft_boolean_syntax = @saved_ft_boolean_syntax;

@@ -1,0 +1,165 @@
+SET @userstat_old= @@userstat;
+SET GLOBAL userstat=ON;
+
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+
+# concurrent connections count tracked only if resource limits enabled globally
+# or just for specific users
+CREATE USER mysqltest_1@localhost;
+GRANT USAGE ON *.* TO mysqltest_1@localhost;
+ALTER USER mysqltest_1@localhost WITH MAX_USER_CONNECTIONS 100;
+CREATE USER mysqltest_2@localhost;
+GRANT USAGE ON *.* TO mysqltest_2@localhost;
+ALTER USER mysqltest_2@localhost WITH MAX_USER_CONNECTIONS 100;
+
+# Make a single connection for mysqltest_1 user
+connect (conn1,localhost,mysqltest_1,,);
+SELECT 1;
+connection default;
+
+--let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: single connection
+--let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', CONCURRENT_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+# Make two connections for mysqltest_1 user
+connect (conn2,localhost,mysqltest_1,,);
+SELECT 1;
+connection default;
+
+--let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: two connections
+--let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', CONCURRENT_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 2
+--source include/assert.inc
+
+# Check if number of concurrent connections decreased
+disconnect conn2;
+connection default;
+let $count_sessions= 2;
+--source include/wait_until_count_sessions.inc
+
+--let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: handle disconnects
+--let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', CONCURRENT_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+# Number of concurrent connections shouldn't be affected by different users
+connect (conn3,localhost,mysqltest_2,,);
+SELECT 1;
+connection default;
+
+--let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: connections from other users
+--let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', CONCURRENT_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+
+# if there is no connections, concurrent connections counter should be zero
+disconnect conn1;
+connection default;
+let $count_sessions= 2;
+--source include/wait_until_count_sessions.inc
+
+--let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: no connections - zero concurrency
+--let $query_result= query_get_value(SELECT COUNT(1) cnt FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1' AND  CONCURRENT_CONNECTIONS=0, cnt, 1)
+--let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+disconnect conn3;
+connection default;
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
+# Failed connection attempt should keep number of concurrent connections intact
+set password for mysqltest_2@"localhost" = 'foo';
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (conn4,localhost,mysqltest_2,,);
+--enable_query_log
+connection default;
+
+--let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: wrong password connection
+--let $query_result= query_get_value(SELECT COUNT(1) cnt FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_2' AND CONCURRENT_CONNECTIONS=0, cnt, 1)
+--let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+# We need alive connection to check that flush will not remove concurent_connections counter
+# and disconnect not causing debug assert
+connect (conn1,localhost,mysqltest_1,,);
+SELECT 1;
+connection default;
+# Verify that flush statistics keeps concurent connections counter intact
+FLUSH USER_STATISTICS;
+connection conn1;
+SELECT 1;
+connection default;
+
+--let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: single connection after flush
+--let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', CONCURRENT_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+disconnect conn1;
+connection default;
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
+# verify flush user statistics with existing connections
+# connection concurrency tracked only if it runs queries while userstat=1
+
+SET GLOBAL userstat=0;
+connect (conn1,localhost,mysqltest_1,,);
+connect (conn2,localhost,mysqltest_1,,);
+connection default;
+SET GLOBAL userstat=1;
+FLUSH USER_STATISTICS;
+connection conn1;
+SELECT 1;
+
+connection default;
+--let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: two connections after userstat=1
+--let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', CONCURRENT_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 2
+--source include/assert.inc
+
+disconnect conn2;
+disconnect conn1;
+connection default;
+
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
+
+# verify flush client statistics with existing connections
+# connection concurrency tracked only if it runs queries while userstat=1
+SET GLOBAL userstat=0;
+connect (conn1,localhost,mysqltest_1,,);
+connect (conn2,localhost,mysqltest_1,,);
+connection default;
+SET GLOBAL userstat=1;
+FLUSH CLIENT_STATISTICS;
+connection conn1;
+SELECT 1;
+
+connection default;
+--let $assert_text= I_S.CLIENT_STATISTICS CONCURRENT_CONNECTIONS: two connections after userstat=1
+--let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.CLIENT_STATISTICS WHERE CLIENT LIKE 'localhost', CONCURRENT_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 2
+--source include/assert.inc
+
+disconnect conn2;
+disconnect conn1;
+connection default;
+
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
+
+DROP USER mysqltest_1@localhost;
+DROP USER mysqltest_2@localhost;
+
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+
+SET GLOBAL userstat= @userstat_old;

@@ -1,0 +1,30 @@
+# https://bugs.mysql.com/bug.php?id=100352
+
+--echo #
+--echo # Bug #100352: DELETE IGNORE deletes wrong rows
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0), (5), (6), (7);
+SELECT * from t1 ORDER BY a;
+
+# In all below cases t1 should not be modified by DELETE/UPDATE statements
+# as IN/NOT IN should be used, not =/!=
+
+--error ER_SUBQUERY_NO_1_ROW
+DELETE IGNORE t1.* FROM t1 WHERE a = (SELECT 1 UNION SELECT 2);
+SELECT * from t1 ORDER BY a;
+
+--error ER_SUBQUERY_NO_1_ROW
+DELETE IGNORE t1.* FROM t1 WHERE a != (SELECT 1 UNION SELECT 2);
+SELECT * from t1 ORDER BY a;
+
+--error ER_SUBQUERY_NO_1_ROW
+UPDATE IGNORE t1 SET a = 100 WHERE a = ( SELECT 1 UNION SELECT 2 );
+SELECT * from t1 ORDER BY a;
+
+--error ER_SUBQUERY_NO_1_ROW
+UPDATE IGNORE t1 SET a = 100 WHERE a != ( SELECT 1 UNION SELECT 2 );
+SELECT * from t1 ORDER BY a;
+
+DROP TABLE t1;

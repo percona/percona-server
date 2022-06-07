@@ -1,0 +1,22 @@
+--echo #
+--echo # Bug #26881798 / #88781 "handle_fatal_signal (sig=11) in replace_db_table"
+--echo # fixed in 5.5.60, 5.6.40, 5.7.22, 8.0.4
+--echo # Dropping an index from a system table could cause a server exit
+--echo #
+
+CALL mtr.add_suppression("Did not write failed 'GRANT DROP ON none\\.\\* TO 'bug88781'@'localhost'' into binary log while granting/revoking privileges in databases\\.");
+
+CREATE USER 'bug88781'@'localhost';
+
+RENAME TABLE mysql.db TO mysql.bak;
+
+CREATE TABLE mysql.db ENGINE=InnoDB SELECT * FROM mysql.bak;
+
+--error ER_MISSING_KEY
+GRANT DROP ON none.* TO 'bug88781'@'localhost';
+
+DROP TABLE mysql.db;
+
+RENAME TABLE mysql.bak TO mysql.db;
+
+DROP USER 'bug88781'@'localhost';

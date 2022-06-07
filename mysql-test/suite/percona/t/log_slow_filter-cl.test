@@ -1,0 +1,2 @@
+SHOW VARIABLES LIKE 'log_slow_filter';
+SHOW GLOBAL VARIABLES LIKE 'log_slow_filter';

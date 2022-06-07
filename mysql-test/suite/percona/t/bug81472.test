@@ -1,0 +1,39 @@
+#
+# Bug #23303485 / #81472 "handle_fatal_signal (sig=11) in subselect_union_engine::no_rows"
+# fixed in 5.5.54, 5.6.35, 5.7.17, 8.0.1
+# A union query resulting in tuples larger than max_join_size could result in
+# a server exit
+#
+
+--source include/have_myisam.inc
+
+SET sql_mode = '';
+SET default_storage_engine = MyISAM;
+CREATE TABLE t1(a TEXT NOT NULL) ROW_FORMAT=DYNAMIC, ENGINE=NotPresent;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 (a) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06390645064400BB USING utf8mb3));
+INSERT INTO t1 VALUES (0xAEA5);
+INSERT INTO t1 VALUES (_ucs2 0x0184),(_ucs2 0x0185),(_ucs2 0x0186),(_ucs2 0x0187);
+SET @@session.max_join_size = 8;
+INSERT INTO t1 VALUES (Point(-1*0e0, -1*0e0)), (Point(0, 0));
+INSERT INTO t1 VALUES (1), (1);
+INSERT INTO t1 VALUES ('00:00:01.000015');
+INSERT INTO t1 VALUES (0x40);
+INSERT INTO t1 VALUES ('test000001'), ('test000002'), ('test000003');
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES ('2007-03-08 12:00:00');
+INSERT INTO t1 VALUES(0xA9A7);
+INSERT INTO t1 SET a = 0x6c;
+INSERT INTO t1 VALUES(0xABA8);
+INSERT IGNORE INTO t1 VALUES ('abc');
+INSERT INTO t1 VALUES (0xA9EA);
+INSERT INTO t1 VALUES ('a');
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES ('1000-00-00');
+
+SET max_join_size = 1;
+--error ER_TOO_BIG_SELECT
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1 = 2 HAVING a NOT IN ( SELECT a FROM t1 UNION SELECT a + 1 FROM t1 ) OR min_a != 1;
+
+DROP TABLE t1;

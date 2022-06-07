@@ -1,0 +1,8 @@
+#
+# [MySQL 8.0 GA Release Build] handle_fatal_signal(sig=11) in std::__uniq_ptr_impl
+#
+CREATE TABLE t1(a int,b int,c int,primary key(a,b)) partition by key (a,b);
+CREATE VIEW v1 AS SELECT a FROM t1 PARTITION(p0)WITH CHECK OPTION;
+alter table t1 change c c int column_format dynamic;
+DROP VIEW v1;
+DROP TABLE t1;

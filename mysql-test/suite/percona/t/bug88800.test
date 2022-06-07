@@ -1,0 +1,36 @@
+--echo #
+--echo # Bug #27230925 / #88800 "handle_fatal_signal (sig=11) in show_routine_grants"
+--echo # fixed in 5.5.61, 5.6.41, 5.7.23, 8.0.12
+--echo # Mishandling of internal privilege structures could cause a server exit
+--echo #
+
+CREATE TABLE t1 (
+  id INT UNSIGNED AUTO_INCREMENT,
+  name CHAR(50),
+  PRIMARY KEY (id)
+);
+CREATE PROCEDURE p1() BEGIN END;
+
+CREATE USER 'bug88800'@'localhost';
+GRANT ALL ON test.* TO 'bug88800'@'localhost';
+GRANT EXECUTE ON PROCEDURE test.p1 TO 'bug88800'@'localhost' WITH GRANT OPTION;
+
+RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
+
+--error ER_NO_SUCH_TABLE
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR 'bug88800'@'localhost';
+
+--error ER_NO_SUCH_TABLE
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR 'bug88800'@'localhost';
+
+RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
+
+DROP USER 'bug88800'@'localhost';
+
+DROP PROCEDURE p1;
+
+DROP TABLE t1;
+
+CALL mtr.add_suppression("Fatal error: Can't open and lock privilege tables: Table 'mysql.procs_priv' doesn't exist");

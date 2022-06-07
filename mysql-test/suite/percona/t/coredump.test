@@ -1,0 +1,127 @@
+# Valgrind reports false positives coming from coredumper internals
+--source include/not_valgrind.inc
+# ASAN disables core dumps
+--source include/not_asan.inc
+
+call mtr.add_suppression("Started with --core-file and --coredumper. --coredumper will take precedence.");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to");
+let $MYSQLD_DATADIR= `select @@datadir`;
+--source include/shutdown_mysqld.inc
+
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err
+
+--echo Testing coredumper file with .cnf on name
+--error 1
+--exec $MYSQLD_CMD --coredumper=core.cnf > $SEARCH_FILE 2>&1;
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN=Variable --coredumper cannot be set to value
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo Testing coredumper file with too long path
+--error 1
+--exec $MYSQLD_CMD --coredumper=/var/wdsdcqgatwfnhdevlsmserndotdsymixykoqiuhbdvrqqumxtnmalbnyfjdilwlxcvnqdsrjtjxquktypyrngvgtbceljuhfiqeuyrecvneaeupszfyqurldrwiizzzidrmigpcflzjplotnygeluydvlphgbajljqczdxjvxlznsuftycmfqofyflzlpnffimuswjgtizsfjeahsyjumlavzildmttjxyhzkaqtdnqoenvfnqjrozjbqrwitnxkvbijqkvuhaecqpapgofhpcyifliszpsaafdrpixehevxsjincnxbokfacmaroxsemwgyfbyinkjjssqroxtdgnujfqaarvatpppnjakyqibgusudvnftmnhglqkdjbfgkcfmnmtzlzdutiustuksfmtfyduytpntjfgdhhspoqdnpvgwdecwvleuwopxiurbwxbjolbqdslmzsdwzflseamsxldzxehhuepebblipsjiupjqmsnpgltdncdhcekj/core > $SEARCH_FILE 2>&1;
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN=Variable --coredumper set to a too long path
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo Testing coredumper file with too long filename
+--error 1
+--exec $MYSQLD_CMD --coredumper=/var/wmydxpdmxnsplydswizpzurzqbtsqsbkdheqjzwxhugduaukgrymmgrieowfynkstmizhxgumxnnrqkproghrgyblfmedjilzxkdvaqdjtnmisnmzicdlglkwinbaqrtufllpsplvxtkajkdlkqunfmycbyylsmjbzkigsmzilswsdrddeamfwmbfcmkdouagxcrglhqxspzidkgowfspmvpuqmtoiyckyayrrmnigryufxmrgawqebvrfhayjkjdx > $SEARCH_FILE 2>&1;
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN=Variable --coredumper set to a too long filename
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo Testing coredumper file with invalid path
+--error 1
+--exec $MYSQLD_CMD --coredumper=/not/a/valid/path/core > $SEARCH_FILE 2>&1;
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN=Directory specified at --coredumper: /not/a/valid/path/ does not exist
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo Testing coredumper file with path without write rights
+--let CORE_TMP_DIR=$MYSQLTEST_VARDIR/coredir/
+--mkdir $CORE_TMP_DIR
+--chmod 0400 $CORE_TMP_DIR
+--error 1
+--exec $MYSQLD_CMD --coredumper=$CORE_TMP_DIR > $SEARCH_FILE 2>&1;
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN=Directory specified at --coredumper: $CORE_TMP_DIR is not writable
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+--rmdir $CORE_TMP_DIR
+
+--echo Restart with core-file and coredumper enabled
+--let $restart_parameters=restart:--core-file --coredumper
+--source include/start_mysqld.inc
+--let $assert_text= Checking warning 'Started with --core-file and --coredumper. --coredumper will take precedence.'
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= Started with \-\-core\-file and \-\-coredumper. \-\-coredumper will take precedence.
+--let $assert_only_after=CURRENT_TEST: main.coredump
+--let $assert_count=1
+--source include/assert_grep.inc
+
+
+
+# Send a kill -11 to mysqld, should cause a coredump
+--let $_kill_signal = 11
+--source include/send_kill_to_mysqld.inc
+
+--echo Testing coredumper tried to write file
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN=Writing a core file using lib coredumper
+--source include/search_pattern_in_file.inc
+
+--echo Testing coredumper wrote a file
+--replace_regex /\.[[:digit:]]+$//
+list_files $MYSQLD_DATADIR core.*;
+remove_files_wildcard $MYSQLD_DATADIR core.*;
+
+--echo Restart with coredumper set to specific filename
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--let $restart_parameters=restart:--coredumper=$MYSQLD_DATADIR/mycore
+--source include/start_mysqld.inc
+
+# Send a kill -11 to mysqld, should cause a coredump
+--let $_kill_signal = 11
+--source include/send_kill_to_mysqld.inc
+
+--echo Testing coredumper wrote a file
+--replace_regex /\.[[:digit:]]+$//
+list_files $MYSQLD_DATADIR mycore.*;
+remove_files_wildcard $MYSQLD_DATADIR mycore.*;
+
+--let $restart_parameters=restart:
+--source include/start_mysqld.inc
+
+--let $has_build_id = `SELECT COUNT(*) != 0 FROM performance_schema.global_variables WHERE variable_name = 'build_id'`
+
+--let $assert_text= Checking MySQL wrote Build ID
+if ($has_build_id)
+{
+  # Check Build ID and server version has been written to error log
+  --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+  --let $assert_select= ^BuildID\[sha1\]=[a-f0-9]{40}
+  --let $assert_only_after=CURRENT_TEST: main.coredump
+  --let $assert_count=2
+  --source include/assert_grep.inc
+}
+if (!$has_build_id)
+{
+  # emulate successful 'assert_grep.inc' output'
+  --echo include/assert_grep.inc [$assert_text]
+}
+
+# Check Build ID and server version has been written to error log
+--let $assert_text= Checking MySQL wrote Server Version
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= Server Version: [0-9]\.[0-9]\.[0-9]{1,2}.*
+--let $assert_only_after=CURRENT_TEST: main.coredump
+--let $assert_count=2
+--source include/assert_grep.inc
+
+

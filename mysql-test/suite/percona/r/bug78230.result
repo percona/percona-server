@@ -1,0 +1,30 @@
+CALL mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
+ALTER TABLE mysql.user RENAME mysql.user_bak;
+CREATE TABLE mysql.user(
+Host CHAR COLLATE utf8mb4_bin DEFAULT '',
+User CHAR COLLATE utf8mb4_bin DEFAULT '',
+PasswONs INT UNSIGNED,
+PRIMARY KEY Host (Host, User)
+) ENGINE=InnoDB;
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1805	Column count of mysql.user is wrong. Expected 51, found 3. The table is probably corrupted
+CREATE TABLE t1(
+a INT UNSIGNED,
+b INT UNSIGNED,
+c CHAR(50),
+d BINARY(23),
+e CHAR(48),
+f VARCHAR(37),
+g BLOB,
+h BLOB,
+id INT,
+KEY(b),
+KEY(e)
+) ENGINE=InnoDB;
+GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;
+ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 3. The table is probably corrupted
+DROP TABLE t1;
+DROP TABLE mysql.user;
+ALTER TABLE mysql.user_bak RENAME mysql.user;
+FLUSH PRIVILEGES;

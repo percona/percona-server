@@ -1,0 +1,12 @@
+#
+# Test for http://bugs.mysql.com/bug.php?id=57430.
+# 
+
+CREATE TABLE t2970 (a INT, b INT, c INT, d INT, KEY(a), KEY(a, b));
+INSERT INTO t2970 VALUES (1,1,1,1), (1,2,3,4);
+
+# With the bug present the server will choose KEY(a) over KEY(a, b), because they have the same
+# row estimate count and its definition comes first, while the second key should be chosen
+# because it's covering.
+--query_vertical EXPLAIN SELECT a, COUNT(b), MAX(b) FROM t2970 WHERE a > 0 GROUP BY a ORDER BY a;
+DROP TABLE t2970;

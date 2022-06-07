@@ -1,0 +1,3 @@
+SELECT @@innodb_version;
+@@innodb_version
+8.4.x-x

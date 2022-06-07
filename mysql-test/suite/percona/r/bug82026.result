@@ -1,0 +1,8 @@
+#
+# Bug 82026: Stack buffer overflow with --ssl-cipher=<more than 4K characters>
+#
+# restart:<hidden args>
+SELECT @ssl_cipher;
+@ssl_cipher
+NULL
+Pattern "that is blocked. Please refer to the documentation for allowed ciphers" found

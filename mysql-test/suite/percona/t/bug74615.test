@@ -1,0 +1,53 @@
+# Test for MySQL bug 74615: GRANT crashes server if mysql.user table is malformed
+call mtr.add_suppression("Did not write failed");
+call mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
+
+ALTER TABLE mysql.user RENAME mysql.user_bak;
+
+CREATE TABLE mysql.user(Host char COLLATE utf8_bin DEFAULT'',User char COLLATE utf8_bin DEFAULT'',
+Password char collate latin1_bin DEFAULT'',Select_priv enum('N','Y')COLLATE utf8_general_ci DEFAULT'N',
+Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Create_tmp_t_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Lock_ts_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Create_v_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Show_v_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT'N',
+ssl_type ENUM('','X509','ANY') COLLATE utf8_general_ci DEFAULT'',ssl_cipher BLOB,
+x509_issuer BLOB,x509_subject BLOB,max_questions int unsigned,max_updates int unsigned,
+max_connections int unsigned,max_user_connections int unsigned,
+PRIMARY KEY Host (Host,User)) engine=InnoDB COLLATE utf8_bin comment='Users and global privileges';
+
+# Remove NO_AUTO_CREATE_USER from sql_mode
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='';
+
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+grant select on test.* to''@'santa.claus.ipv4.example.com';
+
+SET SESSION sql_mode=@old_sql_mode;
+
+DROP TABLE mysql.user;
+
+ALTER TABLE mysql.user_bak RENAME mysql.user;
+FLUSH PRIVILEGES;

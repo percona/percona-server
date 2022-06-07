@@ -1,0 +1,171 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t (i int primary key auto_increment) engine=rocksdb partition by key (i) partitions 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+#
+# Testing concurrent transactions.
+#
+begin;
+insert into t values ();
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+begin;
+insert into t values ();
+begin;
+insert into t values ();
+insert into t values ();
+insert into t values ();
+insert into t values ();
+commit;
+rollback;
+commit;
+delete from t;
+# Master value before restart
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	7
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Slave value before restart
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	6
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+# Master value after restart
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	6
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
+# Slave value after restart
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	6
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+#
+# Testing interaction of merge markers with various DDL statements.
+#
+include/stop_slave.inc
+# Drop and add primary key.
+alter table t modify i int;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t drop primary key;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t add primary key (i);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t modify i int auto_increment;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	1
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Remove auto_increment property.
+alter table t modify i int;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	NULL
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Add auto_increment property.
+insert into t values (123);
+alter table t modify i int auto_increment;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	124
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Add column j.
+alter table t add column j int;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	124
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Rename tables.
+rename table t to t2;
+rename table t2 to t;
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	124
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Change auto_increment property
+alter table t auto_increment = 1000;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	1000
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t auto_increment = 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	124
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t drop primary key, add key (i), auto_increment = 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	124
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t add key (j), auto_increment = 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	124
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t modify i int;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t add column (k int auto_increment), add key(k), auto_increment=15;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+include/rpl_restart_server.inc [server_number=1]
+select table_schema, table_name, auto_increment from information_schema.tables where table_name = 't';
+table_schema	table_name	auto_increment
+test	t	16
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Drop table.
+drop table t;
+include/rpl_restart_server.inc [server_number=1]
+include/start_slave.inc
+include/rpl_end.inc

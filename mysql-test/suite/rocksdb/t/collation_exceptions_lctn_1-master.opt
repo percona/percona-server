@@ -1,0 +1,2 @@
+--initialize --lower-case-table-names=1
+--loose-rocksdb_strict_collation_check=ON

@@ -1,0 +1,2 @@
+../percona-server-5.7*.dsc usr/src/percona-server/
+../percona-server-5.7*.tar.gz usr/src/percona-server/

@@ -1,0 +1,13 @@
+#!/bin/bash -e
+
+# Some postinstall info about TokuDB
+if [ -z "$2" ]; then
+	echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
+	echo -e " * Run the following script to enable the TokuDB storage engine in Percona Server:\n"
+	echo -e "\tps-admin --enable-tokudb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
+	echo -e " * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_installation.html for more installation details\n"
+	echo -e " * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_intro.html for an introduction to TokuDB\n\n"
+fi
+
+#DEBHELPER#
+exit 0

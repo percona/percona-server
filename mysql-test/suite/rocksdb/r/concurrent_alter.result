@@ -1,0 +1,14 @@
+set @orig_max_connections=@@global.max_connections;
+set @@global.max_connections=500;
+CREATE DATABASE mysqlslap;
+use mysqlslap;
+CREATE TABLE a1 (a int, b int) ENGINE=ROCKSDB;
+INSERT INTO a1 VALUES (1, 1);
+SHOW CREATE TABLE a1;
+Table	Create Table
+a1	CREATE TABLE `a1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE mysqlslap;
+set @@global.max_connections=@orig_max_connections;

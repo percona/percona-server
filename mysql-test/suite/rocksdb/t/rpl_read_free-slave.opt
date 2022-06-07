@@ -1,0 +1,1 @@
+--sync_binlog=0 --binlog_format=row --loose-rocksdb_read_free_rpl_tables="t.*" --slave-exec-mode=strict --loose-rocksdb_default_cf_options=write_buffer_size=16k;target_file_size_base=16k

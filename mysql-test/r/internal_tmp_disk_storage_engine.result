@@ -1758,6 +1758,7 @@ AND Variable_name NOT LIKE 'external_table%';
 Variable_name	Value
 default_storage_engine	InnoDB
 default_tmp_storage_engine	InnoDB
+enforce_storage_engine	
 internal_tmp_mem_storage_engine	TempTable
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;

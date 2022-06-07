@@ -1,0 +1,21 @@
+--echo #
+--echo # Bug #27216817 / #88747 "InnoDB: Failing assertion: prebuilt->table->n_mysql_handles_opened == 1"
+--echo # fixed in 5.5.60, 5.6.40, 5.7.22, 8.0.11
+--echo # Adding a unique index to an InnoDB table on which multiple locks were
+--echo # held could raise an assertion
+--echo #
+
+CREATE TABLE t1(
+  c1 INT NOT NULL,
+  c2 TIMESTAMP NOT NULL,
+  c3 INT NULL,
+  c4 CHAR(1) NOT NULL
+) ENGINE=InnoDB;
+
+LOCK TABLES t1 WRITE, t1 AS a READ;
+
+ALTER TABLE t1 ADD PRIMARY KEY(c1);
+
+UNLOCK TABLES;
+
+DROP TABLE t1;

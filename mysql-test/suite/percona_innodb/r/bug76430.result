@@ -1,0 +1,6 @@
+CREATE TABLE t1(f1 INT);
+CREATE VIEW t AS SELECT f1 FROM t1;
+ALTER TABLE t TRUNCATE PARTITION a;
+ERROR HY000: Partition management on a not partitioned table is not possible
+DROP VIEW t;
+DROP TABLE t1;

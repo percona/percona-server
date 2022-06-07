@@ -192,7 +192,7 @@ let $wait_condition =
 
 # Slow shutdown and restart to make sure ibuf merge is finished
 SET GLOBAL innodb_fast_shutdown = 0;
-let $restart_parameters = restart: --innodb-buffer-pool-size=24M --innodb-buffer-pool-chunk-size=24M;
+let $restart_parameters = restart: --innodb-buffer-pool-size=24M --innodb-buffer-pool-chunk-size=24M --innodb-empty-free-list-algorithm=LEGACY;
 --source include/restart_mysqld.inc
 
 set @before_innodb_buffer_pool_size = @@innodb_buffer_pool_size;

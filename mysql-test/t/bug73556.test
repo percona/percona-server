@@ -1,0 +1,25 @@
+# Test case for lp:1354011
+# "handle_fatal_signal (sig=11) in add_key_equal_fields at sql/sql_optimizer.cc:5087 on UPDATE query"
+# (https://bugs.launchpad.net/percona-server/+bug/1354011)
+
+# Public / Internal Oracle Bug #73556 / #19434916
+# Although the bug was fixed in MySQL Server 5.5.47, the test case was never added.
+# Here is an excerpt from the release notes: 
+#  * A server exit could occur when updating a view using an ALL comparison operator on a subquery
+#    that selects from an indexed column in the main table. (Bug #19434916)
+
+CREATE TABLE t1(a DECIMAL NOT NULL) ENGINE=InnoDB;
+
+CREATE TABLE t2(
+  b INT,
+  c INT UNSIGNED NOT NULL,
+  d FLOAT,
+  PRIMARY KEY(b)
+) ENGINE=InnoDB;
+CREATE VIEW v AS SELECT * FROM t2;
+INSERT INTO t2 VALUES (1, 0, 0);
+
+UPDATE v SET d=3 WHERE c < ALL(SELECT b FROM t1);
+
+DROP VIEW v;
+DROP TABLE t1, t2;

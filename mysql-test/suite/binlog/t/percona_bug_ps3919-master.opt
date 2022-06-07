@@ -1,0 +1,1 @@
+--gtid_mode=ON --enforce_gtid_consistency=ON --sql_mode=ONLY_FULL_GROUP_BY

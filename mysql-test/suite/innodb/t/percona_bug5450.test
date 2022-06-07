@@ -1,0 +1,37 @@
+--source include/count_sessions.inc
+
+--echo # 
+--echo # PS-4712 : Assertion after bug#84958 fix on FB tree
+--echo #
+
+# This testcase verifies that we return correct offsets when returning old_version
+# of a cluster index record.
+
+create table t1 (a int, b int, c int, primary key(a,b), key (b,c)) engine=innodb;
+
+insert into t1 values (1,2,3) on duplicate key update c=c+1;
+
+begin;
+select * from t1;
+
+connect (con2, localhost, root,,);
+--connection con2
+
+--let $i=3
+while ($i)
+{
+insert into t1 values (1,2,3) on duplicate key update c=null;
+--dec $i
+}
+
+--connection default
+select * from t1 force index (primary);
+select * from t1 force index (b);
+
+commit;
+
+disconnect con2;
+
+connection default;
+drop table t1;
+--source include/wait_until_count_sessions.inc

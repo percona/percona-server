@@ -35,9 +35,7 @@ COUNT(user)
 2
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
-#
-# Restart the server
-#
+# restart
 SELECT 'Rewrite';
 Rewritten
 Rewritten

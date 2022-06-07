@@ -1,0 +1,8 @@
+# Test for bug 74670.
+# Fatal_signal(sig 6) in build_equal_items_for_cond.
+
+CREATE VIEW t1 AS SELECT 1 AS a;
+PREPARE stmt FROM ' SELECT(SELECT 1 FROM t1 WHERE ot.a) AS d FROM t1 AS ot GROUP BY d';
+EXECUTE stmt;
+EXECUTE stmt;
+DROP VIEW t1;

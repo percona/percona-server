@@ -65,8 +65,6 @@ perl;
     my $inverse_search=        $ENV{'INVERSE_SEARCH'} || 0;
     my $file_content=          "";
     my $found=                  0;
-    my $file_content=          "";
-    my $found=                  0;
     foreach my $search_file (@search_files) {
        open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
        while ( read(FILE, $file_content, 50000, 0) ) {

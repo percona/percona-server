@@ -17,13 +17,15 @@ include/assert.inc [All must happen within the single log block (this was requir
 #    value of 5 in first pass, 4 in second).
 SELECT * FROM t;
 a	b
-100	1
-101	2
-102	3
-103	4
+98	1
+99	2
+100	3
+101	4
+102	5
+103	6
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
 AUTO_INCREMENT
-5
+7
 Pass: 1
 # Initialization - create table, resets autoincrement value.
 # 0. Move to the next log block.
@@ -40,12 +42,14 @@ include/assert.inc [All must happen within the single log block (this was requir
 #    value of 5 in first pass, 4 in second).
 SELECT * FROM t;
 a	b
-100	1
-101	2
-103	3
+98	1
+99	2
+100	3
+101	4
+103	5
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
 AUTO_INCREMENT
-4
+6
 #
 # Scenario 2. Restart after writing full log block with record ending at boundary,
 #             recovery should start in middle of the last written block (pass 0, 2)

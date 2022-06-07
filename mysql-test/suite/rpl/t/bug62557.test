@@ -1,0 +1,42 @@
+########################################################################
+# Bug #860910: SHOW REPLICA STATUS gives wrong output with master-master
+#              and using SET uservars
+########################################################################
+
+--echo *** Set up master (server_1) <-> master (server_2) replication  ***
+--let $rpl_topology= 1->2->1
+--source include/rpl/init.inc
+--echo
+
+--connection server_1
+SELECT @@global.log_replica_updates;
+
+--connection server_2
+SELECT @@global.log_replica_updates;
+
+--connection server_1
+CREATE TABLE t1(a INT);
+SET @var:=0;
+INSERT INTO t1 VALUES (@var);
+INSERT INTO t1 VALUES (1);
+
+DROP TABLE t1;
+
+# The following would hang with the bug not fixed due to incorrect
+# Exec_Source_Log_Pos
+--source include/rpl/sync.inc
+
+--connection server_2
+--let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+
+--connection server_1
+--let $slave_param= Exec_Source_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/rpl/assert_replica_status.inc
+
+# Cleanup
+--source include/rpl/deinit.inc
+
+# Due to server 1 being a slave to server 2, we need to force server restart
+# to clear its in-memory slave status, to avoid breaking further tests.
+--source include/force_restart.inc

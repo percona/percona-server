@@ -1226,6 +1226,8 @@ b	2
 a	3
 b,c	5
 SET @@tmp_table_size=1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT GROUP_CONCAT(DISTINCT a) FROM t1;
 GROUP_CONCAT(DISTINCT a)
 a,b,c

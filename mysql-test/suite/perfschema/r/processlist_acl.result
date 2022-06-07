@@ -75,47 +75,47 @@ Warnings:
 Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
 
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
 Warnings:
 <Id>	1287	<Host>
 
@@ -125,49 +125,49 @@ Warnings:
 Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	1287	<Host>
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
 Warnings:
 
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
 Warnings:
 <Id>	1287	<Host>
 
@@ -183,29 +183,29 @@ Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be r
 # Connection con_none_1
 
 SHOW FULL PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
 
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
 Warnings:
 <Id>	1287	<Host>
 
@@ -224,31 +224,31 @@ Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be r
 # Connection con_none_1
 
 SHOW FULL PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	1287	<Host>
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
 Warnings:
 
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
 Warnings:
 <Id>	1287	<Host>
 

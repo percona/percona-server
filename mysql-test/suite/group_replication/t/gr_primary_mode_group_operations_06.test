@@ -177,6 +177,7 @@ SET @@SESSION.group_replication_consistency= 'EVENTUAL';
 --source include/connection.inc
 
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 
 --let $rpl_connection_name= server_1_1
@@ -192,6 +193,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 --source include/connection.inc
 
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 
 --let $rpl_connection_name= server_2_1

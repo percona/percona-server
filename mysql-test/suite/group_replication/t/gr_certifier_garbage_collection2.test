@@ -127,6 +127,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
 --source include/connection.inc
 INSERT INTO t1 VALUE(2, 2);
 --source include/rpl/sync.inc
+SET DEBUG_SYNC='RESET';
 
 --let $expected_gtid_set= $group_replication_group_name:1-5:1000002
 if ($gtid_assignment_block_size == 1)
@@ -143,6 +144,8 @@ if ($gtid_assignment_block_size == 1)
 --let $assert_text= GTID_EXECUTED must contain 6 transactions
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid_set";
 --source include/assert.inc
+
+SET DEBUG_SYNC='RESET';
 
 --let $diff_tables=server1:t1, server2:t1
 --source include/diff_tables.inc

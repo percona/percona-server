@@ -115,6 +115,7 @@ FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end	gtid_tag
 MASTER_UUID	1	11	
+SET DEBUG_SYNC= 'RESET';
 SET GLOBAL DEBUG= @debug_save;
 include/rpl/sync_to_replica.inc
 #

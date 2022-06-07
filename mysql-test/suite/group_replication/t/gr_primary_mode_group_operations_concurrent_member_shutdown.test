@@ -43,6 +43,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --echo # 2. Unblock the action
 
 SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+SET DEBUG_SYNC= "RESET";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 
 --echo

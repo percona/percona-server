@@ -712,7 +712,11 @@ drop table t1, t2, t3;
 
 create table t1 (a int);
 --error 2
---exec $MYSQL_DUMP --skip-comments --force test t1 --where="xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 2>&1
+--exec $MYSQL_DUMP --skip-comments --force test t1 --where="xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 2> $MYSQLTEST_VARDIR/tmp/bug21288.err > $MYSQLTEST_VARDIR/tmp/bug21288.sql
+--cat_file $MYSQLTEST_VARDIR/tmp/bug21288.err
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21288.err
+--cat_file $MYSQLTEST_VARDIR/tmp/bug21288.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21288.sql
 drop table t1;
 
 

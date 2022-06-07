@@ -364,7 +364,7 @@ count(*)
 1000
 SHOW STATUS LIKE 'Handler_write';
 Variable_name	Value
-Handler_write	1021
+Handler_write	1011
 FLUSH STATUS;
 SELECT count(*)
 FROM t1 JOIN (

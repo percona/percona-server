@@ -11,6 +11,8 @@
 --source include/have_debug.inc
 --source include/have_ipv6.inc
 
+call mtr.add_suppression("Too many connections");
+
 # Enforce a clean state
 --source ../include/wait_for_pfs_thread_count.inc
 --source ../include/hostcache_set_state.inc

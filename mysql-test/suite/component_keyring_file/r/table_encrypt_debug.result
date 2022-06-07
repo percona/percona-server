@@ -18,7 +18,7 @@ ALTER TABLESPACE mysql ENCRYPTION='Y';
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 SET debug='-d,skip_dd_table_access_check';
 #
 # Test crash point `ib_crash_during_rotation_for_encryption`
@@ -28,7 +28,7 @@ CREATE TABLE tde_db.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 tde_db/t1	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 SHOW CREATE TABLE tde_db.t1;
@@ -50,7 +50,7 @@ Pattern "ib_encryption_rotate_crash" found
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 tde_db/t1	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
 INSERT INTO tde_db.t1 VALUES(4, "eeeee");
@@ -72,7 +72,7 @@ t2	CREATE TABLE `t2` (
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 tde_db/t1	autoextend_size=0;encryption=Y;
 tde_db/t2	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
@@ -90,7 +90,7 @@ Pattern "ib_encryption_rotate_crash" found
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 tde_db/t1	autoextend_size=0;encryption=Y;
 tde_db/t2	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';
@@ -121,7 +121,7 @@ c1	c2
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 tde_db/t1	autoextend_size=0;encryption=Y;
 tde_db/t2	autoextend_size=0;encryption=Y;
 SET debug='-d,skip_dd_table_access_check';

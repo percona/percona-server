@@ -1,0 +1,15 @@
+# Bug 76946. The updatable property of a view is set during view creation.
+# If the underlying table was dropped and re-created as a nonupdatable one,
+# the updatable property of the original view was not revised
+# accordingly. This could cause a server exit for attempts to insert or
+# replace into the view is made. (This problem was specific to views
+# with multiple tables/views and did not occur with update statements.)
+
+CREATE TABLE t1(a INT KEY) ENGINE=innodb ROW_FORMAT=compressed;
+CREATE VIEW v1 AS SELECT t1a.* FROM t1,t1 AS t1a;
+DROP TABLE t1;
+CREATE VIEW t1 AS SELECT 1 AS a;
+--error ER_NON_INSERTABLE_TABLE
+REPLACE v1 SET a=10;
+DROP VIEW t1;
+DROP VIEW v1;

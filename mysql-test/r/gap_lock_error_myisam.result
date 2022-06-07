@@ -1,0 +1,16 @@
+CREATE TABLE gap1 (id1 INT, id2 INT, id3 INT, c1 INT, value INT,
+PRIMARY KEY (id1, id2, id3),
+INDEX i (c1)) ENGINE=myisam;
+CREATE TABLE gap2 like gap1;
+CREATE TABLE gap3 (id INT, value INT,
+PRIMARY KEY (id),
+UNIQUE KEY ui(value)) ENGINE=myisam;
+insert into gap3 values (1,1), (2,2),(3,3),(4,4),(5,5);
+select sum(value) from gap1;
+sum(value)
+500500
+update gap1 set gap1.value= (select count(*) from gap2);
+select sum(value) from gap1;
+sum(value)
+1000000
+drop table gap1, gap2, gap3;

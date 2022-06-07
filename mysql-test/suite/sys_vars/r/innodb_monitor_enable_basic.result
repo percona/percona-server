@@ -43,6 +43,7 @@ buffer_pool_pages_free	disabled
 buffer_pages_created	disabled
 buffer_pages_written	disabled
 buffer_pages_read	disabled
+buffer_pages0_read	disabled
 buffer_data_reads	disabled
 buffer_data_written	disabled
 buffer_flush_batch_scanned	disabled
@@ -207,6 +208,7 @@ log_writer_waits	disabled
 log_writer_wait_loops	disabled
 log_writer_on_file_space_waits	disabled
 log_writer_on_archiver_waits	disabled
+log_writer_on_tracker_waits	disabled
 log_flusher_no_waits	disabled
 log_flusher_waits	disabled
 log_flusher_wait_loops	disabled

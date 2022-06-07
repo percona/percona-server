@@ -1,0 +1,48 @@
+SET SESSION expand_fast_index_creation=ON;
+CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX(a));
+call mtr.add_suppression("does not exist in the InnoDB internal");
+SET debug="+d,crash_innodb_add_index_after";
+ALTER TABLE t1 ADD INDEX (b);
+ERROR HY000: Lost connection to MySQL server during query
+SELECT NAME, FLAG FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME != 'mysql/ndb_binlog_index' ORDER BY NAME;
+NAME	FLAG
+mtr/asserted_test_suppressions	33
+mtr/global_suppressions	33
+mtr/test_ignored_global_suppressions	33
+mtr/test_suppressions	33
+mysql/columns_priv	161
+mysql/component	161
+mysql/compression_dictionary	161
+mysql/compression_dictionary_cols	161
+mysql/db	161
+mysql/default_roles	161
+mysql/engine_cost	161
+mysql/func	161
+mysql/global_grants	161
+mysql/gtid_executed	161
+mysql/help_category	161
+mysql/help_keyword	161
+mysql/help_relation	161
+mysql/help_topic	161
+mysql/password_history	161
+mysql/plugin	161
+mysql/procs_priv	161
+mysql/proxies_priv	161
+mysql/replication_asynchronous_connection_failover	161
+mysql/replication_asynchronous_connection_failover_managed	161
+mysql/replication_group_configuration_version	161
+mysql/replication_group_member_actions	161
+mysql/role_edges	161
+mysql/servers	161
+mysql/server_cost	161
+mysql/slave_master_info	161
+mysql/slave_relay_log_info	161
+mysql/slave_worker_info	161
+mysql/tables_priv	161
+mysql/time_zone	161
+mysql/time_zone_leap_second	161
+mysql/time_zone_name	161
+mysql/time_zone_transition	161
+mysql/time_zone_transition_type	161
+mysql/user	161
+sys/sys_config	33

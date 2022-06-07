@@ -1,0 +1,27 @@
+#
+# Test that --secure-file-priv=/ effectively disables security checks
+#
+SHOW VARIABLES LIKE 'secure_file_priv';
+Variable_name	Value
+secure_file_priv	
+CREATE TABLE t1 (c1 VARCHAR(50));
+INSERT INTO t1 VALUES ("one"),("two"),("three"),("four"),("five");
+SELECT * FROM t1 INTO OUTFILE '/tmp/percona_secure_file_priv_insecure.txt';
+TRUNCATE TABLE t1;
+LOAD DATA INFILE '/tmp/percona_secure_file_priv_insecure.txt' INTO TABLE t1 FIELDS TERMINATED BY ',';
+SELECT * FROM t1;
+c1
+one
+two
+three
+four
+five
+DROP TABLE t1;
+SELECT LOAD_FILE('/tmp/percona_secure_file_priv_insecure.txt') AS c;
+c
+one
+two
+three
+four
+five
+

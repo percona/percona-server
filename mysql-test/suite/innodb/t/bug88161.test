@@ -1,0 +1,7 @@
+--echo #
+--echo # [ERROR] InnoDB: Assertion failure: row0mysql.cc:4430:0
+--echo #
+CREATE TABLE t1(a int,b text,KEY (a)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+LOCK TABLES t1 WRITE,t1 b READ;
+TRUNCATE TABLE t1;
+DROP TABLE t1;

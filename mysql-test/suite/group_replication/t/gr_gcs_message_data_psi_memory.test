@@ -93,6 +93,8 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_co
 
 DROP TABLE t1;
 
+SET DEBUG_SYNC= "RESET";
+
 
 --echo
 --echo ############################################################

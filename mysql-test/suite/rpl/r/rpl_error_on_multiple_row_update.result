@@ -30,9 +30,9 @@ COMMIT;
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 include/diff_tables.inc [master:test.t2, slave:test.t2]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	HASH_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 SET GLOBAL slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.

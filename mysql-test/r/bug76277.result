@@ -1,0 +1,13 @@
+CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), c CHAR(254)) ENGINE=MEMORY;
+CREATE VIEW t1 AS SELECT a FROM t2;
+LOCK TABLES t1 WRITE, t1 AS t0 WRITE, t1 AS t2 READ;
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2) INSERT_METHOD=LAST;
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'test.t1' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	status	Operation failed
+UNLOCK TABLES;
+DROP TABLE t2;
+DROP VIEW t1;

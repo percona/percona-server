@@ -1,0 +1,83 @@
+#
+# Test that slow_query_log_always_write_time has an effect
+#
+
+--source include/have_debug.inc
+
+# Force deterministic session and query ids
+--source include/restart_mysqld.inc
+
+SET @old_long_query_time=@@global.long_query_time;
+SET @old_log_slow_rate_type=@@global.log_slow_rate_type;
+SET @old_log_slow_rate_limit=@@global.log_slow_rate_limit;
+SET @old_slow_query_log_always_write_time=@@global.slow_query_log_always_write_time;
+
+# Force deterministic random pattern of slow log filter for new connections
+SET @old_debug=@@global.debug;
+SET GLOBAL debug="+d,seed_slow_log_random";
+
+SET GLOBAL log_slow_rate_type='session';
+SET GLOBAL long_query_time=10.0;
+SET GLOBAL log_slow_rate_limit=999;
+SET GLOBAL slow_query_log_always_write_time=17.0;
+
+--source include/count_sessions.inc
+--connect (connection_one,localhost,root,,)
+
+--let log_file=percona.slow_extended.log_slow_always_write_time_1
+--source include/log_start.inc
+
+SET SESSION query_exec_time=20.0;
+SELECT 'this-should-be-logged';
+
+SET SESSION query_exec_time=12.0;
+SELECT 'this-should-not-be-logged';
+
+--source include/log_stop.inc
+--connection default
+--disconnect connection_one
+
+--source include/wait_until_count_sessions.inc
+
+--let grep_pattern= this-should-be-logged
+--source include/log_grep.inc
+
+--let grep_pattern= this-should-not-be-logged
+--source include/log_grep.inc
+
+# test query
+SET GLOBAL log_slow_rate_type='query';
+
+--source include/count_sessions.inc
+--connect (connection_one,localhost,root,,)
+
+--let log_file=percona.slow_extended.log_slow_always_write_time_2
+--source include/log_start.inc
+
+SET SESSION query_exec_time=20.0;
+SELECT 'this-should-be-logged';
+
+SET SESSION query_exec_time=12.0;
+SELECT 'this-should-not-be-logged';
+
+--source include/log_stop.inc
+--connection default
+--disconnect connection_one
+
+--source include/wait_until_count_sessions.inc
+
+--let grep_pattern= this-should-be-logged
+--source include/log_grep.inc
+
+--let grep_pattern= this-should-not-be-logged
+--source include/log_grep.inc
+
+# off the rate limit
+SET GLOBAL debug=@old_debug;
+SET GLOBAL long_query_time=@old_long_query_time;
+SET GLOBAL log_slow_rate_type=@old_log_slow_rate_type;
+SET GLOBAL log_slow_rate_limit=@old_log_slow_rate_limit;
+SET GLOBAL slow_query_log_always_write_time=@old_slow_query_log_always_write_time;
+
+SET GLOBAL long_query_time=default;
+--source include/log_cleanup.inc

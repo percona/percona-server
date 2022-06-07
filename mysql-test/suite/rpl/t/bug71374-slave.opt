@@ -1,0 +1,1 @@
+--log-error=$MYSQL_TMP_DIR/rpl_bug71374.mysqld.2.err

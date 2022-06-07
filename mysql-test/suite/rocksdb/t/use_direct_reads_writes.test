@@ -1,0 +1,31 @@
+--source include/have_rocksdb.inc
+
+# Issue221
+# Turning on both --rocksdb-allow-mmap-reads and --rocksdb-use-direct-reads
+# caused an assertion in RocksDB.  Now it should not be allowed and the
+# plugin will not initialize with that configuration
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.use_direct_reads_writes.err
+
+# Expect MyRocks to fail to initialize with invalid combination of arguments
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE --rocksdb_use_direct_reads=1 --rocksdb_allow_mmap_reads=1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+# We should now have an error message
+--let SEARCH_PATTERN=enable both use_direct_reads
+--source include/search_pattern.inc
+
+# Repeat with --rocksdb-use-direct-writes
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE --rocksdb_use_direct_io_for_flush_and_compaction=1 --rocksdb_allow_mmap_writes=1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+# We should now have an error message
+--let SEARCH_PATTERN=enable both use_direct_io_for_flush_and_compaction
+--source include/search_pattern.inc
+
+# cleanup
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+--remove_file $SEARCH_FILE

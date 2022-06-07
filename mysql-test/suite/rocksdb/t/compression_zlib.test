@@ -1,0 +1,2 @@
+--source include/have_rocksdb.inc
+--source suite/rocksdb/include/compression.inc

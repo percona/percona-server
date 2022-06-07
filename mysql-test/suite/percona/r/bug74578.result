@@ -1,0 +1,6 @@
+SET collation_connection=utf32_unicode_ci;
+PREPARE stmt FROM 'SELECT ?=?';
+SET @user_id='';
+EXECUTE stmt USING @user_id, @id;
+?=?
+NULL

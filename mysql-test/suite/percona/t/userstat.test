@@ -1,0 +1,158 @@
+--source include/count_sessions.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1; 
+--enable_warnings
+
+# Test that FLUSH works with userstat disabled
+SET GLOBAL userstat=OFF;
+
+FLUSH CLIENT_STATISTICS;
+FLUSH INDEX_STATISTICS;
+FLUSH TABLE_STATISTICS;
+FLUSH THREAD_STATISTICS;
+FLUSH USER_STATISTICS;
+
+# Test FLUSH with non-SUPER users
+CREATE USER mysqltest_1@localhost;
+GRANT RELOAD ON *.* TO mysqltest_1@localhost;
+
+connect (conn1,localhost,mysqltest_1,,);
+--echo conn1 by mysqltest_1
+FLUSH CLIENT_STATISTICS;
+# Bug 1472251: mixup of FLUSH INDEX_STATISTICS and CHANGED_PAGE_BITMAPS
+# requires SUPER for the former
+FLUSH INDEX_STATISTICS;
+FLUSH TABLE_STATISTICS;
+FLUSH THREAD_STATISTICS;
+FLUSH USER_STATISTICS;
+disconnect conn1;
+
+--echo default connection
+connection default;
+
+DROP USER mysqltest_1@localhost;
+
+# Make sure that auxiliary connection "conn1" (initiated by the user
+# "mysqltest_1") is closed and therefore will not add another record
+# to the staistics tables
+--source include/wait_until_count_sessions.inc
+
+# Test that I_S and SHOW queries work with userstat disabled
+SELECT * FROM INFORMATION_SCHEMA.CLIENT_STATISTICS;
+SELECT * FROM INFORMATION_SCHEMA.INDEX_STATISTICS;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS;
+SELECT * FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
+SELECT * FROM INFORMATION_SCHEMA.USER_STATISTICS;
+
+SHOW CLIENT_STATISTICS;
+SHOW INDEX_STATISTICS;
+SHOW TABLE_STATISTICS;
+SHOW THREAD_STATISTICS;
+SHOW USER_STATISTICS;
+
+SET @userstat_old= @@userstat;
+SET GLOBAL userstat=ON;
+SET @thread_statistics_old= @@thread_statistics;
+SET GLOBAL thread_statistics=ON;
+
+# Test that statistics start at empty state
+
+--replace_column 4 CONNECTED_TIME 5 BUSY_TIME 6 CPU_TIME
+SELECT * FROM INFORMATION_SCHEMA.CLIENT_STATISTICS;
+SELECT * FROM INFORMATION_SCHEMA.INDEX_STATISTICS;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS;
+--replace_column 1 THREAD_ID 3 CONNECTED_TIME 4 BUSY_TIME 5 CPU_TIME
+SELECT * FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
+--replace_column 4 CONNECTED_TIME 5 BUSY_TIME 6 CPU_TIME
+SELECT * FROM INFORMATION_SCHEMA.USER_STATISTICS;
+
+--replace_column 4 CONNECTED_TIME 5 BUSY_TIME 6 CPU_TIME
+SHOW CLIENT_STATISTICS;
+SHOW INDEX_STATISTICS;
+SHOW TABLE_STATISTICS;
+--replace_column 1 THREAD_ID 3 CONNECTED_TIME 4 BUSY_TIME 5 CPU_TIME
+SHOW THREAD_STATISTICS;
+--replace_column 4 CONNECTED_TIME 5 BUSY_TIME 6 CPU_TIME
+SHOW USER_STATISTICS;
+
+SET GLOBAL thread_statistics= @thread_statistics_old;
+
+# Bug 1510953 ("SHOW ..." statements update "Rows_fetched" value in "information_schema.user_statistics")
+
+# Capture initial "USER_STATISTICS" values
+# statement (1)
+SELECT
+  Select_commands, Update_commands, Other_commands, Rows_fetched
+INTO
+  @initial_select_commands, @initial_update_commands, @initial_other_commands, @initial_rows_fetched
+FROM
+  INFORMATION_SCHEMA.USER_STATISTICS
+;
+
+# Because of (1) "Select_commands" must increase by 1, "Rows_fetched" must mot
+# change ("SELECT INTO" is executed purely on the server and did not return any
+# data)
+# statement (2)
+SELECT
+  Select_commands = @initial_select_commands + 1 AS select_must_be_true_2,
+  Update_commands = @initial_update_commands     AS update_must_be_true_2,
+  Other_commands  = @initial_other_commands      AS other_must_be_true_2,
+  Rows_fetched    = @initial_rows_fetched        AS rows_must_be_true_2
+FROM
+  INFORMATION_SCHEMA.USER_STATISTICS
+;
+
+# Simple "SELECT" statement with 1 row output
+# statement (3)
+SELECT 'something';
+
+# Because of (2) "Select_commands" must increase by 1, "Rows_fetched" by 1
+# Because of (3) "Select_commands" must increase by 1, "Rows_fetched" by 1
+# statement (4)
+SELECT
+  Select_commands = @initial_select_commands + 3 AS select_must_be_true_4,
+  Update_commands = @initial_update_commands     AS update_must_be_true_4,
+  Other_commands  = @initial_other_commands      AS other_must_be_true_4,
+  Rows_fetched    = @initial_rows_fetched    + 2 AS rows_must_be_true_4
+FROM
+  INFORMATION_SCHEMA.USER_STATISTICS
+;
+
+# Simple "SHOW ..." statement with 1 row output
+# statement (5)
+SHOW VARIABLES LIKE 'userstat';
+
+# Because of (4) "Select_commands" must increase by 1, "Rows_fetched" by 1
+# Because of (5) "Select_commands" must not change, "Other_commands" must 
+# increase by 1, "Rows_fetched" must not change
+# statement (6)
+SELECT
+  Select_commands = @initial_select_commands + 4 AS select_must_be_true_6,
+  Update_commands = @initial_update_commands     AS update_must_be_true_6,
+  Other_commands  = @initial_other_commands  + 1 AS other_must_be_true_6,
+  Rows_fetched    = @initial_rows_fetched    + 3 AS rows_must_be_true_6
+FROM
+  INFORMATION_SCHEMA.USER_STATISTICS
+;
+
+--echo # Bug lp:1659992 "Function over userstat tables cause mysql to crash"
+
+delimiter |;
+CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET utf8 DETERMINISTIC SQL SECURITY INVOKER
+BEGIN
+  DECLARE var_value VARCHAR(1024);
+  SELECT v.variable_value FROM performance_schema.global_variables v WHERE v.variable_name = in_name INTO var_value;
+  RETURN var_value;
+END|
+delimiter ;|
+
+--disable_result_log
+SELECT *
+  FROM INFORMATION_SCHEMA.TABLE_STATISTICS s
+  WHERE utility_get_global_variable('userstat') = 'ON';
+--enable_result_log
+
+DROP FUNCTION utility_get_global_variable;
+
+SET GLOBAL userstat= @userstat_old;

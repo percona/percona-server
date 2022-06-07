@@ -1,0 +1,90 @@
+CREATE TABLE t1(a CHAR(255),
+b CHAR(255),
+c CHAR(255),
+d CHAR(255),
+id INT AUTO_INCREMENT,
+PRIMARY KEY(id));
+create table t2 like t1;
+create procedure setcrash(IN i INT)
+begin
+CASE i
+WHEN 1 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 2 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 3 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 4 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
+WHEN 3 THEN SET SESSION debug="d,crash_before_writing_xid";
+WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
+WHEN 5 THEN SET SESSION debug="d,crash_commit_before";
+ELSE BEGIN END;
+END CASE;
+end //
+FLUSH TABLES;
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+RESET BINARY LOGS AND GTIDS;
+START TRANSACTION;
+insert into t1 select * from t2;
+call setcrash(5);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET BINARY LOGS AND GTIDS;
+START TRANSACTION;
+insert into t1 select * from t2;
+call setcrash(4);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET BINARY LOGS AND GTIDS;
+START TRANSACTION;
+insert into t1 select * from t2;
+call setcrash(3);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET BINARY LOGS AND GTIDS;
+START TRANSACTION;
+insert into t1 select * from t2;
+call setcrash(2);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET BINARY LOGS AND GTIDS;
+START TRANSACTION;
+insert into t1 select * from t2;
+call setcrash(1);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE setcrash;

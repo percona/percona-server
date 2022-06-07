@@ -1,0 +1,132 @@
+SET @binlog_format_saved = @@global.binlog_format;
+SET GLOBAL binlog_format='ROW';
+SET SESSION binlog_format='ROW';
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1), (2);
+DELETE FROM t1 WHERE a = 1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE universal_seq (seq INT) ENGINE=InnoDB;
+INSERT INTO universal_seq VALUES
+(0),  (1),  (2),  (3),  (4),  (5),  (6),  (7),  (8),  (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19),
+(20), (21), (22), (23), (24), (25), (26), (27), (28), (29),
+(30), (31), (32), (33), (34), (35), (36), (37), (38), (39),
+(40);
+CREATE TABLE seq_0_to_26  (seq INT) ENGINE=InnoDB;
+INSERT INTO  seq_0_to_26  SELECT seq FROM universal_seq WHERE seq <= 26 ORDER BY seq;
+CREATE TABLE seq_0_to_9   (seq INT) ENGINE=InnoDB;
+INSERT INTO  seq_0_to_9   SELECT seq FROM universal_seq WHERE seq <=  9 ORDER BY seq;
+CREATE TABLE seq_1_to_15  (seq INT) ENGINE=InnoDB;
+INSERT INTO  seq_1_to_15  SELECT seq FROM universal_seq WHERE seq <= 15 AND seq >=  1 ORDER BY seq;
+CREATE TABLE seq_1_to_8   (seq INT) ENGINE=InnoDB;
+INSERT INTO  seq_1_to_8   SELECT seq FROM universal_seq WHERE seq <=  8 AND seq >=  1 ORDER BY seq;
+CREATE TABLE seq_16_to_30 (seq INT) ENGINE=InnoDB;
+INSERT INTO  seq_16_to_30 SELECT seq FROM universal_seq WHERE seq <= 30 AND seq >= 16 ORDER BY seq;
+CREATE TABLE seq_31_to_40 (seq INT) ENGINE=InnoDB;
+INSERT INTO  seq_31_to_40 SELECT seq FROM universal_seq WHERE seq <= 40 AND seq >= 31 ORDER BY seq;
+CREATE TABLE t1(v VARCHAR(10), c CHAR(10), t TEXT, KEY(v), KEY(c), KEY(t(10))) CHARACTER SET=latin1;
+INSERT INTO t1(v) SELECT CONCAT(CHAR(ASCII('a') + s2.seq), REPEAT(' ', s1.seq))
+FROM seq_0_to_9 AS s1, seq_0_to_26 AS s2;
+UPDATE t1 SET c = v, t = v;
+SELECT sql_big_result t, COUNT(t) FROM t1 GROUP BY t LIMIT 10;
+t	COUNT(t)
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
+j         	10
+DROP TABLE t1;
+RESET MASTER;
+SET @saved_binlog_cache_size = @@global.binlog_cache_size;
+SET GLOBAL binlog_cache_size = 8192;
+CREATE TABLE t1 (a TEXT) ENGINE=InnoDB;
+START TRANSACTION;
+INSERT t1 SELECT REPEAT(seq, 1000) FROM seq_1_to_15;
+COMMIT;
+START TRANSACTION;
+INSERT t1 SELECT REPEAT(seq, 1000) FROM seq_1_to_8;
+COMMIT;
+CREATE TABLE t2 (a TEXT) ENGINE=InnoDB;
+START TRANSACTION;
+INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_1_to_15;
+SAVEPOINT foo;
+INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_16_to_30;
+ROLLBACK TO SAVEPOINT foo;
+INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_31_to_40;
+COMMIT;
+SHOW BINLOG EVENTS;
+FLUSH BINARY LOGS;
+DROP TABLE t1, t2;
+SET GLOBAL binlog_cache_size = @saved_binlog_cache_size;
+SELECT LEFT(a, 10) FROM t1;
+LEFT(a, 10)
+1111111111
+2222222222
+3333333333
+4444444444
+5555555555
+6666666666
+7777777777
+8888888888
+9999999999
+1010101010
+1111111111
+1212121212
+1313131313
+1414141414
+1515151515
+1111111111
+2222222222
+3333333333
+4444444444
+5555555555
+6666666666
+7777777777
+8888888888
+SELECT LEFT(a, 10) FROM t2;
+LEFT(a, 10)
+1111111111
+2222222222
+3333333333
+4444444444
+5555555555
+6666666666
+7777777777
+8888888888
+9999999999
+1010101010
+1111111111
+1212121212
+1313131313
+1414141414
+1515151515
+3131313131
+3232323232
+3333333333
+3434343434
+3535353535
+3636363636
+3737373737
+3838383838
+3939393939
+4040404040
+DROP TABLE t1, t2;
+DROP TABLE seq_31_to_40;
+DROP TABLE seq_16_to_30;
+DROP TABLE seq_1_to_8;
+DROP TABLE seq_1_to_15;
+DROP TABLE seq_0_to_9;
+DROP TABLE seq_0_to_26;
+DROP TABLE universal_seq;
+SET GLOBAL binlog_format = @binlog_format_saved;

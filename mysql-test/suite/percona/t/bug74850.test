@@ -1,0 +1,11 @@
+# Testcase for MySQL bug 74850: GRANT .. WITH GRANT OPTION may cause a crash
+# in following prepared statement execution involving views.
+CREATE VIEW t1 AS SELECT 1 AS ID;
+PREPARE stmt FROM "CREATE VIEW v1 AS SELECT * FROM `t1` `b`";
+CREATE USER _3@localhost;
+GRANT ALL PRIVILEGES on `%`.* TO _3@localhost WITH GRANT OPTION;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP VIEW t1, v1;
+DROP USER _3@localhost;

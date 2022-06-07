@@ -30,6 +30,7 @@ Mysqlx.Sql.StmtExecute {
 -->setsession con2
 
 -->sql
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
 SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL xxxx_new';
 -->endsql
 

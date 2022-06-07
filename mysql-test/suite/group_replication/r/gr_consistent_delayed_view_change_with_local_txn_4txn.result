@@ -96,10 +96,12 @@ CREATE TABLE test.t4 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 [connection server2]
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
 
 ############################################################
 # 11. Check members state on server1.
 [connection server1]
+SET DEBUG_SYNC= 'RESET';
 [connection server_1_1]
 [connection server_1_2]
 [connection server_1_3]

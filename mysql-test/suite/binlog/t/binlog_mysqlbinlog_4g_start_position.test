@@ -33,7 +33,8 @@
 ###############################################################################
 
 # Bug #34847851	
---source include/not_windows.inc 
+--source include/not_windows.inc
+--source include/not_asan.inc
 --source include/big_test.inc
 --source include/have_binlog_format_row.inc
 

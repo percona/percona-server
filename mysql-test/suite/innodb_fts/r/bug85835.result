@@ -1,0 +1,23 @@
+#
+# Bug 85835: FTS LIMIT processing crashes, returns wrong query results
+#
+CREATE TABLE t1 ( 
+FTS_DOC_ID BIGINT UNSIGNED NOT NULL PRIMARY KEY, 
+contents TEXT COLLATE utf8mb4_bin, 
+FULLTEXT KEY fx_contents (contents) WITH PARSER ngram 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+INSERT INTO t1 VALUES (1, 'xyz mnt'), (2, 'xyz mnt'), (3, 'xyz');
+SELECT * FROM t1 WHERE MATCH(contents) AGAINST ('xyz' IN BOOLEAN MODE);
+FTS_DOC_ID	contents
+1	xyz mnt
+2	xyz mnt
+3	xyz
+SELECT * FROM t1 WHERE MATCH(contents) AGAINST ('xyz' IN BOOLEAN MODE) LIMIT 1;
+FTS_DOC_ID	contents
+1	xyz mnt
+SELECT * FROM t1 WHERE MATCH(contents) AGAINST ('xyz mnt' IN BOOLEAN MODE) LIMIT 5;
+FTS_DOC_ID	contents
+1	xyz mnt
+2	xyz mnt
+3	xyz
+DROP TABLE t1;

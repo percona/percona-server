@@ -58,7 +58,7 @@ COMMIT;
 --let diff_tables=master:test.t2, slave:test.t2
 --source include/diff_tables.inc
 
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 
 # 6. Cleanup.
 --source include/rpl/connection_source.inc

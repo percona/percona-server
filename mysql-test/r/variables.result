@@ -597,6 +597,7 @@ set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 set transaction_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_error_verbosity=2;
@@ -1764,8 +1765,13 @@ show variables like 'log_slow%';
 Variable_name	Value
 log_slow_admin_statements	OFF
 log_slow_extra	OFF
+log_slow_filter	
+log_slow_rate_limit	1
+log_slow_rate_type	session
 log_slow_replica_statements	OFF
 log_slow_slave_statements	OFF
+log_slow_sp_statements	ON
+log_slow_verbosity	
 set global log_slow_admin_statements = on;
 show global variables like 'log_slow_admin_statements';
 Variable_name	Value

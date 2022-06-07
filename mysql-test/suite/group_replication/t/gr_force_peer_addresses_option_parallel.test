@@ -75,6 +75,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo #    server1 again, it will succeed.
 --let $rpl_connection_name= server1
 --source include/connection.inc
+SET DEBUG_SYNC='RESET';
 SET GLOBAL group_replication_force_members= "";
 
 --let $assert_text= group_replication_force_members is empty

@@ -4,7 +4,8 @@
 #
 # The variable
 #     $engine_type       -- storage engine to be tested
-# has to be set before sourcing this script.
+#     $eval_before_analyze -- statement to execute before any analyze table
+# have to be set before sourcing this script.
 #
 # Note: The comments/expectations refer to InnoDB.
 #       They might be not valid for other storage engines.
@@ -70,6 +71,10 @@ set autocommit=1;
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -165,6 +170,10 @@ WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 analyze table t2;
 -- enable_result_log
@@ -326,11 +335,17 @@ INSERT INTO t2 VALUES
 
 
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 analyze table t2;
 -- enable_result_log
 
 --disable_warnings
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
 EXPLAIN UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
   SELECT col_int_key, col_int_key
@@ -339,6 +354,7 @@ WHERE (col_varchar_key, col_varchar_nokey) IN (
     (0, 'a', 'm'), (0, 'n', 7)
   )
 );
+}
 
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (

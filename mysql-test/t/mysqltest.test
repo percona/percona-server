@@ -3037,12 +3037,26 @@ disconnect $x;
 disconnect $y;
 --echo $CURRENT_CONNECTION
 
-
---echo End of tests
-
 connection default;
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Test that a query failed with ER_NO_SUCH_THREAD causes mysqltest to dump the processlist before dying
+--echo #
+--replace_regex /Id[[:space:]]+[0-9]+/Id MASKED/ /Time[[:space:]]+[0-9]+/Time MASKED/
+--error 1
+--exec echo "KILL QUERY 276447231;" | $MYSQL_TEST 2>&1
+
+--echo # PROCESSLIST should not be dumped if error was expected
+--exec echo "error ER_NO_SUCH_THREAD; KILL QUERY 276447231;" | $MYSQL_TEST 2>&1
+
+--echo # PROCESSLIST should be dumped if a different error was expected
+--replace_regex /Id[[:space:]]+[0-9]+/Id MASKED/ /Time[[:space:]]+[0-9]+/Time MASKED/
+--error 1
+--exec echo "error ER_PARSE_ERROR; KILL QUERY 276447231;" | $MYSQL_TEST 2>&1
+
+--echo End of tests
 
 # To test \r\n in cat_file
 --cat_file std_data/cat_file.txt

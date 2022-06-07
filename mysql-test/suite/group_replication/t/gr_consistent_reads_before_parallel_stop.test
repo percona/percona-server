@@ -68,6 +68,7 @@ SELECT * FROM t1;
 --echo # 04. Resume the plugin stop.
 --let $rpl_connection_name= server_1_1
 --source include/connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
 SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 

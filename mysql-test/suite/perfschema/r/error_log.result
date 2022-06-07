@@ -97,6 +97,7 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-015015	Server
+Warning	MY-010097	Server
 System	MY-010116	Server
 Warning	MY-010075	Server
 System	MY-013576	InnoDB
@@ -164,6 +165,7 @@ AND prio!="Note"
 "MY-010099", "MY-011070")
 ORDER BY logged;
 prio	error_code	subsystem	data
+Warning	MY-010097	Server	Insecure configuration for --secure-log-path: Current value does not restrict location of generated files. Consider setting it to a valid, non-empty path.
 System	MY-013576	InnoDB	InnoDB initialization has started.
 System	MY-013577	InnoDB	InnoDB initialization has ended.
 

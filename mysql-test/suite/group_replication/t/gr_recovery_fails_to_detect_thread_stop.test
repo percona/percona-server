@@ -100,6 +100,7 @@ SET @@GLOBAL.group_replication_recovery_retry_count= @saved_retry_count;
 
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
 SET SESSION sql_log_bin= 1;
 
 --echo

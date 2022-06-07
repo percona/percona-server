@@ -25,6 +25,10 @@ USE mtr;
 # irrespective of server --autocommit setting.
 SET SESSION TRANSACTION READ WRITE;
 
+# Allow super to write
+SET @original_super_read_only = @@GLOBAL.super_read_only;
+SET GLOBAL super_read_only = 0;
+
 # Due to the lack of WL#7828 / WL#8003 now, we might have a pending
 # Data Dictionary read-only transaction at this point. Even though
 # DD-RO-transactions are usually committed in the end, there are cases
@@ -58,6 +62,9 @@ CALL mtr.check_warnings(@result);
 SET @@use_secondary_engine = @use_secondary_engine_saved;
 
 --enable_query_log
+
+# Restore the original value
+SET @@GLOBAL.super_read_only = @original_super_read_only;
 
 if (`SELECT @result = 0`) {
   --skip OK

@@ -35,6 +35,7 @@ c1
 ############################################################
 # 04. Resume the plugin stop.
 [connection server_1_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
 SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 [connection server_1]

@@ -6,6 +6,7 @@
 --echo ##
 replace_regex /.*mysqlxtest.* Ver .*//,
               /Copyright .{0,4}[0-9, ]+ Oracle/Copyright DATE Oracle/
+              /Copyright \(c\) 2009-20[0-9][0-9] Percona/Copyright DATE Percona/
               /using default file name '.*'/using default file name 'SOCK'/;
 error 1;
 exec $MYSQLXTEST --help  2>&1;

@@ -312,18 +312,21 @@ SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
+SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
+SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server3
 --source include/connection.inc
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
+SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server1
 --source include/connection.inc

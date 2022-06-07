@@ -80,7 +80,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 212'
+rpl_sync_chain= ' 1212'
 [connection server_1]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (4);
@@ -98,7 +98,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 212'
+rpl_sync_chain= ' 1212'
 [connection server_2]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (5);
@@ -116,7 +116,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 212'
+rpl_sync_chain= ' 1212'
 [connection server_1]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (6);
@@ -152,7 +152,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 323 21'
+rpl_sync_chain= ' 2323 21'
 [connection server_3]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (8);
@@ -170,7 +170,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 23123'
+rpl_sync_chain= ' 123123'
 [connection server_3]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (9);
@@ -188,7 +188,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 13213'
+rpl_sync_chain= ' 213213'
 [connection server_3]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (10);
@@ -216,7 +216,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 341234156'
+rpl_sync_chain= ' 2341234156'
 [connection server_1]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (11);
@@ -243,7 +243,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 4563456 312'
+rpl_sync_chain= ' 34563456 312'
 [connection server_4]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (12);
@@ -291,7 +291,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 456 23123'
+rpl_sync_chain= ' 456 123123'
 [connection server_3]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (14);
@@ -331,7 +331,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/impl/generate_sync_chain.inc
-rpl_sync_chain= ' 345123451689 67'
+rpl_sync_chain= ' 2345123451689 67'
 [connection server_2]
 DELETE FROM t1;
 INSERT INTO t1 VALUES (15);

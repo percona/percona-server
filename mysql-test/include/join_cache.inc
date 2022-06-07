@@ -1865,6 +1865,7 @@ FROM t1
 GROUP BY field2
 ORDER BY field1;
 
+--replace_column 10 ROWS
 eval explain $query;
 --sorted_result
 eval $query;

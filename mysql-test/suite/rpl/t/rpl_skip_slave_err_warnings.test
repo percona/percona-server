@@ -7,7 +7,7 @@
 # Setting replica-skip-errors=all on the slave will make mysql slave
 # error log to grow continuously with the following warnings.
 #
-# [Warning] Slave SQL: Could not execute Query event.
+# [Warning] Replica SQL: Could not execute Query event.
 # Detailed error: ;, Error_code: 0
 #
 # Test:

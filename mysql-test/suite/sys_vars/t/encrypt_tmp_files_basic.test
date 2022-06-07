@@ -1,0 +1,24 @@
+#
+# show the global and session values;
+#
+SELECT @@global.encrypt_tmp_files;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.encrypt_tmp_files;
+SELECT @@encrypt_tmp_files;
+
+SHOW GLOBAL VARIABLES LIKE 'encrypt_tmp_files';
+SHOW SESSION VARIABLES LIKE 'encrypt_tmp_files';
+SHOW VARIABLES LIKE 'encrypt_tmp_files';
+
+SELECT * FROM performance_schema.global_variables WHERE variable_name = 'encrypt_tmp_files';
+SELECT * FROM performance_schema.session_variables WHERE variable_name = 'encrypt_tmp_files';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL encrypt_tmp_files = 1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION encrypt_tmp_files = 1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET encrypt_tmp_files = 1;

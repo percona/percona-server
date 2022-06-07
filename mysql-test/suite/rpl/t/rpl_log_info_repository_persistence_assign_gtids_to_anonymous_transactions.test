@@ -191,7 +191,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_tra
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 
 --let $rpl_server_number = 2
---let $rpl_server_parameters = --skip_replica_start  --upgrade=FORCE
+--let $rpl_server_parameters = --skip_replica_start --upgrade=FORCE
 --let $explicit_default_counter = 15000
 --source include/rpl/restart_server.inc
 
@@ -243,7 +243,7 @@ RESET REPLICA;
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl/restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'LOCAL' AND  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = '$server_local_uuid'`
@@ -285,7 +285,7 @@ RESET REPLICA;
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_replica_start
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl/restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID' AND  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`

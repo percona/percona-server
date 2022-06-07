@@ -1,0 +1,17 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE DATABASE db1;
+CREATE TABLE db1.t1a (ID bigint primary key) ENGINE=InnoDB;
+CREATE TABLE db1.t2a (ID bigint NOT NULL AUTO_INCREMENT, DIVISION_ID bigint DEFAULT NULL, PRIMARY KEY (ID), KEY FK_T1A (DIVISION_ID), CONSTRAINT FK_T1A FOREIGN KEY (DIVISION_ID) REFERENCES db1.t1a (ID) ON DELETE CASCADE) ENGINE=InnoDB;
+DROP TABLE IF EXISTS db1.t1a;
+ERROR HY000: Cannot drop table 't1a' referenced by a foreign key constraint 'FK_T1A' on table 't2a'.
+USE db1;
+CREATE TABLE t1b (ID bigint primary key) ENGINE=InnoDB;
+CREATE TABLE t2b (ID bigint NOT NULL AUTO_INCREMENT, DIVISION_ID bigint DEFAULT NULL, PRIMARY KEY (ID), KEY FK_T1B (DIVISION_ID), CONSTRAINT FK_T1B FOREIGN KEY (DIVISION_ID) REFERENCES t1b (ID) ON DELETE CASCADE) ENGINE=InnoDB;
+DROP TABLE IF EXISTS t1b;
+ERROR HY000: Cannot drop table 't1b' referenced by a foreign key constraint 'FK_T1B' on table 't2b'.
+DROP DATABASE db1;
+include/rpl_end.inc

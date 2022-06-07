@@ -1,0 +1,10 @@
+PREPARE s3 FROM 'SHOW TABLES FROM mysqltest2';
+DROP DATABASE test;
+USE mysql;
+EXECUTE s3;
+ERROR 42000: Unknown database 'mysqltest2'
+EXECUTE s3;
+ERROR 42000: Unknown database 'mysqltest2'
+CREATE DATABASE test;
+USE test;
+DEALLOCATE PREPARE s3;

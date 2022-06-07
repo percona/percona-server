@@ -1,0 +1,229 @@
+#
+# PS-8292 : MySQL 8.0.29 fails to perform crash recovery
+#
+# 1. crash after INSTANT DROP COLUMN
+CREATE TABLE `t1` (
+`col1` VARCHAR(10) NOT NULL,
+`col2` char(13),
+`col3` char(10),
+`col4` char(10),
+`col5` char(10),
+`col6` varchar(13),
+PRIMARY KEY (`col1`)
+) ENGINE=InnoDB;
+INSERT INTO t1  VALUES ('4545', '22', '52', '53','54', '56');
+ALTER TABLE t1 DROP COLUMN col2, DROP COLUMN col3, DROP COLUMN col4, DROP COLUMN col5, LOCK=DEFAULT, ALGORITHM=INSTANT;
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=true;
+SET GLOBAL innodb_page_cleaner_disabled_debug=true;
+UPDATE t1 SET col6 = '57' WHERE col1 = '4545';
+# Kill and restart
+SELECT * FROM t1;
+col1	col6
+4545	57
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# 2. add some new data after INSTANT DROP COLUMN and crash
+CREATE TABLE `t1` (
+`col1` VARCHAR(10) NOT NULL,
+`col2` char(13),
+`col3` char(13),
+`col5` char(13),
+`col6` char(13),
+`col8` char(10),
+`col9` char(10),
+PRIMARY KEY (`col1`)
+) ENGINE=InnoDB;
+INSERT INTO t1  VALUES ('1', '22', '33', '55', '66', '88', '99');
+ALTER TABLE t1 ADD COLUMN col4 char(5) AFTER col3, LOCK=DEFAULT, ALGORITHM=INSTANT;
+UPDATE t1 SET col4 = '44' WHERE col1 = '1';
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=true;
+SET GLOBAL innodb_page_cleaner_disabled_debug=true;
+UPDATE t1 SET col4 = '4' WHERE col1 = '1';
+INSERT INTO t1  VALUES ('2', '22', '33', '44', '55', '66', '88', '99');
+# Kill and restart
+SELECT * FROM t1;
+col1	col2	col3	col4	col5	col6	col8	col9
+1	22	33	4	55	66	88	99
+2	22	33	44	55	66	88	99
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# 3. update existing data after INSTANT DROP COLUMN
+CREATE TABLE `t1` (
+`col1` VARCHAR(10) NOT NULL,
+`col2` char(13),
+`col3` char(13),
+`col5` char(13),
+`col6` char(13),
+`col8` char(10),
+`col9` char(10),
+PRIMARY KEY (`col1`)
+) ENGINE=InnoDB;
+INSERT INTO t1  VALUES ('1', '22', '33', '55', '66', '88', '99');
+ALTER TABLE t1 ADD COLUMN col4 char(5) AFTER col3, LOCK=DEFAULT, ALGORITHM=INSTANT;
+UPDATE t1 SET col4 = '44' WHERE col1 = '1';
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=true;
+SET GLOBAL innodb_page_cleaner_disabled_debug=true;
+UPDATE t1 SET col4 = '4' WHERE col1 = '1';
+# Kill and restart
+SELECT * FROM t1;
+col1	col2	col3	col4	col5	col6	col8	col9
+1	22	33	4	55	66	88	99
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# 4. Combine ADD/DROP in single ALTER and update old and new data
+CREATE TABLE `t1` (
+`col1` VARCHAR(10) NOT NULL,
+`col2` char(13),
+`col3` char(13),
+`col5` char(13),
+`col6` char(13),
+`col7` char(13),
+`col8` char(10),
+`col9` char(10),
+PRIMARY KEY (`col1`)
+) ENGINE=InnoDB;
+INSERT INTO t1  VALUES ('1', '22', '33', '55', '66', '77', '88', '99');
+ALTER TABLE t1 ADD COLUMN col4 char(5) AFTER col3, DROP COLUMN col7, LOCK=DEFAULT, ALGORITHM=INSTANT;
+UPDATE t1 SET col4 = '44' WHERE col1 = '1';
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=true;
+SET GLOBAL innodb_page_cleaner_disabled_debug=true;
+UPDATE t1 SET col4 = '4', col6='6', col8='8' WHERE col1 = '1';
+# Kill and restart
+SELECT * FROM t1;
+col1	col2	col3	col4	col5	col6	col8	col9
+1	22	33	4	55	6	8	99
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+#4. instant drop column test, now with secondary indexes
+CREATE TABLE `t1` (
+`col1` VARCHAR(10) NOT NULL,
+`col2` char(13),
+`col3` char(13),
+`col5` char(13),
+`col6` char(13),
+`col8` char(10),
+`col9` char(10),
+PRIMARY KEY (`col1`),
+KEY(`col5`)
+) ENGINE=InnoDB;
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+INSERT INTO t1  VALUES ('1', '22', '33', '55', '66', '88', '99');
+INSERT INTO t1  VALUES ('2', '22', '33', '55', '66', '88', '99');
+INSERT INTO t1  VALUES ('3', '22', '33', '55', '66', '88', '99');
+INSERT INTO t1  VALUES ('4', '22', '33', '55', '66', '88', '99');
+INSERT INTO t1  VALUES ('5', '22', '33', '55', '66', '88', '99');
+ALTER TABLE t1 ADD COLUMN col4 char(5) AFTER col3, LOCK=DEFAULT, ALGORITHM=INSTANT;
+UPDATE t1 SET col4 = '44' WHERE col1 = '1';
+UPDATE t1 SET col4 = '44' WHERE col1 = '2';
+UPDATE t1 SET col4 = '44' WHERE col1 = '3';
+UPDATE t1 SET col4 = '44' WHERE col1 = '4';
+UPDATE t1 SET col4 = '44' WHERE col1 = '5';
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=true;
+SET GLOBAL innodb_page_cleaner_disabled_debug=true;
+UPDATE t1 SET col4 = '4' WHERE col1 = '1';
+UPDATE t1 SET col4 = '4' WHERE col1 = '2';
+UPDATE t1 SET col4 = '4' WHERE col1 = '3';
+UPDATE t1 SET col4 = '4' WHERE col1 = '4';
+UPDATE t1 SET col4 = '4' WHERE col1 = '5';
+# Kill and restart
+SELECT * FROM t1;
+col1	col2	col3	col4	col5	col6	col8	col9
+1	22	33	4	55	66	88	99
+2	22	33	4	55	66	88	99
+3	22	33	4	55	66	88	99
+4	22	33	4	55	66	88	99
+5	22	33	4	55	66	88	99
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# 5. Combine ADD/DROP instant columns in single ALTER, update old & new data. Also add secondary indexes after ADD/DROP instant columns
+CREATE TABLE `t1` (
+`col1` VARCHAR(10) NOT NULL,
+`col2` char(13),
+`col3` char(13),
+`col5` char(13),
+`col6` char(13),
+`col7` char(13),
+`col8` char(10),
+`col9` char(10),
+PRIMARY KEY (`col1`),
+KEY(`col5`),
+KEY(`col6`),
+KEY(`col9`)
+) ENGINE=InnoDB;
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+INSERT INTO t1  VALUES ('1', '22', '33', '55', '66', '77', '88', '99');
+INSERT INTO t1  VALUES ('2', '22', '33', '55', '66', '77', '88', '99');
+INSERT INTO t1  VALUES ('3', '22', '33', '55', '66', '77', '88', '99');
+INSERT INTO t1  VALUES ('4', '22', '33', '55', '66', '77', '88', '99');
+INSERT INTO t1  VALUES ('5', '22', '33', '55', '66', '77', '88', '99');
+ALTER TABLE t1 ADD COLUMN col4 char(5) AFTER col3, DROP COLUMN col7, LOCK=DEFAULT, ALGORITHM=INSTANT;
+UPDATE t1 SET col4 = '44' WHERE col1 = '1';
+UPDATE t1 SET col4 = '44' WHERE col1 = '2';
+UPDATE t1 SET col4 = '44' WHERE col1 = '3';
+UPDATE t1 SET col4 = '44' WHERE col1 = '4';
+UPDATE t1 SET col4 = '44' WHERE col1 = '5';
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=true;
+SET GLOBAL innodb_page_cleaner_disabled_debug=true;
+UPDATE t1 SET col4 = '4', col6='6', col8='8' WHERE col1 = '1';
+UPDATE t1 SET col4 = '4', col6='6', col8='8' WHERE col1 = '2';
+UPDATE t1 SET col4 = '4', col6='6', col8='8' WHERE col1 = '3';
+UPDATE t1 SET col4 = '4', col6='6', col8='8' WHERE col1 = '4';
+UPDATE t1 SET col4 = '4', col6='6', col8='8' WHERE col1 = '5';
+# Kill and restart
+SELECT * FROM t1;
+col1	col2	col3	col4	col5	col6	col8	col9
+1	22	33	4	55	6	8	99
+2	22	33	4	55	6	8	99
+3	22	33	4	55	6	8	99
+4	22	33	4	55	6	8	99
+5	22	33	4	55	6	8	99
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# 6. Crash after instant add column with fields that are different length
+CREATE TABLE `t1` (
+`col1` VARCHAR(10) NOT NULL,
+`col2` char(13),
+`col3` varchar(10),
+PRIMARY KEY (`col1`)
+) ENGINE=InnoDB;
+INSERT INTO t1  VALUES ('bla1', 'hello1', 'hi1');
+ALTER TABLE t1 ADD COLUMN col4 CHAR(50) NOT NULL DEFAULT '' AFTER col1 , LOCK=DEFAULT, ALGORITHM=INSTANT;
+INSERT INTO t1  VALUES ('bla2', 'new1', 'hello2', 'hi2');
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=true;
+SET GLOBAL innodb_page_cleaner_disabled_debug=true;
+UPDATE t1 SET col3 = 'hi3';
+# Kill and restart
+SELECT * FROM t1;
+col1	col4	col2	col3
+bla1		hello1	hi3
+bla2	new1	hello2	hi3
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

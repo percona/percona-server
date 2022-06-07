@@ -14,6 +14,7 @@
 # Set partial revokes to ON
 SET @start_partial_revokes = @@global.partial_revokes;
 SET @@global.partial_revokes=ON;
+RESET MASTER;
 
 --disable_query_log
 CALL mtr.add_suppression("one or more privileges granted through");

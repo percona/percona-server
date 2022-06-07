@@ -1,3 +1,4 @@
+RESET MASTER;
 CREATE TABLE t1(id INT);
 SHOW TABLES;
 Tables_in_test

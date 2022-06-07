@@ -1,0 +1,14 @@
+#
+# Bug #26881798 / #88781 "handle_fatal_signal (sig=11) in replace_db_table"
+# fixed in 5.5.60, 5.6.40, 5.7.22, 8.0.4
+# Dropping an index from a system table could cause a server exit
+#
+CALL mtr.add_suppression("Did not write failed 'GRANT DROP ON none\\.\\* TO 'bug88781'@'localhost'' into binary log while granting/revoking privileges in databases\\.");
+CREATE USER 'bug88781'@'localhost';
+RENAME TABLE mysql.db TO mysql.bak;
+CREATE TABLE mysql.db ENGINE=InnoDB SELECT * FROM mysql.bak;
+GRANT DROP ON none.* TO 'bug88781'@'localhost';
+ERROR HY000: The table 'mysql.db' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly.
+DROP TABLE mysql.db;
+RENAME TABLE mysql.bak TO mysql.db;
+DROP USER 'bug88781'@'localhost';

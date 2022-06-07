@@ -8,6 +8,8 @@ SET SESSION gtid_next = '11111111-AAAA-2222-BBBB-000000000000:1';
 DROP TABLE t1, t2;
 SET SESSION gtid_next = 'AUTOMATIC';
 SET SESSION binlog_format = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a int) engine = MyISAM;
 CREATE TEMPORARY TABLE t2 (a int);
 SET SESSION gtid_next = '11111111-AAAA-2222-BBBB-000000000000:2';

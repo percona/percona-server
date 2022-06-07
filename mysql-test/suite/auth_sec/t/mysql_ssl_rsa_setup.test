@@ -319,9 +319,7 @@ let CADIR_LOCATION=$MYSQLTEST_VARDIR/tmp/certs;
 
 let server_log= $MYSQLTEST_VARDIR/log/mysql_ssl_rsa_setup.err;
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --exec echo "restart: --log-error=$server_log --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CADIR_LOCATION/server-cert.pem --ssl-key=$CADIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect

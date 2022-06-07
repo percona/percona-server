@@ -31,10 +31,10 @@ a	b
 SELECT * FROM t1 LOCK IN SHARE MODE;
 SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select2';
-SET DEBUG_SYNC='write_row_replace SIGNAL insert3 WAIT_FOR select3';
-INSERT INTO t1 VALUES(3,5) ON DUPLICATE KEY UPDATE b=b+20;
 a	b
 3	4
+SET DEBUG_SYNC='write_row_replace SIGNAL insert3 WAIT_FOR select3';
+INSERT INTO t1 VALUES(3,5) ON DUPLICATE KEY UPDATE b=b+20;
 SET DEBUG_SYNC='now WAIT_FOR insert3';
 SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 SELECT b FROM t1 LOCK IN SHARE MODE;

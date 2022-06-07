@@ -1,5 +1,6 @@
 SET @start_partial_revokes = @@global.partial_revokes;
 SET @@global.partial_revokes=ON;
+RESET MASTER;
 SET @@global.partial_revokes = ON;
 SELECT @@global.partial_revokes;
 @@global.partial_revokes

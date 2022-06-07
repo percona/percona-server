@@ -1,0 +1,27 @@
+CREATE USER event_runner1@localhost;
+GRANT ALL ON *.* TO event_runner1@localhost;
+CREATE USER event_runner2@localhost;
+GRANT ALL ON *.* TO event_runner2@localhost;
+CREATE DEFINER=event_runner1@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE
+DO
+WHILE TRUE DO
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+END WHILE|
+CREATE DEFINER=event_runner2@localhost EVENT query_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE
+DO
+WHILE TRUE DO
+SELECT * FROM INFORMATION_SCHEMA.TABLES;
+END WHILE|
+# Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+COUNT(*)
+1200
+# Dropping the temp tables
+KILL CONNECTION $ev_thread1_id
+KILL CONNECTION $ev_thread2_id
+DROP EVENT query_temp_tables;
+DROP EVENT query_tables;
+DROP USER event_runner1@localhost;
+DROP USER event_runner2@localhost;

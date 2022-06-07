@@ -1,0 +1,11 @@
+--echo # Basic test for innodb_parallel_doublewrite_path
+
+--echo # Default value
+SELECT @@GLOBAL.innodb_parallel_doublewrite_path;
+
+--echo # Setting variable should fail
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_parallel_doublewrite_path="foo";
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@SESSION.innodb_parallel_doublewrite_path="foo";

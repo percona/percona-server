@@ -1,5 +1,5 @@
+call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'Could not create keyring directory");
 # Starting server with keyring plugin
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
 DROP DATABASE IF EXISTS tde_db;
 DROP TABLE IF EXISTS tde_db. t_encrypt;
 CREATE DATABASE tde_db;
@@ -187,6 +187,7 @@ call tde_db.populate_t_encrypt();
 # In connection con2 - Running select on encrypt table
 call tde_db.read_t_encrypt();
 # kill and restart the server
+# Kill and restart:<hidden args>
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 INSERT INTO tde_db.t_encrypt(c2,c3,c4,c7) VALUES(10000,CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
@@ -196,5 +197,5 @@ SELECT 1;
 1
 DROP DATABASE tde_db;
 # restart server without keyring
-# restart: 
+# restart:
 SET GLOBAL innodb_file_per_table=1;

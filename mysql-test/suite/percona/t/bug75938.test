@@ -1,0 +1,9 @@
+# Test for bug 75938
+
+create TABLE t1(One int unsigned,Two int unsigned,Three int unsigned,Four int unsigned);
+CREATE TABLE t2(a int,KEY (a));
+
+select a from t2 having a in(select a from t1);
+
+DROP TABLE t1, t2;
+

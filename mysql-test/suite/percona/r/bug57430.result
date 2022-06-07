@@ -1,0 +1,20 @@
+CREATE TABLE t2970 (a INT, b INT, c INT, d INT, KEY(a), KEY(a, b));
+INSERT INTO t2970 VALUES (1,1,1,1), (1,2,3,4);
+EXPLAIN SELECT a, COUNT(b), MAX(b) FROM t2970 WHERE a > 0 GROUP BY a ORDER BY a;;
+id	1
+select_type	SIMPLE
+table	t2970
+partitions	NULL
+type	index
+possible_keys	a,a_2
+key	a_2
+key_len	10
+ref	NULL
+rows	2
+filtered	100.00
+Extra	Using where; Using index
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `test`.`t2970`.`a` AS `a`,count(`test`.`t2970`.`b`) AS `COUNT(b)`,max(`test`.`t2970`.`b`) AS `MAX(b)` from `test`.`t2970` where (`test`.`t2970`.`a` > 0) group by `test`.`t2970`.`a` order by `test`.`t2970`.`a`
+DROP TABLE t2970;

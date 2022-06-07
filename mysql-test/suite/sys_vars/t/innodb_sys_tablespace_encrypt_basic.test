@@ -1,0 +1,70 @@
+#
+# exists as global only
+#
+--echo Valid values are 'ON' and 'OFF'
+select @@global.innodb_sys_tablespace_encrypt in (0, 1);
+select @@global.innodb_sys_tablespace_encrypt;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_sys_tablespace_encrypt;
+show global variables like 'innodb_sys_tablespace_encrypt';
+show session variables like 'innodb_sys_tablespace_encrypt';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+--enable_warnings
+
+#
+# show that it's not writable
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_sys_tablespace_encrypt='ON';
+select @@global.innodb_sys_tablespace_encrypt;
+
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.innodb_sys_tablespace_encrypt=0;
+select @@global.innodb_sys_tablespace_encrypt;
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_sys_tablespace_encrypt=1;
+select @@global.innodb_sys_tablespace_encrypt;
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.innodb_sys_tablespace_encrypt='OFF';
+select @@global.innodb_sys_tablespace_encrypt;
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_sys_tablespace_encrypt='OFF';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@session.innodb_sys_tablespace_encrypt='ON';
+
+#
+# incorrect types
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_sys_tablespace_encrypt=1.1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_sys_tablespace_encrypt=1e1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_sys_tablespace_encrypt=2;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_sys_tablespace_encrypt=-3;
+select @@global.innodb_sys_tablespace_encrypt;
+
+select * from performance_schema.global_variables where variable_name='innodb_sys_tablespace_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_sys_tablespace_encrypt';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_sys_tablespace_encrypt='AUTO';

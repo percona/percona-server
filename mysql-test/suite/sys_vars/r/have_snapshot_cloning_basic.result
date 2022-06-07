@@ -1,0 +1,11 @@
+SELECT @@GLOBAL.have_snapshot_cloning="YES";
+@@GLOBAL.have_snapshot_cloning="YES"
+1
+SELECT @@SESSION.have_snapshot_cloning;
+ERROR HY000: Variable 'have_snapshot_cloning' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'have_snapshot_cloning';
+Variable_name	Value
+have_snapshot_cloning	YES
+SHOW SESSION VARIABLES LIKE 'have_snapshot_cloning';
+Variable_name	Value
+have_snapshot_cloning	YES

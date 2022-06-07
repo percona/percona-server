@@ -1,0 +1,82 @@
+call mtr.add_suppression("\\[Error\\] InnoDB: keyring error: please check that a keyring plugin is loaded");
+call mtr.add_suppression("\\[Error\\] InnoDB: Can't set temporary tablespace to be encrypted because keyring plugin is not available");
+
+--echo # without keyring plugin, try to enable encryption of temporary
+--echo # tablespace
+SELECT @@innodb_temp_tablespace_encrypt;
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;
+SELECT @@innodb_temp_tablespace_encrypt;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='N';
+DROP TABLE t01;
+
+--source include/restart_innodb_read_only.inc
+
+--echo # in innodb_read_only mode, temp tablespace cannot be encrypted
+SELECT @@innodb_temp_tablespace_encrypt;
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;
+SELECT @@innodb_temp_tablespace_encrypt;
+
+--source include/shutdown_mysqld.inc
+
+--echo # startup failure when innodb_temp_tablespace =ON and no keyring plugin
+
+--let ERROR_LOG=$MYSQL_TMP_DIR/temp_encrypt_err.log
+--error 1
+--exec $MYSQLD_CMD --innodb_temp_tablespace_encrypt=ON > $ERROR_LOG 2>&1
+--let $grep_pattern= Can't set temporary tablespace to be encrypted because keyring plugin is not available
+--let $grep_file= $ERROR_LOG
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+--remove_file $ERROR_LOG
+
+--let $do_not_echo_parameters = 1
+--let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/ts_encrypt_keyring $KEYRING_PLUGIN_OPT
+--source include/start_mysqld.inc
+
+--source include/count_sessions.inc
+connect (other1,localhost,root,,test);
+connection other1;
+
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+INSERT INTO t01 VALUES (1), (2), (3);
+
+connection default;
+
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;
+SHOW WARNINGS;
+
+connect (other2,localhost,root,,test);
+connection other2;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+INSERT INTO t01 VALUES (1), (2), (3);
+
+disconnect other2;
+
+connect (other2,localhost,root,,test);
+connection other2;
+
+SET GLOBAL innodb_encrypt_tables=ON;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+SET GLOBAL innodb_encrypt_tables=OFF;
+INSERT INTO t01 VALUES (1), (2), (3);
+
+connection default;
+
+disconnect other2;
+disconnect other1;
+
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+INSERT INTO t01 VALUES (1), (2), (3);
+
+SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
+
+--source include/wait_until_count_sessions.inc
+--remove_file $MYSQL_TMP_DIR/ts_encrypt_keyring

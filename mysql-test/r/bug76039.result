@@ -1,0 +1,7 @@
+SET @x = '1.1';
+SET collation_connection = utf32_bin;
+PREPARE stmt FROM 'SELECT ? = ?';
+EXECUTE stmt USING @x, @y;
+? = ?
+NULL
+DEALLOCATE PREPARE stmt;

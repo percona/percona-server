@@ -353,6 +353,8 @@ DROP TABLE t1;
 
 
 --disable_query_log
+call mtr.add_suppression("Trying to access missing tablespace");
+call mtr.add_suppression("Cannot save statistics for table `test`\.`t1` .* because the \.ibd file is missing\.");
 call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
 call mtr.add_suppression("Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");
 call mtr.add_suppression("Cannot delete tablespace .* because it is not found in the tablespace memory cache.");

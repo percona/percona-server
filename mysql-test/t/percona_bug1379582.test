@@ -1,0 +1,35 @@
+#
+# bug 1379582: tmp->start_utime > now_utime impossibility
+#              leading to negative TIME_MS values in processlist
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+SET GLOBAL DEBUG='+d,after_thread_setup';
+
+connect(con_ps,localhost,root,,test);
+
+SET DEBUG_SYNC='before_fill_schema_processlist
+                            SIGNAL fill_schema_processlist
+                            WAIT_FOR thread_setup';
+
+--send SELECT count(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE TIME_MS > 999999999999999
+
+connection default;
+
+SET DEBUG_SYNC='now WAIT_FOR fill_schema_processlist';
+
+connect(con1,localhost,root,,test);
+
+connection con_ps;
+
+--reap
+
+connection default;
+
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG='';
+
+disconnect con1;
+disconnect con_ps;

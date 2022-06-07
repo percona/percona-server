@@ -56,6 +56,7 @@ WAIT_FOR_EXECUTED_GTID_SET('e70f06d2-eb85-11e5-b3b5-00212844d44e:1')
 #    conflict detection and apply.
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC="RESET";
 [connection server_1]
 [connection server1]
 include/assert.inc [GTID_EXECUTED must contain all group GTIDs]

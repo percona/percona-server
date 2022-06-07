@@ -1,0 +1,38 @@
+--source include/have_rocksdb.inc
+
+--source include/have_log_bin.inc
+
+create table t1 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
+
+--disable_query_log
+let $i = 1;
+while ($i <= 50000) {
+  let $insert = INSERT INTO t1 VALUES($i, $i, REPEAT('x', 150));
+  inc $i;
+  eval $insert;
+}
+--enable_query_log
+
+optimize table t1;
+
+#wiping block cache
+--let $restart_parameters=restart:--rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;disable_auto_compactions=true;level0_stop_writes_trigger=1000
+--source include/restart_mysqld.inc
+
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
+
+--exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 test > /dev/null
+
+# verifying block cache was not filled
+select case when variable_value - @a > 20 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
+
+select count(*) from t1;
+
+# verifying block cache was filled
+select case when variable_value - @a > 100 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
+
+#cleanup
+DROP TABLE t1;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

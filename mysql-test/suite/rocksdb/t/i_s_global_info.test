@@ -1,0 +1,7 @@
+--source include/have_rocksdb.inc
+
+#
+# Information Schema global information
+#
+--let i_s_plugin=rocksdb_global_info
+--source suite/rocksdb/include/i_s_basic.inc

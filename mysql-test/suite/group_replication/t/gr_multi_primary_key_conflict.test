@@ -89,6 +89,7 @@ UPDATE t1 SET a=4 AND b=5 WHERE b=2;
 --let $rpl_connection_name= server1
 --source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo
@@ -164,6 +165,7 @@ INSERT INTO t1 VALUE(12, 13);
 --let $rpl_connection_name= server1
 --source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo

@@ -52,6 +52,7 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
@@ -132,6 +133,7 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
@@ -219,6 +221,7 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
@@ -311,6 +314,7 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
@@ -392,6 +396,7 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
@@ -487,6 +492,7 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################

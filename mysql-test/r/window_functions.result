@@ -7460,6 +7460,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET tmp_table_size= 16384;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT DISTINCT MAX( table2.`col_varchar_255_utf8` ) AS max1 ,
 MIN( table1.`col_date` ) AS min1 ,
 AVG( table2.`col_int` ) AS avg1 ,
@@ -9609,6 +9611,8 @@ INSERT INTO t1 VALUES
 (21,21,'t1','t1'), (22,22,'t1','t1'), (23,23,'t1','t1'), (24,24,'t1','t1'), (25,25,'t1','t1');
 SET @@session.max_heap_table_size=16*1024;
 SET @@session.tmp_table_size=1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET optimizer_switch="derived_condition_pushdown=off";
 SET SESSION internal_tmp_mem_storage_engine=MEMORY;
 SELECT * FROM (SELECT c2, c3, c4, SUM(c1) OVER (PARTITION BY c2) AS wcol FROM t1)o WHERE c2=10;

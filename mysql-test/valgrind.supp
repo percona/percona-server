@@ -188,8 +188,6 @@
    Memcheck:Leak
    fun:calloc
    fun:_dlerror_run
-   fun:dlsym
-   fun:__errno_location
 }
 
 {
@@ -710,6 +708,15 @@
    fun:buf_buddy_free_low
    fun:buf_buddy_free
 }
+{
+   zlib longest_match false positive
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+}
 
 #
 # NDB packfrm vs deflate
@@ -1011,6 +1018,28 @@
    fun:malloc_info
 }
 
+# TokuDB suppressions
+{
+   tls_variables_1
+   Memcheck:Leak
+   fun:memalign
+   fun:__tls_get_addr
+}
+
+{
+   tls_variables_2
+   Memcheck:Leak
+   fun:memalign
+   fun:tls_get_addr_tail
+}
+
+{
+   lzma encoder prepare bug
+   Memcheck:Cond
+   fun:lz_encoder_prepare
+   fun:lzma_lz_encoder_init
+}
+
 #supress warnings from openssl random generator
 
 {
@@ -1113,7 +1142,7 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
-   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.21
+   ...
    fun:call_init.part.0
    fun:call_init
    fun:_dl_init
@@ -1317,6 +1346,13 @@
    obj:*
    fun:X509_STORE_load_locations
    ...
+}
+
+{
+   Spurious dlerror_run errors on main.udf
+   Memcheck:Leak
+   ...
+   fun:dlerror_run
 }
 
 {
@@ -2099,6 +2135,21 @@
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
 }
+# The issue with GNU libc version 2.17 when linux hosts doesn't have IPv6 configured.
+# This is because libc points the cache (that is freed on exit) to a static variable
+# if there is no ipv6 address, which later results in freeing an invalid pointer.
+{
+   libc_217_ipv6_issue
+   Memcheck:Free
+   fun:free
+   fun:__libc_freeres
+   fun:_vgnU_freeres
+   fun:__run_exit_handlers
+   fun:exit
+   fun:*mysqld_exit*
+   fun:*mysqld_main*
+   fun:*main*
+}
 {
    SIGSTOP_and_SIGCONT in gr tests
    Memcheck:Cond
@@ -2672,6 +2723,44 @@
    fun:_dl_init
 }
 
+#
+# RcoksDB submodule, ignore 'still reachable' notifications on
+# static variables
+#
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb14ThreadLocalPtr10StaticMeta10SetHandlerEjPFvPvE
+   fun:_ZN7rocksdb14ThreadLocalPtrC1EPFvPvE
+}
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb12_GLOBAL__N_111GetRegistryEv
+}
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_Z41__static_initialization_and_destruction_0ii
+}
+{
+   rocksdb tls_variables
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:allocate_dtv_entry
+   fun:allocate_and_init
+   fun:tls_get_addr_tail
+   fun:__tls_get_addr
+}
+
 #  The ... is for malloc or realloc
 {
    mysql_dynamic_loader_scheme_file_imp_load
@@ -2682,6 +2771,63 @@
    fun:asprintf
    fun:dlerror
    fun:_ZN36mysql_dynamic_loader_scheme_file_imp4loadEPKcPP17mysql_component_t
+   ...
+}
+
+{
+   ThreadLocalPtr::StaticMeta* ThreadLocalPtr::Instance() allocates method static variable.
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb14ThreadLocalPtr10StaticMeta10SetHandlerEjPFvPvE
+   ...
+}
+
+{
+   Registry& GetRegistry() creates methods static pointer to Registry
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb12_GLOBAL__N_18Registry8RegisterEPFvRKNS_5SliceEPvENS_14CacheEntryRoleE
+   ...
+}
+
+{
+   Registry& GetRegistry() creates methods static pointer to Registry
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb24RegisterCacheDeleterRoleEPFvRKNS_5SliceEPvENS_14CacheEntryRoleE
+   ...
+}
+
+
+{
+   ThreadStatusUpdater is the member of PosixEnv, which is static method object inside Env* Env::Default()
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb19ThreadStatusUpdater14RegisterThreadENS_12ThreadStatus10ThreadTypeEm
+   ...
+}
+
+{
+   ThreadStatusUpdater is the member of PosixEnv, which is static method object inside Env* Env::Default()
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb19ThreadStatusUpdater19NewColumnFamilyInfoEPKvRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES2_SA_
+   ...
+}
+
+
+{
+   static Status GetShared(Cache *cache, SystemClock *clock, std::shared_ptr<CacheEntryStatsCollector> *ptr) creates static pointer inside metod
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb24CacheEntryStatsCollectorINS_13InternalStats19CacheEntryRoleStatsEE9GetSharedEPNS_5CacheEPNS_11SystemClockEPSt10shared_ptrIS3_E
+   ...
 }
 
 # AWS SDK 1.9 s2n leaks

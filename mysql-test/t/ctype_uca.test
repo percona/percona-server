@@ -457,6 +457,7 @@ set names utf8mb3;
 -- echo End for 5.0 tests
 --echo End of 5.1 tests
 
+
 --echo #
 --echo # Start of 5.5 tests
 --echo #
@@ -469,6 +470,17 @@ SET collation_connection=utf8_czech_ci;
 SET collation_connection=ucs2_czech_ci;
 --source include/ctype_czech.inc
 --source include/ctype_like_ignorable.inc
+
+--echo #
+--echo # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
+--echo #
+
+SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
+--let ENGINE=MyISAM
+--source include/ctype_utf8_ilseq.inc
+--let ENGINE=HEAP
+--source include/ctype_utf8_ilseq.inc
+
 --echo #
 --echo # End of 5.5 tests
 --echo #

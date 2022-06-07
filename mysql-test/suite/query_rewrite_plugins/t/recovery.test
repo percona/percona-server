@@ -18,16 +18,7 @@ SELECT * FROM query_rewrite.rewrite_rules;
 
 SELECT 'Rewrite';
 
---echo #
---echo # Restart the server
---echo #
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source include/restart_mysqld.inc
 
 SELECT 'Rewrite';
 

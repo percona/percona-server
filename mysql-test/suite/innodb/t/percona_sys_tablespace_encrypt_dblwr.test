@@ -1,0 +1,139 @@
+--source include/have_debug.inc
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+
+--echo # Stop the instance which was created by MTR
+--source include/shutdown_mysqld.inc
+
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+--let KEYRING_DATA="--keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $MYSQLTEST_VARDIR/tmp/boot.log 2>&1
+
+--echo # Bootstrap new instance with encrypted system tablespace
+--exec $BOOTSTRAP_CMD
+
+--echo # Start the instance with encrypted system tablespace
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON"
+--source include/start_mysqld.inc
+let MYSQLD_DATADIR=`select @@datadir`;
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+
+--echo # Test Doublewrite buffer of encrypted sys. To achieve this
+--echo # we have to make sure parallel doublewrite buffer is not
+--echo # used. This is achieved by disabling page cleaners and
+--echo # flush happens via FLUSH TABLE t1 FOR EXPORT. The only
+--echo # single page flush happens and only doublewrite in system
+--echo # tablespace is used.
+
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+SET GLOBAL innodb_page_cleaner_disabled_debug = true;
+SET GLOBAL innodb_master_thread_disabled_debug=true;
+start transaction;
+insert into t1 values(1, repeat('#',12));
+insert into t1 values(2, repeat('+',12));
+insert into t1 values(3, repeat('/',12));
+insert into t1 values(4, repeat('-',12));
+insert into t1 values(5, repeat('.',12));
+commit work;
+
+select space from information_schema.innodb_tables
+where name = 'test/t1' into @space_id;
+
+--echo # Wait for purge to complete
+--source include/wait_innodb_all_purged.inc
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
+begin;
+insert into t1 values (6, repeat('%', 12));
+
+--echo # Make the 4th page dirty, which is the last page written
+--echo # by above flush tables for export
+set global innodb_saved_page_number_debug = 4;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+
+--source include/kill_mysqld.inc
+
+--echo # Make the 4th page of the user tablespace
+--echo # corrupted
+--let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
+--let PAGE_NUM=4
+--source ../include/corrupt_page.inc
+
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+
+check table t1;
+select f1, f2 from t1;
+drop table t1;
+
+--echo #
+--echo # Test Encrypted Parallel Doublewrite buffer . To achieve this
+--echo # we have to make sure parallel doublewrite buffer only happens
+--echo # This is achieved by flushing via page cleaners.
+--echo # Single page flush happens via FLUSH TABLE t1 FOR EXPORT should
+--echo # avoided.
+--echo #
+
+create table t1 (f1 int primary key, f2 blob) engine=innodb encryption='Y';
+SET GLOBAL innodb_page_cleaner_disabled_debug = true;
+SET GLOBAL innodb_master_thread_disabled_debug=true;
+SET GLOBAL innodb_parallel_dblwr_encrypt=true;
+start transaction;
+insert into t1 values(1, repeat('#',12));
+insert into t1 values(2, repeat('+',12));
+insert into t1 values(3, repeat('/',12));
+insert into t1 values(4, repeat('-',12));
+insert into t1 values(5, repeat('.',12));
+commit work;
+
+select space from information_schema.innodb_tables
+where name = 'test/t1' into @space_id;
+
+--echo # Wait for purge to complete
+--source include/wait_innodb_all_purged.inc
+
+SET GLOBAL innodb_checkpoint_disabled = true;
+begin;
+insert into t1 values (6, repeat('%', 12));
+
+--echo # Make the first page dirty for table t1
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+
+set global innodb_page_cleaner_disabled_debug= false;
+set global innodb_buf_flush_list_now=ON;
+--source include/kill_mysqld.inc
+
+--echo # Make the 1st page of the user tablespace
+--echo # corrupted
+--let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
+--let PAGE_NUM=1
+--source ../include/corrupt_page.inc
+
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+
+check table t1;
+select f1, f2 from t1;
+drop table t1;
+
+--echo # Start default MTR instance
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--remove_file $BOOTSTRAP_SQL
+--force-rmdir $MYSQL_TMP_DIR/datadir1
+--remove_file $MYSQLTEST_VARDIR/tmp/boot.log

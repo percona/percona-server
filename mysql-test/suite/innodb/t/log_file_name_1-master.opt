@@ -1,1 +1,2 @@
---initialize --innodb_data_file_path=ibdata1:15M;ibdata2:20M:autoextend
+--initialize --innodb_data_file_path=ibdata1:15M;ibdata2:20M:autoextend --innodb_empty_free_list_algorithm=legacy
+

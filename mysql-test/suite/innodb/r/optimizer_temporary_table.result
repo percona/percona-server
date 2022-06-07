@@ -4105,6 +4105,7 @@ set @@session.sql_mode = ANSI;
 set @@session.tmp_table_size = 0;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '0'
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 set @@session.big_tables = 1;
 select @@big_tables;
 @@big_tables

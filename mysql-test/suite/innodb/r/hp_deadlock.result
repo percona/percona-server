@@ -55,3 +55,4 @@ DROP TABLE t3;
 DROP TABLE t1;
 DROP TABLE t2;
 SET GLOBAL innodb_lock_wait_timeout= @old_innodb_lock_wait_timeout;
+SET DEBUG_SYNC= 'RESET';

@@ -53,6 +53,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 ############################################################
 # 08. Resume the plugin stop.
 [connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
 SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 [connection server_2_1]

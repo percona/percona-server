@@ -4,6 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
+[connection slave]
 include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2)),
 REPLICATE_IGNORE_DB=(nodb);
@@ -62,8 +63,6 @@ include/include/rpl/assert_logical_timestamps.inc
 include/rpl/sync_to_replica.inc
 [On Replica]
 SET @@GLOBAL.replica_parallel_workers = @save_replica_parallel_workers;
-Warnings:
-Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();
 include/rpl/start_replica.inc

@@ -20,9 +20,7 @@ Rewritten
 Rewritten
 Warnings:
 Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
-#
-# Restart the server
-#
+# restart
 SELECT 'Rewrite';
 Rewritten
 Rewritten

@@ -42,6 +42,7 @@ SET DEBUG_SYNC='now SIGNAL kill_gtid_state_clear';
 
 # 4. Now DROP TABLE t1(any DDL)
 --connection default
+SET DEBUG_SYNC = 'RESET';
 DROP TABLE t1;
 --source include/remove_debug_point.inc
 

@@ -34,10 +34,7 @@ Note	1051	Unknown table 'test.t2'
 create table t1 (b char(0) not null, index(b));
 ERROR 42000: The used storage engine can't index column 'b'
 create table t1 (a int not null,b text) engine=heap;
-ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 'test.t1'
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
 ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
@@ -1163,7 +1160,10 @@ t1	CREATE TABLE `t1` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` bigint NOT NULL DEFAULT '0',
+  `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
+  `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
 drop table t1;
 create temporary table t1 like information_schema.processlist;
@@ -1177,7 +1177,10 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` bigint NOT NULL DEFAULT '0',
+  `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
+  `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
 drop table t1;
 create table t1 as select * from information_schema.character_sets;

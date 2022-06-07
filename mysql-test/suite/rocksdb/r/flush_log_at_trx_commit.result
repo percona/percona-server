@@ -1,0 +1,31 @@
+SET @orig_rocksdb_flush_log_at_trx_commit=@@global.rocksdb_flush_log_at_trx_commit;
+SET @orig_rocksdb_write_disable_wal=@@global.rocksdb_write_disable_wal;
+SET @orig_write_ignore_missing_column_families=@@global.rocksdb_write_ignore_missing_column_families;
+SET GLOBAL rocksdb_write_disable_wal=false;
+SET GLOBAL rocksdb_write_ignore_missing_column_families=true;
+create table aaa (id int primary key, i int) engine=rocksdb;
+SET GLOBAL rocksdb_flush_log_at_trx_commit=1;
+insert aaa(id, i) values(0,1);
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+insert aaa(id, i) values(1,1);
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+variable_value-@a
+1
+insert aaa(id, i) values(2,1);
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+variable_value-@a
+2
+insert aaa(id, i) values(3,1);
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+variable_value-@a
+3
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+SET GLOBAL rocksdb_flush_log_at_trx_commit=0;
+insert aaa(id, i) values(4,1);
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+SET GLOBAL rocksdb_flush_log_at_trx_commit=2;
+insert aaa(id, i) values(5,1);
+drop table aaa;
+SET GLOBAL rocksdb_flush_log_at_trx_commit=@orig_rocksdb_flush_log_at_trx_commit;
+SET GLOBAL rocksdb_write_disable_wal=@orig_rocksdb_write_disable_wal;
+SET GLOBAL rocksdb_write_ignore_missing_column_families=@orig_write_ignore_missing_column_families;

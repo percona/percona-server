@@ -1,0 +1,2 @@
+--initialize --authentication_policy=*:caching_sha2_password,,
+--transaction-isolation=read-committed --authentication_policy=*:caching_sha2_password,,

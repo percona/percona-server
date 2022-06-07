@@ -1,0 +1,30 @@
+# Disable for valgrind because this takes too long
+CREATE DATABASE mysqlslap;
+USE mysqlslap;
+CREATE TABLE t1(id BIGINT AUTO_INCREMENT, value BIGINT, PRIMARY KEY(id)) ENGINE=rocksdb;
+SET @orig_rocksdb_flush_log_at_trx_commit=@@global.rocksdb_flush_log_at_trx_commit;
+# MyRocks durability enabled
+SET GLOBAL rocksdb_flush_log_at_trx_commit=1;
+## durability + single thread
+select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
+select case when variable_value-@c = 1000 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
+case when variable_value-@c = 1000 then 'true' else 'false' end
+true
+## durability + group commit
+select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
+select case when variable_value-@c > 0 and variable_value-@c < 10000 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
+case when variable_value-@c > 0 and variable_value-@c < 10000 then 'true' else 'false' end
+true
+# MyRocks durability disabled
+SET GLOBAL rocksdb_flush_log_at_trx_commit=0;
+select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
+select case when variable_value-@c = 0 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
+case when variable_value-@c = 0 then 'true' else 'false' end
+true
+select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
+select case when variable_value-@c = 0 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
+case when variable_value-@c = 0 then 'true' else 'false' end
+true
+SET GLOBAL rocksdb_flush_log_at_trx_commit=@orig_rocksdb_flush_log_at_trx_commit;
+DROP TABLE t1;
+DROP DATABASE mysqlslap;

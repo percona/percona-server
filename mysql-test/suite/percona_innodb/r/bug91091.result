@@ -1,0 +1,54 @@
+#
+# Bug #91091 (https://bugs.mysql.com/bug.php?id=91091)
+# Inconsistent SELECT...ORDER BY results with euckr charset / euckr_bin collation
+#
+SET NAMES euckr;
+CREATE TABLE t (
+c1 VARCHAR(256) COLLATE euckr_bin NOT NULL,
+c2 VARCHAR(256) COLLATE euckr_bin NOT NULL,
+c3 INT NOT NULL,
+c4 VARCHAR(1000) COLLATE euckr_bin DEFAULT NULL,
+c5 VARCHAR(1000) COLLATE euckr_bin NOT NULL,
+c6 CHAR(1) COLLATE euckr_bin NOT NULL,
+c7 INT NOT NULL,
+c8 INT NOT NULL,
+c9 VARCHAR(1000) COLLATE euckr_bin DEFAULT NULL,
+c10 CHAR(1) COLLATE euckr_bin NOT NULL,
+c11 VARCHAR(256) COLLATE euckr_bin DEFAULT NULL,
+c12 CHAR(1) COLLATE euckr_bin NOT NULL,
+c13 VARCHAR(256) COLLATE euckr_bin DEFAULT NULL,
+c14 VARCHAR(256) COLLATE euckr_bin DEFAULT NULL,
+PRIMARY KEY (c1, c2),
+UNIQUE KEY igt_field_uni (c1, c3)
+) ENGINE=InnoDB DEFAULT CHARSET=euckr COLLATE=euckr_bin ROW_FORMAT=DYNAMIC;
+SET autocommit = 0;
+SELECT c1 FROM t WHERE c1 = 'Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00' ORDER BY c1, c3;
+c1
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+SELECT c1 FROM t WHERE c1 = 'Eid4i*******11372012******O*****Sua9EiJ**************00' ORDER BY c1, c3;
+c1
+Eid4i*******11372012******O*****Sua9EiJ**************00
+Eid4i*******11372012******O*****Sua9EiJ**************00
+Eid4i*******11372012******O*****Sua9EiJ**************00
+ROLLBACK;
+SET autocommit = 0;
+SELECT c1 FROM t FORCE KEY(igt_field_uni) WHERE c1 = 'Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00' ORDER BY c1, c3;
+c1
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00
+SELECT c1 FROM t FORCE KEY(igt_field_uni) WHERE c1 = 'Eid4i*******11372012******O*****Sua9EiJ**************00' ORDER BY c1, c3;
+c1
+Eid4i*******11372012******O*****Sua9EiJ**************00
+Eid4i*******11372012******O*****Sua9EiJ**************00
+Eid4i*******11372012******O*****Sua9EiJ**************00
+ROLLBACK;
+DROP TABLE t;

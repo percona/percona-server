@@ -1,0 +1,119 @@
+if (`SELECT @@global.innodb_ft_min_token_size <> 3`)
+{
+  --skip this test requires innodb_ft_min_token_size to have default value (3)
+}
+
+--echo #
+--echo # bp:innodb-fts-ngram-ignore-stopword-list
+--echo # "A new InnoDB variable to control whether InnoDB FTS should ignore stopword list"
+--echo #
+--echo # lp:1679135 "Ignore INNODB_FT_DEFAULT_STOPWORD for ngram indexes"
+--echo # Bug #84420 "stopwords and ngram indexes"
+--echo #
+
+SET innodb_ft_ignore_stopwords = 0;
+
+CREATE TABLE articles (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  body TEXT,
+  PRIMARY KEY (id),
+  FULLTEXT KEY ftx (body) WITH PARSER ngram
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO articles(body) VALUES('ea');
+INSERT INTO articles(body) VALUES('east');
+INSERT INTO articles(body) VALUES('east area');
+INSERT INTO articles(body) VALUES('east job');
+INSERT INTO articles(body) VALUES('eastnation');
+INSERT INTO articles(body) VALUES('eastway, try try');
+INSERT INTO articles(body) VALUES('wa');
+INSERT INTO articles(body) VALUES('wast');
+INSERT INTO articles(body) VALUES('wast area');
+INSERT INTO articles(body) VALUES('wast job');
+INSERT INTO articles(body) VALUES('wastnation');
+INSERT INTO articles(body) VALUES('wastway, try try');
+INSERT INTO articles(body) VALUES('oz');
+INSERT INTO articles(body) VALUES('ozst');
+INSERT INTO articles(body) VALUES('ozst area');
+INSERT INTO articles(body) VALUES('ozst job');
+INSERT INTO articles(body) VALUES('ozstnation');
+INSERT INTO articles(body) VALUES('ozstway, try try');
+
+--echo # ngram parser checks
+--let $match_short_query = SELECT COUNT(*) FROM articles WHERE MATCH(body) AGAINST("ea" IN BOOLEAN MODE)
+
+--let $assert_text= 'Empty set (ngram, table created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 0)'
+--let $assert_cond= [$match_short_query] = 0
+--source include/assert.inc
+
+SET innodb_ft_ignore_stopwords = 1;
+--let $assert_text= 'Empty set (ngram, table created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 1)'
+--let $assert_cond= [$match_short_query] = 0
+--source include/assert.inc
+
+ALTER TABLE articles DROP INDEX ftx;
+ALTER TABLE articles ADD FULLTEXT KEY ftx(body) WITH PARSER ngram;
+--let $assert_text= '8 matches (ngram, table changed from ft_ignore_stopwords = 0 to 1 / query run with ft_ignore_stopwords = 1)'
+--let $assert_cond= [$match_short_query] = 8
+--source include/assert.inc
+
+SET innodb_ft_ignore_stopwords = 0;
+--let $assert_text= 'Empty set (ngram, table changed from ft_ignore_stopwords = 0 to 1 / query run with ft_ignore_stopwords = 0)'
+--let $assert_cond= [$match_short_query] = 0
+--source include/assert.inc
+
+ALTER TABLE articles DROP INDEX ftx;
+ALTER TABLE articles ADD FULLTEXT KEY ftx(body) WITH PARSER ngram;
+--let $assert_text= 'Empty set (ngram, table changed from ft_ignore_stopwords = 1 to 0 / query run with ft_ignore_stopwords = 0)'
+--let $assert_cond= [$match_short_query] = 0
+--source include/assert.inc
+
+SET innodb_ft_ignore_stopwords = 1;
+--let $assert_text= 'Empty set (ngram, table changed from ft_ignore_stopwords = 1 to 0 / query run with ft_ignore_stopwords = 1)'
+--let $assert_cond= [$match_short_query] = 0
+--source include/assert.inc
+
+ALTER TABLE articles ENGINE=InnoDB;
+--let $assert_text= '8 matches (ngram, table reconstructed with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 1)'
+--let $assert_cond= [$match_short_query] = 8
+--source include/assert.inc
+
+--echo # non-ngram parser checks
+--let $match_regular_query = SELECT COUNT(*) FROM articles WHERE MATCH(body) AGAINST("wast" IN BOOLEAN MODE)
+
+SET innodb_ft_ignore_stopwords = 0;
+ALTER TABLE articles DROP INDEX ftx;
+ALTER TABLE articles ADD FULLTEXT KEY ftx(body);
+--let $assert_text= 'Empty set (non-ngram (short words), index created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 0)'
+--let $assert_cond= [$match_short_query] = 0
+--source include/assert.inc
+--let $assert_text= '3 matches (non-ngram (regular words), index created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 0)'
+--let $assert_cond= [$match_regular_query] = 3
+--source include/assert.inc
+
+SET innodb_ft_ignore_stopwords = 1;
+--let $assert_text= 'Empty set (non-ngram (short words), index created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 1)'
+--let $assert_cond= [$match_short_query] = 0
+--source include/assert.inc
+--let $assert_text= '3 matches (non-ngram (regular words), index created with ft_ignore_stopwords = 0 / query run with ft_ignore_stopwords = 1)'
+--let $assert_cond= [$match_regular_query] = 3
+--source include/assert.inc
+
+ALTER TABLE articles DROP INDEX ftx;
+ALTER TABLE articles ADD FULLTEXT KEY ftx(body);
+--let $assert_text= '1 match (non-ngram (short words), index created with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 1)'
+--let $assert_cond= [$match_short_query] = 1
+--source include/assert.inc
+--let $assert_text= '3 matches (non-ngram (regular words), index created with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 1)'
+--let $assert_cond= [$match_regular_query] = 3
+--source include/assert.inc
+
+SET innodb_ft_ignore_stopwords = 0;
+--let $assert_text= '1 match (non-ngram (short words), index created with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 0)'
+--let $assert_cond= [$match_short_query] = 1
+--source include/assert.inc
+--let $assert_text= '3 matches (non-ngram (regular words), index created with ft_ignore_stopwords = 1 / query run with ft_ignore_stopwords = 0)'
+--let $assert_cond= [$match_regular_query] = 3
+--source include/assert.inc
+
+DROP TABLE articles;

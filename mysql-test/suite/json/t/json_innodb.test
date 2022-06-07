@@ -253,6 +253,22 @@ DROP TABLE D;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo #
+--echo # BUG: PS-7212 - Datatype inside JSON column changes unexpectedly
+--echo #
+
+CREATE TABLE json (
+id int NOT NULL,
+j json DEFAULT NULL,
+s tinyint NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB;
+INSERT INTO json VALUES (2, '{"amount": 70.0}', 1);
+SELECT json_type(j->"$.amount") FROM json;
+INSERT INTO json VALUES (2, '{}', 1) ON DUPLICATE KEY UPDATE j=if(s=0, '{}', j);
+SELECT json_type(j->"$.amount") FROM json;
+DROP TABLE json;
+
+--echo #
 --echo # Bug#29669251: !THD->IS_ERROR() IN JOIN_READ_CONST_TABLE()
 --echo #
 CREATE TABLE t(a INT);

@@ -36,9 +36,7 @@ let SEARCH_FILE= $server_log;
 --echo # Case 1 : Check that all certificates in --ssl-capath are processed.
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --exec echo "restart: --log-error=$server_log --ssl-capath=$CADIR_LOCATION --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CERTDIR_LOCATION/server-cert.pem --ssl-key=$CERTDIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc

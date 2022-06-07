@@ -1,0 +1,7 @@
+SELECT @@GLOBAL.have_snapshot_cloning="YES";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.have_snapshot_cloning;
+
+SHOW GLOBAL VARIABLES LIKE 'have_snapshot_cloning';
+
+SHOW SESSION VARIABLES LIKE 'have_snapshot_cloning';

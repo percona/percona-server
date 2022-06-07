@@ -21,6 +21,8 @@
 # "Semi-sync master failed on net_flush() before waiting for replica reply"
 CALL mtr.add_suppression("Semi-sync source failed on net_flush().*");
 
+call mtr.add_suppression("Replica SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+
 --echo ####################################################################
 --echo # Test Case: semisync master can be enabled and disabled sucessfully
 --echo # without any live slave connection and also test ON, OFF can be set
@@ -238,8 +240,9 @@ SET GLOBAL debug= '+d,dbug.before_get_SOURCE_UUID';
 --source include/rpl/install_semisync_replica.inc
 
 # Clear the debug point and signal IO thread to resume
+SET DEBUG_SYNC= 'now WAIT_FOR in_get_source_version_and_clock';
 SET GLOBAL debug= @save_debug;
-SET debug_sync= 'now SIGNAL signal.get_source_uuid';
+SET DEBUG_SYNC= 'now SIGNAL signal.get_source_uuid';
 
 # It should be stopped by add_slave failure
 --source include/rpl/wait_for_receiver_to_stop.inc

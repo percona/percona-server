@@ -24,7 +24,7 @@
 --let rpl_skip_start_slave=1
 --source include/rpl/init_source_replica.inc
 
-# Step 1) Set a simulation on Slave SQL thread so that it enters
+# Step 1) Set a simulation on Replica SQL thread so that it enters
 # into faulty code (before fix) path.
 --source include/rpl/connection_replica.inc
 CALL mtr.add_suppression("Relay log read failure");

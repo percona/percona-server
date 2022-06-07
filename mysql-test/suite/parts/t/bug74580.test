@@ -1,0 +1,16 @@
+# Test for bug 74580 (fatal signal 11 in convert_charset_partition_constant :sql/sql_partition.cc:202)
+
+SET @@collation_server=99;
+
+SET @saved_table_open_cache = @@GLOBAL.table_open_cache;
+SET @@GLOBAL.table_open_cache = 1;
+
+--error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
+CREATE TABLE t1 (a CHAR (1)) ENGINE=InnoDB PARTITION BY RANGE COLUMNS(a)
+       (PARTITION p0 VALUES LESS THAN (''),
+        PARTITION p1 VALUES LESS THAN ('za'));
+
+--error ER_NO_SUCH_TABLE
+INSERT DELAYED INTO t1 VALUES (1, 0), (1, 0), (1, 0);
+
+SET @@GLOBAL.table_open_cache = @saved_table_open_cache;

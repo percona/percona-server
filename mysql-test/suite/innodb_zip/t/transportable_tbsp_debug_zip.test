@@ -717,6 +717,8 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', fi
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Trying to import a tablespace, but could not open the tablespace file");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 32 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means that another program is using InnoDB's files.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot save statistics for table");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace");
 --enable_query_log
 
 #cleanup

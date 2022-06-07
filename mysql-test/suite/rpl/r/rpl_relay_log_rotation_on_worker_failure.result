@@ -34,6 +34,7 @@ UNLOCK TABLES;
 [connection slave]
 SET DEBUG_SYNC= 'now SIGNAL signal.rpl_unblock_purge';
 # Removing debug point 'wait_before_purge_applied_logs' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'RESET';
 
 ##############################################################
 # 5. Check no error was logged

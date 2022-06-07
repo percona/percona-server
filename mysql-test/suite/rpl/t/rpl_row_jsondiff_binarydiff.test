@@ -63,6 +63,7 @@ SET debug_sync= 'now WAIT_FOR signal.rpl_row_jsondiff_binarydiff_marked_columns'
 --source include/rpl/connection_source.inc
 DROP TABLE t1;
 --source include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC="reset";
 --let $debug_point= rpl_row_jsondiff_binarydiff
 --source include/remove_debug_point.inc
 --source include/rpl/deinit.inc

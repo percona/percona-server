@@ -3,7 +3,7 @@
 --eval $create_statement
 --eval $insert_statement
 --echo # State before failure
---replace_result #p# #P# #sp# #SP#
+--source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
@@ -12,7 +12,7 @@ SELECT * FROM `t1/a\b#2`;
 --eval $fail_statement
 --enable_abort_on_error
 --echo # State after failure
---replace_result #p# #P# #sp# #SP#
+--source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
@@ -23,7 +23,7 @@ DROP TABLE `t1/a\b#2`;
 --eval $create_statement
 --eval $insert_statement
 --echo # State before failure
---replace_result #p# #P# #sp# #SP#
+--source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
@@ -33,7 +33,7 @@ LOCK TABLE `t1/a\b#2` WRITE;
 --eval $fail_statement
 --enable_abort_on_error
 --echo # State after failure
---replace_result #p# #P# #sp# #SP#
+--source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result

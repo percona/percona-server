@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
 call mtr.add_suppression("Could not delete from Replica Workers info repository");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/rpl/stop_replica.inc
 RESET REPLICA ALL;
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;

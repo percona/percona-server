@@ -1,0 +1,8 @@
+CREATE TABLE t1(c TEXT, FULLTEXT KEY k(c)) ENGINE=InnoDB;
+SET @saved_innodb_ft_aux_table=@@GLOBAL.innodb_ft_aux_table;
+SET GLOBAL innodb_ft_aux_table='test/t1';
+ALTER TABLE t1 DROP INDEX k;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_CONFIG;
+KEY	VALUE
+DROP TABLE t1;
+SET GLOBAL innodb_ft_aux_table=@saved_innodb_ft_aux_table;

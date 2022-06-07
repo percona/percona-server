@@ -1,0 +1,23 @@
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded");
+CREATE TABLESPACE t1 ENCRYPT='y';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENCRYPT='y'' at line 1
+CREATE TABLESPACE ts_valid2 ADD DATAFILE 'ts_valid2.ibd' ENCRYPTION='';
+CREATE TABLESPACE t2 ADD DATAFILE 't2.ibd' ENCRYPTION='y';
+ERROR HY000: Failed to create TABLESPACE t2
+CREATE TABLESPACE t3 ENCRYPTION='y' ADD DATAFILE 't3.ibd';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENCRYPTION='y' ADD DATAFILE 't3.ibd'' at line 1
+CREATE TABLESPACE t4 ADD DATAFILE 't4.ibd' ENCRYPTION='xyz';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE t5 ADD DATAFILE 't5.ibd' ENCRYPTION=y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'y' at line 1
+CREATE TABLESPACE t6 ADD DATAFILE 't6.ibd' ENCRYPTION=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1' at line 1
+CREATE TABLESPACE t7 ADD DATAFILE 't7.ibd' ENCRYPTION=y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'y' at line 1
+CREATE TABLESPACE t8 ADD DATAFILE 't8.ibd' ENCRYPTION 'xyz';
+ERROR HY000: Invalid encryption option.
+CREATE TABLESPACE t9 ADD DATAFILE 't9.ibd' ENCRYPTION y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'y' at line 1
+ALTER TABLESPACE t10 ENCRYPTION='y';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENCRYPTION='y'' at line 1
+DROP TABLESPACE ts_valid2;

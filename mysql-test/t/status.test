@@ -22,6 +22,8 @@ SET GLOBAL LOG_OUTPUT = 'FILE';
 # PS causes different statistics
 --disable_ps_protocol
 
+--source include/count_sessions.inc
+
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection default;
@@ -87,6 +89,8 @@ set global general_log = @old_general_log;
 
 disconnect con2;
 disconnect con1;
+
+--source include/wait_until_count_sessions.inc
 
 # End of 4.1 tests
 
@@ -223,6 +227,7 @@ disconnect con3;
 disconnect con2;
 disconnect con1;
 
+--source include/wait_until_count_sessions.inc
 
 #
 # Bug#30377 EXPLAIN loses last_query_cost when used with UNION
@@ -262,6 +267,8 @@ SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;
 
+
+--source include/wait_until_count_sessions.inc
 
 #
 # Bug#30252 Com_create_function is not incremented.
@@ -322,12 +329,8 @@ drop procedure proc37908;
 drop function func37908;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 DROP USER mysqltest_1@localhost;
-# Wait till the sessions user1 and root are disconnected
-let $wait_condition =
-  SELECT COUNT(*) = 0
-  FROM information_schema.processlist
-  WHERE  id in ('$root_connection_id','$user1_connection_id');
---source include/wait_condition.inc
+
+--source include/wait_until_count_sessions.inc
 
 #
 # Bug#41131 "Questions" fails to increment - ignores statements instead stored procs
@@ -359,11 +362,12 @@ let $new_queries= `SHOW STATUS LIKE 'Queries'`;
 --disable_query_log
 let $diff= `SELECT SUBSTRING('$new_queries',9)-SUBSTRING('$org_queries',9)`;
 --enable_query_log
-eval SELECT $diff;
 disconnect con1;
 connection default;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
+
+--source include/wait_until_count_sessions.inc
 
 # End of 5.1 tests
 

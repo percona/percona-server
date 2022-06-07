@@ -1,0 +1,11 @@
+call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation");
+call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("'rename' returned OS error");
+CREATE TABLE t1 (s1 CHAR) ENGINE=InnoDB;
+CREATE FULLTEXT INDEX i ON t1(s1);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+ALTER TABLE t1 RENAME nonexisting.t1;
+ERROR 42000: Unknown database 'nonexisting'
+ALTER TABLE t1 KEY_BLOCK_SIZE=2;
+DROP TABLE t1;

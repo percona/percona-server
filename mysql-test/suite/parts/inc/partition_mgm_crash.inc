@@ -26,14 +26,14 @@ let $crash_statement= ALTER TABLE `t1/a\b#2` ADD PARTITION
 --eval $create_statement
 --eval $insert_statement
 --echo # State before statement
---replace_result #p# #P# #sp# #SP#
+--source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
 SELECT * FROM `t1/a\b#2`;
 --eval $crash_statement
 --echo # State after statement
---replace_result #p# #P# #sp# #SP#
+--source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
@@ -57,14 +57,14 @@ let $crash_statement= ALTER TABLE `t1/a\b#2` REORGANIZE PARTITION p10 INTO
 --eval $create_statement
 --eval $insert_statement
 --echo # State before statement
---replace_result #p# #P# #sp# #SP#
+--source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
 SELECT * FROM `t1/a\b#2`;
 --eval $crash_statement
 --echo # State after statement
---replace_result #p# #P# #sp# #SP#
+--source include/table_files_replace_pattern.inc
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result

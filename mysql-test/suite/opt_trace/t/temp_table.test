@@ -73,6 +73,8 @@ CREATE TABLE t1 (
 INSERT INTO t1(c2) VALUES ('b'),('b');
 INSERT INTO t1(c2) SELECT t1.c2 FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
 
+ANALYZE TABLE t1;
+
 SET @@max_heap_table_size=1;
 SET @@group_concat_max_len= 500;
 SET SESSION internal_tmp_mem_storage_engine='memory';

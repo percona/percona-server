@@ -1,0 +1,64 @@
+SET @start_global_value = @@global.innodb_compressed_columns_zip_level;
+
+#
+# exists as global only
+#
+--echo Default value
+SELECT @@global.innodb_compressed_columns_zip_level;
+
+--echo Valid value 0..9
+SELECT @@global.innodb_compressed_columns_zip_level <= 9 AND
+  @@global.innodb_compressed_columns_zip_level >= 0 AS default_is_in_range;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_compressed_columns_zip_level;
+SHOW GLOBAL VARIABLES LIKE 'innodb_compressed_columns_zip_level';
+SHOW SESSION VARIABLES LIKE 'innodb_compressed_columns_zip_level';
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name = 'innodb_compressed_columns_zip_level';
+SELECT * FROM performance_schema.session_variables
+  WHERE variable_name = 'innodb_compressed_columns_zip_level';
+
+#
+# show that it's writable
+#
+SET GLOBAL innodb_compressed_columns_zip_level = 2;
+SELECT @@global.innodb_compressed_columns_zip_level;
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name = 'innodb_compressed_columns_zip_level';
+SELECT * FROM performance_schema.session_variables
+ WHERE variable_name = 'innodb_compressed_columns_zip_level';
+--error ER_GLOBAL_VARIABLE
+SET SESSION innodb_compressed_columns_zip_level = 4;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_compressed_columns_zip_level = 1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_compressed_columns_zip_level = 1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_compressed_columns_zip_level = "foo";
+
+SET GLOBAL innodb_compressed_columns_zip_level = 10;
+SELECT @@global.innodb_compressed_columns_zip_level;
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name = 'innodb_compressed_columns_zip_level';
+SET GLOBAL innodb_compressed_columns_zip_level = -7;
+SELECT @@global.innodb_compressed_columns_zip_level;
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name = 'innodb_compressed_columns_zip_level';
+
+#
+# min/max values
+#
+SET GLOBAL innodb_compressed_columns_zip_level = 0;
+SELECT @@global.innodb_compressed_columns_zip_level;
+SET GLOBAL innodb_compressed_columns_zip_level = 9;
+SELECT @@global.innodb_compressed_columns_zip_level;
+
+#
+# cleanup
+#
+
+SET GLOBAL innodb_compressed_columns_zip_level = @start_global_value;

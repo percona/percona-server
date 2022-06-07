@@ -47,6 +47,8 @@ eval SET @@global.debug= "+d,$dbug_sync_point";
 --source include/rpl/start_replica.inc
 --echo slave is going to hang in get_master_version_and_clock
 
+SET DEBUG_SYNC= "NOW WAIT_FOR in_get_source_version_and_clock";
+
 --let $rpl_server_number= 1
 --source include/rpl/stop_server.inc
 

@@ -1,0 +1,15 @@
+#
+# Bug #22601485 / #80153 "handle_fatal_signal (sig=11) in process_bin_arg (memmove)"
+# fixed in 5.7.14
+# A statement containing a format specifier resulted in a server exit when the
+# query rewrite plugin tried to log the statement.
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+SET @saved_rewriter_verbose = @@global.rewriter_verbose;
+SET GLOBAL rewriter_verbose = 2;
+SELECT 1 "a%b_%d";
+
+SET GLOBAL rewriter_verbose = @saved_rewriter_verbose;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

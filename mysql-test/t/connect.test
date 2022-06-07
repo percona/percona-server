@@ -6,6 +6,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+let $saved_log_error_verbosity= `select @@global.log_error_verbosity`;
+set global log_error_verbosity= 1;
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -506,6 +508,9 @@ DROP DATABASE test1;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+--replace_regex /[0-9]+/STARTVAL/
+eval set global log_error_verbosity= $saved_log_error_verbosity;
 
 # Restore default values
 --let $restart_parameters = restart:

@@ -17,13 +17,12 @@
 
 perl;
     use strict;
-    my $search_file =           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
+    my @search_files =          glob($ENV{'SEARCH_FILE'})           or die "SEARCH_FILE not set";
     my $search_pattern =        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
     my $search_echo =           $ENV{'SEARCH_ECHO'}     || "NONE";
     my $ignore_pattern =        $ENV{'IGNORE_PATTERN'}  || "";
     my $search_echo_ctx =       $ENV{'SEARCH_ECHO_CTX'} || 0;
 
-    open(FILE, "< $search_file") or die("Unable to open '$search_file': $!\n");
 
     # We include the current line and 'n' previous lines in its context
     # as a FIFO queue i.e., oldest entries in the queue are removed when
@@ -31,61 +30,66 @@ perl;
     my @context = (undef) x ($search_echo_ctx + 1);
 
     my $line;
-    my $flag = 0;
+    my $flag= 0;
     my $output = "";
 
-    # Read the file line by line
-    while ($line = <FILE>)
-    {
-        my $cur_lineno = $.;
-        my $file_pos = tell(FILE);
+    foreach my $search_file (@search_files) {
+        open(FILE, "< $search_file") or die("Unable to open '$search_file': $!\n");
 
-        if ($line =~ /^CURRENT_TEST: /)
+        # Read the file line by line
+        while ($line= <FILE>)
         {
-            $output = "";
-            $flag = 0;
-            @context = (undef) x ($search_echo_ctx + 1);
-        }
+            my $cur_lineno= $.;
+            my $file_pos= tell(FILE);
 
-        # Context stored as a sliding window of size 'n' lines
-        shift @context;
-        push  @context, $line;
-
-        if ($line =~ /$search_pattern/)
-        {
-            if (!(length $ignore_pattern) or !($line =~ /$ignore_pattern/))
+            if ($line =~ /^CURRENT_TEST: /)
             {
-                # Line matches the specified pattern
-                $flag = 1;
+                $output = "";
+                $flag = 0;
+                @context = (undef) x ($search_echo_ctx + 1);
+            }
 
-                if ($search_echo eq 'FIRST')
-                {
-                    print_current_and_previous_n_lines($search_echo_ctx,
-                                                       $cur_lineno);
-                    print_succeeding_n_lines($search_echo_ctx, $cur_lineno)
-                      if ($search_echo_ctx > 0);
-                    last;
-                }
-                elsif ($search_echo eq 'ALL')
-                {
-                    print_current_and_previous_n_lines($search_echo_ctx,
-                                                       $cur_lineno);
+            # Context stored as a sliding window of size 'n' lines
+            shift @context;
+            push  @context, $line;
 
-                    if ($search_echo_ctx > 0)
+            if ($line =~ /$search_pattern/)
+            {
+                if (!(length $ignore_pattern) or !($line =~ /$ignore_pattern/))
+                {
+                    # Line matches the specified pattern
+                    $flag= 1;
+
+                    if ($search_echo eq 'FIRST')
                     {
-                        print_succeeding_n_lines($search_echo_ctx, $cur_lineno);
+                        print_current_and_previous_n_lines($search_echo_ctx,
+                                                           $cur_lineno);
+                        print_succeeding_n_lines($search_echo_ctx, $cur_lineno)
+                          if ($search_echo_ctx > 0);
+                        last;
+                    }
+                    elsif ($search_echo eq 'ALL')
+                    {
+                        print_current_and_previous_n_lines($search_echo_ctx,
+                                                           $cur_lineno);
 
-                        # Return to current file position after reading 'n'
-                        # succeeding lines
-                        seek(FILE, $file_pos, 0);
-                        $. = $cur_lineno;
+                        if ($search_echo_ctx > 0)
+                        {
+                            print_succeeding_n_lines($search_echo_ctx, $cur_lineno);
 
-                        # Separate each matching line
-                        $output .= "---\n";
+                            # Return to current file position after reading 'n'
+                            # succeeding lines
+                            seek(FILE, $file_pos, 0);
+                            $.= $cur_lineno;
+
+                            # Separate each matching line
+                            $output .= "---\n";
+                        }
                     }
                 }
             }
         }
+        close(FILE);
     }
 
     print $output;
@@ -98,7 +102,6 @@ perl;
     {
         print "Pattern \"$search_pattern\" not found\n";
     }
-    close(FILE);
 
     sub print_current_and_previous_n_lines()
     {

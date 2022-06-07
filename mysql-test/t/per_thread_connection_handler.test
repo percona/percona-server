@@ -37,6 +37,7 @@ disconnect con3;
 # Test various error conditions.
 
 # Test ER_CON_COUNT_ERROR.
+call mtr.add_suppression("Too many connections");
 SET GLOBAL max_connections= 3;
 connect (con1, localhost, root,,mysql);
 connect (con2, localhost, root,,mysql);

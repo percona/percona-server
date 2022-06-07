@@ -106,10 +106,15 @@ set @@persist_only.report_host='';
 set @@persist_only.report_port=21000;
 set @@persist_only.report_password='';
 set @@persist_only.report_user='';
+call mtr.add_suppression('Default storage engine \\(InnoDB\\) is not the same as enforced storage engine \\(MyISAM\\)');
+set @@persist_only.encrypt_tmp_files=TRUE;
+set @@persist_only.enforce_storage_engine='MyISAM';
+set @@persist_only.binlog_space_limit=134217728;
+set @@persist_only.proxy_protocol_networks='*';
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-93
+97
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.
@@ -117,7 +122,10 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
 back_log	80
 binlog_gtid_simple_recovery	ON
+binlog_space_limit	134217728
 disabled_storage_engines	
+encrypt_tmp_files	ON
+enforce_storage_engine	MyISAM
 ft_max_word_len	84
 ft_min_word_len	4
 ft_query_expansion_limit	20
@@ -140,7 +148,7 @@ innodb_page_cleaners	1
 innodb_purge_threads	4
 innodb_read_io_threads	4
 innodb_redo_log_capacity	100663296
-innodb_rollback_on_timeout	0
+innodb_rollback_on_timeout	OFF
 innodb_sort_buffer_size	1048576
 innodb_sync_array_size	1
 innodb_use_native_aio	1
@@ -194,6 +202,7 @@ performance_schema_session_connect_attrs_size	512
 performance_schema_setup_actors_size	-1
 performance_schema_setup_objects_size	-1
 performance_schema_users_size	-1
+proxy_protocol_networks	*
 relay_log_recovery	OFF
 relay_log_space_limit	0
 replica_type_conversions	
@@ -212,7 +221,10 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURC
 VARIABLE_NAME
 back_log
 binlog_gtid_simple_recovery
+binlog_space_limit
 disabled_storage_engines
+encrypt_tmp_files
+enforce_storage_engine
 ft_max_word_len
 ft_min_word_len
 ft_query_expansion_limit
@@ -289,6 +301,7 @@ performance_schema_session_connect_attrs_size
 performance_schema_setup_actors_size
 performance_schema_setup_objects_size
 performance_schema_users_size
+proxy_protocol_networks
 relay_log_recovery
 relay_log_space_limit
 replica_type_conversions

@@ -2367,7 +2367,7 @@ TRUNCATE TABLE t6;
 TRUNCATE TABLE t7;
 INSERT INTO t6(c1) VALUES(0),(1),(2),(3),(3),(4),(4),(5);
 INSERT INTO t7(c1) SELECT c1 FROM t6;
-ERROR 23000: Duplicate entry '3' for key 't7.PRIMARY'
+ERROR 23000: Duplicate entry 'NA' for key 't7.PRIMARY'
 TRUNCATE TABLE t6;
 INSERT INTO t6 VALUES(5,-1,1,1,1,1,1),(6,-2,2,2,2,2,2),(0,-4,4,4,4,4,4),(NULL,-5,5,5,5,5,5);
 Warnings:

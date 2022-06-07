@@ -1,0 +1,54 @@
+SET @userstat_old= @@userstat;
+SET GLOBAL userstat=ON;
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+CREATE USER mysqltest_1@localhost;
+GRANT USAGE ON *.* TO mysqltest_1@localhost;
+ALTER USER mysqltest_1@localhost WITH MAX_USER_CONNECTIONS 100;
+CREATE USER mysqltest_2@localhost;
+GRANT USAGE ON *.* TO mysqltest_2@localhost;
+ALTER USER mysqltest_2@localhost WITH MAX_USER_CONNECTIONS 100;
+SELECT 1;
+1
+1
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: single connection]
+SELECT 1;
+1
+1
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: two connections]
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: handle disconnects]
+SELECT 1;
+1
+1
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: connections from other users]
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: no connections - zero concurrency]
+set password for mysqltest_2@"localhost" = 'foo';
+ERROR 28000: Access denied for user 'mysqltest_2'@'localhost' (using password: NO)
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: wrong password connection]
+SELECT 1;
+1
+1
+FLUSH USER_STATISTICS;
+SELECT 1;
+1
+1
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: single connection after flush]
+SET GLOBAL userstat=0;
+SET GLOBAL userstat=1;
+FLUSH USER_STATISTICS;
+SELECT 1;
+1
+1
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: two connections after userstat=1]
+SET GLOBAL userstat=0;
+SET GLOBAL userstat=1;
+FLUSH CLIENT_STATISTICS;
+SELECT 1;
+1
+1
+include/assert.inc [I_S.CLIENT_STATISTICS CONCURRENT_CONNECTIONS: two connections after userstat=1]
+DROP USER mysqltest_1@localhost;
+DROP USER mysqltest_2@localhost;
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+SET GLOBAL userstat= @userstat_old;

@@ -1,0 +1,1 @@
+--loose-ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem --loose-ssl-key=$MYSQL_TEST_DIR/std_data/percona-serversan-key.pem --loose-ssl-cert=$MYSQL_TEST_DIR/std_data/percona-serversan-cert.pem --skip-name-resolve --bind-address=:: 

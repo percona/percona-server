@@ -1,0 +1,12 @@
+#
+# Segmentation fault in prepare_inner() at sql_call.cc
+#
+create table t1(a int,b CHAR (1),key b(b(1))) engine=InnoDB;
+CREATE TEMPORARY TABLE t1(a INT)ENGINE=MERGE UNION=(`test/1`.`t/1`);
+create PROCEDURE p1()create user xyz@localhost;
+DROP TABLE t1;
+create trigger ai after insert on t1 for each row call p1(new.a);
+insert into t1 values(0,0);
+ERROR 42000: Incorrect number of arguments for PROCEDURE test.p1; expected 0, got 1
+DROP TABLE t1;
+DROP PROCEDURE p1;

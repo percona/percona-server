@@ -1,3 +1,6 @@
+# Workaround https://bugs.mysql.com/bug.php?id=96526
+--source include/have_mysqlx_plugin.inc
+
 ## Create connection to clone instance optionally restarting instance with
 ## monitoring process.
 

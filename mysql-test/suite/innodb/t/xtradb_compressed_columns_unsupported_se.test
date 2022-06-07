@@ -1,0 +1,99 @@
+--echo # Defining compression dictionary content.
+SET @dictionary_data = 'one' 'two' 'three' 'four';
+
+--echo # Trying to create a compression dictionary using MyISAM SE.
+SET default_storage_engine = MyISAM;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
+
+--echo # Creating a compression dictionary using InnoDB SE.
+SET default_storage_engine = InnoDB;
+CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
+
+--echo # Creating a table without compressed columns using explicit MyISAM SE.
+CREATE TABLE t1(
+  id INT,
+  a BLOB
+) ENGINE=MyISAM;
+
+--echo # Trying to create a table with a compressed column using implicit MyISAM SE.
+SET default_storage_engine = MyISAM;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t2(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED
+);
+
+--echo # Trying to create a table with a compressed column using explicit MyISAM SE.
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t2(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=MyISAM;
+
+--echo # Creating a table with a compressed column using implicit InnoDB SE.
+SET default_storage_engine = InnoDB;
+CREATE TABLE t2(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED
+);
+
+--echo # Trying to create a table with a compressed column referencing the dictionary
+--echo # created before using implicit MyISAM SE.
+SET default_storage_engine = MyISAM;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t3(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+);
+
+--echo # Trying to create a table with a compressed column referencing the dictionary
+--echo # created before using explicit MyISAM SE.
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t3(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ENGINE=MyISAM;
+
+--echo # Creating a table with a compressed column referencing the dictionary
+--echo # created before using implicit InnoDB SE.
+SET default_storage_engine = InnoDB;
+CREATE TABLE t3(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+);
+
+--echo # Showing CREATE TABLE statements
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+
+--echo # Trying to change compression attributes in a table created using MyISAM SE (Current SE is MyISAM).
+SET default_storage_engine = MyISAM;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
+
+--echo # Trying to add a compression dictionary reference to a table created using MyISAM SE (Current SE is MyISAM).
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers;
+
+--echo # Trying to change compression attributes in a table created using MyISAM SE (Current SE is InnoDB).
+SET default_storage_engine = InnoDB;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
+--echo # Trying to add a compression dictionary reference to a table created using MyISAM SE (Current SE is InnoDB).
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers;
+
+--echo # Dropping tables with compressed columns must work regardless of currently set default SE.
+SET default_storage_engine = MyISAM;
+DROP TABLE t1, t2, t3;
+
+--echo # Trying to drop the compression dictionary created before using MyISAM SE.
+SET default_storage_engine = MyISAM;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+DROP COMPRESSION_DICTIONARY numbers;
+
+--echo # Dropping the compression dictionary created before using InnoDB SE.
+SET default_storage_engine = InnoDB;
+DROP COMPRESSION_DICTIONARY numbers;

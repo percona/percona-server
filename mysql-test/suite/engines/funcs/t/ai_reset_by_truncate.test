@@ -1,10 +1,12 @@
 --disable_warnings
 let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
---enable_warnings
-
---disable_warnings
+if ($ENGINE == "TokuDB")
+{
+  --skip Disabled for TokuDB: https://tokutek.atlassian.net/browse/DB-640
+}
 DROP TABLE IF EXISTS t1;
 --enable_warnings
+
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;

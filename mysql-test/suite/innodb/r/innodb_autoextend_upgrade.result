@@ -16,6 +16,7 @@
 SELECT lower(name), file_size, autoextend_size from
 INFORMATION_SCHEMA.INNODB_TABLESPACES where name like '%t%';
 lower(name)	file_size	autoextend_size
+innodb_system	0	0
 innodb_temporary	12582912	0
 test/t5	114688	0
 ts1	147456	0
@@ -27,6 +28,7 @@ ALTER TABLESPACE ts1 AUTOEXTEND_SIZE 4M;
 SELECT lower(name), file_size, autoextend_size from
 INFORMATION_SCHEMA.INNODB_TABLESPACES where name like '%t%';
 lower(name)	file_size	autoextend_size
+innodb_system	0	0
 innodb_temporary	12582912	0
 test/t5	114688	4194304
 ts1	147456	4194304

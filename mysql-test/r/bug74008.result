@@ -1,0 +1,10 @@
+SET @@big_tables=1;
+CREATE TEMPORARY TABLE t1(c1 DOUBLE);
+INSERT INTO t1 VALUES(0);
+SET sql_select_limit=1;
+SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND()FROM'');
+1
+1
+DROP TABLE t1;
+SET @@big_tables=DEFAULT;
+SET sql_select_limit=DEFAULT;

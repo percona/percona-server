@@ -1,0 +1,15 @@
+# Test for bug 75701 (handle_fatal_signal (sig=11) in mysql_change_db | sql/sql_db.cc:1513)
+
+PREPARE s3 FROM 'SHOW TABLES FROM mysqltest2';
+
+DROP DATABASE test;
+USE mysql;
+
+--error ER_BAD_DB_ERROR
+EXECUTE s3;
+--error ER_BAD_DB_ERROR
+EXECUTE s3;
+
+CREATE DATABASE test;
+USE test;
+DEALLOCATE PREPARE s3;

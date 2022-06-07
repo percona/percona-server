@@ -1,0 +1,10 @@
+# The test for bug #76745.
+# For tables with subpartitions, the server could exit due to incorrect
+# error handling during partition pruning if the partition could be
+# identified but not the subpartition.
+
+CREATE TABLE t1(a int) PARTITION BY RANGE (a) SUBPARTITION BY LINEAR HASH (a) (PARTITION p0 VALUES LESS THAN (10));
+INSERT INTO t1 VALUES (1),(0);
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 AS foo FROM t1 WHERE a < SOME(SELECT a FROM t1 WHERE a <=> (SELECT a FROM t1));
+DROP TABLE t1;

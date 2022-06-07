@@ -1,0 +1,6 @@
+SHOW VARIABLES LIKE 'log_slow_verbosity';
+Variable_name	Value
+log_slow_verbosity	microtime,query_plan,innodb
+SHOW GLOBAL VARIABLES LIKE 'log_slow_verbosity';
+Variable_name	Value
+log_slow_verbosity	microtime,query_plan,innodb

@@ -1,0 +1,12 @@
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Bug 1733781: sql/handler.cc:3008: int handler::ha_close(): Assertion `m_lock_type == 2' failed
+--echo #
+
+CREATE TEMPORARY TABLE t4(f int) ENGINE=INNODB;
+LOCK TABLES t4 WRITE;
+# Format description event that forces closing of open temp tables
+BINLOG ' SOgWTg8AAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
+
+UNLOCK TABLES;

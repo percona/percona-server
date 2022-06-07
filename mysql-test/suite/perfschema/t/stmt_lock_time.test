@@ -3,6 +3,8 @@
 --source include/no_protocol.inc
 --source include/not_valgrind.inc
 
+--source include/count_sessions.inc
+
 #
 # BUG#33236909 Lock_time computed differently by slow log and performance_schema
 #
@@ -22,6 +24,7 @@ BEGIN;
 --connection c1
 COMMIT;
 --disconnect c1
+--source include/wait_until_disconnected.inc
 
 --connection c2
 --reap
@@ -45,4 +48,4 @@ SELECT query_sample_text, (SUM_LOCK_TIME >= 4900000000000) as locked_5_sec
 
 DROP TABLE t1;
 
-
+--source include/wait_until_count_sessions.inc

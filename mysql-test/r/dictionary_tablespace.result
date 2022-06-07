@@ -21,6 +21,8 @@ column_type_elements	mysql
 columns	mysql
 columns_priv	mysql
 component	mysql
+compression_dictionary	mysql
+compression_dictionary_cols	mysql
 db	mysql
 dd_properties	mysql
 default_roles	mysql
@@ -94,6 +96,8 @@ column_type_elements
 columns
 columns_priv
 component
+compression_dictionary
+compression_dictionary_cols
 db
 dd_properties
 default_roles

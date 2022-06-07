@@ -1,0 +1,10 @@
+#
+# Bug #23295288 / #81447 "handle_fatal_signal (sig=11) in get_server_from_table_to_cache"
+# fixed in 5.5.52, 5.6.33, 5.7.15
+# A blank server name in CREATE SERVER statements produced a server exit
+# rather than an error.
+#
+
+--error ER_WRONG_VALUE
+CREATE SERVER '' FOREIGN DATA WRAPPER w2 OPTIONS (HOST '');
+FLUSH PRIVILEGES;

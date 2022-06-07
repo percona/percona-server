@@ -1,0 +1,27 @@
+CREATE TABLE t1(
+a CHAR (255),
+b VARCHAR(255) CHARACTER SET utf8mb3,
+c VARCHAR(255) CHARACTER SET utf8mb3,
+d VARCHAR(255) CHARACTER SET utf8mb3,
+e VARCHAR(255) CHARACTER SET utf8mb3,
+f VARCHAR(4) CHARACTER SET utf8mb3,
+KEY (a),
+KEY (b, c, d, e, f)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SET big_tables = TRUE;
+INSERT INTO t1(a, b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. q ...'),
+('MySQL vs. YourSQL use','In the following database comparison ...'),
+('MySQL Security','When run configured properly,MySQL ...');
+SELECT * FROM t1 WHERE (a, b) = ANY (SELECT a, MAX(b) FROM t1 GROUP BY a);
+a	b	c	d	e	f
+1001 MySQL Tricks	1. Never run mysqld as root. 2. q ...	NULL	NULL	NULL	NULL
+MySQL vs. YourSQL use	In the following database comparison ...	NULL	NULL	NULL	NULL
+MySQL Security	When run configured properly,MySQL ...	NULL	NULL	NULL	NULL
+DROP TABLE t1;

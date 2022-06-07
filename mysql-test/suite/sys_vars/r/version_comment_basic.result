@@ -5,8 +5,23 @@ COUNT(@@GLOBAL.version_comment)
 1 Expected
 '#---------------------BS_STVARS_054_02----------------------#'
 SET @@GLOBAL.version_comment=1;
-ERROR HY000: Variable 'version_comment' is a read only variable
-Expected error 'Read only variable'
+ERROR 42000: Incorrect argument type to variable 'version_comment'
+Expected error 'Incorrect argument type to variable'
+SET @saved_version_comment = @@global.version_comment;
+SET GLOBAL version_comment = DEFAULT;
+SET GLOBAL version_comment = '';
+SELECT @@global.version_comment;
+@@global.version_comment
+
+SET GLOBAL version_comment = 'my_comment';
+SELECT @@global.version_comment;
+@@global.version_comment
+my_comment
+SET GLOBAL version_comment = 'my_comment2';
+SELECT @@global.version_comment;
+@@global.version_comment
+my_comment2
+SET GLOBAL version_comment = @saved_version_comment;
 SELECT COUNT(@@GLOBAL.version_comment);
 COUNT(@@GLOBAL.version_comment)
 1

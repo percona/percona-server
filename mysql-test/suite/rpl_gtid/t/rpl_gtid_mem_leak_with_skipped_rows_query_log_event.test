@@ -2,7 +2,7 @@
 # Bug#25695434 MEMORY LEAK IN MULTI-SOURCE REPLICATION WHEN
 #              BINLOG_ROWS_QUERY_LOG_EVENTS=1
 #
-# Problem: In multi source replication, Slave SQL Thread leaks memory
+# Problem: In multi source replication, Replica SQL Thread leaks memory
 #          when replicating using two channels from master-master pair
 #          when binlog_rows_query_log_events is enabled.
 #

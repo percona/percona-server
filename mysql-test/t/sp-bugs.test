@@ -477,7 +477,6 @@ DROP FUNCTION очень_очень_очень_очень_очень_очень_
 
 SET NAMES default;
 
-
 --echo #
 --echo # Bug#30034972 - Deterministic function returns different value after
 --echo #                error.

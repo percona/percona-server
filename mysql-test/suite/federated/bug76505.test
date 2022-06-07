@@ -1,0 +1,17 @@
+--source suite/federated/include/federated.inc
+
+CREATE TABLE t1 (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+
+CREATE TABLE t2 (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+
+CREATE TABLE t3 LIKE t2;
+
+DROP TABLE t2, t3;
+DROP TABLE t1;
+
+--source suite/federated/include/federated_cleanup.inc

@@ -1,3 +1,5 @@
+# Workaround https://bugs.mysql.com/bug.php?id=96527
+--source include/have_mysqlx_plugin.inc
 # ==== Purpose ====
 #
 # Shutdown a server and start it with mysql_safe

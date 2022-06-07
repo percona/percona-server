@@ -1,0 +1,34 @@
+--source include/have_debug.inc
+--source include/have_pool_of_threads.inc
+
+--echo #
+--echo # Debug build tests for pool of threads
+--echo #
+
+--echo #
+--echo # Bug 1642230 (handle_fatal_signal (sig=11) in THD::set_new_thread_id)
+--echo #
+
+call mtr.add_suppression("Out of memory");
+
+SET @saved_debug= @@GLOBAL.debug;
+SET GLOBAL debug= '+d,simulate_resource_failure';
+
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+connect (con1,localhost,root,,);
+
+connection default;
+SET GLOBAL debug= '-d,simulate_resource_failure';
+
+SET GLOBAL debug= '+d,simulate_tp_alloc_connection_oom';
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+connect (con1,localhost,root,,);
+
+connection default;
+SET GLOBAL debug= '-d,simulate_tp_alloc_connection_oom';
+
+SET GLOBAL debug= @saved_debug;

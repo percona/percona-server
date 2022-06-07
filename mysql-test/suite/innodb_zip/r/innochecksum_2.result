@@ -19,6 +19,7 @@ INSERT INTO t1 SELECT * from t1;
 [2]:# Run the innochecksum when file isn't provided.
 # It will print the innochecksum usage similar to --help option.
 innochecksum Ver #.#.#
+Copyright (c) YEAR-YEAR  Percona LLC and/or its affiliates
 Copyright (c) YEAR, YEAR , Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
@@ -32,6 +33,7 @@ Usage: innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v]  [-a
   -V, --version       Displays version information and exits.
   -v, --verbose       Verbose (prints progress every 5 seconds).
   -c, --count         Print the count of pages in the file and exits.
+  -f, --format-info   Display information about the file format and exit
   -s, --start-page=#  Start on this page number (0 based).
   -e, --end-page=#    End at this page number (0 based).
   -p, --page=#        Check only this page (0 based).

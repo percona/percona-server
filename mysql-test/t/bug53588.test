@@ -1,0 +1,23 @@
+#
+# Bug 53588 test case.
+#
+# Create long enough index (between 1000 and 3500). 1000 is the old value,
+# 3500 is innodb value (see ha_innobase::max_supported_key_length()). Without
+# the fix the test will fail with "Specified key was too long" error.
+#
+# For 8.0 the actual key length is counted as a value from statement,
+# multiplied by the maximum symbol lenght of the key's charset.
+#
+--source include/have_blackhole.inc
+
+# As default test charset is UTF-8 with 4-byte maximum symbol length, the `a`
+# key length will be multiplied by 4 (750*4 = 3000) and compared with what
+# blackhole storage engine returns from
+# ha_blackhole::max_supported_key_length(), that is why we need to reduce
+# the initial key length (3000) by 4 times to pass the test.
+CREATE TABLE `t` (
+  `a` varchar(750) NOT NULL default '',
+  PRIMARY KEY  (`a`)
+) ENGINE=BLACKHOLE;
+
+DROP TABLE `t`;

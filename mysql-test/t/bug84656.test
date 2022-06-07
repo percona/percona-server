@@ -1,0 +1,8 @@
+#
+# Bug #25447551 / #84656 "handle_fatal_signal (sig=11) in ft_boolean_check_syntax_string"
+#
+SET @saved_ft_boolean_syntax = @@global.ft_boolean_syntax;
+
+SET GLOBAL ft_boolean_syntax = ' ~/!@#$%^&*()-';
+
+SET GLOBAL ft_boolean_syntax = @saved_ft_boolean_syntax;

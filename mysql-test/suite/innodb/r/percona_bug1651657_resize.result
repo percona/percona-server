@@ -1,0 +1,9 @@
+set @old_innodb_empty_free_list_algorithm = @@innodb_empty_free_list_algorithm;
+set global innodb_empty_free_list_algorithm="backoff";
+SET @@GLOBAL.innodb_buffer_pool_size = 19922944;
+Warnings:
+Warning	1210	Cannot update innodb_buffer_pool_size to less than 20MB per instance with innodb_empty_free_list_algorithm = backoff.
+SELECT @@GLOBAL.innodb_buffer_pool_size;
+@@GLOBAL.innodb_buffer_pool_size
+20971520
+SET @@GLOBAL.innodb_empty_free_list_algorithm=@old_innodb_empty_free_list_algorithm;

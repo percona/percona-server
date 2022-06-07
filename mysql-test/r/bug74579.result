@@ -1,0 +1,13 @@
+CREATE TABLE t1 (pk1 INT KEY, b BIT, KEY(b));
+CREATE TABLE t2 (a INT, b2 CHAR, FULLTEXT KEY b2 (b2));
+EXPLAIN SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY(SELECT a FROM t2 WHERE b=12);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	b	2	NULL	1	100.00	Using index
+2	UNION	t1	NULL	index	NULL	b	2	NULL	1	100.00	Using index
+4	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+5	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'b' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`b` AS `b` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#5 */ select `test`.`t2`.`a` from `test`.`t2` where (`b` = 12))
+UPDATE t2 SET a=1 ORDER BY a;
+DROP TABLE t1, t2;

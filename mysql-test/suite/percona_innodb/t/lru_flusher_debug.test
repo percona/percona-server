@@ -1,0 +1,36 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Debug build tests for Percona LRU flusher and related flushing changes
+--echo #
+
+--echo #
+--echo # Bug 1657026: Lack of free pages in the buffer pool is not diagnosed with
+--echo # innodb_empty_free_list_algorithm=backoff
+--echo #
+
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err
+--let $restart_parameters=restart:--innodb_buffer_pool_size=20M --log-error=$SEARCH_FILE
+--replace_result $SEARCH_FILE SEARCH_FILE
+--source include/restart_mysqld.inc
+
+SET @@debug="+d,simulate_lack_of_pages";
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+--let $assert_text= With the bug present, Innodb_buffer_pool_wait_free stays at zero
+--let $assert_cond= VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "Innodb_buffer_pool_wait_free" > 0
+--source include/assert.inc
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+
+# With the bug present, the "Difficult to find free blocks" warning is not printed
+--let SEARCH_PATTERN= Difficult to find free blocks
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= END OF INNODB MONITOR OUTPUT
+--source include/search_pattern.inc
+--remove_file $SEARCH_FILE

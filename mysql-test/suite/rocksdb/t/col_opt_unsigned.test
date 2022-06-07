@@ -1,0 +1,106 @@
+--source include/have_rocksdb.inc
+
+# 
+# UNSIGNED column attribute 
+#
+
+--let $extra_col_opts = UNSIGNED
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 1
+
+--echo ########################
+--echo # Fixed point columns (NUMERIC, DECIMAL)
+--echo ########################
+
+--source suite/rocksdb/include/type_fixed.inc
+
+CREATE TABLE t1 (
+  a DECIMAL UNSIGNED,
+  b NUMERIC UNSIGNED,
+  PRIMARY KEY (a)
+) ENGINE=rocksdb;
+
+SHOW COLUMNS IN t1;
+
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 (a,b) VALUES (1.0,-1.0);
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 (a,b) VALUES (-100,100);
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (a,b) VALUES (1.0,-1.0);
+INSERT INTO t1 (a,b) VALUES (-100,100);
+set session sql_mode=@orig_sql_mode;
+
+--sorted_result
+SELECT a,b FROM t1;
+DROP TABLE t1;
+
+--echo ########################
+--echo # Floating point columns (FLOAT, DOUBLE)
+--echo ########################
+
+--source suite/rocksdb/include/type_float.inc
+
+CREATE TABLE t1 (
+  a DOUBLE UNSIGNED,
+  b FLOAT UNSIGNED,
+  PRIMARY KEY (b) 
+) ENGINE=rocksdb;
+
+SHOW COLUMNS IN t1;
+
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 (a,b) VALUES (1.0,-1.0);
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 (a,b) VALUES (-100,100);
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (a,b) VALUES (1.0,-1.0);
+INSERT INTO t1 (a,b) VALUES (-100,100);
+set session sql_mode=@orig_sql_mode;
+
+--sorted_result
+SELECT a,b FROM t1;
+DROP TABLE t1;
+
+--echo ########################
+--echo # INT columns
+--echo ########################
+
+--source suite/rocksdb/include/type_int.inc
+
+CREATE TABLE t1 (
+  t TINYINT UNSIGNED,
+  s SMALLINT UNSIGNED,
+  m MEDIUMINT UNSIGNED,
+  i INT UNSIGNED,
+  b BIGINT UNSIGNED,
+  PRIMARY KEY (b)
+) ENGINE=rocksdb;
+
+SHOW COLUMNS IN t1;
+
+INSERT INTO t1 (t,s,m,i,b) VALUES (255,65535,16777215,4294967295,18446744073709551615);
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 (t,s,m,i,b) VALUES (-1,-1,-1,-1,-1);
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (t,s,m,i,b) VALUES (-1,-1,-1,-1,-1);
+set session sql_mode=@orig_sql_mode;
+
+--sorted_result
+SELECT t,s,m,i,b FROM t1;
+
+DROP TABLE t1;
+  
+--let $extra_col_opts =

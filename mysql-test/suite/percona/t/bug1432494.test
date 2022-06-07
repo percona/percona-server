@@ -1,0 +1,12 @@
+########################################################################
+# Bug #1432494: Assertion `duration != MDL_EXPLICIT ||
+#               !thd->mdl_context.is_lock_owner(m_namespace, "", "",
+#               MDL_INTENTION_EXCLUSIVE)'
+#               failed in sql/lock.cc:1198
+########################################################################
+
+SET SESSION AUTOCOMMIT=0;
+
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+
+RESET REPLICA;

@@ -1,0 +1,23 @@
+#
+# Bug 20857652 / #77522 (#77523, #77527)
+# "handle_fatal_signal (sig=11) in size at include/prealloced_array.h:147"
+# fixed in 5.6.26, 5.7.8, 8.0.0
+# A failed FLUSH PRIVILEGES statement followed by statements to create or drop
+# accounts could cause a server exit
+#
+
+call mtr.add_suppression("Can't open and lock privilege tables");
+
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2(id2 INT, b2 BIT);
+FLUSH TABLES t1, t2 FOR EXPORT;
+--error ER_TABLE_NOT_LOCKED
+FLUSH PRIVILEGES;
+
+--disable_result_log
+SELECT grantee, table_catalog, privilege_type FROM information_schema.user_privileges;
+--enable_result_log
+
+UNLOCK TABLES;
+
+DROP TABLE t1, t2;

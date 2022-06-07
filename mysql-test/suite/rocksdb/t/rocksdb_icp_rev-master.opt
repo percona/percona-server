@@ -1,0 +1,1 @@
+--loose-rocksdb_debug_optimizer_n_rows=20000 --loose-rocksdb_records_in_range=1000 --userstat=on

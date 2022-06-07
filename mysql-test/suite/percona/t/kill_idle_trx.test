@@ -1,0 +1,1 @@
+--source ../include/percona_kill_idle_trx_non_trx_se.inc

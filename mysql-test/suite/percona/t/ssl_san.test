@@ -1,0 +1,33 @@
+--source include/count_sessions.inc
+
+#
+# lp:1673656 "SSL Certificate Subject ALT Names with IPs or DNS: not respected with --ssl-verify-server-cert"
+# Oracle Bug #68052 "SSL Certificate Subject ALT Names with IPs not respected with --ssl-verify-serve"
+#
+
+# This is a workaround for CentOS 6 (both 64-bit and 32-bit) which
+# reports "Host '127.0.0.2' is not allowed to connect to this MySQL server"
+# when "$MYSQL -h 127.0.0.2 ..." is executed
+CREATE USER 'mysqltest_1'@'127.0.0.0/255.0.0.0';
+GRANT ALL ON test.* TO 'mysqltest_1'@'127.0.0.0/255.0.0.0';
+
+# Check if it is possible to connect to the server via SSL with
+# '--ssl-mode=VERIFY_IDENTITY' option. Although server certificate is issued
+# to another server ('CN' == 'percona-server'), it has 'localhost' and
+# 127.0.0.1 in the Subject Alternative Names (SAN) list.
+
+--exec $MYSQL -u mysqltest_1 -h localhost --ssl-mode=VERIFY_CA --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT 'localhost' AS answer"
+--exec $MYSQL -u mysqltest_1 -h localhost --ssl-mode=VERIFY_IDENTITY --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT 'localhost (--ssl-mode=VERIFY_IDENTITY)' AS answer"
+
+--exec $MYSQL -u mysqltest_1 -h 127.0.0.1 --ssl-mode=VERIFY_CA --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '127.0.0.1' answer"
+--exec $MYSQL -u mysqltest_1 -h 127.0.0.1 --ssl-mode=VERIFY_IDENTITY --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '127.0.0.1 (--ssl-mode=VERIFY_IDENTITY)' answer"
+
+--exec $MYSQL -u mysqltest_1 -h 127.0.0.2 --ssl-mode=VERIFY_CA --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '127.0.0.2' AS answer"
+# The next command is expected to fail with CR_SSL_CONNECTION_ERROR (2026) as
+# 127.0.0.2 address is not in the certificate SAN list
+--error 1
+--exec $MYSQL -u mysqltest_1 -h 127.0.0.2 --ssl-mode=VERIFY_IDENTITY --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/percona-cacert.pem -e "SELECT '127.0.0.2 (--ssl-mode=VERIFY_IDENTITY)' AS answer"
+
+DROP USER 'mysqltest_1'@'127.0.0.0/255.0.0.0';
+
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,16 @@
+#
+# Bug #17846865 / #74953 "handler reading index on geometry column crash"
+# fixed in 5.7.8, 8.0.0
+# For HANDLER read statements that scanned a spatial index, type conversion
+# errors of values read from the index could cause a server exit.
+#
+
+--source include/have_myisam.inc
+
+CREATE TABLE t0(a GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(a)) ENGINE=MyISAM;
+
+HANDLER t0 OPEN;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+HANDLER t0 READ a = (0);
+
+DROP TABLE t0;

@@ -1,0 +1,85 @@
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES(10);
+INSERT INTO t2 VALUES(10);
+INSERT INTO t2 VALUES(20);
+INSERT INTO t2 VALUES(10);
+INSERT INTO t2 VALUES(20);
+SET DEBUG_SYNC= 'locked_table_name SIGNAL thread1_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
+CREATE TABLE t1 (a INT);
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
+SELECT a FROM t2 WHERE a > 15;
+SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	0	0
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	0	0
+###	root	###	test	Query	###	###	CREATE TABLE t1 (a INT)	###	0	0
+###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	###	2	5
+Warnings:
+###	1287	###
+SELECT id, info, rows_sent, rows_examined FROM performance_schema.processlist ORDER BY id;
+id	info	rows_sent	rows_examined
+###	NULL	0	0
+###	SELECT id, info, rows_sent, rows_examined FROM performance_schema.processlist ORDER BY id	1	1
+###	CREATE TABLE t1 (a INT)	0	0
+###	SELECT a FROM t2 WHERE a > 15	2	5
+SET DEBUG_SYNC= 'now SIGNAL threads_dumped';
+a
+20
+20
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'sent_row SIGNAL thread1_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
+SELECT a FROM t2 WHERE a < 15;
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
+SET DEBUG_SYNC= 'sent_row SIGNAL thread2_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
+SELECT a FROM t2 WHERE a > 15;
+SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	0	0
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	0	0
+###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a < 15	###	1	0
+###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	###	1	0
+Warnings:
+###	1287	###
+SELECT id, info, rows_sent, rows_examined FROM performance_schema.processlist ORDER BY id;
+id	info	rows_sent	rows_examined
+###	NULL	0	0
+###	SELECT id, info, rows_sent, rows_examined FROM performance_schema.processlist ORDER BY id	1	8
+###	SELECT a FROM t2 WHERE a < 15	1	0
+###	SELECT a FROM t2 WHERE a > 15	1	5
+SET DEBUG_SYNC= 'now SIGNAL threads_dumped';
+a
+10
+10
+10
+a
+20
+20
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread1_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
+UPDATE t2 SET a = 15 WHERE a = 20;
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
+UPDATE t2 SET a = 15 WHERE a = 10;
+SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	0	0
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	0	0
+###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 20	###	0	5
+###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 10	###	0	5
+Warnings:
+###	1287	###
+SELECT id, info, rows_sent, rows_examined FROM performance_schema.processlist ORDER BY id;
+id	info	rows_sent	rows_examined
+###	NULL	0	0
+###	SELECT id, info, rows_sent, rows_examined FROM performance_schema.processlist ORDER BY id	1	8
+###	UPDATE t2 SET a = 15 WHERE a = 20	3	5
+###	UPDATE t2 SET a = 15 WHERE a = 10	2	5
+SET DEBUG_SYNC= 'now SIGNAL threads_dumped';
+DROP TABLES t1, t2;
+SET DEBUG_SYNC= 'RESET';

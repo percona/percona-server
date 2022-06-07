@@ -1,0 +1,11 @@
+--source include/have_rocksdb.inc
+
+let ddl= $MYSQL_TMP_DIR/unique_sec_rev_cf.sql;
+--exec sed s/##CF##/" COMMENT 'rev:cf'"/g suite/rocksdb/include/unique_sec.inc > $ddl
+
+# MyRocks does not support gap locks in REPEATABLE-READ mode, so run through
+# this sequence twice, one for each supported transaction level
+let $trx_isolation = READ COMMITTED;
+--source $ddl
+let $trx_isolation = REPEATABLE READ;
+--source $ddl

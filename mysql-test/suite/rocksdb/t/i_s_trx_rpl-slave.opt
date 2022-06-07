@@ -1,0 +1,1 @@
+--binlog_format=row --slave_parallel_workers=1 --loose-rocksdb_rpl_skip_tx_api=ON

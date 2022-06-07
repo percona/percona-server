@@ -1,0 +1,1 @@
+--skip-external-locking --default-storage-engine=MyISAM --loose-rocksdb_unsafe_for_binlog=true

@@ -1,0 +1,108 @@
+# checks if the slave stops executing transactions when master's binlog format
+# is STATEMENT but rocksdb_rpl_skip_tx_api=on and super_read_only=off
+--source include/have_rocksdb.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+call mtr.add_suppression("Masters binlog format is not ROW and storage engine can not handle non-ROW events at this time.*");
+call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
+
+# We have two combinations we need to test here :
+# 1) rsta=on and sro=off
+# 2) rsta=on and sro=on
+# 3) rsta=on and sro=off w/ partition
+# 4) rsta=on and sro=on w/ partition
+
+# set up slave to encounter error for combo 1
+connection slave;
+set @orig_rocksdb_rpl_skip_tx_api=@@global.rocksdb_rpl_skip_tx_api;
+set @orig_read_only=@@global.read_only;
+set @orig_super_read_only=@@global.super_read_only;
+set @@global.rocksdb_rpl_skip_tx_api=ON;
+
+# induce events from the master
+connection master;
+set rocksdb_unsafe_for_binlog=1;
+create table t1(a int) engine=rocksdb;
+insert into t1 values(1);
+
+# on slave, wait till we hit the binlog format mismatch error
+connection slave;
+let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR); # 1756
+let $show_slave_sql_error=0;
+source include/wait_for_slave_sql_error.inc;
+
+# on slave, print table
+connection slave;
+echo "Table after error";
+select * from t1;
+
+# on slave, turn on super read only and start the slave again
+connection slave;
+set @@global.super_read_only=ON;
+--source include/start_slave.inc
+connection master;
+--source include/sync_slave_sql_with_master.inc
+
+# on slave, print table again
+connection slave;
+echo "Table after error fixed";
+select * from t1;
+
+# cleanup master
+connection master;
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+
+# cleanup slave
+connection slave;
+set @@global.rocksdb_rpl_skip_tx_api=@orig_rocksdb_rpl_skip_tx_api;
+set @@global.super_read_only=@orig_super_read_only;
+set @@global.read_only=@orig_read_only;
+
+
+# set up slave to encounter error for combo 3
+connection slave;
+set @@global.rocksdb_rpl_skip_tx_api=ON;
+
+# induce events from the master
+connection master;
+set rocksdb_unsafe_for_binlog=1;
+create table t1(a int, primary key (a)) engine=rocksdb partition by key(a) partitions 2;
+insert into t1 values(1), (2), (3), (4);
+
+# on slave, wait till we hit the binlog format mismatch error
+connection slave;
+let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR); # 1756
+let $show_slave_sql_error=0;
+source include/wait_for_slave_sql_error.inc;
+
+# on slave, print table
+connection slave;
+echo "Table after error";
+select * from t1;
+
+# on slave, turn on super read only and start the slave again
+connection slave;
+set @@global.super_read_only=ON;
+--source include/start_slave.inc
+connection master;
+--source include/sync_slave_sql_with_master.inc
+
+# on slave, print table again
+connection slave;
+echo "Table after error fixed";
+select * from t1;
+
+# cleanup master
+connection master;
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+
+# cleanup slave
+connection slave;
+set @@global.rocksdb_rpl_skip_tx_api=@orig_rocksdb_rpl_skip_tx_api;
+set @@global.super_read_only=@orig_super_read_only;
+set @@global.read_only=@orig_read_only;
+
+-- source include/rpl_end.inc

@@ -1,0 +1,24 @@
+# restart:<hidden args>
+SET @innodb_lock_wait_timeout_saved = @@GLOBAL.innodb_lock_wait_timeout;
+SET @innodb_print_lock_wait_timeout_info_saved =
+@@GLOBAL.innodb_print_lock_wait_timeout_info;
+SET GLOBAL innodb_lock_wait_timeout = 1;
+SET GLOBAL innodb_print_lock_wait_timeout_info = true;
+CREATE TABLE t (i INT) ENGINE = InnoDB;
+INSERT INTO t (i) VALUES(1);
+START TRANSACTION;
+SELECT * FROM t WHERE i = 1 LOCK IN SHARE MODE;
+i
+1
+START TRANSACTION;
+DELETE FROM t WHERE i = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+COMMIT;
+DELETE FROM t WHERE i = 1;
+COMMIT;
+Grepping the error log for lock wait timeout info
+Pattern "Lock wait timeout info:" found
+DROP TABLE t;
+SET GLOBAL innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+SET GLOBAL innodb_print_lock_wait_timeout_info =
+@innodb_print_lock_wait_timeout_info_saved;

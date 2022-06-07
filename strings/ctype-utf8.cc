@@ -5087,7 +5087,7 @@ static inline size_t my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs,
   }
 
 pad:
-  if (dst < de && nweights)  // PAD SPACE behavior.
+  if (dst < de && nweights && !(flags & MY_STRXFRM_NOPAD_WITH_SPACE))
     dst += my_strxfrm_pad_nweights_unicode(dst, de, nweights);
 
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)

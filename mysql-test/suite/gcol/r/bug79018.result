@@ -1,0 +1,8 @@
+CREATE TABLE t0 (a BIGINT, b BIGINT AS (a = 0)) ENGINE=MYISAM;
+ALTER TABLE t0 MODIFY c0 CHAR(0);
+ERROR 42S22: Unknown column 'c0' in 't0'
+SELECT * FROM t0 WHERE c0=-0 AND c0=-0;
+ERROR 42S22: Unknown column 'c0' in 'where clause'
+INSERT INTO t0 (UJIS,NAME) VALUES (0x0ECD, 'U+FF0D HALFWIDTH KATAKANA LETTER HE');
+ERROR 42S22: Unknown column 'UJIS' in 'field list'
+DROP TABLE t0;

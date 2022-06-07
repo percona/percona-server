@@ -1,0 +1,3 @@
+UPDATE performance_schema.setup_consumers SET enabled='NO' where name='thread_instrumentation';
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES ORDER BY TABLE_ROWS;
+UPDATE performance_schema.setup_consumers SET enabled='YES' where name='thread_instrumentation';

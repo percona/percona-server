@@ -65,7 +65,7 @@ set @@tmp_table_size=1024,@@max_heap_table_size=16384;
 set @@tmp_table_size=30000,@@max_heap_table_size=30000;
 --source include/with_recursive_wl9248.inc
 
-set @@tmp_table_size=60000,@@max_heap_table_size=60000;
+set @@tmp_table_size=60000,@@max_heap_table_size=61000;
 --source include/with_recursive_wl9248.inc
 
 --echo # cleanup

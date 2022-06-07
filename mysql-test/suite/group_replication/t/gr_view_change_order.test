@@ -107,5 +107,6 @@ INSERT INTO t1 VALUES (NULL);
 --source include/assert.inc
 
 DROP TABLE t1;
+SET DEBUG_SYNC= "RESET";
 
 --source include/group_replication_end.inc

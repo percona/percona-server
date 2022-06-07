@@ -129,7 +129,10 @@ t1	CREATE TABLE `t1` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` bigint NOT NULL DEFAULT '0',
+  `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
+  `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 DROP TABLE t1;
 #########################################################
@@ -157,6 +160,7 @@ ADMINISTRABLE_ROLE_AUTHORIZATIONS
 APPLICABLE_ROLES
 CHARACTER_SETS
 CHECK_CONSTRAINTS
+CLIENT_STATISTICS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
@@ -167,6 +171,8 @@ ENABLED_ROLES
 ENGINES
 EVENTS
 FILES
+GLOBAL_TEMPORARY_TABLES
+INDEX_STATISTICS
 KEYWORDS
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
@@ -194,9 +200,13 @@ TABLES_EXTENSIONS
 TABLE_CONSTRAINTS
 TABLE_CONSTRAINTS_EXTENSIONS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
+TEMPORARY_TABLES
+THREAD_STATISTICS
 TRIGGERS
 USER_ATTRIBUTES
 USER_PRIVILEGES
+USER_STATISTICS
 VIEWS
 VIEW_ROUTINE_USAGE
 VIEW_TABLE_USAGE
@@ -211,15 +221,15 @@ WHERE TABLE_NAME LIKE 'no_such_table';
 TABLE_NAME
 # 4. Names collate differently. On trunk, the queries below returns
 #    the same result set.
-SELECT count(*) = IF(@@lower_case_table_names = 0, 6, 11)
+SELECT count(*) = IF(@@lower_case_table_names = 0, 7, 12)
 FROM information_schema.tables
 WHERE table_name LIKE 'TAB%';
-count(*) = IF(@@lower_case_table_names = 0, 6, 11)
+count(*) = IF(@@lower_case_table_names = 0, 7, 12)
 1
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 11)
+SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 12)
 FROM information_schema.tables
 WHERE table_name LIKE 'tab%';
-count(*) = IF(@@lower_case_table_names = 0, 5, 11)
+count(*) = IF(@@lower_case_table_names = 0, 5, 12)
 1
 # This is because the collation of the column is different. On trunk,
 # it is utf8_general_ci. With the global DD, it is the collation of the

@@ -1,0 +1,121 @@
+# This test checks if compressed columns extensions (including compression
+# dictionaries) work properly in different replication modes.
+
+--source include/rpl/init_source_replica.inc
+
+--let $dict_word= long
+--let $short_value= short
+--let $long_value= `SELECT REPEAT('$dict_word', 128)`
+
+#
+# master:zip -> slave:zip 
+#
+connection master;
+--echo # 
+--echo # master:zip -> slave:zip
+--echo # 
+eval CREATE COMPRESSION_DICTIONARY dict('$dict_word');
+CREATE TABLE t1(
+  id BIGINT UNSIGNED NOT NULL,
+  a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+  id BIGINT UNSIGNED NOT NULL,
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict
+) ENGINE=InnoDB;
+
+--disable_query_log
+eval INSERT INTO t1 VALUES(1, '$short_value');
+eval INSERT INTO t1 VALUES(1, '$long_value');
+eval INSERT INTO t2 VALUES(1, '$short_value');
+eval INSERT INTO t2 VALUES(1, '$long_value');
+--enable_query_log
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:t1,master:t2,slave:t1,slave:t2
+--source include/diff_tables.inc
+
+connection master;
+DROP TABLE t1, t2;
+DROP COMPRESSION_DICTIONARY dict;
+--source include/rpl/sync_to_replica.inc
+
+#
+# master:zip -> slave:non-zip 
+#
+connection master;
+--echo # 
+--echo # master:zip -> slave:non-zip
+--echo # 
+eval CREATE COMPRESSION_DICTIONARY dict('$dict_word');
+CREATE TABLE t1(
+  id BIGINT UNSIGNED NOT NULL,
+  a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+  id BIGINT UNSIGNED NOT NULL,
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict
+) ENGINE=InnoDB;
+
+--source include/rpl/sync_to_replica.inc
+connection slave;
+ALTER TABLE t1 MODIFY a BLOB COLUMN_FORMAT DEFAULT;
+ALTER TABLE t2 MODIFY a BLOB COLUMN_FORMAT DEFAULT;
+connection master;
+
+--disable_query_log
+eval INSERT INTO t1 VALUES(1, '$short_value');
+eval INSERT INTO t1 VALUES(1, '$long_value');
+eval INSERT INTO t2 VALUES(1, '$short_value');
+eval INSERT INTO t2 VALUES(1, '$long_value');
+--enable_query_log
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:t1,master:t2,slave:t1,slave:t2
+--source include/diff_tables.inc
+
+connection master;
+DROP TABLE t1, t2;
+DROP COMPRESSION_DICTIONARY dict;
+--source include/rpl/sync_to_replica.inc
+
+#
+# master:non-zip -> slave:zip 
+#
+connection master;
+--echo # 
+--echo # master:non-zip -> slave:zip
+--echo # 
+eval CREATE COMPRESSION_DICTIONARY dict('$dict_word');
+CREATE TABLE t1(
+  id BIGINT UNSIGNED NOT NULL,
+  a BLOB
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+  id BIGINT UNSIGNED NOT NULL,
+  a BLOB
+) ENGINE=InnoDB;
+
+--source include/rpl/sync_to_replica.inc
+connection slave;
+ALTER TABLE t1 MODIFY a BLOB COLUMN_FORMAT COMPRESSED;
+ALTER TABLE t2 MODIFY a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict;
+connection master;
+
+--disable_query_log
+eval INSERT INTO t1 VALUES(1, '$short_value');
+eval INSERT INTO t1 VALUES(1, '$long_value');
+eval INSERT INTO t2 VALUES(1, '$short_value');
+eval INSERT INTO t2 VALUES(1, '$long_value');
+--enable_query_log
+
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:t1,master:t2,slave:t1,slave:t2
+--source include/diff_tables.inc
+
+connection master;
+DROP TABLE t1, t2;
+DROP COMPRESSION_DICTIONARY dict;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

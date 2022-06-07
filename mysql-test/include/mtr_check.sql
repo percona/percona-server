@@ -122,6 +122,9 @@ BEGIN
   SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM performance_schema.persisted_variables
     ORDER BY VARIABLE_NAME;
 
+  SELECT * FROM performance_schema.session_variables
+    WHERE variable_name = 'debug_sync';
+
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
   SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;

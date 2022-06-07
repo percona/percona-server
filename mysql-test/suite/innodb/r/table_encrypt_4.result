@@ -4,6 +4,7 @@
 # Creating custom global configuration file for keyring component: component_keyring_file
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
+# restart:<hidden args>
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -71,7 +72,7 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
-# restart: PLUGIN_DIR_OPT
+# restart:<hidden args>
 SELECT * FROM test.t1 LIMIT 10;
 c1	c2
 0	aaaaa

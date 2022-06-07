@@ -17,8 +17,6 @@ CREATE TABLE child (
 INSERT INTO parent VALUES (1);
 INSERT INTO child VALUES (1);
 
--- source include/restart_mysqld.inc
-
 SET SESSION DEBUG='+d,test_upd_stats_if_needed_not_inited';
 
 # this will cause row_update_statistics_if_needed() to be called for a table

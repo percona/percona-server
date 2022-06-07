@@ -6,7 +6,7 @@
 --source include/have_blackhole.inc
 --source include/have_binlog_format_row.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $safe_load_data_dir = `SELECT @@global.secure_file_priv`
 --let $server_1_binlog_record_file = $safe_load_data_dir/bug93917_server_1.txt
@@ -17,10 +17,10 @@
 --let $number_of_data_types = `SELECT FIND_IN_SET($list_sentinel, CONCAT_WS(',', $data_type_list, $list_sentinel)) - 1`
 --let $data_type_index = 1
 
---let $server_1_log_file = query_get_value(SHOW MASTER STATUS, File, 1)
---source include/rpl_connection_slave.inc
---let $server_2_log_file = query_get_value(SHOW MASTER STATUS, File, 1)
---source include/rpl_connection_master.inc
+--let $server_1_log_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source include/rpl/connection_replica.inc
+--let $server_2_log_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source include/rpl/connection_source.inc
 
 while($data_type_index <= $number_of_data_types)
 {
@@ -32,24 +32,24 @@ while($data_type_index <= $number_of_data_types)
 
   --eval CREATE TABLE t1(id BIGINT, col $data_type) ENGINE=InnoDB
 
-  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl/sync_to_replica.inc
   ALTER TABLE t1 ENGINE=Blackhole;
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   INSERT INTO t1 VALUES(1, 'testblob_1');
-  --let $server_1_start_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $server_1_start_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
-  --source include/sync_slave_sql_with_master.inc
-  --let $server_2_start_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+  --source include/rpl/sync_to_replica.inc
+  --let $server_2_start_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
   UPDATE t1 SET col = 'blb' where ID = 1;
-  --let $server_1_stop_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $server_1_stop_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
-  --source include/sync_slave_sql_with_master.inc
-  --let $server_2_stop_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+  --source include/rpl/sync_to_replica.inc
+  --let $server_2_stop_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
-  --source include/rpl_connection_master.inc
+  --source include/rpl/connection_source.inc
 
   # there should be no overwritten "blbtblob_1" value in the Blackhole update rows binlog record
   --exec $MYSQL_BINLOG -vv --base64-output=decode-rows $server_1_datadir/$server_1_log_file --start-position=$server_1_start_pos --stop-position=$server_1_stop_pos | grep ^### > $server_1_binlog_record_file
@@ -67,4 +67,4 @@ while($data_type_index <= $number_of_data_types)
   --inc $data_type_index
 }
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

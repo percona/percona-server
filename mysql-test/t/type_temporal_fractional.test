@@ -6539,6 +6539,14 @@ CREATE TABLE t1 (
   KEY col_timestamp_6_key (col_timestamp_6_key))
   ENGINE=MEMORY DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES (current_timestamp(5),current_timestamp(6),current_time(6));
+
+# In case the inserted timestamp happened to have four trailing zeroes in microseconds,
+# it will compare equal with col_time_2_not_null, breaking the testcase
+UPDATE t1 SET col_timestamp_6_key
+       = TIMESTAMPADD(MICROSECOND,
+                      IF(MICROSECOND(col_timestamp_6_key) % 10000, 0, 1),
+                      col_timestamp_6_key);
+
 SELECT col_datetime_5 AS c1 FROM t1
 WHERE col_time_2_not_null = GREATEST(CURRENT_DATE(),col_timestamp_6_key)
 ORDER BY 1;

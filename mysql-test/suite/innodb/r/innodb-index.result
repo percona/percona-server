@@ -1533,9 +1533,6 @@ select count(*) from t1;
 count(*)
 2880
 drop table t1;
-SET GLOBAL innodb_monitor_reset = default;
-SET GLOBAL innodb_monitor_enable = default;
-SET GLOBAL innodb_monitor_disable = default;
 # Bug#19163915 INNODB: DUPLICATE RECORDS COULD EXIST
 # WHEN SKIPPING SORT FOR CLUSTER INDEX
 SELECT @@innodb_sort_buffer_size;

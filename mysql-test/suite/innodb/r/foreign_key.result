@@ -307,6 +307,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	48
 DROP TABLE t2;
 CREATE TABLE t2
@@ -319,6 +320,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	33
 DROP TABLE t2;
 CREATE TABLE t2
@@ -331,6 +333,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	34
 DROP TABLE t2;
 CREATE TABLE t2
@@ -343,6 +346,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	48
 DROP TABLE t2;
 CREATE TABLE t2
@@ -355,6 +359,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	20
 DROP TABLE t2;
 CREATE TABLE t2
@@ -367,6 +372,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	24
 DROP TABLE t2;
 CREATE TABLE t2
@@ -379,6 +385,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	48
 DROP TABLE t2;
 CREATE TABLE t2
@@ -391,6 +398,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	5
 DROP TABLE t2;
 CREATE TABLE t2
@@ -403,6 +411,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	9
 DROP TABLE t2;
 CREATE TABLE t2
@@ -415,6 +424,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	33
 DROP TABLE t2;
 CREATE TABLE t2
@@ -427,6 +437,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	1
 DROP TABLE t2;
 CREATE TABLE t2
@@ -439,6 +450,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	6
 DROP TABLE t2;
 CREATE TABLE t2
@@ -451,6 +463,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	10
 DROP TABLE t2;
 CREATE TABLE t2
@@ -463,6 +476,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	34
 DROP TABLE t2;
 CREATE TABLE t2
@@ -475,6 +489,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	2
 DROP TABLE t2;
 CREATE TABLE t2
@@ -487,6 +502,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	20
 DROP TABLE t2;
 CREATE TABLE t2
@@ -499,6 +515,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	24
 DROP TABLE t2;
 CREATE TABLE t2
@@ -511,6 +528,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	48
 DROP TABLE t2;
 CREATE TABLE t2
@@ -523,6 +541,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	16
 DROP TABLE t2;
 CREATE TABLE t2
@@ -535,6 +554,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	4
 DROP TABLE t2;
 CREATE TABLE t2
@@ -547,6 +567,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	8
 DROP TABLE t2;
 CREATE TABLE t2
@@ -559,6 +580,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	32
 DROP TABLE t2;
 CREATE TABLE t2
@@ -571,6 +593,7 @@ Warnings:
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
 test/t2_ibfk_1	test/t2	test/t1	1	0
 DROP TABLE t2;
 DROP TABLE t1;

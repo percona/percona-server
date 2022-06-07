@@ -336,8 +336,6 @@ SET @@persist_only.innodb_page_size= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.version= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.version_comment= "";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.version_compile_machine= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.version_compile_os= "";
@@ -354,6 +352,14 @@ SET @@persist_only.protocol_version= "";
 SET @@persist_only.lower_case_file_system= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.innodb_buffer_pool_load_at_startup= "";
+
+# added by Percona
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@persist_only.have_backup_locks = FALSE;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@persist_only.have_backup_safe_binlog_info = FALSE;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@persist_only.have_snapshot_cloning = FALSE;
 
 # cleanup
 RESET PERSIST;

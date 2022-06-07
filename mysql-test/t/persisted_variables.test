@@ -69,7 +69,7 @@ SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST long_query_time= 8.3452;
 SET PERSIST sql_require_primary_key= true;
-SET PERSIST default_table_encryption= true;
+SET PERSIST default_table_encryption= ON;
 SET PERSIST table_encryption_privilege_check= true;
 
 --echo # Restart server
@@ -94,7 +94,7 @@ SET PERSIST sort_buffer_size=156000,max_connections= 52;
 SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
 SET PERSIST sql_require_primary_key= false;
-SET PERSIST default_table_encryption= false;
+SET PERSIST default_table_encryption= OFF;
 SET PERSIST table_encryption_privilege_check= false;
 
 --echo # Restart server
@@ -122,7 +122,7 @@ SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST long_query_time= 2.999999;
 SET PERSIST sql_require_primary_key= true;
-SET PERSIST default_table_encryption= true;
+SET PERSIST default_table_encryption= ON;
 SET PERSIST table_encryption_privilege_check= true;
 SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 
@@ -370,7 +370,9 @@ SELECT @@global.general_log, @@global.autocommit,
 
 SELECT @@global.innodb_buffer_pool_size;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
-SET PERSIST innodb_buffer_pool_size=10*1024*1024;
+# In Percona Server, resize to 20MB instead of 10MB to stay compatible
+# with innodb_empty_free_list_algorithm=backoff
+SET PERSIST innodb_buffer_pool_size=20*1024*1024;
 SELECT @@global.innodb_buffer_pool_size;
 
 --echo # Restart server

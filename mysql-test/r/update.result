@@ -439,6 +439,8 @@ a	quux
 3	NULL
 DROP TABLE t1;
 set tmp_table_size=1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 create table t1 (id int, a int, key idx(a));
 create table t2 (id int unsigned not null auto_increment primary key, a int);
 insert into t2(a) values(1),(2),(3),(4),(5),(6),(7),(8);

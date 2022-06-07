@@ -1,0 +1,8 @@
+!include ../my.cnf
+
+[mysqld.1]
+binlog-encryption=0
+
+[mysqld.2]
+log-bin=slave-bin
+relay-log=slave-relay-bin

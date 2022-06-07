@@ -316,6 +316,3 @@ SET GLOBAL innodb_monitor_disable = module_ddl;
 DROP TABLE t1;
 SET GLOBAL DEBUG = '';
 SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
-SET GLOBAL innodb_monitor_reset = default;
-SET GLOBAL innodb_monitor_enable = default;
-SET GLOBAL innodb_monitor_disable = default;

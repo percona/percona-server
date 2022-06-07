@@ -300,13 +300,4 @@ DROP TABLE t1;
 #
 # Cleanup
 #
-SET GLOBAL innodb_monitor_enable = default;
-Warnings:
-Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
-SET GLOBAL innodb_monitor_disable = default;
-Warnings:
-Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
-SET GLOBAL innodb_monitor_reset_all = default;
-Warnings:
-Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
 SET GLOBAL DEBUG="-d, parallel_read_buffering_print";

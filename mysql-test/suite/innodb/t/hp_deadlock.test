@@ -132,3 +132,4 @@ while($scenario <= 2){
 
 SET GLOBAL innodb_lock_wait_timeout= @old_innodb_lock_wait_timeout;
 --source include/wait_until_count_sessions.inc
+SET DEBUG_SYNC= 'RESET';

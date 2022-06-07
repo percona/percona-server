@@ -764,11 +764,7 @@ SET GLOBAL innodb_monitor_reset = module_ddl;
 SET GLOBAL innodb_monitor_disable = module_ddl;
 select count(*) from t1;
 drop table t1;
---disable_warnings
-SET GLOBAL innodb_monitor_reset = default;
-SET GLOBAL innodb_monitor_enable = default;
-SET GLOBAL innodb_monitor_disable = default;
---enable_warnings
+--source include/innodb_monitor_restore.inc
 
 --echo # Bug#19163915 INNODB: DUPLICATE RECORDS COULD EXIST
 --echo # WHEN SKIPPING SORT FOR CLUSTER INDEX

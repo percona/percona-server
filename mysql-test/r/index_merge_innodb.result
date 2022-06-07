@@ -514,7 +514,6 @@ alter table t3 add keyA int not null, add index iA(keyA);
 alter table t3 add keyB int not null, add index iB(keyB);
 alter table t3 add keyC int not null, add index iC(keyC);
 update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
-SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 explain select * from t3 where
 key1=1 or key2=2 or key3=3 or key4=4 or
 key5=5 or key6=6 or key7=7 or key8=8 or
@@ -1141,7 +1140,6 @@ select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=1
 key1	key2	key3	key4	filler1
 -1	-1	100	100	key4-key3
 delete from t1 where key3=100 and key4=100;
-SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 # ROR-union with all ROR-intersections giving empty results
 explain select key1,key1,key3,key3,filler1 from t1 where key1=100 and key1=100 or key3=100 and key3=100;
 EXPLAIN
@@ -1716,7 +1714,6 @@ set @d=@d*2;
 alter table t1 add index i2(key2);
 alter table t1 add index i3(key3);
 update t1 set key2=key1,key3=key1;
-SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 EXPLAIN
 -> Filter: (((t1.key3 > 30) and (t1.key3 < 35)) or ((t1.key2 > 32) and (t1.key2 < 40)))  (rows=11)

@@ -5,6 +5,9 @@ source include/rpl/init_source_replica.inc;
 #
 
 set global max_connections=151;
+# Add some workload to replicate, so that it is guaranteed for the SQL thread
+# to execute init-slave at the next sync
+create table t1(a int);
 
 connection slave;
 source include/rpl/stop_replica.inc;
@@ -24,6 +27,7 @@ set @my_global_init_connect= @@global.init_connect;
 set global init_connect="set @c=1";
 show variables like 'init_connect';
 connection master;
+drop table t1;
 --source include/rpl/sync_to_replica.inc
 
 # Restore changed global variable

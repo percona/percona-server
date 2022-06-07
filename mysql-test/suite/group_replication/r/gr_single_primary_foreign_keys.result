@@ -66,6 +66,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 ############################################################
 # 8. Fetch outcome of transaction T1.
 [connection server_1]
+SET DEBUG_SYNC='RESET';
 
 ############################################################
 # 9. Fetch outcome of transaction T2.

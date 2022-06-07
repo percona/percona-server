@@ -1,0 +1,7 @@
+--source include/have_rocksdb.inc
+
+#
+# Information Schema database statistics
+#
+--let i_s_plugin=rocksdb_dbstats
+--source suite/rocksdb/include/i_s_basic.inc

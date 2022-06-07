@@ -1,0 +1,34 @@
+--source include/have_rocksdb.inc
+
+# temporarily disable 5.7 full_group_by for test
+--source include/turn_off_only_full_group_by.inc
+
+create table t (
+  a int,
+  b int,
+  c varchar(12249) collate latin1_bin,
+  d datetime,
+  e int,
+  f int,
+  g blob,
+  h int,
+  i int,
+  key (b,e),
+  key (h,b)
+) engine=rocksdb
+partition by linear hash (i) partitions 8;
+
+insert into t values (1,1,'a',now(),1,1,'a',1,1);
+insert into t values (1,1,'a',now(),1,1,'a',1,1);
+insert into t values (1,1,'a',now(),1,1,'a',1,1);
+insert into t values (1,1,'a',now(),1,1,'a',1,1);
+insert into t values (1,1,'a',now(),1,1,'a',1,1);
+insert into t values (1,1,'a',now(),1,1,'a',1,1);
+insert into t values (1,1,'a',now(),1,1,'a',1,1);
+insert into t values (1,1,'a',now(),1,1,'a',1,1);
+select i from t group by h;
+select i from t group by h;
+
+drop table t;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

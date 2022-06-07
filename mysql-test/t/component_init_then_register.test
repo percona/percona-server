@@ -17,4 +17,4 @@ UNINSTALL COMPONENT "file://component_test_component_init_then_register";
 
 --echo #
 --echo # check the component is actually un-installed
-SELECT * from mysql.component;
+SELECT * from mysql.component WHERE component_urn != 'file://component_percona_telemetry';

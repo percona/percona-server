@@ -11,7 +11,6 @@ SELECT * FROM performance_schema.setup_instruments
 WHERE NAME LIKE "%/conn_delay/%" OR NAME LIKE "%/connection_control/%"
   ORDER BY NAME;
 NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
-memory/connection_control/component	YES	NULL			0	Memory allocated by connection_control component.
 wait/synch/cond/conn_delay/connection_delay_wait_condition	YES	YES		NULL	0	NULL
 wait/synch/mutex/conn_delay/connection_delay_mutex	YES	YES		NULL	0	NULL
 wait/synch/rwlock/conn_delay/connection_event_delay_lock	YES	YES	singleton	NULL	0	NULL

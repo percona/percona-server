@@ -1,0 +1,4 @@
+CREATE TABLE t1 (b1 BIT, b2 BIT, b3 BIT) ENGINE=InnoDB;
+select distinct * from t1;
+
+DROP TABLE t1;

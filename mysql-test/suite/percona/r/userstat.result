@@ -1,0 +1,144 @@
+DROP TABLE IF EXISTS t1;
+SET GLOBAL userstat=OFF;
+FLUSH CLIENT_STATISTICS;
+FLUSH INDEX_STATISTICS;
+FLUSH TABLE_STATISTICS;
+FLUSH THREAD_STATISTICS;
+FLUSH USER_STATISTICS;
+CREATE USER mysqltest_1@localhost;
+GRANT RELOAD ON *.* TO mysqltest_1@localhost;
+conn1 by mysqltest_1
+FLUSH CLIENT_STATISTICS;
+FLUSH INDEX_STATISTICS;
+FLUSH TABLE_STATISTICS;
+FLUSH THREAD_STATISTICS;
+FLUSH USER_STATISTICS;
+default connection
+DROP USER mysqltest_1@localhost;
+SELECT * FROM INFORMATION_SCHEMA.CLIENT_STATISTICS;
+CLIENT	TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
+SELECT * FROM INFORMATION_SCHEMA.INDEX_STATISTICS;
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	ROWS_READ
+SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS;
+TABLE_SCHEMA	TABLE_NAME	ROWS_READ	ROWS_CHANGED	ROWS_CHANGED_X_INDEXES
+SELECT * FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
+THREAD_ID	TOTAL_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
+SELECT * FROM INFORMATION_SCHEMA.USER_STATISTICS;
+USER	TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
+SHOW CLIENT_STATISTICS;
+Client	Total_connections	Concurrent_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
+SHOW INDEX_STATISTICS;
+Table_schema	Table_name	Index_name	Rows_read
+SHOW TABLE_STATISTICS;
+Table_schema	Table_name	Rows_read	Rows_changed	Rows_changed_x_#indexes
+SHOW THREAD_STATISTICS;
+Thread_id	Total_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
+SHOW USER_STATISTICS;
+User	Total_connections	Concurrent_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
+SET @userstat_old= @@userstat;
+SET GLOBAL userstat=ON;
+SET @thread_statistics_old= @@thread_statistics;
+SET GLOBAL thread_statistics=ON;
+SELECT * FROM INFORMATION_SCHEMA.CLIENT_STATISTICS;
+CLIENT	TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
+localhost	1	0	CONNECTED_TIME	BUSY_TIME	CPU_TIME	38	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0
+SELECT * FROM INFORMATION_SCHEMA.INDEX_STATISTICS;
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	ROWS_READ
+SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS;
+TABLE_SCHEMA	TABLE_NAME	ROWS_READ	ROWS_CHANGED	ROWS_CHANGED_X_INDEXES
+SELECT * FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
+THREAD_ID	TOTAL_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
+THREAD_ID	1	CONNECTED_TIME	BUSY_TIME	CPU_TIME	169	0	0	1	0	0	3	0	0	0	0	0	0	0	2	0
+SELECT * FROM INFORMATION_SCHEMA.USER_STATISTICS;
+USER	TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	CONNECTED_TIME	BUSY_TIME	CPU_TIME	BYTES_RECEIVED	BYTES_SENT	BINLOG_BYTES_WRITTEN	ROWS_FETCHED	ROWS_UPDATED	TABLE_ROWS_READ	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES	TOTAL_SSL_CONNECTIONS
+root	1	0	CONNECTED_TIME	BUSY_TIME	CPU_TIME	264	0	0	2	0	0	4	0	1	0	0	0	0	0	2	0
+SHOW CLIENT_STATISTICS;
+Client	Total_connections	Concurrent_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
+localhost	1	0	CONNECTED_TIME	BUSY_TIME	CPU_TIME	319	0	0	3	0	0	5	0	1	0	0	0	0	0	2	0
+SHOW INDEX_STATISTICS;
+Table_schema	Table_name	Index_name	Rows_read
+SHOW TABLE_STATISTICS;
+Table_schema	Table_name	Rows_read	Rows_changed	Rows_changed_x_#indexes
+SHOW THREAD_STATISTICS;
+Thread_id	Total_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
+THREAD_ID	1	CONNECTED_TIME	BUSY_TIME	CPU_TIME	366	0	0	3	0	0	5	0	3	0	0	0	0	0	2	0
+SHOW USER_STATISTICS;
+User	Total_connections	Concurrent_connections	Connected_time	Busy_time	Cpu_time	Bytes_received	Bytes_sent	Binlog_bytes_written	Rows_fetched	Rows_updated	Table_rows_read	Select_commands	Update_commands	Other_commands	Commit_transactions	Rollback_transactions	Denied_connections	Lost_connections	Access_denied	Empty_queries	Total_ssl_connections
+root	1	0	CONNECTED_TIME	BUSY_TIME	CPU_TIME	433	0	0	3	0	0	5	0	5	0	0	0	0	0	2	0
+SET GLOBAL thread_statistics= @thread_statistics_old;
+SELECT
+Select_commands, Update_commands, Other_commands, Rows_fetched
+INTO
+@initial_select_commands, @initial_update_commands, @initial_other_commands, @initial_rows_fetched
+FROM
+INFORMATION_SCHEMA.USER_STATISTICS
+;
+SELECT
+Select_commands = @initial_select_commands + 1 AS select_must_be_true_2,
+Update_commands = @initial_update_commands     AS update_must_be_true_2,
+Other_commands  = @initial_other_commands      AS other_must_be_true_2,
+Rows_fetched    = @initial_rows_fetched        AS rows_must_be_true_2
+FROM
+INFORMATION_SCHEMA.USER_STATISTICS
+;
+select_must_be_true_2	update_must_be_true_2	other_must_be_true_2	rows_must_be_true_2
+1	1	1	1
+SELECT 'something';
+something
+something
+SELECT
+Select_commands = @initial_select_commands + 3 AS select_must_be_true_4,
+Update_commands = @initial_update_commands     AS update_must_be_true_4,
+Other_commands  = @initial_other_commands      AS other_must_be_true_4,
+Rows_fetched    = @initial_rows_fetched    + 2 AS rows_must_be_true_4
+FROM
+INFORMATION_SCHEMA.USER_STATISTICS
+;
+select_must_be_true_4	update_must_be_true_4	other_must_be_true_4	rows_must_be_true_4
+1	1	1	1
+SHOW VARIABLES LIKE 'userstat';
+Variable_name	Value
+userstat	ON
+SELECT
+Select_commands = @initial_select_commands + 4 AS select_must_be_true_6,
+Update_commands = @initial_update_commands     AS update_must_be_true_6,
+Other_commands  = @initial_other_commands  + 1 AS other_must_be_true_6,
+Rows_fetched    = @initial_rows_fetched    + 3 AS rows_must_be_true_6
+FROM
+INFORMATION_SCHEMA.USER_STATISTICS
+;
+select_must_be_true_6	update_must_be_true_6	other_must_be_true_6	rows_must_be_true_6
+1	1	1	1
+#
+# Bug lp:1659992 "Function over userstat tables cause mysql to crash"
+#
+CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET UTF8MB4 DETERMINISTIC SQL SECURITY INVOKER
+BEGIN
+DECLARE var_value VARCHAR(1024);
+SELECT v.variable_value FROM performance_schema.global_variables v WHERE v.variable_name = in_name INTO var_value;
+RETURN var_value;
+END|
+SELECT *
+FROM INFORMATION_SCHEMA.TABLE_STATISTICS s
+WHERE utility_get_global_variable('userstat') = 'ON';
+DROP FUNCTION utility_get_global_variable;
+#
+# Bug PS-4996: statistics commit counter doesn't work
+#
+SET autocommit=0;
+START TRANSACTION;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (42);
+COMMIT;
+START TRANSACTION;
+INSERT INTO t1 VALUES (42);
+ROLLBACK;
+SELECT COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
+COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS
+0	0
+SELECT COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS;
+COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS
+17	1
+SET autocommit=1;
+DROP TABLE t1;
+SET GLOBAL userstat= @userstat_old;

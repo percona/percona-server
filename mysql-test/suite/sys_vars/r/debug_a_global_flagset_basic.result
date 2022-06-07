@@ -36,7 +36,7 @@ SET PERSIST_ONLY debug_a_global_flagset="f1=on";
 SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
 WHERE VARIABLE_NAME='debug_a_global_flagset';
 VARIABLE_VALUE
-f1=on
+f1=on,f2=off
 RESET PERSIST debug_a_global_flagset;
 # Cleanup
 SET GLOBAL debug_a_global_flagset=@save;

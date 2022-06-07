@@ -1,0 +1,75 @@
+CREATE TABLE t1 (a INT,
+b CHAR(8),
+pk INT PRIMARY KEY,
+KEY USING HASH (a)
+) ENGINE=ROCKSDB;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
+t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+DROP TABLE t1;
+CREATE TABLE t1 (a INT,
+b CHAR(8),
+pk INT PRIMARY KEY,
+KEY a_b USING HASH (a,b) COMMENT 'a_b index'
+) ENGINE=ROCKSDB;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
+t1	1	a_b	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC		a_b index	YES
+t1	1	a_b	2	b	A	#	NULL	NULL	YES	SE_SPECIFIC		a_b index	YES
+DROP TABLE t1;
+CREATE TABLE t1 (a INT,
+b CHAR(8),
+pk INT PRIMARY KEY,
+KEY USING HASH (a),
+KEY USING HASH (b)
+) ENGINE=ROCKSDB;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
+t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+t1	1	b	1	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t1 (a,b) VALUES (100,'z');
+ALTER TABLE t1 ADD KEY (a) USING HASH COMMENT 'simple index on a';
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
+t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC		simple index on a	YES
+ALTER TABLE t1 DROP KEY a;
+DROP TABLE t1;
+set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
+set @@global.rocksdb_large_prefix=0;
+CREATE TABLE t1 (
+a BLOB(1024),
+KEY (a(767))
+) ENGINE=ROCKSDB;
+DROP TABLE t1;
+CREATE TABLE t1 (
+a BLOB(1024),
+KEY (a(768))
+) ENGINE=ROCKSDB;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+set @@global.rocksdb_large_prefix=1;
+CREATE TABLE t1 (
+a BLOB(4096),
+KEY (a(3072))
+) ENGINE=ROCKSDB;
+DROP TABLE t1;
+CREATE TABLE t1 (
+a BLOB(4096),
+KEY (a(3073))
+) ENGINE=ROCKSDB;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;

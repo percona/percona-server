@@ -1,0 +1,33 @@
+--source include/have_rocksdb.inc
+
+--let $cache_dir_name=$MYSQLTEST_VARDIR/tmp/roksdb.persistent_cache
+
+--let $restart_parameters=restart:--rocksdb_persistent_cache_path=$cache_dir_name --rocksdb_persistent_cache_size_mb=100
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+# insert values and flush out of memtable
+CREATE TABLE t1 (a int primary key) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1);
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+
+# pull data through cache
+SELECT * FROM t1 WHERE a = 1;
+
+# restart server to re-read cache
+--let $restart_parameters=restart:--rocksdb_persistent_cache_path=$cache_dir_name --rocksdb_persistent_cache_size_mb=100
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+# pull values from cache again
+SELECT * FROM t1 WHERE a = 1;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+# not cross platform safe, but there is a nested directory hierarchy in place
+# that would need discovering and manual removal since 5.7 seems not to support
+# the force-rmdir command yet
+--exec rm -rf $cache_dir_name
+
+DROP TABLE t1;

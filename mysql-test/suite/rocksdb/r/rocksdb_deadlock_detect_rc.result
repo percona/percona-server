@@ -1,0 +1,57 @@
+set @prior_rocksdb_lock_wait_timeout = @@rocksdb_lock_wait_timeout;
+set @prior_rocksdb_deadlock_detect = @@rocksdb_deadlock_detect;
+set global rocksdb_lock_wait_timeout = 300;
+set global rocksdb_deadlock_detect = ON;
+create table t (i int primary key) engine=rocksdb;
+create table r1 (id int primary key, value int) engine=rocksdb;
+insert into r1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(10,10);
+create table r2 like r1;
+insert into r2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(10,10);
+begin;
+update r2 set value=100 where id=9;
+begin;
+update r1 set value=100 where id=8;
+select * from r2 where id=9 for update;;
+select * from r1 where id=8 for update;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+rollback;
+id	value
+9	9
+rollback;
+begin;
+insert into t values (1);
+begin;
+insert into t values (2);
+begin;
+insert into t values (3);
+select * from t where i = 2 for update;
+select * from t where i = 3 for update;
+select * from t;
+i
+3
+insert into t values (4), (1);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Transaction should be rolled back
+select * from t;
+i
+rollback;
+i
+rollback;
+i
+rollback;
+create table t1 (id int primary key, value int, value2 int, unique index(value)) engine=rocksdb;
+insert into t1 values (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+begin;
+update t1 force index (value) set value2=value2+1 where value=3;
+begin;
+update t1 force index (value) set value2=value2+1 where value=2;
+update t1 force index (value) set value2=value2+1 where value=4;
+update t1 force index (value) set value2=value2+1 where value=4;
+update t1 force index (value) set value2=value2+1 where value=3;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+rollback;
+rollback;
+drop table t1;
+set global rocksdb_lock_wait_timeout = @prior_rocksdb_lock_wait_timeout;
+set global rocksdb_deadlock_detect = @prior_rocksdb_deadlock_detect;
+drop table t,r1,r2;

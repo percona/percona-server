@@ -1,0 +1,31 @@
+--source include/have_rocksdb.inc
+
+set session rocksdb_merge_buf_size=250;
+set session rocksdb_merge_combine_read_size=1000;
+set session rocksdb_merge_tmp_file_removal_delay_ms=1000;
+
+CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i)) ENGINE = ROCKSDB;
+
+--disable_query_log
+let $max = 100;
+let $i = 1;
+while ($i <= $max) {
+  let $insert = INSERT INTO t1 VALUES ($i, FLOOR(RAND() * 100));
+  inc $i;
+  eval $insert;
+}
+--enable_query_log
+
+let $start= `SELECT UNIX_TIMESTAMP()`;
+# this should take a lot longer than normal because each deleted merge file
+# will sleep for 1 secs. There should be about 13 buffers.
+# So it should take at least 13 secs
+ALTER TABLE t1 ADD INDEX kj(j), ALGORITHM=INPLACE;
+let $stop_exec= `SELECT UNIX_TIMESTAMP()`;
+
+let $time_diff= `SELECT ($stop_exec - $start)`;
+let $assert_text= Alter should have taken at least 10 seconds;
+let $assert_cond= $time_diff >= 10;
+source include/assert.inc;
+
+DROP TABLE t1;

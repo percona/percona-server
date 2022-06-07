@@ -1,0 +1,820 @@
+#
+# A basic test whether endspace-aware variable length encoding 
+# works when in PK
+#
+create table t1 ( pk varchar(10) primary key, col1 int not null) engine=rocksdb;
+insert into t1 values ('a', 1);
+select * from t1;
+pk	col1
+a	1
+drop table t1;
+CREATE TABLE t1 (
+v VARCHAR(65000) ,
+PRIMARY KEY (v)
+) ENGINE=rocksdb;
+ERROR 42000: Column length too big for column 'v' (max = 16383); use BLOB or TEXT instead
+CREATE TABLE t1 (
+v0 VARCHAR(0) ,
+v1 VARCHAR(1) ,
+v64 VARCHAR(64) ,
+v16300 VARCHAR(16300) ,
+PRIMARY KEY (v64)
+) ENGINE=rocksdb;
+CREATE TABLE t2 (
+v VARCHAR(191) ,
+PRIMARY KEY (v(191))
+) ENGINE=rocksdb;
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+v0	varchar(0)	YES		NULL	
+v1	varchar(1)	YES		NULL	
+v64	varchar(64)	NO	PRI	NULL	
+v16300	varchar(16300)	YES		NULL	
+SHOW COLUMNS IN t2;
+Field	Type	Null	Key	Default	Extra
+v	varchar(191)	NO	PRI	NULL	
+INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('','','','');
+INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('','y','Once there, double check that an article doesn\'t already exist','Here is a list of recommended books on MariaDB and MySQL. We\'ve provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.
+
+  If you want to have your favorite MySQL / MariaDB book listed here, please leave a comment.
+  For developers who want to code on MariaDB or MySQL
+
+      * Understanding MySQL Internals by Sasha Pachev, former MySQL developer at MySQL AB.
+            o This is the only book we know about that describes the internals of MariaDB / MySQL. A must have for anyone who wants to understand and develop on MariaDB!
+            o Not all topics are covered and some parts are slightly outdated, but still the best book on this topic. 
+      * MySQL 5.1 Plugin Development by Sergei Golubchik and Andrew Hutchings
+            o A must read for anyone wanting to write a plugin for MariaDB, written by the Sergei who designed the plugin interface for MySQL and MariaDB! 
+
+  For MariaDB / MySQL end users
+
+      * MariaDB Crash Course by Ben Forta
+            o First MariaDB book!
+            o For people who want to learn SQL and the basics of MariaDB.
+            o Now shipping. Purchase at Amazon.com or your favorite bookseller.
+
+      * SQL-99 Complete, Really by Peter Gulutzan & Trudy Pelzer.
+            o Everything you wanted to know about the SQL 99 standard. Excellent reference book!
+            o Free to read in the Knowledgebase!
+
+      * MySQL (4th Edition) by Paul DuBois
+            o The \'default\' book to read if you wont to learn to use MySQL / MariaDB.
+
+      * MySQL Cookbook by Paul DuBois
+            o A lot of examples of how to use MySQL. As with all of Paul\'s books, it\'s worth its weight in gold and even enjoyable reading for such a \'dry\' subject. 
+
+      * High Performance MySQL, Second Edition, By Baron Schwartz, Peter Zaitsev, Vadim Tkachenko, Jeremy D. Zawodny, Arjen Lentz, Derek J. Balling, et al.
+            o \"High Performance MySQL is the definitive guide to building fast, reliable systems with MySQL. Written by noted experts with years of real-world experience building very large systems, this book covers every aspect of MySQL performance in detail, and focuses on robustness, security, and data integrity. Learn advanced techniques in depth so you can bring out MySQL\'s full power.\" (From the book description at O\'Reilly) 
+
+      * MySQL Admin Cookbook
+            o A quick step-by-step guide for MySQL users and database administrators to tackle real-world challenges with MySQL configuration and administration 
+
+      * MySQL 5.0 Certification Study Guide, By Paul DuBois, Stefan Hinz, Carsten Pedersen
+            o This is the official guide to cover the passing of the two MySQL Certification examinations. It is valid till version 5.0 of the server, so while it misses all the features available in MySQL 5.1 and greater (including MariaDB 5.1 and greater), it provides a good basic understanding of MySQL for the end-user. ');
+SELECT v0,v1,v64,v16300 FROM t1;
+v0	v1	v64	v16300
+
+
+
+
+
+
+
+
+
+
+			
+	y	Once there, double check that an article doesn't already exist	Here is a list of recommended books on MariaDB and MySQL. We've provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.
+            o "High Performance MySQL is the definitive guide to building fast, reliable systems with MySQL. Written by noted experts with years of real-world experience building very large systems, this book covers every aspect of MySQL performance in detail, and focuses on robustness, security, and data integrity. Learn advanced techniques in depth so you can bring out MySQL's full power." (From the book description at O'Reilly) 
+            o A lot of examples of how to use MySQL. As with all of Paul's books, it's worth its weight in gold and even enjoyable reading for such a 'dry' subject. 
+            o A must read for anyone wanting to write a plugin for MariaDB, written by the Sergei who designed the plugin interface for MySQL and MariaDB! 
+            o A quick step-by-step guide for MySQL users and database administrators to tackle real-world challenges with MySQL configuration and administration 
+            o Everything you wanted to know about the SQL 99 standard. Excellent reference book!
+            o First MariaDB book!
+            o For people who want to learn SQL and the basics of MariaDB.
+            o Free to read in the Knowledgebase!
+            o Not all topics are covered and some parts are slightly outdated, but still the best book on this topic. 
+            o Now shipping. Purchase at Amazon.com or your favorite bookseller.
+            o The 'default' book to read if you wont to learn to use MySQL / MariaDB.
+            o This is the official guide to cover the passing of the two MySQL Certification examinations. It is valid till version 5.0 of the server, so while it misses all the features available in MySQL 5.1 and greater (including MariaDB 5.1 and greater), it provides a good basic understanding of MySQL for the end-user. 
+            o This is the only book we know about that describes the internals of MariaDB / MySQL. A must have for anyone who wants to understand and develop on MariaDB!
+      * High Performance MySQL, Second Edition, By Baron Schwartz, Peter Zaitsev, Vadim Tkachenko, Jeremy D. Zawodny, Arjen Lentz, Derek J. Balling, et al.
+      * MariaDB Crash Course by Ben Forta
+      * MySQL (4th Edition) by Paul DuBois
+      * MySQL 5.0 Certification Study Guide, By Paul DuBois, Stefan Hinz, Carsten Pedersen
+      * MySQL 5.1 Plugin Development by Sergei Golubchik and Andrew Hutchings
+      * MySQL Admin Cookbook
+      * MySQL Cookbook by Paul DuBois
+      * SQL-99 Complete, Really by Peter Gulutzan & Trudy Pelzer.
+      * Understanding MySQL Internals by Sasha Pachev, former MySQL developer at MySQL AB.
+  For MariaDB / MySQL end users
+  For developers who want to code on MariaDB or MySQL
+  If you want to have your favorite MySQL / MariaDB book listed here, please leave a comment.
+INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('y', 'yy', REPEAT('c',65), REPEAT('abcdefghi ',6501));
+ERROR 22001: Data too long for column 'v0' at row 1
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('y', 'yy', REPEAT('c',65), REPEAT('abcdefghi ',6501));
+Warnings:
+Warning	1265	Data truncated for column 'v0' at row 1
+Warning	1265	Data truncated for column 'v1' at row 1
+Warning	1265	Data truncated for column 'v64' at row 1
+Warning	1265	Data truncated for column 'v16300' at row 1
+set session sql_mode=@orig_sql_mode;
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
+INSERT INTO t1 (v0,v1,v64,v16300) SELECT v16300, v16300, CONCAT('a',v16300), CONCAT(v16300,v1) FROM t1;
+ERROR 22001: Data too long for column 'v0' at row 5
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (v0,v1,v64,v16300) SELECT v16300, v16300, CONCAT('a',v16300), CONCAT(v16300,v1) FROM t1;
+Warnings:
+Warning	1265	Data truncated for column 'v0' at row 5
+Warning	1265	Data truncated for column 'v1' at row 5
+Warning	1265	Data truncated for column 'v64' at row 5
+Warning	1265	Data truncated for column 'v16300' at row 5
+Warning	1265	Data truncated for column 'v0' at row 6
+Warning	1265	Data truncated for column 'v1' at row 6
+Warning	1265	Data truncated for column 'v64' at row 6
+set session sql_mode=@orig_sql_mode;
+set session transaction_isolation=@orig_tx_iso;
+SELECT v0, v1, v64, LENGTH(v16300) FROM t1;
+v0	v1	v64	LENGTH(v16300)
+			0
+		a	0
+	H	aHere is a list of recommended books on MariaDB and MySQL. We've	2963
+	a	aabcdefghi abcdefghi abcdefghi abcdefghi abcdefghi abcdefghi abc	16300
+	y	Once there, double check that an article doesn't already exist	2962
+	y	cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc	16300
+DROP TABLE t1, t2;
+#
+# Endspace-comparison tests: 
+#
+#
+# Issue 257: Sort order for varchars is different between
+#            MyISAM/InnoDB vs MyRocks
+#
+create table t1 (
+pk varchar(64) CHARACTER SET latin1 COLLATE latin1_bin,
+col1 varchar(64),
+primary key (pk)
+) engine=rocksdb;
+insert into t1 values ('a','a');
+insert into t1 values ('a ', 'a-space');
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
+insert into t1 values('b  ', 'b-2x-space');
+insert into t1 values ('b', 'b');
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
+select pk, hex(pk), col1 from t1;
+pk	hex(pk)	col1
+a	61	a
+b  	622020	b-2x-space
+insert into t1 values ('a\t', 'a-tab');
+insert into t1 values ('a \t', 'a-space-tab');
+select pk, hex(pk), col1 from t1 order by pk;
+pk	hex(pk)	col1
+a		6109	a-tab
+a 		612009	a-space-tab
+a	61	a
+b  	622020	b-2x-space
+# Try longer values
+insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
+insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
+select * from t1;
+pk	col1
+a		a-tab
+a 		a-space-tab
+a	a
+b  	b-2x-space
+c          	c-10-x-space
+drop table t1;
+# Secondary index
+create table t1 (
+pk int not null primary key,
+col1 varchar(64) CHARACTER SET latin1 COLLATE latin1_bin,
+col2 varchar(64),
+key (col1)
+) engine=rocksdb;
+insert into t1 values (0, 'ab', 'a-b');
+insert into t1 values (1, 'a ', 'a-space');
+insert into t1 values (2, 'a',  'a');
+insert into t1 values (3, 'a  \t', 'a-tab');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	col1	67	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 order by col1;
+col1	hex(col1)
+a  		61202009
+a 	6120
+a	61
+ab	6162
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` where (`test`.`t1`.`col1` < 'b') order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+col1	hex(col1)
+a  		61202009
+a 	6120
+a	61
+ab	6162
+delete from t1;
+insert into t1 values(10, '', 'empty');
+insert into t1 values(11, repeat(' ', 8), '8x-space');
+insert into t1 values(12, repeat(' ', 16), '16x-space');
+insert into t1 values(13, repeat(' ', 24), '24x-space');
+insert into t1 values(14, concat(repeat(' ', 16),'a'), '16x-space-a');
+insert into t1 values(21, repeat(' ', 9), '9x-space');
+insert into t1 values(22, repeat(' ',17), '17x-space');
+insert into t1 values(23, repeat(' ',18), '18x-space');
+explain
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)`,length(`test`.`t1`.`col1`) AS `length(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+pk	col1	hex(col1)	length(col1)
+10			0
+11	        	2020202020202020	8
+12	                	20202020202020202020202020202020	16
+13	                        	202020202020202020202020202020202020202020202020	24
+21	         	202020202020202020	9
+22	                 	2020202020202020202020202020202020	17
+23	                  	202020202020202020202020202020202020	18
+14	                a	2020202020202020202020202020202061	17
+drop table t1;
+create table t1 (pk int primary key, a varchar(191), key(a)) engine=rocksdb;
+insert into t1 values (1, concat('a', repeat(' ', 100)));
+insert into t1 values (2, concat('b', repeat(' ', 100)));
+select pk,length(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)
+1	101
+2	101
+select pk,length(a),rtrim(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+select pk,length(a),rtrim(a) from t1 ignore index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+drop table t1;
+#
+# Issue 257: Sort order for varchars is different between
+#            MyISAM/InnoDB vs MyRocks
+#
+create table t1 (
+pk varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin,
+col1 varchar(64),
+primary key (pk)
+) engine=rocksdb;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+insert into t1 values ('a','a');
+insert into t1 values ('a ', 'a-space');
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
+insert into t1 values('b  ', 'b-2x-space');
+insert into t1 values ('b', 'b');
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
+select pk, hex(pk), col1 from t1;
+pk	hex(pk)	col1
+a	61	a
+b  	622020	b-2x-space
+insert into t1 values ('a\t', 'a-tab');
+insert into t1 values ('a \t', 'a-space-tab');
+select pk, hex(pk), col1 from t1 order by pk;
+pk	hex(pk)	col1
+a		6109	a-tab
+a 		612009	a-space-tab
+a	61	a
+b  	622020	b-2x-space
+# Try longer values
+insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
+insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
+select * from t1;
+pk	col1
+a		a-tab
+a 		a-space-tab
+a	a
+b  	b-2x-space
+c          	c-10-x-space
+drop table t1;
+# Secondary index
+create table t1 (
+pk int not null primary key,
+col1 varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin,
+col2 varchar(64),
+key (col1)
+) engine=rocksdb;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+insert into t1 values (0, 'ab', 'a-b');
+insert into t1 values (1, 'a ', 'a-space');
+insert into t1 values (2, 'a',  'a');
+insert into t1 values (3, 'a  \t', 'a-tab');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	col1	195	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 order by col1;
+col1	hex(col1)
+a  		61202009
+a 	6120
+a	61
+ab	6162
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` where (`test`.`t1`.`col1` < 'b') order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+col1	hex(col1)
+a  		61202009
+a 	6120
+a	61
+ab	6162
+delete from t1;
+insert into t1 values(10, '', 'empty');
+insert into t1 values(11, repeat(' ', 8), '8x-space');
+insert into t1 values(12, repeat(' ', 16), '16x-space');
+insert into t1 values(13, repeat(' ', 24), '24x-space');
+insert into t1 values(14, concat(repeat(' ', 16),'a'), '16x-space-a');
+insert into t1 values(21, repeat(' ', 9), '9x-space');
+insert into t1 values(22, repeat(' ',17), '17x-space');
+insert into t1 values(23, repeat(' ',18), '18x-space');
+explain
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)`,length(`test`.`t1`.`col1`) AS `length(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+pk	col1	hex(col1)	length(col1)
+10			0
+11	        	2020202020202020	8
+12	                	20202020202020202020202020202020	16
+13	                        	202020202020202020202020202020202020202020202020	24
+21	         	202020202020202020	9
+22	                 	2020202020202020202020202020202020	17
+23	                  	202020202020202020202020202020202020	18
+14	                a	2020202020202020202020202020202061	17
+drop table t1;
+create table t1 (pk int primary key, a varchar(191), key(a)) engine=rocksdb;
+insert into t1 values (1, concat('a', repeat(' ', 100)));
+insert into t1 values (2, concat('b', repeat(' ', 100)));
+select pk,length(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)
+1	101
+2	101
+select pk,length(a),rtrim(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+select pk,length(a),rtrim(a) from t1 ignore index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+drop table t1;
+#
+# Issue 257: Sort order for varchars is different between
+#            MyISAM/InnoDB vs MyRocks
+#
+create table t1 (
+pk varchar(64) CHARACTER SET ucs2 COLLATE ucs2_bin,
+col1 varchar(64),
+primary key (pk)
+) engine=rocksdb;
+insert into t1 values ('a','a');
+insert into t1 values ('a ', 'a-space');
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
+insert into t1 values('b  ', 'b-2x-space');
+insert into t1 values ('b', 'b');
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
+select pk, hex(pk), col1 from t1;
+pk	hex(pk)	col1
+a	0061	a
+b  	006200200020	b-2x-space
+insert into t1 values ('a\t', 'a-tab');
+insert into t1 values ('a \t', 'a-space-tab');
+select pk, hex(pk), col1 from t1 order by pk;
+pk	hex(pk)	col1
+a		00610009	a-tab
+a 		006100200009	a-space-tab
+a	0061	a
+b  	006200200020	b-2x-space
+# Try longer values
+insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
+insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
+select * from t1;
+pk	col1
+a		a-tab
+a 		a-space-tab
+a	a
+b  	b-2x-space
+c          	c-10-x-space
+drop table t1;
+# Secondary index
+create table t1 (
+pk int not null primary key,
+col1 varchar(64) CHARACTER SET ucs2 COLLATE ucs2_bin,
+col2 varchar(64),
+key (col1)
+) engine=rocksdb;
+insert into t1 values (0, 'ab', 'a-b');
+insert into t1 values (1, 'a ', 'a-space');
+insert into t1 values (2, 'a',  'a');
+insert into t1 values (3, 'a  \t', 'a-tab');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 order by col1;
+col1	hex(col1)
+a  		0061002000200009
+a 	00610020
+a	0061
+ab	00610062
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` where (`test`.`t1`.`col1` < 'b') order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+col1	hex(col1)
+a  		0061002000200009
+a 	00610020
+a	0061
+ab	00610062
+delete from t1;
+insert into t1 values(10, '', 'empty');
+insert into t1 values(11, repeat(' ', 8), '8x-space');
+insert into t1 values(12, repeat(' ', 16), '16x-space');
+insert into t1 values(13, repeat(' ', 24), '24x-space');
+insert into t1 values(14, concat(repeat(' ', 16),'a'), '16x-space-a');
+insert into t1 values(21, repeat(' ', 9), '9x-space');
+insert into t1 values(22, repeat(' ',17), '17x-space');
+insert into t1 values(23, repeat(' ',18), '18x-space');
+explain
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)`,length(`test`.`t1`.`col1`) AS `length(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+pk	col1	hex(col1)	length(col1)
+10			0
+11	        	00200020002000200020002000200020	16
+12	                	0020002000200020002000200020002000200020002000200020002000200020	32
+13	                        	002000200020002000200020002000200020002000200020002000200020002000200020002000200020002000200020	48
+21	         	002000200020002000200020002000200020	18
+22	                 	00200020002000200020002000200020002000200020002000200020002000200020	34
+23	                  	002000200020002000200020002000200020002000200020002000200020002000200020	36
+14	                a	00200020002000200020002000200020002000200020002000200020002000200061	34
+drop table t1;
+create table t1 (pk int primary key, a varchar(191), key(a)) engine=rocksdb;
+insert into t1 values (1, concat('a', repeat(' ', 100)));
+insert into t1 values (2, concat('b', repeat(' ', 100)));
+select pk,length(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)
+1	101
+2	101
+select pk,length(a),rtrim(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+select pk,length(a),rtrim(a) from t1 ignore index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+drop table t1;
+#
+# Issue 257: Sort order for varchars is different between
+#            MyISAM/InnoDB vs MyRocks
+#
+create table t1 (
+pk varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+col1 varchar(64),
+primary key (pk)
+) engine=rocksdb;
+insert into t1 values ('a','a');
+insert into t1 values ('a ', 'a-space');
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
+insert into t1 values('b  ', 'b-2x-space');
+insert into t1 values ('b', 'b');
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
+select pk, hex(pk), col1 from t1;
+pk	hex(pk)	col1
+a	61	a
+b  	622020	b-2x-space
+insert into t1 values ('a\t', 'a-tab');
+insert into t1 values ('a \t', 'a-space-tab');
+select pk, hex(pk), col1 from t1 order by pk;
+pk	hex(pk)	col1
+a		6109	a-tab
+a 		612009	a-space-tab
+a	61	a
+b  	622020	b-2x-space
+# Try longer values
+insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
+insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
+select * from t1;
+pk	col1
+a		a-tab
+a 		a-space-tab
+a	a
+b  	b-2x-space
+c          	c-10-x-space
+drop table t1;
+# Secondary index
+create table t1 (
+pk int not null primary key,
+col1 varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+col2 varchar(64),
+key (col1)
+) engine=rocksdb;
+insert into t1 values (0, 'ab', 'a-b');
+insert into t1 values (1, 'a ', 'a-space');
+insert into t1 values (2, 'a',  'a');
+insert into t1 values (3, 'a  \t', 'a-tab');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 order by col1;
+col1	hex(col1)
+a  		61202009
+a 	6120
+a	61
+ab	6162
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` where (`test`.`t1`.`col1` < 'b') order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+col1	hex(col1)
+a  		61202009
+a 	6120
+a	61
+ab	6162
+delete from t1;
+insert into t1 values(10, '', 'empty');
+insert into t1 values(11, repeat(' ', 8), '8x-space');
+insert into t1 values(12, repeat(' ', 16), '16x-space');
+insert into t1 values(13, repeat(' ', 24), '24x-space');
+insert into t1 values(14, concat(repeat(' ', 16),'a'), '16x-space-a');
+insert into t1 values(21, repeat(' ', 9), '9x-space');
+insert into t1 values(22, repeat(' ',17), '17x-space');
+insert into t1 values(23, repeat(' ',18), '18x-space');
+explain
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)`,length(`test`.`t1`.`col1`) AS `length(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+pk	col1	hex(col1)	length(col1)
+10			0
+11	        	2020202020202020	8
+12	                	20202020202020202020202020202020	16
+13	                        	202020202020202020202020202020202020202020202020	24
+21	         	202020202020202020	9
+22	                 	2020202020202020202020202020202020	17
+23	                  	202020202020202020202020202020202020	18
+14	                a	2020202020202020202020202020202061	17
+drop table t1;
+create table t1 (pk int primary key, a varchar(191), key(a)) engine=rocksdb;
+insert into t1 values (1, concat('a', repeat(' ', 100)));
+insert into t1 values (2, concat('b', repeat(' ', 100)));
+select pk,length(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)
+1	101
+2	101
+select pk,length(a),rtrim(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+select pk,length(a),rtrim(a) from t1 ignore index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+drop table t1;
+#
+# Issue 257: Sort order for varchars is different between
+#            MyISAM/InnoDB vs MyRocks
+#
+create table t1 (
+pk varchar(64) CHARACTER SET utf16 COLLATE utf16_bin,
+col1 varchar(64),
+primary key (pk)
+) engine=rocksdb;
+insert into t1 values ('a','a');
+insert into t1 values ('a ', 'a-space');
+ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'
+insert into t1 values('b  ', 'b-2x-space');
+insert into t1 values ('b', 'b');
+ERROR 23000: Duplicate entry 'b' for key 't1.PRIMARY'
+select pk, hex(pk), col1 from t1;
+pk	hex(pk)	col1
+a	0061	a
+b  	006200200020	b-2x-space
+insert into t1 values ('a\t', 'a-tab');
+insert into t1 values ('a \t', 'a-space-tab');
+select pk, hex(pk), col1 from t1 order by pk;
+pk	hex(pk)	col1
+a		00610009	a-tab
+a 		006100200009	a-space-tab
+a	0061	a
+b  	006200200020	b-2x-space
+# Try longer values
+insert into t1 values (concat('a', repeat(' ',10)), 'a-10-x-space');
+ERROR 23000: Duplicate entry 'a          ' for key 't1.PRIMARY'
+insert into t1 values (concat('c', repeat(' ',10)), 'c-10-x-space');
+select * from t1;
+pk	col1
+a		a-tab
+a 		a-space-tab
+a	a
+b  	b-2x-space
+c          	c-10-x-space
+drop table t1;
+# Secondary index
+create table t1 (
+pk int not null primary key,
+col1 varchar(64) CHARACTER SET utf16 COLLATE utf16_bin,
+col2 varchar(64),
+key (col1)
+) engine=rocksdb;
+insert into t1 values (0, 'ab', 'a-b');
+insert into t1 values (1, 'a ', 'a-space');
+insert into t1 values (2, 'a',  'a');
+insert into t1 values (3, 'a  \t', 'a-tab');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 order by col1;
+col1	hex(col1)
+a  		0061002000200009
+a 	00610020
+a	0061
+ab	00610062
+# Must show 'using index' for latin1_bin and utf8_bin:
+explain
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	col1	#	#	NULL	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)` from `test`.`t1` where (`test`.`t1`.`col1` < 'b') order by `test`.`t1`.`col1`
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+col1	hex(col1)
+a  		0061002000200009
+a 	00610020
+a	0061
+ab	00610062
+delete from t1;
+insert into t1 values(10, '', 'empty');
+insert into t1 values(11, repeat(' ', 8), '8x-space');
+insert into t1 values(12, repeat(' ', 16), '16x-space');
+insert into t1 values(13, repeat(' ', 24), '24x-space');
+insert into t1 values(14, concat(repeat(' ', 16),'a'), '16x-space-a');
+insert into t1 values(21, repeat(' ', 9), '9x-space');
+insert into t1 values(22, repeat(' ',17), '17x-space');
+insert into t1 values(23, repeat(' ',18), '18x-space');
+explain
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	NULL	#	#	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,hex(`test`.`t1`.`col1`) AS `hex(col1)`,length(`test`.`t1`.`col1`) AS `length(col1)` from `test`.`t1` order by `test`.`t1`.`col1`
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+pk	col1	hex(col1)	length(col1)
+10			0
+11	        	00200020002000200020002000200020	16
+12	                	0020002000200020002000200020002000200020002000200020002000200020	32
+13	                        	002000200020002000200020002000200020002000200020002000200020002000200020002000200020002000200020	48
+21	         	002000200020002000200020002000200020	18
+22	                 	00200020002000200020002000200020002000200020002000200020002000200020	34
+23	                  	002000200020002000200020002000200020002000200020002000200020002000200020	36
+14	                a	00200020002000200020002000200020002000200020002000200020002000200061	34
+drop table t1;
+create table t1 (pk int primary key, a varchar(191), key(a)) engine=rocksdb;
+insert into t1 values (1, concat('a', repeat(' ', 100)));
+insert into t1 values (2, concat('b', repeat(' ', 100)));
+select pk,length(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)
+1	101
+2	101
+select pk,length(a),rtrim(a) from t1 force index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+select pk,length(a),rtrim(a) from t1 ignore index(a) where a < 'zz' order by pk;
+pk	length(a)	rtrim(a)
+1	101	a
+2	101	b
+drop table t1;
+create table t1 (
+pk int primary key,
+col1 varchar(10) collate utf8mb4_bin not null,
+col2 varchar(20),
+key(col1)
+) engine=rocksdb;
+insert into t1 values (1, 'ab','ab');
+insert into t1 values (2, 'ab\0','ab0');
+select pk, hex(col1), col2 from t1 force index(col1) order by col1;
+pk	hex(col1)	col2
+2	616200	ab0
+1	6162	ab
+select pk, hex(col1), col2 from t1 ignore index(col1) order by col1;
+pk	hex(col1)	col2
+2	616200	ab0
+1	6162	ab
+drop table t1;
+create table t (id int primary key, email varchar(100), KEY email_i (email(30))) engine=rocksdb;
+insert into t values (1, 'abcabcabcabcabcabcabcabcabcabcabc  ');
+explain select 'email_i' as index_name, count(*) AS count from t force index(email_i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	NULL	email_i	123	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select 'email_i' AS `index_name`,count(0) AS `count` from `test`.`t` FORCE INDEX (`email_i`)
+select 'email_i' as index_name, count(*) AS count from t force index(email_i);
+index_name	count
+email_i	1
+drop table t;
+set @save_rocksdb_checksums_pct = @@global.rocksdb_checksums_pct;
+set @save_rocksdb_verify_row_debug_checksums = @@session.rocksdb_verify_row_debug_checksums;
+set global rocksdb_checksums_pct = 100;
+set session rocksdb_verify_row_debug_checksums = on;
+create table t (id int primary key, email varchar(100), KEY email_i (email(30))) engine=rocksdb;
+insert into t values (1, 'a');
+explain select 'email_i' as index_name, count(*) AS count from t force index(email_i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	NULL	email_i	123	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select 'email_i' AS `index_name`,count(0) AS `count` from `test`.`t` FORCE INDEX (`email_i`)
+select 'email_i' as index_name, count(*) AS count from t force index(email_i);
+index_name	count
+email_i	1
+drop table t;
+set global rocksdb_checksums_pct = @save_rocksdb_checksums_pct;
+set session rocksdb_verify_row_debug_checksums = @save_rocksdb_verify_row_debug_checksums;
+create table t (h varchar(31) character set utf8mb3 collate utf8mb3_bin not null, i varchar(19) collate latin1_bin not null, primary key(i), key(h)) engine=rocksdb;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+insert into t(i,h) values('a','b');
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+alter table t modify h varchar(31) character set cp1257 collate cp1257_bin not null;
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+drop table t;

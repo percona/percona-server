@@ -1,0 +1,248 @@
+--source include/have_rocksdb.inc
+
+# 
+# NOT NULL column attribute
+#
+
+#########################################
+# TODO:
+# Currently the test produces incorrect (?) result
+# due to bug MySQL:68472. If the bug is ever fixed,
+# the test and result files will need to be updated.
+#########################################
+
+
+--let $extra_col_opts = NOT NULL
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 0
+
+--echo ########################
+--echo # BINARY columns
+--echo ########################
+
+--source suite/rocksdb/include/type_binary.inc
+--let $col_type = BINARY
+--let $col_default = 0
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # VARBINARY columns
+--echo ########################
+
+--source suite/rocksdb/include/type_varbinary.inc
+--let $col_type = VARBINARY(64)
+--let $col_default = 'test'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # BIT columns
+--echo ########################
+
+--source suite/rocksdb/include/type_bit.inc
+--let $col_type = BIT
+--let $col_default = 1
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # BLOB columns
+--echo ########################
+
+--source suite/rocksdb/include/type_blob.inc
+--let $col_default = ''
+--let $col_type = BLOB
+--let $col_default_err = 1
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = TINYBLOB
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = MEDIUMBLOB
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = LONGBLOB
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # BOOL columns
+--echo ########################
+
+--source suite/rocksdb/include/type_bool.inc
+--let $col_type = BOOL
+--let $col_default = '0'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # CHAR columns
+--echo ########################
+
+--source suite/rocksdb/include/type_char.inc
+--let $col_type = CHAR
+--let $col_default = '_'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # VARCHAR columns
+--echo ########################
+
+--source suite/rocksdb/include/type_varchar.inc
+--let $col_type = VARCHAR(64)
+--let $col_default = 'test default'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # date and time columns
+--echo ########################
+
+--source suite/rocksdb/include/type_date_time.inc
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-12-12 12:12:12');
+
+--let $col_type = DATE
+--let $col_default = '2012-12-21'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = DATETIME
+--let $col_default = '2012-12-21 12:21:12'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+# Even with explicit-defaults-for-timestamps, we still can't use
+# the standard include file, due to bug MySQL:68472
+
+--let $col_type = TIMESTAMP
+--let $col_default = '2012-12-21 12:21:12'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null_timestamp.inc
+
+--let $col_type = TIME
+--let $col_default = '12:21:12'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = YEAR
+--let $col_default = '2012'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+# removed YEAR(2) test for 5.7 as it is not a valid column type anymore and
+# tested elsewhere
+--let $col_type = YEAR(4)
+--let $col_default = '12'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # ENUM columns
+--echo ########################
+
+--source suite/rocksdb/include/type_enum.inc
+
+--let $col_type = ENUM('test1','test2','test3')
+--let $col_default = 'test2'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # Fixed point columns (NUMERIC, DECIMAL)
+--echo ########################
+
+--source suite/rocksdb/include/type_fixed.inc
+
+--let $col_type = DECIMAL
+--let $col_default = 1.1
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = NUMERIC
+--let $col_default = 0
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # Floating point columns (FLOAT, DOUBLE)
+--echo ########################
+
+--source suite/rocksdb/include/type_float.inc
+  
+--let $col_type = FLOAT
+--let $col_default = 1.1
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = DOUBLE
+--let $col_default = 0
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # INT columns
+--echo ########################
+
+--source suite/rocksdb/include/type_int.inc
+  
+--let $col_type = INT
+--let $col_default = 2147483647
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = TINYINT
+--let $col_default = 127
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = SMALLINT
+--let $col_default = 0
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = MEDIUMINT
+--let $col_default = 1
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = BIGINT
+--let $col_default = 9223372036854775807
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # SET columns
+--echo ########################
+
+--source suite/rocksdb/include/type_set.inc
+--let $col_type = SET('test1','test2','test3')
+--let $col_default = 'test2,test3'
+--let $col_default_err = 0
+--source suite/rocksdb/include/col_not_null.inc
+
+--echo ########################
+--echo # TEXT columns
+--echo ########################
+
+--source suite/rocksdb/include/type_text.inc
+
+--let $col_default = ''
+--let $col_type = TEXT
+--let $col_default_err = 1
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = TINYTEXT
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = MEDIUMTEXT
+--source suite/rocksdb/include/col_not_null.inc
+
+--let $col_type = LONGTEXT
+--source suite/rocksdb/include/col_not_null.inc
+
+
+--let $col_type =
+--let $col_default =
+--let $col_default_err =
+--let $extra_col_opts =

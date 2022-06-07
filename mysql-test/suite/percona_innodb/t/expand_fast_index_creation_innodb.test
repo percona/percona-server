@@ -1,0 +1,54 @@
+#
+# InnoDB-related expanded fast index creation tests
+#
+# Test for Percona Server bug 1133926 (A crash that leaves behind an
+# InnoDB temporary table with indexes results in an unbootable server)
+# https://bugs.launchpad.net/percona-server/+bug/1133926
+
+SET SESSION expand_fast_index_creation=ON;
+
+CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX z(a));
+
+ALTER TABLE t1 ADD INDEX y(b);
+
+DROP TABLE t1;
+
+# Test for bug 1517757 (expanded fast index creation broken on temporary tables
+# in 5.7)
+
+CREATE TEMPORARY TABLE t1(id int auto_increment primary key, a int, index(a)) engine=InnoDB;
+
+ALTER TABLE t1 ADD j int;
+INSERT INTO t1(a) VALUES (1);
+
+SELECT * FROM t1 FORCE INDEX (PRIMARY);
+
+SELECT * FROM t1 FORCE INDEX (a);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug 1529555: InnoDB: Failing assertion: id != srv_tmp_space.space_id() in fsp_space_modify_check
+--echo #
+
+CREATE TEMPORARY TABLE t1(a CHAR (1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t1(a) VALUES ('a'), ('a'), ('a'), ('a'), ('a'), (0);
+--enable_info
+ALTER TABLE t1 ADD INDEX (a);
+--disable_info
+SELECT * FROM t1 FORCE INDEX (a) ORDER BY a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug 1554622: InnoDB: Failing assertion: fil_space_get_type(id) == FIL_TYPE_TABLESPACE in file fsp0fsp.cc line 778
+--echo #
+
+CREATE TEMPORARY TABLE t1(id int, key id (id)) engine=innodb;
+INSERT INTO t1 VALUES(0xABE3);
+
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;

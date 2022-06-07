@@ -1,0 +1,2 @@
+--initialize --authentication_policy=*:caching_sha2_password,,
+--authentication_policy=*:caching_sha2_password,,

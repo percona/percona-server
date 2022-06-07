@@ -27,6 +27,7 @@ include/rpl/gr_wait_for_number_of_members.inc
 
 # 4. Unlock the action on server 1
 [connection server_1]
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 [connection server1]
 group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
@@ -36,6 +37,7 @@ include/rpl/gr_wait_for_number_of_members.inc
 # 5. Allow server 2 to leave
 # Check an error was returned by the start process
 [connection server_2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.wait_leave_process";
 SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 [connection server2]
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.

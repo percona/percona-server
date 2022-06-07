@@ -83,6 +83,7 @@ Database: information_schema
 | APPLICABLE_ROLES                      |
 | CHARACTER_SETS                        |
 | CHECK_CONSTRAINTS                     |
+| CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
@@ -93,6 +94,8 @@ Database: information_schema
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
+| GLOBAL_TEMPORARY_TABLES               |
+| INDEX_STATISTICS                      |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
@@ -151,9 +154,13 @@ Database: information_schema
 | TABLE_CONSTRAINTS                     |
 | TABLE_CONSTRAINTS_EXTENSIONS          |
 | TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
+| TEMPORARY_TABLES                      |
+| THREAD_STATISTICS                     |
 | TRIGGERS                              |
 | USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
 | VIEW_ROUTINE_USAGE                    |
 | VIEW_TABLE_USAGE                      |
@@ -166,6 +173,7 @@ Database: INFORMATION_SCHEMA
 | APPLICABLE_ROLES                      |
 | CHARACTER_SETS                        |
 | CHECK_CONSTRAINTS                     |
+| CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
@@ -176,6 +184,8 @@ Database: INFORMATION_SCHEMA
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
+| GLOBAL_TEMPORARY_TABLES               |
+| INDEX_STATISTICS                      |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
@@ -234,9 +244,13 @@ Database: INFORMATION_SCHEMA
 | TABLE_CONSTRAINTS                     |
 | TABLE_CONSTRAINTS_EXTENSIONS          |
 | TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
+| TEMPORARY_TABLES                      |
+| THREAD_STATISTICS                     |
 | TRIGGERS                              |
 | USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
 | VIEW_ROUTINE_USAGE                    |
 | VIEW_TABLE_USAGE                      |

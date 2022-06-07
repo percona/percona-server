@@ -429,6 +429,8 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', fi
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table `test`\.`.*` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot delete tablespace [0-9]+ in DISCARD TABLESPACE: Tablespace not found");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace [0-9]+");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot save statistics for table `test`\.`.*` because the \.ibd file is missing");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot delete tablespace [0-9]+ because it is not found in the tablespace memory cache");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for");

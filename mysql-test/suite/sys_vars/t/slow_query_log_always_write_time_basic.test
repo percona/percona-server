@@ -1,0 +1,18 @@
+#
+# Test slow_query_log_always_write_time_basic system variable
+#
+
+SET @start_value = @@global.slow_query_log_always_write_time;
+SELECT @start_value;
+
+SET @@global.slow_query_log_always_write_time = DEFAULT;
+SELECT @@global.slow_query_log_always_write_time = 10;
+
+SET @@global.slow_query_log_always_write_time = 0;
+SELECT @@global.slow_query_log_always_write_time;
+SET @@global.slow_query_log_always_write_time = 700;
+SELECT @@global.slow_query_log_always_write_time;
+SET @@global.slow_query_log_always_write_time = 0.7;
+SELECT @@global.slow_query_log_always_write_time;
+
+SET GLOBAL slow_query_log_always_write_time = @start_value;

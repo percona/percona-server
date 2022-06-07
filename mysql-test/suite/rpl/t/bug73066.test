@@ -1,0 +1,146 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_statement.inc
+
+call mtr.add_suppression("Replica:*");
+
+create table a(id int);
+insert into a values(11);
+
+sync_slave_with_master;
+connection master;
+
+start transaction;
+insert into a values(12);
+
+connection slave;
+set global debug="d,relay_xid_trigger";
+
+connection master;
+insert into a values(13);
+commit;
+
+connection slave;
+set debug_sync="now wait_for relay_xid_reached";
+
+flush logs;
+
+set global debug="";
+set debug_sync="now signal resume";
+
+connection master;
+echo # master: ;
+select * from a;
+
+sync_slave_with_master;
+echo # slave: ;
+select * from a;
+
+# round two
+connection master;
+insert into a values(21);
+
+sync_slave_with_master;
+set global debug="d,stop_replica_middle_group,incomplete_group_in_relay_log";
+connection master;
+set global debug="d,dump_thread_wait_before_send_xid";
+
+start transaction;
+insert into a values(22);
+insert into a values(23);
+commit;
+
+connection slave;
+--let $rpl_server_number= 2
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
+
+connection master;
+set global debug="";
+set debug_sync="now signal signal.continue";
+
+echo # master: ;
+select * from a;
+
+sync_slave_with_master;
+echo # slave: ;
+select * from a;
+
+# round three
+connection master;
+insert into a values(31);
+
+sync_slave_with_master;
+connection master;
+
+start transaction;
+insert into a values(32);
+
+connection slave;
+set global debug="d,relay_xid_trigger";
+
+connection master;
+insert into a values(33);
+commit;
+
+connection slave;
+set debug_sync="now wait_for relay_xid_reached";
+
+--let $rpl_server_number= 2
+--let $rpl_force_stop= 1
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
+
+set global debug="";
+set debug_sync="now signal resume";
+
+connection master;
+echo # master: ;
+select * from a;
+
+sync_slave_with_master;
+echo # slave: ;
+select * from a;
+
+# round four
+connection master;
+insert into a values(41);
+
+sync_slave_with_master;
+connection master;
+set global debug="d,dump_thread_wait_before_send_xid";
+
+start transaction;
+insert into a values(42);
+insert into a values(43);
+commit;
+
+connection slave;
+set global debug="d,stop_replica_middle_group,incomplete_group_in_relay_log";
+--let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
+--source include/rpl/stop_replica.inc
+set global debug="";
+--source include/rpl/start_replica.inc
+
+connection master;
+set global debug="";
+set debug_sync="now signal signal.continue";
+
+echo # master: ;
+select * from a;
+
+sync_slave_with_master;
+echo # slave: ;
+select * from a;
+set debug_sync="RESET";
+
+# cleanup
+
+connection master;
+set debug_sync="RESET";
+drop table a;
+
+sync_slave_with_master;
+
+--source include/rpl/deinit.inc

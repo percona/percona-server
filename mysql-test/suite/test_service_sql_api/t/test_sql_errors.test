@@ -55,7 +55,6 @@ CREATE TABLE t_spec (c1 BIT(16),
                      c2 ENUM('v1','v2','v3'),
                      c3 SET('v1','v2','v3'));
 
-SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
 SET GLOBAL log_error_verbosity=3;
 
 --echo # Inserting values into the tables
@@ -97,7 +96,7 @@ INSERT INTO t_spec VALUES ( b'111', 'v1', 'v1');
 eval INSTALL PLUGIN test_sql_errors SONAME '$TEST_SQL_ERRORS';
 
 --disable_ps_protocol
---replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME> 9 <TIME_MS>
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
 --enable_ps_protocol
 
@@ -107,13 +106,41 @@ eval INSTALL PLUGIN test_sql_errors SONAME '$TEST_SQL_ERRORS';
 UNINSTALL PLUGIN test_sql_errors;
 
 --disable_ps_protocol
---replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME> 9 <TIME_MS>
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
 --enable_ps_protocol
 
 --echo ##########################################
 --echo # Cleanup
 --echo ##########################################
+
+delimiter //;
+
+CREATE PROCEDURE kill_sleeping_threads()
+BEGIN
+  DECLARE done INT DEFAULT FALSE;
+  DECLARE thread_id INT;
+  DECLARE thread_id_curr CURSOR FOR SELECT ID FROM information_schema.processlist WHERE STATE = 'Sleep';
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+  OPEN thread_id_curr;
+
+  kill_sleeping_threads_loop: LOOP
+    FETCH thread_id_curr INTO thread_id;
+    IF done THEN
+      LEAVE kill_sleeping_threads_loop;
+    END IF;
+    KILL thread_id;
+  END LOOP;
+
+  CLOSE thread_id_curr;
+END//
+
+delimiter ;//
+CALL kill_sleeping_threads();
+DROP PROCEDURE kill_sleeping_threads;
+
+--source include/kill_and_restart_mysqld.inc
 
 --echo # Dropping the created tables
 DROP TABLE IF EXISTS t_int;
@@ -157,5 +184,3 @@ EOF
 --disable_warnings
 --source include/force_restart.inc
 --enable_warnings
-
-SET GLOBAL log_error_verbosity= @orig_log_error_verbosity;

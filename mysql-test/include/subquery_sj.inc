@@ -4625,6 +4625,7 @@ WHERE g1 NOT IN
       AND grandparent1.col_varchar_key IS NOT NULL
     );
 
+--replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
 

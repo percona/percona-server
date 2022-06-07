@@ -1,0 +1,23 @@
+*** Set up master (server_1) <-> master (server_2) replication  ***
+include/rpl/init.inc [topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+
+SELECT @@global.log_replica_updates;
+@@global.log_replica_updates
+1
+SELECT @@global.log_replica_updates;
+@@global.log_replica_updates
+1
+CREATE TABLE t1(a INT);
+SET @var:=0;
+INSERT INTO t1 VALUES (@var);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
+include/rpl/deinit.inc

@@ -72,6 +72,8 @@
 --echo # Cleanup
 --echo
 
+SET DEBUG_SYNC= "RESET";
+
 --source include/rpl/connection_source.inc
 
 DROP TABLE t1;

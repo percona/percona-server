@@ -309,8 +309,6 @@ SET @@persist_only.innodb_page_size= "";
 ERROR HY000: Variable 'innodb_page_size' is a non persistent read only variable
 SET @@persist_only.version= "";
 ERROR HY000: Variable 'version' is a non persistent read only variable
-SET @@persist_only.version_comment= "";
-ERROR HY000: Variable 'version_comment' is a non persistent read only variable
 SET @@persist_only.version_compile_machine= "";
 ERROR HY000: Variable 'version_compile_machine' is a non persistent read only variable
 SET @@persist_only.version_compile_os= "";
@@ -327,6 +325,12 @@ SET @@persist_only.lower_case_file_system= "";
 ERROR HY000: Variable 'lower_case_file_system' is a non persistent read only variable
 SET @@persist_only.innodb_buffer_pool_load_at_startup= "";
 ERROR HY000: Variable 'innodb_buffer_pool_load_at_startup' is a non persistent read only variable
+SET @@persist_only.have_backup_locks = FALSE;
+ERROR HY000: Variable 'have_backup_locks' is a non persistent read only variable
+SET @@persist_only.have_backup_safe_binlog_info = FALSE;
+ERROR HY000: Variable 'have_backup_safe_binlog_info' is a non persistent read only variable
+SET @@persist_only.have_snapshot_cloning = FALSE;
+ERROR HY000: Variable 'have_snapshot_cloning' is a non persistent read only variable
 RESET PERSIST;
 DROP USER wl9787;
 #

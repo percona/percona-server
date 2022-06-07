@@ -6,7 +6,7 @@
 # If a slave is configured with replication filters and log-error-verbosity=3,
 # every statement which is filtered writes an entry to the error log:
 #
-# [Warning] Slave SQL: Could not execute Query event. Detailed error: Slave
+# [Warning] Replica SQL: Could not execute Query event. Detailed error: Slave
 # SQL thread ignored the query because of replicate-*-table rules
 # For busy servers which generate a lot of statements that get filtered, the
 # result is an error log which can quickly grow into the GB range.

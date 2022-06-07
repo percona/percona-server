@@ -24,44 +24,74 @@ select keyring_key_store(1,'AES','123');
 select keyring_key_store('Key_1',123,'123');
 
 # Store AES_128
-select keyring_key_store('Rob_AES_128','AES',"0123456789012345");
-select keyring_key_fetch('Rob_AES_128') into @x;
+let key_id = `select CONCAT('Rob_AES_128', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_store('$key_id','AES',"0123456789012345");
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_AES_128');
-select keyring_key_length_fetch('Rob_AES_128');
-select keyring_key_remove('Rob_AES_128');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 # Store AES_192
-select keyring_key_store('Rob_AES_192','AES',"012345678901234567890%@3");
-select keyring_key_fetch('Rob_AES_192') into @x;
+let key_id = `select CONCAT('Rob_AES_192', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_store('$key_id','AES',"012345678901234567890%@3");
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_AES_192');
-select keyring_key_length_fetch('Rob_AES_192');
-select keyring_key_remove('Rob_AES_192');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 # Store AES_256
-select keyring_key_store('Rob_AES_256','AES',"01234567890123456789012345678901");
-select keyring_key_fetch('Rob_AES_256') into @x;
+let key_id = `select CONCAT('Rob_AES_256', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_store('$key_id','AES',"01234567890123456789012345678901");
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_AES_256');
-select keyring_key_length_fetch('Rob_AES_256');
-select keyring_key_remove('Rob_AES_256');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 # Store RSA_1024
-select keyring_key_store('Rob_RSA_1024','RSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123");
-select keyring_key_fetch('Rob_RSA_1024') into @x;
+let key_id = `select CONCAT('Rob_RSA_1024', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_store('$key_id','RSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123");
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_RSA_1024');
-select keyring_key_length_fetch('Rob_RSA_1024');
-select keyring_key_remove('Rob_RSA_1024');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
-# Store DSA_1024
-select keyring_key_store('Rob_DSA_1024','DSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123");
-select keyring_key_fetch('Rob_DSA_1024') into @x;
+# Store DSA 1024
+let key_id = `select CONCAT('Rob_DSA_1024', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_store('$key_id','DSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123");
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_DSA_1024');
-select keyring_key_length_fetch('Rob_DSA_1024');
-select keyring_key_remove('Rob_DSA_1024');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 # Store wrong key type
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
@@ -76,4 +106,3 @@ select repeat('abcdefgh', 2049) into @x;
 --error ER_CLIENT_KEYRING_UDF_KEY_TOO_LONG
 select keyring_key_store('long_key', 'AES', @x);
 select repeat('abcdefgh', 17) into @x;
-

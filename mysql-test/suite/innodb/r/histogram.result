@@ -28,13 +28,4 @@ SET GLOBAL innodb_monitor_reset_all = "module_sampling";
 #
 # Cleanup
 #
-SET GLOBAL innodb_monitor_enable = default;
-Warnings:
-Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
-SET GLOBAL innodb_monitor_disable = default;
-Warnings:
-Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
-SET GLOBAL innodb_monitor_reset_all = default;
-Warnings:
-Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
 DROP PROCEDURE prepare_data;

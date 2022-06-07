@@ -2304,6 +2304,7 @@ display_session_data()
 ===============================================
 EVENT_TRACKING_COMMAND_START(Command: Query)
 --EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_STATUS
 --EVENT_TRACKING_GENERAL_RESULT
 --EVENT_TRACKING_GENERAL_STATUS
 EVENT_TRACKING_COMMAND_END(Command: Query)
@@ -2316,8 +2317,8 @@ WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
 VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 test_event_tracking_consumer.counter_command	6
-test_event_tracking_consumer.counter_general	9
-test_event_tracking_consumer.counter_general_information	9
+test_event_tracking_consumer.counter_general	10
+test_event_tracking_consumer.counter_general_information	10
 SELECT reset_event_tracking_counter("all");
 reset_event_tracking_counter("all")
 1
@@ -3189,6 +3190,7 @@ display_session_data()
 ===============================================
 EVENT_TRACKING_COMMAND_START(Command: Query)
 --EVENT_TRACKING_GENERAL_STATUS
+--EVENT_TRACKING_GENERAL_STATUS
 EVENT_TRACKING_COMMAND_END(Command: Query)
 ===============================================
 # Should show following counters:
@@ -3199,8 +3201,8 @@ WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
 VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 test_event_tracking_consumer.counter_command	6
-test_event_tracking_consumer.counter_general	3
-test_event_tracking_consumer.counter_general_information	3
+test_event_tracking_consumer.counter_general	4
+test_event_tracking_consumer.counter_general_information	4
 SELECT reset_event_tracking_counter("all");
 reset_event_tracking_counter("all")
 1

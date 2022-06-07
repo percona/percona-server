@@ -22,9 +22,7 @@ let SEARCH_FILE= $server_log;
 --echo #          sever-key.pem are present in data directory
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo # Copy SSL certificates before restarting.
 --echo # They should be picked up automatically by server.
@@ -70,9 +68,7 @@ disconnect ssl_root_1;
 --echo #          without SSL capability
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --remove_file $server_log 25
 
@@ -104,9 +100,7 @@ disconnect root_2;
 --echo #
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 

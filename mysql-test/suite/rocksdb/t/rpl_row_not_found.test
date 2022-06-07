@@ -1,0 +1,4 @@
+--source include/have_binlog_format_row.inc
+
+let $slave_sql_errno = convert_error(ER_KEY_NOT_FOUND);
+--source suite/rocksdb/include/rpl_row_not_found.inc

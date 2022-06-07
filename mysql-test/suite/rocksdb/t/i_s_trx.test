@@ -1,0 +1,20 @@
+--source include/have_rocksdb.inc
+
+#
+# Information Schema transaction information
+#
+--let i_s_plugin=rocksdb_trx
+--source suite/rocksdb/include/i_s_basic.inc
+
+set session transaction isolation level read committed;
+create table t1 (a int) engine=rocksdb;
+insert into t1 values (1);
+insert into t1 values (2);
+
+set autocommit=0;
+select * from t1 for update;
+
+--replace_column 1 _TRX_ID_ 3 _NAME_ 6 _TIMEOUT_ 7 _WAITING_TXN_ID_ 14 _THREAD_ID_
+select * from information_schema.rocksdb_trx;
+
+DROP TABLE t1;

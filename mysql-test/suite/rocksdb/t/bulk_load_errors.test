@@ -1,0 +1,71 @@
+--source include/have_rocksdb.inc
+
+call mtr.add_suppression("Error 210");
+
+### Bulk load ###
+CREATE TABLE t1(pk INT, PRIMARY KEY(pk)) ENGINE=ROCKSDB;
+
+# Make sure we get an error with out of order keys during bulk load
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(10);
+INSERT INTO t1 VALUES(11);
+--error ER_KEYS_OUT_OF_ORDER
+INSERT INTO t1 VALUES(9);
+SET rocksdb_bulk_load=0;
+
+# Make sure only 10 and 11 got into the table
+SELECT * FROM t1;
+
+# Make sure we get an error with overlapping data
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(20);
+INSERT INTO t1 VALUES(21);
+
+--error ER_OVERLAPPING_KEYS
+SET rocksdb_bulk_load=0;
+
+SHOW VARIABLES LIKE 'rocksdb_bulk_load';
+
+SELECT * FROM t1;
+
+TRUNCATE TABLE t1;
+
+### Bulk load with unsorted PKs ###
+SET rocksdb_bulk_load_allow_unsorted=1;
+
+# We should not get an error with out of order PKs
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(100);
+INSERT INTO t1 VALUES(101);
+INSERT INTO t1 VALUES(99);
+SET rocksdb_bulk_load=0;
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+
+# We should get an error with duplicate PKs in the same bulk load
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(201);
+INSERT INTO t1 VALUES(200);
+INSERT INTO t1 VALUES(202);
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(201);
+SET rocksdb_bulk_load=0;
+SELECT * FROM t1;
+
+SET rocksdb_bulk_load_allow_unsorted=DEFAULT;
+DROP TABLE t1;
+
+# Switch between tables, but also introduce duplicate key errors
+CREATE TABLE t1 (pk INT, PRIMARY KEY (pk)) ENGINE=ROCKSDB;
+CREATE TABLE t2 (pk INT, PRIMARY KEY (pk)) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t1 VALUES (1);
+--error ER_OVERLAPPING_KEYS
+INSERT INTO t2 VALUES (3);
+SET rocksdb_bulk_load=0;
+DROP TABLE t1;
+DROP TABLE t2;

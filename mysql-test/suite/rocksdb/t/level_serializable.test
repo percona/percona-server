@@ -1,0 +1,5 @@
+--source include/have_rocksdb_as_default.inc
+
+let $trx_isolation = SERIALIZABLE;
+--source suite/rocksdb/include/transaction_isolation.inc
+

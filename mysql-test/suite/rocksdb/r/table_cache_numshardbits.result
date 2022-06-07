@@ -1,0 +1,9 @@
+select @@global.rocksdb_table_cache_numshardbits;
+@@global.rocksdb_table_cache_numshardbits
+6
+call mtr.add_suppression("option 'rocksdb-table-cache-numshardbits': signed value 100 adjusted to 19");
+# restart:--rocksdb_table_cache_numshardbits=100
+select @@global.rocksdb_table_cache_numshardbits;
+@@global.rocksdb_table_cache_numshardbits
+19
+# restart

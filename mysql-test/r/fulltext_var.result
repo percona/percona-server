@@ -5,6 +5,7 @@ ft_boolean_syntax	+ -><()~*:""&|
 ft_max_word_len	84
 ft_min_word_len	4
 ft_query_expansion_limit	20
+ft_query_extra_word_chars	OFF
 ft_stopword_file	(built-in)
 create table t1 (b text not null);
 insert t1 values ('aaaaaa bbbbbb cccccc');

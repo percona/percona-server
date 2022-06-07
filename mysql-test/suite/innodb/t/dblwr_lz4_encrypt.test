@@ -79,4 +79,8 @@ CHECK TABLE t1;
 SELECT f1, f2 FROM t1;
 
 DROP TABLE t1;
+
+# The backup file might be a leftover after calling generate key on existing key
+--error 0,1
+--remove_file "$MYSQL_TMP_DIR/mysecret_keyring.backup"
 --echo # Test End

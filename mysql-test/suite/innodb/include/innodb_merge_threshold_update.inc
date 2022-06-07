@@ -89,10 +89,5 @@ WHERE name like 'index_page_merge_%';
 SET GLOBAL innodb_monitor_disable=index_page_merge_attempts;
 SET GLOBAL innodb_monitor_disable=index_page_merge_successful;
 
---disable_warnings
-set global innodb_monitor_enable = default;
-set global innodb_monitor_disable = default;
-set global innodb_monitor_reset = default;
-set global innodb_monitor_reset_all = default;
---enable_warnings
 --enable_query_log
+--source include/innodb_monitor_restore.inc

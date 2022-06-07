@@ -29,19 +29,21 @@
 # added, it is the responsibility of the Dev to edit $total_persistent_vars.
 ################################################################################
 
+# Percona Server has further restricted the platform to Linux-only due to some
+# Linux-specific InnoDB system variables
 --echo ***********************************************************************
 --echo * Run only on debug build,non-windows as few server variables are not
 --echo * available on all platforms.
 --echo ***********************************************************************
 --source include/have_debug.inc
---source include/not_windows.inc
+--source include/linux.inc
 --source include/have_binlog_format_row.inc
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_initialize not supported on this platform.");
 call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%' AND variable_name NOT LIKE 'debug_%'`;
-let $total_persistent_vars=448;
+let $total_persistent_vars=500;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
@@ -106,6 +108,7 @@ CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), 
 
 # Currently we are not able to test below global variables
 # 1. rbr_exec_mode
+# 2. innodb_default_encryption_key_id
 #
 # because of open bugs (listed below).
 #
@@ -113,13 +116,14 @@ CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), 
 #
 # Once the bugs is fixed, below $bug_var_count must be modified along with the query.
 
---let $bug_var_count=1
+--let $bug_var_count=2
 --expr $expected_var_count=$total_global_vars - $bug_var_count
 
 INSERT INTO all_vars (var_name, var_value)
 SELECT * FROM performance_schema.global_variables
 WHERE variable_name NOT IN
-('rbr_exec_mode')
+('innodb_default_encryption_key_id',
+'rbr_exec_mode')
 AND variable_name NOT LIKE 'ndb_%'
 AND variable_name NOT LIKE 'debug_%'
 ORDER BY variable_name;

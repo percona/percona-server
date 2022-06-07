@@ -1,0 +1,18 @@
+SET @saved_xa_detach_on_prepare = @@SESSION.xa_detach_on_prepare;
+SET SESSION xa_detach_on_prepare = OFF;
+ 
+CREATE TABLE t1 (c1 DATE) ENGINE=InnoDB;
+CREATE FUNCTION f2() RETURNS INT RETURN (SELECT data FROM t1 LIMIT 1);
+XA START 0x7465737462, 0x2030405060, 0xb;
+EXPLAIN SELECT * FROM t1 WHERE c1 = f2();
+XA END 0x7465737462, 0x2030405060, 0xb;
+XA PREPARE 0x7465737462, 0x2030405060, 0xb;
+
+--error ER_XAER_RMFAIL
+SELECT f2();
+
+XA COMMIT 0x7465737462, 0x2030405060, 0xb;
+DROP TABLE t1;
+DROP FUNCTION f2;
+
+SET SESSION xa_detach_on_prepare = @saved_xa_detach_on_prepare;

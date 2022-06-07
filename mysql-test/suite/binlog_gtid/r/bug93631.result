@@ -1,0 +1,6 @@
+#
+# Bug 93631: wrong error returned or crash if mysql.gtid_executed is inaccessible
+#
+CREATE DATABASE transforms;
+FLUSH BINARY LOGS;
+DROP DATABASE transforms;

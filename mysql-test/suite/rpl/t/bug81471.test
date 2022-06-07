@@ -1,0 +1,26 @@
+#
+# Bug #15985752, #23303391 / #81471 "handle_fatal_signal (sig=11) in alloc_query using character-set-server=utf16"
+# fixed in 5.5.54.
+# The --character-set-server option could set connection character set system
+# variables to values such as ucs2 that are not permitted.
+#
+--source include/master-slave.inc
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --character-set-server=utf16
+--source include/rpl_restart_server.inc
+
+connection slave;
+SET @@global.init_replica = 'SET @a = 42';
+
+--source include/start_slave.inc
+
+connection slave;
+SELECT 1;
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters =
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

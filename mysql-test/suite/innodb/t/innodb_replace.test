@@ -67,12 +67,15 @@ SET DEBUG_SYNC='now SIGNAL select2';
 connection con1;
 reap;
 
+connection default;
+reap;
+
+connection con1;
 SET DEBUG_SYNC='write_row_replace SIGNAL insert3 WAIT_FOR select3';
 --send
 INSERT INTO t1 VALUES(3,5) ON DUPLICATE KEY UPDATE b=b+20;
 
 connection default;
-reap;
 SET DEBUG_SYNC='now WAIT_FOR insert3';
 SET DEBUG_SYNC='lock_wait_will_wait SIGNAL default_will_wait';
 --send

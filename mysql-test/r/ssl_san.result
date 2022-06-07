@@ -1,0 +1,13 @@
+CREATE USER 'mysqltest_1'@'127.0.0.0/255.0.0.0';
+GRANT ALL ON test.* TO 'mysqltest_1'@'127.0.0.0/255.0.0.0';
+answer
+localhost
+answer
+localhost (--ssl-mode=VERIFY_IDENTITY)
+answer
+127.0.0.1
+answer
+127.0.0.1 (--ssl-mode=VERIFY_IDENTITY)
+answer
+127.0.0.2
+DROP USER 'mysqltest_1'@'127.0.0.0/255.0.0.0';

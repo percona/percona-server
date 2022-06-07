@@ -59,7 +59,7 @@ if (!$do_not_echo_parameters) {
   --exec echo "# $restart_parameters"
 }
 if ($do_not_echo_parameters) {
-  --exec echo "# restart"
+  --exec echo "# restart:<hidden args>"
 }
 
 # Write file to make mysql-test-run.pl expect the "crash", but don't start

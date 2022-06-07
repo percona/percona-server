@@ -33,11 +33,9 @@ SELECT 1;
 1
 1
 "Running mysqldumpslow on the slow-query-log"
-Count: 5    SHOW VARIABLES LIKE "%long_query_time%"
-
-Count: 4    SELECT 1
-
-Count: 1    SET SESSION long_query_time=  0
+"mysqldumpslow.sh" is not currently compatible with Percona extended slow query
+log format. Please use "pt-query-digest" from Percona Toolkit instead
+(https://www.percona.com/doc/percona-toolkit/2.2/pt-query-digest.html).
 
 SET GLOBAL  log_output=         @old_log_output;
 SET GLOBAL  slow_query_log=     @old_slow_query_log;

@@ -1,0 +1,53 @@
+# This test-case is meant to test and validate corrupt table action feature.
+# This feature allows user to control what action server takes if corrupt
+# table is found.
+
+--source include/have_debug.inc
+
+#------------------------------------------------------------------------------
+#
+# Scenarios:
+# 1. Check if injected corruption of pages during stats calculation is handled
+#
+
+#------------------------------------------------------------------------------
+#
+# Setup test environment
+#
+let save_corrupt_table_action_state = `select @@innodb_corrupt_table_action`;
+
+#------------------------------------------------------------------------------
+#
+# 1. Check if injected corruption of pages during stats calculation is handled
+#
+use test;
+set global innodb_corrupt_table_action=1;
+select @@innodb_corrupt_table_action;
+#
+create table t1 (
+	a int, b char(100), primary key pk(a)) engine=innodb;
+#
+delimiter |;
+create procedure populate_t1()
+begin
+        declare i int default 1;
+        while (i <= 200) DO
+                insert into t1 values (i, 'a');
+                set i = i + 1;
+        end while;
+end|
+delimiter ;|
+#
+set session debug="+d,ib_corrupt_page_while_stats_calc";
+begin;
+call populate_t1();
+commit;
+set session debug="-d,ib_corrupt_page_while_stats_calc";
+drop procedure populate_t1;
+drop table t1;
+
+#------------------------------------------------------------------------------
+#
+# Clearup test environment
+#
+eval set global innodb_corrupt_table_action = $save_corrupt_table_action_state;

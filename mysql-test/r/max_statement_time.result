@@ -65,6 +65,8 @@ Warnings:
 Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 CREATE TABLE /*+ MAX_EXECUTION_TIME(100) */ t4 (a int);
 CREATE /*+ MAX_EXECUTION_TIME(100) */ TABLE t5 (a int);
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 DELETE /*+ MAX_EXECUTION_TIME(100) */ FROM t1;
 Warnings:
 Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
@@ -73,6 +75,8 @@ Warnings:
 Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 ALTER TABLE /*+ MAX_EXECUTION_TIME(100) */ t1 ADD b VARCHAR(200);
 ALTER /*+ MAX_EXECUTION_TIME(100) */ TABLE t1 ADD c VARCHAR(200);
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
 a	b	c
 DROP TABLE t1, t2, t3, t4, t5;

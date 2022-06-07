@@ -1,0 +1,32 @@
+#
+# Testcase for http://bugs.mysql.com/bug.php?id=72610 (high mem usage in RBR with large
+# transactions and slave type conversions)
+#
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--connection master
+
+CREATE TABLE t1(a BIGINT AUTO_INCREMENT PRIMARY KEY, b INT DEFAULT NULL) ENGINE=InnoDB;
+
+--source include/sync_slave_sql_with_master.inc
+
+ALTER TABLE t1 MODIFY COLUMN b BIGINT DEFAULT NULL;
+
+--connection master
+
+BEGIN;
+INSERT INTO t1 VALUES (NULL, NULL);
+INSERT INTO t1 VALUES (NULL, NULL);
+INSERT INTO t1 VALUES (NULL, NULL);
+INSERT INTO t1 VALUES (NULL, NULL);
+INSERT INTO t1 VALUES (NULL, NULL);
+COMMIT;
+
+--source include/sync_slave_sql_with_master.inc
+
+SELECT COUNT(*) FROM t1;
+
+--connection master
+DROP TABLE t1;
+--source include/rpl_end.inc

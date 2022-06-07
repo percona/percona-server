@@ -1,0 +1,6 @@
+SET NAMES utf8mb3, collation_connection = 'utf16_bin';
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT '2010-10-10 10:10:10' + INTERVAL ST_GeometryType(ST_GeomFromText('POINT(1 1)')) hour_second;
+'2010-10-10 10:10:10' + INTERVAL ST_GeometryType(ST_GeomFromText('POINT(1 1)')) hour_second
+2010-10-10 10:10:10

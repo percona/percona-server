@@ -7,6 +7,7 @@ call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Failed to read information on Previous GTIDs.");
 call mtr.add_suppression("Error reading GTIDs from binary log");
+call mtr.add_suppression("binlog truncated in the middle of event; consider out of disk space");
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 ==== Part 1 ====
 include/rpl_reset.inc

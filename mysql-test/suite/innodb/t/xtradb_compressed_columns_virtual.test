@@ -1,0 +1,184 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb_max_16k.inc
+
+SET @saved_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
+
+# creating a simple compression dictionary for future references
+CREATE COMPRESSION_DICTIONARY numbers('one' 'two' 'three');
+
+--let $table_name  = t1
+--let $source_column_name = a
+--let $source_column_type = BLOB
+--let $source_dictionary_name = numbers
+--let $generated_column_name = g
+--let $generated_column_type = BLOB
+
+--source suite/innodb/include/xtradb_compressed_columns_virtual_superset.inc
+
+# setting zip level to 0 means skipping compressing for all values
+# (compressed column header will still be added)
+SET GLOBAL innodb_compressed_columns_zip_level = 0;
+
+--source suite/innodb/include/xtradb_compressed_columns_virtual_superset.inc
+
+# restoring default value
+SET GLOBAL innodb_compressed_columns_zip_level = DEFAULT;
+
+
+# creating a table with an implicitly virtual generated column with COMPRESSED attribute
+# must trigger an error
+--error ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
+CREATE TABLE t1(
+  id INT,
+  a BLOB,
+  g BLOB GENERATED ALWAYS AS (a) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ENGINE=InnoDB;
+
+# creating a table with an explicitly virtual generated column with COMPRESSED attribute
+# must trigger an error
+--error ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
+CREATE TABLE t1(
+  id INT,
+  a BLOB,
+  g BLOB GENERATED ALWAYS AS (a) VIRTUAL COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ENGINE=InnoDB;
+
+# creating a table with a stored generated column with COMPRESSED attribute
+CREATE TABLE t1(
+  id INT,
+  a BLOB,
+  g BLOB GENERATED ALWAYS AS (a) STORED COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ENGINE=InnoDB;
+
+# inserting a record into the table
+SET @long_value = REPEAT('a', 1024);
+INSERT INTO t1 VALUES (1, @long_value, DEFAULT);
+
+--let $assert_text= the initial value must not be corrupted
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE g = @long_value] = 1
+--source include/assert.inc
+
+# modifying COLUMN_FORMAT for a generated column must be performed via ALGORITHM = COPY only
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY g BLOB GENERATED ALWAYS AS (a) STORED COLUMN_FORMAT DEFAULT, ALGORITHM = INPLACE;
+
+# changing generated column storage type from STORED to VIRTUAL is not allowed
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t1 MODIFY g BLOB GENERATED ALWAYS AS (a) VIRTUAL;
+
+# removing COMPRESSED attribute from the STORED generated column
+ALTER TABLE t1 MODIFY g BLOB GENERATED ALWAYS AS (a) STORED COLUMN_FORMAT DEFAULT;
+--let $assert_text= the value after removing COMPRESSED attribute must not be corrupted
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE g = @long_value] = 1
+--source include/assert.inc
+
+# adding COMPRESSED attribute back to the STORED generated column
+ALTER TABLE t1 MODIFY g BLOB GENERATED ALWAYS AS (a) STORED COLUMN_FORMAT COMPRESSED;
+--let $assert_text= the value after adding COMPRESSED attribute back must not be corrupted
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE g = @long_value] = 1
+--source include/assert.inc
+
+# adding a new VIRTUAL generated column with COMPRESSED attribute must trigger an error
+--error ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
+ALTER TABLE t1 ADD another_g BLOB GENERATED ALWAYS AS (a) VIRTUAL COLUMN_FORMAT COMPRESSED;
+
+# adding a new VIRTUAL generated column
+ALTER TABLE t1 ADD another_g BLOB GENERATED ALWAYS AS (a) VIRTUAL;
+
+# adding compressed attribute to a existing VIRTUAL generated column must trigger an error
+--error ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
+ALTER TABLE t1 MODIFY another_g BLOB GENERATED ALWAYS AS (a) VIRTUAL COLUMN_FORMAT COMPRESSED;
+
+# changing generated column storage type from VIRTUAL to STORED is not allowed
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t1 MODIFY another_g BLOB GENERATED ALWAYS AS (a) STORED COLUMN_FORMAT COMPRESSED;
+
+# removing additional VIRTUAL generated column
+ALTER TABLE t1 DROP another_g;
+
+# updating existing record
+SET @long_value = REPEAT('z', 1024);
+UPDATE t1 SET a = @long_value WHERE id = 1;
+
+--let $assert_text= the value after updating existing record must not be corrupted
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE g = @long_value] = 1
+--source include/assert.inc
+
+# removing existing record
+DELETE FROM t1 WHERE id = 1;
+
+--let $assert_text= the table must be empty after removing existing record
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE g = @long_value] = 0
+--source include/assert.inc
+
+# dropping the table
+DROP TABLE t1;
+
+SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_columns_zip_level;
+
+
+# creating a table with an index on a virtual column based on a compressed field
+CREATE TABLE t1(
+  f1 INT PRIMARY KEY,
+  f2 BLOB COLUMN_FORMAT COMPRESSED,
+  f3 BLOB GENERATED ALWAYS AS (f2) VIRTUAL,
+  INDEX(f3(200))
+) ROW_FORMAT=COMPRESSED, ENGINE=InnoDB;
+
+INSERT INTO t1 (f1, f2) VALUES (1, REPEAT('a', 96));
+# checking if changing table row format, which requires virtual values calculation, does not crash
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+# checking if deleting a row, which requires virtual values calculation in order to update the index,
+# does not crash
+DELETE FROM t1 WHERE f1 = 1;
+DROP TABLE t1;
+
+
+# checking if calculating virtual column values from current cluster index record data
+# does not cause double locking of 'dict_operation_lock' / 'dict_sys->mutex' when reading
+# zip dict data on opening an already open table
+CREATE TABLE t (
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers,
+  c BLOB GENERATED ALWAYS AS (a) VIRTUAL,
+  INDEX(c(100))
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (REPEAT('a', 16000), DEFAULT);
+
+SET GLOBAL innodb_purge_stop_now = 1;
+SET GLOBAL debug="+d,ib_purge_virtual_index_callback";
+UPDATE t SET a = REPEAT('m', 16000) WHERE a LIKE "aaa%";
+SET GLOBAL innodb_purge_run_now = 1;
+
+SET GLOBAL innodb_purge_stop_now = 1;
+SET GLOBAL debug="-d,ib_purge_virtual_index_callback";
+SET GLOBAL innodb_purge_run_now = 1;
+DROP TABLE t;
+
+
+# checking if calculating virtual column values from the purge threads does not crash
+SET GLOBAL innodb_purge_stop_now = 1;
+
+# Index on a virtual column
+CREATE TABLE t1(
+  id INT not null,
+  a BLOB NOT NULL COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers,
+  vchar CHAR(2) AS (SUBSTR(a, 2, 2)) VIRTUAL,
+  INDEX(vchar)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(1, REPEAT('a',8000), DEFAULT);
+
+UPDATE t1 SET id = 5 where id = 1;
+DELETE FROM t1 WHERE id = 5;
+
+SET GLOBAL innodb_purge_run_now = 1;
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/restart_mysqld.inc
+SET GLOBAL innodb_purge_stop_now = 1;
+DROP TABLE t1;
+SET GLOBAL innodb_purge_run_now = 1;
+
+# cleanup
+DROP COMPRESSION_DICTIONARY numbers;

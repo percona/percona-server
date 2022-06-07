@@ -1,3 +1,8 @@
+--let $out_file= $MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err
+--let $restart_parameters=restart:--log-error=$out_file
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -368,7 +373,9 @@ DROP TABLE t1;
 --echo # Bug#14197426 PARSE ERRORS IN LOADABLE UCA / LDML COLLATIONS ARE SILENTLY IGNORED
 --echo #
 
---let $out_file= $MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
 --let OUTF= $out_file
 --echo # Search for occurrences of [ERROR] Syntax error at '[strength tertiary]'
 

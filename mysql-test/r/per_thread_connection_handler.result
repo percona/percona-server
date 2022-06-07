@@ -22,6 +22,7 @@ SET GLOBAL debug="-d,fail_thread_create";
 disconnect con1;
 disconnect con2;
 disconnect con3;
+call mtr.add_suppression("Too many connections");
 SET GLOBAL max_connections= 3;
 connect  con1, localhost, root,,mysql;
 connect  con2, localhost, root,,mysql;

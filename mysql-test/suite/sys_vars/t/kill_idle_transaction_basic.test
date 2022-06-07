@@ -1,0 +1,38 @@
+# A global dynamic ulong variable with a LONG_TIMEOUT max
+
+SET @saved_kill_idle_transaction= @@GLOBAL.kill_idle_transaction;
+
+SELECT @@kill_idle_transaction;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.kill_idle_transaction;
+
+SHOW GLOBAL VARIABLES LIKE 'kill_idle_transaction';
+SHOW SESSION VARIABLES LIKE 'kill_idle_transaction';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='kill_idle_transaction';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='kill_idle_transaction';
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL kill_idle_transaction= 1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL kill_idle_transaction= 1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL kill_idle_transaction= "foo";
+
+SET GLOBAL kill_idle_transaction= 0;
+SHOW GLOBAL VARIABLES LIKE 'kill_idle_transaction';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='kill_idle_transaction';
+
+SET GLOBAL kill_idle_transaction= 12345;
+SHOW GLOBAL VARIABLES LIKE 'kill_idle_transaction';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='kill_idle_transaction';
+
+SET GLOBAL kill_idle_transaction= 4294967295;
+SHOW GLOBAL VARIABLES LIKE 'kill_idle_transaction';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='kill_idle_transaction';
+
+SET GLOBAL kill_idle_transaction= 31536000;
+SHOW GLOBAL VARIABLES LIKE 'kill_idle_transaction';
+SELECT * FROM performance_schema.global_variables WHERE variable_name='kill_idle_transaction';
+
+SET GLOBAL kill_idle_transaction= @saved_kill_idle_transaction;

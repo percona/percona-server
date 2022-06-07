@@ -1,0 +1,24 @@
+#
+# PS-3885: Assertion when switching slaves without stopping the slave thread
+#
+
+--let $rpl_topology= 1->2->3
+--source include/rpl_init.inc
+
+--connection server_3
+--source include/stop_slave_io.inc
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_1, MASTER_LOG_FILE='mysqld-1.000001';
+--source include/start_slave_io.inc
+--disable_result_log
+SHOW SLAVE STATUS;
+--enable_result_log
+
+# cleanup
+--connection server_3
+--source include/stop_slave_io.inc
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='mysqld-two.000001';
+--source include/start_slave_io.inc
+
+--source include/rpl_end.inc

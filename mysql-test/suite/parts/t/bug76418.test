@@ -1,0 +1,17 @@
+#
+# lp:1657941 / Oracle Bug #76418 "Server crashes when querying partitioning table"
+#
+
+CREATE TABLE t1(
+  id INT UNSIGNED NOT NULL,
+  dttm DATETIME NOT NULL,
+  PRIMARY KEY(id, dttm)
+) ENGINE=InnoDB
+PARTITION BY RANGE COLUMNS(dttm) (
+  PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE=InnoDB
+);
+
+SELECT * FROM t1 WHERE dttm > '2017-01-19' ORDER BY id DESC;
+SELECT * FROM t1 WHERE dttm > '2017-01-19' ORDER BY id ASC;
+
+DROP TABLE t1;

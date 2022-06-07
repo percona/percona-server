@@ -1,0 +1,17 @@
+# Bug lp:1368552
+# "InnoDB: Failing assertion: purge_sys->state == PURGE_STATE_RUN |
+# abort (sig=6) in innodb_sched_priority_purge_update"
+
+--source include/have_debug.inc
+--source include/linux.inc
+
+SET GLOBAL innodb_purge_stop_now = ON;
+
+SET GLOBAL innodb_sched_priority_purge = 5;
+
+SET GLOBAL innodb_purge_run_now = ON;
+
+# As elevated privileges may be required to restore
+# "innodb_sched_priority_purge" it is easier to just restart the
+# server rather than save/restore this variable
+--source include/restart_mysqld.inc

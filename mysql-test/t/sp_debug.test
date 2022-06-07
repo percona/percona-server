@@ -1,5 +1,6 @@
 #
 --source include/have_debug.inc
+--source include/count_sessions.inc
 
 --echo #
 --echo # WL#7897 -- Use DD API for Stored Routines.
@@ -110,9 +111,6 @@ SET NAMES default;
 --echo #
 --echo #############################################################
 --echo
-
-# Save the initial number of concurrent sessions
---source include/count_sessions.inc
 
 CREATE SCHEMA testdb;
 

@@ -2,10 +2,13 @@
 # Bug#46941 crash with lower_case_table_names=2 and
 #           foreign data dictionary confusion
 #
+set @default_table_open_cache = @@table_open_cache;
+set global table_open_cache = 2000;
 CREATE DATABASE XY;
 USE XY;
 DROP DATABASE XY;
 USE TEST;
+set global table_open_cache = @default_table_open_cache;
 #
 # Bug55222 Mysqldump table names case bug in REFERENCES clause
 # InnoDB did not handle lower_case_table_names=2 for

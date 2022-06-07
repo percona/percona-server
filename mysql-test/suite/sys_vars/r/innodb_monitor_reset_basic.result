@@ -207,6 +207,7 @@ log_writer_waits	disabled
 log_writer_wait_loops	disabled
 log_writer_on_file_space_waits	disabled
 log_writer_on_archiver_waits	disabled
+log_writer_on_tracker_waits	disabled
 log_flusher_no_waits	disabled
 log_flusher_waits	disabled
 log_flusher_wait_loops	disabled

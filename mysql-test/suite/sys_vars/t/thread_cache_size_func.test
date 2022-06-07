@@ -27,8 +27,7 @@
 # Setup
 #
 
---source include/not_threadpool.inc
-
+--source include/one_thread_per_connection.inc
 SET @global_thread_cache_size = @@GLOBAL.thread_cache_size;
 
 FLUSH STATUS;
@@ -79,8 +78,15 @@ DISCONNECT conn4;
 let $wait_condition= SELECT COUNT(*)= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 --source include/wait_condition.inc
 
-SHOW STATUS LIKE 'Threads_cached';
---echo 3 Expected
+--echo # Threads_cached must become 3
+--let $status_var= Threads_cached
+--let $status_var_value= 3
+--source include/wait_for_status_var.inc
+
+--echo # Active connections must become 2
+--let $count= 2
+--let $table= INFORMATION_SCHEMA.PROCESSLIST
+--source include/wait_until_rows_count.inc
 
 #
 # Decreasing cache size to 1
@@ -107,8 +113,15 @@ DISCONNECT conn2;
 let $wait_condition= SELECT COUNT(*)= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 --source include/wait_condition.inc
 
-SHOW STATUS LIKE 'Threads_cached';
---echo 1 Expected
+--echo # Threads_cached must become 1
+--let $status_var= Threads_cached
+--let $status_var_value= 1
+--source include/wait_for_status_var.inc
+
+--echo # Active connections must become 2
+--let $count= 2
+--let $table= INFORMATION_SCHEMA.PROCESSLIST
+--source include/wait_until_rows_count.inc
 
 #
 # Cleanup

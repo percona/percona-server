@@ -1,0 +1,14 @@
+#
+# handle_fatal_signal (sig=11) in Item_direct_view_ref::fix_fields
+#
+CREATE PROCEDURE p1(IN i1 TEXT CHARACTER SET 'Binary' COLLATE 'Binary')NO SQL SHOW EVENTS;
+XA BEGIN 'xid2';
+XA END 'xid2';
+CALL p1(@b);
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+XA COMMIT 'xid2' ONE PHASE;
+CALL p1(@a);
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+CALL p1(@b);
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+DROP PROCEDURE p1;

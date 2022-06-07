@@ -10,6 +10,8 @@ call mtr.add_suppression("\\[ERROR\\] .* The error means the system cannot find 
 call mtr.add_suppression("\\[ERROR\\] .* Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[ERROR\\] .* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[ERROR\\] .* Can't set undo tablespace 'innodb_undo_001' to be encrypted");
+call mtr.add_suppression("Undo log can't be encrypted if the keyring is not loaded.");
+call mtr.add_suppression("Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 
 let $MYSQLD_BASEDIR= `select @@basedir`;

@@ -1,6 +1,6 @@
 CREATE DATABASE tde_db;
 USE tde_db;
-SELECT @@global.innodb_redo_log_encrypt ;
+SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
 1
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';

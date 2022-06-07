@@ -1,0 +1,11 @@
+#
+# Bug #18823979 / #76039 "handle_fatal_signal (sig=11) in Item_param::safe_charset_converter"
+# fixed in 5.5.49, 5.6.30, 5.7.12, 5.8.0
+# Character set conversion operations on NULL parameters to prepared
+# statements could cause a server exit.
+#
+SET @x = '1.1';
+SET collation_connection = utf32_bin;
+PREPARE stmt FROM 'SELECT ? = ?';
+EXECUTE stmt USING @x, @y;
+DEALLOCATE PREPARE stmt;

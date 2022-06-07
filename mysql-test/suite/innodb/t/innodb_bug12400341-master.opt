@@ -1,3 +1,4 @@
+--force-restart
 --max_connections=10
 --innodb_thread_concurrency=0
 --innodb_file_per_table

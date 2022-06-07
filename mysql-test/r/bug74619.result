@@ -1,0 +1,15 @@
+CREATE TABLE t1(a DECIMAL(0,0));
+ALTER TABLE t1 ADD b INT,ADD c TIME(6);
+ALTER TABLE t1 MODIFY a DATETIME(5);
+SET sql_mode='';
+INSERT INTO t1 SET a=0;
+SET sql_mode='NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT(SELECT t1.a)aa,COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
+aa	COUNT(DISTINCT b)
+0000-00-00 00:00:00.00000	0
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00.00000' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00.00000' for column 'aa' at row 1
+DROP TABLE t1;

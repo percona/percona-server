@@ -1,0 +1,25 @@
+#
+# Test server signal handling with threadpool
+#
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/test_threadpool_sig_handler.err --debug=d,simulate_sighup_print_status
+SELECT @@GLOBAL.thread_handling;
+@@GLOBAL.thread_handling
+pool-of-threads
+# Test SIGPIPE, SIGTSTP, SIGINT, which should be ignored
+# Test SIGHUP, which should result in status dump in the error log
+SELECT 1;
+1
+1
+#
+# Bug 805805: attaching to percona-server with gdb disconnects clients
+# Bug 1060136: safe_process.cc/safe_process.pl should not kill mysqld on SIGSTOP/SIGCONT
+#
+SELECT 1;
+1
+1
+#
+# Bug 1537554: SIGTERM kills server instead of shutdown w/ threadpool
+#
+# restart
+Pattern "Status information:" found
+Pattern "mysqld.*: Shutdown complete" found

@@ -216,6 +216,7 @@ statements_digest
 thread_instrumentation
 enabled_threads	thread_type
 innodb/buf_dump_thread	BACKGROUND
+innodb/buf_lru_manager_thread	BACKGROUND
 innodb/buf_resize_thread	BACKGROUND
 innodb/clone_gtid_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
@@ -268,6 +269,7 @@ statements_digest
 thread_instrumentation
 enabled_threads	thread_type
 innodb/buf_dump_thread	BACKGROUND
+innodb/buf_lru_manager_thread	BACKGROUND
 innodb/buf_resize_thread	BACKGROUND
 innodb/clone_gtid_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND

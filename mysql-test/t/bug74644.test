@@ -1,0 +1,14 @@
+#
+# Bug 1384568: EXPLAIN crashes server
+#
+--source include/have_myisam.inc
+
+CREATE TABLE t(a INT KEY, b BLOB) ENGINE=MyISAM;
+# may not crash on debug or optimized builds but always crahes on ASAN builds
+SELECT * FROM t x WHERE (a, b) IN ((0, 0), (1,0));
+DROP TABLE t;
+
+CREATE TABLE t(a INT KEY, b BLOB) ENGINE=MyISAM;
+# may not crash on debug or optimized builds but always crahes on ASAN builds
+EXPLAIN SELECT * FROM t x WHERE (a, b) IN ((0, 0), (1,0));
+DROP TABLE t;

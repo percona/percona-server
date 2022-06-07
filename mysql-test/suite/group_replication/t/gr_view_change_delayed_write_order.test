@@ -169,6 +169,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_co
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET DEBUG_SYNC= "RESET";
 DROP TABLE t1;
 
 SET SESSION sql_log_bin= 0;

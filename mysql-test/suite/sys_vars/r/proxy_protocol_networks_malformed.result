@@ -1,0 +1,28 @@
+Testing malformed arg, case 1
+Pattern "Too long network in 'proxy_protocol_networks' directive." found
+Testing malformed arg, case 2
+Pattern "Bad network '255.255.256.255' in 'proxy_protocol_networks' directive." found
+Testing malformed arg, case 3
+Pattern "Bad network '::G' in 'proxy_protocol_networks' directive." found
+Testing malformed arg, case 4
+Pattern "Missing network prefix in 'proxy_protocol_networks' directive." found
+Testing malformed arg, case 5
+Pattern "Bad syntax in 'proxy_protocol_networks' directive." found
+Testing malformed arg, case 6
+Pattern "Bad IPv4 mask in 'proxy_protocol_networks' directive." found
+Testing malformed arg, case 7
+Pattern "Bad IPv6 mask in 'proxy_protocol_networks' directive." found
+Testing masks hiding addresses, part 1
+Pattern "The network mask hides a part of the address for '128.0.0.0/0'" found
+Pattern "The network mask hides a part of the address for '196.168.128.0/16'" found
+Pattern "The network mask hides a part of the address for '8000::0/0'" found
+Pattern "The network mask hides a part of the address for '2001:2001::0/31'" found
+Pattern "The network mask hides a part of the address for '20ab:cdef:8000::0/32'" found
+Pattern "The network mask hides a part of the address for 'cdab:89bc:35bf:2001::0/63'" found
+Testing masks hiding addresses, part 2
+Pattern "The network mask hides a part of the address for 'cdab:89bc:35bf:2001:8000::0/64'" found
+Pattern "The network mask hides a part of the address for 'cdab:89bc:35bf:2001:8000:9abf::0/95'" found
+Pattern "The network mask hides a part of the address for 'cdab:89bc:35bf:2001:8000:9abf:8000:0/96'" found
+Testing masks hiding addresses, part 3
+Pattern "The network mask hides a part of the address for 'cdab:89bc:35bf:2001:8000:9abf:8000:2001/127'" found
+# restart

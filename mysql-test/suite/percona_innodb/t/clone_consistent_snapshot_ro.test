@@ -1,0 +1,35 @@
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0), (1);
+
+--source include/restart_innodb_read_only.inc
+
+--connect(con1,localhost,root,,)
+connection con1;
+
+--let $con1_id=`SELECT CONNECTION_ID()`
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+SELECT * FROM t1;
+
+connection default;
+
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$con1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id
+--enable_query_log
+
+SELECT * FROM t1;
+
+ROLLBACK;
+
+connection con1;
+
+ROLLBACK;
+
+disconnect con1;
+connection default;
+
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;

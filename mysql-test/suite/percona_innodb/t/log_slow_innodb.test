@@ -1,0 +1,97 @@
+#
+# Test that InnoDB stats for the extended slow query log are collected.
+#
+
+CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ();
+
+CREATE TABLE t2(a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUE(1);
+
+# Force cold buffer pool
+--let $restart_parameters=restart:--innodb_buffer_pool_load_at_startup=OFF
+--source include/restart_mysqld.inc
+
+SET SESSION long_query_time=0;
+SET SESSION log_slow_verbosity='microtime,innodb';
+
+--let log_file=percona.slow_extended.innodb_0
+--source include/log_start.inc
+SELECT SUM(a) FROM t1;
+--source include/log_stop.inc
+--source include/percona_slow_log_verbosity_grep.inc
+
+--let log_file=percona.slow_extended.innodb_2
+--source include/log_start.inc
+SELECT 5; # No InnoDB pages accessed
+--source include/log_stop.inc
+--source include/percona_slow_log_verbosity_grep.inc
+
+#
+# Table lock waits
+#
+
+LOCK TABLE t1 WRITE;
+--connect (con2,localhost,root,,test,,)
+--connection con2
+
+--let $con2_id= `SELECT CONNECTION_ID()`
+
+SET SESSION long_query_time=0;
+SET SESSION log_slow_verbosity='microtime,innodb';
+
+--let log_file=percona.slow_extended.innodb_3
+--source include/log_start.inc
+send LOCK TABLE t1 WRITE;
+
+--connection default
+
+# Do not slow-log wait_condition.inc due to variable number of queries
+SET SESSION long_query_time=5000;
+let $wait_condition= SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE ID=$con2_id AND STATE="Waiting for table metadata lock";
+--source include/wait_condition.inc
+SET SESSION long_query_time=0;
+
+SELECT SLEEP(2);
+UNLOCK TABLES;
+--connection con2
+reap;
+--source include/log_stop.inc
+# Innodb_rec_lock_wait must stay at 0
+--source include/percona_slow_log_verbosity_grep.inc
+UNLOCK TABLES;
+--connection default
+
+#
+# Row lock waits
+#
+BEGIN;
+SELECT * FROM t2 FOR UPDATE;
+
+--connection con2
+--let log_file=percona.slow_extended.innodb_4
+--source include/log_start.inc
+send DELETE FROM t2 WHERE a=2;
+
+--connection default
+
+# Do not slow-log wait_condition.inc due to variable number of queries
+SET SESSION long_query_time=5000;
+let $wait_condition= SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TRX
+    WHERE TRX_STATE="LOCK WAIT";
+--source include/wait_condition.inc
+SET SESSION long_query_time=0;
+
+SELECT SLEEP(2);
+COMMIT;
+--connection con2
+reap;
+--source include/log_stop.inc
+--source include/percona_slow_log_verbosity_grep.inc
+
+--disconnect con2
+--connection default
+
+DROP TABLE t1, t2;
+--source include/log_cleanup.inc

@@ -1,0 +1,2 @@
+SELECT ST_Area(ST_AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))));
+ERROR SR001: There's no spatial reference system with SRID 1025.

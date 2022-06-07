@@ -1,0 +1,15 @@
+--source include/have_rocksdb.inc
+
+select @@global.rocksdb_table_cache_numshardbits;
+
+call mtr.add_suppression("option 'rocksdb-table-cache-numshardbits': signed value 100 adjusted to 19");
+
+# try to restart server with a bad value
+--let $restart_parameters=restart:--rocksdb_table_cache_numshardbits=100
+--source include/restart_mysqld.inc
+
+# should have been reset to the default
+select @@global.rocksdb_table_cache_numshardbits;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

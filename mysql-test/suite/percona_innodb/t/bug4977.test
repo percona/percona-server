@@ -1,0 +1,2 @@
+--let $engine=INNODB
+--source include/percona_bug4977.inc

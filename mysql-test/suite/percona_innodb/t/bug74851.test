@@ -1,0 +1,14 @@
+# Bug 74851. With foreign_key_checks disabled, an assertion was raised when
+# adding a foreign key constraint on a renamed column that was part of
+# a previous foreign key constraint.
+
+CREATE TABLE t1(a1 INT,a2 INT)ENGINE=InnoDB;
+SET foreign_key_checks = 0;
+ALTER TABLE t1 ADD CONSTRAINT fk_a FOREIGN KEY(a2) REFERENCES parent(b) ON
+  DELETE SET NULL ON UPDATE CASCADE;
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1 CHANGE a2 a3 INT,
+  ADD CONSTRAINT fk_1 FOREIGN KEY(a3) REFERENCES parent(b) ON
+  DELETE SET NULL ON UPDATE CASCADE;
+DROP TABLE t1;
+SET foreign_key_checks = default;

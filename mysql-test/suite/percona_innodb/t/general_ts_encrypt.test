@@ -1,0 +1,72 @@
+# Percona general tablespace encryption tests. As of 8.0.13 this is an upstream feature
+# thus we only keep non-duplicated tests
+
+# test various combinations of partitioned tables with partitions created in
+# different tablespaces
+
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
+CREATE TABLESPACE ts_encrypted_new ADD DATAFILE 'ts_encrypted_new.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
+CREATE TABLESPACE ts_unencrypted ADD DATAFILE 'ts_unencrypted.ibd' ENGINE="InnoDB";
+CREATE TABLESPACE ts_unencrypted_new ADD DATAFILE 'ts_unencrypted_new.ibd' ENGINE="InnoDB";
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE pt1 (a INT NOT NULL, PRIMARY KEY(a))
+	ENGINE=InnoDB TABLESPACE ts_unencrypted
+	PARTITION BY RANGE (a) PARTITIONS 3 (
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table,
+		PARTITION p3 VALUES LESS THAN (60) TABLESPACE innodb_system);
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE pt2 (a INT NOT NULL, PRIMARY KEY(a))
+	ENGINE=InnoDB TABLESPACE ts_encrypted ENCRYPTION='y'
+	PARTITION BY RANGE (a) PARTITIONS 3 (
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table,
+		PARTITION p3 VALUES LESS THAN (60) TABLESPACE ts_encrypted_new);
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE spt1 (a INT NOT NULL, b INT)
+	ENGINE=InnoDB TABLESPACE ts_unencrypted
+	PARTITION BY RANGE (a) PARTITIONS 3 SUBPARTITION BY KEY (b) (
+		PARTITION p1 VALUES LESS THAN (20) (
+			SUBPARTITION p11 TABLESPACE ts_unencrypted,
+			SUBPARTITION p12 TABLESPACE innodb_file_per_table,
+			SUBPARTITION p13 TABLESPACE ts_unencrypted_new),
+		PARTITION p2 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table (
+			SUBPARTITION p21 TABLESPACE ts_unencrypted,
+			SUBPARTITION p22 TABLESPACE innodb_file_per_table,
+			SUBPARTITION p23 TABLESPACE ts_unencrypted_new),
+		PARTITION p3 VALUES LESS THAN (60) TABLESPACE innodb_system (
+			SUBPARTITION p31 TABLESPACE ts_unencrypted,
+			SUBPARTITION p32 TABLESPACE innodb_file_per_table,
+			SUBPARTITION p33 TABLESPACE ts_unencrypted_new));
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE spt2 (a INT NOT NULL, b INT)
+	ENGINE=InnoDB TABLESPACE ts_encrypted ENCRYPTION='y'
+	PARTITION BY RANGE (a) PARTITIONS 3 SUBPARTITION BY KEY (b) (
+		PARTITION p1 VALUES LESS THAN (20) (
+			SUBPARTITION p11 TABLESPACE ts_encrypted,
+			SUBPARTITION p12 TABLESPACE innodb_file_per_table,
+			SUBPARTITION p13 TABLESPACE ts_encrypted_new),
+		PARTITION p2 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table (
+			SUBPARTITION p21 TABLESPACE ts_encrypted,
+			SUBPARTITION p22 TABLESPACE innodb_file_per_table,
+			SUBPARTITION p23 TABLESPACE ts_encrypted_new),
+		PARTITION p3 VALUES LESS THAN (60) TABLESPACE ts_encrypted_new (
+			SUBPARTITION p31 TABLESPACE ts_encrypted,
+			SUBPARTITION p32 TABLESPACE innodb_file_per_table,
+			SUBPARTITION p33 TABLESPACE ts_encrypted_new));
+
+# cleanup
+
+DROP TABLESPACE ts_encrypted;
+DROP TABLESPACE ts_encrypted_new;
+DROP TABLESPACE ts_unencrypted;
+DROP TABLESPACE ts_unencrypted_new;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

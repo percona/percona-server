@@ -1,0 +1,84 @@
+#
+# Test log_slow_slave_admin_statements in stored procedures
+#
+
+CREATE TABLE t1 (a INT);
+
+SET @old_log_slow_admin_statements=@@global.log_slow_admin_statements;
+SET @old_log_slow_sp_statements=@@global.log_slow_sp_statements;
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+
+delimiter ^;
+CREATE PROCEDURE test()
+BEGIN
+   INSERT INTO t1 VALUES(0);
+   CREATE INDEX i ON t1(a);
+   INSERT INTO t1 VALUES(1);
+END^
+delimiter ;^
+
+#
+# Test disabled admin statement slow-logging in stored procedures
+#
+SET GLOBAL log_slow_admin_statements=OFF;
+SET GLOBAL log_slow_sp_statements=ON;
+
+--let log_file=percona_log_slow_admin_stmt_sp_1
+--source include/log_start.inc
+call test();
+--source include/log_stop.inc
+--let grep_pattern=INSERT INTO t1 VALUES\(0\);
+--source include/log_grep.inc
+--let grep_pattern=CREATE INDEX i ON t1\(a\);
+--source include/log_grep.inc
+--let grep_pattern=INSERT INTO t1 VALUES\(1\);
+--source include/log_grep.inc
+
+DROP INDEX i ON t1;
+--source include/log_cleanup.inc
+
+#
+# Test admin statement slow-logging disabled by stored procedures
+#
+SET GLOBAL log_slow_admin_statements=ON;
+SET GLOBAL log_slow_sp_statements=OFF;
+
+--let log_file=percona_log_slow_admin_stmt_sp_1
+--source include/log_start.inc
+call test();
+--source include/log_stop.inc
+--let grep_pattern=INSERT INTO t1 VALUES\(0\);
+--source include/log_grep.inc
+--let grep_pattern=CREATE INDEX i ON t1\(a\);
+--source include/log_grep.inc
+--let grep_pattern=INSERT INTO t1 VALUES\(1\);
+--source include/log_grep.inc
+
+DROP INDEX i ON t1;
+--source include/log_cleanup.inc
+
+#
+# Test enabled admin statement slow-logging in stored procedures
+#
+SET GLOBAL log_slow_admin_statements=ON;
+SET GLOBAL log_slow_sp_statements=ON;
+
+--let log_file=percona_log_slow_admin_stmt_sp_1
+--source include/log_start.inc
+call test();
+--source include/log_stop.inc
+--let grep_pattern=INSERT INTO t1 VALUES\(0\);
+--source include/log_grep.inc
+--let grep_pattern=CREATE INDEX i ON t1\(a\);
+--source include/log_grep.inc
+--let grep_pattern=INSERT INTO t1 VALUES\(1\);
+--source include/log_grep.inc
+
+DROP TABLE t1;
+DROP PROCEDURE test;
+
+SET GLOBAL log_slow_admin_statements=@old_log_slow_admin_statements;
+SET GLOBAL log_slow_sp_statements=@old_log_slow_sp_statements;
+
+--source include/log_cleanup.inc

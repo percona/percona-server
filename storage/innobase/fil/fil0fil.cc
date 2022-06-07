@@ -797,8 +797,13 @@ retry:
 				<< ib::hex(space->flags) << ")!";
 		}
 
-		unsigned relevant_space_flags = space->flags;
-		unsigned relevant_flags = flags;
+
+		/* Validate the flags but do not compare the data directory
+		flag, in case this tablespace was relocated. */
+		unsigned relevant_space_flags
+			= space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		unsigned relevant_flags
+			= flags & ~FSP_FLAGS_MASK_DATA_DIR;
 
                 // in case of Keyring encryption it can so happen that there will be a crash after all pages of tablespace is rotated
                 // and DD is updated, but page0 of the tablespace has not been yet update. We handle this here.

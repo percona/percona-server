@@ -1,0 +1,6 @@
+#
+# Test for bug 79016 ((pfs_file != __null), function pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1)
+#
+--disable_result_log
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS ORDER BY TABLE_NAME;
+--enable_result_log

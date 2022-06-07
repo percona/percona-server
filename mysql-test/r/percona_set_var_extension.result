@@ -14,18 +14,6 @@ SET_VAR(myisam_sort_buffer_size=900000)
 @before_val	@hint_val	@after_val
 400000	900000	400000
 SET myisam_sort_buffer_size=default;
-CALL test_hint("SET_VAR(myisam_repair_threads=2)", "myisam_repair_threads");
-hint_str
-SET_VAR(myisam_repair_threads=2)
-@before_val	@hint_val	@after_val
-1	2	1
-SET myisam_repair_threads=4;
-CALL test_hint("SET_VAR(myisam_repair_threads=2)", "myisam_repair_threads");
-hint_str
-SET_VAR(myisam_repair_threads=2)
-@before_val	@hint_val	@after_val
-4	2	4
-SET myisam_repair_threads=default;
 ###################################################
 # Test SET_VAR hint optimize table for myisam table
 ###################################################
@@ -107,9 +95,9 @@ CALL p1();
 @@myisam_sort_buffer_size	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
 8388608	262144	18446744073709551615	50
 # check with hints
-CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
-16777216	4	524288	461461461	99
+CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
+16777216	524288	461461461	99
 # some with invalid values
 CALL /*+ SET_VAR(myisam_sort_buffer_size=a216) SET_VAR(sort_buffer_size=524288b) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
 @@myisam_sort_buffer_size	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout

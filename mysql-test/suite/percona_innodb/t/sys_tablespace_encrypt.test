@@ -1,0 +1,232 @@
+# Test system tablespace encryption
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+
+--echo # Do tests on un-encrypted system tablespace
+SELECT @@innodb_sys_tablespace_encrypt;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+
+CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+DROP TABLE t2;
+
+CREATE TABLE t3(a TEXT) TABLESPACE = innodb_system;
+DROP TABLE t3;
+
+--echo # System is unencrypted, test with innodb_encrypt_tables=OFF
+
+SET GLOBAL innodb_encrypt_tables=OFF;
+SELECT @@innodb_encrypt_tables;
+
+CREATE TABLE t4(a TEXT) TABLESPACE = innodb_system;
+DROP TABLE t4;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t5(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+
+CREATE TABLE t6(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+DROP TABLE t6;
+
+--echo # System is unencrypted, test with innodb_encrypt_tables=ON
+SET GLOBAL innodb_encrypt_tables=ON;
+SELECT @@innodb_encrypt_tables;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t7(a TEXT) TABLESPACE = innodb_system;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t8(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+
+CREATE TABLE t8(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+DROP TABLE t8;
+
+--echo # System is unencrypted, test with innodb_encrypt_tables=FORCE
+SET GLOBAL innodb_encrypt_tables="FORCE";
+SELECT @@innodb_encrypt_tables;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t9(a TEXT) TABLESPACE = innodb_system;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t10(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+
+--error ER_INVALID_ENCRYPTION_OPTION
+CREATE TABLE t11(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+
+--echo # Stop the instance which was created by MTR
+--source include/shutdown_mysqld.inc
+
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+--let KEYRING_DATA="--keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
+--let ERROR_LOG=$MYSQL_TMP_DIR/sys_encrypt_err.log
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--echo # start unencrypted system with --innodb-sys-tablespace-encrypt=ON
+--error 1
+--exec $MYSQLD_CMD --innodb-sys-tablespace-encrypt=ON > $ERROR_LOG 2>&1
+--let $grep_pattern= The system tablespace is not encrypted but --innodb_sys_tablespace_encrypt is ON
+--let $grep_file= $ERROR_LOG
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+--remove_file $ERROR_LOG
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $MYSQLTEST_VARDIR/tmp/boot.log 2>&1
+
+--echo # Bootstrap new instance with encrypted system tablespace
+--exec $BOOTSTRAP_CMD
+
+--echo # Start encrypted system with --innodb-sys-tablespace-encrypt=OFF
+--error 1
+--exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=OFF $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $ERROR_LOG 2>&1
+--let $grep_pattern= The system tablespace is encrypted but --innodb_sys_tablespace_encrypt is OFF
+--let $grep_file= $ERROR_LOG
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+--remove_file $ERROR_LOG
+
+--echo # Start encrypted system without early-plugin-load and only --plugin-load
+--error 1
+--exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD $KEYRING_DATA > $ERROR_LOG 2>&1
+--let $grep_pattern= Encryption can't find master key, please check the keyring plugin is loaded
+--let $grep_file= $ERROR_LOG
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+--remove_file $ERROR_LOG
+
+--echo # Start encrypted system without keyring_data
+--error 1
+--exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD > $ERROR_LOG 2>&1
+--let $grep_pattern= Encryption can't find master key, please check the keyring plugin is loaded
+--let $grep_file= $ERROR_LOG
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+--remove_file $ERROR_LOG
+
+--echo # Start the instance with encrypted system tablespace
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON"
+--source include/start_mysqld.inc
+
+--let $MYSQL_DATA_DIR= `select @@datadir`
+
+SELECT @@innodb_sys_tablespace_encrypt;
+
+CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t3(a TEXT) TABLESPACE = innodb_system;
+
+--echo # System is encrypted, test with innodb_encrypt_tables=OFF
+SET GLOBAL innodb_encrypt_tables=OFF;
+SELECT @@innodb_encrypt_tables;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t4(a TEXT) TABLESPACE = innodb_system;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t4_1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+
+CREATE TABLE t4_2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+DROP TABLE t4_2;
+
+--echo # System is encrypted, test with innodb_encrypt_tables=ON
+SET GLOBAL innodb_encrypt_tables=ON;
+SELECT @@innodb_encrypt_tables;
+CREATE TABLE t5(a TEXT) TABLESPACE = innodb_system;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t5_1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+
+CREATE TABLE t5_2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+DROP TABLE t5_2;
+
+--echo # System is encrypted, test with innodb_encrypt_tables=FORCE
+SET GLOBAL innodb_encrypt_tables="FORCE";
+SELECT @@innodb_encrypt_tables;
+CREATE TABLE t5_3(a TEXT) TABLESPACE = innodb_system;
+
+--error ER_INVALID_ENCRYPTION_OPTION
+CREATE TABLE t5_4(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+
+CREATE TABLE t5_5(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+DROP TABLE t5_5;
+
+SET GLOBAL innodb_encrypt_tables=default;
+
+INSERT INTO t1 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+INSERT INTO t5 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+
+--echo # rebuild a table remains encrypted
+CREATE TABLE t6(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+INSERT INTO t6 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+ALTER TABLE t6 ALGORITHM=COPY, TABLESPACE=innodb_system;
+SHOW CREATE TABLE t6;
+
+CREATE TABLE t7(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+INSERT INTO t7 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+ALTER TABLE t7 ALGORITHM=COPY;
+SHOW CREATE TABLE t7;
+
+--echo # rebuild to a table unencrypted and in system should be disalowed
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t7 ALGORITHM=COPY, ENCRYPTION='N';
+SHOW CREATE TABLE t7;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t7 ENCRYPTION='N';
+SHOW CREATE TABLE t7;
+
+--echo # Move encrypted table in system tablespace to file_per_table tablespace
+--echo # t7 should be encrypted table. Verify the ibd later
+ALTER TABLE t7 TABLESPACE=`innodb_file_per_table`;
+SHOW CREATE TABLE t7;
+
+--echo # Move encrypted table in sytem tablespace as an unencrypted table
+ALTER TABLE t6 TABLESPACE=`innodb_file_per_table`, ENCRYPTION='N';
+SHOW CREATE TABLE t6;
+
+--echo # Move unencrypted file_per_table to a table in encrypted system tablespace
+CREATE TABLE t8(a TEXT);
+INSERT INTO t8 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t8 TABLESPACE=`innodb_system`;
+
+ALTER TABLE t8 TABLESPACE=`innodb_system`, ENCRYPTION='Y';
+
+--echo # Move encrypted file_per_table to a table in encrypted system tablespace
+CREATE TABLE t9(a TEXT) ENCRYPTION='Y';
+INSERT INTO t9 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+ALTER TABLE t9 TABLESPACE=`innodb_system`;
+
+--source include/shutdown_mysqld.inc
+
+--echo # make sure that system tablespace is encrypted
+--let $grep_pattern= first occurrence
+--let $grep_file= $MYSQLD_DATADIR1/ibdata1
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+--let $grep_pattern= first occurrence
+--let $grep_file= $MYSQLD_DATADIR1/test/t7.ibd
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+--echo # Start default MTR instance
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+--remove_file $BOOTSTRAP_SQL
+--let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1
+--source include/cleanup_folder.inc
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--remove_file $MYSQLTEST_VARDIR/tmp/boot.log

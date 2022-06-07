@@ -1,0 +1,18 @@
+call mtr.add_suppression("InnoDB: Resizing redo log from");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
+call mtr.add_suppression("InnoDB: New log files created, LSN=");
+SELECT @@GLOBAL.innodb_empty_free_list_algorithm;
+@@GLOBAL.innodb_empty_free_list_algorithm
+legacy
+SET GLOBAL innodb_monitor_enable = buffer_LRU_single_flush_scanned;
+CREATE TABLE t1 (a INT, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, REPEAT("a", 4194304));
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+include/assert.inc [Single page flushes must have happened]
+SET GLOBAL innodb_monitor_disable = buffer_LRU_single_flush_scanned;
+SET GLOBAL innodb_monitor_reset = buffer_LRU_single_flush_scanned;
+DROP TABLE t1;

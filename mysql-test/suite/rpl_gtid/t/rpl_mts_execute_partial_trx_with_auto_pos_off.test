@@ -22,6 +22,7 @@
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
+--source include/have_replica_parallel_workers.inc
 --source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_AUTO_POSITION=0;
 --source include/rpl/start_replica.inc

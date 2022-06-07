@@ -166,7 +166,7 @@ in savepoint mixed_cases
 SELECT * FROM replicate_do_db.t1 WHERE a IN (30, 40);
 a
 
-# BUG#55798 Slave SQL retry on transaction inserts extra data into
+# BUG#55798 Replica SQL retry on transaction inserts extra data into
 # non-transaction table
 # ----------------------------------------------------------------
 # To verify that SQL thread does not retry a transaction which can

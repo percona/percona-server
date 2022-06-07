@@ -37,6 +37,7 @@ source include/rpl/assert_replica_no_error.inc;
 
 --echo # Resume SQL thread
 SET DEBUG_SYNC="now SIGNAL signal.continue";
+SET DEBUG_SYNC="RESET";
 
 --echo [on master]
 connection master;

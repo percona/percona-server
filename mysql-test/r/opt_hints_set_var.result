@@ -364,7 +364,7 @@ count(*)
 1000
 SHOW STATUS LIKE 'Handler_write';
 Variable_name	Value
-Handler_write	1021
+Handler_write	1011
 FLUSH STATUS;
 SELECT count(*)
 FROM t1 JOIN (
@@ -695,6 +695,8 @@ FLUSH STATUS;
 SELECT /*+ SET_VAR(tmp_table_size=1024) */ COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
 128
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SHOW STATUS LIKE 'Created_tmp_files';
 Variable_name	Value
 Created_tmp_files	1

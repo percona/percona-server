@@ -3372,6 +3372,8 @@ DROP TABLE t1;
 #
 SET @old_tmp_table_size=@@tmp_table_size;
 SET tmp_table_size=1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 CREATE TABLE t1 (
 pk INT NOT NULL,
 col_int_key INT,

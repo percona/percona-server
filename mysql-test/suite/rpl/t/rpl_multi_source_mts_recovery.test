@@ -8,13 +8,15 @@
 # Row format is chosen to ease the logged transaction size control in
 # the sourced file.
 --source include/have_binlog_format_row.inc
---source include/have_replica_parallel_type_logical_clock.inc
 --source include/have_replica_parallel_workers.inc
 
 --let $rpl_topology= 1->2
 --let $rpl_multi_source= 1
 --source include/rpl/init.inc
 --source include/rpl/default_connections.inc
+
+--source include/rpl/connection_replica.inc
+--source include/have_replica_parallel_type_logical_clock.inc
 
 --source common/rpl/rpl_parallel_recovery_core.test
 

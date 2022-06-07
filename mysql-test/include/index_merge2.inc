@@ -4,7 +4,8 @@
 #
 # The variable
 #     $engine_type       -- storage engine to be tested
-# has to be set before sourcing this script.
+#     $eval_before_analyze -- statement to execute before any analyze table
+# have to be set before sourcing this script.
 #
 # Note: The comments/expectations refer to InnoDB.
 #       They might be not valid for other storage engines.
@@ -45,6 +46,10 @@ while ($1)
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -72,6 +77,10 @@ alter table t1 add primary key (str1, zeroval, str2, str3);
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -107,6 +116,10 @@ while ($1)
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -145,25 +158,39 @@ insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
   select key1a, key1b, key2a, key2b, key3a, key3b from t1;
 insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
   select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 select count(*) from t1;
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t2;
 -- enable_result_log
 -- enable_query_log
 
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
 --replace_regex $elide_costs
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
+}
 
 select count(*) from t1 where
   key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
 --replace_regex $elide_costs
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+}
 
 select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
@@ -372,18 +399,22 @@ alter table t1 add index i2(key2);
 alter table t1 add index i3(key3);
 update t1 set key2=key1,key3=key1;
 
-# reset default engine after restart
-eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
-
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
+if (!$skip_ror_EXPLAIN_for_MyRocks)
+{
 # to test the bug, the following must use "sort_union":
 --replace_regex $elide_costs
 explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
+}
 select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 drop table t1;
 
@@ -409,6 +440,10 @@ INSERT INTO t1 VALUES
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -464,6 +499,10 @@ INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b');
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log

@@ -411,8 +411,13 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
     ourselves to call it before_lock_wait once before starting to wait
     and once after the thread has exited the wait loop.
    */
-  if ((!is_killed_hook(nullptr) || in_wait_list) && before_lock_wait)
+  bool use_wait_callbacks;
+  if ((!is_killed_hook(nullptr) || in_wait_list) && before_lock_wait) {
+    use_wait_callbacks = true;
     (*before_lock_wait)();
+  } else {
+    use_wait_callbacks = false;
+  }
 
   set_timespec(&wait_timeout, lock_wait_timeout);
   while (!is_killed_hook(nullptr) || in_wait_list) {
@@ -445,7 +450,7 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
     We call the after_lock_wait callback once the wait loop has
     finished.
    */
-  if (after_lock_wait) (*after_lock_wait)();
+  if (after_lock_wait && use_wait_callbacks) (*after_lock_wait)();
 
   if (data->cond || data->type == TL_UNLOCK) {
     if (data->cond) /* aborted or timed out */

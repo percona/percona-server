@@ -32,6 +32,7 @@
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
+#include "sql/rpl_rli.h"    // THD::rli_slave::rows_query_ev
 #include "sql/sql_class.h"  // THD, SYSTEM_THREAD_SLAVE_*
 #include "template_utils.h"
 
@@ -42,9 +43,14 @@ using std::unique_ptr;
 
 static PSI_memory_key bh_key_memory_blackhole_share;
 
-static bool is_slave_applier(THD *thd) {
-  return thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-         thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
+static inline bool is_slave_applier(const THD &thd) {
+  return thd.system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+         thd.system_thread == SYSTEM_THREAD_SLAVE_WORKER;
+}
+
+static inline bool pretend_for_slave(const THD &thd) {
+  return is_slave_applier(thd) &&
+         (thd.rli_slave->rows_query_ev || thd.query().str == nullptr);
 }
 
 /* Static declarations for handlerton */
@@ -108,14 +114,14 @@ int ha_blackhole::write_row(uchar *) {
 int ha_blackhole::update_row(const uchar *, uchar *) {
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == nullptr) return 0;
+  if (pretend_for_slave(*thd)) return 0;
   return HA_ERR_WRONG_COMMAND;
 }
 
 int ha_blackhole::delete_row(const uchar *) {
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == nullptr) return 0;
+  if (pretend_for_slave(*thd)) return 0;
   return HA_ERR_WRONG_COMMAND;
 }
 
@@ -128,7 +134,7 @@ int ha_blackhole::rnd_next(uchar *) {
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == nullptr)
+  if (pretend_for_slave(*thd))
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -196,7 +202,7 @@ int ha_blackhole::index_read_map(uchar *, const uchar *, key_part_map,
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == nullptr)
+  if (pretend_for_slave(*thd))
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -208,7 +214,7 @@ int ha_blackhole::index_read_idx_map(uchar *, uint, const uchar *, key_part_map,
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == nullptr)
+  if (pretend_for_slave(*thd))
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -219,7 +225,7 @@ int ha_blackhole::index_read_last_map(uchar *, const uchar *, key_part_map) {
   int rc;
   DBUG_TRACE;
   THD *thd = ha_thd();
-  if (is_slave_applier(thd) && thd->query().str == nullptr)
+  if (pretend_for_slave(*thd))
     rc = 0;
   else
     rc = HA_ERR_END_OF_FILE;
@@ -344,7 +350,7 @@ static int blackhole_init(void *p) {
   blackhole_hton->state = SHOW_OPTION_YES;
   blackhole_hton->db_type = DB_TYPE_BLACKHOLE_DB;
   blackhole_hton->create = blackhole_create_handler;
-  blackhole_hton->flags = HTON_CAN_RECREATE;
+  blackhole_hton->flags = HTON_CAN_RECREATE | HTON_SUPPORTS_ONLINE_BACKUPS;
 
   mysql_mutex_init(bh_key_mutex_blackhole, &blackhole_mutex,
                    MY_MUTEX_INIT_FAST);

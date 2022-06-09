@@ -154,6 +154,7 @@ SET(INNOBASE_SOURCES
   handler/handler0alter.cc
   handler/i_s.cc
   handler/p_s.cc
+  handler/xtradb_i_s.cc
   ibuf/ibuf0ibuf.cc
   lob/lob0first.cc
   lob/lob0index.cc
@@ -200,6 +201,7 @@ SET(INNOBASE_SOURCES
   os/os0file.cc
   os/os0enc.cc
   os/os0proc.cc
+  os/os0populate.cc
   os/os0event.cc
   page/page0cur.cc
   page/page0page.cc

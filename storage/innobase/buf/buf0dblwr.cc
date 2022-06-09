@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -393,7 +394,7 @@ std::tuple<bool, bool> Pages::is_actual_page_corrupted(fil_space_t *space,
 
   /* Read in the page from the data file to compare. */
   auto err = fil_io(request, true, page_id, page_size, 0, page_size.physical(),
-                    buffer.begin(), nullptr);
+                    buffer.begin(), nullptr, nullptr, false);
 
   if (err != DB_SUCCESS) {
     ib::warn(ER_IB_MSG_DBLWR_1314)
@@ -1589,11 +1590,6 @@ void Double_write::check_block(const buf_block_t *block) noexcept {
 
       /* TODO: validate also non-index pages */
       return;
-
-    case FIL_PAGE_TYPE_ALLOCATED:
-      /* Empty pages should never be flushed. Unless we are creating the
-      legacy doublewrite buffer.  */
-      break;
   }
 
   croak(block);
@@ -1636,8 +1632,8 @@ dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage, bool sync,
 #endif /* UNIV_DEBUG */
 
   io_request.set_original_size(bpage->size.physical());
-  auto err =
-      fil_io(io_request, sync, bpage->id, bpage->size, 0, len, frame, bpage);
+  auto err = fil_io(io_request, sync, bpage->id, bpage->size, 0, len, frame,
+                    bpage, nullptr, false);
 
   /* When a tablespace is deleted with BUF_REMOVE_NONE, fil_io() might
   return DB_PAGE_IS_STALE or DB_TABLESPACE_DELETED. */
@@ -1968,6 +1964,12 @@ bool Double_write::create_v1(page_no_t &page_no1,
 
 dberr_t Double_write::load(dblwr::File &file, recv::Pages *pages) noexcept {
   os_offset_t size = os_file_get_size(file.m_pfs);
+
+  if (srv_read_only_mode) {
+    ib::info() << "Skipping doublewrite buffer processing due to "
+                  "InnoDB running in read only mode";
+    return (DB_SUCCESS);
+  }
 
   if (size == 0) {
     /* Double write buffer is empty. */
@@ -2431,6 +2433,10 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
   if (page_no == 0) {
     /* The first page of any tablespace is never encrypted.
     So return early. */
+    return nullptr;
+  }
+
+  if (space_id == TRX_SYS_SPACE && page_no == TRX_SYS_PAGE_NO) {
     return nullptr;
   }
 
@@ -3057,7 +3063,7 @@ bool dblwr::recv::Pages::dblwr_recover_page(page_no_t dblwr_page_no,
 
   /* Read in the page from the data file to compare. */
   auto err = fil_io(request, true, page_id, page_size, 0, page_size.physical(),
-                    buffer.begin(), nullptr);
+                    buffer.begin(), nullptr, nullptr, false);
 
   if (err != DB_SUCCESS) {
     ib::warn(ER_IB_MSG_DBLWR_1314)
@@ -3136,7 +3142,7 @@ bool dblwr::recv::Pages::dblwr_recover_page(page_no_t dblwr_page_no,
   intended position. */
 
   err = fil_io(write_request, true, page_id, page_size, 0, page_size.physical(),
-               const_cast<byte *>(page), nullptr);
+               const_cast<byte *>(page), nullptr, nullptr, false);
 
   ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
 

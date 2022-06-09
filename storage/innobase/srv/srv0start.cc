@@ -160,10 +160,6 @@ static uint64_t srv_start_state = SRV_START_STATE_NONE;
 
 std::atomic<enum srv_shutdown_t> srv_shutdown_state{SRV_SHUTDOWN_NONE};
 
-/** true if shared MDL is taken by background thread for all tablespaces, for
- *  which (un)encryption is to be rolled forward*/
-bool shared_mdl_is_taken = false;
-
 /** Name of srv_monitor_file */
 static char *srv_monitor_file_name;
 
@@ -965,7 +961,7 @@ static dberr_t srv_undo_tablespaces_construct() {
   }
 
   if (srv_undo_log_encrypt) {
-    ut_d(bool ret =) srv_enable_undo_encryption();
+    ut_d(bool ret =) srv_enable_undo_encryption(nullptr);
     ut_ad(!ret);
   }
 
@@ -1779,7 +1775,8 @@ dberr_t srv_start(bool create_new_db) {
   ib::info(ER_IB_MSG_1130, size, unit, srv_buf_pool_instances, chunk_size,
            chunk_unit);
 
-  err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
+  err = buf_pool_init(srv_buf_pool_size, static_cast<bool>(srv_numa_interleave),
+                      srv_buf_pool_instances);
 
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_1131);
@@ -1800,6 +1797,7 @@ dberr_t srv_start(bool create_new_db) {
 
   fsp_init();
   pars_init();
+
   recv_sys_create();
   recv_sys_init();
   trx_sys_create();
@@ -1869,6 +1867,8 @@ dberr_t srv_start(bool create_new_db) {
   ut_a(log_sys != nullptr);
 
   arch_init();
+
+  bool srv_monitor_thread_created = false;
 
   if (create_new_db) {
     ut_a(buf_are_flush_lists_empty_validate());
@@ -1954,6 +1954,16 @@ dberr_t srv_start(bool create_new_db) {
     and there must be no page in the buf_flush list. */
     buf_pool_invalidate();
 
+    /* Start monitor thread early enough so that e.g. crash recovery failing to
+    find free pages in the buffer pool is diagnosed. */
+    if (!srv_read_only_mode) {
+      /* Create the thread which prints InnoDB monitor info */
+      srv_threads.m_monitor =
+          os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
+      srv_threads.m_monitor.start();
+      srv_monitor_thread_created = true;
+    }
+
     /* Open all data files in the system tablespace:
     we keep them open until database shutdown. */
     fil_open_system_tablespace_files();
@@ -2003,6 +2013,7 @@ dberr_t srv_start(bool create_new_db) {
 
       /* Initialize the change buffer. */
       err = dict_boot();
+      DBUG_EXECUTE_IF("ib_dic_boot_error", err = DB_ERROR;);
     }
 
     if (err != DB_SUCCESS) {
@@ -2077,6 +2088,11 @@ dberr_t srv_start(bool create_new_db) {
 
     /* We have successfully recovered from the redo log. The
     data dictionary should now be readable. */
+
+    DBUG_EXECUTE_IF(
+        "ib_recovery_print_mysql_binlog_offset",
+        if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO &&
+            recv_needed_recovery) { trx_sys_print_mysql_binlog_offset(); });
 
     if (recv_sys->found_corrupt_log) {
       ib::warn(ER_IB_MSG_RECOVERY_CORRUPT);
@@ -2286,11 +2302,17 @@ dberr_t srv_start(bool create_new_db) {
     srv_threads.m_error_monitor.start();
 
     /* Create the thread which prints InnoDB monitor info */
-    srv_threads.m_monitor =
-        os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
+    if (!srv_monitor_thread_created) {
+      srv_threads.m_monitor =
+          os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
 
-    srv_threads.m_monitor.start();
+      srv_threads.m_monitor.start();
+      srv_monitor_thread_created = true;
+    }
   }
+
+  /* wake main loop of page cleaner up */
+  os_event_set(buf_flush_event);
 
   srv_sys_tablespaces_open = true;
 
@@ -2311,9 +2333,6 @@ dberr_t srv_start(bool create_new_db) {
   srv_is_being_started = false;
 
   ut_a(trx_purge_state() == PURGE_STATE_INIT);
-
-  /* wake main loop of page cleaner up */
-  os_event_set(buf_flush_event);
 
   sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
   ut_a(sum_of_new_sizes != FIL_NULL);
@@ -2348,11 +2367,17 @@ dberr_t srv_start(bool create_new_db) {
     }
   }
 
+  if (!srv_file_per_table && srv_pass_corrupt_table) {
+    ib::warn() << "The option innodb_file_per_table is disabled, so using the "
+                  "option innodb_pass_corrupt_table doesn't make sense.";
+  }
+
   /* Finish clone files recovery. This call is idempotent and is no op
   if it is already done before creating new log files. */
   clone_files_recovery(true);
 
-  ib::info(ER_IB_MSG_1151, INNODB_VERSION_STR,
+  ib::info(ER_IB_MSG_1151,
+           "Percona XtraDB (http://www.percona.com) " INNODB_VERSION_STR,
            ulonglong{log_get_lsn(*log_sys)});
 
   return (DB_SUCCESS);
@@ -2567,8 +2592,7 @@ void srv_start_threads_after_ddl_recovery() {
     srv_threads.m_ts_alter_encrypt.start();
     /* Wait till shared MDL is taken by background thread for all tablespaces,
     for which (un)encryption is to be rolled forward. */
-    while (!shared_mdl_is_taken)
-      mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
+    mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
     mysql_mutex_unlock(&resume_encryption_cond_m);
   }
 
@@ -2621,6 +2645,7 @@ void srv_pre_dd_shutdown() {
     ib::warn(ER_IB_MSG_1154, threads_count);
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
+
   /* Crash if some query threads are still alive. */
   ut_a(srv_conc_get_active_threads() == 0);
 
@@ -2834,7 +2859,9 @@ static void srv_shutdown_page_cleaners() {
   here to let it complete the flushing of the buffer pools
   before proceeding further. */
 
-  for (uint32_t count = 0; buf_flush_page_cleaner_is_active(); ++count) {
+  for (uint32_t count = 0; buf_flush_page_cleaner_is_active() ||
+                           buf_flush_active_lru_managers() > 0;
+       ++count) {
     if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1251);
       count = 0;
@@ -2843,6 +2870,8 @@ static void srv_shutdown_page_cleaners() {
     std::this_thread::sleep_for(
         std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
+
+  ut_ad(buf_flush_active_lru_managers() == 0);
 
   ut_ad(buf_pool_pending_io_reads_count() == 0);
   ut_ad(buf_pool_pending_io_writes_count() == 0);
@@ -2916,7 +2945,6 @@ static lsn_t srv_shutdown_log() {
     auto err = fil_write_flushed_lsn(lsn);
     ut_a(err == DB_SUCCESS);
   }
-
   buf_must_be_all_freed();
   ut_a(lsn == log_get_lsn(*log_sys));
 

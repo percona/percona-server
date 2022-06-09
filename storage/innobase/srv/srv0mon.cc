@@ -384,7 +384,7 @@ static monitor_info_t innodb_counter_info[] = {
      "Avg time (ms) spent for adaptive flushing recently per slot.",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_FLUSH_ADAPTIVE_AVG_TIME_SLOT},
 
-    {"buffer_LRU_batch_flush_avg_time_slot", "buffer",
+    {"buffer_LRU_batch_flush_avg_time_slot", "buffer",  // TODO: always zero
      "Avg time (ms) spent for LRU batch flushing recently per slot.",
      MONITOR_NONE, MONITOR_DEFAULT_START,
      MONITOR_LRU_BATCH_FLUSH_AVG_TIME_SLOT},
@@ -394,7 +394,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_NONE, MONITOR_DEFAULT_START,
      MONITOR_FLUSH_ADAPTIVE_AVG_TIME_THREAD},
 
-    {"buffer_LRU_batch_flush_avg_time_thread", "buffer",
+    {"buffer_LRU_batch_flush_avg_time_thread", "buffer",  // TODO: always zero
      "Avg time (ms) spent for LRU batch flushing recently per thread.",
      MONITOR_NONE, MONITOR_DEFAULT_START,
      MONITOR_LRU_BATCH_FLUSH_AVG_TIME_THREAD},
@@ -403,7 +403,7 @@ static monitor_info_t innodb_counter_info[] = {
      "Estimated time (ms) spent for adaptive flushing recently.", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST},
 
-    {"buffer_LRU_batch_flush_avg_time_est", "buffer",
+    {"buffer_LRU_batch_flush_avg_time_est", "buffer",  // TODO: always zero
      "Estimated time (ms) spent for LRU batch flushing recently.", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_LRU_BATCH_FLUSH_AVG_TIME_EST},
 
@@ -415,7 +415,7 @@ static monitor_info_t innodb_counter_info[] = {
      "Number of adaptive flushes passed during the recent Avg period.",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_FLUSH_ADAPTIVE_AVG_PASS},
 
-    {"buffer_LRU_batch_flush_avg_pass", "buffer",
+    {"buffer_LRU_batch_flush_avg_pass", "buffer",  // TODO: always zero
      "Number of LRU batch flushes passed during the recent Avg period.",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LRU_BATCH_FLUSH_AVG_PASS},
 
@@ -979,6 +979,10 @@ static monitor_info_t innodb_counter_info[] = {
     {"log_writer_on_archiver_waits", "log",
      "Waits on redo archiver in log writer", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_LOG_WRITER_ON_ARCHIVER_WAITS},
+
+    {"log_writer_on_tracker_waits", "log",
+     "Waits on redo tracker in log writer", MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_LOG_WRITER_ON_TRACKER_WAITS},
 
     MONITOR_WAIT_STATS("log_flusher_", "log",
                        "Waits on task in log_flusher thread",

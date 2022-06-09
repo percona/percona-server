@@ -86,7 +86,7 @@ uint hp_get_encoded_data_length(const HP_SHARE &info, const uchar *record,
   return dst_offset;
 }
 
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
 static void dump_chunk(const HP_SHARE &info, const uchar *curr_chunk) noexcept {
   fprintf(stdout, "Chunk dump at 0x%lx: ", (long)curr_chunk);
   for (uint i = 0; i < info.recordspace.chunk_dataspace_length; i++) {
@@ -130,8 +130,8 @@ static inline bool hp_process_field_data_to_chunkset(
     uint to_copy = info.recordspace.chunk_dataspace_length - dst_offset;
     if (to_copy == 0) {
     /* Jump to the next chunk */
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
-      dump_chunk(info, curr_chunk);
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
+    dump_chunk(info, curr_chunk);
 #endif
       memcpy(&curr_chunk, curr_chunk + info.recordspace.offset_link,
              sizeof(uchar *));
@@ -239,7 +239,7 @@ bool hp_process_record_data_to_chunkset(const HP_SHARE &info,
     }
   }
 
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   dump_chunk(info, curr_chunk);
 #endif
 
@@ -275,7 +275,7 @@ static inline void switch_to_next_chunk_for_read(const HP_SHARE &share,
   memcpy(&curr_chunk, curr_chunk + share.recordspace.offset_link,
          sizeof(uchar *));
   src_offset = 0;
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   dump_chunk(share, curr_chunk);
 #endif
 }
@@ -303,7 +303,7 @@ bool hp_extract_record(HP_INFO *info, uchar *record,
 
   DBUG_ENTER("hp_extract_record");
 
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   if (share->recordspace.is_variable_size) {
     dump_chunk(share, curr_chunk);
   }

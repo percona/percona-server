@@ -40,7 +40,7 @@ SET(MIGRATE_KEYRING_LIBRARIES
   ${CMAKE_DL_LIBS}
   minchassis
   mysys
-  mysqlclient
+  perconaserverclient
   client_base
   OpenSSL::SSL OpenSSL::Crypto
 )

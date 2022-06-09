@@ -68,7 +68,7 @@ TARGET_LINK_LIBRARIES(${XCL_UNIT_TESTS}
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ext::libprotobuf
   ext::lz4
-  mysqlclient
+  perconaserverclient
   gtest
   gmock
 )

@@ -44,6 +44,6 @@ ADD_CONVENIENCE_LIBRARY(
   fido_client_common
   ${FIDO_COMMON_SOURCES}
   LINK_LIBRARIES
-  mysqlclient
+  perconaserverclient
   ext::fido
 )

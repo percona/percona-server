@@ -32,7 +32,7 @@ get_option () {
     local default=$3
     local instance=$4
     ret=$(@bindir@/my_print_defaults  ${instance:+--defaults-group-suffix=@$instance} $section | \
-	      grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
+              grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
     [ -z "$ret" ] && ret=$default
     echo $ret
 }
@@ -44,6 +44,77 @@ install_validate_password_sql_file () {
     echo "SET @@SESSION.SQL_LOG_BIN=0;" > "$initfile"
     echo "INSERT INTO mysql.component (component_id, component_group_id, component_urn) VALUES (1, 1, 'file://component_validate_password');" >> $initfile
     echo $initfile
+}
+
+my_which () {
+    save_ifs="${IFS-UNSET}"
+    IFS=:
+    ret=0
+    for file
+    do
+        for dir in $PATH
+        do
+        if [ -f "$dir/$file" ]
+        then
+            echo "$dir/$file"
+            continue 2
+        fi
+        done
+
+        ret=1  #signal an error
+        break
+    done
+
+    if [ "$save_ifs" = UNSET ]
+    then
+        unset IFS
+    else
+        IFS="$save_ifs"
+    fi
+    return $ret  # Success
+}
+
+fix_flush_caches() {
+    local instance=$1
+    flush_caches=$(get_option mysqld_safe flush_caches "0" $instance)
+    if [ ${flush_caches} = 1 ]; then
+        if [ ! $(my_which sync) ]; then
+            echo "sync command not found, required for --flush-caches"
+            exit 1
+        # Flush file system buffers.
+        else
+            sync
+            ret=$?
+            if [ $ret -ne 0 ]; then
+                # Huh, the sync() function is always successful...
+                echo "sync failed, check if sync is properly installed"
+            fi
+        fi
+
+        # Locate sysctl, ensure it exists.
+        if [ ! $(my_which sysctl) ]; then
+            echo "sysctl command not found, required for --flush-caches"
+            exit 1
+        # Purge page cache, dentries and inodes.
+        else
+            sysctl -q -w vm.drop_caches=3
+            ret=$?
+            if [ $ret -ne 0 ]; then
+                echo "sysctl failed, check the error message for details"
+                exit 1
+            fi
+        fi
+    fi
+}
+
+fix_thp_setting() {
+    [ -e /etc/sysconfig/mysql ] && . /etc/sysconfig/mysql
+    # If no THP_SETTING variable specified in /etc/sysconfig/mysql don't do anything
+    if [ ! -z "${THP_SETTING}" ]; then
+      # Set whatever option is specified in environment file
+      echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
+      echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
+    fi
 }
 
 fix_mysql_upgrade_history () {
@@ -73,25 +144,25 @@ install_db () {
     # Restore log, dir, perms and SELinux contexts
 
     if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
-	install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+        install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
     fi
 
     if [ ! -e "$log" -a ! -h "$log" -a x$(dirname "$log") = "x/var/log" ]; then
-	case $(basename "$log") in
-	    mysql*.log) install /dev/null -m0640 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$log" ;;
-	    *) ;;
-	esac
+        case $(basename "$log") in
+            mysql*.log) install /dev/null -m0640 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$log" ;;
+            *) ;;
+        esac
     fi
 
     if [ -x /usr/sbin/restorecon ]; then
         /usr/sbin/restorecon "$datadir"
         [ -e "$log" ] && /usr/sbin/restorecon "$log"
-	for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
+        for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
             if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
                 /usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
                 /sbin/restorecon -r $dir
             fi
-	done
+        done
     fi
 
     # If special mysql dir is in place, skip db install
@@ -100,12 +171,14 @@ install_db () {
     # Create initial db and install validate_password plugin
     initfile="$(install_validate_password_sql_file)"
     @libexecdir@/mysqld ${instance:+--defaults-group-suffix=@$instance} --initialize \
-		     --datadir="$datadir" --user=@MYSQLD_USER@ --init-file="$initfile"
+                     --datadir="$datadir" --user=@MYSQLD_USER@ --init-file="$initfile"
     rm -f "$initfile"
 
     exit 0
 }
 
+fix_thp_setting
+fix_flush_caches $1
 install_db $1
 
 exit 0

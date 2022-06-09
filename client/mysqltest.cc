@@ -1302,9 +1302,18 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
     return;
   }
 
-  if (command->abort_on_error)
+  if (command->abort_on_error) {
+    if (err_errno == ER_NO_SUCH_THREAD) {
+      /* No such thread id, let's dump the available ones */
+      fprintf(stderr,
+              "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+              "dumping processlist\n",
+              command->query);
+      show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+    }
     die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
         err_sqlstate, err_error);
+  }
 
   DBUG_PRINT("info", ("Expected errors count: %zu", expected_errors->count()));
 
@@ -1343,6 +1352,14 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
   }
 
   if (expected_errors->count()) {
+    if (err_errno == ER_NO_SUCH_THREAD) {
+      /* No such thread id, let's dump the available ones */
+      fprintf(stderr,
+              "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+              "dumping processlist\n",
+              command->query);
+      show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+    }
     if (expected_errors->count() == 1) {
       die("Query '%s' failed with wrong error %d: '%s', should have failed "
           "with error '%s'.",
@@ -3291,7 +3308,19 @@ static FILE *my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
   }
 #endif /* _WIN32 */
 
-  return popen(ds_cmd->str, mode);
+  errno = 0;
+  FILE *file = popen(ds_cmd->str, mode);
+  if (file == NULL) {
+    if (errno != 0) {
+      fprintf(stderr, "mysqltest: popen failed with errno %d (%s)\n", errno,
+              strerror(errno));
+    } else {
+      fprintf(stderr,
+              "mysqltest: popen returned NULL without setting errno "
+              "(out-of-memory?)\n");
+    }
+  }
+  return file;
 }
 
 static void init_builtin_echo(void) {
@@ -4802,14 +4831,18 @@ static void do_send_quit(struct st_command *command) {
 
 static void do_change_user(struct st_command *command) {
   MYSQL *mysql = &cur_con->mysql;
-  static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
+  static DYNAMIC_STRING ds_user, ds_passwd, ds_db, ds_reconnect;
+  bool reconnect = true;
   const struct command_arg change_user_args[] = {
       {"user", ARG_STRING, false, &ds_user, "User to connect as"},
       {"password", ARG_STRING, false, &ds_passwd,
        "Password used when connecting"},
       {"database", ARG_STRING, false, &ds_db,
        "Database to select after connect"},
+      {"reconnect", ARG_STRING, false, &ds_reconnect, "Reconnect on fail"},
   };
+  const char *reconnect_on_fail = "reconnect_on_fail";
+  const char *do_not_reconnect_on_fail = "do_not_reconnect_on_fail";
 
   DBUG_TRACE;
 
@@ -4830,24 +4863,40 @@ static void do_change_user(struct st_command *command) {
     if (!ds_db.length) dynstr_set(&ds_db, mysql->db);
   }
 
-  DBUG_PRINT("info",
-             ("connection: '%s' user: '%s' password: '%s' database: '%s'",
-              cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
+  if (ds_reconnect.length != 0) {
+    if (strcmp(ds_reconnect.str, do_not_reconnect_on_fail) == 0)
+      reconnect = false;
+    else if (strcmp(ds_reconnect.str, reconnect_on_fail) == 0)
+      reconnect = true;
+    else
+      die("Wrong value specified for 'reconnect' parameter. "
+          "Allowed value are '%s' and '%s'",
+          do_not_reconnect_on_fail, reconnect_on_fail);
+  }
+
+  DBUG_PRINT("info", ("connection: '%s' user: '%s' password: '%s' "
+                      "database: '%s' reconnect: '%s'",
+                      cur_con->name, ds_user.str, ds_passwd.str, ds_db.str,
+                      reconnect ? "true" : "false"));
 
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str)) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
-    if (cur_con->stmt) mysql_stmt_close(cur_con->stmt);
-    cur_con->stmt = nullptr;
-    mysql_reconnect(&cur_con->mysql);
-    /* mysql_reconnect changes this setting to true. We really want it to be
-    false at all times. */
-    cur_con->mysql.reconnect = false;
-  }
+    if (reconnect) {
+      if (cur_con->stmt) mysql_stmt_close(cur_con->stmt);
+      cur_con->stmt = nullptr;
+      mysql_reconnect(&cur_con->mysql);
+      /* mysql_reconnect changes this setting to true. We really want it to be
+        false at all times. */
+      cur_con->mysql.reconnect = false;
+    }
+  } else
+    handle_no_error(command);
 
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);
   dynstr_free(&ds_db);
+  dynstr_free(&ds_reconnect);
 }
 
 /*
@@ -5667,6 +5716,23 @@ static void do_disable_testcase(struct st_command *command) {
 }
 
 /**
+  A wrapper around kill call that prints diagnostics if the call failed with
+  any other error than ESRCH.
+
+  @param pid    Process id
+  @param sig    Signal to send to process
+  @return The return value of kill call
+*/
+static int my_kill(int pid, int sig) {
+  const int result = kill(pid, sig);
+  if (result == -1 && errno != ESRCH) {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
+}
+
+/**
   Check if process is active.
 
   @param pid  Process id.
@@ -5688,7 +5754,7 @@ static bool is_process_active(int pid) {
 
   return true;
 #else
-  return (kill(pid, 0) == 0);
+  return (my_kill(pid, 0) == 0);
 #endif
 }
 
@@ -5719,7 +5785,7 @@ static bool kill_process(int pid) {
 
   CloseHandle(proc);
 #else
-  killed = (kill(pid, SIGKILL) == 0);
+  killed = (my_kill(pid, SIGKILL) == 0);
 #endif
   return killed;
 }
@@ -5774,7 +5840,9 @@ static void abort_process(int pid, const char *path [[maybe_unused]]) {
     verbose_msg("OpenProcess failed: %lu\n", err);
   }
 #else
-  kill(pid, SIGABRT);
+  log_msg("shutdown_server timeout exceeded, SIGABRT set to the server PID %d",
+          pid);
+  my_kill(pid, SIGABRT);
 #endif
 }
 
@@ -5805,7 +5873,7 @@ static void do_shutdown_server(struct st_command *command) {
       cleanup_and_exit(1);
   }
 
-  long timeout = 60;
+  long timeout = 600;
 
   if (ds_timeout.length) {
     char *endptr;
@@ -10212,7 +10280,12 @@ int main(int argc, char **argv) {
           do_eval(&ds_skip_msg, command->first_argument, command->end, false);
 
           char skip_msg[FN_REFLEN];
-          strmake(skip_msg, ds_skip_msg.str, FN_REFLEN - 1);
+          if (ds_skip_msg.length > 0) {
+            strmake(skip_msg, ds_skip_msg.str, FN_REFLEN - 1);
+          } else {
+            skip_msg[0] = '\0';
+          }
+
           dynstr_free(&ds_skip_msg);
 
           if (!no_skip) {

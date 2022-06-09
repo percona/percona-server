@@ -36,6 +36,7 @@ Requires=local-fs.target remote-fs.target
 
 [Install]
 WantedBy=multi-user.target
+Alias=mysql.service
 
 [Service]
 User=@MYSQLD_USER@

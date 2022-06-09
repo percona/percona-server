@@ -363,7 +363,7 @@ ELSE()
 ENDIF()
 
 # Use cmake variables to inspect dependencies for
-# mysqlclient library (add -l stuff)
+# perconaserverclient library (add -l stuff)
 SET(CLIENT_LIBS "")
 SET(LIBS "")
 
@@ -423,11 +423,11 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
   STRING(REGEX REPLACE "[ ]+$" "" ${var} "${${var}}")
 ENDMACRO()
 
-EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
+EXTRACT_LINK_LIBRARIES(perconaserverclient CLIENT_LIBS)
 
 IF(MSVC)
-  GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION mysqlclient VERSION)
-  GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME mysqlclient OUTPUT_NAME)
+  GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION perconaserverclient VERSION)
+  GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME perconaserverclient OUTPUT_NAME)
 ELSE()
   GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION libmysql VERSION)
   GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME libmysql OUTPUT_NAME)

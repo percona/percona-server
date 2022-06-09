@@ -53,7 +53,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysql
   PUBLIC
   harness_stdx
   harness-library  # log_debug
-  mysqlclient
+  perconaserverclient
   )
 
 ROUTER_ADD_SHARED_LIBRARY(router_cluster

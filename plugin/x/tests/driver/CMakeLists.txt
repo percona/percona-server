@@ -42,7 +42,7 @@ MYSQL_ADD_EXECUTABLE(mysqlxtest
   LINK_LIBRARIES
   mysys
   strings
-  mysqlclient
+  perconaserverclient
   ${MYSQLX_CLIENT_FULL_LIB}
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ext::libprotobuf

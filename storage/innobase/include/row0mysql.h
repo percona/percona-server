@@ -97,6 +97,7 @@ struct row_prebuilt_t;
 void row_mysql_prebuilt_free_blob_heap(
     row_prebuilt_t *prebuilt); /*!< in: prebuilt struct of a
                                ha_innobase:: table handle */
+
 /** Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
  format.
  @return pointer to the data, we skip the 1 or 2 bytes at the start
@@ -458,6 +459,12 @@ struct mysql_row_templ_t {
                                 Innobase record in the current index;
                                 not defined if template_type is
                                 ROW_MYSQL_WHOLE_ROW */
+  bool rec_field_is_prefix;     /* is this field in a prefix index? */
+  ulint rec_prefix_field_no;    /* record field, even if just a
+                                prefix; same as rec_field_no when not a
+                                prefix, otherwise rec_field_no is
+                                ULINT_UNDEFINED but this is the true
+                                field number*/
   ulint clust_rec_field_no;     /*!< field number of the column in an
                                 Innobase record in the clustered index;
                                 not defined if template_type is
@@ -562,7 +569,9 @@ struct row_prebuilt_t {
                                columns through a secondary index
                                and at least one column is not in
                                the secondary index, then this is
-                               set to true */
+                               set to true; note that sometimes this
+                               is set but we later optimize out the
+                               clustered index lookup */
   unsigned templ_contains_blob : 1;        /*!< true if the template contains
                                      a column with DATA_LARGE_MTYPE(
                                      get_innobase_type_from_mysql_type())
@@ -938,6 +947,8 @@ dfield_t *innobase_get_computed_value(
 
 /** This is similar to the function innobase_get_computed_value(), but for
 stored generated columns (gcol).
+@param[in]     compress_heap  memory heap used to compress/decompress
+                              blob column.
 @param[in,out] row    data tuple object.
 @param[in]     col        stored gcol
 @param[in]     table      table on which the stored gcol is defined
@@ -945,11 +956,9 @@ stored generated columns (gcol).
 @param[in]     thd    MySQL thread handle
 @param[in]     mysql_table  MySQL table object.
 @return the field filled with computed value or nullptr on failure */
-dfield_t *innobase_compute_stored_gcol(const dtuple_t *row,
-                                       const dict_s_col_t &col,
-                                       const dict_table_t *table,
-                                       mem_heap_t *heap, THD *thd,
-                                       TABLE *mysql_table);
+dfield_t *innobase_compute_stored_gcol(
+    const dtuple_t *row, const dict_s_col_t &col,
+    const dict_table_t *table, mem_heap_t *heap, THD *thd, TABLE *mysql_table);
 
 /** Parse out multi-values from a MySQL record
 @param[in]      mysql_table     MySQL table structure

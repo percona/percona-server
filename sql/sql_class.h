@@ -180,6 +180,17 @@ extern "C" void thd_enter_stage(void *opaque_thd,
                                 const char *src_function, const char *src_file,
                                 int src_line);
 
+enum enum_log_slow_verbosity {
+  SLOG_V_MICROTIME,
+  SLOG_V_QUERY_PLAN,
+  SLOG_V_INNODB,
+  SLOG_V_PROFILING,
+  SLOG_V_PROFILING_USE_GETRUSAGE,
+  SLOG_V_MINIMAL,
+  SLOG_V_STANDARD,
+  SLOG_V_FULL
+};
+
 extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
                                                const bool waiting);
 

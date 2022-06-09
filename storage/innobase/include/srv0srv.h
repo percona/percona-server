@@ -60,6 +60,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0file.h"
 #include "os0thread.h"
 #include "que0types.h"
+#include "sql/system_variables.h"
 #include "srv0conc.h"
 #include "trx0types.h"
 #include "ut0counter.h"
@@ -139,7 +140,6 @@ struct srv_stats_t {
 
   /** Number of rows inserted */
   ulint_ctr_64_t n_rows_inserted;
-
   /** Number of system rows read. */
   ulint_ctr_64_t n_system_rows_read;
 
@@ -157,6 +157,23 @@ struct srv_stats_t {
 
   /** Number of sampled pages skipped */
   ulint_ctr_64_t n_sampled_pages_skipped;
+
+  ulint_ctr_1_t n_lock_max_wait_time;
+
+  /** Number of buffered aio requests submitted */
+  ulint_ctr_64_t n_aio_submitted;
+
+  /* Number of merge blocks encrypted */
+  ulint_ctr_64_t n_merge_blocks_encrypted;
+
+  /* Number of merge blocks decrypted */
+  ulint_ctr_64_t n_merge_blocks_decrypted;
+
+  /* Number of row log blocks encrypted */
+  ulint_ctr_64_t n_rowlog_blocks_encrypted;
+
+  /* Number of row log blocks decrypted */
+  ulint_ctr_64_t n_rowlog_blocks_decrypted;
 };
 
 /** Structure which keeps shared future objects for InnoDB background
@@ -610,7 +627,18 @@ extern long long srv_buf_pool_curr_size;
 /** Dump this % of each buffer pool during BP dump */
 extern ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
+
+extern ulint srv_show_locks_held;
+
 extern ulint srv_lock_table_size;
+
+extern ulong srv_cleaner_lsn_age_factor;
+/*!< page cleaner LSN age factor
+formula option */
+
+extern ulong srv_empty_free_list_algorithm;
+/*!< Empty free list for a query thread
+handling algorithm option */
 
 extern bool srv_random_read_ahead;
 extern ulong srv_read_ahead_threshold;
@@ -706,8 +734,27 @@ extern bool srv_stats_include_delete_marked;
 extern ulong srv_checksum_algorithm;
 
 extern double srv_max_buf_pool_modified_pct;
+
 extern ulong srv_max_purge_lag;
 extern ulong srv_max_purge_lag_delay;
+
+extern ulint srv_pass_corrupt_table;
+
+/* Helper macro to support srv_pass_corrupt_table checks. If 'cond' is false,
+execute 'code' if srv_pass_corrupt_table is non-zero, or trigger a fatal error
+otherwise. The break statement in 'code' will obviously not work as
+expected. */
+
+#define SRV_CORRUPT_TABLE_CHECK(cond, code) \
+  do {                                      \
+    if (UNIV_UNLIKELY(!(cond))) {           \
+      if (srv_pass_corrupt_table) {         \
+        code                                \
+      } else {                              \
+        ut_error;                           \
+      }                                     \
+    }                                       \
+  } while (0)
 
 std::chrono::milliseconds get_srv_replication_delay();
 /*-------------------------------------------*/
@@ -757,6 +804,34 @@ i/o handler thread */
 extern const char *srv_io_thread_op_info[];
 extern const char *srv_io_thread_function[];
 
+/* The tids of the purge threads */
+extern os_tid_t srv_purge_tids[];
+
+/* The tids of the I/O threads */
+extern os_tid_t srv_io_tids[];
+
+/* The tid of the master thread */
+extern os_tid_t srv_master_tid;
+
+/* The relative scheduling priority of the purge threads */
+extern ulint srv_sched_priority_purge;
+
+/* The relative scheduling priority of the I/O threads */
+extern ulint srv_sched_priority_io;
+
+/* The relative scheduling priority of the master thread */
+extern ulint srv_sched_priority_master;
+
+/* The relative priority of the current thread.  If 0, low priority; if 1, high
+priority.  */
+extern thread_local ulint srv_current_thread_priority;
+
+/* The relative priority of the purge coordinator and worker threads.  */
+extern bool srv_purge_thread_priority;
+
+/* The relative priority of the master thread.  */
+extern bool srv_master_thread_priority;
+
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
 extern ulong srv_n_purge_threads;
 
@@ -772,7 +847,15 @@ extern bool srv_print_all_deadlocks;
 /** Print all DDL logs to mysqld stderr */
 extern bool srv_print_ddl_logs;
 
+/* Print lock wait timeout info to mysqld stderr */
+extern bool srv_print_lock_wait_timeout_info;
+
 extern bool srv_cmp_per_index_enabled;
+
+/** Number of times secondary index lookup triggered cluster lookup */
+extern std::atomic<ulint> srv_sec_rec_cluster_reads;
+/** Number of times prefix optimization avoided triggering cluster lookup */
+extern std::atomic<ulint> srv_sec_rec_cluster_reads_avoided;
 
 extern bool srv_redo_log;
 
@@ -1018,11 +1101,22 @@ void srv_export_innodb_status(void);
  reading this value as it is only used in heuristics.
  @return activity count. */
 ulint srv_get_activity_count(void);
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-bool srv_check_activity(ulint old_activity_count); /*!< old activity count */
-/** Increment the server activity counter. */
-void srv_inc_activity_count(void);
+/** Check if there has been any activity. Considers background change
+buffer merge as regular server activity unless a non-default
+old_ibuf_merge_activity_count value is passed, in which case the merge
+will be treated as keeping server idle.
+@return false if no change in activity counter. */
+bool srv_check_activity(
+    ulint old_activity_count, /*!< old activity count */
+    /*!< old change buffer merge
+    activity count, or
+    ULINT_UNDEFINED */
+    ulint old_ibuf_merge_activity_count = ULINT_UNDEFINED) noexcept;
+
+/** Increment the server activity count.
+@param[in]	ibuf_merge_activity	whether this activity bump is caused by
+the background change buffer merge */
+void srv_inc_activity_count(bool ibuf_merge_activity = false) noexcept;
 
 /** Enqueues a task to server task queue and releases a worker thread, if there
 is a suspended one. */
@@ -1045,14 +1139,15 @@ void srv_purge_coordinator_thread();
 void srv_worker_thread();
 
 /** Set encryption for UNDO tablespace with given space id.
+@param[in] thd          Thread handle
 @param[in] space_id     Undo tablespace id
 @param[in] mtr          Mini-transaction
 @return false for success, true otherwise */
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr);
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr);
 
 /** Enable UNDO tablespaces encryption.
 @return false for success, true otherwise. */
-bool srv_enable_undo_encryption();
+bool srv_enable_undo_encryption(THD *thd);
 
 /** Enable REDO log encryption.
 @return false for success, true otherwise. */
@@ -1122,6 +1217,9 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 
 /** Status variables to be passed to MySQL */
 struct export_var_t {
+  ulint innodb_adaptive_hash_hash_searches;
+  ulint innodb_adaptive_hash_non_hash_searches;
+  ulint innodb_background_log_sync;
   ulint innodb_data_pending_reads;  /*!< Pending reads */
   ulint innodb_data_pending_writes; /*!< Pending writes */
   ulint innodb_data_pending_fsyncs; /*!< Pending fsyncs */
@@ -1147,12 +1245,16 @@ struct export_var_t {
   ulint innodb_buffer_pool_pages_misc;  /*!< Miscellaneous pages */
   ulint innodb_buffer_pool_pages_free;  /*!< Free pages */
 #ifdef UNIV_DEBUG
-  ulint innodb_buffer_pool_pages_latched;  /*!< Latched pages */
-#endif                                     /* UNIV_DEBUG */
-  ulint innodb_buffer_pool_read_requests;  /*!< buf_pool->stat.n_page_gets */
-  ulint innodb_buffer_pool_reads;          /*!< srv_buf_pool_reads */
-  ulint innodb_buffer_pool_wait_free;      /*!< srv_buf_pool_wait_free */
-  ulint innodb_buffer_pool_pages_flushed;  /*!< srv_buf_pool_flushed */
+  ulint innodb_buffer_pool_pages_latched; /*!< Latched pages */
+#endif                                    /* UNIV_DEBUG */
+  ulint innodb_buffer_pool_pages_made_not_young;
+  ulint innodb_buffer_pool_pages_made_young;
+  ulint innodb_buffer_pool_pages_old;
+  ulint innodb_buffer_pool_read_requests;     /*!< buf_pool->stat.n_page_gets */
+  ulint innodb_buffer_pool_reads;             /*!< srv_buf_pool_reads */
+  ulint innodb_buffer_pool_wait_free;         /*!< srv_buf_pool_wait_free */
+  ulint innodb_buffer_pool_pages_flushed;     /*!< srv_buf_pool_flushed */
+  ulint innodb_buffer_pool_pages_LRU_flushed; /*!< buf_lru_flush_page_count */
   ulint innodb_buffer_pool_write_requests; /*!< srv_buf_pool_write_requests */
   ulint innodb_buffer_pool_read_ahead_rnd; /*!< srv_read_ahead_rnd */
   ulint innodb_buffer_pool_read_ahead;     /*!< srv_read_ahead */
@@ -1219,6 +1321,39 @@ struct export_var_t {
                                       index lookups when freeing
                                       file pages */
 #endif                                /* UNIV_DEBUG */
+  // Percona-added status variables
+  ulint innodb_checkpoint_age;
+  ulint innodb_ibuf_free_list;
+  ulint innodb_ibuf_segment_size;
+  lsn_t innodb_lsn_current;
+  lsn_t innodb_lsn_flushed;
+  lsn_t innodb_lsn_last_checkpoint;
+  ulint innodb_master_thread_active_loops; /*!< srv_main_active_loops */
+  ulint innodb_master_thread_idle_loops;   /*!< srv_main_idle_loops */
+  trx_id_t innodb_max_trx_id;
+  trx_id_t innodb_oldest_view_low_limit_trx_id;
+  ulint innodb_page0_read; /*!< srv_stats.page0_read */
+  trx_id_t innodb_purge_trx_id;
+  undo_no_t innodb_purge_undo_no;
+  uint64_t
+      innodb_n_merge_blocks_encrypted; /*!< Number of merge blocks encrypted */
+  uint64_t
+      innodb_n_merge_blocks_decrypted; /*!< Number of merge blocks decrypted */
+  uint64_t innodb_n_rowlog_blocks_encrypted; /*!< Number of row log blocks
+                                                   encrypted */
+  uint64_t innodb_n_rowlog_blocks_decrypted; /*!< Number of row log blocks
+                                                   decrypted */
+
+  ulint innodb_sec_rec_cluster_reads; /*!< srv_sec_rec_cluster_reads */
+  ulint
+      innodb_sec_rec_cluster_reads_avoided; /*!<
+                                               srv_sec_rec_cluster_reads_avoided
+                                             */
+
+  ulint innodb_buffered_aio_submitted;
+
+  fragmentation_stats_t innodb_fragmentation_stats; /*!< Fragmentation
+                                           statistics */
 };
 
 #ifndef UNIV_HOTBACKUP
@@ -1258,5 +1393,13 @@ struct srv_slot_t {
   que_thr_t *thr;
 };
 #endif /* !UNIV_HOTBACKUP */
+
+#ifndef NDEBUG
+/** false before InnoDB monitor has been printed at least once, true
+afterwards */
+extern bool srv_debug_monitor_printed;
+#else
+#define srv_debug_monitor_printed false
+#endif
 
 #endif

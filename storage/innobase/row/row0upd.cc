@@ -937,8 +937,8 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
       dfield = dtuple_get_nth_v_field(entry, i);
 
       dfield_t *vfield = innobase_get_computed_value(
-          update->old_vrow, col, index, &v_heap, heap, nullptr, thd,
-          mysql_table, nullptr, nullptr, nullptr);
+          update->old_vrow, col, index, &v_heap, heap, NULL, thd, mysql_table,
+          nullptr, nullptr, nullptr);
 
       if (vfield == nullptr) {
         *error = DB_COMPUTE_VALUE_FAILED;

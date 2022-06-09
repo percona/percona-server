@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -202,12 +203,6 @@ static ut::unique_ptr<page_cleaner_t> page_cleaner;
 #ifdef UNIV_DEBUG
 bool innodb_page_cleaner_disabled_debug;
 #endif /* UNIV_DEBUG */
-
-/** If LRU list of a buf_pool is less than this size then LRU eviction
-should not happen. This is because when we do LRU flushing we also put
-the blocks on free list. If LRU list is very small then we can end up
-in thrashing. */
-constexpr uint32_t BUF_LRU_MIN_LEN = 256;
 
 /** Flush a batch of writes to the datafiles that have already been
 written to the dblwr buffer on disk. */
@@ -1734,6 +1729,12 @@ static ulint buf_free_from_unzip_LRU_list_batch(buf_pool_t *buf_pool,
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
+  if (count) {
+    MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+                                 MONITOR_LRU_BATCH_EVICT_COUNT,
+                                 MONITOR_LRU_BATCH_EVICT_PAGES, count);
+  }
+
   if (scanned) {
     MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_BATCH_SCANNED,
                                  MONITOR_LRU_BATCH_SCANNED_NUM_CALL,
@@ -2486,10 +2487,20 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   lsn_age_factor = (age * 100.0) / limit_for_dirty_page_age;
 
   ut_ad(srv_max_io_capacity >= srv_io_capacity);
-
-  return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
-                              (lsn_age_factor * sqrt(lsn_age_factor))) /
-                             7.5));
+  switch (
+      static_cast<srv_cleaner_lsn_age_factor_t>(srv_cleaner_lsn_age_factor)) {
+    case SRV_CLEANER_LSN_AGE_FACTOR_LEGACY:
+      return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
+                                  (lsn_age_factor * sqrt(lsn_age_factor))) /
+                                 7.5));
+    case SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT:
+      return (static_cast<ulint>(
+          ((srv_max_io_capacity / srv_io_capacity) *
+           (lsn_age_factor * lsn_age_factor * sqrt((double)lsn_age_factor))) /
+          700.5));
+    default:
+      ut_error;
+  }
 }
 
 /** Set page flush target based on LSN change and checkpoint age.
@@ -3708,7 +3719,6 @@ ulint buf_pool_get_dirty_pages_count(
     buf_pool_t *buf_pool,     /*!< in: buffer pool */
     space_id_t id,            /*!< in: space id to check */
     Flush_observer *observer) /*!< in: flush observer to check */
-
 {
   ulint count = 0;
 

@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "trx0types.h"
 #include "ut0new.h"
 
 #include "mysql/strings/m_ctype.h"
@@ -524,6 +525,8 @@ struct fil_space_t {
 
   /** true if this space is currently in unflushed_spaces */
   bool is_in_unflushed_spaces{};
+
+  bool is_corrupt;
 
   /** Compression algorithm */
   Compression::Type compression_type;
@@ -1763,13 +1766,16 @@ number should be zero.
                                 to write; in AIO this must be appropriately
                                 aligned
 @param[in]      message         message for AIO handler if !sync, else ignored
+@param[in]      should_buffer   whether to buffer an AIO request. Only used by
+                                AIO read ahead
 @return error code
 @retval DB_SUCCESS on success
 @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
 [[nodiscard]] dberr_t fil_io(const IORequest &type, bool sync,
                              const page_id_t &page_id,
                              const page_size_t &page_size, ulint byte_offset,
-                             ulint len, void *buf, void *message);
+                             ulint len, void *buf, void *message, trx_t *trx,
+                             bool should_buffer);
 
 /** Waits for an AIO operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
@@ -2278,6 +2284,10 @@ void fil_space_update_name(fil_space_t *space, const char *name);
 @param[in]      extn    file extension */
 void fil_adjust_name_import(dict_table_t *table, const char *path,
                             ib_file_suffix extn);
+
+/** Mark space as corrupt
+@param space_id	space id */
+void fil_space_set_corrupt(space_id_t space_id);
 
 #ifndef UNIV_HOTBACKUP
 

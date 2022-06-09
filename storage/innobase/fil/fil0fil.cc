@@ -715,6 +715,9 @@ class Fil_shard {
 
     auto it = m_spaces.find(space_id);
 
+    /* The system tablespace must always be found */
+    ut_ad(it != m_spaces.end() || space_id != 0 || srv_is_being_started);
+
     if (it == m_spaces.end()) {
       return nullptr;
     }
@@ -1077,13 +1080,18 @@ class Fil_shard {
   @param[in,out]        buf             buffer where to store read data or from
   where to write; in AIO this must be appropriately aligned
   @param[in]    message         message for AIO handler if !sync, else ignored
+  @param[in]    should_buffer   whether to buffer an aio request. AIO read
+  ahead uses this. If you plan to use this parameter, make sure you remember to
+  call os_aio_dispatch_read_array_submit() when you're ready to commit all your
+  requests.
   @return error code
   @retval DB_SUCCESS on success
   @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
   [[nodiscard]] dberr_t do_io(const IORequest &type, bool sync,
                               const page_id_t &page_id,
                               const page_size_t &page_size, ulint byte_offset,
-                              ulint len, void *buf, void *message);
+                              ulint len, void *buf, void *message, trx_t *trx,
+                              bool should_buffer);
 
   /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
   returning the nodes via callback function f.
@@ -2183,7 +2191,7 @@ i/o on a tablespace which does not exist */
 static dberr_t fil_read(const page_id_t &page_id, const page_size_t &page_size,
                         ulint byte_offset, ulint len, void *buf) {
   return fil_io(IORequestRead, true, page_id, page_size, byte_offset, len, buf,
-                nullptr);
+                nullptr, nullptr, false);
 }
 
 /** Writes data to a space from a buffer. Remember that the possible incomplete
@@ -2204,7 +2212,7 @@ static dberr_t fil_write(const page_id_t &page_id, const page_size_t &page_size,
   ut_ad(!srv_read_only_mode);
 
   return fil_io(IORequestWrite, true, page_id, page_size, byte_offset, len, buf,
-                nullptr);
+                nullptr, nullptr, false);
 }
 
 /** Look up a tablespace. The caller should hold an InnoDB table lock or
@@ -3243,6 +3251,7 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
       }
     }
 
+    ut_ad(space->id != space_id);
     ib::info(ER_IB_MSG_281)
         << "Trying to add tablespace '" << name << "'"
         << " with id " << space_id << " to the tablespace"
@@ -3282,6 +3291,8 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
   space->encryption_op_in_progress = Encryption::Progress::NONE;
 
   rw_lock_create(fil_space_latch_key, &space->latch, LATCH_ID_FIL_SPACE);
+
+  space->is_corrupt = false;
 
 #ifndef UNIV_HOTBACKUP
   if (space->purpose == FIL_TYPE_TEMPORARY) {
@@ -5605,7 +5616,6 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
                                      const char *path, uint32_t flags,
                                      page_no_t size, fil_type_t type) {
   ut_ad(!fsp_is_system_tablespace(space_id));
-  ut_ad(!fsp_is_global_temporary(space_id));
   ut_a(fsp_flags_is_valid(flags));
   ut_a(type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_TABLESPACE);
 
@@ -7593,8 +7603,8 @@ dberr_t Fil_shard::get_file_for_io(fil_space_t *space, page_no_t *page_no,
 
 dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                          const page_id_t &page_id, const page_size_t &page_size,
-                         ulint byte_offset, ulint len, void *buf,
-                         void *message) {
+                         ulint byte_offset, ulint len, void *buf, void *message,
+                         trx_t *trx, bool should_buffer) {
   IORequest req_type(type);
 
   ut_ad(req_type.validate());
@@ -7749,6 +7759,24 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                                    req_type.is_read());
   }
 
+#ifndef UNIV_HOTBACKUP
+  if (UNIV_UNLIKELY(space->is_corrupt && srv_pass_corrupt_table)) {
+    /* should ignore i/o for the crashed space */
+    if (srv_pass_corrupt_table == 1 || req_type.is_write()) {
+      complete_io(file, type);
+      if (aio_mode == AIO_mode::NORMAL) {
+        ut_a(space->purpose == FIL_TYPE_TABLESPACE);
+        buf_page_io_complete(static_cast<buf_page_t *>(message), false);
+      }
+    }
+
+    if (srv_pass_corrupt_table == 1 && req_type.is_read())
+      return (DB_TABLESPACE_DELETED);
+    else if (req_type.is_write())
+      return (DB_SUCCESS);
+  }
+#endif
+
   if (!prepare_file_for_io(file)) {
 #ifndef UNIV_HOTBACKUP
     if (space->is_deleted()) {
@@ -7867,7 +7895,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   err = os_aio(
       req_type, aio_mode, file->name, file->handle, buf, offset, len,
       fsp_is_system_temporary(page_id.space()) ? false : srv_read_only_mode,
-      file, message);
+      file, message, page_id.space(), trx, should_buffer);
 
 #endif /* UNIV_HOTBACKUP */
 
@@ -7966,9 +7994,31 @@ void fil_aio_wait(ulint segment) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
+/** Read or write data from a file.
+@param[in]	type		IO context
+@param[in]	sync		If true then do synchronous IO
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+                                must be divisible by the OS block size
+@param[in]	len		how many bytes to read or write; this must
+                                not cross a file boundary; in AIO this must
+                                be a block size multiple
+@param[in,out]	buf		buffer where to store read data or from where
+                                to write; in AIO this must be appropriately
+                                aligned
+@param[in]	message		message for AIO handler if !sync, else ignored
+@param[in]	should_buffer   whether to buffer an aio request. AIO read
+                                ahead uses this. If you plan to use this
+                                parameter, make sure you remember to call
+                                os_aio_dispatch_read_array_submit() when you're
+                                ready to commit all your requests.
+@return error code
+@retval DB_SUCCESS on success
+@retval DB_TABLESPACE_DELETED if the tablespace does not exist */
 dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
                const page_size_t &page_size, ulint byte_offset, ulint len,
-               void *buf, void *message) {
+               void *buf, void *message, trx_t *trx, bool should_buffer) {
   auto shard = fil_system->shard_by_id(page_id.space());
 #ifdef UNIV_DEBUG
   if (!sync) {
@@ -7979,7 +8029,7 @@ dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
 #endif
 
   auto const err = shard->do_io(type, sync, page_id, page_size, byte_offset,
-                                len, buf, message);
+                                len, buf, message, trx, should_buffer);
 #ifdef UNIV_DEBUG
   /* If the error prevented async io, then we haven't actually transferred the
   io responsibility at all, so we revert the debug io responsibility info. */
@@ -8934,12 +8984,6 @@ dberr_t fil_set_autoextend_size(space_id_t space_id, uint64_t autoextend_size) {
 @return DB_SUCCESS or error code */
 dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
                            byte *key, byte *iv) {
-  ut_ad(space_id != TRX_SYS_SPACE);
-
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return DB_IO_NO_ENCRYPT_TABLESPACE;
-  }
-
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
@@ -10211,6 +10255,16 @@ const byte *fil_tablespace_redo_create(const byte *ptr, const byte *end,
 
 #else  /* !UNIV_HOTBACKUP */
 
+  /* The first condition is true during normal server operation, the
+  second one during server startup after
+  recv_recovery_from_checkpoint_start has completed. */
+  if (!recv_recovery_is_on() || recv_lsn_checks_on) {
+    /* We are being called from online log tracking, file name
+    processing is a no-op, and specifically do not cause any DD
+    changes. */
+    return (ptr);
+  }
+
   const auto result =
       fil_system->get_scanned_filename_by_space_id(page_id.space());
 
@@ -10491,6 +10545,16 @@ const byte *fil_tablespace_redo_delete(const byte *ptr, const byte *end,
   meb_tablespace_redo_delete(page_id, name.c_str());
 
 #else  /* !UNIV_HOTBACKUP */
+
+  /* The first condition is true during normal server operation, the
+  second one during server startup after
+  recv_recovery_from_checkpoint_start has completed. */
+  if (!recv_recovery_is_on() || recv_lsn_checks_on) {
+    /* We are being called from online log tracking, file name
+    processing is a no-op, and specifically do not cause any DD
+    changes. */
+    return (ptr);
+  }
 
   const auto result =
       fil_system->get_scanned_filename_by_space_id(page_id.space());
@@ -11740,6 +11804,21 @@ void fil_space_t::bump_version() {
 
   ++m_version;
 }
+
+/** Mark space as corrupt
+    @param space_id	space id */
+void fil_space_set_corrupt(space_id_t space_id) {
+  auto *const shard = fil_system->shard_by_id(space_id);
+
+  shard->mutex_acquire();
+
+  auto *const space = shard->get_space_by_id(space_id);
+
+  if (space) space->is_corrupt = true;
+
+  shard->mutex_release();
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 dberr_t fil_prepare_file_for_io(space_id_t space_id, page_no_t &page_no,

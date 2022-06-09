@@ -69,8 +69,8 @@ class os0file_t : public ::testing::Test {
 
     auto name = TEST_FILE_NAME;
     auto begin = std::chrono::high_resolution_clock::now();
-    auto db_err =
-        os_file_read_func(read_request, name, test_file.m_file, data, 0, len);
+    auto db_err = os_file_read_func(read_request, name, test_file.m_file, data,
+                                    0, len, nullptr);
     auto end = std::chrono::high_resolution_clock::now();
 
     duration = end - begin;

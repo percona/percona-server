@@ -72,6 +72,7 @@ struct INNOBASE_SHARE {
   /*!< hash table chain node */
   innodb_idx_translate_t idx_trans_tbl; /*!< index translation table between
                                         MySQL and InnoDB */
+  dict_table_t *ib_table;
 };
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
@@ -165,6 +166,8 @@ class ha_innobase : public handler {
   int index_first(uchar *buf) override;
 
   int index_last(uchar *buf) override;
+
+  bool has_gap_locks() const noexcept override { return true; }
 
   int read_range_first(const key_range *start_key, const key_range *end_key,
                        bool eq_range_arg, bool sorted) override;
@@ -1365,6 +1368,29 @@ void innobase_build_v_templ_callback(const TABLE *table, void *ib_table);
 /** Callback function definition, used by MySQL server layer to initialized
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE *, void *);
+
+/** This function builds a translation table in INNOBASE_SHARE
+structure for fast index location with mysql array number from its
+table->key_info structure. This also provides the necessary
+translation between the key order in mysql key_info and InnoDB
+ib_table->indexes if they are not fully matched with each other.  Note
+we do not have any mutex protecting the translation table building
+based on the assumption that there is no concurrent index
+creation/drop and DMLs that requires index lookup. All table handle
+will be closed before the index creation/drop.
+@param[in]	table           table in MySQL data dictionary
+@param[in]	ib_table	table in InnoDB data dictionary
+@param[in,out]	share		share structure where index translation table
+                                will be constructed in.
+@return true if index translation table built successfully */
+MY_NODISCARD
+bool innobase_build_index_translation(const TABLE *table,
+                                      dict_table_t *ib_table,
+                                      INNOBASE_SHARE *share);
+
+/** Free InnoDB session specific data.
+@param[in,out]	thd	MySQL thread handler. */
+void thd_free_innodb_session(THD *thd) noexcept;
 
 /** Drop the statistics for a specified table, and mark it as discard
 after DDL

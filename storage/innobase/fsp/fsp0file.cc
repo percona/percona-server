@@ -643,7 +643,7 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
       ib::error(ER_IB_MSG_401)
           << "Encryption information in datafile: " << m_filepath
           << " can't be decrypted, please confirm that"
-             " keyring is loaded.";
+          << " keyring is loaded.";
 
       m_is_valid = false;
       free_first_page();

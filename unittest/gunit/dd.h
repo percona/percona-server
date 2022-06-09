@@ -85,7 +85,7 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
   Mock_dd_HANDLER(handlerton *hton, TABLE_SHARE *share)
       : Base_mock_HANDLER(hton, share) {}
 
-  virtual ~Mock_dd_HANDLER() = default;
+  ~Mock_dd_HANDLER() override {}
 };
 
 /**

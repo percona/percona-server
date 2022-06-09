@@ -38,9 +38,9 @@ TEST(StorageTest, Iterate) {
   std::thread t([]() {
     temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
-    temptable::Allocator<uint8_t> allocator(&shared_block,
-                                            table_resource_monitor);
     {
+      temptable::Allocator<uint8_t> allocator(&shared_block,
+                                              table_resource_monitor);
       temptable::Storage storage(&allocator);
 
       storage.element_size(sizeof(uint64_t));

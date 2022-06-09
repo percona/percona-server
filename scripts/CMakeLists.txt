@@ -421,6 +421,8 @@ ELSE()
       mysql_config
       mysqldumpslow
       mysqld_safe
+      ps_mysqld_helper
+      ps-admin
       )
   ELSE()
     SET(BIN_SCRIPTS
@@ -428,6 +430,8 @@ ELSE()
       mysqldumpslow
       mysqld_multi
       mysqld_safe
+      ps_mysqld_helper
+      ps-admin
       )
   ENDIF()
 

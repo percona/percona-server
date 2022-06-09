@@ -41,7 +41,7 @@ int heap_scan_init(HP_INFO *info) {
   info->lastinx = -1;
   info->current_record = (ulong)~0L; /* No current record */
   info->update = 0;
-  info->next_block = 0;
+  //info->next_block = 0;
   return 0;
 }
 
@@ -51,34 +51,25 @@ int heap_scan(HP_INFO *info, uchar *record) {
   DBUG_TRACE;
 
   pos = ++info->current_record;
-  if (pos < info->next_block) {
-    info->current_ptr += share->block.recbuffer;
-  } else {
-    info->next_block += share->block.records_in_block;
-    /*
-      The table is organized as a linked list of blocks, each block has room
-      for a fixed number (share->records_in_block) of records
-      of fixed size (share->block.recbuffer).
-    */
-    info->next_block -= (info->next_block % share->block.records_in_block);
-    if (info->next_block >= share->records + share->deleted) {
-      info->next_block = share->records + share->deleted;
-      if (pos >= info->next_block) {
-        info->update = 0;
-        set_my_errno(HA_ERR_END_OF_FILE);
-        return HA_ERR_END_OF_FILE;
-      }
-    }
-    hp_find_record(info, pos);
+  if (pos >= share->recordspace.chunk_count) {
+    info->update = 0;
+    set_my_errno(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
-  if (!info->current_ptr[share->reclength]) {
-    DBUG_PRINT("warning", ("Found deleted record"));
+
+  hp_find_record(info, pos);
+
+  if (get_chunk_status(&share->recordspace, info->current_ptr) !=
+      CHUNK_STATUS_ACTIVE) {
+    DBUG_PRINT("warning", ("Found deleted record or secondary chunk"));
     info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
     set_my_errno(HA_ERR_RECORD_DELETED);
     return HA_ERR_RECORD_DELETED;
   }
   info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
-  memcpy(record, info->current_ptr, (size_t)share->reclength);
+  if (hp_extract_record(info, record, info->current_ptr)) {
+    return my_errno();
+  }
   info->current_hash_ptr = nullptr; /* Can't use read_next */
   return 0;
 } /* heap_scan */

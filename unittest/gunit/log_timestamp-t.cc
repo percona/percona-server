@@ -36,7 +36,7 @@
 #include "test_utils.h"
 
 #include <mysql/components/services/log_shared.h>
-#include "../sql/log.h"
+#include "sql/log.h"
 #include "sql/server_component/mysql_timestamp_imp.h"
 
 // CET: 32 bytes

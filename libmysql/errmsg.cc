@@ -33,6 +33,7 @@
 #include "my_sys.h"
 #include "template_utils.h"
 
+const char **mysql_client_errors = client_errors;
 const char *client_errors[] = {
     "Unknown MySQL error",
     "Can't create UNIX socket (%d)",

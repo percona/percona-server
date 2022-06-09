@@ -1,0 +1,217 @@
+SET GLOBAL audit_log_include_commands= 'create_table,create_procedure,create_trigger,insert';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+create_table,create_procedure,create_trigger,insert	NULL
+SET GLOBAL audit_log_exclude_commands= 'alter_db_upgrade,change_db,drop_table,drop_db';
+ERROR 42000: Variable 'audit_log_exclude_commands' can't be set to the value of 'alter_db_upgrade,change_db,drop_table,drop_db'
+SET GLOBAL audit_log_exclude_commands= NULL;
+ERROR 42000: Variable 'audit_log_exclude_commands' can't be set to the value of 'NULL'
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+create_table,create_procedure,create_trigger,insert	NULL
+SET GLOBAL audit_log_include_commands= 'alter_db_upgrade,change_db,drop_table,drop_db';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+alter_db_upgrade,change_db,drop_table,drop_db	NULL
+SET GLOBAL audit_log_include_commands= '';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+	NULL
+SET GLOBAL audit_log_exclude_commands= 'insert,call_procedure,call_procedure,set_option,assign_to_keycache';
+ERROR 42000: Variable 'audit_log_exclude_commands' can't be set to the value of 'insert,call_procedure,call_procedure,set_option,assign_to_keycache'
+SET GLOBAL audit_log_include_commands= NULL;
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+NULL	NULL
+SET GLOBAL audit_log_exclude_commands= "insert,call_procedure,call_procedure,set_option,assign_to_keycache";
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+NULL	insert,call_procedure,call_procedure,set_option,assign_to_keycache
+SET GLOBAL audit_log_include_commands= 'change_db,drop_table@localhost';
+ERROR 42000: Variable 'audit_log_include_commands' can't be set to the value of 'change_db,drop_table@localhost'
+SET GLOBAL audit_log_include_commands= NULL;
+ERROR 42000: Variable 'audit_log_include_commands' can't be set to the value of 'NULL'
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+NULL	insert,call_procedure,call_procedure,set_option,assign_to_keycache
+SET GLOBAL audit_log_exclude_commands= 'change_db,drop_table';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+NULL	change_db,drop_table
+SET GLOBAL audit_log_exclude_commands= '';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+NULL	
+SET GLOBAL audit_log_include_commands= 'change_db';
+ERROR 42000: Variable 'audit_log_include_commands' can't be set to the value of 'change_db'
+SET GLOBAL audit_log_exclude_commands= NULL;
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+@@audit_log_include_commands	@@audit_log_exclude_commands
+NULL	NULL
+SET GLOBAL audit_log_flush=ON;
+SET GLOBAL audit_log_flush=ON;
+SET GLOBAL audit_log_exclude_commands= NULL;
+SET GLOBAL audit_log_include_commands= NULL;
+CREATE DATABASE db1 DEFAULT CHARACTER SET latin1;
+USE db1;
+CREATE TABLE t1 (a INT, b INT, KEY(b)) engine=MyISAM;
+CREATE TABLE t2 (a INT, b INT, KEY(b)) engine=InnoDB;
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 (a, b) VALUES (1, 1);
+END//
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) VALUES (new.a, new.b);
+INSERT INTO t1 VALUES (5,5);
+CALL p1();
+SET GLOBAL keycache1.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
+CACHE INDEX t1 IN keycache1;
+Table	Op	Msg_type	Msg_text
+db1.t1	assign_to_keycache	status	OK
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE test;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+SET GLOBAL audit_log_include_commands= 'set_option,creaTE_DB,CHANGE_DB,CREATE_TABLE,CREATE_TABLE,CREATE_PROCEDURE,CREATE_TRIGger,insert,insert,insert,call_procedure,call_procedure,set_option,assign_to_keycache,alter_db,alter_db_upgrade,change_db,drop_table,drop_db';
+CREATE DATABASE db1 DEFAULT CHARACTER SET latin1;
+USE db1;
+CREATE TABLE t1 (a INT, b INT, KEY(b)) engine=MyISAM;
+CREATE TABLE t2 (a INT, b INT, KEY(b)) engine=InnoDB;
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 (a, b) VALUES (1, 1);
+END//
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) VALUES (new.a, new.b);
+INSERT INTO t1 VALUES (5,5);
+CALL p1();
+SET GLOBAL keycache1.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
+CACHE INDEX t1 IN keycache1;
+Table	Op	Msg_type	Msg_text
+db1.t1	assign_to_keycache	status	OK
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE test;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+SET GLOBAL audit_log_include_commands= 'set_option,creaTE_DB,CHANGE_DB,assign_to_keycache,alter_db,alter_db_upgrade';
+CREATE DATABASE db1 DEFAULT CHARACTER SET latin1;
+USE db1;
+CREATE TABLE t1 (a INT, b INT, KEY(b)) engine=MyISAM;
+CREATE TABLE t2 (a INT, b INT, KEY(b)) engine=InnoDB;
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 (a, b) VALUES (1, 1);
+END//
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) VALUES (new.a, new.b);
+INSERT INTO t1 VALUES (5,5);
+CALL p1();
+SET GLOBAL keycache1.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
+CACHE INDEX t1 IN keycache1;
+Table	Op	Msg_type	Msg_text
+db1.t1	assign_to_keycache	status	OK
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE test;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+SET GLOBAL audit_log_include_commands= NULL;
+SET GLOBAL audit_log_exclude_commands= 'set_option,create_db,change_db,create_table,create_table,create_prOCEDURE,CREATE_TRIGGER,INSERT,INSERT,INSERT,CALL_PROCEDURE,CALL_PROCEDUre,set_option,assign_to_keycache,alter_db,alter_db_upgrade,change_db,drop_table,drop_db';
+CREATE DATABASE db1 DEFAULT CHARACTER SET latin1;
+USE db1;
+CREATE TABLE t1 (a INT, b INT, KEY(b)) engine=MyISAM;
+CREATE TABLE t2 (a INT, b INT, KEY(b)) engine=InnoDB;
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 (a, b) VALUES (1, 1);
+END//
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) VALUES (new.a, new.b);
+INSERT INTO t1 VALUES (5,5);
+CALL p1();
+SET GLOBAL keycache1.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
+CACHE INDEX t1 IN keycache1;
+Table	Op	Msg_type	Msg_text
+db1.t1	assign_to_keycache	status	OK
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE test;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+SET GLOBAL audit_log_exclude_commands= NULL;
+SET GLOBAL audit_log_include_commands= NULL;
+set global audit_log_flush= ON;
+===================================================================
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_commands= NULL","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_commands= NULL","root[root] @ localhost []","localhost","","","test"
+"Ping","<ID>","<DATETIME>","error","<CONN_ID>",0,"","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","create_db","<CONN_ID>",0,"CREATE DATABASE db1 DEFAULT CHARACTER SET latin1","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE db1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE t1 (a INT, b INT, KEY(b)) engine=MyISAM","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE t2 (a INT, b INT, KEY(b)) engine=InnoDB","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 (a, b) VALUES (1, 1);
+END","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) VALUES (new.a, new.b)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t2 (a, b) VALUES (new.a, new.b)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t1 VALUES (5,5)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t2 (a, b) VALUES (new.a, new.b)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","call_procedure","<CONN_ID>",0,"INSERT INTO t1 (a, b) VALUES (1, 1)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","call_procedure","<CONN_ID>",0,"CALL p1()","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL keycache1.key_buffer_size=128*1024","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","assign_to_keycache","<CONN_ID>",0,"CACHE INDEX t1 IN keycache1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","alter_db","<CONN_ID>",0,"ALTER DATABASE db1 DEFAULT CHARACTER SET utf8","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.t1","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_db","<CONN_ID>",0,"DROP DATABASE db1","root[root] @ localhost []","localhost","","","test"
+"Ping","<ID>","<DATETIME>","error","<CONN_ID>",0,"","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_commands= 'set_option,creaTE_DB,CHANGE_DB,CREATE_TABLE,CREATE_TABLE,CREATE_PROCEDURE,CREATE_TRIGger,insert,insert,insert,call_procedure,call_procedure,set_option,assign_to_keycache,alter_db,alter_db_upgrade,change_db,drop_table,drop_db'","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","create_db","<CONN_ID>",0,"CREATE DATABASE db1 DEFAULT CHARACTER SET latin1","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE db1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE t1 (a INT, b INT, KEY(b)) engine=MyISAM","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE t2 (a INT, b INT, KEY(b)) engine=InnoDB","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 (a, b) VALUES (1, 1);
+END","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) VALUES (new.a, new.b)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t2 (a, b) VALUES (new.a, new.b)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t1 VALUES (5,5)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t2 (a, b) VALUES (new.a, new.b)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","call_procedure","<CONN_ID>",0,"INSERT INTO t1 (a, b) VALUES (1, 1)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","call_procedure","<CONN_ID>",0,"CALL p1()","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL keycache1.key_buffer_size=128*1024","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","assign_to_keycache","<CONN_ID>",0,"CACHE INDEX t1 IN keycache1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","alter_db","<CONN_ID>",0,"ALTER DATABASE db1 DEFAULT CHARACTER SET utf8","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.t1","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_db","<CONN_ID>",0,"DROP DATABASE db1","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_commands= 'set_option,creaTE_DB,CHANGE_DB,assign_to_keycache,alter_db,alter_db_upgrade'","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","create_db","<CONN_ID>",0,"CREATE DATABASE db1 DEFAULT CHARACTER SET latin1","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE db1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL keycache1.key_buffer_size=128*1024","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","assign_to_keycache","<CONN_ID>",0,"CACHE INDEX t1 IN keycache1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","alter_db","<CONN_ID>",0,"ALTER DATABASE db1 DEFAULT CHARACTER SET utf8","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_commands= NULL","root[root] @ localhost []","localhost","","","test"
+"Ping","<ID>","<DATETIME>","error","<CONN_ID>",0,"","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","root[root] @ localhost []","localhost","","","db1"
+"Ping","<ID>","<DATETIME>","error","<CONN_ID>",0,"","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_commands= NULL","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_commands= NULL","root[root] @ localhost []","localhost","","","test"
+===================================================================

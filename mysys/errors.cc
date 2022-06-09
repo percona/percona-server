@@ -144,7 +144,9 @@ const char *globerrs[GLOBERRS] = {
     "Failed to reset before a secondary ignorable character %s.",
     "Stopped processing the '%s' directive in file %s at line %d.",
     "pthread_kill(thread_id:%lu, signal:%s) returned '%s'.",
-    "%s."};
+    "%s.",
+    "Can't create socket '%s' (Errcode: %d)",
+    "File name '%s' is too long (max: %d)"};
 
 /*
  We cannot call my_error/my_printf_error here in this function.

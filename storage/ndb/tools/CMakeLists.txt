@@ -253,10 +253,10 @@ IF(NOT WIN32)
       COMPONENT ClusterTools
       )
     IF(NCURSES_HAS_STDSCR)
-      TARGET_LINK_LIBRARIES(ndb_top mysqlclient ${NCURSESW_LIB})
+      TARGET_LINK_LIBRARIES(ndb_top perconaserverclient ${NCURSESW_LIB})
     ELSE()
       TARGET_LINK_LIBRARIES(ndb_top
-        mysqlclient
+        perconaserverclient
         ${NCURSESW_LIB}
         ${NCURSES_TINFO_LIB})
     ENDIF()

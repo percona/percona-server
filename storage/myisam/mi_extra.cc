@@ -64,9 +64,11 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
       info->page_changed = true;
       /* Next/prev gives first/last */
       if (info->opt_flag & READ_CACHE_USED) {
-        reinit_io_cache(&info->rec_cache, READ_CACHE, 0,
-                        (bool)(info->lock_type != F_UNLCK),
-                        (bool)(info->update & HA_STATE_ROW_CHANGED));
+        if ((error =
+                 reinit_io_cache(&info->rec_cache, READ_CACHE, 0,
+                                 (bool)(info->lock_type != F_UNLCK),
+                                 (bool)(info->update & HA_STATE_ROW_CHANGED))))
+          break;
       }
       info->update = ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
                       HA_STATE_PREV_FOUND);

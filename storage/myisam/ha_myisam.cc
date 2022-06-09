@@ -817,6 +817,7 @@ int ha_myisam::close(void) {
 }
 
 int ha_myisam::write_row(uchar *buf) {
+  int error;
   ha_statistic_increment(&System_status_var::ha_write_count);
 
   /*
@@ -824,10 +825,10 @@ int ha_myisam::write_row(uchar *buf) {
     or a new row, then update the auto_increment value in the record.
   */
   if (table && table->next_number_field && buf == table->record[0]) {
-    int error;
     if ((error = update_auto_increment())) return error;
   }
-  return mi_write(file, buf);
+  error = mi_write(file, buf);
+  return error;
 }
 
 int ha_myisam::check(THD *thd, HA_CHECK_OPT *check_opt) {

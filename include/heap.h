@@ -40,11 +40,22 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "field_types.h"  // enum_field_types
 #include "my_compare.h"
 #include "my_inttypes.h"
 #include "my_list.h"
 #include "my_tree.h"
 #include "thr_lock.h"
+
+/* Define index limits to be identical to MyISAM ones for compatibility. */
+
+#if MAX_INDEXES > HA_MAX_POSSIBLE_KEY
+#define HP_MAX_KEY HA_MAX_POSSIBLE_KEY /* Max allowed keys */
+#else
+#define HP_MAX_KEY MAX_INDEXES /* Max allowed keys */
+#endif
+
+#define HP_MAX_KEY_LENGTH MAX_KEY_LENGTH /* Max length in bytes */
 
 /* defines used by heap-funktions */
 
@@ -138,22 +149,57 @@ struct HP_KEYDEF /* Key definition with open */
   uint (*get_key_length)(HP_KEYDEF *keydef, const uchar *key){nullptr};
 };
 
-struct HP_SHARE {
+struct HP_COLUMNDEF /* column information */
+{
+  enum_field_types type; /* en_fieldtype */
+  uint32 length;         /* length of field */
+  uint32 offset;         /* Offset to position in row */
+  uint8 null_bit;        /* If column may be 0 */
+  uint16 null_pos;       /* position for null marker */
+  uint8 length_bytes;    /* length of the size, 1 o 2 bytes */
+};
+
+struct HP_DATASPACE {
   HP_BLOCK block;
+  /* Total chunks ever allocated in this dataspace */
+  uint chunk_count;
+  uint del_chunk_count; /* Deleted chunks count */
+  uchar *del_link;      /* Link to last deleted chunk */
+  uint chunk_length;    /* Total length of one chunk */
+  /* Length of payload that will be placed into one chunk */
+  uint chunk_dataspace_length;
+  /* Offset of the status flag relative to the chunk start */
+  uint offset_status;
+  /* Offset of the linking pointer relative to the chunk start */
+  uint offset_link;
+  /* Test whether records have variable size and so "next" pointer */
+  bool is_variable_size;
+  /* Total size allocated within this data space */
+  ulonglong total_data_length;
+};
+
+struct HP_SHARE {
   HP_KEYDEF *keydef;
+  HP_COLUMNDEF *column_defs;
+  /* Describes "block", which contains actual records */
+  HP_DATASPACE recordspace;
   ulong min_records, max_records; /* Params to open */
-  ulonglong data_length, index_length, max_table_size;
+  ulonglong index_length, max_table_size;
   uint key_stat_version; /* version to indicate insert/delete */
-  uint records;          /* records */
-  uint blength;          /* records rounded up to 2^n */
-  uint deleted;          /* Deleted records in database */
-  uint reclength;        /* Length of one record */
+  uint records;          /* Actual record (row) count */
+  uint blength;          /* used_chunk_count rounded up to 2^n */
+  /*
+    Length of record's fixed part, which contains keys and always fits into the
+    first chunk.
+  */
+  uint fixed_data_length;
+  uint fixed_column_count; /* Number of columns stored in fixed_data_length */
   uint changed;
   uint keys, max_key_length;
+  uint column_count;
   uint currently_disabled_keys; /* saved value from "keys" when disabled */
   uint open_count;
-  uchar *del_link; /* Link to next block with del. rec */
-  char *name;      /* Name of "memory-file" */
+  char *name; /* Name of "memory-file" */
   time_t create_time;
   THR_LOCK lock;
   bool delete_on_close;
@@ -161,6 +207,7 @@ struct HP_SHARE {
   uint auto_key;
   uint auto_key_type; /* real type of the auto key segment */
   ulonglong auto_increment;
+  uint blobs; /* Number of blobs in table */
 };
 
 struct HASH_INFO;
@@ -169,7 +216,7 @@ struct HP_INFO {
   HP_SHARE *s;
   uchar *current_ptr;
   HASH_INFO *current_hash_ptr;
-  ulong current_record, next_block;
+  ulong current_record;
   int lastinx, errkey;
   int mode; /* Mode of file (READONLY..) */
   uint opt_flag, update;
@@ -182,6 +229,9 @@ struct HP_INFO {
   bool implicit_emptied;
   THR_LOCK_DATA lock;
   LIST open_list;
+  uchar *blob_buffer; /* Temporary buffer used to return BLOB values */
+  uint blob_size;     /* Current blob_buffer size */
+  uint blob_offset;   /* Current offset in blob_buffer */
 };
 
 typedef uchar *HEAP_PTR;
@@ -210,6 +260,14 @@ struct HP_CREATE_INFO {
     open_count to 1. Is only looked at if not internal_table.
   */
   bool pin_share;
+  uint columns;
+  HP_COLUMNDEF *columndef;
+  uint fixed_key_fieldnr;
+  uint fixed_data_size;
+  uint keys_memory_size;
+  uint max_chunk_size;
+  bool is_dynamic;
+  uint blobs;
 };
 
 /* Prototypes for heap-functions */

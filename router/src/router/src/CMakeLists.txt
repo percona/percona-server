@@ -53,7 +53,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysql
   PUBLIC
   harness_stdx
   harness-library  # log_debug
-  mysqlclient
+  perconaserverclient
   )
 IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
   TARGET_LINK_OPTIONS(router_mysql PRIVATE -Wno-error=stringop-overflow)

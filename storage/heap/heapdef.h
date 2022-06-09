@@ -41,6 +41,16 @@
 #define HP_MIN_RECORDS_IN_BLOCK 16
 #define HP_MAX_RECORDS_IN_BLOCK 8192
 
+static const constexpr auto VARIABLE_REC_OVERHEAD =
+    sizeof(uchar **) + sizeof(uchar);
+
+/* this chunk has been deleted and can be reused */
+#define CHUNK_STATUS_DELETED 0
+/* this chunk represents the first part of a live record */
+#define CHUNK_STATUS_ACTIVE 1
+/* this chunk is a continuation from another chunk (part of chunkset) */
+#define CHUNK_STATUS_LINKED 2
+
 /* Some extern variables */
 
 extern LIST *heap_open_list, *heap_share_list;
@@ -54,7 +64,16 @@ extern LIST *heap_open_list, *heap_share_list;
 
 /* Find pos for record and update it in info->current_ptr */
 #define hp_find_record(info, pos) \
-  (info)->current_ptr = hp_find_block(&(info)->s->block, pos)
+  (info)->current_ptr = hp_find_block(&(info)->s->recordspace.block, pos)
+
+#define get_chunk_status(info, ptr) (ptr[(info)->offset_status])
+
+#define get_chunk_count(info, rec_length)              \
+  ((rec_length + (info)->chunk_dataspace_length - 1) / \
+   (info)->chunk_dataspace_length)
+
+#define is_blob_column(c) \
+  ((c)->type == MYSQL_TYPE_BLOB || (c)->type == MYSQL_TYPE_JSON)
 
 struct HASH_INFO {
   HASH_INFO *next_key;
@@ -100,7 +119,7 @@ extern int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1,
 extern int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key);
 extern void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec);
 extern uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec,
-                           uchar *recpos);
+                           uchar *recpos, bool packed);
 extern uint hp_rb_key_length(HP_KEYDEF *keydef, const uchar *key);
 extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const uchar *key);
 extern uint hp_rb_var_key_length(HP_KEYDEF *keydef, const uchar *key);
@@ -110,6 +129,27 @@ extern void hp_clear(HP_SHARE *info);
 extern void hp_clear_keys(HP_SHARE *info);
 extern uint hp_rb_pack_key(const HP_KEYDEF *keydef, uchar *key,
                            const uchar *old, key_part_map keypart_map);
+extern uint hp_calc_blob_length(uint length, const uchar *pos) noexcept;
+
+/* Chunkset management (alloc/free/encode/decode) functions */
+extern uchar *hp_allocate_chunkset(HP_DATASPACE *info,
+                                   uint chunk_count) noexcept;
+extern int hp_reallocate_chunkset(HP_DATASPACE *info, uint chunk_count,
+                                  uchar *pos) noexcept;
+extern void hp_free_chunks(HP_DATASPACE *info, uchar *pos) noexcept;
+extern void hp_clear_dataspace(HP_DATASPACE *info) noexcept;
+
+extern uint hp_get_encoded_data_length(const HP_SHARE &info,
+                                       const uchar *record,
+                                       uint *chunk_count) noexcept;
+extern void hp_copy_record_data_to_chunkset(const HP_SHARE &info,
+                                            const uchar *record,
+                                            uchar *pos) noexcept;
+extern bool hp_extract_record(HP_INFO *info, uchar *record,
+                              const uchar *pos) noexcept;
+extern bool hp_process_record_data_to_chunkset(const HP_SHARE &info,
+                                               const uchar *record, uchar *pos,
+                                               bool is_compare) noexcept;
 
 extern mysql_mutex_t THR_LOCK_heap;
 
@@ -117,6 +157,7 @@ extern PSI_memory_key hp_key_memory_HP_SHARE;
 extern PSI_memory_key hp_key_memory_HP_INFO;
 extern PSI_memory_key hp_key_memory_HP_PTRS;
 extern PSI_memory_key hp_key_memory_HP_KEYDEF;
+extern PSI_memory_key hp_key_memory_HP_COLUMNDEF;
 
 #ifdef HAVE_PSI_INTERFACE
 

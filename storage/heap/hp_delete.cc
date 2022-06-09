@@ -54,10 +54,7 @@ int heap_delete(HP_INFO *info, const uchar *record) {
   }
 
   info->update = HA_STATE_DELETED;
-  *((uchar **)pos) = share->del_link;
-  share->del_link = pos;
-  pos[share->reclength] = 0; /* Record deleted */
-  share->deleted++;
+  hp_free_chunks(&share->recordspace, pos);
   info->current_hash_ptr = nullptr;
 #if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
@@ -82,7 +79,8 @@ int hp_rb_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   if (flag) info->last_pos = nullptr; /* For heap_rnext/heap_rprev */
 
   custom_arg.keyseg = keyinfo->seg;
-  custom_arg.key_length = hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
+  custom_arg.key_length =
+      hp_rb_make_key(keyinfo, info->recbuf, record, recpos, false);
   custom_arg.search_flag = SEARCH_SAME;
   old_allocated = keyinfo->rb_tree.allocated;
   res = tree_delete(&keyinfo->rb_tree, info->recbuf, custom_arg.key_length,

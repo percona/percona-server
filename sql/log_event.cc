@@ -1918,7 +1918,7 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       my_timeval tm;
       my_timestamp_from_binary(&tm, ptr, meta);
       int buflen = my_timeval_to_str(&tm, buf, meta);
-      my_b_write(file, pointer_cast<uchar *>(buf), buflen);
+      if (my_b_write(file, pointer_cast<uchar *>(buf), buflen)) return 0;
       return my_timestamp_binary_length(meta);
     }
 

@@ -1967,7 +1967,7 @@ void THD::shutdown_active_vio() {
     // invalid thread id.
     active_vio->thread_id = real_id;
 #endif /* USE_PPOLL_IN_VIO */
-    vio_shutdown(active_vio);
+    vio_shutdown(active_vio, SHUT_RDWR);
     active_vio = nullptr;
     m_SSL = nullptr;
   }
@@ -1985,7 +1985,7 @@ void THD::shutdown_clone_vio() {
     // invalid thread id.
     clone_vio->thread_id = real_id;
 #endif /* USE_PPOLL_IN_VIO */
-    vio_shutdown(clone_vio);
+    vio_shutdown(clone_vio, SHUT_RDWR);
     clone_vio = nullptr;
   }
 }

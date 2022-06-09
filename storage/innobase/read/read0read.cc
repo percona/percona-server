@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "read0read.h"
 #include "clone0clone.h"
+#include "read0i_s.h"
 
 #include "srv0srv.h"
 #include "trx0sys.h"
@@ -317,7 +318,8 @@ ReadView::ReadView()
       m_up_limit_id(),
       m_creator_trx_id(),
       m_ids(),
-      m_low_limit_no() {
+      m_low_limit_no(),
+      m_cloned(false) {
   ut_d(::memset(&m_view_list, 0x0, sizeof(m_view_list)));
 }
 
@@ -347,10 +349,23 @@ MVCC::~MVCC() {
   ut_a(UT_LIST_GET_LEN(m_views) == 0);
 }
 
+/** Insert the view in the proper order into the view list.
+@param	view	view to add */
+void MVCC::view_add(const ReadView *view) {
+  ut_ad(trx_sys_mutex_own());
+
+  UT_LIST_ADD_FIRST(m_views, const_cast<ReadView *>(view));
+
+  ut_ad(!view->is_closed());
+
+  ut_ad(validate());
+}
+
 /**
 Copy the transaction ids from the source vector */
 
 void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
+  ut_ad(!m_cloned);
   ut_ad(trx_sys_mutex_own());
 
   ulint size = trx_ids.size();
@@ -444,6 +459,7 @@ point in time are seen in the view.
 @param id               Creator transaction id */
 
 void ReadView::prepare(trx_id_t id) {
+  ut_ad(!m_cloned);
   ut_ad(trx_sys_mutex_own());
 
   m_creator_trx_id = id;
@@ -626,14 +642,34 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
   if (view != nullptr) {
     view->prepare(trx->id);
 
-    UT_LIST_ADD_FIRST(m_views, view);
-
-    ut_ad(!view->is_closed());
-
-    ut_ad(validate());
+    view_add(view);
   }
 
   trx_sys_mutex_exit();
+}
+
+/**
+Get the oldest (active) view in the system for statistical purposes.
+
+@note This method should be used for statistical purposes only, purge needs
+to use more strict condition (see clone_oldest_view()) when selecting the
+oldest view.
+
+@return oldest view if found or NULL */
+
+const ReadView *MVCC::get_oldest_view_stats() const {
+  const ReadView *view;
+
+  ut_ad(trx_sys_mutex_own());
+
+  for (view = UT_LIST_GET_LAST(m_views); view != nullptr;
+       view = UT_LIST_GET_PREV(m_view_list, view)) {
+    if (!view->is_closed()) {
+      break;
+    }
+  }
+
+  return (view);
 }
 
 /**
@@ -680,6 +716,55 @@ void ReadView::copy_complete() {
 
   /* We added the creator transaction ID to the m_ids. */
   m_creator_trx_id = 0;
+}
+
+/**
+Clones a read view object. The resulting read view has identical change
+visibility as the donor read view
+@param	result	pointer to resulting read view. If NULL, a view will be
+        allocated. If non-NULL, a view will overwrite a previously-existing
+        in-use or released view.
+@param	from_trx	transation owning the donor read view. */
+
+void ReadView::clone(ReadView *&result, trx_t *from_trx) const {
+  ut_ad(from_trx->read_view == this);
+  ut_ad(trx_sys_mutex_own());
+
+  if (!result)
+    result = trx_sys->mvcc->get_view();
+  else {
+    result =
+        reinterpret_cast<ReadView *>(reinterpret_cast<uintptr_t>(result) & ~1);
+  }
+
+  // Set the creating trx id of the clone to that of donor.
+  trx_id_t from_trx_id;
+  if (from_trx->read_view->m_creator_trx_id != 0) {
+    // The donor transaction is RO, and a clone itself
+    from_trx_id = from_trx->read_view->m_creator_trx_id;
+  } else if (from_trx->id == 0) {
+    // The donor transaction is RO, thus does not have a trx ID
+    // yet which the cloned view must see, if it assigned later
+    if (!from_trx->preallocated_id) {
+      // Preallocate a transaction id for the donor
+      from_trx_id = from_trx->preallocated_id = trx_sys_allocate_trx_id();
+    } else {
+      // This transaction has already been cloned
+      from_trx_id = from_trx->preallocated_id;
+    }
+  } else {
+    // The donor transaction is RW
+    from_trx_id = from_trx->id;
+  }
+
+  result->copy_prepare(*this);
+  // Calling copy_complete would be redundant for us and would force
+  // a too early trx sys mutex release.
+  result->m_creator_trx_id = from_trx_id;
+  // If the clone transaction is RO and is later promoted to RW, make
+  // sure not to add its own id to its view
+  result->m_cloned = true;
+  result->m_closed.store(false);
 }
 
 void MVCC::clone_oldest_view(ReadView *view) {
@@ -756,6 +841,7 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
     if (!ptr->m_closed.load()) {
       ptr->m_closed.store(true);
     }
+    ptr->m_cloned = false;
 
     /* Set the view as closed. */
     view = reinterpret_cast<ReadView *>(p | 0x1);
@@ -771,4 +857,25 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
 
     view = nullptr;
   }
+}
+
+i_s_xtradb_read_view_t *read_fill_i_s_xtradb_read_view(
+    i_s_xtradb_read_view_t *rv) {
+  const ReadView *view;
+
+  mutex_enter(&trx_sys->mutex);
+
+  view = trx_sys->mvcc->get_oldest_view_stats();
+  if (!view) {
+    mutex_exit(&trx_sys->mutex);
+    return NULL;
+  }
+
+  rv->low_limit_no = view->low_limit_no();
+  rv->up_limit_id = view->up_limit_id();
+  rv->low_limit_id = view->low_limit_id();
+
+  mutex_exit(&trx_sys->mutex);
+
+  return rv;
 }

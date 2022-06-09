@@ -1,8 +1,8 @@
 --source include/have_keyring_vault_plugin.inc
 
---let $KEYRING_CONF_FILE_1=$MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf
---source generate_default_conf_files.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
+--source include/not_repeat.inc
 
 # Create mount points
 --let MOUNT_POINT_SERVICE_OP=CREATE

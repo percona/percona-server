@@ -53,7 +53,7 @@ if (!$CURL_TIMEOUT)
     $vault_ca_cert_opt= "--cacert $vault_ca";
   }
 
-  system(qq#curl -H "X-Vault-Token: $token" --max-time $curl_timeout $vault_ca_cert_opt $vault_url/v1/sys/mounts > $vardir/tmp/curl_result#);
+  system(qq#curl -L -H "X-Vault-Token: $token" -X GET --max-time $curl_timeout $vault_ca_cert_opt $vault_url/v1/cicd/test_info/readme > $vardir/tmp/curl_result#);
 
   my $curl_conn_successful = 1;
   my $curl_response = 0;
@@ -93,6 +93,7 @@ EOF
 
 --let VAULT_ERROR= 
 --source $MYSQLTEST_VARDIR/tmp/mount_list_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/mount_list_result.inc
 
 if ($VAULT_ERROR)
 {

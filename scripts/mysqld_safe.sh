@@ -17,6 +17,11 @@ MYSQLD=
 niceness=0
 mysqld_ld_preload=
 mysqld_ld_library_path=
+load_jemalloc=1
+load_hotbackup=0
+flush_caches=0
+# Change (disable) transparent huge pages (TokuDB requirement)
+thp_setting=
 
 # Initial logging status: error log is not open, and not using syslog
 logging=init
@@ -67,6 +72,14 @@ case "$1" in
 esac
 
 usage () {
+        thp_usage=""
+        if [ -f /sys/kernel/mm/transparent_hugepage/enabled ]; then
+          thp_usage=$(cat <<'EOF'
+  --thp-setting=SETTING      Change transparent huge pages setting
+                             on the system before starting mysqld
+EOF
+);
+        fi
         cat <<EOF
 Usage: $0 [OPTIONS]
  The following options may be given as the first argument:
@@ -89,6 +102,9 @@ Usage: $0 [OPTIONS]
   --syslog                   Log messages to syslog with 'logger'
   --skip-syslog              Log messages to error log (default)
   --syslog-tag=TAG           Pass -t "mysqld-TAG" to 'logger'
+  --flush-caches             Flush and purge buffers/caches before
+                             starting the server
+${thp_usage}
   --mysqld-safe-log-         TYPE must be one of UTC (ISO 8601 UTC),
     timestamps=TYPE          system (ISO 8601 local time), hyphen
                              (hyphenated date a la mysqld 5.6), legacy
@@ -197,6 +213,10 @@ eval_log_error () {
   #echo "Running mysqld: [$cmd]"
   cmd="env MYSQLD_PARENT_PID=$$ $cmd"
   eval "$cmd"
+  ret=$?
+  if [ $ret -gt 0 ] && [ $ret -lt 128 ]; then
+    exit $ret
+  fi
 }
 
 shell_quote_string() {
@@ -252,7 +272,10 @@ parse_arguments() {
         fi
         ledir="$val"
         ;;
-      --malloc-lib=*) set_malloc_lib "$val" ;;
+      --malloc-lib=*)
+        set_malloc_lib "$val"
+        load_jemalloc=0
+        ;;
       --mysqld=*)
         if [ -z "$pick_args" ]; then
           log_error "--mysqld option can only be used as command line option, found in config file"
@@ -276,11 +299,14 @@ parse_arguments() {
       --open-files-limit=*) open_files="$val" ;;
       --open_files_limit=*) open_files="$val" ;;
       --skip-kill-mysqld*) KILL_MYSQLD=0 ;;
+      --thp-setting=*) thp_setting="$val" ;;
+      --preload-hotbackup) load_hotbackup=1 ;;
       --mysqld-safe-log-timestamps=*) timestamp_format="$val" ;;
       --syslog) want_syslog=1 ;;
       --skip-syslog) want_syslog=0 ;;
       --syslog-tag=*) syslog_tag="$val" ;;
       --timezone=*) TZ="$val"; export TZ; ;;
+      --flush-caches=*) flush_caches="$val" ;;
 
       --help) usage ;;
 
@@ -303,7 +329,19 @@ parse_arguments() {
 # LD_LIBRARY_PATH and stripped from the lib value.
 add_mysqld_ld_preload() {
   lib_to_add="$1"
+  lib_to_add=$(readlink -f $lib_to_add)
   log_notice "Adding '$lib_to_add' to LD_PRELOAD for mysqld"
+  real_basedir=$(readlink -f ${MY_BASEDIR_VERSION})
+
+  # Check if the library is in the reduced number of standard system directories
+  case "$lib_to_add" in
+    /usr/lib64/* | /usr/lib/* | ${MY_BASEDIR_VERSION}/lib/* | ${real_basedir}/lib/*)
+      ;;
+    *)
+      log_error "ld_preload libraries can only be loaded from system directories (/usr/lib64, /usr/lib, ${MY_BASEDIR_VERSION}/lib)"
+      exit 1
+      ;;
+  esac
 
   case "$lib_to_add" in
     *' '*)
@@ -435,8 +473,8 @@ else
   # layout is used
 
   cd "`dirname $0`"
-  if [ -h "$0" ] ; then
-    realpath="`ls -l  "$0" | awk '{print $NF}'`"
+  if [ -h "`dirname $0`" -o -h "$0" ] ; then
+    realpath=$(readlink -f "$0")
     cd "`dirname "$realpath"`"
   fi
   cd ..
@@ -505,6 +543,32 @@ fi
 
 parse_arguments `$print_defaults $defaults --loose-verbose mysqld_safe safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
+
+#
+# Add jemalloc to ld_preload if no other malloc forced - needed for TokuDB
+#
+if test $load_jemalloc -eq 1
+then
+  for libjemall in "${MY_BASEDIR_VERSION}/lib/mysql" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
+    if [ -r "$libjemall/libjemalloc.so.1" ]; then
+      add_mysqld_ld_preload "$libjemall/libjemalloc.so.1"
+      break
+    fi  
+  done
+fi
+
+#
+# Add TokuDB HotBackup library to ld_preload
+#
+if test $load_hotbackup -eq 1
+then
+  for libhb in "${MY_BASEDIR_VERSION}/lib" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib" "${MY_BASEDIR_VERSION}/lib/mysql" "/usr/lib64/mysql" "/usr/lib/x86_64-linux-gnu/mysql" "/usr/lib/mysql"; do
+    if [ -r "$libhb/libHotBackup.so" ]; then
+      add_mysqld_ld_preload "$libhb/libHotBackup.so"
+      break
+    fi
+  done
+fi
 
 #
 # Sort out date command from $timestamp_format early so we'll start off
@@ -841,6 +905,88 @@ Please remove the file manually and start $0 again;
 mysqld daemon not started"
         exit 1
       fi
+  fi
+fi
+
+#
+# Flush and purge buffers/caches.
+#
+
+if @TARGET_LINUX@ && test $flush_caches -eq 1
+then
+  # Locate sync, ensure it exists.
+  if ! my_which sync > /dev/null 2>&1
+  then
+    log_error "sync command not found, required for --flush-caches"
+    exit 1
+  # Flush file system buffers.
+  elif ! sync
+  then
+    # Huh, the sync() function is always successful...
+    log_error "sync failed, check if sync is properly installed"
+  fi
+
+  # Locate sysctl, ensure it exists.
+  if ! my_which sysctl > /dev/null 2>&1
+  then
+    log_error "sysctl command not found, required for --flush-caches"
+    exit 1
+  # Purge page cache, dentries and inodes.
+  elif ! sysctl -q -w vm.drop_caches=3
+  then
+    log_error "sysctl failed, check the error message for details"
+    exit 1
+  fi
+elif test $flush_caches -eq 1
+then
+  log_error "--flush-caches is not supported on this platform"
+  exit 1
+fi
+
+# If thp-setting is specified, check to see if thp is supported
+# on this kernel and clear the value if it isn't
+if [ -n "$thp_setting" ] && [ ! -f /sys/kernel/mm/transparent_hugepage/enabled ]
+then
+  log_notice "Transparent huge pages is not supported on this system, ignoring thp-setting."
+  thp_setting=
+fi
+
+# Change transparent huge pages setting if thp-setting option specified
+if [ -n "$thp_setting" ]
+then
+  if [ $thp_setting != "always" -a $thp_setting != "madvise" -a $thp_setting != "never" ]; then
+    log_error "Invalid value for thp-setting=$thp_setting in config file. Valid values are: always, madvise or never"
+    exit 1
+  else
+    if [ -f /sys/kernel/mm/transparent_hugepage/enabled ]; then
+      CONTENT_THP=$(cat /sys/kernel/mm/transparent_hugepage/enabled)
+      STATUS_THP=0
+      set +e
+      STATUS_THP=$(echo $CONTENT_THP | grep -cv "\[${thp_setting}\]")
+      set -e
+    fi
+    if [ $STATUS_THP -eq 0 ]; then
+      log_notice "Transparent huge pages are already set to: ${thp_setting}."
+    elif [ $(id -u) -ne 0 ]; then
+      log_error "mysqld_safe must be run as root for setting transparent huge pages!"
+      exit 1
+    else
+      if [ -f /sys/kernel/mm/transparent_hugepage/defrag ]; then
+        echo $thp_setting > /sys/kernel/mm/transparent_hugepage/defrag
+        if [ $? -ne 0 ]; then
+	  log_error "Error setting transparent huge pages to: ${thp_setting}."
+          exit 1
+        fi
+      fi
+      if [ -f /sys/kernel/mm/transparent_hugepage/enabled ]; then
+        echo $thp_setting > /sys/kernel/mm/transparent_hugepage/enabled
+        if [ $? -ne 0 ]; then
+	  log_error "Error setting transparent huge pages to: ${thp_setting}."
+          exit 1
+        fi
+      fi
+      log_notice "Successfuly set transparent huge pages to: ${thp_setting}."
+    fi
   fi
 fi
 

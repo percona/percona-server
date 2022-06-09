@@ -45,6 +45,7 @@ int main(int argc, char **argv) {
   uchar record[128], key[32];
   const char *filename;
   HP_KEYDEF keyinfo[10];
+  HP_COLUMNDEF columndef[2];
   HA_KEYSEG keyseg[4];
   HP_CREATE_INFO hp_create_info;
   HP_SHARE *tmp_share;
@@ -61,6 +62,10 @@ int main(int argc, char **argv) {
   hp_create_info.reclength = 30;
   hp_create_info.max_records = (ulong)flag * 100000L;
   hp_create_info.min_records = 10UL;
+  hp_create_info.columns = 2;
+  hp_create_info.columndef = columndef;
+  hp_create_info.fixed_key_fieldnr = 30;
+  hp_create_info.fixed_data_size = sizeof(char *) * 2;
 
   keyinfo[0].keysegs = 1;
   keyinfo[0].seg = keyseg;
@@ -71,6 +76,14 @@ int main(int argc, char **argv) {
   keyinfo[0].seg[0].charset = &my_charset_latin1;
   keyinfo[0].seg[0].null_bit = 0;
   keyinfo[0].flag = HA_NOSAME;
+
+  memset(columndef, 0, 2 * sizeof(HP_COLUMNDEF));
+  columndef[0].type = MYSQL_TYPE_STRING;
+  columndef[0].offset = 1;
+  columndef[0].length = 6;
+  columndef[1].type = MYSQL_TYPE_STRING;
+  columndef[1].offset = 7;
+  columndef[1].length = 23;
 
   memset(flags, 0, sizeof(flags));
 

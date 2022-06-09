@@ -82,6 +82,7 @@ ENDIF()
 FOREACH(file ${ABI_HEADERS})
   GET_FILENAME_COMPONENT(header_basename ${file} NAME)
   SET(tmpfile ${BINARY_DIR}/${header_basename}.pp.tmp)
+  SET(errorfile ${BINARY_DIR}/${header_basename}.pp.err)
   SET(abi_file ${file})
   IF(WSL_EXECUTABLE)
     EXECUTE_PROCESS(
@@ -95,7 +96,7 @@ FOREACH(file ${ABI_HEADERS})
       -I${ABI_BINARY_DIR}/include -I${ABI_SOURCE_DIR}/include/mysql
       -I${ABI_SOURCE_DIR}/sql -I${ABI_SOURCE_DIR}/mysql/binlog/event/export
       ${abi_file}
-      ERROR_QUIET OUTPUT_FILE ${tmpfile})
+      ERROR_FILE ${errorfile} OUTPUT_FILE ${tmpfile})
   EXECUTE_PROCESS(
     COMMAND ${WSL_EXECUTABLE} sed -e "/^# /d"
                 -e "/^[	]*$/d"
@@ -120,6 +121,8 @@ FOREACH(file ${ABI_HEADERS})
     RESULT_VARIABLE result)
   IF(NOT ${result} EQUAL 0)
     MESSAGE(FATAL_ERROR
-      "ABI check found difference between ${file}.pp and ${abi_check_out}")
+      "ABI check found difference between ${file}.pp and ${abi_check_out}, "
+      "compilation error file can be found here: ${errorfile}")
   ENDIF()
+  FILE(REMOVE ${errorfile})
 ENDFOREACH()

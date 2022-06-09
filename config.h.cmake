@@ -120,7 +120,10 @@
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_HTONLL 1
+#cmakedefine HAVE_MEMSET_S 1
 #cmakedefine HAVE_EPOLL 1
+#cmakedefine HAVE_X509_CHECK_HOST 1
+#cmakedefine HAVE_X509_CHECK_IP 1
 
 /* WL2373 */
 #cmakedefine HAVE_SYS_TIME_H 1
@@ -251,7 +254,6 @@
 #cmakedefine USE_NEW_EDITLINE_INTERFACE 1
 #cmakedefine EDITLINE_HAVE_COMPLETION_CHAR 1
 #cmakedefine EDITLINE_HAVE_COMPLETION_INT 1
-
 
 /*
  * Libedit

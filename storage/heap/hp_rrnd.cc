@@ -45,16 +45,19 @@ int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos) {
     set_my_errno(HA_ERR_END_OF_FILE);
     return HA_ERR_END_OF_FILE;
   }
-  if (!info->current_ptr[share->reclength]) {
+  if (get_chunk_status(&share->recordspace, info->current_ptr) !=
+      CHUNK_STATUS_ACTIVE) {
+    /* Treat deleted and linked chunks as deleted */
     info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
     set_my_errno(HA_ERR_RECORD_DELETED);
     return HA_ERR_RECORD_DELETED;
   }
   info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
-  memcpy(record, info->current_ptr, (size_t)share->reclength);
+  if (hp_extract_record(info, record, info->current_ptr))
+    return my_errno();
 
   // reposition scan state also
-  info->current_record = info->next_block = pos->record_no;
+  info->current_record = pos->record_no;
 
   DBUG_PRINT("exit", ("found record at %p", info->current_ptr));
   info->current_hash_ptr = nullptr; /* Can't use rnext */

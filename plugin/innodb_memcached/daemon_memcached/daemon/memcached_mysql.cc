@@ -102,8 +102,8 @@ static SYS_VAR *daemon_memcached_sys_var[] = {
 THD *thd_get_current_thd();  // from sql_class.cc
 
 static void emit_deprecation_message() {
-	push_deprecated_warn_no_replacement(thd_get_current_thd(),
-		"InnoDB Memcached Plugin");
+  push_deprecated_warn_no_replacement(thd_get_current_thd(),
+                                      "InnoDB Memcached Plugin");
 }
 
 static int daemon_memcached_plugin_deinit(void *p)
@@ -161,49 +161,45 @@ static int daemon_memcached_plugin_init(void *p)
 	pthread_attr_t			attr;
 	struct st_plugin_int*		plugin = (struct st_plugin_int *)p;
 
-	emit_deprecation_message();
+        emit_deprecation_message();
 
-	con = (mysql_memcached_context*) my_malloc(PSI_INSTRUMENT_ME,
+        con = (mysql_memcached_context *)my_malloc(PSI_INSTRUMENT_ME,
                                                    sizeof(*con), MYF(0));
 
-	if (mci_engine_library) {
-		char*	lib_path = (mci_eng_lib_path)
-					? mci_eng_lib_path : opt_plugin_dir;
-		int	lib_len = strlen(lib_path)
-				  + strlen(mci_engine_library)
-				  + strlen(FN_DIRSEP) + 1;
+        if (mci_engine_library) {
+          char *lib_path =
+              (mci_eng_lib_path) ? mci_eng_lib_path : opt_plugin_dir;
+          int lib_len = strlen(lib_path) + strlen(mci_engine_library) +
+                        strlen(FN_DIRSEP) + 1;
 
-		con->memcached_conf.m_engine_library = (char*) my_malloc(
-                        PSI_INSTRUMENT_ME,
-			lib_len, MYF(0));
+          con->memcached_conf.m_engine_library =
+              (char *)my_malloc(PSI_INSTRUMENT_ME, lib_len, MYF(0));
 
-		strxmov(con->memcached_conf.m_engine_library, lib_path,
-			FN_DIRSEP, mci_engine_library, NullS);
-	} else {
-		con->memcached_conf.m_engine_library = NULL;
-	}
+          strxmov(con->memcached_conf.m_engine_library, lib_path, FN_DIRSEP,
+                  mci_engine_library, NullS);
+        } else {
+          con->memcached_conf.m_engine_library = NULL;
+        }
 
-	con->memcached_conf.m_mem_option = mci_memcached_option;
-	con->memcached_conf.m_innodb_api_cb = plugin->data;
-	con->memcached_conf.m_r_batch_size = mci_r_batch_size;
-	con->memcached_conf.m_w_batch_size = mci_w_batch_size;
-	con->memcached_conf.m_enable_binlog = mci_enable_binlog;
+        con->memcached_conf.m_mem_option = mci_memcached_option;
+        con->memcached_conf.m_innodb_api_cb = plugin->data;
+        con->memcached_conf.m_r_batch_size = mci_r_batch_size;
+        con->memcached_conf.m_w_batch_size = mci_w_batch_size;
+        con->memcached_conf.m_enable_binlog = mci_enable_binlog;
 
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
-	/* now create the thread */
-	if (pthread_create(&con->memcached_thread, &attr,
-			   daemon_memcached_main,
-			   (void *)&con->memcached_conf) != 0)
-	{
-		fprintf(stderr,"Could not create memcached daemon thread!\n");
-		exit(0);
-	}
+        /* now create the thread */
+        if (pthread_create(&con->memcached_thread, &attr, daemon_memcached_main,
+                           (void *)&con->memcached_conf) != 0) {
+          fprintf(stderr, "Could not create memcached daemon thread!\n");
+          exit(0);
+        }
 
-	plugin->data= (void *)con;
+        plugin->data = (void *)con;
 
-	return(0);
+        return (0);
 }
 
 struct st_mysql_daemon daemon_memcached_plugin =

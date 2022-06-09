@@ -224,6 +224,13 @@ constexpr uint32_t DATA_VIRTUAL = 8192;
 /** Multi-value Virtual column */
 constexpr uint32_t DATA_MULTI_VALUE = 16384;
 
+#define DATA_COMPRESSED                          \
+  32768 /* this is ORed to the precise data      \
+        type when the column has COLUMN_FORMAT = \
+        COMPRESSED attribute*/
+
+/** Compressed field header size in bytes */
+constexpr uint32_t ZIP_COLUMN_HEADER_LENGTH = 2;
 /*-------------------------------------------*/
 
 /* This many bytes we need to store the type information affecting the
@@ -278,12 +285,14 @@ inline bool DATA_LARGE_MTYPE(ulint mtype) {
 }
 
 /* For checking if data type is big length data type. */
-inline bool DATA_BIG_LEN_MTYPE(ulint len, ulint mtype) {
-  return len > 255 || DATA_LARGE_MTYPE(mtype);
+inline bool DATA_BIG_LEN_MTYPE(ulint len, ulint mtype, ulint extra) {
+  return len > (255 - extra) || DATA_LARGE_MTYPE(mtype);
 }
 
 /* For checking if the column is a big length column. */
-#define DATA_BIG_COL(col) DATA_BIG_LEN_MTYPE((col)->len, (col)->mtype)
+#define DATA_BIG_COL(col)                      \
+  DATA_BIG_LEN_MTYPE((col)->len, (col)->mtype, \
+                     prtype_get_compression_extra((col)->prtype))
 
 /* We now support 15 bits (up to 32767) collation number */
 constexpr uint32_t MAX_CHAR_COLL_NUM = 32767;
@@ -486,6 +495,15 @@ bool dtype_validate(const dtype_t *type); /*!< in: type struct to validate */
 @param[in]      type    data type */
 void dtype_print(const dtype_t *type);
 #endif /* UNIV_DEBUG */
+
+/**
+Calculates the number of extra bytes needed for compression header
+depending on precise column type.
+@reval 0 if prtype does not include DATA_COMPRESSED flag
+@reval ZIP_COLUMN_HEADER_LENGTH if prtype includes DATA_COMPRESSED flag
+*/
+static inline ulint prtype_get_compression_extra(
+    ulint prtype); /*!< in: precise type */
 
 /* Structure for an SQL data type.
 If you add fields to this structure, be sure to initialize them everywhere.

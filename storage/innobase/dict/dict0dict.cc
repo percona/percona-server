@@ -4367,6 +4367,38 @@ void dict_set_merge_threshold_all_debug(uint merge_threshold_all) {
 }
 #endif /* UNIV_DEBUG */
 
+/** Set is_corrupt flag by space_id
+@param	space_id	space id
+@param	need_mutex	whether dict_sys->mutex needs to be locked
+*/
+void dict_table_set_corrupt_by_space(space_id_t space_id,
+                                     bool need_mutex) noexcept {
+  ut_a(space_id != 0);
+  ut_a(space_id < dict_sys_t::s_log_space_id);
+
+  if (need_mutex) mutex_enter(&(dict_sys->mutex));
+
+  dict_table_t *table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+  bool found = false;
+
+  while (table) {
+    if (table->space == space_id) {
+      table->is_corrupt = true;
+      found = true;
+    }
+
+    table = UT_LIST_GET_NEXT(table_LRU, table);
+  }
+
+  if (need_mutex) mutex_exit(&(dict_sys->mutex));
+
+  if (!found) {
+    ib::warn() << "Space to be marked as crashed was not found "
+                  "for id "
+               << space_id << ".";
+  }
+}
+
 /** Inits dict_ind_redundant. */
 void dict_ind_init(void) {
   dict_table_t *table;

@@ -36,7 +36,7 @@
 #include "test_utils.h"
 
 #include <mysql/components/services/log_shared.h>
-#include "../sql/log.h"
+#include "sql/log.h"
 
 // CET: 32 bytes
 //   date (10), 'T', time (8), '.', microseconds (6), timezone offset (6)
@@ -90,7 +90,12 @@ TEST_F(LogTimestampTest, iso8601) {
   }
   char tz[] = "TZ=CET-1CES";
 #else
-  char tz[] = "TZ=CET";
+  // Use a fully-specified POSIX TZ string (CET in winter, CEST in summer with
+  // the EU DST rule) instead of relying on the system timezone database.
+  // Minimal build/CI containers may not ship the 'CET' zoneinfo file, in which
+  // case glibc parses bare "CET" as a POSIX zone with a zero offset (UTC) and
+  // the expected +01:00 / +02:00 offsets would never be produced.
+  char tz[] = "TZ=CET-1CEST,M3.5.0,M10.5.0/3";
 #endif
   int time_buff_len;
 

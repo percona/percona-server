@@ -42,7 +42,9 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx) {
       memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos),
              sizeof(uchar *));
       info->current_ptr = pos;
-      memcpy(record, pos, (size_t)share->reclength);
+      if (hp_extract_record(info, record, pos)) {
+        return my_errno();
+      }
       /*
         If we're performing index_first on a table that was taken from
         table cache, info->lastkey_len is initialized to previous query.

@@ -24,4 +24,5 @@
 MYSQL_ADD_PLUGIN(blackhole ha_blackhole.cc
   DEFAULT_LEGACY_ENGINE STORAGE_ENGINE
   LINK_LIBRARIES extra::rapidjson ext::zlib
-  )
+  SYSTEM_INCLUDE_DIRECTORIES
+  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)

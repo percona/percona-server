@@ -53,6 +53,7 @@ int hp_close(HP_INFO *info) {
     heap_open_list = list_delete(heap_open_list, &info->open_list);
   if (!--info->s->open_count && info->s->delete_on_close)
     hp_free(info->s); /* Table was deleted */
+  if (info->blob_buffer) my_free(info->blob_buffer);
   my_free(info);
   return error;
 }

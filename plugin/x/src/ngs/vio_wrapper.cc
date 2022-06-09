@@ -100,7 +100,7 @@ sockaddr_storage *Vio_wrapper::peer_addr(std::string *address, uint16_t *port) {
 
 int Vio_wrapper::shutdown() {
   MUTEX_LOCK(lock, m_shutdown_mutex);
-  return vio_shutdown(m_vio);
+  return vio_shutdown(m_vio, SHUT_RDWR);
 }
 
 Vio_wrapper::~Vio_wrapper() {

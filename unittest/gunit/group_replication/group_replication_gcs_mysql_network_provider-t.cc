@@ -434,7 +434,7 @@ TEST_F(MySQLNetworkProviderTest, NewServerConnectionTest) {
   // Vio *active_vio = (Vio *)malloc(sizeof(Vio));
   MYSQL_VIO active_vio = vio_new(socket_to_use, VIO_TYPE_TCPIP, 0);
   active_vio->mysql_socket.fd = socket_to_use;
-  active_vio->vioshutdown = [](Vio *) { return 0; };
+  active_vio->vioshutdown = [](Vio *, int) { return 0; };
 
   fake_thd.set_active_vio(active_vio);
 

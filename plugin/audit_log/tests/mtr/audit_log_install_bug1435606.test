@@ -1,0 +1,9 @@
+# Bug1435606: server crashes if audit log plugin cannot create file
+
+call mtr.add_suppression("Plugin 'audit_log' init function returned error");
+call mtr.add_suppression("Plugin 'audit_log' registration as a AUDIT failed");
+call mtr.add_suppression("Plugin audit_log reported: 'Cannot open file");
+call mtr.add_suppression("Plugin audit_log reported: 'Error: No such file or directory'");
+
+# Should have failed to install
+SELECT COUNT(*) AS should_be_0 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'audit_log';

@@ -38,7 +38,7 @@ SET(TESTS "")
 SET(TEST_LINK_LIBRARIES
   changestreams_standalone_static
   binlogstandalone_static
-  mysqlclient
+  perconaserverclient
   ${GTEST_LIBRARIES})
 
 # If we are using the protobuf extensions

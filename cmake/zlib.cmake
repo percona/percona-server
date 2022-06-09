@@ -116,8 +116,8 @@ ENDMACRO()
 MACRO (MYSQL_CHECK_ZLIB)
 
   IF(NOT WITH_ZLIB)
-    SET(WITH_ZLIB "bundled"
-      CACHE STRING "By default use bundled zlib on this platform")
+    SET(WITH_ZLIB "system"
+      CACHE STRING "By default use system zlib on this platform")
   ENDIF()
   
   IF(WITH_ZLIB STREQUAL "bundled")

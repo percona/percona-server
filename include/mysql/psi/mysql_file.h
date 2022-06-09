@@ -1018,6 +1018,30 @@ static inline File inline_mysql_file_open(
   return file;
 }
 
+#ifndef __WIN__
+static inline File inline_mysql_unix_socket_connect(
+#ifdef HAVE_PSI_FILE_INTERFACE
+    PSI_file_key key, const char *src_file, uint src_line,
+#endif
+    const char *filename, myf myFlags) {
+  File file;
+#ifdef HAVE_PSI_FILE_INTERFACE
+  struct PSI_file_locker *locker;
+  PSI_file_locker_state state;
+  locker = PSI_FILE_CALL(get_thread_file_name_locker)(
+      &state, key, PSI_FILE_OPEN, filename, &locker);
+  if (likely(locker != nullptr)) {
+    PSI_FILE_CALL(start_file_open_wait)(locker, src_file, src_line);
+    file = my_unix_socket_connect(filename, myFlags);
+    PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(locker, file);
+    return file;
+  }
+#endif
+  file = my_unix_socket_connect(filename, myFlags);
+  return file;
+}
+#endif
+
 static inline int inline_mysql_file_close(
 #ifdef HAVE_PSI_FILE_INTERFACE
     const char *src_file, uint src_line,

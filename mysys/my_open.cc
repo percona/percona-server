@@ -38,6 +38,9 @@
 #include <sys/types.h>
 #include <iostream>
 #include <thread>
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -86,8 +89,54 @@ File my_open(const char *filename, int Flags, myf MyFlags) {
   return fd;
 }
 
+/*
+  Connect to unix domain socket
+
+  SYNOPSIS
+  my_unix_socket_connect()
+  FileName  Fully qualified file name
+  MyFlags Special flags
+
+  RETURN VALUE
+  File descriptor
+*/
+#ifndef __WIN__
+File my_unix_socket_connect(const char *FileName, myf MyFlags) noexcept
+/* Path-name of file */
+/* Read | write .. */
+/* Special flags */
+{
+  struct sockaddr_un addr;
+  DBUG_ENTER("my_unix_socket_connect");
+  DBUG_PRINT("my", ("Name: '%s'  MyFlags: %d", FileName, MyFlags));
+
+  if (strlen(FileName) > (sizeof(addr.sun_path) - 1)) {
+    if (MyFlags & (MY_FAE | MY_WME))
+      my_error(EE_TOOLONGFILENAME, MYF(0), FileName, sizeof(addr.sun_path) - 1);
+    DBUG_RETURN(-1);
+  }
+  my_socket sd = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (sd < 0) {
+    if (MyFlags & (MY_FAE | MY_WME))
+      my_error(EE_SOCKET, MYF(0), FileName, errno);
+    DBUG_RETURN(-1);
+  }
+  memset(&addr, 0, sizeof(addr));
+  addr.sun_family = AF_UNIX;
+  strcpy(addr.sun_path, FileName);
+  if (connect(sd, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr)) ==
+      -1) {
+    close(sd);
+    sd = -1;
+  }
+  RegisterFilename(static_cast<File>(sd), FileName,
+                   file_info::OpenType::FILE_BY_OPEN);
+  DBUG_RETURN(sd);
+} /* my_unix_socket_connect */
+#endif
+
 /**
-  Close a file.
+  Close a file
 
   @param fd   File sescriptor
   @param MyFlags  Special Flags

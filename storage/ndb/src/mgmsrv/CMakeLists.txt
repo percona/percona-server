@@ -75,8 +75,10 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
   DESTINATION ${INSTALL_SBINDIR}
   COMPONENT ClusterManagementServer
   ENABLE_EXPORTS
+  INCLUDE_DIRECTORIES
+  ${MY_XLINE_INCLUDE_DIR}
   LINK_LIBRARIES
-  ${EDITLINE_LIBRARY}
+  ${MY_XLINE_LIBRARY}
   ndbclient_static
   ndbmgmcommon
   ndbmgmclient

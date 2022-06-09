@@ -149,6 +149,9 @@ bool srv_startup_is_before_trx_rollback_phase = false;
 /** true if srv_start() has been called */
 static bool srv_start_has_been_called = false;
 
+/** current log format */
+static uint32_t server_log_format;
+
 /** Bit flags for tracking background thread creation. They are used to
 determine which threads need to be stopped if we need to abort during
 the initialisation step. */
@@ -581,6 +584,7 @@ static void create_log_files_rename(
   strcpy(logfile0, logfilename);
 
   fil_open_log_and_system_tablespace_files();
+  fil_space_t::s_redo_space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
   /* For cloned database it is normal to resize redo logs. */
   ib::info(ER_IB_MSG_1068, ulonglong{lsn});
@@ -2672,6 +2676,7 @@ dberr_t srv_start(bool create_new_db) {
     }
   }
 
+
   ut_a(log_sys != nullptr);
 
   /* Open all log files and data files in the system
@@ -2953,6 +2958,8 @@ files_checked:
       log_buffer_flush_to_disk(*log_sys);
     }
 
+    server_log_format = log_sys->format;
+
     log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
 
     if (!srv_force_recovery && !recv_sys->found_corrupt_log &&
@@ -3007,6 +3014,7 @@ files_checked:
 
       /* Close and free the redo log files, so that
       we can replace them. */
+      ut_ad(fil_space_t::s_redo_space != nullptr);
       fil_close_log_files(true);
 
       RECOVERY_CRASH(5);
@@ -3936,10 +3944,51 @@ static lsn_t srv_shutdown_log() {
 
   srv_wake_log_tracker_thread();
 
-  if (srv_downgrade_logs) {
+  /* if upgrade is failed, delete and create new empty redo so old version do
+   not complaint  */
+  if (dd_init_failed_during_upgrade) {
+    ib::info(ER_IB_MSG_DOWNGRADING_LOG_FILE);
+
+    ut_ad(fil_space_t::s_redo_space != nullptr);
+
+    uint32_t srv_n_log_files_found = srv_n_log_files;
+
+    char logfilename[10000];
+    size_t dirnamelen;
+    char *logfile0 = nullptr;
+
+    lsn_t new_checkpoint_lsn = 0;
+
+    dirnamelen = strlen(srv_log_group_home_dir);
+    ut_a(dirnamelen < (sizeof logfilename) - 10 - sizeof "ib_logfile");
+    memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
+
+    /* Add a path separator if needed. */
+    if (dirnamelen && logfilename[dirnamelen - 1] != OS_PATH_SEPARATOR) {
+      logfilename[dirnamelen++] = OS_PATH_SEPARATOR;
+    }
+
+    auto flushed_lsn = log_get_lsn(*log_sys);
+
+    /* Close and free the redo log files, so that
+    we can replace them. */
+    fil_close_log_files(true);
+
+    log_sys_close();
+
+    auto err =
+        create_log_files(logfilename, dirnamelen, flushed_lsn,
+                         srv_n_log_files_found, logfile0, new_checkpoint_lsn);
+    ut_a(err == DB_SUCCESS);
+
+    create_log_files_rename(logfilename, dirnamelen, new_checkpoint_lsn,
+                            logfile0);
+  }
+
+  if (srv_downgrade_logs || dd_init_failed_during_upgrade) {
     ut_a(!srv_read_only_mode);
 
-    log_files_downgrade(*log_sys);
+    log_files_downgrade(*log_sys, server_log_format);
 
     fil_flush_file_redo();
   }
@@ -3947,10 +3996,11 @@ static lsn_t srv_shutdown_log() {
   /* Validate lsn and write it down. */
   ut_a(log_lsn_validate(lsn) || srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
 
-  ut_a(lsn == log_sys->last_checkpoint_lsn.load() ||
-       srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
-
-  ut_a(lsn == log_get_lsn(*log_sys));
+  if (!dd_init_failed_during_upgrade) {
+    ut_a(lsn == log_sys->last_checkpoint_lsn.load() ||
+         srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
+    ut_a(lsn == log_get_lsn(*log_sys));
+  }
 
   if (!srv_read_only_mode) {
     ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO);
@@ -3959,7 +4009,9 @@ static lsn_t srv_shutdown_log() {
     ut_a(err == DB_SUCCESS);
   }
   buf_must_be_all_freed();
-  ut_a(lsn == log_get_lsn(*log_sys));
+  if (!dd_init_failed_during_upgrade) {
+    ut_a(lsn == log_get_lsn(*log_sys));
+  }
 
   return (lsn);
 }

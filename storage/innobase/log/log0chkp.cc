@@ -448,7 +448,7 @@ void meb_log_print_file_hdr(byte *block) {
 
 #ifndef UNIV_HOTBACKUP
 
-void log_files_downgrade(log_t &log) {
+void log_files_downgrade(log_t &log, uint32_t log_format) {
   ut_ad(srv_shutdown_state.load() >= SRV_SHUTDOWN_LAST_PHASE);
   ut_a(!log_checkpointer_is_active());
 
@@ -462,7 +462,7 @@ void log_files_downgrade(log_t &log) {
       static_cast<page_no_t>(dest_offset / univ_page_size.physical());
 
   /* Write old version */
-  mach_write_to_4(buf + LOG_HEADER_FORMAT, LOG_HEADER_FORMAT_5_7_9);
+  mach_write_to_4(buf + LOG_HEADER_FORMAT, log_format);
 
   log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
 
@@ -661,7 +661,6 @@ void log_create_first_checkpoint(log_t &log, lsn_t lsn) {
   page_no_t block_page_no;
   uint64_t block_offset;
 
-  ut_a(srv_is_being_started);
   ut_a(!srv_read_only_mode);
   ut_a(!recv_recovery_is_on());
   ut_a(buf_are_flush_lists_empty_validate());

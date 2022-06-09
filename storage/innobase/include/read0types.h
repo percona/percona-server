@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <algorithm>
 #include "dict0mem.h"
 
+#include "mem0mem.h"
 #include "trx0types.h"
 
 // Friend declaration
@@ -192,6 +193,7 @@ class ReadView {
   void close() {
     ut_ad(m_creator_trx_id != TRX_ID_MAX);
     m_creator_trx_id = TRX_ID_MAX;
+    m_cloned = false;
   }
 
   /**
@@ -228,8 +230,22 @@ class ReadView {
   trx_id_t low_limit_id() const { return (m_low_limit_id); }
 
   /**
+  @return the up limit id */
+  trx_id_t up_limit_id() const noexcept { return (m_up_limit_id); }
+
+  /**
   @return true if there are no transaction ids in the snapshot */
   bool empty() const { return (m_ids.empty()); }
+
+  /**
+  Clones a read view object. The resulting read view has identical change
+  visibility as the donor read view
+  @param	result	pointer to resulting read view. If NULL, a view will be
+  allocated. If non-NULL, a view will overwrite a previously-existing
+  in-use or released view.
+  @param	from_trx	transation owning the donor read view. */
+
+  void clone(ReadView *&result, trx_t *from_trx) const;
 
 #ifdef UNIV_DEBUG
   /**
@@ -243,6 +259,18 @@ class ReadView {
     return (m_low_limit_no <= rhs->m_low_limit_no);
   }
 #endif /* UNIV_DEBUG */
+
+  void print(FILE *file) const noexcept {
+    fprintf(file, "Read view low limit trx n:o " TRX_ID_FMT "\n",
+            low_limit_no());
+    print_limits(file);
+    fprintf(file, "Read view individually stored trx ids:\n");
+    for (ulint i = 0; i < m_ids.size(); i++)
+      fprintf(file, "Read view trx id " TRX_ID_FMT "\n", m_ids.data()[i]);
+  }
+
+  bool is_cloned() const noexcept { return (m_cloned); }
+
  private:
   /**
   Copy the transaction ids from the source vector */
@@ -311,6 +339,11 @@ class ReadView {
 
   /** AC-NL-RO transaction view that has been "closed". */
   bool m_closed;
+
+  /** This is a view cloned by clone but not by
+  MVCC::clone_oldest_view. Used to make sure the cloned transaction does
+  not see its own changes. */
+  bool m_cloned;
 
   typedef UT_LIST_NODE_T(ReadView) node_t;
 

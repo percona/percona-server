@@ -384,3 +384,43 @@ bool thd_is_dd_update_stmt(const THD *thd) {
 }
 
 my_thread_id thd_thread_id(const THD *thd) { return (thd->thread_id()); }
+
+/** Gets page fragmentation statistics. Assigns zeros to stats if thd is
+NULL.
+@param[in]  thd   the calling thread
+@param[out] stats a pointer to fragmentation statistics to fill */
+void thd_get_fragmentation_stats(const THD *thd,
+                                 fragmentation_stats_t *stats) noexcept {
+  assert(stats != nullptr);
+  if (likely(thd != nullptr)) {
+    stats->scan_pages_contiguous =
+        thd->status_var.fragmentation_stats.scan_pages_contiguous;
+    stats->scan_pages_disjointed =
+        thd->status_var.fragmentation_stats.scan_pages_disjointed;
+    stats->scan_pages_total_seek_distance =
+        thd->status_var.fragmentation_stats.scan_pages_total_seek_distance;
+    stats->scan_data_size = thd->status_var.fragmentation_stats.scan_data_size;
+    stats->scan_deleted_recs_size =
+        thd->status_var.fragmentation_stats.scan_deleted_recs_size;
+  } else {
+    memset(stats, 0, sizeof(*stats));
+  }
+}
+
+/** Adds page scan statistics. Does nothing if thd is NULL.
+@param[in] thd   the calling thread
+@param[in] stats a pointer to fragmentation statistics to add */
+void thd_add_fragmentation_stats(THD *thd,
+                                 const fragmentation_stats_t &stats) noexcept {
+  if (likely(thd != nullptr)) {
+    thd->status_var.fragmentation_stats.scan_pages_contiguous +=
+        stats.scan_pages_contiguous;
+    thd->status_var.fragmentation_stats.scan_pages_disjointed +=
+        stats.scan_pages_disjointed;
+    thd->status_var.fragmentation_stats.scan_pages_total_seek_distance +=
+        stats.scan_pages_total_seek_distance;
+    thd->status_var.fragmentation_stats.scan_data_size += stats.scan_data_size;
+    thd->status_var.fragmentation_stats.scan_deleted_recs_size +=
+        stats.scan_deleted_recs_size;
+  }
+}

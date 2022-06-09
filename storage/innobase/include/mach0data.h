@@ -120,7 +120,7 @@ static inline uint32_t mach_get_compressed_size(ulint n);
 @param[in,out]  b       pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-static inline uint32_t mach_read_next_compressed(const byte **b);
+[[nodiscard]] static inline uint32_t mach_read_next_compressed(const byte **b);
 
 /** The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address.
@@ -168,7 +168,8 @@ static inline ulint mach_u64_write_compressed(byte *b, uint64_t n);
 @param[in,out]  b       pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-static inline uint64_t mach_u64_read_next_compressed(const byte **b);
+[[nodiscard]] static inline uint64_t mach_u64_read_next_compressed(
+    const byte **b);
 
 /** Writes a 64-bit integer in a compressed form (1..11 bytes).
 @param[in]      b       pointer to memory where to store

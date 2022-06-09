@@ -158,11 +158,33 @@ static inline bool pfs_os_file_close_func(pfs_os_file_t file,
   return (result);
 }
 
+/** NOTE! Use the corresponding macro os_file_close_no_error_handling(), not
+directly this function!
+Closes a file handle.
+@param[in] file		handle to a file
+@param[in]      src_location    location where func invoked
+@return true if success */
+bool pfs_os_file_close_no_error_handling_func(pfs_os_file_t file,
+                                              ut::Location src_location) {
+  struct PSI_file_locker *locker = nullptr;
+  PSI_file_locker_state state;
+
+  /* register the file close */
+  register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_CLOSE, src_location);
+
+  const bool result = os_file_close_no_error_handling_func(file.m_file);
+
+  register_pfs_file_io_end(locker, 0);
+
+  return (result);
+}
+
 #ifndef UNIV_HOTBACKUP
 static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode,
                                       const char *name, pfs_os_file_t file,
                                       void *buf, os_offset_t offset, ulint n,
                                       bool read_only, fil_node_t *m1, void *m2,
+                                      space_id_t space_id, trx_t *trx, bool should_buffer,
                                       ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
@@ -175,7 +197,7 @@ static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode,
                              src_location);
 
   dberr_t result = os_aio_func(type, aio_mode, name, file, buf, offset, n,
-                               read_only, m1, m2);
+                               read_only, m1, m2, space_id, trx, should_buffer);
 
   register_pfs_file_io_end(locker, n);
 
@@ -195,11 +217,9 @@ os_file_read() which requests a synchronous read operation.
 @param[in]      n               number of bytes to read
 @param[in]      src_location    location where func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_func(IORequest &type,
-                                            const char *file_name,
-                                            pfs_os_file_t file, void *buf,
-                                            os_offset_t offset, ulint n,
-                                            ut::Location src_location) {
+static inline dberr_t pfs_os_file_read_func(
+    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
+    os_offset_t offset, ulint n, trx_t *trx, ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
 
@@ -210,7 +230,7 @@ static inline dberr_t pfs_os_file_read_func(IORequest &type,
 
   dberr_t result;
 
-  result = os_file_read_func(type, file_name, file.m_file, buf, offset, n);
+  result = os_file_read_func(type, file_name, file.m_file, buf, offset, n, trx);
 
   register_pfs_file_io_end(locker, n);
 
@@ -227,10 +247,11 @@ os_file_read() which requests a synchronous read operation.
 @param[out]     buf             buffer where to read
 @param[in]      n               number of bytes to read
 @param[in]      src_location    location where func invoked
+@param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_read_first_page_func(
     IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    ulint n, ut::Location src_location) {
+    ulint n, ut::Location src_location, bool exit_on_err) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
 
@@ -241,7 +262,7 @@ static inline dberr_t pfs_os_file_read_first_page_func(
 
   dberr_t result;
 
-  result = os_file_read_first_page_func(type, file_name, file.m_file, buf, n);
+  result = os_file_read_first_page_func(type, file_name, file.m_file, buf, n, exit_on_err);
 
   register_pfs_file_io_end(locker, n);
 
@@ -510,4 +531,36 @@ static inline bool pfs_os_file_delete_if_exists_func(
 
   return (result);
 }
+
+/** NOTE! Use the corresponding macro os_file_flush(), not directly this
+function!
+Truncates a file at the specified position.
+@param[in]	file	file to truncate
+@param[in]	new_len	new file length
+@param[in]      src_location    location where func invoked
+@return true if success */
+static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file, uint64_t new_len,
+                                               ut::Location src_location) {
+  struct PSI_file_locker *locker = NULL;
+  PSI_file_locker_state state;
+
+  register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_CHSIZE, src_location);
+  const bool result = os_file_set_eof_at_func(file.m_file, new_len);
+
+  register_pfs_file_io_end(locker, 0);
+
+  return (result);
+}
+
 #endif /* UNIV_PFS_IO */
+
+/** Tries to disable OS caching on an opened file file.
+@param[in]	file		file to alter
+@param[in]	file_name	file name, used in the diagnostic message
+@param[in]	operation_name	"open" or "create"; used in the diagnostic
+message
+@return true if operation is success and false */
+static inline bool os_file_set_nocache(pfs_os_file_t file, const char *file_name,
+                                       const char *operation_name) {
+  return os_file_set_nocache(file.m_file, file_name, operation_name);
+}

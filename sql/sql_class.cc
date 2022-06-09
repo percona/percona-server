@@ -1502,6 +1502,34 @@ THD::~THD() {
   m_thd_life_cycle_stage = enum_thd_life_cycle_stages::DISPOSED;
 }
 
+extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
+                                       enum mysql_trx_stat_type type,
+                                       unsigned long long value) {
+  assert(thd);
+  assert(!thd_is_background_thread(thd));
+  (void)thd;
+  (void)trx_id;
+  (void)type;
+  (void)value;
+}
+
+extern "C" unsigned long thd_log_slow_verbosity(const THD *thd) {
+  return (unsigned long)thd->variables.log_slow_verbosity;
+}
+
+extern "C" int thd_opt_slow_log() { return (int)opt_slow_log; }
+
+/**
+  Check whether given connection handle is associated with a background thread.
+
+  @param thd  connection handle
+  @retval non-zero  the connection handle belongs to a background thread
+  @retval 0   the connection handle belongs to a different thread type
+*/
+extern "C" int thd_is_background_thread(const THD *thd) {
+  return (thd->system_thread == SYSTEM_THREAD_BACKGROUND);
+}
+
 /**
   Awake a thread.
 
@@ -2119,6 +2147,15 @@ err_max:
   if (statement->name().str) names_hash.erase(to_string(statement->name()));
   st_hash.erase(statement->id());
   return 1;
+}
+
+/**
+   Return the query id of a thread
+   @param thd user thread
+   @return query id
+*/
+extern "C" int64_t thd_get_query_id(const MYSQL_THD thd) {
+  return (thd->query_id);
 }
 
 Prepared_statement *Prepared_statement_map::find_by_name(

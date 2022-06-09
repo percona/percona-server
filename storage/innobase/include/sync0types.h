@@ -256,6 +256,8 @@ enum latch_level_t {
   SYNC_PAGE_ARCH_CLIENT,
   SYNC_LOG_ARCH,
 
+  SYNC_LOG_ONLINE,
+
   SYNC_PAGE_CLEANER,
   SYNC_TRX_SYS_HEADER,
   SYNC_TRX_SYS_SERIALISATION,
@@ -322,8 +324,6 @@ enum latch_level_t {
 
   SYNC_TRX_I_S_RWLOCK,
 
-  SYNC_RECV_WRITER,
-
   /** Level is varying. Only used with buffer pool page locks, which
   do not have a fixed level, but instead have their level set after
   the page is locked; see e.g.  ibuf_bitmap_get_map_page(). */
@@ -384,6 +384,7 @@ enum latch_id_t {
   LATCH_ID_LOG_WRITE_NOTIFIER,
   LATCH_ID_LOG_FLUSH_NOTIFIER,
   LATCH_ID_LOG_LIMITS,
+  LATCH_ID_LOG_ONLINE,
   LATCH_ID_LOG_FILES,
   LATCH_ID_LOG_GOVERNOR_MUTEX,
   LATCH_ID_PARSER,
@@ -489,6 +490,8 @@ struct OSMutex {
 
     ut_d(m_freed = false);
   }
+
+  OSMutex &operator=(const OSMutex &) = default;
 
   /** Destructor */
   ~OSMutex() = default;
@@ -1126,7 +1129,7 @@ struct dict_sync_check : public sync_check_functor_t {
         (level != SYNC_DICT && level != SYNC_UNDO_SPACES &&
          level != SYNC_FTS_CACHE && level != SYNC_DICT_OPERATION &&
          /* This only happens in recv_apply_hashed_log_recs. */
-         level != SYNC_RECV_WRITER && level != SYNC_NO_ORDER_CHECK)) {
+         level != SYNC_NO_ORDER_CHECK)) {
       m_result = true;
 #ifdef UNIV_NO_ERR_MSGS
       ib::error()

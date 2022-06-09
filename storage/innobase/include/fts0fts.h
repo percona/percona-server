@@ -790,6 +790,9 @@ extern ulint innobase_mysql_fts_get_token(
     const byte *start,     /*!< in: start of text */
     const byte *end,       /*!< in: one character past
                            end of text */
+    bool extra_word_chars, /*!< in: whether consider all
+                           non-whitespace characters to be
+                           word characters */
     fts_string_t *token);  /*!< out: token's text */
 
 /** Drop dd table & tablespace for fts aux table

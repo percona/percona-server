@@ -2754,6 +2754,58 @@ bool has_external_data_or_index_dir(partition_info &pi) {
 }
 
 /**
+   Fill output buffer with the name of the first partition / subpartition
+   found in the specified partition_info.
+
+   @param[in]  part_info       - Partition info.
+   @param[in]  normalized_path - Normalized path name of table and database
+   @param[out] first_name      - The name of the first partition.
+   Must be at least FN_REFLEN bytes long.
+
+   @return true - On failure.
+   @return false - On success.
+*/
+bool fill_first_partition_name(const partition_info *part_info,
+                               const char *normalized_path, char *first_name) {
+  // Do nothing if table is not partitioned.
+  if (!part_info) return false;
+
+  if (part_info->is_sub_partitioned()) {
+    // Traverse through all partitions.
+    List_iterator<partition_element> part_it(
+        const_cast<partition_info *>(part_info)->partitions);
+    partition_element *part_elem;
+    while ((part_elem = part_it++)) {
+      // Traverse through all subpartitions.
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      while ((sub_elem = sub_it++)) {
+        if (sub_elem->partition_name != nullptr) {
+          create_subpartition_name(first_name, normalized_path,
+                                   part_elem->partition_name,
+                                   sub_elem->partition_name);
+          return false;
+        }
+      }
+    }
+  } else {
+    // Traverse through all partitions.
+    List_iterator<partition_element> part_it(
+        const_cast<partition_info *>(part_info)->partitions);
+    partition_element *part_elem;
+    while ((part_elem = part_it++)) {
+      if (part_elem->partition_name != nullptr) {
+        create_partition_name(first_name, normalized_path,
+                              part_elem->partition_name, false);
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
   Fill the Tablespace_hash_set with the tablespace names
   used by the partitions on the table.
 

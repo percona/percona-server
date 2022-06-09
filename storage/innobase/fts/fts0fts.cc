@@ -1019,9 +1019,11 @@ static fts_tokenizer_word_t *fts_tokenizer_word_get(
 
   ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 
+  ut_ad(current_thd != nullptr);
   /* If it is a stopword, do not index it */
   if (!fts_check_token(text, cache->stopword_info.cached_stopword,
-                       index_cache->index->is_ngram, index_cache->charset)) {
+                       index_cache->index->is_ngram, index_cache->charset,
+                       thd_has_ft_ignore_stopwords(current_thd))) {
     return (nullptr);
   }
 
@@ -4499,11 +4501,16 @@ or greater than fts_max_token_size.
 @param[in]      stopwords       stopwords rb tree
 @param[in]      is_ngram        is ngram parser
 @param[in]      cs              token charset
+@param[in]      skip            true if the check should be skipped
 @retval true    if it is not stopword and length in range
 @retval false   if it is stopword or length not in range */
 bool fts_check_token(const fts_string_t *token, const ib_rbt_t *stopwords,
-                     bool is_ngram, const CHARSET_INFO *cs) {
+                     bool is_ngram, const CHARSET_INFO *cs, bool skip) {
   ut_ad(cs != nullptr || stopwords == nullptr);
+
+  if (skip) {
+    return (true);
+  }
 
   if (!is_ngram) {
     ib_rbt_bound_t parent;
@@ -4593,8 +4600,9 @@ static void fts_add_token(fts_doc_t *result_doc, fts_string_t str,
   /* Ignore string whose character number is less than
   "fts_min_token_size" or more than "fts_max_token_size" */
 
-  if (fts_check_token(&str, nullptr, result_doc->is_ngram,
-                      result_doc->charset)) {
+  ut_ad(current_thd != nullptr);
+  if (fts_check_token(&str, nullptr, result_doc->is_ngram, result_doc->charset,
+                      thd_has_ft_ignore_stopwords(current_thd))) {
     mem_heap_t *heap;
     fts_string_t t_str;
     fts_token_t *token;
@@ -4670,7 +4678,8 @@ static ulint fts_process_token(fts_doc_t *doc, fts_doc_t *result,
   /* The length of a string in characters is set here only. */
 
   ret = innobase_mysql_fts_get_token(doc->charset, doc->text.f_str + start_pos,
-                                     doc->text.f_str + doc->text.f_len, &str);
+                                     doc->text.f_str + doc->text.f_len, false,
+                                     &str);
 
   position = start_pos + ret - str.f_len + add_pos;
 
@@ -4725,10 +4734,10 @@ int fts_tokenize_document_internal(
   str.f_str = buf;
 
   for (ulint i = 0, inc = 0; i < static_cast<ulint>(len); i += inc) {
-    inc =
-        innobase_mysql_fts_get_token(const_cast<CHARSET_INFO *>(param->cs),
-                                     reinterpret_cast<byte *>(doc) + i,
-                                     reinterpret_cast<byte *>(doc) + len, &str);
+    inc = innobase_mysql_fts_get_token(const_cast<CHARSET_INFO *>(param->cs),
+                                       reinterpret_cast<byte *>(doc) + i,
+                                       reinterpret_cast<byte *>(doc) + len,
+                                       false, &str);
 
     if (str.f_len > 0) {
       bool_info.position = static_cast<int>(i + inc - str.f_len);

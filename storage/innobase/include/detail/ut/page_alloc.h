@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "storage/innobase/include/detail/ut/helper.h"
 #include "storage/innobase/include/detail/ut/page_metadata.h"
 #include "storage/innobase/include/detail/ut/pfs.h"
+#include "storage/innobase/include/os0populate.h"
 #include "storage/innobase/include/ut0log.h"
 
 namespace ut {
@@ -64,7 +65,7 @@ namespace detail {
     @param[in] n_bytes Size of storage (in bytes) requested to be allocated.
     @return Pointer to the allocated storage. nullptr if allocation failed.
 */
-inline void *page_aligned_alloc(size_t n_bytes) {
+inline void *page_aligned_alloc(size_t n_bytes, bool populate) {
 #ifdef _WIN32
   // With lpAddress set to nullptr, VirtualAlloc will internally round n_bytes
   // to the multiple of system page size if it is not already
@@ -75,21 +76,26 @@ inline void *page_aligned_alloc(size_t n_bytes) {
                                 << " bytes) failed;"
                                    " Windows error "
                                 << GetLastError();
+    return nullptr;
   }
-  return ptr;
 #else
   // With addr set to nullptr, mmap will internally round n_bytes to the
   // multiple of system page size if it is not already
-  void *ptr = mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANON, -1, 0);
+  void *ptr =
+      mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE,
+           MAP_PRIVATE | MAP_ANON | (populate ? OS_MAP_POPULATE : 0), -1, 0);
   if (unlikely(ptr == (void *)-1)) {
     ib::log_warn(ER_IB_MSG_856) << "page_aligned_alloc mmap(" << n_bytes
                                 << " bytes) failed;"
                                    " errno "
                                 << errno;
+    return nullptr;
   }
-  return (ptr != (void *)-1) ? ptr : nullptr;
 #endif
+
+  if (populate) prefault_if_not_map_populate(ptr, n_bytes);
+
+  return ptr;
 }
 
 /** Releases system page-aligned storage.
@@ -179,10 +185,10 @@ struct Page_alloc : public allocator_traits<false> {
       @param[in] size Size of storage (in bytes) requested to be allocated.
       @return Pointer to the allocated storage. nullptr if allocation failed.
    */
-  static inline void *alloc(std::size_t size) {
+  static inline void *alloc(std::size_t size, bool populate) {
     auto total_len = round_to_next_multiple(
         size + page_allocation_metadata::len, CPU_PAGE_SIZE);
-    auto mem = page_aligned_alloc(total_len);
+    auto mem = page_aligned_alloc(total_len, populate);
     if (unlikely(!mem)) return nullptr;
     page_allocation_metadata::datalen(mem, total_len);
     page_allocation_metadata::page_type(mem, Page_type::system_page);
@@ -307,11 +313,11 @@ struct Page_alloc_pfs : public allocator_traits<true> {
       @return Pointer to the allocated storage. nullptr if allocation failed.
     */
   static inline void *alloc(
-      std::size_t size,
+      std::size_t size, bool populate,
       page_allocation_metadata::pfs_metadata::pfs_memory_key_t key) {
     auto total_len = round_to_next_multiple(
         size + page_allocation_metadata::len, CPU_PAGE_SIZE);
-    auto mem = page_aligned_alloc(total_len);
+    auto mem = page_aligned_alloc(total_len, populate);
     if (unlikely(!mem)) return nullptr;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -434,13 +440,13 @@ template <typename Impl>
 struct Page_alloc_ {
   template <typename T = Impl>
   static inline typename std::enable_if<T::is_pfs_instrumented_v, void *>::type
-  alloc(size_t size, PSI_memory_key key) {
-    return Impl::alloc(size, key);
+  alloc(size_t size, bool populate, PSI_memory_key key) {
+    return Impl::alloc(size, populate, key);
   }
   template <typename T = Impl>
   static inline typename std::enable_if<!T::is_pfs_instrumented_v, void *>::type
-  alloc(size_t size, PSI_memory_key /*key*/) {
-    return Impl::alloc(size);
+  alloc(size_t size, bool populate, PSI_memory_key /*key*/) {
+    return Impl::alloc(size, populate);
   }
   static inline bool free(void *ptr) { return Impl::free(ptr); }
   static inline size_t datalen(void *ptr) { return Impl::datalen(ptr); }

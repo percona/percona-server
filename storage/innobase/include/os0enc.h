@@ -201,7 +201,7 @@ class Encryption {
   @return the string representation */
   [[nodiscard]] static const char *to_string(Type type) noexcept;
 
-  /** Check if the string is "empty" or "none".
+  /** Check if the string is "" or "n".
   @param[in]  algorithm  Encryption algorithm to check
   @return true if no algorithm requested */
   [[nodiscard]] static bool is_none(const char *algorithm) noexcept;
@@ -371,7 +371,7 @@ class Encryption {
                                 byte *tmp, ulint tmp_len) const noexcept;
 
   /** Check if keyring plugin loaded. */
-  static bool check_keyring() noexcept;
+  MY_NODISCARD static bool check_keyring() noexcept;
 
   /** Get encryption type
   @return encryption type **/

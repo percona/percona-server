@@ -741,7 +741,7 @@ class Clone_Snapshot {
   /** Check if state transition is in progress
   @return true during state transition */
   bool in_transit_state() const {
-    mutex_own(&m_snapshot_mutex);
+    ut_ad(mutex_own(&m_snapshot_mutex));
     return (m_snapshot_next_state != CLONE_SNAPSHOT_NONE);
   }
 

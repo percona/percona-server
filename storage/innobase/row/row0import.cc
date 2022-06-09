@@ -1418,7 +1418,9 @@ dberr_t row_import::match_schema(THD *thd,
               (DICT_TF_HAS_DATA_DIR(m_table->flags) ? "does" : "does not"));
     } else {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table flags don't match");
+              "Table flags don't match, server table has 0x%x "
+              "and the meta-data file has 0x%x",
+              m_table->flags, m_flags);
     }
     return (DB_ERROR);
   } else if (m_table->n_cols != m_n_cols - m_n_instant_drop_cols) {
@@ -4792,7 +4794,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
       return (row_import_error(prebuilt, trx, DB_TABLESPACE_NOT_FOUND));
     }
   } else {
-    ut_ad(space->flags == space_flags_from_disk);
+    ut_ad((space->flags & ~FSP_FLAGS_MASK_DATA_DIR) ==
+          (space_flags_from_disk & ~FSP_FLAGS_MASK_DATA_DIR));
   }
 
   if (dd_is_table_in_encrypted_tablespace(table)) {

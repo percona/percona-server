@@ -24,9 +24,12 @@
 #ifndef MYSQL_KEYRING_MEMORY_H
 #define MYSQL_KEYRING_MEMORY_H
 
-#include <mysql/plugin_keyring.h>
+#include <string.h>
 #include <limits>
 #include <memory>
+
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
 
 namespace keyring {
 
@@ -49,6 +52,54 @@ class Keyring_alloc {
   static void operator delete(void *ptr, std::size_t) { my_free(ptr); }
   static void operator delete[](void *ptr, std::size_t) { my_free(ptr); }
 };
+
+template <class T>
+class Secure_allocator {
+ public:
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
+  using pointer = T *;
+  using const_pointer = const T *;
+  using reference = T &;
+  using const_reference = const T &;
+  using value_type = T;
+
+  Secure_allocator() noexcept {}
+
+  template <class U>
+  Secure_allocator(const Secure_allocator<U> &) noexcept {}
+
+  T *allocate(size_t n) {
+    if (n == 0)
+      return nullptr;
+    else if (n > INT_MAX)
+      throw std::bad_alloc();
+    return keyring_malloc<T *>(n * sizeof(T));
+  }
+
+  void deallocate(T *p, size_t n) noexcept {
+    memset_s(p, n, 0, n);
+    my_free(p);
+  }
+
+  template <class U>
+  struct rebind {
+    typedef Secure_allocator<U> other;
+  };
+};
+
+template <typename T1, typename T2>
+bool operator==(const Secure_allocator<T1> &,
+                const Secure_allocator<T2> &) noexcept {
+  return true;
+}
+
+template <typename T1, typename T2>
+bool operator!=(const Secure_allocator<T1> &,
+                const Secure_allocator<T2> &) noexcept {
+  return false;
+}
+
 }  // namespace keyring
 
 #endif  // MYSQL_KEYRING_MEMORY_H

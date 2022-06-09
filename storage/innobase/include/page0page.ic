@@ -238,6 +238,7 @@ static inline ulint page_rec_get_heap_no(
  @return true if the page is a B-tree leaf (PAGE_LEVEL = 0) */
 static inline bool page_is_leaf(const page_t *page) /*!< in: page */
 {
+  if (!page) return false;
   return (!*(const uint16 *)(page + (PAGE_HEADER + PAGE_LEVEL)));
 }
 

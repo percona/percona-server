@@ -132,7 +132,7 @@ struct btr_pcur_t {
   @param[in]        latch_mode  Latch mode
   @param[in,out]        mtr                   Mini-transaction */
   void begin_leaf(dict_index_t *index, ulint latch_mode, mtr_t *mtr) {
-    open_at_side(true, index, latch_mode, false, 0, mtr);
+    return open_at_side(true, index, latch_mode, false, 0, mtr);
   }
 
   /** Opens an persistent cursor to an index tree without initializing

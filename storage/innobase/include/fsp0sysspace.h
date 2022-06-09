@@ -255,4 +255,5 @@ extern SysTablespace srv_sys_space;
 
 /** The control info of a temporary table shared tablespace. */
 extern SysTablespace srv_tmp_space;
+
 #endif /* fsp0sysspace_h */

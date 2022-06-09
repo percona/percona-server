@@ -3313,7 +3313,7 @@ int Protocol_classic::shutdown(bool) {
     m_thd->net.vio->thread_id = m_thd->real_id;
   }
 #endif /* USE_PPOLL_IN_VIO */
-  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
+  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio, SHUT_RDWR) : 0;
 }
 
 bool Protocol_classic::store_string(const char *from, size_t length,

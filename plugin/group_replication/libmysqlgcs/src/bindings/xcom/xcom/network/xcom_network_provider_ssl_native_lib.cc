@@ -55,6 +55,11 @@
 #include <openssl/engine.h>
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/evp.h>
+#include <openssl/provider.h>
+#endif
+
 #include "xcom/retry.h"
 #include "xcom/task_debug.h"
 #include "xcom/x_platform.h"

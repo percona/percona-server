@@ -192,3 +192,10 @@ component_test_execute_prepared_statement  plugin_output_directory  no  COMPONEN
 
 # component_test_execute_regular_statement
 component_test_execute_regular_statement  plugin_output_directory  no  COMPONENT_TEST_EXECUTE_REGULAR_STATEMENT
+
+# Percona additions
+auth_socket        plugin_output_directory  no  SOCKET_AUTH
+ha_rocksdb         plugin_output_directory  no  ROCKSDB         rocksdb,rocksdb_cfstats,rocksdb_dbstats,rocksdb_perf_context,rocksdb_perf_context_global,rocksdb_cf_options,rocksdb_compaction_history,rocksdb_compaction_stats,rocksdb_active_compaction_stats,rocksdb_global_info,rocksdb_ddl,rocksdb_index_file_map,rocksdb_locks,rocksdb_trx,rocksdb_deadlock,rocksdb_sst_props,rocksdb_live_files_metadata
+auth_pam           plugin_output_directory  no  AUTH_PAM
+auth_pam_compat    plugin_output_directory  no  AUTH_PAM_COMPAT
+keyring_vault      plugin_output_directory  no  KEYRING_VAULT_PLUGIN keyring_vault

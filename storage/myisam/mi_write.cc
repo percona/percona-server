@@ -1,3 +1,4 @@
+
 /*
    Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
@@ -829,10 +830,9 @@ static int keys_compare(const void *a, const void *b, const void *c) {
                     USE_WHOLE_KEY, SEARCH_SAME, not_used);
 }
 
-static void keys_free(void *v_key, TREE_FREE mode, const void *v_param) {
-  uchar *key = static_cast<uchar *>(v_key);
-  const bulk_insert_param *param =
-      static_cast<const bulk_insert_param *>(v_param);
+static void keys_free(void *key_, TREE_FREE mode, const void *param_) {
+  auto *key = static_cast<uchar *>(key_);
+  const auto *param = static_cast<const bulk_insert_param *>(param_);
   /*
     Probably I can use info->lastkey here, but I'm not sure,
     and to be safe I'd better use local lastkey.
@@ -847,20 +847,19 @@ static void keys_free(void *v_key, TREE_FREE mode, const void *v_param) {
         mysql_rwlock_wrlock(&param->info->s->key_root_lock[param->keynr]);
         param->info->s->keyinfo[param->keynr].version++;
       }
-      return;
+      break;
     case free_free:
       keyinfo = param->info->s->keyinfo + param->keynr;
       keylen = _mi_keylength(keyinfo, key);
       memcpy(lastkey, key, keylen);
       _mi_ck_write_btree(param->info, param->keynr, lastkey,
                          keylen - param->info->s->rec_reflength);
-      return;
+      break;
     case free_end:
       if (param->info->s->concurrent_insert)
         mysql_rwlock_unlock(&param->info->s->key_root_lock[param->keynr]);
-      return;
+      break;
   }
-  return;
 }
 
 int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows) {
@@ -906,8 +905,8 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows) {
       params->info = info;
       params->keynr = i;
       /* Only allocate a 16'th of the buffer at a time */
-      init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength, 0,
-                keys_compare, false, keys_free, params++);
+      init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength, false,
+                keys_compare, 0, keys_free, params++);
     } else
       info->bulk_insert[i].root = nullptr;
   }

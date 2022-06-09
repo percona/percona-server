@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2018, Percona and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -400,8 +401,8 @@ static int merge_many_buff(MI_SORT_PARAM *info, uint keys, uchar **sort_keys,
   from_file = t_file;
   to_file = &t_file2;
   while (*maxbuffer >= MERGEBUFF2) {
-    reinit_io_cache(from_file, READ_CACHE, 0L, false, false);
-    reinit_io_cache(to_file, WRITE_CACHE, 0L, false, false);
+    if (reinit_io_cache(from_file, READ_CACHE, 0L, false, false)) goto cleanup;
+    if (reinit_io_cache(to_file, WRITE_CACHE, 0L, false, false)) goto cleanup;
     lastbuff = buffpek;
     for (i = 0; i <= *maxbuffer - MERGEBUFF * 3 / 2; i += MERGEBUFF) {
       if (merge_buffers(info, keys, from_file, to_file, sort_keys, lastbuff++,
@@ -447,10 +448,10 @@ static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
   uint count;
   uint length;
 
-  if ((count = std::min<ha_rows>(buffpek->max_keys, buffpek->count))) {
-    if (mysql_file_pread(fromfile->file, (uchar *)buffpek->base,
-                         (length = sort_length * count), buffpek->file_pos,
-                         MYF_RW))
+  if ((count = (uint)std::min<ha_rows>(buffpek->max_keys, buffpek->count))) {
+    if (mysql_encryption_file_pread(fromfile, (uchar *)buffpek->base,
+                                    (length = sort_length * count),
+                                    buffpek->file_pos, MYF_RW))
       return ((uint)-1); /* purecov: inspected */
     buffpek->key = buffpek->base;
     buffpek->file_pos += length; /* New filepos */
@@ -471,12 +472,13 @@ static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
     buffp = buffpek->base;
 
     for (idx = 1; idx <= count; idx++) {
-      if (mysql_file_pread(fromfile->file, (uchar *)&length_of_key,
-                           sizeof(length_of_key), buffpek->file_pos, MYF_RW))
+      if (mysql_encryption_file_pread(fromfile, (uchar *)&length_of_key,
+                                      sizeof(length_of_key), buffpek->file_pos,
+                                      MYF_RW))
         return ((uint)-1);
       buffpek->file_pos += sizeof(length_of_key);
-      if (mysql_file_pread(fromfile->file, (uchar *)buffp, length_of_key,
-                           buffpek->file_pos, MYF_RW))
+      if (mysql_encryption_file_pread(fromfile, (uchar *)buffp, length_of_key,
+                                      buffpek->file_pos, MYF_RW))
         return ((uint)-1);
       buffpek->file_pos += length_of_key;
       buffp = buffp + sort_length;

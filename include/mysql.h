@@ -29,7 +29,7 @@
 /**
   @file include/mysql.h
   This file defines the client API to MySQL and also the ABI of the
-  dynamically linked libmysqlclient.
+  dynamically linked libperconaserverclient.
 
   The ABI should never be changed in a released product of MySQL,
   thus you need to take great care when changing the file. In case
@@ -422,12 +422,13 @@ void STDCALL mysql_server_end(void);
 
 /*
   mysql_server_init/end need to be called when using libmysqld or
-  libmysqlclient (exactly, mysql_server_init() is called by mysql_init() so
-  you don't need to call it explicitly; but you need to call
+  libperconaserverclient (exactly, mysql_server_init() is called by
+  mysql_init() so you don't need to call it explicitly; but you need to call
   mysql_server_end() to free memory). The names are a bit misleading
   (mysql_SERVER* to be used when using libmysqlCLIENT). So we add more general
-  names which suit well whether you're using libmysqld or libmysqlclient. We
-  intend to promote these aliases over the mysql_server* ones.
+  names which suit well whether you're using libmysqld or
+  libperconaserverclient. We intend to promote these aliases over the
+  mysql_server* ones.
 */
 #define mysql_library_init mysql_server_init
 #define mysql_library_end mysql_server_end

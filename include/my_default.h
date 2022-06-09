@@ -33,6 +33,11 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
+/**
+   First mysql version supporting compressed columns.
+*/
+#define FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION 50633
+
 struct MEM_ROOT;
 
 extern const char *my_defaults_extra_file;

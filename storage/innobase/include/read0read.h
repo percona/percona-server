@@ -51,6 +51,10 @@ class MVCC {
   Free all the views in the m_free list */
   ~MVCC();
 
+  /** Insert the view in the proper order into the view list.
+  @param	view	view to add */
+  void view_add(const ReadView *view);
+
   /** Allocate and create a view.
   @param view   View owned by this class created for the caller. Must be
   freed by calling view_close()
@@ -108,6 +112,8 @@ class MVCC {
   /**
   Validates a read view list. */
   bool validate() const;
+
+  friend class ReadView;
 
   /**
   Find a free view from the active list, if none found then allocate

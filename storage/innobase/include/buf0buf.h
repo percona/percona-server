@@ -173,6 +173,8 @@ struct buf_pool_info_t {
   ulint pool_unique_id;
   /** Buffer Pool size in pages */
   ulint pool_size;
+  /** Buffer Pool size in bytes */
+  ulint pool_size_bytes;
   /** Length of buf_pool->LRU */
   ulint lru_len;
   /** buf_pool->LRU_old_len */
@@ -255,9 +257,10 @@ struct buf_pools_list_size_t {
 #ifndef UNIV_HOTBACKUP
 /** Creates the buffer pool.
 @param[in]  total_size    Size of the total pool in bytes.
+@param[in]  populate      Force virtual page preallocation
 @param[in]  n_instances   Number of buffer pool instances to create.
 @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
-dberr_t buf_pool_init(ulint total_size, ulint n_instances);
+dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances);
 
 /** Frees the buffer pool at shutdown.  This must not be invoked before
  freeing all mutexes. */
@@ -571,7 +574,7 @@ static inline lsn_t buf_page_get_newest_modification(
 
 /** Increment the modify clock.
 The caller must
-(1) own the buf_pool->mutex and block bufferfix count has to be zero,
+(1) own the buffer block mutex and block bufferfix count has to be zero,
 (2) own X or SX latch on the block->lock, or
 (3) operate on a thread-private temporary table
 @param[in,out]  block   buffer block */
@@ -1194,7 +1197,8 @@ class buf_page_t {
         m_version(other.m_version),
         access_time(other.access_time),
         m_dblwr_id(other.m_dblwr_id),
-        old(other.old)
+        old(other.old),
+        is_corrupt(other.is_corrupt)
 #ifdef UNIV_DEBUG
         ,
         file_page_was_freed(other.file_page_was_freed),
@@ -1380,6 +1384,9 @@ class buf_page_t {
 
   /** Set page to clean state. */
   void set_clean() noexcept { set_oldest_lsn(0); }
+
+  /** Set page to clean state (used in buf_page_init_low()). */
+  void set_clean_low() noexcept { oldest_modification = 0; }
 
   /** @name General fields
   None of these bit-fields must be modified without holding
@@ -1701,6 +1708,7 @@ class buf_page_t {
   /** true if the block is in the old blocks in buf_pool->LRU_old */
   bool old;
 
+  bool is_corrupt;
 #ifdef UNIV_DEBUG
   /** This is set to true when fsp frees a page in buffer pool;
   protected by buf_pool->zip_mutex or buf_block_t::mutex. */
@@ -2228,6 +2236,8 @@ struct buf_pool_stat_t {
   /** Flush_list size in bytes.  Protected by flush_list_mutex */
   uint64_t flush_list_bytes;
 
+  ulint buf_lru_flush_page_count;
+
   static void copy(buf_pool_stat_t &dst, const buf_pool_stat_t &src) noexcept {
     Counter::copy(dst.m_n_page_gets, src.m_n_page_gets);
 
@@ -2250,6 +2260,8 @@ struct buf_pool_stat_t {
     dst.LRU_bytes = src.LRU_bytes;
 
     dst.flush_list_bytes = src.flush_list_bytes;
+
+    dst.buf_lru_flush_page_count = src.buf_lru_flush_page_count;
   }
 
   void reset() {
@@ -2265,6 +2277,7 @@ struct buf_pool_stat_t {
     n_pages_not_made_young = 0;
     LRU_bytes = 0;
     flush_list_bytes = 0;
+    buf_lru_flush_page_count = 0;
   }
 };
 
@@ -2518,8 +2531,9 @@ struct buf_pool_t {
   @param[in]      mem_size  number of bytes to allocate
   @param[in,out]  chunk     mem and mem_pfx fields of this chunk will be updated
                             to contain information about allocated memory region
+  @param[in]      populate  virtual page prealloation
   @return true iff allocated successfully */
-  bool allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk);
+  bool allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk, bool populate);
 
   /** A wrapper for buf_pool_t::allocator.deallocate_large which also advices
   the OS that this chunk can be dumped to a core file.

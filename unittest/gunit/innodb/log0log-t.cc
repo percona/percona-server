@@ -246,7 +246,7 @@ static bool log_test_recovery() {
     EXPECT_EQ(nullptr, ret);
 
   } else {
-    srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
+    srv_shutdown_state.store(SRV_SHUTDOWN_FLUSH_PHASE);
   }
 
   stop_flushing = true;

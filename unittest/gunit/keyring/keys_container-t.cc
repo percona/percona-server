@@ -28,6 +28,7 @@
 #include "my_inttypes.h"
 #include "plugin/keyring/buffered_file_io.h"
 #include "plugin/keyring/common/i_serialized_object.h"
+#include "plugin/keyring/common/keyring.h"
 #include "plugin/keyring/common/keys_container.h"
 #include "unittest/gunit/keyring/buffered_file_io_10.h"
 #include "unittest/gunit/keyring/mock_logger.h"
@@ -301,6 +302,433 @@ TEST_F(Keys_container_test, StoreStoreStoreFetchRemove) {
   ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
 
   my_free(fetched_key->release_key_data());
+}
+
+TEST_F(Keys_container_test,
+       StorePBStorePBStorePBStoreIK1StoreIK2FetchPBFetchIK) {
+  IKeyring_io *keyring_io = new Buffered_file_io(logger);
+  EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+
+  std::string key_data1("system_key_data_1");
+  Key *key1 = new Key("percona_binlog:0", "AES", nullptr, key_data1.c_str(),
+                      key_data1.length() + 1);
+  key1->xor_data();
+  EXPECT_EQ(keys_container->store_key(key1), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
+
+  std::string key_data2("system_key_data_2");
+  Key *key2 = new Key("percona_binlog:1", "AES", nullptr, key_data2.c_str(),
+                      key_data2.length() + 1);
+  key2->xor_data();
+  EXPECT_EQ(keys_container->store_key(key2), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
+
+  std::string key_data3("system_key_data_3");
+  Key *key3 = new Key("percona_binlog:2", "AES", nullptr, key_data3.c_str(),
+                      key_data3.length() + 1);
+  key3->xor_data();
+  EXPECT_EQ(keys_container->store_key(key3), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
+
+  std::string ik_data1("data1");
+
+  Key *innodb_key1 = new Key("percona_innodb1_2_3:0:0", "AES", nullptr,
+                             ik_data1.c_str(), ik_data1.length() + 1);
+  innodb_key1->xor_data();
+  EXPECT_EQ(keys_container->store_key(innodb_key1), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 4);
+
+  std::string ik_data2("data2");
+
+  Key *innodb_key2 = new Key("percona_innodb1_2_3:0:1", "AES", nullptr,
+                             ik_data2.c_str(), ik_data2.length() + 1);
+  innodb_key2->xor_data();
+  EXPECT_EQ(keys_container->store_key(innodb_key2), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 5);
+
+  Key latest_percona_binlog_key("percona_binlog", nullptr, nullptr, nullptr, 0);
+  IKey *fetched_key = keys_container->fetch_key(&latest_percona_binlog_key);
+  ASSERT_TRUE(fetched_key != nullptr);
+
+  Key key(fetched_key->get_key_id()->c_str(),
+          fetched_key->get_key_type_as_string()->c_str(),
+          fetched_key->get_user_id()->c_str(), fetched_key->get_key_data(),
+          fetched_key->get_key_data_size());
+  key.xor_data();
+
+  std::string expected_key_signature = "percona_binlog";
+  EXPECT_STREQ(key.get_key_signature()->c_str(),
+               expected_key_signature.c_str());
+  EXPECT_EQ(key.get_key_signature()->length(), expected_key_signature.length());
+  uchar *key_data_fetched = key.get_key_data();
+  size_t key_data_fetched_size = key.get_key_data_size();
+  std::string key_data_with_version = "2:" + key_data3;
+  EXPECT_STREQ(key_data_with_version.c_str(),
+               reinterpret_cast<const char *>(key_data_fetched));
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
+  ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
+
+  Key latest_innodb_key("percona_innodb1_2_3:0", nullptr, nullptr, nullptr, 0);
+  IKey *fetched_innodb_key = keys_container->fetch_key(&latest_innodb_key);
+  ASSERT_TRUE(fetched_innodb_key != nullptr);
+
+  Key innodb_key(fetched_innodb_key->get_key_id()->c_str(),
+                 fetched_innodb_key->get_key_type_as_string()->c_str(),
+                 fetched_innodb_key->get_user_id()->c_str(),
+                 fetched_innodb_key->get_key_data(),
+                 fetched_innodb_key->get_key_data_size());
+  innodb_key.xor_data();
+
+  expected_key_signature = "percona_innodb1_2_3:0";
+  EXPECT_STREQ(innodb_key.get_key_signature()->c_str(),
+               expected_key_signature.c_str());
+  EXPECT_EQ(innodb_key.get_key_signature()->length(),
+            expected_key_signature.length());
+  key_data_fetched = innodb_key.get_key_data();
+  key_data_fetched_size = innodb_key.get_key_data_size();
+  key_data_with_version = "1:" + ik_data2;
+  EXPECT_STREQ(key_data_with_version.c_str(),
+               reinterpret_cast<const char *>(key_data_fetched));
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
+  ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
+
+  my_free(fetched_key->release_key_data());
+  my_free(fetched_innodb_key->release_key_data());
+
+  delete sample_key;  // unused in this test
+}
+
+TEST_F(Keys_container_test,
+       StorePBRotatePBFetchPBStoreSKRotatePBFetchPBRotateSKFetchSK) {
+  IKeyring_io *keyring_io = new Buffered_file_io(logger);
+  EXPECT_EQ(keys_container->init(keyring_io, file_name), false);
+
+  std::string key_data1("system_key_data_1");
+  Key *key1 = new Key("percona_binlog:0", "AES", nullptr, key_data1.c_str(),
+                      key_data1.length() + 1);
+  key1->xor_data();
+
+  EXPECT_EQ(keys_container->store_key(key1), false);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
+
+  std::string key_data2("system_key_data_2");
+  Key *percona_binlog_rotation =
+      new Key("percona_binlog", "AES", nullptr, key_data2.c_str(),
+              key_data2.length() + 1);
+  percona_binlog_rotation->xor_data();
+  EXPECT_EQ(keys_container->store_key(percona_binlog_rotation), false);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
+
+  Key latest_percona_binlog_key("percona_binlog", nullptr, nullptr, nullptr, 0);
+  IKey *fetched_key = keys_container->fetch_key(&latest_percona_binlog_key);
+
+  ASSERT_TRUE(fetched_key != nullptr);
+
+  Key key(fetched_key->get_key_id()->c_str(),
+          fetched_key->get_key_type_as_string()->c_str(),
+          fetched_key->get_user_id()->c_str(), fetched_key->get_key_data(),
+          fetched_key->get_key_data_size());
+  key.xor_data();
+
+  std::string expected_key_signature = "percona_binlog";
+  EXPECT_STREQ(key.get_key_signature()->c_str(),
+               expected_key_signature.c_str());
+  EXPECT_EQ(key.get_key_signature()->length(), expected_key_signature.length());
+  uchar *key_data_fetched = key.get_key_data();
+  size_t key_data_fetched_size = key.get_key_data_size();
+  std::string key_data_with_version = "1:" + key_data2;
+  EXPECT_STREQ(key_data_with_version.c_str(),
+               reinterpret_cast<const char *>(key_data_fetched));
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
+  ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
+
+  std::string sk_data1("sk_data_1");
+  Key *sys_key1 = new Key("percona_sk:0", "AES", nullptr, sk_data1.c_str(),
+                          sk_data1.length() + 1);
+  sys_key1->xor_data();
+
+  EXPECT_EQ(keys_container->store_key(sys_key1), false);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
+
+  std::string key_data3("system_key_data_3");
+  Key *percona_binlog_rotation1_to_2 =
+      new Key("percona_binlog", "AES", nullptr, key_data3.c_str(),
+              key_data3.length() + 1);
+  percona_binlog_rotation1_to_2->xor_data();
+  EXPECT_EQ(keys_container->store_key(percona_binlog_rotation1_to_2), false);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 4);
+
+  Key latest_percona_binlog_key_2("percona_binlog", nullptr, nullptr, nullptr,
+                                  0);
+  IKey *fetched_key_2 = keys_container->fetch_key(&latest_percona_binlog_key_2);
+
+  ASSERT_TRUE(fetched_key_2 != nullptr);
+
+  Key key_2(fetched_key_2->get_key_id()->c_str(),
+            fetched_key_2->get_key_type_as_string()->c_str(),
+            fetched_key_2->get_user_id()->c_str(),
+            fetched_key_2->get_key_data(), fetched_key_2->get_key_data_size());
+  key_2.xor_data();
+
+  EXPECT_STREQ(key_2.get_key_signature()->c_str(),
+               expected_key_signature.c_str());
+  EXPECT_EQ(key_2.get_key_signature()->length(),
+            expected_key_signature.length());
+  key_data_fetched = key_2.get_key_data();
+  key_data_fetched_size = key_2.get_key_data_size();
+  key_data_with_version = "2:" + key_data3;
+  EXPECT_STREQ(key_data_with_version.c_str(),
+               reinterpret_cast<const char *>(key_data_fetched));
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
+  ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
+
+  std::string key_data4("system_key_data_4");
+  Key *percona_binlog_rotation2_to_3 =
+      new Key("percona_binlog", "AES", nullptr, key_data4.c_str(),
+              key_data4.length() + 1);
+  percona_binlog_rotation2_to_3->xor_data();
+  EXPECT_EQ(keys_container->store_key(percona_binlog_rotation2_to_3), false);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 5);
+
+  Key latest_percona_binlog_key_3("percona_binlog", nullptr, nullptr, nullptr,
+                                  0);
+  IKey *fetched_key_3 = keys_container->fetch_key(&latest_percona_binlog_key_3);
+
+  ASSERT_TRUE(fetched_key_3 != nullptr);
+
+  Key key_3(fetched_key_3->get_key_id()->c_str(),
+            fetched_key_3->get_key_type_as_string()->c_str(),
+            fetched_key_3->get_user_id()->c_str(),
+            fetched_key_3->get_key_data(), fetched_key_3->get_key_data_size());
+  key_3.xor_data();
+
+  EXPECT_STREQ(key_3.get_key_signature()->c_str(),
+               expected_key_signature.c_str());
+  EXPECT_EQ(key_3.get_key_signature()->length(),
+            expected_key_signature.length());
+  key_data_fetched = key_3.get_key_data();
+  key_data_fetched_size = key_3.get_key_data_size();
+  key_data_with_version = "3:" + key_data4;
+  EXPECT_STREQ(key_data_with_version.c_str(),
+               reinterpret_cast<const char *>(key_data_fetched));
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
+  ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
+
+  std::string sk_data2("sk_data_2");
+  Key *percona_sk_rotation1_to_2 = new Key(
+      "percona_sk", "AES", nullptr, sk_data2.c_str(), sk_data2.length() + 1);
+  percona_sk_rotation1_to_2->xor_data();
+  EXPECT_EQ(keys_container->store_key(percona_sk_rotation1_to_2), false);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 6);
+
+  Key latest_sk("percona_sk", nullptr, nullptr, nullptr, 0);
+  IKey *fetched_sk = keys_container->fetch_key(&latest_sk);
+
+  ASSERT_TRUE(fetched_sk != nullptr);
+
+  Key sk(fetched_sk->get_key_id()->c_str(),
+         fetched_sk->get_key_type_as_string()->c_str(),
+         fetched_sk->get_user_id()->c_str(), fetched_sk->get_key_data(),
+         fetched_sk->get_key_data_size());
+  sk.xor_data();
+
+  expected_key_signature = "percona_sk";
+  EXPECT_STREQ(sk.get_key_signature()->c_str(), expected_key_signature.c_str());
+  EXPECT_EQ(sk.get_key_signature()->length(), expected_key_signature.length());
+  key_data_fetched = sk.get_key_data();
+  key_data_fetched_size = sk.get_key_data_size();
+  key_data_with_version = "1:" + sk_data2;
+  EXPECT_STREQ(key_data_with_version.c_str(),
+               reinterpret_cast<const char *>(key_data_fetched));
+  EXPECT_STREQ("AES", fetched_sk->get_key_type_as_string()->c_str());
+  ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
+
+  my_free(fetched_key->release_key_data());
+  my_free(fetched_key_2->release_key_data());
+  my_free(fetched_key_3->release_key_data());
+  my_free(fetched_sk->release_key_data());
+
+  delete sample_key;  // unused in this test
+}
+
+TEST_F(Keys_container_test, StoreStoreStoreSystemKeyAndTryRemovingSystemKey) {
+  IKeyring_io *keyring_io = new Buffered_file_io(logger);
+  EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+
+  std::string key_data1("system_key_data_1");
+  Key *key1 = new Key("percona_binlog:0", "AES", nullptr, key_data1.c_str(),
+                      key_data1.length() + 1);
+
+  EXPECT_EQ(keys_container->store_key(key1), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
+
+  std::string key_data2("system_key_data_2");
+  Key *key2 = new Key("percona_binlog:1", "AES", nullptr, key_data2.c_str(),
+                      key_data2.length() + 1);
+  EXPECT_EQ(keys_container->store_key(key2), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
+
+  std::string key_data3("system_key_data_3");
+  Key *key3 = new Key("percona_binlog:2", "AES", nullptr, key_data3.c_str(),
+                      key_data3.length() + 1);
+  EXPECT_EQ(keys_container->store_key(key3), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
+
+  Key latest_percona_binlog_key("percona_binlog:2", nullptr, nullptr, nullptr,
+                                0);
+  ASSERT_TRUE(keys_container->remove_key(&latest_percona_binlog_key) == true);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
+
+  Key percona_binlog_key("percona_binlog", nullptr, nullptr, nullptr, 0);
+  ASSERT_TRUE(keys_container->remove_key(&percona_binlog_key) == true);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
+
+  delete sample_key;  // unused in this test
+}
+
+TEST_F(Keys_container_test,
+       StoreStoreStoreRemoveFetchSystemKeyFetchRegularKey) {
+  IKeyring_io *keyring_io = new Buffered_file_io(logger);
+  EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+
+  std::string key_data1("system_key_data_1");
+  Key *key1 = new Key("percona_binlog:0", "AES", nullptr, key_data1.c_str(),
+                      key_data1.length() + 1);
+
+  EXPECT_EQ(keys_container->store_key(key1), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
+
+  std::string key_data2("system_key_data_2");
+  Key *key2 = new Key("percona_binlog:1", "AES", nullptr, key_data2.c_str(),
+                      key_data2.length() + 1);
+  key2->xor_data();
+  EXPECT_EQ(keys_container->store_key(key2), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
+
+  std::string key_data3("Robi3");
+  Key *key3 = new Key("Roberts_key3", "AES", "Robert", key_data3.c_str(),
+                      key_data3.length() + 1);
+  EXPECT_EQ(keys_container->store_key(key3), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
+
+  std::string key_data4("Robi4");
+  Key *key4 = new Key("Roberts_key4", "AES", "Robert", key_data4.c_str(),
+                      key_data4.length() + 1);
+  EXPECT_EQ(keys_container->store_key(key4), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 4);
+
+  Key key3_id("Roberts_key3", "AES", "Robert", nullptr, 0);
+  keys_container->remove_key(&key3_id);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
+
+  Key latest_percona_binlog_key("percona_binlog", nullptr, nullptr, nullptr, 0);
+  IKey *fetched_key = keys_container->fetch_key(&latest_percona_binlog_key);
+
+  ASSERT_TRUE(fetched_key != nullptr);
+
+  Key key(fetched_key->get_key_id()->c_str(),
+          fetched_key->get_key_type_as_string()->c_str(),
+          fetched_key->get_user_id()->c_str(), fetched_key->get_key_data(),
+          fetched_key->get_key_data_size());
+  key.xor_data();
+
+  std::string expected_key_signature = "percona_binlog";
+  EXPECT_STREQ(key.get_key_signature()->c_str(),
+               expected_key_signature.c_str());
+  EXPECT_EQ(key.get_key_signature()->length(), expected_key_signature.length());
+  uchar *key_data_fetched = key.get_key_data();
+  size_t key_data_fetched_size = key.get_key_data_size();
+  std::string key_data_with_version = "1:" + key_data2;
+  EXPECT_STREQ(key_data_with_version.c_str(),
+               reinterpret_cast<const char *>(key_data_fetched));
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
+  ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
+
+  my_free(fetched_key->release_key_data());
+
+  Key regular_key("Roberts_key4", nullptr, "Robert", nullptr, 0);
+  IKey *fetched_regular_key = keys_container->fetch_key(&regular_key);
+
+  ASSERT_TRUE(fetched_regular_key != nullptr);
+  std::string expected_regular_key_signature = "Roberts_key4Robert";
+  EXPECT_STREQ(fetched_regular_key->get_key_signature()->c_str(),
+               expected_regular_key_signature.c_str());
+  EXPECT_EQ(fetched_regular_key->get_key_signature()->length(),
+            expected_regular_key_signature.length());
+  uchar *regular_key_data_fetched = fetched_regular_key->get_key_data();
+  size_t regular_key_data_fetched_size =
+      fetched_regular_key->get_key_data_size();
+  EXPECT_STREQ(key_data4.c_str(),
+               reinterpret_cast<const char *>(regular_key_data_fetched));
+  ASSERT_TRUE(key_data4.length() + 1 == regular_key_data_fetched_size);
+
+  my_free(fetched_regular_key->release_key_data());
+  delete sample_key;  // unused in this test
+}
+
+TEST_F(Keys_container_test, StoreFetchSystemKey) {
+  IKeyring_io *keyring_io = new Buffered_file_io(logger);
+  EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+
+  std::string key_data1("system_key_data_1");
+  Key *key1 = new Key("percona_binlog:0", "AES", nullptr, key_data1.c_str(),
+                      key_data1.length() + 1);
+
+  EXPECT_EQ(keys_container->store_key(key1), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
+
+  Key pb_key_verion0("percona_binlog:0", nullptr, nullptr, nullptr, 0);
+  IKey *fetched_pb_key_version0 = keys_container->fetch_key(&pb_key_verion0);
+
+  ASSERT_TRUE(fetched_pb_key_version0 != nullptr);
+  std::string expected_pb_key_version0_signature = "percona_binlog:0";
+  EXPECT_STREQ(fetched_pb_key_version0->get_key_signature()->c_str(),
+               expected_pb_key_version0_signature.c_str());
+  EXPECT_EQ(fetched_pb_key_version0->get_key_signature()->length(),
+            expected_pb_key_version0_signature.length());
+  uchar *fetched_pb_key_version0_data_fetched =
+      fetched_pb_key_version0->get_key_data();
+  size_t fetched_pb_key_data_fetched_size =
+      fetched_pb_key_version0->get_key_data_size();
+  EXPECT_STREQ(key_data1.c_str(), reinterpret_cast<const char *>(
+                                      fetched_pb_key_version0_data_fetched));
+  ASSERT_TRUE(key_data1.length() + 1 == fetched_pb_key_data_fetched_size);
+
+  my_free(fetched_pb_key_version0->release_key_data());
+  delete sample_key;  // unused in this test
+}
+
+// Simulates adding 0 version of percona binlog key
+TEST_F(Keys_container_test, StoreWithoutVersionFetchSystemKey) {
+  IKeyring_io *keyring_io = new Buffered_file_io(logger);
+  EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+
+  std::string key_data1("system_key_data_1");
+  Key *key1 = new Key("percona_binlog", "AES", nullptr, key_data1.c_str(),
+                      key_data1.length() + 1);
+
+  EXPECT_EQ(keys_container->store_key(key1), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
+
+  Key pb_key_verion0("percona_binlog:0", nullptr, nullptr, nullptr, 0);
+  IKey *fetched_pb_key_version0 = keys_container->fetch_key(&pb_key_verion0);
+
+  ASSERT_TRUE(fetched_pb_key_version0 != nullptr);
+  std::string expected_pb_key_version0_signature = "percona_binlog:0";
+  EXPECT_STREQ(fetched_pb_key_version0->get_key_signature()->c_str(),
+               expected_pb_key_version0_signature.c_str());
+  EXPECT_EQ(fetched_pb_key_version0->get_key_signature()->length(),
+            expected_pb_key_version0_signature.length());
+  uchar *fetched_pb_key_version0_data_fetched =
+      fetched_pb_key_version0->get_key_data();
+  size_t fetched_pb_key_data_fetched_size =
+      fetched_pb_key_version0->get_key_data_size();
+  EXPECT_STREQ(key_data1.c_str(), reinterpret_cast<const char *>(
+                                      fetched_pb_key_version0_data_fetched));
+  ASSERT_TRUE(key_data1.length() + 1 == fetched_pb_key_data_fetched_size);
+
+  my_free(fetched_pb_key_version0->release_key_data());
+  delete sample_key;  // unused in this test
 }
 
 TEST_F(Keys_container_test, StoreTwiceTheSame) {
@@ -823,7 +1251,7 @@ TEST_F(
 
 class Mock_keyring_io : public IKeyring_io {
  public:
-  MOCK_METHOD1(init, bool(std::string *keyring_filename));
+  MOCK_METHOD1(init, bool(const std::string *keyring_filename));
   MOCK_METHOD1(flush_to_backup, bool(ISerialized_object *serialized_object));
   MOCK_METHOD1(flush_to_storage, bool(ISerialized_object *serialized_object));
   MOCK_METHOD0(get_serializer, ISerializer *());
@@ -1479,4 +1907,68 @@ TEST_F(Keys_container_with_mocked_io_test, Store2KeysAndRemoveThem) {
   delete mock_serializer;
 }
 
+class Mock_system_keys_container : public ISystem_keys_container {
+ public:
+  MOCK_METHOD1(get_latest_key_if_system_key_without_version, IKey *(IKey *key));
+  MOCK_METHOD1(store_or_update_if_system_key_with_version, void(IKey *key));
+  MOCK_METHOD1(rotate_key_id_if_system_key_without_version, bool(IKey *key));
+  MOCK_METHOD1(is_system_key, bool(IKey *key));
+};
+
+class Keys_container_with_system_keys_container_setter : public Keys_container {
+ public:
+  Keys_container_with_system_keys_container_setter(ILogger *logger_value)
+      : Keys_container(logger_value) {}
+  void set_system_keys_container(
+      ISystem_keys_container *system_keys_container_value) {
+    this->system_keys_container.reset(system_keys_container_value);
+  }
+};
+
+class Keys_container_with_mocked_system_keys_container_test
+    : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
+    std::string sample_key_data("Robi");
+    sample_key = new Key("Roberts_key", "AES", "Robert",
+                         sample_key_data.c_str(), sample_key_data.length() + 1);
+
+    file_name = "./write_key";
+  }
+  virtual void TearDown() { remove(file_name.c_str()); }
+
+ protected:
+  Key *sample_key;
+  char *sample_key_data;
+  std::string file_name;
+};
+
+TEST_F(Keys_container_with_mocked_system_keys_container_test,
+       ErrorFromRotateKeyWhenStoringKey) {
+  Mock_logger *logger = new Mock_logger();
+  Keys_container_with_system_keys_container_setter *keys_container =
+      new Keys_container_with_system_keys_container_setter(logger);
+  IKeyring_io *keyring_io = new Buffered_file_io(logger);
+  Mock_system_keys_container *system_keys_container =
+      new Mock_system_keys_container;
+  keys_container->set_system_keys_container(system_keys_container);
+  EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
+
+  EXPECT_CALL(*system_keys_container,
+              rotate_key_id_if_system_key_without_version(sample_key))
+      .WillOnce(Return(true));  // error on key rotation
+  EXPECT_EQ(keys_container->store_key(sample_key), 1);
+  ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
+
+  delete logger;
+  delete sample_key;
+  delete keys_container;
+}
+
+int main(int argc, char **argv) {
+  if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring)) return true;
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
 }  // namespace keyring__keys_container_unittest

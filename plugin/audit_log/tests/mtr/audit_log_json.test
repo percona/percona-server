@@ -1,0 +1,45 @@
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $MYSQLD_DATADIR/test_audit.log
+SET GLOBAL audit_log_flush=ON;
+
+--let $test_control_chars=1;
+--source audit_log_events.inc
+
+--move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_json.log
+set global audit_log_flush= ON;
+perl;
+  eval "use JSON qw(decode_json); 1" or exit 0;
+  open my $file, $ENV{'MYSQLD_DATADIR'} . '/test_audit_json.log' or die "Could not open log: $!";
+  my $found_1st_control_char = 0;
+  my $last_control_char = 0;
+  my $control_char_count = 0;
+  while (my $line = <$file>) {
+      my $json = decode_json($line);
+      my $entry_type = $json->{audit_record}->{name};
+      if($entry_type eq "Query") {
+          my $query = $json->{audit_record}->{sqltext};
+          my @query_chars = sort($query =~ /./sg);
+          my $minimum_character = ord($query_chars[0]);
+          if ($minimum_character == 1) {
+              $found_1st_control_char = 1;
+          }
+          if ($found_1st_control_char && $control_char_count < 31) {
+              $control_char_count = $control_char_count + 1;
+              my $expected = $last_control_char + 1;
+              if ($expected != $minimum_character) {
+                   print "Incorrect control character in output: Expected $expected, got $minimum_character\n";
+                   exit l;
+              }
+              $last_control_char = $minimum_character;
+          }
+      }
+  }
+  if ($control_char_count != 31) {
+      print "Missing control characters from the output. Expected 31, got $control_char_count\n";
+      exit 2;
+  }
+  close $file;
+EOF

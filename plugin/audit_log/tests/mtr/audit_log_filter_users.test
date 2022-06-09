@@ -1,0 +1,86 @@
+# setup some user accounts
+
+CREATE USER 'user1'@'127.0.0.1' IDENTIFIED BY 'password1';
+CREATE USER 'user22'@'%' IDENTIFIED BY 'password1';
+CREATE USER '22user'@'LOCALHOST' IDENTIFIED BY 'password1';
+CREATE USER 'admin'@'%' IDENTIFIED BY 'password1';
+CREATE USER 'us,er1'@'localhost' IDENTIFIED BY 'password1';
+
+# test set/unset filters
+
+SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_accounts= '22useer@localhost';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_accounts= NULL;
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+SET GLOBAL audit_log_include_accounts= 'user1@localhost, user2@localhost, user3@localhost';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+SET GLOBAL audit_log_include_accounts= '';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_accounts= '22useer@localhost';
+SET GLOBAL audit_log_include_accounts= NULL;
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+
+SET GLOBAL audit_log_exclude_accounts= "'us,er1'@'localhost',, user22@127.0.0.1,admin@%";
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_accounts= '22useer@localhost';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_accounts= NULL;
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+SET GLOBAL audit_log_exclude_accounts= 'user1@localhost, user2@localhost, user3@localhost';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+SET GLOBAL audit_log_exclude_accounts= '';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_accounts= '22useer@localhost';
+SET GLOBAL audit_log_exclude_accounts= NULL;
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $log_file=$MYSQLD_DATADIR/test_audit.log;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $log_file
+SET GLOBAL audit_log_flush=ON;
+
+# log nothing
+SET GLOBAL audit_log_include_accounts= '';
+
+--source audit_log_filter_events.inc
+
+# testing include
+SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%,veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooongusername@veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooonghostname';
+
+--source audit_log_filter_events.inc
+
+# log everything
+SET GLOBAL audit_log_include_accounts= NULL;
+
+--source audit_log_filter_events.inc
+
+# testing exclude
+SET GLOBAL audit_log_exclude_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%';
+
+--source audit_log_filter_events.inc
+
+SET GLOBAL audit_log_exclude_accounts= NULL;
+
+# testing case sensitivity
+SET GLOBAL audit_log_include_accounts= '22user@LocalHost,User22@%';
+
+--source audit_log_filter_events.inc
+
+SET GLOBAL audit_log_include_accounts= NULL;
+
+--source audit_log_echo.inc
+
+# cleanup users
+DROP USER 'user1'@'127.0.0.1';
+DROP USER 'user22'@'%';
+DROP USER '22user'@'localhost';
+DROP USER 'admin'@'%';
+DROP USER 'us,er1'@'localhost';

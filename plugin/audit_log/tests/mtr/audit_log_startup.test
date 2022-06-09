@@ -1,0 +1,70 @@
+# Bug 1641910: Trying to set audit_log_exclude_accounts crashes server.
+
+call mtr.add_suppression("Plugin 'audit_log' init function returned error.");
+call mtr.add_suppression("Plugin 'audit_log' registration as a AUDIT failed.");
+call mtr.add_suppression("Plugin audit_log reported: 'Both");
+call mtr.add_suppression("Plugin audit_log reported: 'Cannot open file");
+call mtr.add_suppression("Plugin audit_log reported: 'Error: No such file or directory'");
+
+--let $restart_parameters="restart: --audit_log_exclude_accounts='user@localhost'"
+--source include/restart_mysqld.inc
+
+SET GLOBAL audit_log_exclude_accounts='info@localhost';
+
+
+--let $restart_parameters="restart: --audit_log_include_accounts='user@localhost'"
+--source include/restart_mysqld.inc
+
+SET GLOBAL audit_log_include_accounts='info@localhost';
+
+
+--let $restart_parameters="restart: --audit_log_exclude_commands='alter_table'"
+--source include/restart_mysqld.inc
+
+SET GLOBAL audit_log_exclude_commands='insert';
+
+
+--let $restart_parameters="restart: --audit_log_include_commands='alter_table'"
+--source include/restart_mysqld.inc
+
+SET GLOBAL audit_log_include_commands='insert';
+
+
+--let $restart_parameters="restart: --audit_log_exclude_databases='test'"
+--source include/restart_mysqld.inc
+
+SET GLOBAL audit_log_exclude_databases='mysql';
+
+
+--let $restart_parameters="restart: --audit_log_include_databases='test'"
+--source include/restart_mysqld.inc
+
+SET GLOBAL audit_log_include_databases='mysql';
+
+
+--let $restart_parameters="restart: --audit_log_exclude_accounts='user@localhost' --audit_log_include_accounts='user@localhost'"
+--source include/restart_mysqld.inc
+
+# there should be no audit_log% variables shown
+SHOW VARIABLES LIKE 'audit_log%';
+
+
+--let $restart_parameters="restart: --audit_log_exclude_commands='delete' --audit_log_include_commands='delete'"
+--source include/restart_mysqld.inc
+
+# there should be no audit_log% variables shown
+SHOW VARIABLES LIKE 'audit_log%';
+
+
+--let $restart_parameters="restart: --audit_log_exclude_databases='test' --audit_log_include_databases='test'"
+--source include/restart_mysqld.inc
+
+# there should be no audit_log% variables shown
+SHOW VARIABLES LIKE 'audit_log%';
+
+
+--let $restart_parameters="restart: --audit_log_exclude_accounts='user@localhost' --audit_log_file=./directory/file"
+--source include/restart_mysqld.inc
+
+# there should be no audit_log% variables shown
+SHOW VARIABLES LIKE 'audit_log%';

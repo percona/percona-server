@@ -29,11 +29,13 @@ SET(HEAP_SOURCES
   hp_close.cc
   hp_create.cc
   hp_delete.cc
+  hp_dspace.cc
   hp_extra.cc
   hp_hash.cc
   hp_info.cc
   hp_open.cc
   hp_panic.cc
+  hp_record.cc
   hp_rename.cc
   hp_rfirst.cc
   hp_rkey.cc

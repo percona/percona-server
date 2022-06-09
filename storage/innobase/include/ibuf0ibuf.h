@@ -337,6 +337,9 @@ void ibuf_close(void);
     const trx_t *trx,     /*!< in: transaction */
     space_id_t space_id); /*!< in: tablespace identifier */
 
+/** Function to pass ibuf status variables */
+void ibuf_export_ibuf_status(ulint *free_list, ulint *segment_size);
+
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page
 @param[in]      reset   flag if reset free val */

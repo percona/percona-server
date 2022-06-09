@@ -588,3 +588,14 @@ static inline ulint dtype_get_sql_null_size(
   return (dtype_get_fixed_size_low(type->mtype, type->prtype, type->len, 0, 0));
 #endif /* !UNIV_HOTBACKUP */
 }
+
+/**
+Calculates the number of extra bytes needed for compression header
+depending on precise column type.
+@reval 0 if prtype does not include DATA_COMPRESSED flag
+@reval ZIP_COLUMN_HEADER_LENGTH if prtype includes DATA_COMPRESSED flag
+*/
+static inline ulint prtype_get_compression_extra(ulint prtype) /*!< in: precise type */
+{
+  return (prtype & DATA_COMPRESSED) != 0 ? ZIP_COLUMN_HEADER_LENGTH : 0;
+}

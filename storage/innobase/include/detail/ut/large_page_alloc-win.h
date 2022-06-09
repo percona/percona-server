@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "mysqld_error.h"
 #include "storage/innobase/include/detail/ut/helper.h"
+#include "storage/innobase/include/os0populate.h"
 #include "storage/innobase/include/ut0log.h"
 
 extern const size_t large_page_default_size;
@@ -51,7 +52,7 @@ namespace detail {
     @param[in] n_bytes Size of storage (in bytes) requested to be allocated.
     @return Pointer to the allocated storage. nullptr if allocation failed.
 */
-inline void *large_page_aligned_alloc(size_t n_bytes) {
+inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
   // VirtualAlloc requires for n_bytes to be a multiple of large-page size
   size_t n_bytes_rounded = pow2_round(n_bytes + (large_page_default_size - 1),
                                       large_page_default_size);
@@ -62,7 +63,11 @@ inline void *large_page_aligned_alloc(size_t n_bytes) {
     ib::log_warn(ER_IB_MSG_856)
         << "large_page_aligned_alloc VirtualAlloc(" << n_bytes_rounded
         << " bytes) failed; Windows error " << GetLastError();
+    return nullptr;
   }
+
+  if (populate) prefault_if_not_map_populate(ptr, n_bytes_rounded);
+
   return ptr;
 }
 

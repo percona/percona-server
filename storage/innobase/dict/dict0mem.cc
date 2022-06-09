@@ -725,19 +725,25 @@ ulint dict_index_t::get_sys_col_pos(ulint type) const {
 }
 
 /** Looks for column n in an index.
-@param[in]      n               column number
-@param[in]      inc_prefix      true=consider column prefixes too
-@param[in]      is_virtual      true==virtual column
+@param[in]	n		column number
+@param[in]	inc_prefix	true=consider column prefixes too
+@param[in]	is_virtual	true==virtual column
+@param[out]	prefix_col_pos	column number if prefix
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
-ulint dict_index_t::get_col_pos(ulint n, bool inc_prefix,
-                                bool is_virtual) const {
+ulint dict_index_t::get_col_pos(ulint n, bool inc_prefix, bool is_virtual,
+                                ulint *prefix_col_pos) const {
   const dict_field_t *field;
   const dict_col_t *col;
   ulint pos;
   ulint n_fields;
 
   ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+  ut_ad((inc_prefix && !prefix_col_pos) || !inc_prefix);
+
+  ulint prefixed_pos_dummy;
+  if (!prefix_col_pos) prefix_col_pos = &prefixed_pos_dummy;
+  *prefix_col_pos = ULINT_UNDEFINED;
 
   if (is_virtual) {
     col = &(dict_table_get_nth_v_col(table, n)->m_col);
@@ -754,8 +760,9 @@ ulint dict_index_t::get_col_pos(ulint n, bool inc_prefix,
   for (pos = 0; pos < n_fields; pos++) {
     field = get_field(pos);
 
-    if (col == field->col && (inc_prefix || field->prefix_len == 0)) {
-      return (pos);
+    if (col == field->col) {
+      *prefix_col_pos = pos;
+      if (inc_prefix || field->prefix_len == 0) return (pos);
     }
   }
 

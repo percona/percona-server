@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  ***********************************************************************/
 
 #include "buf0buf.h"
+#include "srv0srv.h"
 #include "sync0rw.h"
 
 /** Gets a pointer to a file address and latches the page.
@@ -55,6 +56,9 @@ static inline byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
 
   block = buf_page_get(page_id_t(space, addr.page), page_size, rw_latch,
                        UT_LOCATION_HERE, mtr);
+
+  SRV_CORRUPT_TABLE_CHECK(block, return (0););
+
   ptr = buf_block_get_frame(block) + addr.boffset;
 
   buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);

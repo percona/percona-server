@@ -61,6 +61,7 @@ typedef OSMutex ib_bpmutex_t;
 #else /* UNIV_LIBRARY */
 
 #include <set>
+#include <type_traits>
 #include "ib0mutex.h"
 #include "os0atomic.h"
 #include "sync0policy.h"

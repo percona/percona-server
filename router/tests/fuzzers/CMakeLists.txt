@@ -35,7 +35,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
 
     LINK_LIBRARIES
     harness-library
-    mysqlclient
+    perconaserverclient
     ${SSL_LIBRARIES}
 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -63,7 +63,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
 
     LINK_LIBRARIES
     harness-library
-    mysqlclient
+    perconaserverclient
     ${SSL_LIBRARIES}
 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

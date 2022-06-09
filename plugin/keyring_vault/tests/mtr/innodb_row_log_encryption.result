@@ -1,7 +1,7 @@
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_vault' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
+call mtr.add_suppression("Function 'keyring_vault' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
 call mtr.add_suppression("Plugin keyring_vault reported");
-SET @@global.keyring_vault_config="MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf";
+call mtr.add_suppression("keyring_vault initialization failure");
 # restart:<hidden args>
 CREATE TABLE t1(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, credit_card VARCHAR(200), private VARCHAR(50)) ENGINE=InnoDB ENCRYPTION='y';
 SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR rotated';
@@ -34,3 +34,4 @@ variable_value > 0
 1
 DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
+UNINSTALL PLUGIN keyring_vault;

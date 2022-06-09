@@ -213,6 +213,10 @@ master binlog position up to which replication has proceeded.
 @param[in,out]  mtr     Mini-transaction for update */
 void trx_sys_update_mysql_binlog_offset(trx_t *trx, mtr_t *mtr);
 
+#ifdef UNIV_DEBUG
+void trx_sys_print_mysql_binlog_offset(void);
+#endif
+
 /** Shutdown/Close the transaction system. */
 void trx_sys_close(void);
 

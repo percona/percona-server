@@ -1,0 +1,64 @@
+# test encodings suppport by audit plugin
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $log_file=$MYSQLD_DATADIR/test_audit.log;
+
+--remove_file $log_file
+SET GLOBAL audit_log_flush=ON;
+
+set names tis620;
+
+--disable_query_log
+--disable_result_log
+
+let $db=`SELECT x'b0d2b9a2e9cdc1d9c5'`;
+let $text1=`SELECT x'a2d8b9b9d2a7e3aae8bee8cde1c1e820cbd4b9e1a7e8e3aae8b5d2c2d2c2'`;
+let $text2=`SELECT x'a1a7e0a1c7d5c2b9a1d3e0a1c7d5c2b9'`;
+let $very_long_text=`SELECT REPEAT('$text2   ', 400)`;
+
+eval SELECT '$db';
+
+eval CREATE DATABASE `$db`;
+
+eval use `$db`;
+
+CREATE TABLE t (txt TEXT) charset='utf8';
+
+eval INSERT INTO t VALUES ('$text1');
+eval INSERT INTO t VALUES ('$text2');
+eval INSERT INTO t VALUES ('$very_long_text');
+
+--enable_query_log
+--enable_result_log
+
+SET NAMES utf8mb4;
+
+INSERT IGNORE INTO t VALUES ('𦉘𦟌𦧲');
+CREATE DATABASE 𦉘𦟌𦧲;
+
+SHOW DATABASES;
+
+use 𦉘𦟌𦧲;
+
+use ฐานข้อมูล;
+
+SET NAMES utf8;
+
+SELECT * FROM t WHERE txt LIKE 'ขุนนาง%';
+
+use test;
+
+SELECT * FROM ฐานข้อมูล.t LIMIT 1;
+
+use ฐานข้อมูล;
+
+DROP DATABASE ฐานข้อมูล;
+DROP DATABASE `???`;
+
+use test;
+
+SET @@character_set_client=cp1256;
+--error ER_PARSE_ERROR
+CREATE t \217\355ݏ\355ݏ\355\335(\217\260\241\217\260\241\217\260\241 char) DEFAULT CHARSET=ujis engine=TokuDB;
+
+--source audit_log_echo.inc

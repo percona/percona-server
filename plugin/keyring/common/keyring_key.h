@@ -53,6 +53,7 @@ struct Key : IKey {
   size_t get_key_data_size() override;
   size_t get_key_pod_size() const override;
   uchar *release_key_data() override;
+  void xor_data(uchar *data, size_t data_len) override;
   void xor_data() override;
   void set_key_data(uchar *key_data, size_t key_data_size) override;
   void set_key_type(const std::string *key_type) override;
@@ -69,7 +70,7 @@ struct Key : IKey {
             const void *a_key, size_t a_key_len);
 
   void clear_key_data();
-  void create_key_signature() const;
+  virtual void create_key_signature() const;
   bool load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
                                size_t key_pod_size, std::string *string,
                                size_t string_length);

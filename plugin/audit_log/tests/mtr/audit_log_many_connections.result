@@ -1,0 +1,7 @@
+SET @saved_max_connections = @@global.max_connections;
+SET GLOBAL max_connections = 2;
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Too many connections
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Too many connections
+SET GLOBAL max_connections= @saved_max_connections;

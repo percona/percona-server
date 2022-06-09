@@ -1,0 +1,4 @@
+--audit_log_file=test_audit.log
+--audit_log_policy=ALL
+--audit-log-format=CSV
+--audit_log_strategy=SYNCHRONOUS

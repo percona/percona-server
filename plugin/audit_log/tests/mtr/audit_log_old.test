@@ -1,0 +1,18 @@
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $MYSQLD_DATADIR/test_audit.log
+SET GLOBAL audit_log_flush=ON;
+
+--source audit_log_events.inc
+
+--move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_old.log
+set global audit_log_flush= ON;
+perl;
+  eval "use XML::Parser; 1" or exit 0;
+  $p = new XML::Parser;
+  $p->parsefile($ENV{'MYSQLD_DATADIR'} . '/test_audit_old.log');
+EOF
+# --remove_file $MYSQLD_DATADIR/test_audit.log
+# --remove_file $MYSQLD_DATADIR/test_audit_old.log

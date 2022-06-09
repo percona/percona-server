@@ -1,0 +1,71 @@
+# test filtering by sql_command
+
+# test set/unset filters
+
+SET GLOBAL audit_log_include_commands= 'create_table,create_procedure,create_trigger,insert';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_commands= 'alter_db_upgrade,change_db,drop_table,drop_db';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_commands= NULL;
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+SET GLOBAL audit_log_include_commands= 'alter_db_upgrade,change_db,drop_table,drop_db';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+SET GLOBAL audit_log_include_commands= '';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_commands= 'insert,call_procedure,call_procedure,set_option,assign_to_keycache';
+SET GLOBAL audit_log_include_commands= NULL;
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+
+SET GLOBAL audit_log_exclude_commands= "insert,call_procedure,call_procedure,set_option,assign_to_keycache";
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_commands= 'change_db,drop_table@localhost';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_commands= NULL;
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+SET GLOBAL audit_log_exclude_commands= 'change_db,drop_table';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+SET GLOBAL audit_log_exclude_commands= '';
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_commands= 'change_db';
+SET GLOBAL audit_log_exclude_commands= NULL;
+SELECT @@audit_log_include_commands, @@audit_log_exclude_commands;
+
+# test filtering
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $log_file=$MYSQLD_DATADIR/test_audit.log;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $log_file
+SET GLOBAL audit_log_flush=ON;
+
+# log everything
+SET GLOBAL audit_log_exclude_commands= NULL;
+SET GLOBAL audit_log_include_commands= NULL;
+
+--source audit_log_filter_commands_events.inc
+
+# log everything once again
+SET GLOBAL audit_log_include_commands= 'set_option,creaTE_DB,CHANGE_DB,CREATE_TABLE,CREATE_TABLE,CREATE_PROCEDURE,CREATE_TRIGger,insert,insert,insert,call_procedure,call_procedure,set_option,assign_to_keycache,alter_db,alter_db_upgrade,change_db,drop_table,drop_db';
+
+--source audit_log_filter_commands_events.inc
+
+# log some of the commands
+SET GLOBAL audit_log_include_commands= 'set_option,creaTE_DB,CHANGE_DB,assign_to_keycache,alter_db,alter_db_upgrade';
+
+--source audit_log_filter_commands_events.inc
+
+# log nothing
+SET GLOBAL audit_log_include_commands= NULL;
+SET GLOBAL audit_log_exclude_commands= 'set_option,create_db,change_db,create_table,create_table,create_prOCEDURE,CREATE_TRIGGER,INSERT,INSERT,INSERT,CALL_PROCEDURE,CALL_PROCEDUre,set_option,assign_to_keycache,alter_db,alter_db_upgrade,change_db,drop_table,drop_db';
+
+--source audit_log_filter_commands_events.inc
+
+SET GLOBAL audit_log_exclude_commands= NULL;
+SET GLOBAL audit_log_include_commands= NULL;
+
+--source audit_log_echo.inc

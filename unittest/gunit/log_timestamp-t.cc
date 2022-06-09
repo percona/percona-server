@@ -36,7 +36,7 @@
 #include "test_utils.h"
 
 #include <mysql/components/services/log_shared.h>
-#include "../sql/log.h"
+#include "sql/log.h"
 
 // CET: 32 bytes
 //   date (10), 'T', time (8), '.', microseconds (6), timezone offset (6)

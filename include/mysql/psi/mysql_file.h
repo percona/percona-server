@@ -314,6 +314,21 @@
 #endif
 
 /**
+  @def mysql_unix_socket_connect(K, N, F)
+  Instrumented open.
+  @c mysql_unix_socket_connect connects to the unix domain socket.
+*/
+#ifndef __WIN__
+#ifdef HAVE_PSI_FILE_INTERFACE
+#define mysql_unix_socket_connect(K, N, F) \
+  inline_mysql_unix_socket_connect(K, __FILE__, __LINE__, N, F)
+#else
+#define mysql_unix_socket_connect(K, N, F) \
+  inline_mysql_unix_socket_connect(N, F)
+#endif
+#endif
+
+/**
   @def mysql_file_close(FD, F)
   Instrumented close.
   @c mysql_file_close is a replacement for @c my_close.

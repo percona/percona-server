@@ -434,6 +434,7 @@ mysql_col_len, mbminlen, mbmaxlen
                                 or templ->icp_rec_field_no
 @param[in]      data            data to store
 @param[in]      len             length of the data
+@param[in]      compress_heap
 @param[in]      sec_field       secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end

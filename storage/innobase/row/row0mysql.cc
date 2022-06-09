@@ -79,6 +79,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0cpu_cache.h"
 #include "ut0new.h"
+#include "zlib.h"
 
 #include "current_thd.h"
 #include "my_dbug.h"
@@ -92,6 +93,17 @@ static const char *MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 bool row_rollback_on_timeout = false;
 
+/**
+Determine if zlib needs to compute adler32 value for the compressed data.
+This variables is similar to page_zip_zlib_wrap, but only used by
+compressed blob columns.
+*/
+const bool srv_compressed_columns_zlib_wrap = true;
+/**
+Determine if zlib will use custom memory allocation functions based on
+InnoDB memory heap routines (mem_heap_t*).
+*/
+const bool srv_compressed_columns_zlib_use_heap = false;
 /** Chain node of the list of tables to drop in the background. */
 struct row_mysql_drop_t {
   char *table_name; /*!< table name */
@@ -532,6 +544,7 @@ byte *row_mysql_store_col_in_innobase_format(
     we need do nothing here. */
   } else if (type == DATA_BLOB) {
     ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
+
   } else if (DATA_GEOMETRY_MTYPE(type)) {
     /* We use blob to store geometry data except DATA_POINT
     internally, but in MySQL Layer the datatype is always blob. */
@@ -3470,6 +3483,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
     return (err);
   }
 
+  btr_drop_ahi_for_table(table);
   /* Discard the physical file that is used for the tablespace. */
   err = fil_discard_tablespace(table->space);
 

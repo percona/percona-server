@@ -38,6 +38,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_time.h>
 #include <sys/types.h>
 #include <time.h>
+#include "sql/debug_sync.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"
 
 #include "auth_acls.h"
 #include "btr0btr.h"
@@ -64,6 +69,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "pars0pars.h"
 #include "sql/sql_class.h" /* For THD */
 #include "srv0mon.h"
+#include "srv0srv.h"
 #include "srv0start.h"
 #include "srv0tmp.h"
 #include "trx0i_s.h"
@@ -6850,6 +6856,17 @@ static int i_s_dict_fill_innodb_tablespaces(
     space_type = "Single";
   }
 
+  /* Temporary tablespace encryption flags are not updated in DD. It is not
+  necessary because bootstrap doesn't check temporary tablespace from DD.
+  Temporary tablespace has to be ready before DD validation can take place */
+  if (fsp_is_global_temporary(space_id)) {
+    fil_space_t *space = fil_space_acquire_silent(space_id);
+    if (space != nullptr) {
+      is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+      fil_space_release(space);
+    }
+  }
+
   fields = table_to_fill->field;
 
   OK(fields[INNODB_TABLESPACES_SPACE]->store(space_id, true));
@@ -7484,3 +7501,4 @@ struct st_mysql_plugin i_s_innodb_session_temp_tablespaces = {
     /* unsigned long */
     STRUCT_FLD(flags, 0UL),
 };
+

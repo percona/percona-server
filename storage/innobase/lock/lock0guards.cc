@@ -119,4 +119,6 @@ Shard_naked_latches_guard::~Shard_naked_latches_guard() {
   }
 }
 
+constexpr std::less<Lock_mutex *> Shard_naked_latches_guard::MUTEX_ORDER;
+
 }  // namespace locksys

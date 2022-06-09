@@ -805,6 +805,7 @@ upd_t *row_upd_build_sec_rec_difference_binary(
   return (update);
 }
 
+
 /** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
@@ -929,8 +930,8 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
       dfield = dtuple_get_nth_v_field(entry, i);
 
       dfield_t *vfield = innobase_get_computed_value(
-          update->old_vrow, col, index, &v_heap, heap, nullptr, thd,
-          mysql_table, nullptr, nullptr, nullptr);
+          update->old_vrow, col, index, &v_heap, heap, NULL, thd, mysql_table,
+          nullptr, nullptr, nullptr);
 
       if (vfield == nullptr) {
         *error = DB_COMPUTE_VALUE_FAILED;

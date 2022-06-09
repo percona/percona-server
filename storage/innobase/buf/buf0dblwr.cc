@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1591,11 +1592,6 @@ void Double_write::check_block(const buf_block_t *block) noexcept {
 
       /* TODO: validate also non-index pages */
       return;
-
-    case FIL_PAGE_TYPE_ALLOCATED:
-      /* Empty pages should never be flushed. Unless we are creating the
-      legacy doublewrite buffer.  */
-      break;
   }
 
   croak(block);
@@ -1967,6 +1963,12 @@ bool Double_write::create_v1(page_no_t &page_no1,
 
 dberr_t Double_write::load(dblwr::File &file, recv::Pages *pages) noexcept {
   os_offset_t size = os_file_get_size(file.m_pfs);
+
+  if (srv_read_only_mode) {
+    ib::info() << "Skipping doublewrite buffer processing due to "
+                  "InnoDB running in read only mode";
+    return (DB_SUCCESS);
+  }
 
   if (size == 0) {
     /* Double write buffer is empty. */
@@ -2429,6 +2431,10 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
   if (page_no == 0) {
     /* The first page of any tablespace is never encrypted.
     So return early. */
+    return nullptr;
+  }
+
+  if (space_id == TRX_SYS_SPACE && page_no == TRX_SYS_PAGE_NO) {
     return nullptr;
   }
 

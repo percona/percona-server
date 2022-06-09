@@ -203,11 +203,6 @@ static lsn_t recv_max_page_lsn;
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t recv_writer_thread_key;
 #endif /* UNIV_PFS_THREAD */
-
-static bool recv_writer_is_active() {
-  return srv_thread_is_active(srv_threads.m_recv_writer);
-}
-
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -399,7 +394,6 @@ void recv_sys_create() {
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*recv_sys)));
 
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
-  mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
   recv_sys->spaces = nullptr;
 }
@@ -489,7 +483,6 @@ void recv_sys_close() {
   if (recv_sys->flush_end != nullptr) {
     os_event_destroy(recv_sys->flush_end);
   }
-
 #endif /* !UNIV_HOTBACKUP */
 
   ut::delete_(recv_sys->dblwr);
@@ -499,11 +492,6 @@ void recv_sys_close() {
   call_destructor(&recv_sys->saved_recs);
 
   mutex_free(&recv_sys->mutex);
-
-#ifndef UNIV_HOTBACKUP
-  ut_ad(!recv_writer_is_active());
-#endif /* !UNIV_HOTBACKUP */
-  mutex_free(&recv_sys->writer_mutex);
 
   ut::free(recv_sys);
   recv_sys = nullptr;
@@ -677,11 +665,7 @@ static void recv_sys_empty_hash() {
 block.
 @param[in]      block   pointer to a log block
 @return whether the checksum matches */
-#ifndef UNIV_HOTBACKUP
-static
-#endif /* !UNIV_HOTBACKUP */
-    bool
-    log_block_checksum_is_ok(const byte *block) {
+bool log_block_checksum_is_ok(const byte *block) {
   return !srv_log_checksums ||
          log_block_get_checksum(block) == log_block_calc_checksum(block);
 }
@@ -842,7 +826,6 @@ void recv_sys_free() {
   /* wake page cleaner up to progress */
   if (!srv_read_only_mode) {
     ut_ad(!recv_recovery_on);
-    ut_ad(!recv_writer_is_active());
     if (buf_flush_event != nullptr) {
       os_event_reset(buf_flush_event);
     }
@@ -1303,25 +1286,16 @@ dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
     mutex_exit(&recv_sys->mutex);
 
-    /* Stop the recv_writer thread from issuing any LRU
-    flush batches. */
-    mutex_enter(&recv_sys->writer_mutex);
-
-    /* Wait for any currently run batch to end. */
-    buf_flush_wait_LRU_batch_end();
-
     os_event_reset(recv_sys->flush_end);
-
-    recv_sys->flush_type = BUF_FLUSH_LIST;
 
     os_event_set(recv_sys->flush_start);
 
     os_event_wait(recv_sys->flush_end);
 
-    buf_pool_invalidate();
+    /* Wait for any currently running batch to end. */
+    buf_flush_wait_LRU_batch_end();
 
-    /* Allow batches from recv_writer thread. */
-    mutex_exit(&recv_sys->writer_mutex);
+    buf_pool_invalidate();
 
     ut_d(log.disable_redo_writes = false);
 
@@ -2893,11 +2867,12 @@ void recv_recover_page_func(
 @param[in]      end_ptr         end of the buffer
 @param[out]     space_id        tablespace identifier
 @param[out]     page_no         page number
+@param[in]      online_log      do we process DDL online log
 @param[out]     body            start of log record body
 @return length of the record, or 0 if the record was not complete */
-static ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                                space_id_t *space_id, page_no_t *page_no,
-                                byte **body) {
+ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
+                         space_id_t *space_id, page_no_t *page_no, bool apply,
+                         byte **body) {
   byte *new_ptr;
 
   *body = nullptr;
@@ -3054,7 +3029,7 @@ static bool recv_single_rec(byte *ptr, byte *end_ptr) {
   space_id_t space_id;
 
   ulint len =
-      recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
+      recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, true, &body);
 
   if (recv_sys->found_corrupt_log) {
     recv_report_corrupt_log(ptr, type, space_id, page_no);
@@ -3163,8 +3138,8 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
     page_no_t page_no = 0;
     space_id_t space_id = 0;
 
-    ulint len =
-        recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
+    ulint len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no,
+                                   true, &body);
 
     if (recv_sys->found_corrupt_log) {
       recv_report_corrupt_log(ptr, type, space_id, page_no);
@@ -3240,7 +3215,8 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
     /* Avoid parsing if we have the record saved already. */
     if (!recv_sys->get_saved_rec(i, space_id, page_no, type, body, len)) {
-      len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
+      len = recv_parse_log_rec(
+          &type, ptr, end_ptr, &space_id, &page_no, false, &body);
     }
 
     if (recv_sys->found_corrupt_log &&
@@ -3985,6 +3961,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
   recovered_lsn = recv_sys->recovered_lsn;
 
+
   ut_a(recv_needed_recovery || checkpoint_lsn == recovered_lsn);
 
   ut_a(!srv_read_only_mode || !recv_needed_recovery);
@@ -4119,25 +4096,10 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   /* Free the resources of the recovery system */
   recv_recovery_on = false;
 
-  /* By acquiring the mutex we ensure that the recv_writer thread
-  won't trigger any more LRU batches. Now wait for currently
-  in progress batches to finish. */
+  /* Now wait for currently in progress batches to finish. */
   buf_flush_wait_LRU_batch_end();
 
   mutex_exit(&recv_sys->writer_mutex);
-
-  uint32_t count = 0;
-
-  while (recv_writer_is_active()) {
-    ++count;
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (count >= 600) {
-      ib::info(ER_IB_MSG_738);
-      count = 0;
-    }
-  }
 
   MetadataRecover *metadata;
 

@@ -68,10 +68,14 @@ typedef std::map<
     table_cache_t;
 
 class innodb_session_t {
+
  public:
   /** Constructor */
   innodb_session_t()
-      : m_trx(), m_open_tables(), m_usr_temp_tblsp(), m_intrinsic_temp_tblsp() {
+      : m_trx(),
+        m_open_tables(),
+        m_usr_temp_tblsp(),
+        m_intrinsic_temp_tblsp() {
     /* Do nothing. */
   }
 

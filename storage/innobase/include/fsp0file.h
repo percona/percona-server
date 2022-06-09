@@ -266,6 +266,7 @@ class Datafile {
   [[nodiscard]] dberr_t validate_to_dd(space_id_t space_id, uint32_t flags,
                                        bool for_import);
 
+
   /** Validates this datafile for the purpose of recovery.  The file should
   exist and be successfully opened. We initially open it in read-only mode
   because we just want to read the SpaceID.  However, if the first page is

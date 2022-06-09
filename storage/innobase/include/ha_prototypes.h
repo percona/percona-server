@@ -224,6 +224,12 @@ the global innodb_lock_wait_timeout */
 void thd_set_lock_wait_time(THD *thd,
                             std::chrono::steady_clock::duration value);
 
+/** Is FT ignore stopwords variable set.
+@param thd Thread object
+@return true if ft_ignore_stopwords is set, false otherwise. */
+MY_NODISCARD
+bool thd_has_ft_ignore_stopwords(THD *thd) noexcept;
+
 /** Get the value of innodb_tmpdir.
 @param[in] thd  thread handle, or nullptr to query the global innodb_tmpdir.
 @return nullptr if innodb_tmpdir="" */
@@ -464,6 +470,19 @@ trx_t *check_trx_exists(THD *thd);
 /** Commits a transaction in an InnoDB database.
 @param[in]      trx     Transaction handle. */
 void innobase_commit_low(trx_t *trx);
+
+/** Get the transaction of the current connection handle, if either exists.
+@return transaction of the current connection handle or NULL. */
+MY_NODISCARD
+trx_t *innobase_get_trx(void);
+
+/** Get the transaction of the current connection handle if slow query log
+InnoDB extended statistics should be collected.
+@return transaction object if statistics should be collected, or NULL. */
+MY_NODISCARD
+trx_t *innobase_get_trx_for_slow_log(void) noexcept;
+
+extern bool innodb_inited;
 
 /** Return the number of read threads for this session.
 @param[in]      thd       Session instance, or nullptr to query the global

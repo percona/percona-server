@@ -107,8 +107,8 @@ typedef int     (*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef int     (*fts_scanner)();
 
 struct fts_lexer_t {
-        fts_scanner     scanner;
-        void*           yyscanner;
+  fts_scanner_alt scanner;
+  void *yyscanner;
 };
 
 
@@ -1933,14 +1933,14 @@ fts_lexer_create(
     fts0blex_init(&fts_lexer->yyscanner);
     fts0b_scan_bytes(reinterpret_cast<const char *>(query),
                      static_cast<int>(query_len), fts_lexer->yyscanner);
-    fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_blexer);
+    fts_lexer->scanner = fts_blexer;
     /* FIXME: Debugging */
     /* fts0bset_debug(1 , fts_lexer->yyscanner); */
   } else {
     fts0tlex_init(&fts_lexer->yyscanner);
     fts0t_scan_bytes(reinterpret_cast<const char *>(query),
                      static_cast<int>(query_len), fts_lexer->yyscanner);
-    fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_tlexer);
+    fts_lexer->scanner = fts_tlexer;
   }
 
   return (fts_lexer);
@@ -1954,11 +1954,11 @@ fts_lexer_free(
 /*===========*/
         fts_lexer_t*    fts_lexer)
 {
-        if (fts_lexer->scanner == (fts_scan) fts_blexer) {
-                fts0blex_destroy(fts_lexer->yyscanner);
-        } else {
-                fts0tlex_destroy(fts_lexer->yyscanner);
-        }
+  if (fts_lexer->scanner == fts_blexer) {
+    fts0blex_destroy(fts_lexer->yyscanner);
+  } else {
+    fts0tlex_destroy(fts_lexer->yyscanner);
+  }
 
         ut::free(fts_lexer);
 }

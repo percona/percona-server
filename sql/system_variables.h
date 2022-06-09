@@ -200,6 +200,22 @@ inline constexpr sql_mode_t MODE_ALLOWED_MASK =
   in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
 */
 
+/** Page fragmentation statistics */
+struct fragmentation_stats_t {
+  ulonglong scan_pages_contiguous;          /*!< number of contiguous InnoDB
+                                              page reads inside a query */
+  ulonglong scan_pages_disjointed;          /*!< number of disjointed InnoDB
+                                              page reads inside a query */
+  ulonglong scan_pages_total_seek_distance; /*!< total seek distance between
+                                              InnoDB pages */
+  ulonglong scan_data_size;                 /*!< size of data in all InnoDB
+                                              pages read inside a query
+                                              (in bytes) */
+  ulonglong scan_deleted_recs_size;         /*!< size of deleded records in
+                                              all InnoDB pages read inside a
+                                              query (in bytes) */
+};
+
 struct System_variables {
   /*
     How dynamically allocated system variables are handled:
@@ -339,6 +355,21 @@ struct System_variables {
   bool sysdate_is_now;
   bool binlog_rows_query_log_events;
 
+#ifndef NDEBUG
+  ulonglong query_exec_time;
+  double query_exec_time_double;
+#endif
+  ulong log_slow_rate_limit;
+  ulonglong log_slow_filter;
+  ulonglong log_slow_verbosity;
+
+  ulong innodb_io_reads;
+  ulonglong innodb_io_read;
+  ulong innodb_io_reads_wait_timer;
+  ulong innodb_lock_que_wait_timer;
+  ulong innodb_innodb_que_wait_timer;
+  ulong innodb_page_access;
+
   double long_query_time_double;
 
   bool pseudo_replica_mode;
@@ -352,6 +383,12 @@ struct System_variables {
   char *track_sysvars_ptr;
   bool session_track_schema;
   bool session_track_state_change;
+
+  bool expand_fast_index_creation;
+
+  uint threadpool_high_prio_tickets;
+  ulong threadpool_high_prio_mode;
+
   ulong session_track_transaction_info;
 
   /*
@@ -598,6 +635,9 @@ struct System_status_var {
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
+  /** fragmentation statistics */
+  fragmentation_stats_t fragmentation_stats;
 };
 
 /*

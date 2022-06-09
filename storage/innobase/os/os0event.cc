@@ -638,7 +638,6 @@ void os_event_global_init(void) {
 
 void os_event_global_destroy(void) {
   ut_a(os_event::global_initialized);
-  ut_ad(os_event::n_objects_alive.load() == 0);
 #ifndef _WIN32
   os_event::cond_attr_has_monotonic_clock = false;
 #ifdef UNIV_DEBUG
@@ -647,5 +646,4 @@ void os_event_global_destroy(void) {
       pthread_condattr_destroy(&os_event::cond_attr);
   ut_ad(ret == 0);
 #endif /* !_WIN32 */
-  os_event::global_initialized = false;
 }

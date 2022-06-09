@@ -51,6 +51,10 @@ class MVCC {
   Free all the views in the m_free list */
   ~MVCC();
 
+  /** Insert the view in the proper order into the view list.
+  @param	view	view to add */
+  void view_add(const ReadView *view);
+
   /** Allocate and create a view.
   @param view   View owned by this class created for the caller. Must be
   freed by calling view_close()
@@ -99,6 +103,8 @@ class MVCC {
   Validates a read view list. */
   bool validate() const;
 
+  friend class ReadView;
+
   /**
   Find a free view from the active list, if none found then allocate
   a new view. This function will also attempt to move delete marked
@@ -106,11 +112,12 @@ class MVCC {
   @return a view to use */
   inline ReadView *get_view();
 
+ public:
   /**
   Get the oldest view in the system. It will also move the delete
   marked read views from the views list to the freed list.
   @return oldest view if found or NULL */
-  inline ReadView *get_oldest_view() const;
+  ReadView *get_oldest_view() const;
 
  private:
   // Prevent copying

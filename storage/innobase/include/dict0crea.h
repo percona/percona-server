@@ -108,6 +108,10 @@ local_fk_set belong to
 bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
                                   const dict_table_t *table);
 
+static const constexpr auto ZIP_DICT_MAX_NAME_LENGTH = 64;
+/* Max window size (2^15) minus 262 */
+static const constexpr auto ZIP_DICT_MAX_DATA_LENGTH = 32506;
+
 /* Table create node structure */
 struct tab_node_t {
   que_common_t common;   /*!< node type: QUE_NODE_TABLE_CREATE */

@@ -362,10 +362,20 @@ static bool my_read_charset_file(MY_CHARSET_LOADER *loader,
   size_t len, tmp_len;
   MY_STAT stat_info;
 
-  if (!my_stat(filename, &stat_info, MYF(myflags)) ||
-      ((len = (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
-      !(buf = (uchar *)my_malloc(key_memory_charset_file, len, myflags)))
+  if (!my_stat(filename, &stat_info, MYF(myflags))) return true;
+
+  len = stat_info.st_size;
+  if ((len > MY_MAX_ALLOWED_BUF) && (myflags & MY_WME)) {
+    my_printf_error(EE_UNKNOWN_CHARSET,
+                    "Error while reading '%s': its length %llu is larger than "
+                    "maximum allowed length %llu\n",
+                    MYF(0), filename, static_cast<unsigned long long>(len),
+                    static_cast<unsigned long long>(MY_MAX_ALLOWED_BUF));
     return true;
+  }
+
+  buf = static_cast<uchar *>(my_malloc(key_memory_charset_file, len, myflags));
+  if (!buf) return true;
 
   if ((fd = mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)
     goto error;
@@ -436,7 +446,13 @@ static void init_available_charsets(void) {
   /* Copy compiled charsets */
 
   my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);
-  my_read_charset_file(&loader, fname, MYF(0));
+  my_read_charset_file(&loader, fname,
+#ifdef MYSQL_SERVER
+                       MYF(MY_WME)
+#else
+                       MYF(0)
+#endif
+  );
 }
 
 static const char *get_collation_name_alias(const char *name, char *buf,

@@ -1,0 +1,35 @@
+# PS-3867: audit_log_include_accunts was incorrect when set on the command line
+
+# setup some user accounts
+
+CREATE USER 'user1'@'127.0.0.1' IDENTIFIED BY 'password1';
+CREATE USER 'user22'@'%' IDENTIFIED BY 'password1';
+CREATE USER '22user'@'LOCALHOST' IDENTIFIED BY 'password1';
+CREATE USER 'admin'@'%' IDENTIFIED BY 'password1';
+CREATE USER 'us,er1'@'localhost' IDENTIFIED BY 'password1';
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $log_file=$MYSQLD_DATADIR/test_audit.log;
+
+
+--disable_result_log
+--let $restart_parameters="restart: $AUDIT_LOG_OPT $AUDIT_LOG_LOAD --audit_log_include_accounts='user1@127.0.0.1' --audit_log_file=test_audit.log --audit_log_policy=ALL --audit-log-format=CSV --audit_log_strategy=SYNCHRONOUS"
+--source include/restart_mysqld.inc
+--enable_result_log
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $log_file
+SET GLOBAL audit_log_flush=ON;
+
+--source audit_log_filter_events.inc
+
+SET GLOBAL audit_log_flush=ON;
+
+--source audit_log_echo.inc
+
+# cleanup users
+DROP USER 'user1'@'127.0.0.1';
+DROP USER 'user22'@'%';
+DROP USER '22user'@'localhost';
+DROP USER 'admin'@'%';
+DROP USER 'us,er1'@'localhost';

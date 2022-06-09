@@ -208,7 +208,6 @@ component_test_component_deinit_no_deadlock     plugin_output_directory  no  COM
 
 # init fail test component
 component_test_component_init_fail     plugin_output_directory  no  COMPONENT_TEST_COMPONENT_INIT_FAIL
-
 # component_test_mysql_file_service
 component_test_mysql_file_service     plugin_output_directory  no  COMPONENT_TEST_MYSQL_FILE_SERVICE
 
@@ -226,6 +225,13 @@ component_group_replication_resource_manager plugin_output_directory no GROUP_RE
 
 # Group Replication primary election prefer most updated
 component_group_replication_elect_prefers_most_updated plugin_output_directory no GROUP_REPLICATION_PRIMARY_ELECT_PREFER_MOST_UPDATED component_group_replication_group_replication_elect_prefers_most_updated
+
+# Percona additions
+auth_socket        plugin_output_directory  no  SOCKET_AUTH
+ha_rocksdb         plugin_output_directory  no  ROCKSDB         rocksdb,rocksdb_cfstats,rocksdb_dbstats,rocksdb_perf_context,rocksdb_perf_context_global,rocksdb_cf_options,rocksdb_compaction_history,rocksdb_compaction_stats,rocksdb_active_compaction_stats,rocksdb_global_info,rocksdb_ddl,rocksdb_index_file_map,rocksdb_locks,rocksdb_trx,rocksdb_deadlock,rocksdb_sst_props,rocksdb_live_files_metadata
+auth_pam           plugin_output_directory  no  AUTH_PAM
+auth_pam_compat    plugin_output_directory  no  AUTH_PAM_COMPAT
+keyring_vault      plugin_output_directory  no  KEYRING_VAULT_PLUGIN keyring_vault
 
 # Thread Pool Plugin
 thread_pool                      plugin_output_directory  no ONLY_THREADPOOL_PLUGIN   thread_pool

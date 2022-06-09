@@ -66,7 +66,7 @@ IF(KERBEROS_LIB_SSPI)
   LIST(APPEND UTILITY "sspi_utility.cc")
 ENDIF()
 
-SET(MY_SQL "mysqlclient")
+SET(MY_SQL "perconaserverclient")
 
 DISABLE_MISSING_PROFILE_WARNING()
 

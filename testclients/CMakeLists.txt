@@ -24,7 +24,7 @@
 ADD_WSHADOW_WARNING()
 
 MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
-TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient extra::rapidjson)
+TARGET_LINK_LIBRARIES(mysql_client_test perconaserverclient extra::rapidjson)
 
 # We *do* calculate that there is space, see:
 # printf("Warning: MYSQL_TMP_DIR is too long. Logging is disabled.\n");
@@ -35,5 +35,5 @@ ENDIF()
 
 IF(WITH_UNIT_TESTS)
   MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL EXCLUDE_FROM_PGO)
-  TARGET_LINK_LIBRARIES(bug25714 mysqlclient)
+  TARGET_LINK_LIBRARIES(bug25714 perconaserverclient)
 ENDIF()

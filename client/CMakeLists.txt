@@ -26,6 +26,8 @@ ADD_WSHADOW_WARNING()
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()
 
+INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
+
 ## Subdirectory for mysql_migrate_keyring code.
 ADD_SUBDIRECTORY(migrate_keyring)
 
@@ -40,7 +42,7 @@ MYSQL_ADD_EXECUTABLE(mysql
   multi_option.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
-  LINK_LIBRARIES mysqlclient ${EDITLINE_LIBRARY}
+  LINK_LIBRARIES perconaserverclient ${EDITLINE_LIBRARY}
   )
 
 MYSQL_ADD_EXECUTABLE(mysqltest
@@ -57,7 +59,7 @@ MYSQL_ADD_EXECUTABLE(mysqltest
   COMPONENT Test
   DEPENDENCIES GenError GenClientError
   ENABLE_EXPORTS
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 
 IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
@@ -72,23 +74,23 @@ MYSQL_ADD_EXECUTABLE(mysqlcheck
   check/mysqlcheck.cc
   check/mysqlcheck_core.cc
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqldump
   mysqldump.cc
   multi_factor_passwordopt-vars.cc
   multi_option.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlimport
   mysqlimport.cc
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlshow
   mysqlshow.cc
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 
 OPTION(WITH_JSON_BINLOG_LIBRARY
@@ -255,7 +257,7 @@ ENDIF()
 
 SET(MYSQLBINLOG_LIBRARIES
   mysql_binlog_event
-  mysqlclient
+  perconaserverclient
   )
 
 IF(WITH_JSON_BINLOG_LIBRARY)
@@ -297,20 +299,20 @@ TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
 MYSQL_ADD_EXECUTABLE(mysqladmin
   mysqladmin.cc
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlslap
   mysqlslap.cc
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysql_config_editor
   mysql_config_editor.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation
   mysql_secure_installation.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".

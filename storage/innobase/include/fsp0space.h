@@ -185,6 +185,11 @@ class Tablespace {
   /* Get the autoextend size for the tablespace */
   uint64_t get_autoextend_size() const { return m_autoextend_size; }
 
+  /** @return true if tablespace is encrypted */
+  bool is_encrypted() const noexcept {
+    return (FSP_FLAGS_GET_ENCRYPTION(m_flags));
+  }
+
  private:
   /**
   @param[in]    filename        Name to lookup in the data files.

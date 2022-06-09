@@ -57,9 +57,6 @@
 #endif
 
 inline static ib_rbt_node_t *ROOT(const ib_rbt_t *t) { return t->root->left; }
-inline static size_t SIZEOF_NODE(const ib_rbt_t *t) {
-  return sizeof(ib_rbt_node_t) + t->sizeof_value - 1;
-}
 
 #if defined UNIV_DEBUG || defined IB_RBT_TESTING
 /** Verify that the keys are in order.
@@ -744,6 +741,17 @@ const ib_rbt_node_t *rbt_add_node(ib_rbt_t *tree,         /*!< in: rb tree */
                                              SIZEOF_NODE(tree));
 
   memcpy(node->value, value, tree->sizeof_value);
+  rbt_add_preallocated_node(tree, parent, node);
+  return node;
+}
+
+/** Add a new caller-provided node to tree at the specified position.
+The node must have its key fields initialized correctly.
+@param[in]	tree	rb tree
+@param[in]	parent	parent
+@param[in]	node	node */
+void rbt_add_preallocated_node(ib_rbt_t *tree, ib_rbt_bound_t *parent,
+                               ib_rbt_node_t *node) {
   node->parent = node->left = node->right = tree->nil;
 
   /* If tree is empty */
@@ -761,12 +769,11 @@ const ib_rbt_node_t *rbt_add_node(ib_rbt_t *tree,         /*!< in: rb tree */
 #if (defined IB_RBT_TESTING)
   ut_a(rbt_validate(tree));
 #endif
-  return (node);
 }
 
 /** Find a matching node in the rb tree.
  @return NULL if not found else the node where key was found */
-static const ib_rbt_node_t *rbt_lookup(
+const ib_rbt_node_t *rbt_lookup(
     const ib_rbt_t *tree, /*!< in: rb tree */
     const void *key)      /*!< in: key to use for search */
 {
@@ -951,6 +958,13 @@ const ib_rbt_node_t *rbt_prev(
     const ib_rbt_node_t *current) /*!< in: current node */
 {
   return (current ? rbt_find_predecessor(tree, current) : nullptr);
+}
+
+/** Clear the tree without deleting and freeing its nodes.
+    @param[in]      tree    rb tree */
+void rbt_reset(ib_rbt_t *tree) {
+  tree->n_nodes = 0;
+  tree->root->left = tree->root->right = tree->nil;
 }
 
 /** Merge the node from dst into src. Return the number of nodes merged.

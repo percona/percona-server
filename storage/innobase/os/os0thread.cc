@@ -119,3 +119,43 @@ std::string to_string(std::thread::id thread_id, bool hex_value) {
     return "invalid_thread_id";
   }
 }
+
+/** Returns the system-specific thread identifier of current thread. On Linux,
+returns tid.  On other systems currently returns os_thread_get_curr_id().
+
+@return	current thread identifier */
+os_tid_t os_thread_get_tid() noexcept {
+#if defined(HAVE_PTHREAD_THREADID_NP)  // macOS
+  uint64_t tid64;
+  pthread_threadid_np(nullptr, &tid64);
+  return (os_tid_t)tid64;
+#elif defined(HAVE_SYS_GETTID)  // Linux
+  return (os_tid_t)syscall(SYS_gettid);
+#elif defined(_WIN32)
+  return GetCurrentThreadId();
+#else
+  return pthread_self();
+#endif
+}
+
+/** Set relative scheduling priority for a given thread on Linux. Currently a
+no-op on other systems.
+@param[in]      thread_id               thread id
+@param[in]      relative_priority       system-specific priority value
+
+@return An actual thread priority after the update */
+MY_NODISCARD
+ulint os_thread_set_priority(os_tid_t thread_id,
+                             ulint relative_priority) noexcept {
+#ifdef UNIV_LINUX
+  const lint thread_nice = 19 - relative_priority;
+  if (setpriority(PRIO_PROCESS, thread_id, thread_nice) == -1) {
+    ib::warn() << "Setting thread " << thread_id << " nice to " << thread_nice
+               << " failed, current nice "
+               << getpriority(PRIO_PROCESS, thread_id) << ", errno " << errno;
+  }
+  return (19 - getpriority(PRIO_PROCESS, thread_id));
+#else
+  return (relative_priority);
+#endif
+}

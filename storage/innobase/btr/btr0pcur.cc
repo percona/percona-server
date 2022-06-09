@@ -36,14 +36,48 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 
 #include "rem0cmp.h"
+#include "sql/current_thd.h"
+#include "sql/sql_thd_internal_api.h"
 #include "trx0trx.h"
 #include "ut0byte.h"
+
+/** Updates fragmentation statistics for a single page transition.
+@param[in]	page			the current page being processed
+@param[in]	page_no			page number to move to (next_page_no
+if forward_direction is true,
+prev_page_no otherwise.
+@param[in]	forward_direction	move direction: true means moving
+forward, false - backward. */
+static void btr_update_scan_stats(const page_t *page, page_no_t page_no,
+                                  bool forward_direction) {
+  fragmentation_stats_t stats;
+  memset(&stats, 0, sizeof(stats));
+  const auto extracted_page_no = page_get_page_no(page);
+  const ulint delta = forward_direction ? page_no - extracted_page_no
+                                        : extracted_page_no - page_no;
+
+  if (delta == 1) {
+    ++stats.scan_pages_contiguous;
+  } else {
+    ++stats.scan_pages_disjointed;
+  }
+  stats.scan_pages_total_seek_distance += extracted_page_no > page_no
+                                              ? extracted_page_no - page_no
+                                              : page_no - extracted_page_no;
+
+  stats.scan_data_size += page_get_data_size(page);
+  stats.scan_deleted_recs_size += page_header_get_field(page, PAGE_GARBAGE);
+  thd_add_fragmentation_stats(current_thd, stats);
+}
 
 void btr_pcur_t::store_position(mtr_t *mtr) {
   ut_ad(m_pos_state == BTR_PCUR_IS_POSITIONED);
   ut_ad(m_latch_mode != BTR_NO_LATCHES);
 
   auto block = get_block();
+
+  SRV_CORRUPT_TABLE_CHECK(block, return;);
+
   auto index = get_btr_cur()->index;
 
   auto page_cursor = get_page_cur();
@@ -326,11 +360,21 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
 
   auto block = get_block();
 
+  btr_update_scan_stats(page, next_page_no, true /* forward */);
+
   auto next_block =
       btr_block_get(page_id_t(block->page.id.space(), next_page_no),
                     block->page.size, mode, UT_LOCATION_HERE, index, mtr);
 
   auto next_page = buf_block_get_frame(next_block);
+
+  SRV_CORRUPT_TABLE_CHECK(next_page, {
+    btr_leaf_page_release(get_block(), mode, mtr);
+    get_page_cur()->block = nullptr;
+    get_page_cur()->rec = nullptr;
+
+    return;
+  });
 
 #ifdef UNIV_BTR_DEBUG
   if (!import_ctx) {
@@ -389,6 +433,9 @@ void btr_pcur_t::move_backward_from_page(mtr_t *mtr) {
   /* For intrinsic table we don't do optimistic restore and so there is
   no left block that is pinned that needs to be released. */
   if (!get_btr_cur()->index->table->is_intrinsic()) {
+    if (prev_page_no != FIL_NULL)
+      btr_update_scan_stats(page, prev_page_no, false /* backward */);
+
     buf_block_t *prev_block;
 
     if (prev_page_no == FIL_NULL) {

@@ -109,6 +109,12 @@ struct ib_rbt_bound_t {
 /* Compare a key with the node value (t is tree, k is key, n is node)*/
 #define rbt_compare(t, k, n) (t->compare(k, n->value))
 
+/* Node size. FIXME: name might clash, but currently it does not, so for easier
+maintenance do not rename it for now. */
+inline static size_t SIZEOF_NODE(const ib_rbt_t *t) {
+  return sizeof(ib_rbt_node_t) + t->sizeof_value - 1;
+}
+
 /** Free an instance of  a red black tree */
 void rbt_free(ib_rbt_t *tree); /*!< in: rb tree to free */
 /** Create an instance of a red black tree
@@ -147,6 +153,15 @@ const ib_rbt_node_t *rbt_add_node(ib_rbt_t *tree,         /*!< in: rb tree */
                                   ib_rbt_bound_t *parent, /*!< in: parent */
                                   const void *value);     /*!< in: this value is
                                                           copied     to the node */
+
+/** Add a new caller-provided node to tree at the specified position.
+The node must have its key fields initialized correctly.
+@param[in]	tree	rb tree
+@param[in]	parent	parent
+@param[in]	node	node */
+void rbt_add_preallocated_node(ib_rbt_t *tree, ib_rbt_bound_t *parent,
+                               ib_rbt_node_t *node);
+
 /** Return the left most data node in the tree
  @return left most node */
 const ib_rbt_node_t *rbt_first(const ib_rbt_t *tree); /*!< in: rb tree */
@@ -180,6 +195,9 @@ int rbt_search_cmp(const ib_rbt_t *tree,            /*!< in: rb tree */
                    ib_rbt_compare compare,          /*!< in: comparator */
                    ib_rbt_arg_compare arg_compare); /*!< in: fn to compare items
                                                     with argument */
+/** Clear the tree without deleting and freeing its nodes.
+@param[in]	tree	rb tree */
+void rbt_reset(ib_rbt_t *tree);
 /** Merge the node from dst into src. Return the number of nodes merged.
  @return no. of recs merged */
 ulint rbt_merge_uniq(ib_rbt_t *dst,        /*!< in: dst rb tree */

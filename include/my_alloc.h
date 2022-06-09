@@ -165,6 +165,14 @@ struct MEM_ROOT {
     return AllocSlow(length);
   }
 
+  void *Alloc_aligned(size_t length, size_t alignment) MY_ATTRIBUTE((malloc)) {
+    void *ptr = Alloc(length + alignment);
+    if (!ptr) return nullptr;
+    ptr = reinterpret_cast<void *>(
+        MY_ALIGN(reinterpret_cast<std::uintptr_t>(ptr), alignment));
+    return ptr;
+  }
+
   /**
     Allocate “num” objects of type T, and initialize them to a default value
     that is created by passing the supplied args to T's constructor. If args

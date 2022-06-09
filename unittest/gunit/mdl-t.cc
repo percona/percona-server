@@ -3783,7 +3783,11 @@ TEST_F(MDLTest, FindLockOwner) {
    Verify that correct error is reported when the MDL system exhausts the LF
    Pinbox.
 */
-TEST_F(MDLTest, ExhaustPinbox) {
+/**
+   Disabled, because Percona Server allows up to 2^32 pins
+   and this test would take a lot of time
+*/
+TEST_F(MDLTest, DISABLED_ExhaustPinbox) {
   for (int i = 0; i < 65535; ++i) {
     MDL_context c;
     EXPECT_FALSE(test_drive_fix_pins(&c));

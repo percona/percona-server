@@ -1,5 +1,6 @@
 --source include/have_keyring_vault_plugin.inc
---source generate_default_conf_files.inc
+--source include/not_repeat.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
 
 # Create mount points

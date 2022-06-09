@@ -5,6 +5,8 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
 
 --perl
   use strict;
+  # Vaults' credentials from ENV variables
+  my $mtr_vault_token= $ENV{MTR_VAULT_TOKEN} or die "Please export MTR_VAULT_TOKEN variable";
   my $mysql_test_dir= $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
   my $server_uuid= $ENV{SERVER_UUID} or die "Server uuid not set";
   my $keyring_conf_template_file= $ENV{KEYRING_CONF_TEMPLATE_FILE} or die "Need KEYRING_CONF_TEMPLATE_FILE";
@@ -14,7 +16,8 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
   while (my $row = <CONF_TEMPLATE_FILE>)
   {
     $row =~ s/MYSQL_TEST_DIR/$mysql_test_dir/g;
-    $row =~ s/SECRET_MOUNT_POINT_TAG/$server_uuid/g;
+    $row =~ s/SECRET_MOUNT_POINT_TAG/cicd\/$server_uuid/g;
+    $row =~ s/MTR_VAULT_TOKEN_TAG/$mtr_vault_token/g;
     print CONF_FILE $row;
   }
   close(CONF_FILE);

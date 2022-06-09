@@ -1308,7 +1308,21 @@ ALWAYS_INLINE int uca_scanner_any<Mb_wc>::next() {
     int mblen = mb_wc(&wc, sbeg, send);
     if (mblen <= 0) {
       ++weight_lv;
-      return -1;
+      if (sbeg >= send) return -1; /* No more bytes, end of line reached */
+      /*
+        There are some more bytes left. Non-positive mb_len means that
+        we got an incomplete or a bad byte sequence. Consume mbminlen bytes.
+      */
+      if ((sbeg += cs->mbminlen) > send) {
+        /* For safety purposes don't go beyond the string range. */
+        sbeg = send;
+      }
+      /*
+        Treat every complete or incomplete mbminlen unit as a weight which is
+        greater than weight for any possible normal character.
+        0xFFFF is greater than any possible weight in the UCA weight table.
+      */
+      return 0xFFFF;
     }
 
     sbeg += mblen;

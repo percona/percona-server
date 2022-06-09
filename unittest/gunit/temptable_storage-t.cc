@@ -59,6 +59,10 @@ TEST(StorageTest, Iterate) {
       }
       EXPECT_EQ(0u, i);
     }
+
+    // Deallocate the shared-block (allocator keeps it alive
+    // intentionally)
+    // Must be done after storage is destructed
     shared_block.destroy();
   });
   t.join();
@@ -84,6 +88,8 @@ TEST(StorageTest, AllocatorRebind) {
 
     alloc.deallocate(shared_eater, 1048576);
 
+    // Deallocate the shared-block (allocator keeps it alive
+    // intentionally)
     shared_block.destroy();
   };
   std::thread t(thread_function);

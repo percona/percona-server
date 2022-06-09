@@ -400,7 +400,7 @@ struct MDL_key {
   */
   enum enum_mdl_namespace {
     GLOBAL = 0,
-    BACKUP_LOCK,
+    BACKUP_LOCK, /* Oracle LOCK INSTANCE FOR BACKUP */
     TABLESPACE,
     SCHEMA,
     TABLE,
@@ -418,6 +418,7 @@ struct MDL_key {
     FOREIGN_KEY,
     CHECK_CONSTRAINT,
     RESOURCE_GROUPS_GLOBAL,
+    BACKUP_TABLES, /* Percona LOCK TABLES FOR BACKUP */
     /* This should be the last ! */
     NAMESPACE_END
   };

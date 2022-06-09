@@ -35,8 +35,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <mysql/service_thd_wait.h>
 #include <sys/types.h>
+#include <sstream>
 
 #include "ha_prototypes.h"
+#include "lock0iter.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
 #include "os0thread-create.h"
@@ -46,6 +48,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0start.h"
 
 #include "my_dbug.h"
+
+struct blocking_trx_info {
+  uint64_t trx_id;
+  uint32_t thread_id;
+  int64_t query_id;
+};
+
+static const constexpr size_t MAX_BLOCKING_TRX_IN_REPORT = 10;
 
 /** Print the contents of the lock_sys_t::waiting_threads array. */
 static void lock_wait_table_print(void) {
@@ -201,11 +211,42 @@ static srv_slot_t *lock_wait_table_reserve_slot(
   ut_error;
 }
 
+/** Print lock wait timeout info to stderr. It's supposed this function
+is executed in trx's THD thread as it calls some non-thread-safe
+functions to get some info from THD.
+@param[in]	trx	requested trx
+@param[in]	blocking	blocking info array
+@param[in]	blocking_count	blocking info array size */
+static void print_lock_wait_timeout(const trx_t &trx,
+                                    blocking_trx_info *blocking,
+                                    size_t blocking_count) {
+  std::ostringstream outs;
+  size_t unused;
+
+  outs << "Lock wait timeout info:\n";
+  outs << "Requested thread id: " << thd_get_thread_id(trx.mysql_thd) << "\n";
+  outs << "Requested trx id: " << trx_get_id_for_print(&trx) << "\n";
+  outs << "Requested query: "
+       << innobase_get_stmt_unsafe(trx.mysql_thd, &unused) << "\n";
+
+  outs << "Total blocking transactions count: " << blocking_count << "\n";
+
+  for (size_t i = 0; i < blocking_count; ++i) {
+    outs << "Blocking transaction number: " << (i + 1) << "\n";
+    outs << "Blocking thread id: " << blocking[i].thread_id << "\n";
+    outs << "Blocking query id: " << blocking[i].query_id << "\n";
+    outs << "Blocking trx id: " << blocking[i].trx_id << "\n";
+  }
+  ib::info() << outs.str();
+}
+
 void lock_wait_request_check_for_cycles() { lock_set_timeout_event(); }
 
 void lock_wait_suspend_thread(que_thr_t *thr) {
   srv_slot_t *slot;
   trx_t *trx;
+  blocking_trx_info blocking[MAX_BLOCKING_TRX_IN_REPORT];
+  size_t blocking_count = 0;
 
   trx = thr_get_trx(thr);
 
@@ -256,6 +297,33 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
   precisely what we want for our stats */
   auto lock_type = trx->lock.wait_lock_type;
   trx_mutex_exit(trx);
+
+  if (srv_print_lock_wait_timeout_info) {
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
+    const lock_t *wait_lock = trx->lock.wait_lock;
+    if (wait_lock != nullptr) {
+      lock_queue_iterator_t iter;
+      const lock_t *curr_lock;
+      lock_queue_iterator_reset(&iter, wait_lock, ULINT_UNDEFINED);
+      for (curr_lock = lock_queue_iterator_get_prev(&iter);
+           curr_lock != nullptr;
+           curr_lock = lock_queue_iterator_get_prev(&iter)) {
+        if (lock_has_to_wait(trx->lock.wait_lock, curr_lock)) {
+          blocking[blocking_count].trx_id = lock_get_trx_id(curr_lock);
+          blocking[blocking_count].thread_id =
+              curr_lock->trx->mysql_thd
+                  ? thd_get_thread_id(curr_lock->trx->mysql_thd)
+                  : 0;
+          blocking[blocking_count].query_id =
+              curr_lock->trx->mysql_thd
+                  ? thd_get_query_id(curr_lock->trx->mysql_thd)
+                  : 0;
+          /* Only limited number of blocking transaction infos is implemented*/
+          if ((++blocking_count) >= MAX_BLOCKING_TRX_IN_REPORT) break;
+        }
+      }
+    }
+  }
 
   ulint had_dict_lock = trx->dict_operation_lock_mode;
 
@@ -345,6 +413,9 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
 
   if (trx->error_state == DB_LOCK_WAIT_TIMEOUT) {
     MONITOR_INC(MONITOR_TIMEOUT);
+
+    if (srv_print_lock_wait_timeout_info)
+      print_lock_wait_timeout(*trx, blocking, blocking_count);
   }
 
   if (trx_is_interrupted(trx)) {

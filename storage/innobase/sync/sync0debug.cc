@@ -472,6 +472,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_FTS_CACHE_INIT);
   LEVEL_MAP_INSERT(SYNC_RECV);
   LEVEL_MAP_INSERT(SYNC_RECV_WRITER);
+  LEVEL_MAP_INSERT(SYNC_LOG_ONLINE);
   LEVEL_MAP_INSERT(SYNC_LOG_SN);
   LEVEL_MAP_INSERT(SYNC_LOG_SN_MUTEX);
   LEVEL_MAP_INSERT(SYNC_LOG_LIMITS);
@@ -723,6 +724,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_FTS_CACHE:
     case SYNC_FTS_CACHE_INIT:
     case SYNC_PAGE_CLEANER:
+    case SYNC_LOG_ONLINE:
     case SYNC_LOG_CHECKPOINTER:
     case SYNC_LOG_CLOSER:
     case SYNC_LOG_WRITER:
@@ -1684,8 +1686,7 @@ void sync_check_init(size_t max_threads) {
   sync_array_init(max_threads);
 }
 
-/** Frees the resources in InnoDB's own synchronization data structures. Use
-os_sync_free() after calling this. */
+/** Frees the resources in InnoDB's own synchronization data structures. */
 void sync_check_close() {
   ut_d(LatchDebug::shutdown());
 

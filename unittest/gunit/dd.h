@@ -86,6 +86,16 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
       : Base_mock_HANDLER(hton, share) {}
 
   ~Mock_dd_HANDLER() override {}
+
+  /* Real DD handlers use InnoDB which supports gap locks.
+   * We need to override this method for mock as well
+   * because of Percona commit
+   * dd290a688dcbe114a8cb342e58410510e8378734 (PS-4257)
+   * when anti-deatdlock checks have been added to
+   * src/handler.cc.
+   * Whithout this, above fix interferes with unit tests.
+   */
+  bool has_gap_locks() const noexcept override { return true; }
 };
 
 /**

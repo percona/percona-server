@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2014, 2024, Oracle and/or its affiliates.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,6 +65,12 @@ PSI_memory_key mem_key_undo_spaces;
 PSI_memory_key mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
+PSI_memory_key mem_key_log_online_modified_pages;
+PSI_memory_key mem_key_log_online_sys;
+PSI_memory_key mem_key_log_online_read_buf;
+PSI_memory_key mem_key_log_online_iterator_files;
+PSI_memory_key mem_key_log_online_iterator_page;
+
 #ifdef UNIV_PFS_MEMORY
 
 /** Auxiliary array of performance schema 'PSI_memory_info'.
@@ -95,6 +102,15 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_fil_space_t, "fil_space_t", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_log_online_iterator_files, "log_online_iterator_files", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&mem_key_log_online_iterator_page, "log_online_iterator_page", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&mem_key_log_online_modified_pages, "log_online_modified_pages", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&mem_key_log_online_read_buf, "log_online_read_buf", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&mem_key_log_online_sys, "log_online_sys", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_other, "other", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_partitioning, "partitioning", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_row_log_buf, "row_log_buf", 0, 0, PSI_DOCUMENT_ME},

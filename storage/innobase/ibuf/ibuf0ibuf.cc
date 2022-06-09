@@ -438,6 +438,12 @@ void ibuf_close(void) {
   ibuf = nullptr;
 }
 
+/** Function to pass ibuf status variables */
+void ibuf_export_ibuf_status(ulint *free_list, ulint *segment_size) {
+  *free_list = ibuf->free_list_len;
+  *segment_size = ibuf->seg_size;
+}
+
 /** Updates the size information of the ibuf, assuming the segment size has not
  changed. */
 static void ibuf_size_update(const page_t *root) /*!< in: ibuf tree root */
@@ -2441,6 +2447,8 @@ ulint ibuf_merge_in_background(bool full) {
 
     sum_bytes += n_bytes;
     sum_pages += n_pag2;
+
+    srv_inc_activity_count(true);
   }
 
   return (sum_bytes);

@@ -1853,7 +1853,6 @@ dberr_t dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
   dberr_t err = DB_SUCCESS;
   dd_table.se_private_data().remove(
       dd_table_key_strings[DD_TABLE_INSTANT_COLS]);
-
   std::vector<std::string> cols_to_drop;
 
   for (auto col : *dd_table.columns()) {

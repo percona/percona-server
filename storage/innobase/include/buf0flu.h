@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -243,6 +244,7 @@ Requires buf_page_get_mutex(bpage).
 [[nodiscard]] bool buf_flush_ready_for_flush(buf_page_t *bpage,
                                              buf_flush_t flush_type);
 
+#ifdef UNIV_DEBUG
 /** Check if there are any dirty pages that belong to a space id in the flush
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
@@ -250,6 +252,7 @@ ulint buf_pool_get_dirty_pages_count(
     buf_pool_t *buf_pool,      /*!< in: buffer pool */
     space_id_t id,             /*!< in: space id to check */
     Flush_observer *observer); /*!< in: flush observer to check */
+#endif
 
 /** Executes fsync for all tablespaces, to fsync all pages written to disk. */
 void buf_flush_fsync();
@@ -444,6 +447,12 @@ class Buf_flush_list_added_lsns {
 
 extern Buf_flush_list_added_lsns_aligned_ptr buf_flush_list_added;
 #endif /* !UNIV_HOTBACKUP */
+
+/** If LRU list of a buf_pool is less than this size then LRU eviction
+should not happen. This is because when we do LRU flushing we also put
+the blocks on free list. If LRU list is very small then we can end up
+in thrashing. */
+static constexpr auto BUF_LRU_MIN_LEN = 256;
 
 #include "buf0flu.ic"
 

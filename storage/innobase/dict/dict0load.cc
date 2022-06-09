@@ -53,6 +53,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
 #include "ha_prototypes.h"
+#include "lob0lob.h"
 #include "mach0data.h"
 
 #include "my_dbug.h"
@@ -62,15 +63,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql_version.h"
 #include "page0page.h"
 #include "rem0cmp.h"
+#include "scope_guard.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
 const char *SYSTEM_TABLE_NAME[] = {
-    "SYS_TABLES",      "SYS_INDEXES",   "SYS_COLUMNS",
-    "SYS_FIELDS",      "SYS_FOREIGN",   "SYS_FOREIGN_COLS",
-    "SYS_TABLESPACES", "SYS_DATAFILES", "SYS_VIRTUAL"};
+    "SYS_TABLES",  "SYS_INDEXES",      "SYS_COLUMNS",      "SYS_FIELDS",
+    "SYS_FOREIGN", "SYS_FOREIGN_COLS", "SYS_TABLESPACES",  "SYS_DATAFILES",
+    "SYS_VIRTUAL", "SYS_ZIP_DICT",     "SYS_ZIP_DICT_COLS"};
 
 /** This variant is based on name comparison and is used because
 system table id array is not built yet.
@@ -1306,8 +1308,7 @@ TODO - This function is to be removed by WL#16210
     and tablespaces that already are in the tablespace cache. */
     if (fsp_is_system_or_temp_tablespace(space_id) ||
         fsp_is_undo_tablespace(space_id) ||
-        !fsp_is_shared_tablespace(fsp_flags) ||
-        fil_space_exists_in_mem(space_id, space_name, false, true)) {
+        !fsp_is_shared_tablespace(fsp_flags)) {
       continue;
     }
 
@@ -1436,6 +1437,8 @@ TODO - This function is to be removed by WL#16210
   mtr_t mtr;
 
   DBUG_TRACE;
+
+  auto guard = create_scope_guard([&pcur]() { pcur.close(); });
 
   ut_ad(dict_sys_mutex_own());
 
@@ -2467,7 +2470,9 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
       table->id = table->id + DICT_MAX_DD_TABLES;
     }
     if (cached) {
-      dict_table_add_to_cache(table, true);
+      auto can_be_evicted =
+          dict_load_is_system_table(table->name.m_name) ? false : true;
+      dict_table_add_to_cache(table, can_be_evicted);
     }
   }
 

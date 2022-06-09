@@ -256,6 +256,8 @@ enum latch_level_t {
   SYNC_PAGE_ARCH_CLIENT,
   SYNC_LOG_ARCH,
 
+  SYNC_LOG_ONLINE,
+
   SYNC_PAGE_CLEANER,
   SYNC_TRX_SYS_HEADER,
   SYNC_TRX_SYS_SERIALISATION,
@@ -384,6 +386,7 @@ enum latch_id_t {
   LATCH_ID_LOG_WRITE_NOTIFIER,
   LATCH_ID_LOG_FLUSH_NOTIFIER,
   LATCH_ID_LOG_LIMITS,
+  LATCH_ID_LOG_ONLINE,
   LATCH_ID_LOG_FILES,
   LATCH_ID_LOG_GOVERNOR_MUTEX,
   LATCH_ID_PARSER,
@@ -489,6 +492,8 @@ struct OSMutex {
 
     ut_d(m_freed = false);
   }
+
+  OSMutex &operator=(const OSMutex &) = default;
 
   /** Destructor */
   ~OSMutex() = default;

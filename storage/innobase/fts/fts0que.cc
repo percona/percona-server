@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_dbug.h"
 #include "mysql/strings/m_ctype.h"
 #include "row0sel.h"
+#include "sql/current_thd.h"
 #include "ut0new.h"
 #include "ut0rbt.h"
 
@@ -1473,6 +1474,7 @@ static bool fts_query_match_phrase_terms(
   byte *ptr = *start;
   const ib_vector_t *tokens = phrase->tokens;
   ulint distance = phrase->distance;
+  const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
 
   /* We check only from the second term onwards, since the first
   must have matched otherwise we wouldn't be here. */
@@ -1484,7 +1486,8 @@ static bool fts_query_match_phrase_terms(
     ulint ret;
 
     ret = innobase_mysql_fts_get_token(phrase->charset, ptr,
-                                       const_cast<byte *>(end), &match);
+                                       const_cast<byte *>(end),
+                                       extra_word_chars, &match);
 
     if (match.f_len > 0) {
       /* Get next token to match. */
@@ -1549,6 +1552,8 @@ static bool fts_proximity_is_word_in_range(
   ut_ad(proximity_pos->n_pos == proximity_pos->min_pos.size());
   ut_ad(proximity_pos->n_pos == proximity_pos->max_pos.size());
 
+  const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
+
   /* Search each matched position pair (with min and max positions)
   and count the number of words in the range */
   for (ulint i = 0; i < proximity_pos->n_pos; i++) {
@@ -1563,7 +1568,8 @@ static bool fts_proximity_is_word_in_range(
       fts_string_t str;
 
       len = innobase_mysql_fts_get_token(phrase->charset, start + cur_pos,
-                                         start + total_len, &str);
+                                         start + total_len, extra_word_chars,
+                                         &str);
 
       if (len == 0) {
         break;
@@ -1707,6 +1713,9 @@ static bool fts_query_match_phrase(fts_phrase_t *phrase, byte *start,
 
   ut_a(phrase->match->start < ib_vector_size(positions));
 
+  const bool extra_word_chars =
+      phrase->parser ? false : thd_get_ft_query_extra_word_chars();
+
   for (i = phrase->match->start; i < ib_vector_size(positions); ++i) {
     ulint pos;
     byte *ptr = start;
@@ -1751,7 +1760,8 @@ static bool fts_query_match_phrase(fts_phrase_t *phrase, byte *start,
 
       match.f_str = ptr;
       ret = innobase_mysql_fts_get_token(phrase->charset, start + pos,
-                                         const_cast<byte *>(end), &match);
+                                         const_cast<byte *>(end),
+                                         extra_word_chars, &match);
 
       if (match.f_len == 0) {
         break;
@@ -2425,6 +2435,9 @@ static void fts_query_phrase_split(fts_query_t *query,
     term_node = node->list.head;
   }
 
+  const bool extra_word_chars =
+      node->type == FTS_AST_TEXT ? thd_get_ft_query_extra_word_chars() : false;
+
   while (true) {
     fts_cache_t *cache = query->index->table->fts->cache;
     ulint cur_len;
@@ -2438,7 +2451,8 @@ static void fts_query_phrase_split(fts_query_t *query,
       cur_len = innobase_mysql_fts_get_token(
           query->fts_index_table.charset,
           reinterpret_cast<const byte *>(phrase.f_str) + cur_pos,
-          reinterpret_cast<const byte *>(phrase.f_str) + len, &result_str);
+          reinterpret_cast<const byte *>(phrase.f_str) + len, extra_word_chars,
+          &result_str);
 
       if (cur_len == 0) {
         break;
@@ -2470,9 +2484,10 @@ static void fts_query_phrase_split(fts_query_t *query,
         static_cast<fts_string_t *>(ib_vector_push(tokens, nullptr));
     fts_string_dup(token, &result_str, heap);
 
+    ut_ad(current_thd != nullptr);
     if (fts_check_token(&result_str, cache->stopword_info.cached_stopword,
-                        query->index->is_ngram,
-                        query->fts_index_table.charset)) {
+                        query->index->is_ngram, query->fts_index_table.charset,
+                        thd_has_ft_ignore_stopwords(current_thd))) {
       /* Add the word to the RB tree so that we can
       calculate its frequency within a document. */
       fts_query_add_word_freq(query, token);

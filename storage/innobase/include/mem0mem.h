@@ -233,13 +233,13 @@ static inline size_t mem_heap_get_size(mem_heap_t *heap); /*!< in: heap */
 
 /** Duplicates a NUL-terminated string.
 @param[in]      str     string to be copied
-@return own: a copy of the string, must be deallocated with ut_free */
+@return own: a copy of the string, must be deallocated with ut::free */
 static inline char *mem_strdup(const char *str);
 
 /** Makes a NUL-terminated copy of a nonterminated string.
 @param[in]      str     string to be copied
 @param[in]      len     length of str, in bytes
-@return own: a copy of the string, must be deallocated with ut_free */
+@return own: a copy of the string, must be deallocated with ut::free */
 static inline char *mem_strdupl(const char *str, ulint len);
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.

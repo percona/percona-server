@@ -80,6 +80,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0cpu_cache.h"
 #include "ut0new.h"
+#include "zlib.h"
 
 #include "current_thd.h"
 #include "my_dbug.h"
@@ -533,6 +534,7 @@ byte *row_mysql_store_col_in_innobase_format(
     we need do nothing here. */
   } else if (type == DATA_BLOB) {
     ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
+
   } else if (DATA_GEOMETRY_MTYPE(type)) {
     /* We use blob to store geometry data except DATA_POINT
     internally, but in MySQL Layer the datatype is always blob. */
@@ -3463,6 +3465,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
     return (err);
   }
 
+  btr_drop_ahi_for_table(table);
   /* Discard the physical file that is used for the tablespace. */
   err = fil_discard_tablespace(table->space);
 

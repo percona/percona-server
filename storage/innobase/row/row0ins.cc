@@ -1559,6 +1559,11 @@ dberr_t row_ins_check_foreign_constraint(
     const rec_t *rec = pcur.get_rec();
     const buf_block_t *block = pcur.get_block();
 
+    SRV_CORRUPT_TABLE_CHECK(block, {
+      err = DB_CORRUPTION;
+      goto exit_loop;
+    });
+
     if (page_rec_is_infimum(rec)) {
       continue;
     }
@@ -1685,6 +1690,7 @@ dberr_t row_ins_check_foreign_constraint(
     }
   } while (pcur.move_to_next(&mtr));
 
+exit_loop:
   if (check_ref) {
     row_ins_foreign_report_add_err(trx, foreign, pcur.get_rec(), entry);
     err = DB_NO_REFERENCED_ROW;

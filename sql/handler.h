@@ -892,6 +892,8 @@ class st_alter_tablespace {
   bool wait_until_completed = true;
   const char *ts_comment = nullptr;
   const char *encryption = nullptr;
+  bool encrypt;
+  LEX_STRING encrypt_type;
 
   bool is_tablespace_command() {
     return ts_cmd_type == CREATE_TABLESPACE ||
@@ -1406,6 +1408,11 @@ typedef int (*rollback_t)(handlerton *hton, THD *thd, bool all);
 
 typedef int (*prepare_t)(handlerton *hton, THD *thd, bool all);
 
+typedef int (*clone_consistent_snapshot_t)(handlerton *hton, THD *thd,
+                                           THD *from_thd);
+
+typedef int (*store_binlog_info_t)(handlerton *hton, THD *thd);
+
 typedef int (*recover_t)(handlerton *hton, XA_recover_txn *xid_list, uint len,
                          MEM_ROOT *mem_root);
 /**
@@ -1577,7 +1584,9 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   const dd::Tablespace *old_ts_def,
                                   dd::Tablespace *new_ts_def);
 
+using flush_changed_page_bitmaps_t = bool (*)(void);
 
+using purge_changed_page_bitmaps_t = bool (*)(ulonglong lsn);
 /**
   SE interface for getting tablespace extension.
   @return Extension of tablespace datafile name.
@@ -2793,13 +2802,17 @@ struct handlerton {
   drop_database_t drop_database;
   panic_t panic;
   start_consistent_snapshot_t start_consistent_snapshot;
+  clone_consistent_snapshot_t clone_consistent_snapshot;
   flush_logs_t flush_logs;
+  store_binlog_info_t store_binlog_info;
   show_status_t show_status;
   partition_flags_t partition_flags;
   is_valid_tablespace_name_t is_valid_tablespace_name;
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   get_tablespace_filename_ext_t get_tablespace_filename_ext;
+  flush_changed_page_bitmaps_t flush_changed_page_bitmaps;
+  purge_changed_page_bitmaps_t purge_changed_page_bitmaps;
   upgrade_tablespace_t upgrade_tablespace;
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
@@ -3126,6 +3139,16 @@ inline constexpr const decltype(
     handlerton::flags) HTON_NO_DEFAULT_ENGINE_SUPPORT{1 << 24};
 
 /** Start of Percona specific HTON_* defines */
+
+/**
+  Engine supports secondary clustered keys.
+*/
+#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 29)
+
+/**
+  Engine supports compressed columns.
+*/
+#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 30)
 
 /**
    Set if the storage engine supports 'online' backups. This means that there

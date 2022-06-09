@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "handler0alter.h"
 #include "lob0lob.h"
 #include "log0chkp.h"
+#include "my_rnd.h"
 #include "que0que.h"
 #include "row0ext.h"
 #include "row0ins.h"
@@ -51,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0row.h"
 #include "row0upd.h"
 #include "srv0mon.h"
+#include "srv0start.h"
 #include "trx0rec.h"
 #include "ut0new.h"
 #include "ut0stage.h"
@@ -197,6 +199,9 @@ struct row_log_t {
   is being created online */
   dict_table_t *table;
 
+  /** index to be built */
+  dict_index_t *index;
+
   /** Whether the definition of the PRIMARY KEY has remained the same */
   bool same_pk;
 
@@ -217,9 +222,15 @@ struct row_log_t {
   index->lock X-latch only */
   row_log_buf_t tail;
 
+  /** writer context; temporary buffer used in encryption, decryption or NULL */
+  byte *crypt_tail;
+
   /** Reader context; protected by MDL only; modifiable by
   row_log_apply_ops() */
   row_log_buf_t head;
+
+  /** reader context; temporary buffer used in encryption, decryption or NULL */
+  byte *crypt_head;
 
   /** number of non-virtual column in old table */
   size_t n_old_col;
@@ -361,6 +372,7 @@ void row_log_online_op(
     IORequest request(IORequest::ROW_LOG | IORequest::WRITE);
     const os_offset_t byte_offset =
         (os_offset_t)log->tail.blocks * srv_sort_buf_size;
+    byte *buf = log->tail.block;
 
     if (byte_offset + srv_sort_buf_size >= srv_online_max_size) {
       goto write_failed;
@@ -381,7 +393,7 @@ void row_log_online_op(
     }
 
     err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
-                               log->tail.block, byte_offset, srv_sort_buf_size);
+                               buf, byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
     if (err != DB_SUCCESS) {
@@ -2847,9 +2859,11 @@ next_block:
     IORequest request(IORequest::READ | IORequest::ROW_LOG);
     ;
 
+    byte *buf = index->online_log->head.block;
+
     err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->path, index->online_log->file.get(),
-        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
+        request, index->online_log->path, index->online_log->file.get(), buf,
+        ofs, srv_sort_buf_size, nullptr);
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_961) << "Unable to read temporary file"
@@ -3127,6 +3141,8 @@ bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
   log->path = path;
   log->n_old_col = index->table->n_cols;
   log->n_old_vcol = index->table->n_v_cols;
+  log->crypt_tail = log->crypt_head = nullptr;
+  log->index = index;
 
   dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
   index->online_log = log;
@@ -3147,6 +3163,17 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
   ut::delete_(log->blobs);
   row_log_block_free(log->tail);
   row_log_block_free(log->head);
+
+  if (log->crypt_head) {
+    ut::free_large_page(log->crypt_head, ut::fallback_to_normal_page_t{});
+    log->crypt_head = nullptr;
+  }
+
+  if (log->crypt_tail) {
+    ut::free_large_page(log->crypt_tail, ut::fallback_to_normal_page_t{});
+    log->crypt_tail = nullptr;
+  }
+
   mutex_free(&log->mutex);
   ut::free(log);
   log = nullptr;
@@ -3595,9 +3622,12 @@ next_block:
     }
 
     IORequest request(IORequest::READ | IORequest::ROW_LOG);
+
+    byte *buf = index->online_log->head.block;
+
     dberr_t err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->path, index->online_log->file.get(),
-        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
+        request, index->online_log->path, index->online_log->file.get(), buf,
+        ofs, srv_sort_buf_size, nullptr);
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_963) << "Unable to read temporary file"

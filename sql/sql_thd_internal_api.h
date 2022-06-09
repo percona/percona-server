@@ -41,6 +41,7 @@
 
 class THD;
 class partition_info;
+struct fragmentation_stats_t;
 
 THD *create_internal_thd();
 void destroy_internal_thd(THD *thd);
@@ -291,4 +292,18 @@ bool thd_is_bootstrap_thread(THD *thd);
 bool thd_is_dd_update_stmt(const THD *thd);
 
 my_thread_id thd_thread_id(const THD *thd);
+
+/** Gets page fragmentation statistics. Assigns zeros to stats if thd is
+NULL.
+@param[in]  thd   the calling thread
+@param[out] stats a pointer to fragmentation statistics to fill */
+void thd_get_fragmentation_stats(const THD *thd,
+                                 fragmentation_stats_t *stats) noexcept;
+
+/** Adds page scan statistics. Does nothing if thd is NULL.
+@param[in] thd   the calling thread
+@param[in] stats a pointer to fragmentation statistics to add */
+void thd_add_fragmentation_stats(THD *thd,
+                                 const fragmentation_stats_t &stats) noexcept;
+
 #endif  // SQL_THD_INTERNAL_API_INCLUDED

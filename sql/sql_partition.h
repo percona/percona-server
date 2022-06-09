@@ -111,6 +111,28 @@ bool get_cs_converted_part_value_from_string(THD *thd, Item *item,
 void get_full_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
+
+/**
+   Fill first_name with the name of the first partition in the given
+   partition expression. The partition expression is parsed first.
+
+   @param[in]  thd                - Thread invoking the function
+   @param[in]  part_handler       - Partition handler
+   @param[in]  normalized_path    - Normalized path name of table and database
+   @param[in]  partition_info_str - The partition expression.
+   @param[in]  partition_info_len - The partition expression length.
+   @param[out] first_name         - The name of the first partition.
+   Must be at least FN_REFLEN bytes long.
+
+   @retval true  - On failure.
+   @retval false - On success.
+*/
+MY_NODISCARD
+bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
+                              const char *normalized_path,
+                              const char *partition_info_str,
+                              uint partition_info_len, char *first_name);
+
 bool mysql_unpack_partition(THD *thd, char *part_buf, uint part_info_len,
                             TABLE *table, bool is_create_table_ind,
                             handlerton *default_db_type,

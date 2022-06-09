@@ -113,6 +113,9 @@ struct Tokenize_ctx {
 
   /** Token list. */
   Token_list m_token_list{};
+
+  /** True if token stopwords checking should be skipped */
+  bool ignore_stopwords;
 };
 
 /** For parsing and sorting the documents. */
@@ -675,7 +678,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
     } else {
       inc = innobase_mysql_fts_get_token(
           doc->charset, doc->text.f_str + t_ctx->m_processed_len,
-          doc->text.f_str + doc->text.f_len, &str);
+          doc->text.f_str + doc->text.f_len, false, &str);
 
       ut_a(inc > 0);
     }
@@ -683,7 +686,8 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
 
     /* Ignore string whose character number is less than
     "fts_min_token_size" or more than "fts_max_token_size" */
-    if (!fts_check_token(&str, nullptr, is_ngram, nullptr)) {
+    if (!fts_check_token(&str, nullptr, is_ngram, nullptr,
+                         t_ctx->ignore_stopwords)) {
       if (parser != nullptr) {
         UT_LIST_REMOVE(t_ctx->m_token_list, fts_token);
         ut::free(fts_token);
@@ -700,8 +704,8 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
     t_str.f_str = (byte *)&str_buf;
 
     /* If "cached_stopword" is defined, ignore words in the stopword list */
-    if (!fts_check_token(&str, t_ctx->m_cached_stopword, is_ngram,
-                         doc->charset)) {
+    if (!fts_check_token(&str, t_ctx->m_cached_stopword, is_ngram, doc->charset,
+                         t_ctx->ignore_stopwords)) {
       if (parser != nullptr) {
         UT_LIST_REMOVE(t_ctx->m_token_list, fts_token);
         ut::free(fts_token);
@@ -868,6 +872,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
   get_next_doc_item(doc_item);
 
   t_ctx.m_cached_stopword = table->fts->cache->stopword_info.cached_stopword;
+  t_ctx.ignore_stopwords = thd_has_ft_ignore_stopwords(m_ctx.thd());
 
   auto processed{true};
 

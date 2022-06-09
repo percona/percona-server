@@ -61,8 +61,8 @@ TEST(hainnodb, UtMySnprintf) {
   bufsz = sizeof buf;
 #undef ARGS
 
-  ib_uint32_t a;
-  ib_uint64_t b;
+  uint32_t a;
+  uint64_t b;
   int64_t c;
 
 #define ARGS \
@@ -81,7 +81,7 @@ TEST(hainnodb, UtMySnprintf) {
       "1234567890/12345678901234567890/-6101065172474983726/"
       "ab54a98ceb1f0ad2*",
       ARGS);
-  a = -1234567890, c = -8765432109876543210LL, b = ib_uint64_t(c);
+  a = -1234567890, c = -8765432109876543210LL, b = uint64_t(c);
   snprintf(ARGS);
   test_snprintf(
       "3060399406/9681311963833008406/-8765432109876543210/"

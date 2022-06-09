@@ -334,6 +334,11 @@ IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(segfault-t.cc COMPILE_FLAGS ${HAS_WARN_FLAG})
 ENDIF()
 
+# Suppress warnings for gcc-10 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES integer_digits-t.cc)
+ENDIF()
+
 # Avoid 'requires dynamic R_X86_64_PC32 reloc' linker error for dd_sdi-t.cc
 # when built with ASAN
 IF(WITH_ASAN OR WITH_VALGRIND)
@@ -453,6 +458,7 @@ ADD_SUBDIRECTORY(components/keyring_common)
 ADD_SUBDIRECTORY(xplugin)
 ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(libmysqlgcs)
+ADD_SUBDIRECTORY(keyring_vault)
 ADD_SUBDIRECTORY(temptable)
 ADD_SUBDIRECTORY(binlogevents)
 ADD_SUBDIRECTORY(memory)

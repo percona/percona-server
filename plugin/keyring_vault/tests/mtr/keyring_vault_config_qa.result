@@ -1,15 +1,18 @@
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not read secret_mount_point from the configuration file.'");
-call mtr.add_suppression("\\[Error\\] Function 'keyring_vault' already exists");
-call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault. Vault has returned the following error\\(s\\): \\[\"permission denied\"\\]'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '.*' not found");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not read file with credentials.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not read secret_mount_point from the configuration file.'");
+call mtr.add_suppression("Function 'keyring_vault' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
+call mtr.add_suppression("Plugin keyring_vault reported: 'keyring_vault initialization failure.");
+call mtr.add_suppression("Plugin keyring_vault reported:.* Connection timed out");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault.");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'File '.*' not found");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not read file with credentials.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Cannot seek in file '/'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'CURL returned this error code: 28 with error message : connect\\(\\) timed out!'");
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
 Warnings:
-Warning	29	File '' not found (Errcode: 2 - No such file or directory)
+Warning	29	File '' not found (OS errno 2 - No such file or directory)
 Warning	42000	keyring_vault initialization failure. Please check the server log.
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
@@ -38,8 +41,8 @@ SET @@session.keyring_vault_config='MYSQL_TMP_DIR/new_keyring_vault_config';
 ERROR HY000: Variable 'keyring_vault_config' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@local.keyring_vault_config='MYSQL_TMP_DIR/new_keyring_vault_config';
 ERROR HY000: Variable 'keyring_vault_config' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault_invalid_token.conf';
-ERROR 42000: Variable 'keyring_vault_config' can't be set to the value of 'MYSQLTEST_VARDIR/keyring_vault_invalid_token.conf'
+SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault_invalid_token.conf';
+ERROR 42000: Variable 'keyring_vault_config' can't be set to the value of 'MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault_invalid_token.conf'
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf';
 SELECT @@global.keyring_vault_config;
 @@global.keyring_vault_config

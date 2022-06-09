@@ -40,7 +40,8 @@ int heap_rsame(HP_INFO *info, uchar *record, int inx) {
   DBUG_TRACE;
 
   test_active(info);
-  if (info->current_ptr[share->reclength]) {
+  if (get_chunk_status(&share->recordspace, info->current_ptr) ==
+      CHUNK_STATUS_ACTIVE) {
     if (inx < -1 || inx >= (int)share->keys) {
       set_my_errno(HA_ERR_WRONG_INDEX);
       return HA_ERR_WRONG_INDEX;
@@ -52,9 +53,12 @@ int heap_rsame(HP_INFO *info, uchar *record, int inx) {
         return my_errno();
       }
     }
-    memcpy(record, info->current_ptr, (size_t)share->reclength);
+    if (hp_extract_record(info, record, info->current_ptr))
+      return my_errno();
     return 0;
   }
+
+  /* Treat deleted and linked chunks as deleted */
   info->update = 0;
 
   set_my_errno(HA_ERR_RECORD_DELETED);

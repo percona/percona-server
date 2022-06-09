@@ -122,29 +122,6 @@ topkey_item_t *topkeys_item_get_or_create(topkeys_t *tk, const void *key, size_t
     return item;
 }
 
-static inline void append_stat(const void *cookie,
-                               const char *name,
-                               size_t namelen,
-                               const char *key,
-                               size_t nkey,
-                               int value,
-                               ADD_STAT add_stats) {
-    char key_str[128];
-    char val_str[128];
-    int klen, vlen;
-
-    klen = sizeof(key_str) - namelen - 2;
-    if (nkey < klen) {
-        klen = nkey;
-    }
-    memcpy(key_str, key, klen);
-    key_str[klen] = '.';
-    memcpy(&key_str[klen+1], name, namelen + 1);
-    klen += namelen + 1;
-    vlen = snprintf(val_str, sizeof(val_str) - 1, "%d", value);
-    add_stats(key_str, klen, val_str, vlen, cookie);
-}
-
 struct tk_context {
     const void *cookie;
     ADD_STAT add_stat;

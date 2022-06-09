@@ -70,7 +70,7 @@ TARGET_LINK_LIBRARIES(${XCL_UNIT_TESTS}
   harness_net_ts
   ext::libprotobuf
   ext::lz4
-  mysqlclient
+  perconaserverclient
   gtest
   gmock
 )

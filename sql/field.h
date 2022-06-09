@@ -188,9 +188,10 @@ enum Derivation {
 
 /* Specifies data storage format for individual columns */
 enum column_format_type {
-  COLUMN_FORMAT_TYPE_DEFAULT = 0, /* Not specified (use engine default) */
-  COLUMN_FORMAT_TYPE_FIXED = 1,   /* FIXED format */
-  COLUMN_FORMAT_TYPE_DYNAMIC = 2  /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_DEFAULT = 0,   /* Not specified (use engine default) */
+  COLUMN_FORMAT_TYPE_FIXED = 1,     /* FIXED format */
+  COLUMN_FORMAT_TYPE_DYNAMIC = 2,   /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_COMPRESSED = 3 /* COMPRESSED format*/
 };
 
 /**
@@ -776,6 +777,8 @@ class Field {
 
    */
   bool is_created_from_null_item;
+  LEX_CSTRING zip_dict_name;  // associated compression dictionary name
+  LEX_CSTRING zip_dict_data;  // associated compression dictionary data
   /**
     If true, it's a Create_field_wrapper (a sub-class of Field used during
     CREATE/ALTER that we mustn't cast to other sub-classes of Field that

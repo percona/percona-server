@@ -24,5 +24,10 @@ IKey *Vault_keys_container::fetch_key(IKey *key) {
   return Keys_container::fetch_key(key);
 }
 
+void Vault_keys_container::set_curl_timeout(uint timeout) {
+  assert(vault_io != nullptr);
+  vault_io->set_curl_timeout(timeout);
+}
+
 bool Vault_keys_container::flush_to_backup() { return false; }
 }  // namespace keyring

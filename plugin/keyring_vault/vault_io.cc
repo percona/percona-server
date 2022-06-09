@@ -59,6 +59,11 @@ bool Vault_io::get_serialized_object(ISerialized_object **serialized_object) {
   return false;
 }
 
+void Vault_io::set_curl_timeout(uint timeout) noexcept {
+  assert(vault_curl != nullptr);
+  vault_curl->set_timeout(timeout);
+}
+
 bool Vault_io::retrieve_key_type_and_data(IKey *key) {
   Secure_string json_response;
   if (vault_curl->read_key(static_cast<const Vault_key &>(*key),

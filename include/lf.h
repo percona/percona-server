@@ -79,18 +79,18 @@ struct LF_PINBOX {
   lf_pinbox_free_func *free_func;
   void *free_func_arg;
   uint free_ptr_offset;
-  std::atomic<uint32> pinstack_top_ver; /* this is a versioned pointer */
-  std::atomic<uint32> pins_in_array;    /* number of elements in array */
+  std::atomic<uint64> pinstack_top_ver; /* this is a versioned pointer */
+  std::atomic<uint64> pins_in_array;    /* number of elements in array */
 };
 
 struct LF_PINS {
   std::atomic<void *> pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
   void *purgatory;
-  uint32 purgatory_count;
-  std::atomic<uint32> link;
+  uint64 purgatory_count;
+  std::atomic<uint64> link;
   /* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
-#if SIZEOF_INT * 2 + SIZEOF_CHARP * (LF_PINBOX_PINS + 2) != 64
+#if 2 * 8 + SIZEOF_CHARP * (LF_PINBOX_PINS + 2) != 64
   char pad[64 - sizeof(uint32) * 2 - sizeof(void *) * (LF_PINBOX_PINS + 2)];
 #endif
 };

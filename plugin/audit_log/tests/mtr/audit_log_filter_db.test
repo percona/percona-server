@@ -1,0 +1,85 @@
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $log_file=$MYSQLD_DATADIR/test_audit.log;
+
+# setup some databases
+
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE DATABASE ```db3"`;
+CREATE DATABASE `some_very_long,database_na'me``some_very_long_database_n"ame____q`;
+
+SHOW DATABASES;
+
+# test set/unset filters
+
+SET GLOBAL audit_log_include_databases= '`some_very_long,database_na\'me``some_very_long_database_n"ame____q`,```db1"`,db3';
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_databases= 'db2';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_databases= NULL;
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+SET GLOBAL audit_log_include_databases= 'db1, db2, db3';
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+SET GLOBAL audit_log_include_databases= '';
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_exclude_databases= 'db1';
+SET GLOBAL audit_log_include_databases= NULL;
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+
+SET GLOBAL audit_log_exclude_databases= 'db2,`db3 `';
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_databases= 'db1, db2, db3';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_databases= NULL;
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+SET GLOBAL audit_log_exclude_databases= 'db1, db2, db3';
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+SET GLOBAL audit_log_exclude_databases= '';
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_include_databases= 'db2';
+SET GLOBAL audit_log_exclude_databases= NULL;
+SELECT @@audit_log_include_databases, @@audit_log_exclude_databases;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $MYSQLD_DATADIR/test_audit.log
+SET GLOBAL audit_log_flush=ON;
+
+# testing include
+SET GLOBAL audit_log_include_databases= 'db1,```db3"`';
+
+--source audit_log_filter_db_events.inc
+
+SET GLOBAL audit_log_include_databases= 'db2,```db3"`';
+
+--source audit_log_filter_db_events.inc
+
+# log everything
+SET GLOBAL audit_log_include_databases= NULL;
+
+--source audit_log_filter_db_events.inc
+
+# testing exclude
+SET GLOBAL audit_log_exclude_databases= 'db1,`some_very_long,database_na\'me``some_very_long_database_n"ame____q`';
+
+--source audit_log_filter_db_events.inc
+
+SET GLOBAL audit_log_exclude_databases= 'db1,db2';
+
+--source audit_log_filter_db_events.inc
+
+SET GLOBAL audit_log_exclude_databases= NULL;
+
+--source audit_log_echo.inc
+
+# cleanup databases
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE ```db3"`;
+DROP DATABASE `some_very_long,database_na'me``some_very_long_database_n"ame____q`;

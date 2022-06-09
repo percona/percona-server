@@ -1,0 +1,102 @@
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+CREATE USER 'user2'@'%' IDENTIFIED BY '111';
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE DATABASE `ąžąžąžą`;
+CREATE TABLE db1.t (a VARCHAR(100));
+CREATE TABLE db2.t (a VARCHAR(100));
+CREATE TABLE ąžąžąžą.t (a VARCHAR(100)) charset=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO db1.t VALUES ('db1');
+INSERT INTO db2.t VALUES ('db2');
+INSERT INTO ąžąžąžą.t VALUES ('ąžąžąžą');
+GRANT ALL PRIVILEGES ON db1.* TO 'user1'@'%';
+GRANT ALL PRIVILEGES ON db2.* TO 'user1'@'%';
+GRANT ALL PRIVILEGES ON db2.* TO 'user2'@'%';
+GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user1'@'%';
+GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
+UNINSTALL PLUGIN audit_log;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+INSTALL PLUGIN audit_log SONAME 'audit_log.so';
+SELECT * FROM t;
+a
+db2
+use 	`db1`;
+ERROR 42000: Access denied for user 'user2'@'%' to database 'db1'
+connect(localhost,user2,111,db1,MASTER_MYPORT,MASTER_MYSOCK);
+ERROR 42000: Access denied for user 'user2'@'%' to database 'db1'
+connect(localhost,user2,112,db2,MASTER_MYPORT,MASTER_MYSOCK);
+ERROR 28000: Access denied for user 'user2'@'localhost' (using password: YES)
+connect(localhost,user3,111,db2,MASTER_MYPORT,MASTER_MYSOCK);
+ERROR 28000: Access denied for user 'user3'@'localhost' (using password: YES)
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT * FROM t;
+a
+db2
+use    	`db1`;
+ERROR 42000: Access denied for user 'user2'@'%' to database 'db1'
+SELECT * FROM t;
+a
+db2
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT * FROM t;
+a
+db1
+use `db2`;
+SELECT * FROM t;
+a
+db2
+use ąžąžąžą;
+SELECT * FROM t;
+a
+ąžąžąžą
+a
+db1
+set global audit_log_flush= ON;
+===================================================================
+"Query","<ID>","<DATETIME>","install_plugin","<CONN_ID>",0,"INSTALL PLUGIN audit_log SONAME 'audit_log.so'","root[root] @ localhost []","localhost","","",""
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"root","root","","","localhost","","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db2"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","","db2"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"use 	`db1`","user1[user1] @ localhost []","localhost","","","db1"
+"Change user","<ID>","<DATETIME>","<CONN_ID>",1044,"user2","user2","","","localhost","",""
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",1044,"user2","user2","","","localhost","",""
+"Connect","<ID>","<DATETIME>","<CONN_ID>",1045,"user2","user2","","","localhost","",""
+"Connect","<ID>","<DATETIME>","<CONN_ID>",1045,"user3","","","","localhost","",""
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user2","user2","","","localhost","","db2"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"set names utf8","user2[user2] @ localhost []","localhost","","","db2"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","user2[user2] @ localhost []","localhost","","","db2"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user2[user2] @ localhost []","localhost","","","db2"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",1044,"use    	`db1`","user2[user2] @ localhost []","localhost","","","db2"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user2[user2] @ localhost []","localhost","","","db2"
+"Change user","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"set names utf8","user1[user1] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","user1[user1] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"use `db2`","user1[user1] @ localhost []","localhost","","","db2"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","","db2"
+"Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"use ąžąžąžą","user1[user1] @ localhost []","localhost","","","ąžąžąžą"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","","ąžąžąžą"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","ąžąžąžą"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"select @@version_comment limit 1","user1[user1] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT DATABASE()","user1[user1] @ localhost []","localhost","","","test"
+"Init DB","<ID>","<DATETIME>","error","<CONN_ID>",0,"","user1[user1] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
+===================================================================
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE ąžąžąžą;
+DROP USER user1;
+DROP USER user2;

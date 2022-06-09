@@ -50,10 +50,10 @@ IF(INSTALL_MYSQLTESTDIR)
       COMPONENT TestReadme
       RENAME LICENSE-test
       )
-    INSTALL(FILES ${CMAKE_SOURCE_DIR}/README
+    INSTALL(FILES ${CMAKE_SOURCE_DIR}/README.md
       DESTINATION ${INSTALL_DOCREADMEDIR}
       COMPONENT TestReadme
-      RENAME README-test
+      RENAME README.md-test
       )
   ENDIF()
 ENDIF()
@@ -130,7 +130,6 @@ SET(MTR_TESTS_FOR_PROFILING
   json
   main
   sysschema
-  thread_pool
   x
   )
 STRING(REPLACE ";" "," MTR_SUITE_STRING "${MTR_TESTS_FOR_PROFILING}")
@@ -156,7 +155,7 @@ ADD_CUSTOM_TARGET(run-profile-suite
   --accept-test-fail
   --clean-vardir
   --force
-  --max-test-fail=10
+  --max-test-fail=0
   --mem
   --mysqld=--binlog-format=row
   --parallel=${NPROC}

@@ -69,7 +69,7 @@ ELSE()
   SET(KERBEROS_LIB  "")
 ENDIF()
 
-SET(MY_SQL "mysqlclient")
+SET(MY_SQL "perconaserverclient")
 
 DISABLE_MISSING_PROFILE_WARNING()
 

@@ -36,7 +36,7 @@ SET(TESTS
 SET(TESTS_LINK_LIBRARIES
   changestreams_standalone_static
   binlogstandalone_static
-  mysqlclient
+  perconaserverclient
   gunit_small)
 
 IF (WITH_CS_PROTOBUF)

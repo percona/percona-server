@@ -189,8 +189,8 @@ template <typename ImplType>
 class generic_udf<ImplType, INT_RESULT>
     : public generic_udf_base<ImplType, INT_RESULT> {
  public:
-  static double func(UDF_INIT *initid, UDF_ARGS *args, unsigned char *is_null,
-                     unsigned char *error) noexcept {
+  static long long func(UDF_INIT *initid, UDF_ARGS *args,
+                        unsigned char *is_null, unsigned char *error) noexcept {
     auto &extended_impl = *generic_udf_base<
         ImplType, INT_RESULT>::get_extended_impl_from_udf_initid(initid);
     udf_result_t<INT_RESULT> res;

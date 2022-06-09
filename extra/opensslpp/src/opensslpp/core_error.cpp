@@ -39,6 +39,7 @@ static constexpr std::size_t error_message_buffer_size = 256;
 
     ERR_error_string_n(err, buffer.data(), buffer.size());
     message += buffer.data();
+    ERR_clear_error();
   }
 
   throw core_error{message};

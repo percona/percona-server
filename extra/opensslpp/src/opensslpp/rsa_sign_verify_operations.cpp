@@ -17,6 +17,7 @@
 #include <cassert>
 #include <vector>
 
+#include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 
@@ -76,6 +77,13 @@ bool verify_with_rsa_public_key(const std::string &digest_type,
       digest_data.size(),
       reinterpret_cast<const unsigned char *>(signature_data.c_str()),
       signature_data.size(), rsa_key_accessor::get_impl_const_casted(key));
+
+  // RSA_verify() does not destinguish between "an error occurred" and
+  // "invalid signature" - in both cases 0 is returned.
+  // Therefore, we need to make sure that the OpenSSL error code queue
+  // will be empty after this call, so that it would not affect invoking
+  // code that may rely on ERR_get_error() / ERR_peek_error()
+  if (verify_status == 0) ERR_clear_error();
 
   return verify_status == 1;
 }

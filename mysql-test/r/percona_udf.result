@@ -1,0 +1,37 @@
+*** checking if UDF works without creating the function
+SELECT MURMUR_HASH('hello', 'world');
+ERROR 42000: FUNCTION test.MURMUR_HASH does not exist
+
+*** creating UDF functions
+CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so';
+CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so';
+CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so';
+
+*** checking UDF functions
+include/assert.inc [checking hash value for FNV1A_64()]
+include/assert.inc [checking hash value for FNV_64()]
+include/assert.inc [checking hash value for MURMUR_HASH()]
+
+*** creating t1 table
+CREATE TABLE t1 (
+id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+col1 INT,
+col2 VARCHAR(16),
+col3 TEXT,
+PRIMARY KEY(id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1(col1, col2, col3) VALUES (1, "b", "c");
+INSERT INTO t1(col1, col2, col3) VALUES (2, "3240", "4000");
+INSERT INTO t1(col1, col2, col3) VALUES (3, "short", "words");
+
+*** checking UDF functions with t1 table
+include/assert.inc [checking hash value for BIT_XOR(FNV1A_64())]
+include/assert.inc [checking hash value for BIT_XOR(FNV_64())]
+include/assert.inc [checking hash value for BIT_XOR(MURMUR_HASH())]
+include/assert.inc [checking hash value for FNV1A_64(col1, col2, col3)]
+
+*** cleaning up
+DROP FUNCTION fnv1a_64;
+DROP FUNCTION fnv_64;
+DROP FUNCTION murmur_hash;
+DROP TABLE t1;

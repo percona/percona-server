@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "page0zip.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "sync0rw.h"
 #include "trx0trx.h"
 #include "ut0byte.h"
@@ -1284,6 +1285,66 @@ static void buf_LRU_check_size_of_non_data_objects(
   }
 }
 
+/** Diagnose failure to get a free page and request InnoDB monitor output in
+the error log if more than two seconds have been spent already.
+@param[in]	n_iterations	how many buf_LRU_get_free_page iterations
+already completed
+@param[in]	started_time	timestamp of when the attempt to get the
+free page started
+@param[in]	flush_failures	how many times single-page flush, if allowed,
+has failed
+@param[in,out]	started_monitor	whether InnoDB monitor print has been requested
+*/
+static void buf_LRU_handle_lack_of_free_blocks(
+    ulint n_iterations, std::chrono::steady_clock::time_point started_time,
+    ulint flush_failures, bool *started_monitor) {
+  static std::chrono::steady_clock::time_point last_printout_time;
+
+  /* Legacy algorithm started warning after at least 2 seconds, we
+  emulate this. */
+  const auto current_time = std::chrono::steady_clock::now();
+  const std::chrono::milliseconds limit{2000};
+
+  if ((current_time - started_time > limit) &&
+      (current_time - last_printout_time > limit) &&
+      srv_buf_pool_old_size == srv_buf_pool_size) {
+    ib::warn(ER_IB_MSG_134)
+        << "Difficult to find free blocks in the buffer pool"
+           " ("
+        << n_iterations << " search iterations)! " << flush_failures
+        << " failed attempts to"
+           " flush a page! Consider increasing the buffer pool"
+           " size. It is also possible that in your Unix version"
+           " fsync is very slow, or completely frozen inside"
+           " the OS kernel. Then upgrading to a newer version"
+           " of your operating system may help. Look at the"
+           " number of fsyncs in diagnostic info below."
+           " Pending flushes (fsync) log: "
+        << log_pending_flushes()
+        << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
+        << os_n_file_reads << " OS file reads, " << os_n_file_writes
+        << " OS file writes, " << os_n_fsyncs
+        << " OS fsyncs. Starting InnoDB Monitor to print"
+           " further diagnostics to the standard output.";
+
+    last_printout_time = current_time;
+
+    if (!*started_monitor) {
+      *started_monitor = true;
+      srv_innodb_needs_monitoring++;
+    }
+  }
+}
+
+/** The maximum allowed backoff sleep time duration, microseconds */
+static constexpr auto MAX_FREE_LIST_BACKOFF_SLEEP = 10000;
+
+/** The sleep reduction factor for high-priority waiter backoff sleeps */
+static constexpr auto FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER = 100;
+
+/** The sleep reduction factor for low-priority waiter backoff sleeps */
+static constexpr auto FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER = 1;
+
 /** Returns a free block from the buf_pool. The block is taken off the
 free list. If free list is empty, blocks are moved from the end of the
 LRU list to the free list.
@@ -1314,6 +1375,7 @@ buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool) {
   ulint n_iterations = 0;
   ulint flush_failures = 0;
   bool started_monitor = false;
+  std::chrono::steady_clock::time_point started_time;
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1322,7 +1384,22 @@ loop:
   buf_LRU_check_size_of_non_data_objects(buf_pool);
 
   /* If there is a block in the free list, take it */
-  block = buf_LRU_get_free_only(buf_pool);
+  if (DBUG_EVALUATE_IF("simulate_lack_of_pages", true, false)) {
+    block = NULL;
+
+    if (srv_debug_monitor_printed) DBUG_SET("-d,simulate_lack_of_pages");
+
+  } else if (DBUG_EVALUATE_IF("simulate_recovery_lack_of_pages",
+                              recv_recovery_on, false)) {
+    block = NULL;
+
+    if (srv_debug_monitor_printed) {
+      flush_error_log_messages();
+      DBUG_SUICIDE();
+    }
+  } else {
+    block = buf_LRU_get_free_only(buf_pool);
+  }
 
   if (block != nullptr) {
     ut_ad(!block->page.someone_has_io_responsibility());
@@ -1337,10 +1414,81 @@ loop:
     return block;
   }
 
+  if (started_time == std::chrono::steady_clock::time_point{})
+    started_time = std::chrono::steady_clock::now();
+
   MONITOR_INC(MONITOR_LRU_GET_FREE_LOOPS);
 
   freed = false;
+
+  if (srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_BACKOFF &&
+      buf_flush_page_cleaner_is_active() &&
+      (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE ||
+       srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP)) {
+    /* Backoff to minimize the free list mutex contention while the free list
+    is empty */
+    const auto priority = srv_current_thread_priority;
+
+    if (n_iterations < 3) {
+      std::this_thread::yield();
+      if (!priority) {
+        std::this_thread::yield();
+      }
+    } else {
+      ulint i, b;
+
+      if (n_iterations < 6) {
+        i = n_iterations - 3;
+      } else if (n_iterations < 8) {
+        i = 4;
+      } else if (n_iterations < 11) {
+        i = 5;
+      } else {
+        i = n_iterations - 5;
+      }
+      b = 1 << i;
+      if (b > MAX_FREE_LIST_BACKOFF_SLEEP) {
+        b = MAX_FREE_LIST_BACKOFF_SLEEP;
+      }
+      std::this_thread::sleep_for(std::chrono::microseconds(
+          b / (priority ? FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER
+                        : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER)));
+    }
+
+    buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time,
+                                       flush_failures, &started_monitor);
+
+    n_iterations++;
+
+    srv_stats.buf_pool_wait_free.add(n_iterations, 1);
+
+    /* In case of backoff, do not ever attempt single page flushes and
+    wait for the cleaner to free some pages instead.  */
+    goto loop;
+  } else {
+    /* The LRU manager is not running or Oracle MySQL 5.6 algorithm
+    was requested, will perform a single page flush  */
+    ut_ad((srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_LEGACY) ||
+          !buf_flush_page_cleaner_is_active() ||
+          (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
+           srv_shutdown_state.load() != SRV_SHUTDOWN_CLEANUP));
+  }
+  if (buf_pool->init_flush[BUF_FLUSH_LRU] && dblwr::is_enabled()) {
+    /* If there is an LRU flush happening in the background then we
+    wait for it to end instead of trying a single page flush. If,
+    however, we are not using doublewrite buffer then it is better to
+    do our own single page flush instead of waiting for LRU flush to
+    end. */
+    buf_flush_await_no_flushing(buf_pool, BUF_FLUSH_LRU);
+    goto loop;
+  }
+
   os_rmb;
+
+  if (DBUG_EVALUATE_IF("simulate_recovery_lack_of_pages", true, false) ||
+      DBUG_EVALUATE_IF("simulate_lack_of_pages", true, false))
+    buf_pool->try_LRU_scan = false;
+
   if (buf_pool->try_LRU_scan || n_iterations > 0) {
     /* If no block was in the free list, search from the
     end of the LRU list and try to free a block there.

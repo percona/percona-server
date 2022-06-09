@@ -55,7 +55,7 @@ static inline buf_block_t *page_cur_get_block(
     page_cur_t *cur) /*!< in: page cursor */
 {
   ut_ad(cur);
-  ut_ad(page_align(cur->rec) == cur->block->frame);
+  ut_ad(cur->rec == NULL || page_align(cur->rec) == cur->block->frame);
   return (cur->block);
 }
 

@@ -325,6 +325,10 @@ dberr_t Page_load::init() noexcept {
     the allocation order, and we will always generate redo log
     for page allocation, even when creating a new tablespace. */
     alloc_mtr.start();
+    if (m_index->table->is_temporary()) {
+      // We are bulk loading a temporary table index. No need to redo-log it.
+      alloc_mtr.set_log_mode(MTR_LOG_NO_REDO);
+    }
 
     ulint n_reserved;
     bool success = fsp_reserve_free_extents(&n_reserved, m_index->space, 1,
@@ -1240,6 +1244,10 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
   mtr_t mtr;
 
   mtr.start();
+  if (m_index->table->is_temporary()) {
+    // We are bulk loading a temporary table index. No need to redo-log it.
+    mtr.set_log_mode(MTR_LOG_NO_REDO);
+  }
   mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
 
   auto last_block = btr_block_get(page_id, page_size, RW_X_LATCH,
@@ -1272,8 +1280,6 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
 }
 
 dberr_t Btree_load::finish(dberr_t err) noexcept {
-  ut_ad(!m_index->table->is_temporary());
-
   /* Assert that the index online status has not changed */
   ut_ad(m_index->online_status == m_index_online);
 

@@ -55,7 +55,8 @@ struct MY_BITMAP {
 };
 
 extern void create_last_word_mask(MY_BITMAP *map);
-extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits);
+extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
+                        bool thread_safe = false);
 extern bool bitmap_is_clear_all(const MY_BITMAP *map);
 extern bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern bool bitmap_is_set_all(const MY_BITMAP *map);
@@ -69,7 +70,7 @@ extern uint bitmap_get_first_set(const MY_BITMAP *map);
 extern uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_bits_set(const MY_BITMAP *map);
 extern void bitmap_free(MY_BITMAP *map);
-extern void bitmap_set_above(MY_BITMAP *map, uint from_byte, bool use_bit);
+extern void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit);
 extern void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size);
 extern void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2);

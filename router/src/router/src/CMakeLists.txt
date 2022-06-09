@@ -63,7 +63,7 @@ TARGET_LINK_LIBRARIES(router_lib
   harness-library
   harness_stdx
   harness_tls
-  mysqlclient
+  perconaserverclient
   OpenSSL::SSL OpenSSL::Crypto
   io_component
   extra::rapidjson

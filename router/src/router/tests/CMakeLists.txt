@@ -129,7 +129,7 @@ SET_TARGET_PROPERTIES(
 ADD_HARNESS_TEST_FILE(test_mysql_session.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
-    test-helpers mysqlclient
+    test-helpers perconaserverclient
   EXTRA_SOURCES
     ../src/common/mysql_session.cc
     ../src/common/log_filter.cc
@@ -148,7 +148,7 @@ FOREACH(test_file
   ADD_HARNESS_TEST_FILE(${test_file}
     MODULE ${TEST_MODULE}
     LIB_DEPENDS
-      test-helpers mysqlclient router_lib
+      test-helpers perconaserverclient router_lib
     INCLUDE_DIRS
       $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
       ../src/
@@ -159,7 +159,7 @@ ENDFOREACH()
 ADD_HARNESS_TEST_FILE(test_windows_service.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
-    test-helpers mysqlclient
+    test-helpers perconaserverclient
   EXTRA_SOURCES
     ../src/windows/main-windows.cc
     ../src/windows/nt_servc.cc

@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <atomic>
 
 #include "m_string.h"  // strlen
 #include "my_dbug.h"
@@ -63,6 +64,7 @@ static void init_deamon_example_psi_keys() {
 struct mysql_heartbeat_context {
   my_thread_handle heartbeat_thread;
   File heartbeat_file;
+  std::atomic_bool done;
 };
 
 static void *mysql_heartbeat(void *p) {
@@ -72,7 +74,7 @@ static void *mysql_heartbeat(void *p) {
   time_t result;
   struct tm tm_tmp;
 
-  while (true) {
+  while (!con->done.load()) {
     sleep(5);
 
     result = time(nullptr);
@@ -125,6 +127,7 @@ static int daemon_example_plugin_init(void *p) {
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);
   unlink(heartbeat_filename);
   con->heartbeat_file = my_open(heartbeat_filename, O_CREAT | O_RDWR, MYF(0));
+  con->done.store(false);
 
   /*
     No threads exist at this point in time, so this is thread safe.
@@ -173,7 +176,7 @@ static int daemon_example_plugin_deinit(void *p) {
   struct tm tm_tmp;
   void *dummy_retval;
 
-  my_thread_cancel(&con->heartbeat_thread);
+  con->done.store(true);
 
   localtime_r(&result, &tm_tmp);
   snprintf(buffer, sizeof(buffer),

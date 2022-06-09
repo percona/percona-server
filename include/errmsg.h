@@ -47,7 +47,8 @@
 
 void init_client_errs(void);
 void finish_client_errs(void);
-extern const char *client_errors[]; /* Error messages */
+extern const char *client_errors[];      /* Error messages */
+extern const char **mysql_client_errors; /* Error messages */
 
 #define CR_MIN_ERROR 2000 /* For easier client code */
 #define CR_MAX_ERROR 2999

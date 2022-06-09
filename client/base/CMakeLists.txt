@@ -51,4 +51,4 @@ ADD_LIBRARY(client_base STATIC
   ${CMAKE_SOURCE_DIR}/client/multi_factor_passwordopt-vars.cc
 )
 
-TARGET_LINK_LIBRARIES(client_base mysqlclient)
+TARGET_LINK_LIBRARIES(client_base perconaserverclient)

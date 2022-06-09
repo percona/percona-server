@@ -33,8 +33,10 @@ MYSQL_ADD_EXECUTABLE(ndb_mgm
   main.cpp
   COMPONENT ClusterManagementClient
   ENABLE_EXPORTS
+  INCLUDE_DIRECTORIES
+  ${MY_XLINE_INCLUDE_DIR}
   LINK_LIBRARIES
-  ${EDITLINE_LIBRARY}
+  ${MY_XLINE_LIBRARY}
   mysys
   ndbgeneral
   ndblogger

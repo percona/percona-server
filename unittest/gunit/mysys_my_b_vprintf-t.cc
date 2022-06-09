@@ -31,7 +31,8 @@ void test1(const char *res, const char *fmt, ...) {
   IO_CACHE info;
   va_list args;
   size_t len;
-  init_io_cache(&info, -1, 0, WRITE_CACHE, 0, true, MYF(0));
+  int init_res = init_io_cache(&info, -1, 0, WRITE_CACHE, 0, true, MYF(0));
+  EXPECT_EQ(init_res, 0);
   memset(info.write_buffer, 0, 64); /* RECORD_CACHE_SIZE is 64K */
   va_start(args, fmt);
   len = my_b_vprintf(&info, fmt, args);

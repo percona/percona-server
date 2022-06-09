@@ -1472,7 +1472,8 @@ static int pfs_init_func(void *p) {
   pfs_hton->dict_init = pfs_dict_init;
 
   pfs_hton->flags = HTON_ALTER_NOT_SUPPORTED | HTON_TEMPORARY_NOT_SUPPORTED |
-                    HTON_NO_PARTITION | HTON_NO_BINLOG_ROW_OPT;
+                    HTON_NO_PARTITION | HTON_NO_BINLOG_ROW_OPT |
+                    HTON_SUPPORTS_ONLINE_BACKUPS;
 
   /*
     As long as the server implementation keeps using legacy_db_type,

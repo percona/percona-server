@@ -1252,6 +1252,7 @@ int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
   THD_ptr thd_ptr = get_THD(unsafe_thd);
   m_safe_thd = thd_ptr.get();
   if (m_safe_thd != nullptr) {
+    DEBUG_SYNC(m_current_thd, "materialize_session_status_array_THD_locked");
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.

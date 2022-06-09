@@ -92,7 +92,8 @@ enum THD_wait_type : int {
   THD_WAIT_GROUP_COMMIT = 9,
   THD_WAIT_SYNC = 10,
   THD_WAIT_TRX_DELAY = 11,
-  THD_WAIT_LAST = 12
+  THD_WAIT_NET = 12,
+  THD_WAIT_LAST = 13
 };
 
 inline const char *THD_wait_type_str(THD_wait_type twt) {
@@ -132,6 +133,9 @@ inline const char *THD_wait_type_str(THD_wait_type twt) {
 
     case THD_WAIT_TRX_DELAY:
       return "Waiting for transaction delay";
+
+    case THD_WAIT_NET:
+      return "Waiting for socket";
 
     case THD_WAIT_LAST:
       return "<Unused LAST marker value>";

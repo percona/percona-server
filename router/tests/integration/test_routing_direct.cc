@@ -3686,7 +3686,9 @@ TEST_P(ConnectionTest, classic_protocol_session_vars_nullable) {
                          "character_set_results",                       //
                          "innodb_ft_user_stopword_table",               //
                          "innodb_interpreter_output",                   // debug
-                         "session_track_system_variables"));
+                         "session_track_system_variables",
+                         "debug_set_operations_secondary_overflow_at",
+                         "log_query_errors"));
     }
   }
 }

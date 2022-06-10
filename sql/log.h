@@ -461,7 +461,7 @@ bool is_valid_log_name(const char *name, size_t len);
   @retval
     false             statement does not need to be logged
 */
-bool log_slow_applicable(THD *thd);
+bool log_slow_applicable(THD *thd, int sp_sql_command = -1);
 
 /**
   Unconditionally writes the current statement (or its rewritten version if it

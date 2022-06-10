@@ -275,8 +275,6 @@ class Command_names {
   }
 };
 
-size_t get_command_name_len(void);
-
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
 /**

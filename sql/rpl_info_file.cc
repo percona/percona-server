@@ -118,9 +118,13 @@ int Rpl_info_file::do_init_info() {
   }
   /* file exists */
   else if (ret_check == REPOSITORY_EXISTS) {
-    if (info_fd >= 0)
-      reinit_io_cache(&info_file, READ_CACHE, 0L, false, false);
-    else {
+    if (info_fd >= 0) {
+      if (reinit_io_cache(&info_file, READ_CACHE, 0L, false, false)) {
+        LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_RECREATE_CACHE_FOR_INFO_FILE,
+               info_fname);
+        error = 1;
+      }
+    } else {
       if ((info_fd = my_open(info_fname, O_RDWR, MYF(MY_WME))) < 0) {
         LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_OPEN_INFO_FILE, info_fname,
                my_errno());
@@ -131,10 +135,10 @@ int Rpl_info_file::do_init_info() {
                info_fname);
         error = 1;
       }
-      if (error) {
-        if (info_fd >= 0) my_close(info_fd, MYF(0));
-        info_fd = -1;
-      }
+    }
+    if (error) {
+      if (info_fd >= 0) my_close(info_fd, MYF(0));
+      info_fd = -1;
     }
   } else
     error = 1;

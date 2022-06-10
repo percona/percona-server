@@ -34,6 +34,8 @@
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "sql/mysqld.h"  // LOCK_consistent_snapshot
 
 class THD;
 
@@ -219,6 +221,26 @@ class TC_LOG {
      @return Error code on failure, zero on success.
    */
   virtual int prepare(THD *thd, bool all) = 0;
+
+  /**
+     Acquire an exclusive lock to block binary log updates and commits. This is
+     used by START TRANSACTION WITH CONSISTENT SNAPSHOT to create an atomic
+     snapshot.
+  */
+  virtual void xlock(void) = 0;
+
+  /** Release lock acquired with xlock(). */
+  virtual void xunlock(void) = 0;
+
+  /**
+     Acquire a shared lock to block commits. This is used when calling
+     ha_commit_low() to block commits if there's an exclusive lock acquired by
+     START TRANSACTION WITH CONSISTENT SNAPSHOT.
+  */
+  virtual void slock(void) = 0;
+
+  /** Release lock acquired with slock(). */
+  virtual void sunlock(void) = 0;
 };
 
 class TC_LOG_DUMMY : public TC_LOG  // use it to disable the logging
@@ -230,6 +252,10 @@ class TC_LOG_DUMMY : public TC_LOG  // use it to disable the logging
   enum_result commit(THD *thd, bool all) override;
   int rollback(THD *thd, bool all) override;
   int prepare(THD *thd, bool all) override;
+  void xlock(void) override {}
+  void xunlock(void) override {}
+  void slock(void) override {}
+  void sunlock(void) override {}
 };
 
 class TC_LOG_MMAP : public TC_LOG {
@@ -287,6 +313,15 @@ class TC_LOG_MMAP : public TC_LOG {
   int prepare(THD *thd, bool all) override;
   int recover();
   uint size() const;
+
+  void xlock(void) override { mysql_rwlock_wrlock(&LOCK_consistent_snapshot); }
+  void xunlock(void) override {
+    mysql_rwlock_unlock(&LOCK_consistent_snapshot);
+  }
+  void slock(void) override { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) override {
+    mysql_rwlock_unlock(&LOCK_consistent_snapshot);
+  }
 
  private:
   ulong log_xid(my_xid xid);

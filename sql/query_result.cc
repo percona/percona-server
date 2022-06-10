@@ -43,6 +43,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "nulls.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/item.h"
 #include "sql/item_func.h"
@@ -106,6 +107,8 @@ bool Query_result_send::send_data(THD *thd,
   }
 
   thd->inc_sent_row_count(1);
+  thd->sent_row_count_2++;
+  DEBUG_SYNC(thd, "sent_row");
   return protocol->end_row();
 }
 
@@ -206,7 +209,6 @@ void Query_result_to_file::cleanup() {
 
 static File create_file(THD *thd, char *path, sql_exchange *exchange,
                         IO_CACHE *cache) {
-  File file;
   const uint option = MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
 
   if (!dirname_length(exchange->file_name)) {
@@ -223,25 +225,40 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
     return -1;
   }
 
-  if (!access(path, F_OK)) {
-    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
-    return -1;
-  }
-  /* Create the file world readable */
-  if ((file = mysql_file_create(key_select_to_file, path,
-                                S_IRUSR | S_IWUSR | S_IRGRP, O_WRONLY | O_EXCL,
-                                MYF(MY_WME))) < 0)
-    return file;
-#ifdef HAVE_FCHMOD
-  (void)fchmod(file, S_IRUSR | S_IWUSR | S_IRGRP);  // Because of umask()
-#else
-  (void)chmod(path, S_IRUSR | S_IWUSR | S_IRGRP);
+  bool new_file_created = false;
+  MY_STAT stat_arg;
+  File file = -1;
+  if (my_stat(path, &stat_arg, MYF(0))) {
+    /* Check if file is named pipe or unix socket */
+    if (MY_S_ISFIFO(stat_arg.st_mode))
+      file = mysql_file_open(key_select_to_file, path, O_WRONLY, MYF(MY_WME));
+#ifndef __WIN__
+    if (MY_S_ISSOCK(stat_arg.st_mode))
+      file = mysql_unix_socket_connect(key_select_to_file, path, MYF(MY_WME));
 #endif
+    if (file < 0) {
+      if (!(MY_S_ISFIFO(stat_arg.st_mode) || MY_S_ISSOCK(stat_arg.st_mode)))
+        my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
+      return -1;
+    }
+  } else {
+    /* Create the file world readable */
+    if ((file = mysql_file_create(key_select_to_file, path,
+                                  S_IRUSR | S_IWUSR | S_IRGRP,
+                                  O_WRONLY | O_EXCL, MYF(MY_WME))) < 0)
+      return file;
+    new_file_created = true;
+#ifdef HAVE_FCHMOD
+    (void)fchmod(file, S_IRUSR | S_IWUSR | S_IRGRP);  // Because of umask()
+#else
+    (void)chmod(path, S_IRUSR | S_IWUSR | S_IRGRP);
+#endif
+  }
   if (init_io_cache(cache, file, thd->variables.select_into_buffer_size,
                     WRITE_CACHE, 0L, true, MYF(MY_WME))) {
     mysql_file_close(file, MYF(0));
     /* Delete file on error, it was just created */
-    mysql_file_delete(key_select_to_file, path, MYF(0));
+    if (new_file_created) mysql_file_delete(key_select_to_file, path, MYF(0));
     return -1;
   }
   if (thd->variables.select_into_disk_sync) {
@@ -641,6 +658,7 @@ err:
 
 void Query_result_export::cleanup() {
   current_thd->set_sent_row_count(row_count);
+  current_thd->sent_row_count_2 = row_count;
   Query_result_to_file::cleanup();
 }
 

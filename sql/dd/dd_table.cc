@@ -2132,7 +2132,6 @@ static bool fill_dd_table_from_create_info(
       encrypt_type.assign(create_info->encrypt_type.str,
                           create_info->encrypt_type.length);
     }
-    table_options->set("encrypt_type", encrypt_type);
   }
 
   // Storage media

@@ -592,6 +592,10 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data,
     error instead of correcting m_last_part, to make the user aware of the
     problem!
 
+    For TokuDB Read-Free-Replication optimization, there is no need to do
+    a read before update(row lookup is omitted), so m_last_part is not
+    necessarily same with old_part_id.
+
     Notice that HA_READ_BEFORE_WRITE_REMOVAL does not require this protocol,
     so this is not supported for this engine.
   */
@@ -698,6 +702,10 @@ int Partition_helper::ph_delete_row(const uchar *buf, bool lookup_rows) {
     error instead of forwarding the delete to the correct (m_last_part)
     partition!
 
+    For TokuDB Read-Free-Replication optimization, there is no need to do
+    a read before delete(row lookup is omitted), so m_last_part is not
+    necessarily same with part_id.
+
     Notice that HA_READ_BEFORE_WRITE_REMOVAL does not require this protocol,
     so this is not supported for this engine.
 
@@ -775,7 +783,7 @@ void Partition_helper::get_auto_increment_first_field(
   *nb_reserved_values = nb_desired_values;
 }
 
-inline void Partition_helper::set_auto_increment_if_higher() {
+void Partition_helper::set_auto_increment_if_higher() {
   Field_num *field = static_cast<Field_num *>(m_table->found_next_number_field);
   const ulonglong nr =
       (field->is_unsigned() || field->val_int() > 0) ? field->val_int() : 0;
@@ -1389,7 +1397,7 @@ err:
   Set table->read_set taking partitioning expressions into account.
 */
 
-inline void Partition_helper::set_partition_read_set() {
+void Partition_helper::set_partition_read_set() {
   /*
     For operations that may need to change data, we may need to extend
     read_set.

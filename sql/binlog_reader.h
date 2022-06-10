@@ -332,6 +332,7 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
     if (m_ifile.open(file_name)) return true;
 
     Format_description_log_event *fd = read_fdle(offset);
+
     if (!fd) return has_fatal_error();
 
     if (position() < offset && seek(offset)) {

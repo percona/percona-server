@@ -51,7 +51,9 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/current_thd.h"
 #include "sql/debug_sync.h"
+#include "sql/mysqld.h"
 #include "sql/thr_malloc.h"
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -134,7 +136,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
     {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME},
-    {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME}};
+    {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME},
+    {0, "Waiting for table backup lock", 0, PSI_DOCUMENT_ME}};
 
 #ifdef HAVE_PSI_INTERFACE
 void MDL_key::init_psi_keys() {
@@ -241,7 +244,8 @@ class MDL_map {
     return (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
             mdl_key->mdl_namespace() == MDL_key::COMMIT ||
             mdl_key->mdl_namespace() == MDL_key::ACL_CACHE ||
-            mdl_key->mdl_namespace() == MDL_key::BACKUP_LOCK);
+            mdl_key->mdl_namespace() == MDL_key::BACKUP_LOCK ||
+            mdl_key->mdl_namespace() == MDL_key::BACKUP_TABLES);
   }
 
  private:
@@ -273,6 +277,8 @@ class MDL_map {
     this into account.
   */
   std::atomic<int32> m_unused_lock_objects;
+  /** Pre-allocated MDL_lock object for Percona BACKUP TABLES namespace. */
+  MDL_lock *m_backup_tables_lock;
 };
 
 /**
@@ -830,6 +836,7 @@ class MDL_lock {
       case MDL_key::RESOURCE_GROUPS:
       case MDL_key::FOREIGN_KEY:
       case MDL_key::CHECK_CONSTRAINT:
+      case MDL_key::BACKUP_TABLES:
         return &m_scoped_lock_strategy;
       default:
         return &m_object_lock_strategy;
@@ -1146,6 +1153,9 @@ void MDL_map::init() {
   m_acl_cache_lock = MDL_lock::create(&acl_cache_lock_key);
   m_backup_lock = MDL_lock::create(&backup_lock_key);
 
+  const MDL_key percona_backup_lock_key(MDL_key::BACKUP_TABLES, "", "");
+  m_backup_tables_lock = MDL_lock::create(&percona_backup_lock_key);
+
   m_unused_lock_objects = 0;
 
   lf_hash_init2(&m_locks, sizeof(MDL_lock), LF_HASH_UNIQUE, 0, 0, mdl_locks_key,
@@ -1159,6 +1169,7 @@ void MDL_map::init() {
 */
 
 void MDL_map::destroy() {
+  MDL_lock::destroy(m_backup_tables_lock);
   MDL_lock::destroy(m_global_lock);
   MDL_lock::destroy(m_commit_lock);
   MDL_lock::destroy(m_acl_cache_lock);
@@ -1210,6 +1221,9 @@ MDL_lock *MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned) {
         break;
       case MDL_key::BACKUP_LOCK:
         lock = m_backup_lock;
+        break;
+      case MDL_key::BACKUP_TABLES:
+        lock = m_backup_tables_lock;
         break;
       default:
         assert(false);
@@ -2490,6 +2504,7 @@ void MDL_lock::remove_ticket(MDL_context *ctx, LF_PINS *pins,
   const bool is_singleton = mdl_locks.is_lock_object_singleton(&key);
 
   mysql_prlock_wrlock(&m_rwlock);
+
   (this->*list).remove_ticket(ticket);
 
   /*

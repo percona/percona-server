@@ -64,6 +64,7 @@
 #include "sql/sql_class.h"      // THD
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "strings/m_ctype_internals.h"
 #include "string_with_len.h"
 #include "typelib.h"
 #include "unsafe_string_append.h"
@@ -479,12 +480,12 @@ void Binlog_sender::run() {
   if (reader.is_open()) {
     if (is_fatal_error()) {
       /* output events range to error message */
-      snprintf(error_text, sizeof(error_text),
-               "%s; the first event '%s' at %lld, "
-               "the last event read from '%s' at %lld, "
-               "the last byte read from '%s' at %lld.",
-               m_errmsg, m_start_file, m_start_pos, m_last_file, m_last_pos,
-               log_file, reader.position());
+      my_snprintf_8bit(nullptr, error_text, sizeof(error_text),
+                       "%s; the first event '%s' at %lld, "
+                       "the last event read from '%s' at %lld, "
+                       "the last byte read from '%s' at %lld.",
+                       m_errmsg, m_start_file, m_start_pos, m_last_file,
+                       m_last_pos, log_file, reader.position());
       set_fatal_error(error_text);
     }
 

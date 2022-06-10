@@ -64,7 +64,7 @@
   yylloc_param->first_column = yycolumn; \
   yylloc_param->last_column = yycolumn+yyleng; \
   yycolumn += yyleng;
-  
+
 /*
   Allocate string token on the caller memory root.
 */
@@ -280,4 +280,3 @@ int main(int argc, char *argv[])
   fclose(data);
 }
 #endif /* TEST_MAIN */
-

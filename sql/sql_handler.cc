@@ -630,6 +630,7 @@ retry:
           error = table->file->ha_rnd_next(table->record[0]);
           break;
         }
+        // fallthrough
         /*
           Fall through to HANDLER ... READ ... FIRST case if we are trying
           to read next row in index order after starting reading rows in

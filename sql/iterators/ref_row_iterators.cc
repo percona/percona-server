@@ -377,8 +377,13 @@ int RefIterator<false>::Read() {  // Forward read.
       return -1;
     }
 
+    int error = table()->file->prepare_index_key_scan_map(
+        m_ref->key_buff, make_prev_keypart_map(m_ref->key_parts));
+    if (error) {
+      return HandleError(error);
+    }
     pair<uchar *, key_part_map> key_buff_and_map = FindKeyBufferAndMap(m_ref);
-    int error = table()->file->ha_index_read_map(
+    error = table()->file->ha_index_read_map(
         table()->record[0], key_buff_and_map.first, key_buff_and_map.second,
         HA_READ_KEY_EXACT);
     if (error) {

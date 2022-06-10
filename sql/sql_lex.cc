@@ -88,7 +88,6 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd);
 */
 const LEX_STRING null_lex_str = {nullptr, 0};
 const LEX_CSTRING null_lex_cstr = {nullptr, 0};
-const LEX_CSTRING empty_lex_cstr = {"", 0};
 /**
   Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
 
@@ -1798,7 +1797,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
           state = MY_LEX_USER_VARIABLE_DELIMITER;
           break;
         }
-      // fallthrough
+        // fallthrough
         /* " used for strings */
         [[fallthrough]];
       case MY_LEX_STRING:  // Incomplete text string

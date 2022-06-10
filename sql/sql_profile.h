@@ -34,6 +34,7 @@
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 
+struct IO_CACHE;
 class Item;
 class THD;
 
@@ -161,11 +162,15 @@ class Queue {
   A single entry in a single profile.
 */
 class PROF_MEASUREMENT {
- private:
-  friend class QUERY_PROFILE;
-  friend class PROFILING;
-
   QUERY_PROFILE *profile;
+
+  char *allocated_status_memory;
+
+  void set_label(const char *status_arg, const char *function_arg,
+                 const char *file_arg, unsigned int line_arg);
+  void clean_up();
+
+ public:
   const char *status;
 #ifdef HAVE_GETRUSAGE
   struct rusage rusage;
@@ -179,10 +184,7 @@ class PROF_MEASUREMENT {
 
   ulong m_seq;
   double time_usecs;
-  char *allocated_status_memory;
-
-  void set_label(const char *status_arg, const char *function_arg,
-                 const char *file_arg, unsigned int line_arg);
+  double cpu_time_usecs;
   PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg);
   PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg,
                    const char *function_arg, const char *file_arg,
@@ -217,6 +219,9 @@ class QUERY_PROFILE {
   /* Add a profile status change to the current profile. */
   void new_status(const char *status_arg, const char *function_arg,
                   const char *file_arg, unsigned int line_arg);
+
+ public:
+  PROFILING *get_profiling() const noexcept { return profiling; }
 };
 
 /**
@@ -259,10 +264,13 @@ class PROFILING {
 
   /* SHOW PROFILES */
   bool show_profiles();
+  bool enabled_getrusage() const noexcept;
 
   /* ... from INFORMATION_SCHEMA.PROFILING ... */
   int fill_statistics_info(THD *thd, Table_ref *tables);
   void cleanup();
+
+  int print_current(IO_CACHE *log_file) const noexcept;
 };
 
 #endif /* HAVE_PROFILING */

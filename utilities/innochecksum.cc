@@ -62,6 +62,7 @@
 The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 
 #include "storage/innobase/include/buf0checksum.h"
+#include "storage/innobase/include/dict0mem.h" /* DICT_TF_HAS_ATOMIC_BLOBS */
 #include "storage/innobase/include/fil0types.h"
 #include "storage/innobase/include/fsp0fsp.h"   /* fsp_flags_get_page_size() &
 
@@ -84,6 +85,7 @@ static uintmax_t end_page;
 static uintmax_t do_page;
 static bool use_end_page;
 static bool do_one_page;
+static bool display_format;
 /* replaces declaration in srv0srv.c */
 ulong srv_page_size;
 ulong srv_page_size_shift;
@@ -1240,6 +1242,8 @@ static struct my_option innochecksum_options[] = {
     {"count", 'c', "Print the count of pages in the file and exits.",
      &just_count, &just_count, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+    {"format_info", 'f', "Display information about the file format and exit",
+     0, 0, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"start_page", 's', "Start on this page number (0 based).", &start_page,
      &start_page, nullptr, GET_ULL, REQUIRED_ARG, 0, 0, ULLONG_MAX, nullptr, 1,
      nullptr},
@@ -1359,6 +1363,9 @@ extern "C" bool innochecksum_get_one_option(int optid,
     case 'l':
       is_log_enabled = true;
       break;
+    case 'f':
+      display_format = true;
+      break;
     case 'I':
     case '?':
       usage();
@@ -1381,6 +1388,67 @@ static bool get_options(int *argc, char ***argv) {
   }
 
   return (false);
+}
+
+/**
+Extract the zip size from tablespace flags.
+@param[in] flags        tablespace flags
+@return	compressed page size of the file-per-table tablespace in bytes, or zero
+if the table is not compressed. */
+MY_NODISCARD
+static ulint fsp_flags_get_zip_size(ulint flags) noexcept {
+  ulint zip_size = 0;
+  const ulint ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
+
+  /* Convert from a 'log2 minus 9' to a page size in bytes. */
+  if (ssize) {
+    zip_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+
+    ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
+  }
+
+  return (zip_size);
+}
+
+static void display_format_info(const uchar *page) noexcept {
+  /* Read page type. Pre-5.1.7 InnoDB always have zero in FIL_PAGE_TYPE
+     for the first page, later versions initialize it to
+     FIL_PAGE_TYPE_FSP_HDR. */
+  const ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
+
+  /* Read FSP flags from the page header. */
+  const ulint flags =
+      mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS);
+
+  if (!page_type) {
+    printf("Detected file format: Antelope (pre-5.1.7).\n");
+    if (flags != 0) {
+      printf(
+          "But FSP_SPACE_FLAGS is non-zero: %lu. "
+          "Corrupted tablespace?\n",
+          flags);
+    }
+  } else if (page_type == FIL_PAGE_TYPE_FSP_HDR) {
+    const ulint zip_size = fsp_flags_get_zip_size(flags);
+
+    if (!flags) {
+      printf(
+          "Detected file format: "
+          "Antelope (5.1.7 or newer).\n");
+    } else if (DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
+      printf("Detected file format: Barracuda ");
+      if (!zip_size)
+        printf("(not compressed).\n");
+      else
+        printf("(compressed with KEY_BLOCK_SIZE=%lu).\n", zip_size);
+    } else
+      printf("Unknown file format flags: %lu\n", flags);
+  } else {
+    printf(
+        "Bogus FIL_PAGE_TYPE value: %lu. Cannot detect the "
+        "file format.\n",
+        page_type);
+  }
 }
 
 int main(int argc, char **argv) {
@@ -1588,8 +1656,9 @@ int main(int argc, char **argv) {
       }
     }
 
-    /* seek to the necessary position */
-    if (start_page) {
+    /* seek to the necessary position, ignore with -f as we only need to read
+    the first pace */
+    if (start_page && !display_format) {
       if (!read_from_stdin) {
         /* If read is not from stdin, we can use
         fseeko() to position the file pointer to
@@ -1683,6 +1752,12 @@ int main(int argc, char **argv) {
                 "doesn't match page size (%zu)\n",
                 bytes, page_size.physical());
         return 1;
+      }
+
+      if (display_format) {
+        /* for -f, analyze only the first page and exit */
+        display_format_info(buf.begin());
+        break;
       }
 
       if (is_system_tablespace) {

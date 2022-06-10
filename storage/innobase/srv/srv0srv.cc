@@ -1385,6 +1385,9 @@ position where the part about transactions starts.
 static void srv_printf_locks_and_transactions(FILE *file,
                                               ulint *trx_start_pos) {
   ut_ad(locksys::owns_exclusive_global_latch());
+
+  if (recv_recovery_on) return;
+
   lock_print_info_summary(file);
   if (trx_start_pos) {
     long t = ftell(file);

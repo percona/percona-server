@@ -237,7 +237,7 @@ bool MY_LOCALE_ERRMSGS::read_texts() {
   if ((file = mysql_file_open(key_file_ERRMSG,
                               fn_format(name, ERRMSG_FILE, lang_path, "", 4),
                               O_RDONLY, MYF(0))) < 0) {
-    LogErr(ERROR_LEVEL, ER_ERRMSG_CANT_FIND_FILE, name);
+    if (!opt_help) LogErr(ERROR_LEVEL, ER_ERRMSG_CANT_FIND_FILE, name);
     goto open_err;
   }
 

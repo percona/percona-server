@@ -682,6 +682,11 @@ class Relay_log_info : public Rpl_info {
     happen when, for example, the relay log gets rotated because of
     max_binlog_size.
   */
+
+  // overridden new and delete operators for 64 byte alignment
+  static void *operator new(size_t request);
+  static void operator delete(void *ptr);
+
  protected:
   /**
      Event group means a group of events of a transaction. group_relay_log_name

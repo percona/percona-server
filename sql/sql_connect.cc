@@ -113,6 +113,12 @@ using std::min;
 #define NORMAL_HANDSHAKE_SIZE 6
 #define MIN_HANDSHAKE_SIZE 2
 
+user_stats_t *global_user_stats;
+user_stats_t *global_client_stats;
+thread_stats_t *global_thread_stats;
+table_stats_t *global_table_stats;
+index_stats_t *global_index_stats;
+
 /*
   Get structure for logging connection data for the current user
 */
@@ -160,6 +166,254 @@ int get_or_create_user_conn(THD *thd, const char *user, const char *host,
 end:
   mysql_mutex_unlock(&LOCK_user_conn);
   return return_val;
+}
+
+/* Intialize an instance of USER_STATS */
+USER_STATS::USER_STATS(const char *priv_user_, uint total_ssl_connections_,
+                       ulonglong denied_connections_) noexcept
+    : total_ssl_connections(total_ssl_connections_),
+      priv_user_len(strlen(priv_user_)),
+      denied_connections(denied_connections_) {
+  strncpy(priv_user, priv_user_, sizeof(priv_user) - 1);
+  priv_user[sizeof(priv_user) - 1] = '\0';
+}
+
+void init_global_user_stats(void) {
+  global_user_stats = new (std::nothrow)
+      user_stats_t(system_charset_info, key_memory_userstat_user_stats);
+  if (unlikely(!global_user_stats)) {
+    sql_print_error("Initializing global_user_stats failed.");
+    exit(1);
+  }
+}
+
+void init_global_client_stats(void) {
+  global_client_stats = new (std::nothrow)
+      user_stats_t(system_charset_info, key_memory_userstat_client_stats);
+  if (unlikely(!global_client_stats)) {
+    sql_print_error("Initializing global_client_stats failed.");
+    exit(1);
+  }
+}
+
+void init_global_thread_stats(void) {
+  global_thread_stats =
+      new (std::nothrow) thread_stats_t(key_memory_userstat_thread_stats);
+  if (unlikely(!global_thread_stats)) {
+    sql_print_error("Initializing global_thread_stats failed.");
+    exit(1);
+  }
+}
+
+void init_global_table_stats(void) {
+  global_table_stats = new (std::nothrow)
+      table_stats_t(system_charset_info, key_memory_userstat_table_stats);
+  if (unlikely(!global_table_stats)) {
+    sql_print_error("Initializing global_table_stats failed.");
+    exit(1);
+  }
+}
+
+void init_global_index_stats(void) {
+  global_index_stats = new (std::nothrow)
+      index_stats_t(system_charset_info, key_memory_userstat_index_stats);
+  if (unlikely(!global_index_stats)) {
+    sql_print_error("Initializing global_index_stats failed.");
+    exit(1);
+  }
+}
+
+void free_global_user_stats(void) noexcept { delete global_user_stats; }
+
+void free_global_thread_stats(void) noexcept { delete global_thread_stats; }
+
+void free_global_table_stats(void) noexcept { delete global_table_stats; }
+
+void free_global_index_stats(void) noexcept { delete global_index_stats; }
+
+void free_global_client_stats(void) noexcept { delete global_client_stats; }
+
+// 'mysql_system_user' is used for when the user is not defined for a THD.
+static constexpr char mysql_system_user[] = "#mysql_system#";
+
+// Returns 'user' if it's not NULL.  Returns 'mysql_system_user' otherwise.
+static const char *get_valid_user_string(const char *user) {
+  return user ? user : mysql_system_user;
+}
+
+// Increments the global stats connection count for an entry from
+// global_client_stats or global_user_stats. Returns false on success
+// and true on error.
+static void increment_count_by_name(const std::string &name,
+                                    const char *role_name,
+                                    user_stats_t *users_or_clients,
+                                    const THD &thd) {
+  const auto ssl_connections = thd.is_ssl() ? 1 : 0;
+  const auto &it = users_or_clients->find(name);
+  if (it == users_or_clients->cend()) {
+    // First connection for this user or client
+    users_or_clients->emplace(
+        std::piecewise_construct, std::forward_as_tuple(name),
+        std::forward_as_tuple(role_name, ssl_connections,
+                              thd.diff_denied_connections));
+  } else {
+    it->second.total_connections++;
+    it->second.total_ssl_connections += ssl_connections;
+  }
+}
+
+static void increment_count_by_id(my_thread_id id, thread_stats_t *thread_stats,
+                                  const THD &thd) {
+  const auto ssl_connections = thd.is_ssl() ? 1 : 0;
+  const auto &it = thread_stats->find(id);
+  if (it == thread_stats->cend()) {
+    // First connection for this user or client
+    thread_stats->emplace(std::piecewise_construct, std::forward_as_tuple(id),
+                          std::forward_as_tuple(id, ssl_connections,
+                                                thd.diff_denied_connections));
+  } else {
+    it->second.total_connections++;
+    it->second.total_ssl_connections += ssl_connections;
+  }
+}
+
+/* Increments the global user and client stats connection count.  If 'use_lock'
+   is true, LOCK_global_user_client_stats will be locked/unlocked.  Returns
+   0 on success, 1 on error.
+*/
+static void increment_connection_count(const THD &thd, bool use_lock) {
+  const char *user_string =
+      get_valid_user_string(thd.m_main_security_ctx.user().str);
+  const char *client_string = get_client_host(thd);
+
+  if (use_lock) mysql_mutex_lock(&LOCK_global_user_client_stats);
+
+  increment_count_by_name(user_string, user_string, global_user_stats, thd);
+  increment_count_by_name(client_string, user_string, global_client_stats, thd);
+  if (opt_thread_statistics)
+    increment_count_by_id(thd.thread_id(), global_thread_stats, thd);
+
+  if (use_lock) mysql_mutex_unlock(&LOCK_global_user_client_stats);
+}
+
+// Used to update the global user and client stats.
+static void update_global_user_stats_with_user(const THD &thd,
+                                               USER_STATS *user_stats,
+                                               time_t now) noexcept {
+  user_stats->connected_time += now - thd.last_global_update_time;
+  user_stats->busy_time += thd.diff_total_busy_time;
+  user_stats->cpu_time += thd.diff_total_cpu_time;
+  user_stats->bytes_received += thd.diff_total_bytes_received;
+  user_stats->bytes_sent += thd.diff_total_bytes_sent;
+  user_stats->binlog_bytes_written += thd.diff_total_binlog_bytes_written;
+  user_stats->rows_fetched += thd.diff_total_sent_rows;
+  user_stats->rows_updated += thd.diff_total_updated_rows;
+  user_stats->rows_read += thd.diff_total_read_rows;
+  user_stats->select_commands += thd.diff_select_commands;
+  user_stats->update_commands += thd.diff_update_commands;
+  user_stats->other_commands += thd.diff_other_commands;
+  user_stats->commit_trans += thd.diff_commit_trans;
+  user_stats->rollback_trans += thd.diff_rollback_trans;
+  user_stats->denied_connections += thd.diff_denied_connections;
+  user_stats->lost_connections += thd.diff_lost_connections;
+  user_stats->access_denied_errors += thd.diff_access_denied_errors;
+  user_stats->empty_queries += thd.diff_empty_queries;
+}
+
+static void update_global_thread_stats_with_thread(const THD &thd,
+                                                   THREAD_STATS *thread_stats,
+                                                   time_t now) noexcept {
+  thread_stats->connected_time += now - thd.last_global_update_time;
+  thread_stats->busy_time += thd.diff_total_busy_time;
+  thread_stats->cpu_time += thd.diff_total_cpu_time;
+  thread_stats->bytes_received += thd.diff_total_bytes_received;
+  thread_stats->bytes_sent += thd.diff_total_bytes_sent;
+  thread_stats->binlog_bytes_written += thd.diff_total_binlog_bytes_written;
+  thread_stats->rows_fetched += thd.diff_total_sent_rows;
+  thread_stats->rows_updated += thd.diff_total_updated_rows;
+  thread_stats->rows_read += thd.diff_total_read_rows;
+  thread_stats->select_commands += thd.diff_select_commands;
+  thread_stats->update_commands += thd.diff_update_commands;
+  thread_stats->other_commands += thd.diff_other_commands;
+  thread_stats->commit_trans += thd.diff_commit_trans;
+  thread_stats->rollback_trans += thd.diff_rollback_trans;
+  thread_stats->denied_connections += thd.diff_denied_connections;
+  thread_stats->lost_connections += thd.diff_lost_connections;
+  thread_stats->access_denied_errors += thd.diff_access_denied_errors;
+  thread_stats->empty_queries += thd.diff_empty_queries;
+}
+
+// Updates the global stats of a user or client
+void update_global_user_stats(THD *thd, bool create_user, time_t now) {
+  const char *user_string =
+      get_valid_user_string(thd->m_main_security_ctx.user().str);
+  const char *client_string = get_client_host(*thd);
+
+  mysql_mutex_lock(&LOCK_global_user_client_stats);
+
+  // Update by user name
+  const auto &user_it = global_user_stats->find(user_string);
+  if (user_it != global_user_stats->cend())
+    update_global_user_stats_with_user(*thd, &user_it->second, now);
+  else if (create_user)
+    increment_count_by_name(user_string, user_string, global_user_stats, *thd);
+
+  // Update by client IP
+  const auto &client_it = global_client_stats->find(client_string);
+  if (client_it != global_client_stats->cend())
+    update_global_user_stats_with_user(*thd, &client_it->second, now);
+  else if (create_user)
+    increment_count_by_name(client_string, user_string, global_client_stats,
+                            *thd);
+
+  if (opt_thread_statistics) {
+    // Update by thread ID
+    const my_thread_id thread_id = thd->thread_id();
+    const auto &thread_it = global_thread_stats->find(thread_id);
+    if (thread_it != global_thread_stats->cend())
+      update_global_thread_stats_with_thread(*thd, &thread_it->second, now);
+    else if (create_user)
+      increment_count_by_id(thread_id, global_thread_stats, *thd);
+  }
+
+  thd->last_global_update_time = now;
+  thd->reset_diff_stats();
+
+  mysql_mutex_unlock(&LOCK_global_user_client_stats);
+}
+
+static void clear_stats_concurrent_connections(user_stats_t *stats) noexcept {
+  for (auto &it : *stats) it.second.concurrent_connections = 0;
+}
+
+static void inc_stats_concurrent_conn(user_stats_t *stats,
+                                      const std::string &user_string,
+                                      int cnt) noexcept {
+  auto it = stats->find(user_string);
+  if (it != stats->end()) it->second.concurrent_connections += cnt;
+}
+
+/**
+  Update number of concurrent connections for user_stats and client_stats
+  based on account resource limits
+*/
+void refresh_concurrent_conn_stats() noexcept {
+  mysql_mutex_lock(&LOCK_user_conn);
+
+  mysql_mutex_lock(&LOCK_global_user_client_stats);
+  clear_stats_concurrent_connections(global_user_stats);
+  clear_stats_concurrent_connections(global_client_stats);
+  mysql_mutex_unlock(&LOCK_global_user_client_stats);
+
+  for (const auto &it : *hash_user_connections) {
+    mysql_mutex_lock(&LOCK_global_user_client_stats);
+    inc_stats_concurrent_conn(global_user_stats, it.second->user,
+                              it.second->connections);
+    inc_stats_concurrent_conn(global_client_stats, it.second->host,
+                              it.second->connections);
+    mysql_mutex_unlock(&LOCK_global_user_client_stats);
+  }
+  mysql_mutex_unlock(&LOCK_user_conn);
 }
 
 /*
@@ -216,6 +470,7 @@ int check_for_max_user_connections(THD *thd, const USER_CONN *uc) {
 
 end:
   if (error) {
+    ++denied_connections;
     thd->decrement_user_connections_counter();
     /*
       The thread may returned back to the pool and assigned to a user
@@ -713,6 +968,7 @@ static bool login_connection(THD *thd) {
     if (vio_type(thd->get_protocol_classic()->get_vio()) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000); /* must wait after eof() */
 #endif
+    thd->diff_denied_connections++;
     return true;
   }
   /* Connect completed, set read/write timeouts back to default */
@@ -720,6 +976,14 @@ static bool login_connection(THD *thd) {
       thd->variables.net_read_timeout);
   thd->get_protocol_classic()->set_write_timeout(
       thd->variables.net_write_timeout);
+
+  if (unlikely(opt_userstat)) {
+    thd->reset_stats();
+
+    // Updates global user connection stats.
+    increment_connection_count(*thd, true);
+  }
+
   return false;
 }
 
@@ -753,6 +1017,7 @@ void end_connection(THD *thd) {
 
   if (thd->killed || (net->error && net->vio != nullptr)) {
     aborted_threads++;
+    thd->diff_lost_connections++;
   }
 
   if (net->error && net->vio != nullptr) {

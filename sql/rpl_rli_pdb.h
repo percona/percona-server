@@ -909,6 +909,10 @@ class Slave_worker : public Relay_log_info {
                : get_rli_description_event()->get_product_version();
   }
 
+  // overridden new and delete operators for 64 byte alignment
+  static void *operator new(size_t request);
+  static void operator delete(void *ptr);
+
  protected:
   void do_report(loglevel level, int err_code, const char *msg,
                  va_list v_args) const override

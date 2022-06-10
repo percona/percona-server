@@ -1095,6 +1095,9 @@ extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_statement_timeout;
+extern SHOW_COMP_OPTION have_backup_locks;
+extern SHOW_COMP_OPTION have_backup_safe_binlog_info;
+extern SHOW_COMP_OPTION have_snapshot_cloning;
 
 /*
   Helper functions
@@ -1109,6 +1112,7 @@ collation_unordered_map<std::string, sys_var *>
 extern bool get_sysvar_source(const char *name, uint length,
                               enum enum_variable_source *source);
 
+MY_NODISCARD
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
 bool keyring_access_test();
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
@@ -1138,5 +1142,9 @@ bool check_priv(THD *thd, bool static_variable);
 #define PERSIST_ONLY_ADMIN_X509_SUBJECT "persist_only_admin_x509_subject"
 #define PERSISTED_GLOBALS_LOAD "persisted_globals_load"
 extern char *sys_var_persist_only_admin_x509_subject;
+
+extern void init_log_slow_verbosity() noexcept;
+extern void init_slow_query_log_use_global_control() noexcept;
+extern void init_log_slow_sp_statements() noexcept;
 
 #endif

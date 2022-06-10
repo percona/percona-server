@@ -962,7 +962,8 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
     if (opt_delete_limit_clause->itemize(&pc, &opt_delete_limit_clause))
       return nullptr;
     select->select_limit = opt_delete_limit_clause;
-    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+    if (select->select_limit->fixed && select->select_limit->val_int() != 0)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
   }
 
   if (is_multitable() && multi_delete_link_tables(&pc, &delete_tables))

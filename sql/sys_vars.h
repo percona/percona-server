@@ -1100,26 +1100,47 @@ class Sys_var_charptr : public sys_var {
 };
 
 class Sys_var_version : public Sys_var_charptr {
+ private:
+  char withsuffix[SERVER_VERSION_LENGTH];
+  char *withsuffix_ptr;
+
  public:
   Sys_var_version(const char *name_arg, const char *comment, int flag_args,
                   ptrdiff_t off, size_t size, CMD_LINE getopt,
                   enum charset_enum is_os_charset_arg, const char *def_val)
       : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt,
-                        is_os_charset_arg, def_val) {}
+                        is_os_charset_arg, def_val),
+        withsuffix_ptr(withsuffix) {}
 
   ~Sys_var_version() override = default;
 
   const uchar *global_value_ptr(THD *thd,
                                 std::string_view keycache_name) override {
-    const uchar *value = Sys_var_charptr::global_value_ptr(thd, keycache_name);
+    const char *const *version_ptr = reinterpret_cast<const char *const *>(
+        Sys_var_charptr::global_value_ptr(thd, keycache_name));
+    if (version_ptr == nullptr || *version_ptr == nullptr) return nullptr;
 
-    DBUG_EXECUTE_IF("alter_server_version_str", {
-      static const char *altered_value = "some-other-version";
-      const uchar *altered_value_ptr = pointer_cast<uchar *>(&altered_value);
-      value = altered_value_ptr;
-    });
+    sys_var *suffix_var = find_static_system_variable("version_suffix");
+    if (suffix_var == nullptr)
+      return reinterpret_cast<const uchar *>(version_ptr);
 
-    return value;
+    const char *const *suffix_ptr = reinterpret_cast<const char *const *>(
+        suffix_var->value_ptr(thd, OPT_GLOBAL, {}));
+    if (suffix_ptr == nullptr || *suffix_ptr == nullptr)
+      return reinterpret_cast<const uchar *>(version_ptr);
+
+    size_t suffix_ptr_len = strlen(*suffix_ptr);
+    size_t version_ptr_len = strlen(*version_ptr);
+
+    /* prepare concatenated @@version variable */
+    if (suffix_ptr_len + version_ptr_len + 1 > SERVER_VERSION_LENGTH)
+      suffix_ptr_len = SERVER_VERSION_LENGTH - version_ptr_len - 1;
+
+    memcpy(withsuffix, *version_ptr, version_ptr_len);
+    memcpy(withsuffix + version_ptr_len, *suffix_ptr, suffix_ptr_len);
+    withsuffix[suffix_ptr_len + version_ptr_len] = 0;
+
+    return reinterpret_cast<uchar *>(&withsuffix_ptr);
   }
 };
 

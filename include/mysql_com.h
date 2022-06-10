@@ -260,8 +260,6 @@
 #define REFRESH_USER_STATS 0x2000000L     /** Refresh user stats */
 #define REFRESH_CLIENT_STATS 0x4000000L   /** Refresh client stats */
 #define REFRESH_THREAD_STATS 0x8000000L   /** Refresh thread stats */
-#define REFRESH_FLUSH_PAGE_BITMAPS 0x10000000L
-#define REFRESH_RESET_PAGE_BITMAPS 0x20000000L
 
 static const int PURGE_BITMAPS_TO_LSN = 1;
 

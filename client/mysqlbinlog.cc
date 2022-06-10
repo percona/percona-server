@@ -870,6 +870,11 @@ class Load_log_processor {
           -1)
         return res;
     }
+    char errbuf[MYSYS_STRERROR_SIZE];
+    error(
+        "create_unique_file: "
+        "my_create failed on filename %s, my_errno %d (%s)",
+        filename, my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     return -1;
   }
 
@@ -1506,6 +1511,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         if (head->error == -1) goto err;
         break;
       }
+        // fallthrough
 
       case mysql::binlog::event::INTVAR_EVENT:
       case mysql::binlog::event::RAND_EVENT:

@@ -4483,6 +4483,8 @@ static void test_field_flags() {
         fprintf(stdout, "\n  MULTIPLE_KEY_FLAG");
       if (field->flags & AUTO_INCREMENT_FLAG)
         fprintf(stdout, "\n  AUTO_INCREMENT_FLAG");
+      if (field->flags & CLUSTERING_FLAG)
+        fprintf(stdout, "\n  CLUSTERING_FLAG");
     }
   }
   mysql_free_result(result);
@@ -12155,6 +12157,8 @@ static void test_datetime_ranges() {
   if (!opt_silent)
     printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
            mysql_stmt_error(stmt));
+
+  mysql_stmt_close(stmt);
 
   stmt_text = "drop table t1";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));

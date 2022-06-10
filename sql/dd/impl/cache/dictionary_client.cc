@@ -2394,6 +2394,7 @@ bool Dictionary_client::fetch_fk_children_uncached(
 
     if (table) {
       // Filter out children in different SEs. This is not supported.
+      // string
       if (my_strcasecmp(system_charset_info, table->engine().c_str(),
                         parent_engine.c_str()) == 0) {
         if (uncommitted) {

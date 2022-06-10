@@ -2239,7 +2239,7 @@ sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name) {
   // 1. new sp_head()
   MEM_ROOT own_root(key_memory_sp_head_main_root, MEM_ROOT_BLOCK_SIZE);
 
-  void *rawmem = own_root.Alloc(sizeof(sp_head));
+  void *rawmem = own_root.Alloc_aligned(sizeof(sp_head), alignof(sp_head));
   if (!rawmem) return nullptr;
 
   sp_head *sp = new (rawmem) sp_head(std::move(own_root), sp_type);

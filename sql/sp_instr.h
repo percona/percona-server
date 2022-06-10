@@ -268,6 +268,12 @@ class sp_lex_instr : public sp_instr {
     return &m_trig_field_list;
   }
 
+  int get_command() const { return m_lex ? m_lex->sql_command : -1; }
+
+  const LEX_CSTRING *get_prepared_stmt_name() const {
+    return m_lex ? &m_lex->prepared_stmt_name : nullptr;
+  }
+
  private:
   /**
     Prepare LEX and thread for execution of instruction, if requested open

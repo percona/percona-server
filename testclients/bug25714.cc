@@ -68,5 +68,5 @@ int main(int argc, char **argv) {
   mysql_close(&conn);
   my_end(0);
 
-  return 0;
+  return OK;
 }

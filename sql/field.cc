@@ -75,6 +75,7 @@
 #include "sql/psi_memory_key.h"
 #include "sql/rpl_rli.h"                // Relay_log_info
 #include "sql/spatial.h"                // Geometry
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"              // THD
 #include "sql/sql_exception_handler.h"  // handle_std_exception
 #include "sql/sql_lex.h"
@@ -9566,7 +9567,7 @@ Field *make_field(const Create_field &create_field, TABLE_SHARE *share) {
     length
 */
 
-uint32 Field_blob::char_length() const {
+uint32 Field_blob::char_length() const noexcept {
   switch (packlength) {
     case 1:
       return 255;

@@ -749,12 +749,17 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   KEY_PART_INFO *key_part = &keyinfo->key_part[key_part_n];
   Field *field = key_part->field;
 
-  /* Flag field as unique if it is the only keypart in a unique index */
-  if (key_part_n == 0 && key_n != primary_key_n)
+  /* Flag field as unique and/or clustering if it is the only keypart in a
+  unique/clustering index */
+  if (key_part_n == 0 && key_n != primary_key_n) {
     field->set_flag(
         ((keyinfo->flags & HA_NOSAME) && (keyinfo->user_defined_key_parts == 1))
             ? UNIQUE_KEY_FLAG
             : MULTIPLE_KEY_FLAG);
+    if (((keyinfo->flags & HA_CLUSTERING) &&
+         (keyinfo->user_defined_key_parts == 1)))
+      field->set_flag(CLUSTERING_FLAG);
+  }
   if (key_part_n == 0) field->key_start.set_bit(key_n);
   field->m_indexed = true;
 
@@ -1581,6 +1586,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     keyinfo->table = nullptr;  // Updated in open_frm
     if (new_frm_ver >= 3) {
       keyinfo->flags = (uint)uint2korr(strpos) ^ HA_NOSAME;
+      /* Replace HA_FULLTEXT & HA_SPATIAL with HA_CLUSTERING. This way we
+         support TokuDB clustering key definitions without changing the FRM
+         format. */
+      if (keyinfo->flags & HA_SPATIAL && keyinfo->flags & HA_FULLTEXT) {
+        if (!ha_check_storage_engine_flag(share->db_type(),
+                                          HTON_SUPPORTS_CLUSTERED_KEYS))
+          goto err;
+        keyinfo->flags |= HA_CLUSTERING;
+        keyinfo->flags &= ~HA_SPATIAL;
+        keyinfo->flags &= ~HA_FULLTEXT;
+      }
       keyinfo->key_length = (uint)uint2korr(strpos + 2);
       keyinfo->user_defined_key_parts = (uint)strpos[4];
       keyinfo->algorithm = (enum ha_key_alg)strpos[5];
@@ -2220,6 +2236,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         share->max_unique_length =
             std::max(share->max_unique_length, keyinfo->key_length);
     }
+
+    /*
+      The next call is here for MyRocks:  Now, we have filled in field and key
+      definitions, give the storage engine a chance to adjust its properties.
+
+      MyRocks may (and typically does) adjust HA_PRIMARY_KEY_IN_READ_INDEX
+      flag in this call.
+    */
+    if (handler_file->init_with_fields()) goto err;
+
     if (primary_key < MAX_KEY && (share->keys_in_use.is_set(primary_key))) {
       share->primary_key = primary_key;
       /*
@@ -2295,6 +2321,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 err:
   my_free(disk_buff);
   my_free(extra_segment_buff);
+  share->fields = 0;
+  share->field = 0;
   if (handler_file != nullptr) ::destroy_at(handler_file);
 
   open_table_error(thd, share, error, my_errno());
@@ -3083,6 +3111,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
               pointer_cast<my_bitmap_map *>(bitmaps + bitmap_size * 7),
               share->fields);
   outparam->default_column_bitmaps();
+
+  /* Fill record with default values */
+  if (outparam->record[0] != outparam->s->default_values)
+    restore_record(outparam, s->default_values);
 
   /*
     Process generated columns, if any.

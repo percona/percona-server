@@ -4261,6 +4261,17 @@ int gtid_acquire_ownership_multiple(THD *thd);
 #endif
 
 /**
+  Check if current transaction should be skipped, that is, if GTID_NEXT
+  was already logged.
+
+  @param  thd    The calling thread.
+
+  @retval true   Transaction was already logged.
+  @retval false  Transaction must be executed.
+*/
+bool is_already_logged_transaction(const THD *thd);
+
+/**
   Return sidno for a given tsid, see Tsid_map::add_sid() for details.
 */
 rpl_sidno get_sidno_from_global_tsid_map(const mysql::gtid::Tsid &tsid);

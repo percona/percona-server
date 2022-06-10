@@ -1301,6 +1301,10 @@ int mysql_event_tracking_table_access_notify(THD *thd, Table_ref *table) {
   const char *subclass_name;
   int ret;
 
+  if ((thd->system_thread &
+       (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+    return 0;
+
   /* Do not generate events for non query table access. */
   if (!thd->lex->query_tables) return 0;
 

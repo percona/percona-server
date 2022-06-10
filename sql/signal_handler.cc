@@ -362,9 +362,12 @@ static void print_fatal_signal(int sig, siginfo_t *info [[maybe_unused]]) {
   }
   my_safe_printf_stderr(
       "%s",
-      "The manual page at "
-      "http://dev.mysql.com/doc/mysql/en/crashing.html contains\n"
-      "information that should help you find out what is causing the crash.\n");
+      "Please help us make Percona Server better by reporting any\n"
+      "bugs at https://bugs.percona.com/\n\n"
+      "You may download the Percona Server operations manual by visiting\n"
+      "http://www.percona.com/software/percona-server/. You may find "
+      "information\n"
+      "in the manual which will help you identify the cause of the crash.\n");
 
 #endif /* HAVE_STACKTRACE */
 }

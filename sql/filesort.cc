@@ -431,6 +431,8 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
   thd->inc_status_sort_scan();
 
+  thd->query_plan_flags |= QPLAN_FILESORT;
+
   Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> pq(
       param->max_record_length(),
       (Malloc_allocator<uchar *>(key_memory_Filesort_info_record_pointers)));
@@ -525,6 +527,8 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
         param->using_pq ? pq.num_elements() : num_rows_found;
     if (save_index(param, rows_in_chunk, fs_info, sort_result)) goto err;
   } else {
+    thd->query_plan_flags |= QPLAN_FILESORT_DISK;
+
     // If deduplicating, we'll need to remember the previous key somehow.
     if (filesort->m_remove_duplicates) {
       param->m_last_key_seen =
@@ -1920,6 +1924,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   DBUG_TRACE;
 
   thd->inc_status_sort_merge_passes();
+  thd->query_plan_fsort_passes++;
 
   const my_off_t to_start_filepos = my_b_tell(to_file);
   strpos = sort_buffer.array();

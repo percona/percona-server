@@ -2749,6 +2749,12 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   };);
 
   master_res = nullptr;
+  DBUG_EXECUTE_IF("get_master_version.timestamp.ER_NET_READ_INTERRUPTED", {
+    DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+    DBUG_SET(
+        "-d,get_master_version.timestamp."
+        "ER_NET_READ_INTERRUPTED");
+  });
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res = mysql_store_result(mysql)) &&
       (master_row = mysql_fetch_row(master_res))) {
@@ -2856,6 +2862,13 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
     */
     llstr((ulonglong)(mi->heartbeat_period * 1000000000UL), llbuf);
     sprintf(query, query_format, llbuf, llbuf);
+
+    DBUG_EXECUTE_IF("get_master_version.heartbeat.ER_NET_READ_INTERRUPTED", {
+      DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+      DBUG_SET(
+          "-d,get_master_version.heartbeat."
+          "ER_NET_READ_INTERRUPTED");
+    });
 
     if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))) {
       if (check_io_slave_killed(mi->info_thd, mi, nullptr))
@@ -3144,7 +3157,6 @@ static bool wait_for_relay_log_space(Relay_log_info *rli,
 
   @param thd pointer to I/O Thread's Thd.
   @param mi  point to I/O Thread metadata class.
-
   @param force_flush_mi_info when true, do not respect sync period and flush
                              information.
                              when false, flush will only happen if it is time to
@@ -5546,6 +5558,21 @@ extern "C" void *handle_slave_io(void *arg) {
         */
         THD_STAGE_INFO(thd, stage_waiting_for_source_to_send_event);
         event_len = read_event(mysql, &rpl, mi, &suppress_warnings);
+
+        DBUG_EXECUTE_IF(
+            "relay_xid_trigger", if (event_len != packet_error) {
+              const uchar *event_buf2 =
+                  static_cast<const uchar *>(mysql->net.read_pos + 1);
+              Log_event_type event_type =
+                  static_cast<Log_event_type>(event_buf2[EVENT_TYPE_OFFSET]);
+              if (event_type == mysql::binlog::event::XID_EVENT) {
+                static constexpr char act[] =
+                    "now signal relay_xid_reached wait_for resume";
+                assert(
+                    !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+              }
+            });
+
         if (check_io_slave_killed(thd, mi,
                                   "Replica I/O thread killed while "
                                   "reading event"))
@@ -5727,7 +5754,13 @@ extern "C" void *handle_slave_io(void *arg) {
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_unknown_event",
-            if (ev_type >= mysql::binlog::event::ENUM_END_EVENT) {
+            /*
+             * Cast to uchar, because of Percona's events
+             * which have values > 128. This causes ENUM_END_EVENT to be > 128
+             * but event_buf is char, so comparison does not work.
+             */
+            if (static_cast<uchar>(ev_type) >=
+                mysql::binlog::event::ENUM_END_EVENT) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF("stop_io_after_queuing_event",
@@ -6457,15 +6490,26 @@ bool mta_checkpoint_routine(Relay_log_info *rli, bool force) {
   };);
 #endif
 
+#ifndef NDEBUG
   /*
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group.
   */
-  assert(!rli->gaq->full() ||
-         ((rli->rli_checkpoint_seqno == rli->checkpoint_group - 1 &&
-           (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP ||
-            rli->mts_group_status == Relay_log_info::MTS_KILLED_GROUP)) ||
-          rli->rli_checkpoint_seqno == rli->checkpoint_group));
+  const bool precondition =
+      !rli->gaq->full() ||
+      ((rli->rli_checkpoint_seqno == rli->checkpoint_group - 1 &&
+        (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP ||
+         rli->mts_group_status == Relay_log_info::MTS_KILLED_GROUP)) ||
+       rli->rli_checkpoint_seqno == rli->checkpoint_group);
+  if (!precondition) {
+    fprintf(stderr, "rli->gaq->full() = %d\n", rli->gaq->full());
+    fprintf(stderr, "rli->rl_checkpoint_seqno = %u\n",
+            rli->rli_checkpoint_seqno);
+    fprintf(stderr, "rli->checkpoint_group = %u\n", rli->checkpoint_group);
+    fprintf(stderr, "rli->mts_group_status = %d\n", rli->mts_group_status);
+    assert(precondition);
+  }
+#endif
 
   do {
     if (!is_mts_db_partitioned(rli)) mysql_mutex_lock(&rli->mts_gaq_LOCK);
@@ -6610,7 +6654,6 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i) {
     error = 1;
     goto err;
   }
-
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::NOT_RUNNING)
     mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
@@ -7542,9 +7585,14 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
       to the last skipped transaction. Note that,
       we update only the positions and not the file names, as a ROTATE
       EVENT from the master prior to this will update the file name.
+
+      When source binlog is PS 5_7 encrypted it will also send heartbeat
+      event after reading Start_encryption_event from the binlog.
+      As Start_encryption_event is not sent to replica, the source
+      informs the replica to update it's master_log_pos by sending
+      heartbeat event.
     */
-    if ((mi->is_auto_position() == false ||
-         mi->get_master_log_pos() >= position || mi_log_filename.empty()))
+    if (mi->get_master_log_pos() >= position || mi_log_filename.empty())
       return 0;
 
     DBUG_EXECUTE_IF("reached_heart_beat_queue_event",
@@ -7624,7 +7672,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   ulonglong compressed_transaction_bytes = 0;
   ulonglong uncompressed_transaction_bytes = 0;
   auto compression_type = mysql::binlog::event::compression::type::NONE;
-  Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
+  Log_event_type event_type =
+      (Log_event_type) static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
 
   assert(checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF ||
          checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF ||
@@ -8060,7 +8109,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       "simulate_unknown_ignorable_log_event",
       if (event_type == mysql::binlog::event::WRITE_ROWS_EVENT ||
           event_type == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) {
-        char *event_buf = const_cast<char *>(buf);
+        uchar *event_buf =
+            const_cast<uchar *>(reinterpret_cast<const uchar *>(buf));
         /* Overwrite the log event type with an unknown type. */
         event_buf[EVENT_TYPE_OFFSET] = mysql::binlog::event::ENUM_END_EVENT + 1;
         /* Set LOG_EVENT_IGNORABLE_F for the log event. */

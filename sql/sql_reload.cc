@@ -248,12 +248,14 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     }
   }
 
-  assert(!thd || thd->locked_tables_mode || !thd->mdl_context.has_locks() ||
+  assert(!thd || thd->locked_tables_mode ||
+         !thd->mdl_context.has_locks() ||
          !thd->handler_tables_hash.empty() ||
          thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
          thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
          thd->mdl_context.has_locks(MDL_key::BACKUP_LOCK) ||
-         thd->global_read_lock.is_acquired());
+         thd->global_read_lock.is_acquired() ||
+         thd->backup_tables_lock.is_acquired());
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too
@@ -370,6 +372,35 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
   }
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh(thd, nullptr, false); /* purecov: inspected */
+  if (options & REFRESH_TABLE_STATS) {
+    mysql_mutex_lock(&LOCK_global_table_stats);
+    free_global_table_stats();
+    init_global_table_stats();
+    mysql_mutex_unlock(&LOCK_global_table_stats);
+  }
+  if (options & REFRESH_INDEX_STATS) {
+    mysql_mutex_lock(&LOCK_global_index_stats);
+    free_global_index_stats();
+    init_global_index_stats();
+    mysql_mutex_unlock(&LOCK_global_index_stats);
+  }
+  if (options &
+      (REFRESH_USER_STATS | REFRESH_CLIENT_STATS | REFRESH_THREAD_STATS)) {
+    mysql_mutex_lock(&LOCK_global_user_client_stats);
+    if (options & REFRESH_USER_STATS) {
+      free_global_user_stats();
+      init_global_user_stats();
+    }
+    if (options & REFRESH_CLIENT_STATS) {
+      free_global_client_stats();
+      init_global_client_stats();
+    }
+    if (options & REFRESH_THREAD_STATS) {
+      free_global_thread_stats();
+      init_global_thread_stats();
+    }
+    mysql_mutex_unlock(&LOCK_global_user_client_stats);
+  }
   if (*write_to_binlog != -1) *write_to_binlog = tmp_write_to_binlog;
   /*
     If the query was killed then this function must fail.

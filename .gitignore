@@ -16,6 +16,10 @@ TAGS_sorted_by_file
 # Configuration files for Visual Studio Code
 .vscode/
 
+/GPATH
+/GRTAGS
+/GTAGS
+
 build/
 datatool/
 datatools/
@@ -28,6 +32,7 @@ scalability_jobs_*
 .cproject
 .project
 .settings/
+.idea
 
 # Cache directory used by e.g. clangd.
 .cache/

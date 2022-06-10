@@ -193,6 +193,7 @@ class Aes_ctr_cipher : public Stream_cipher {
   static const int AES_BLOCK_SIZE = Aes_ctr::AES_BLOCK_SIZE;
   static const int FILE_KEY_LENGTH = Aes_ctr::FILE_KEY_LENGTH;
 
+  Aes_ctr_cipher();
   ~Aes_ctr_cipher() override;
 
   bool open(const unsigned char *fileKey, const unsigned char *iv) override;

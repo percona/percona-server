@@ -79,6 +79,12 @@ bool Aes_ctr_cipher<TYPE>::open(const unsigned char *fileKey,
 }
 
 template <Cipher_type TYPE>
+Aes_ctr_cipher<TYPE>::Aes_ctr_cipher()
+: m_streamOffset((uint64_t)-1) {
+
+}
+
+template <Cipher_type TYPE>
 Aes_ctr_cipher<TYPE>::~Aes_ctr_cipher<TYPE>() {
   close();
 }
@@ -150,6 +156,7 @@ template <Cipher_type TYPE>
 void Aes_ctr_cipher<TYPE>::deinit_cipher() {
   if (m_ctx) EVP_CIPHER_CTX_free(m_ctx);
   m_ctx = nullptr;
+  m_streamOffset = (uint64_t)-1;
 }
 
 // #define FAKE_CIPHER

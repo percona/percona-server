@@ -52,6 +52,8 @@
 #include "sql/transaction_info.h"  // Transaction_ctx
 #include "thr_mutex.h"
 
+#include "sql/binlog_ostream.h"
+
 class Format_description_log_event;
 class Gtid_monitoring_info;
 class Gtid_set;
@@ -521,6 +523,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   /* The previous gtid set in relay log. */
   Gtid_set *previous_gtid_set_relaylog;
 
+  bool snapshot_lock_acquired;
+
   int open(const char *opt_name) override { return open_binlog(opt_name); }
 
   /**
@@ -709,6 +713,21 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void add_bytes_written(ulonglong inc) { bytes_written += inc; }
   void reset_bytes_written() { bytes_written = 0; }
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
+
+#ifdef MYSQL_SERVER
+  void xlock(void) override;
+  void xunlock(void) override;
+  void slock(void) override { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) override {
+    mysql_rwlock_unlock(&LOCK_consistent_snapshot);
+  }
+#else
+  void xlock(void) override {}
+  void xunlock(void) override {}
+  void slock(void) override {}
+  void sunlock(void) override {}
+#endif /* MYSQL_SERVER */
+
   void set_max_size(ulong max_size_arg);
 
   void update_binlog_end_pos(bool need_lock = true);
@@ -895,6 +914,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int purge_logs(const char *to_log, bool included, bool need_lock_index,
                  bool need_update_threads, ulonglong *decrease_log_space,
                  bool auto_purge);
+  int purge_logs_maximum_number(ulong max_nr_files);
   int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
@@ -1070,6 +1090,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
   // Set of log info objects that are in usage and might prevent some other
   // operations from executing.
   std::set<LOG_INFO *> log_info_set;
+
+ private:
+  void publish_coordinates_for_global_status(void) const;
 };
 
 struct LOAD_FILE_INFO {

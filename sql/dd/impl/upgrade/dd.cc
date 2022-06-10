@@ -49,6 +49,7 @@
 #include "sql/dd/impl/tables/tables.h"            // dd::tables::Tables
 #include "sql/dd/impl/tables/tablespaces.h"       // dd::tables::Tablespaces
 #include "sql/dd/impl/tables/triggers.h"          // dd::tables::Triggers
+#include "sql/dd/impl/upgrade/server.h"           // Routine_event_context_guard
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/object_table.h"             // dd::Object_table
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
@@ -886,6 +887,10 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
     if (migrated_set.find(*it) == migrated_set.end() &&
         remove_set.find(*it) != remove_set.end()) {
       std::stringstream ss;
+
+      dd::upgrade::Routine_event_context_guard recg(thd);
+      thd->variables.sql_mode = 0;
+
       ss << "INSERT INTO " << (*it) << " SELECT * FROM "
          << MYSQL_SCHEMA_NAME.str << "." << (*it);
       if (dd::execute_query(thd, ss.str().c_str()))

@@ -2450,6 +2450,10 @@ void close_tmp_table(TABLE *table) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", table->alias));
 
+  // Possibly use current_thd instead of table->in_use
+  if (table->file && table->in_use != nullptr)
+    table->in_use->tmp_tables_size += table->file->stats.data_file_length;
+
   TABLE_SHARE *const share = table->s;
 
   // Free blobs, even if no storage handler is assigned

@@ -42,6 +42,7 @@
 #include <string>
 
 #include "lex_string.h"
+#include "my_aes.h"
 #include "libbinlogevents/include/binlog_event.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/load_data_events.h"

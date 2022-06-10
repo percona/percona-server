@@ -100,6 +100,8 @@ template <>
 int IndexScanIterator<false>::Read() {  // Forward read.
   int error;
   if (m_first) {
+    error = table()->file->prepare_index_scan();
+    if (error) return HandleError(error);
     error = table()->file->ha_index_first(m_record);
     m_first = false;
   } else {
@@ -116,6 +118,8 @@ template <>
 int IndexScanIterator<true>::Read() {  // Backward read.
   int error;
   if (m_first) {
+    error = table()->file->prepare_index_scan();
+    if (error) return HandleError(error);
     error = table()->file->ha_index_last(m_record);
     m_first = false;
   } else {

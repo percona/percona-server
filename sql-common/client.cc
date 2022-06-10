@@ -3515,6 +3515,166 @@ const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql [[maybe_unused]]) {
   return nullptr;
 }
 
+#include <openssl/x509v3.h>
+
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+/*
+  Compares the DNS entry from the Subject Alternative Names (SAN) list with
+  the provided host name
+
+  SYNOPSIS
+  ssl_cmp_san_dns_name()
+  dns_name           pointer to a SAN list DNS entry
+  host_name          name of the server
+  errptr             if we fail, we'll return (a pointer to a string
+  describing) the reason here
+
+  RETURN VALUES
+  false Success
+  true Failed to validate server
+
+*/
+
+static bool ssl_cmp_san_dns_name(ASN1_STRING *dns_name, const char *host_name,
+                                 const char **errptr) {
+  DBUG_ENTER("ssl_cmp_san_dns_name");
+  *errptr = nullptr;
+  if (dns_name == nullptr) {
+    *errptr = "Failed to get DNS name from SAN list item";
+    DBUG_RETURN(true);
+  }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  const char *cn = reinterpret_cast<const char *>(
+      const_cast<const unsigned char *>(ASN1_STRING_data(dns_name)));
+#else
+  const char *cn = static_cast<const char *>(ASN1_STRING_get0_data(dns_name));
+#endif
+  if (cn == nullptr) {
+    *errptr = "Failed to get data from SAN DNS name";
+    DBUG_RETURN(true);
+  }
+  // There should not be any NULL embedded in the DNS name
+  if (static_cast<size_t>(ASN1_STRING_length(dns_name)) != strlen(cn)) {
+    *errptr = "NULL embedded in the certificate SAN DNS name";
+    DBUG_RETURN(true);
+  }
+  DBUG_PRINT("info", ("SAN DNS name in cert: %s", cn));
+  if (!strcmp(cn, host_name)) DBUG_RETURN(false);
+
+  DBUG_RETURN(true);
+}
+
+/*
+  Compares the IP address entry from the Subject Alternative Names (SAN) list
+  with the provided host IP address
+
+  SYNOPSIS
+  ssl_cmp_san_ip_address()
+  ip_address         pointer to a SAN list IP address entry
+  host_ip            IP address of the server
+  host_ip_len        server IP address length (must be either 4 or 16)
+  errptr             if we fail, we'll return (a pointer to a string
+  describing) the reason here
+
+  RETURN VALUES
+  false Success
+  true Failed to validate server
+
+*/
+
+static bool ssl_cmp_san_ip_address(ASN1_OCTET_STRING *ip_address,
+                                   const unsigned char *host_ip,
+                                   size_t host_ip_len, const char **errptr) {
+  DBUG_ENTER("ssl_cmp_san_ip_address");
+  *errptr = nullptr;
+  if (ip_address == nullptr) {
+    *errptr = "Failed to get IP address from SAN list item";
+    DBUG_RETURN(true);
+  }
+  const size_t ip_address_len = ASN1_STRING_length(ip_address);
+  /* IP address length must be either 4 (IPV4) or 16 (IPV6) */
+  if (ip_address_len != 4 && ip_address_len != 16) {
+    *errptr = "Invalid IP address embedded in the certificate SAN IP address";
+    DBUG_RETURN(true);
+  }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  const unsigned char *ip = ASN1_STRING_data(ip_address);
+#else
+  const unsigned char *ip = ASN1_STRING_get0_data(ip_address);
+#endif
+  if (ip == nullptr) {
+    *errptr = "Failed to get data from SAN IP address";
+    DBUG_RETURN(true);
+  }
+  DBUG_RETURN(!(ip_address_len == host_ip_len &&
+                memcmp(host_ip, ip, host_ip_len) == 0));
+}
+
+/*
+  Check the certificate's Subject Alternative Names (SAN) against the
+  hostname / IP address we connected to
+
+  SYNOPSIS
+  ssl_verify_server_cert_san()
+  server_cert        pointer to a X509 certificate
+  hostname_or_ip     name of the server / pointer to a V4/V6 IP address
+  buffer
+  hostname_or_ip_len 0 for host name, 4/16 for ip address
+  errptr             if we fail, we'll return (a pointer to a string
+  describing) the reason here
+
+  RETURN VALUES
+  false Success
+  true Failed to validate server
+
+*/
+
+static bool ssl_verify_server_cert_san(X509 *server_cert,
+                                       const char *hostname_or_ip,
+                                       size_t hostname_or_ip_len,
+                                       const char **errptr) {
+  bool ret_validation = true;
+
+  DBUG_ENTER("ssl_verify_server_cert_san");
+  *errptr = nullptr;
+  GENERAL_NAMES *const sans = static_cast<GENERAL_NAMES *>(
+      X509_get_ext_d2i(server_cert, NID_subject_alt_name, nullptr, nullptr));
+  if (sans == nullptr) DBUG_RETURN(ret_validation);
+
+  const int number_of_sans = sk_GENERAL_NAME_num(sans);
+  for (int i = 0; ret_validation != 0 && i < number_of_sans; ++i) {
+    GENERAL_NAME *san = sk_GENERAL_NAME_value(sans, i);
+    if (san == nullptr) {
+      *errptr = "Failed to get item from SAN list";
+      goto error;
+    }
+    if (hostname_or_ip_len == 0) {
+      /* server host name was provided, check only GEN_DNS entries */
+      if (san->type == GEN_DNS) {
+        ret_validation =
+            ssl_cmp_san_dns_name(san->d.dNSName, hostname_or_ip, errptr);
+        if (*errptr != nullptr) goto error;
+      }
+    } else {
+      /* server IP address was provided, check only GEN_IPADD entries */
+      if (san->type == GEN_IPADD) {
+        ret_validation = ssl_cmp_san_ip_address(
+            san->d.iPAddress,
+            reinterpret_cast<const unsigned char *>(hostname_or_ip),
+            hostname_or_ip_len, errptr);
+        if (*errptr != NULL) goto error;
+      }
+    }
+  } /* iterating over SAN enries */
+
+error:
+  GENERAL_NAMES_free(sans);
+
+  DBUG_RETURN(ret_validation);
+}
+
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+
 /**
   Get the current SSL session serialization
 
@@ -3661,20 +3821,21 @@ bool STDCALL mysql_get_ssl_session_reused(MYSQL *mysql) {
    1 Failed to validate server
 
  */
-
 static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
                                   const char **errptr) {
   SSL *ssl;
   X509 *server_cert = nullptr;
-  int ret_validation = 1;
-
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  int cn_loc = -1;
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
   char *cn = nullptr;
+  int cn_loc = -1;
   ASN1_STRING *cn_asn1 = nullptr;
   X509_NAME_ENTRY *cn_entry = nullptr;
   X509_NAME *subject = nullptr;
+  const unsigned char *ipout = nullptr;
+  size_t iplen = 0;
 #endif
+  ASN1_OCTET_STRING *server_ip_address = nullptr;
+  int ret_validation = 1;
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
@@ -3714,50 +3875,69 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   */
   ret_validation = 0;
 #else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
-    goto error;
+  /* Checking if the provided server_hostname is a V4/V6 IP address */
+  server_ip_address = a2i_IPADDRESS(server_hostname);
+  if (server_ip_address != nullptr) {
+    iplen = ASN1_STRING_length(server_ip_address);
+    ipout = (const unsigned char *)ASN1_STRING_data(server_ip_address);
   }
 
-  // Get the CN entry for given location
-  cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == nullptr) {
-    *errptr = "Failed to get CN entry using CN location";
-    goto error;
-  }
+  ret_validation = ssl_verify_server_cert_san(
+      server_cert, iplen != 0 ? (const char *)ipout : server_hostname, iplen,
+      errptr);
+  if (*errptr != nullptr) goto error;
+  if (ret_validation != 0) {
+    /*
+      OpenSSL prior to 1.0.2 do not support X509_check_host() function.
+      Use deprecated X509_get_subject_name() instead.
+    */
+    subject = X509_get_subject_name(server_cert);
+    // Find the CN location in the subject
+    cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
+    if (cn_loc < 0) {
+      *errptr = "Failed to get CN location in the certificate subject";
+      goto error;
+    }
 
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == nullptr) {
-    *errptr = "Failed to get CN from CN entry";
-    goto error;
-  }
+    // Get the CN entry for given location
+    cn_entry = X509_NAME_get_entry(subject, cn_loc);
+    if (cn_entry == nullptr) {
+      *errptr = "Failed to get CN entry using CN location";
+      goto error;
+    }
 
-  cn = (char *)ASN1_STRING_data(cn_asn1);
+    // Get CN from common name entry
+    cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
+    if (cn_asn1 == nullptr) {
+      *errptr = "Failed to get CN from CN entry";
+      goto error;
+    }
 
-  // There should not be any NULL embedded in the CN
-  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {
-    *errptr = "NULL embedded in the certificate CN";
-    goto error;
-  }
+    cn = reinterpret_cast<char *>(ASN1_STRING_data(cn_asn1));
+    if (cn == nullptr) {
+      *errptr = "Failed to get data from CN";
+      goto error;
+    }
 
-  DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
-  if (!strcmp(cn, server_hostname)) {
-    /* Success */
-    ret_validation = 0;
+    // There should not be any NULL embedded in the CN
+    if (static_cast<size_t>(ASN1_STRING_length(cn_asn1)) != strlen(cn)) {
+      *errptr = "NULL embedded in the certificate CN";
+      goto error;
+    }
+
+    DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
+    if (!strcmp(cn, server_hostname)) {
+      /* Success */
+      ret_validation = 0;
+    }
   }
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
-  *errptr = "SSL certificate validation success";
+  *errptr = ret_validation != 0 ? "SSL certificate validation failure" : "";
 
 error:
+  if (server_ip_address != nullptr) ASN1_OCTET_STRING_free(server_ip_address);
+
   if (server_cert != nullptr) X509_free(server_cert);
   return ret_validation;
 }

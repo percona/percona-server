@@ -207,6 +207,7 @@ enum enum_sql_command {
   SQLCOM_CREATE_LIBRARY,
   SQLCOM_DROP_LIBRARY,
   SQLCOM_SHOW_CREATE_LIBRARY,
+  SQLCOM_LOCK_TABLES_FOR_BACKUP,
   /* This should be the last !!! */
   SQLCOM_END
 };

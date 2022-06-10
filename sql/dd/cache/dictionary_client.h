@@ -1072,7 +1072,9 @@ class Dictionary_client {
 
     @param        parent_schema    Schema name of parent table.
     @param        parent_name      Table name of parent table.
-    @param        parent_engine    Storage engine of parent table.
+    @param        parent_engine    Storage engine of parent table or an empty
+                                   string if all child tables should be
+                                   returned regardless of their SE
     @param        uncommitted      Use READ_UNCOMMITTED isolation.
     @param[out]   children_schemas Schema names of child tables.
     @param[out]   children_names   Table names of child tables.

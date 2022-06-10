@@ -142,12 +142,12 @@ class Partition_share : public Handler_share {
                                     const ulonglong max_reserved);
 
   /** lock mutex protecting auto increment value next_auto_inc_val. */
-  inline void lock_auto_inc() {
+  void lock_auto_inc() {
     assert(auto_inc_mutex);
     mysql_mutex_lock(auto_inc_mutex);
   }
   /** unlock mutex protecting auto increment value next_auto_inc_val. */
-  inline void unlock_auto_inc() {
+  void unlock_auto_inc() {
     assert(auto_inc_mutex);
     mysql_mutex_unlock(auto_inc_mutex);
   }
@@ -450,6 +450,8 @@ class Partition_helper {
     new_data is always record[0]
     old_data is always record[1]
 
+    @param lookup_rows Indicator for TokuDB read free replication.
+
     @return Operation status.
       @returns    0 Success
       @returns != 0 Error code
@@ -640,7 +642,7 @@ class Partition_helper {
   /**
     unlock auto increment.
   */
-  inline void unlock_auto_increment() {
+  void unlock_auto_increment() {
     /*
       If m_auto_increment_safe_stmt_log_lock is true, we have to keep the lock.
       It will be set to false and thus unlocked at the end of the statement by
@@ -926,7 +928,7 @@ class Partition_helper {
   /**
     Update auto increment value if current row contains a higher value.
   */
-  inline void set_auto_increment_if_higher();
+  void set_auto_increment_if_higher();
   /**
     Common routine to set up index scans.
 

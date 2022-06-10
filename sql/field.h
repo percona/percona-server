@@ -191,7 +191,6 @@ enum column_format_type {
   COLUMN_FORMAT_TYPE_DEFAULT = 0,   /* Not specified (use engine default) */
   COLUMN_FORMAT_TYPE_FIXED = 1,     /* FIXED format */
   COLUMN_FORMAT_TYPE_DYNAMIC = 2,   /* DYNAMIC format */
-  COLUMN_FORMAT_TYPE_COMPRESSED = 3 /* COMPRESSED format*/
 };
 
 /**
@@ -777,8 +776,6 @@ class Field {
 
    */
   bool is_created_from_null_item;
-  LEX_CSTRING zip_dict_name;  // associated compression dictionary name
-  LEX_CSTRING zip_dict_data;  // associated compression dictionary data
   /**
      True if this field belongs to some index (unlike part_of_key, the index
      might have only a prefix).
@@ -1708,6 +1705,7 @@ class Field {
 
   void set_column_format(column_format_type column_format_arg) {
     assert(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
+    flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
@@ -3831,7 +3829,7 @@ class Field_blob : public Field_longstr {
     return charset() == &my_charset_bin ? false : true;
   }
   uint32 max_display_length() const final;
-  uint32 char_length() const override;
+  uint32 char_length() const noexcept override;
   bool copy_blob_value(MEM_ROOT *mem_root);
   uint is_equal(const Create_field *new_field) const override;
   bool is_text_key_type() const final { return binary() ? false : true; }
@@ -4190,7 +4188,7 @@ class Field_typed_array final : public Field_json {
                     uchar auto_flags_arg, const char *field_name_arg,
                     TABLE_SHARE *share, uint blob_pack_length,
                     const CHARSET_INFO *cs);
-  uint32 char_length() const override {
+  uint32 char_length() const noexcept override {
     return field_length / charset()->mbmaxlen;
   }
   void init(TABLE *table_arg) override;

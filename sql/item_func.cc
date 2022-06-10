@@ -5930,6 +5930,8 @@ longlong Item_func_sleep::val_int() {
 
   thd->ENTER_COND(&cond, &LOCK_item_func_sleep, &stage_user_sleep, nullptr);
 
+  DEBUG_SYNC(current_thd, "func_sleep_before_sleep");
+
   error = 0;
   thd_wait_begin(thd, THD_WAIT_SLEEP);
   while (!thd->killed) {

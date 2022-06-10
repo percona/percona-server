@@ -149,7 +149,8 @@ double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
   if (table->pos_in_table_list->is_derived_unfinished_materialization()) {
     return worst_seeks;
   }
-  if (table->covering_keys.is_set(keyno)) {
+  if (table->covering_keys.is_set(keyno) ||
+             (table->file->index_flags(keyno, 0, 0) & HA_CLUSTERED_INDEX)) {
     // We can use only index tree
     const Cost_estimate index_read_cost =
         table->file->index_scan_cost(keyno, 1, num_rows);
@@ -1960,7 +1961,7 @@ bool Optimize_table_order::choose_table_order() {
 
   /* Are there any tables to optimize? */
   if (join->const_tables == join->tables) {
-    memcpy(join->best_positions, join->positions,
+    memcpy(static_cast<void *>(join->best_positions), join->positions,
            sizeof(POSITION) * join->const_tables);
     join->best_read = 1.0;
     join->best_rowcount = 1;
@@ -2167,7 +2168,8 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
       join->sort_by_table != join->positions[join->const_tables].table->table())
     cost += rowcount;  // We have to make a temp table
 
-  memcpy(join->best_positions, join->positions, sizeof(POSITION) * idx);
+  memcpy(static_cast<void *>(join->best_positions), join->positions,
+         sizeof(POSITION) * idx);
 
   /**
    * If many plans have identical cost, which one will be used
@@ -3399,7 +3401,8 @@ bool Optimize_table_order::fix_semijoin_strategies() {
         setting it to SJ_OPT_NONE). But until then, pos->sj_strategy should
         not be read.
       */
-      memcpy(pos - table_count + 1, sjm_nest->nested_join->sjm.positions,
+      memcpy(static_cast<void *>(pos - table_count + 1),
+             sjm_nest->nested_join->sjm.positions,
              sizeof(POSITION) * table_count);
       first = tableno - table_count + 1;
       join->best_positions[first].n_sj_tables = table_count;
@@ -3415,7 +3418,8 @@ bool Optimize_table_order::fix_semijoin_strategies() {
       const uint table_count = popcount(sjm_nest->sj_inner_tables);
       first = last_inner - table_count + 1;
       assert((join->best_positions + first)->table->emb_sj_nest == sjm_nest);
-      memcpy(join->best_positions + first,  // stale semijoin strategy here too
+      memcpy(static_cast<void *>(join->best_positions +
+                                 first),  // stale semijoin strategy here too
              sjm_nest->nested_join->sjm.positions,
              sizeof(POSITION) * table_count);
       join->best_positions[first].sj_strategy = SJ_OPT_MATERIALIZE_SCAN;

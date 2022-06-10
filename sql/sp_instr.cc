@@ -47,6 +47,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
+#include "sql/debug_sync.h"
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Strict_error_handler
 #include "sql/field.h"
@@ -63,7 +64,8 @@
 #include "sql/sp_head.h"      // sp_head
 #include "sql/sp_pcontext.h"  // sp_pcontext
 #include "sql/sp_rcontext.h"  // sp_rcontext
-#include "sql/sql_base.h"     // open_temporary_tables
+#include "sql/sql_audit.h"
+#include "sql/sql_base.h"  // open_temporary_tables
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_parse.h"    // parse_sql
@@ -920,6 +922,7 @@ PSI_statement_info sp_instr_stmt::psi_info = {0, "stmt", 0,
 bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
   bool need_subst = false;
   bool rc = false;
+  QUERY_START_TIME_INFO time_info;
 
   DBUG_PRINT("info", ("query: '%.*s'", (int)m_query.length, m_query.str));
 
@@ -931,6 +934,17 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
   /* This SP-instr is profilable and will be captured. */
   thd->profiling->set_query_source(m_query.str, m_query.length);
 #endif
+
+  memset(&time_info, 0, sizeof(time_info));
+
+  if (thd->enable_slow_log) {
+    /*
+      Save start time info for the CALL statement and overwrite it with the
+      current time for log_slow_statement() to log the individual query timing.
+    */
+    thd->get_time(&time_info);
+    thd->set_time();
+  }
 
   /*
     If we can't set thd->query_string at all, we give up on this statement.
@@ -989,7 +1003,13 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     thd->send_statement_status();
   }
 
-  if (!rc && unlikely(log_slow_applicable(thd))) {
+  const std::string &cn = Command_names::str_notranslate(COM_QUERY);
+  mysql_event_tracking_general_notify(
+      thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
+      cn.c_str(), cn.length());
+
+  if (!rc && unlikely(log_slow_applicable(thd, get_command()))) {
     /*
       We actually need to write the slow log. Check whether we already
       called subst_spvars() above, otherwise, do it now.  In the highly
@@ -1017,6 +1037,9 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
 
   thd->set_query(query_backup);
   thd->query_name_consts = 0;
+
+  /* Restore the original query start time */
+  if (thd->enable_slow_log) thd->set_time(time_info);
 
   return rc || thd->is_error();
 }

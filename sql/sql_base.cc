@@ -83,9 +83,11 @@
 #include "sql/binlog.h"  // mysql_bin_log
 #include "sql/check_stack.h"
 #include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"  // dd::get_dictionary()
 #include "sql/dd/dd_schema.h"
 #include "sql/dd/dd_table.h"       // dd::table_exists
 #include "sql/dd/dd_tablespace.h"  // dd::fill_table_and_parts_tablespace_name
+#include "sql/dd/dictionary.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"
@@ -1822,6 +1824,12 @@ void close_thread_table(THD *thd, TABLE **table_ptr) {
   table->pos_in_table_list = nullptr;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
+
+  if (unlikely(opt_userstat && table->file)) {
+    table->file->update_global_table_stats();
+    table->file->update_global_index_stats();
+  }
+
   *table_ptr = table->next;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
@@ -1889,6 +1897,7 @@ bool close_temporary_tables(THD *thd) {
   mysql_ha_rm_temporary_tables(thd);
   if (!mysql_bin_log.is_open()) {
     TABLE *tmp_next;
+    mysql_mutex_lock(&thd->LOCK_temporary_tables);
     for (TABLE *t = thd->temporary_tables; t; t = tmp_next) {
       tmp_next = t->next;
       mysql_lock_remove(thd, thd->lock, t);
@@ -1903,6 +1912,7 @@ bool close_temporary_tables(THD *thd) {
     }
 
     thd->temporary_tables = nullptr;
+    mysql_mutex_unlock(&thd->LOCK_temporary_tables);
     if (thd->slave_thread) {
       atomic_replica_open_temp_tables -= slave_closed_temp_tables;
       thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -=
@@ -1948,6 +1958,7 @@ bool close_temporary_tables(THD *thd) {
     Insertion sort of temp tables by pseudo_thread_id to build ordered list
     of sublists of equal pseudo_thread_id
   */
+  mysql_mutex_lock(&thd->LOCK_temporary_tables);
 
   for (prev_table = thd->temporary_tables, table = prev_table->next; table;
        prev_table = table, table = table->next) {
@@ -2118,6 +2129,8 @@ bool close_temporary_tables(THD *thd) {
       slave_closed_temp_tables++;
     }
   }
+  thd->temporary_tables = nullptr;
+  mysql_mutex_unlock(&thd->LOCK_temporary_tables);
   lex->drop_temporary = sav_drop_temp;
   lex->sql_command = sav_sql_command;
 
@@ -2125,7 +2138,6 @@ bool close_temporary_tables(THD *thd) {
     thd->variables.option_bits &=
         ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
-  thd->temporary_tables = nullptr;
   if (thd->slave_thread) {
     atomic_replica_open_temp_tables -= slave_closed_temp_tables;
     thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -=
@@ -2442,6 +2454,8 @@ void close_temporary_table(THD *thd, TABLE *table, bool free_share,
              ("closing table: '%s'.'%s' %p  alias: '%s'", table->s->db.str,
               table->s->table_name.str, table, table->alias));
 
+  mysql_mutex_lock(&thd->LOCK_temporary_tables);
+
   if (table->prev) {
     table->prev->next = table->next;
     if (table->prev->next) table->next->prev = table->prev;
@@ -2464,6 +2478,9 @@ void close_temporary_table(THD *thd, TABLE *table, bool free_share,
     --thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
   }
   close_temporary(thd, table, free_share, delete_table);
+
+  mysql_mutex_unlock(&thd->LOCK_temporary_tables);
+
 }
 
 /*
@@ -2480,6 +2497,11 @@ void close_temporary(THD *thd, TABLE *table, bool free_share,
   DBUG_TRACE;
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'", table->s->db.str,
                           table->s->table_name.str));
+
+  if (unlikely(opt_userstat)) {
+    table->file->update_global_table_stats();
+    table->file->update_global_index_stats();
+  }
 
   free_io_cache(table);
   closefrm(table, false);
@@ -2890,6 +2912,7 @@ bool open_table(THD *thd, Table_ref *table_list, Open_table_context *ot_ctx) {
   uint flags = ot_ctx->get_flags();
   MDL_ticket *mdl_ticket = nullptr;
   int error = 0;
+  bool backup_protection_acquired = false;
 
   DBUG_TRACE;
 
@@ -3443,6 +3466,18 @@ share_found:
 
   DEBUG_SYNC(thd, "open_table_found_share");
 
+  if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+      !(flags & (MYSQL_LOCK_LOG_TABLE | MYSQL_OPEN_HAS_MDL_LOCK)) &&
+      share->db_type() &&
+      !(share->db_type()->flags & HTON_SUPPORTS_ONLINE_BACKUPS)) {
+    if (thd->backup_tables_lock.abort_if_acquired() ||
+        thd->backup_tables_lock.acquire_protection(thd, MDL_STATEMENT,
+                                                   ot_ctx->get_timeout()))
+      goto err_lock;
+
+    backup_protection_acquired = true;
+  }
+
   {
     const dd::cache::Dictionary_client::Auto_releaser releaser(
         thd->dd_client());
@@ -3526,6 +3561,29 @@ share_found:
   global_aggregated_stats.get_shard(thd->thread_id()).table_open_cache_misses++;
 
 table_found:
+
+  if (!backup_protection_acquired &&
+      table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+      !(flags & (MYSQL_LOCK_LOG_TABLE | MYSQL_OPEN_HAS_MDL_LOCK)) &&
+      share->db_type() &&
+      !(share->db_type()->flags & HTON_SUPPORTS_ONLINE_BACKUPS)) {
+    if (thd->backup_tables_lock.abort_if_acquired() ||
+        thd->backup_tables_lock.acquire_protection(thd, MDL_STATEMENT,
+                                                   ot_ctx->get_timeout())) {
+      Table_cache *tc = table_cache_manager.get_cache(thd);
+
+      tc->lock();
+
+      tc->release_table(thd, table);
+
+      tc->unlock();
+
+      table->file->unbind_psi();
+
+      return true;
+    }
+  }
+
   table->mdl_ticket = mdl_ticket;
 
   table->next = thd->open_tables; /* Link into simple list */
@@ -5506,6 +5564,7 @@ bool lock_table_names(THD *thd, Table_ref *tables_start, Table_ref *tables_end,
       PSI_INSTRUMENT_ME);
   bool need_global_read_lock_protection = false;
   bool acquire_backup_lock = false;
+  MDL_request percona_backup_request;
 
   /*
     This function is not supposed to be used under LOCK TABLES normally.
@@ -5590,6 +5649,11 @@ bool lock_table_names(THD *thd, Table_ref *tables_start, Table_ref *tables_end,
       MDL_REQUEST_INIT(&global_request, MDL_key::GLOBAL, "", "",
                        MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
       mdl_requests.push_front(&global_request);
+
+      if (thd->backup_tables_lock.abort_if_acquired()) return true;
+      thd->backup_tables_lock.init_protection_request(&percona_backup_request,
+                                                      MDL_STATEMENT);
+      mdl_requests.push_front(&percona_backup_request);
     }
   }
 
@@ -5751,7 +5815,19 @@ static bool set_non_locking_read_for_IS_view(THD *thd, Table_ref *tl) {
     always a DD table. If this is not true, then we might
     need to invoke dd::Dictionary::is_dd_tablename() to make sure.
    */
-  if (tbl->db_stat && tbl->file->ha_extra(HA_EXTRA_NO_READ_LOCKING)) {
+
+  /* Addition to the above upstream comment:
+     Compression_dictionary table is dd::System_tables::Types::SYSTEM, so
+     pushing HA_EXTRA_NO_READ_LOCKING down will cause the assert in ha_innodb.cc
+     line c.a. 19297 (no_read_locking == true, is_dd_table == false).
+     This is the logic in ha_innobase::external_lock introduced in 8.0.22.
+     Below causes HA_EXTRA_NO_READ_LOCKING not to be pushed for SYSTEM tables
+     and we have locking as before.
+  */
+  bool is_dd_table = dd::get_dictionary()->is_dd_table_name(
+      tl->get_db_name(), tl->get_table_name());
+  if (is_dd_table && tbl->db_stat &&
+      tbl->file->ha_extra(HA_EXTRA_NO_READ_LOCKING)) {
     // Handler->ha_extra() for innodb does not fail ever as of now.
     // In case it is made to fail sometime later, we need to think
     // about the kind of error to be report to user.
@@ -7427,6 +7503,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
         !thd->is_current_stmt_binlog_disabled() &&
         !thd->is_current_stmt_binlog_format_row());
     /* growing temp list at the head */
+    mysql_mutex_lock(&thd->LOCK_temporary_tables);
     tmp_table->next = thd->temporary_tables;
     if (tmp_table->next) tmp_table->next->prev = tmp_table;
     thd->temporary_tables = tmp_table;
@@ -7435,6 +7512,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
       ++atomic_replica_open_temp_tables;
       ++thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
     }
+    mysql_mutex_unlock(&thd->LOCK_temporary_tables);
   }
   tmp_table->pos_in_table_list = nullptr;
 
@@ -10531,6 +10609,439 @@ bool init_ftfuncs(THD *thd, Query_block *query_block) {
   }
 
   return false;
+}
+
+bool is_equal(const LEX_CSTRING *a, const LEX_CSTRING *b) noexcept {
+  return a->length == b->length && !strncmp(a->str, b->str, a->length);
+}
+
+static bool is_cond_equal(const Item *cond) noexcept {
+  return (cond->type() == Item::FUNC_ITEM &&
+          (((const Item_func *)cond)->functype() == Item_func::EQ_FUNC ||
+           ((const Item_func *)cond)->functype() == Item_func::EQUAL_FUNC));
+}
+
+static bool is_cond_mult_equal(const Item *cond) noexcept {
+  return (cond->type() == Item::FUNC_ITEM &&
+          (((const Item_func *)cond)->functype() == Item_func::MULT_EQUAL_FUNC));
+}
+
+/*
+  And-or graph truth propagation algorithm is used to calculate if the
+  statement is ordered or not.
+
+  Nodes:
+    Join_node - And node, this is the root, successors are a list of
+              Const_ordered_table_node.
+    Const_ordered_table_node - Or node, have two Table_node as successors,
+              one for ordered table, and the other for constant table.
+    Table_node - Or node, have a list of Key_node and one All_columns_node
+              as successors.
+    Key_node - And node, successors are a list of Column_node that corresponding
+              to the fields of the key.
+    All_columns_node - And node, successors are a list of Column_node of all
+              fields of the table.
+    Column_node - Or node, represent a field of the table, it will take a
+              Table_node as a successor, which means if a table is true
+              (const or ordered), the all its columns are const or ordered.
+              Successors to other column nodes will be added mutually if
+              there is an equation to that field in the condition. The
+              column nodes for fields that are in the ORDER BY or are
+              equal to constants are added to the init_nodes of the Join_node,
+              which is used as the initial true values of the propagation.
+ */
+
+/*
+   Abstract base class for and-or node.
+*/
+class Node {
+ public:
+  Node() noexcept : todo(0) {}
+  virtual ~Node() {}
+  virtual void add_successor(Node *node) = 0;
+  /* Number of successors need to be true to make this node true. */
+  uint todo;
+  /* List of nodes that this node is a successor */
+  List<Node> predecessors;
+};
+
+/*
+  Or node will be true if any of its successors is true.
+ */
+class Or_node : public Node {
+ public:
+  Or_node() noexcept : Node() {}
+  void add_successor(Node *node) override {
+    todo = 1;
+    node->predecessors.push_back(this);
+  }
+};
+
+/*
+  And node can only be true if all its successors are true.
+ */
+class And_node : public Node {
+ public:
+  And_node() noexcept : Node() {}
+  void add_successor(Node *node) override {
+    todo++;
+    node->predecessors.push_back(this);
+  }
+};
+
+typedef Or_node Column_node;
+typedef And_node Key_node;
+typedef And_node All_columns_node;
+
+class Table_node final : public Or_node {
+ public:
+  Table_node(const TABLE *table_arg);
+  Column_node *get_column_node(const Field *field) const noexcept;
+  Column_node *create_column_node(const Field *field);
+  All_columns_node *create_all_columns_node();
+  Key_node *create_key_node(const KEY *key_info);
+
+ private:
+  const TABLE *table;
+  Column_node **columns;
+};
+
+Table_node::Table_node(const TABLE *table_arg)
+    : table(table_arg),
+      columns((Column_node **)(*THR_MALLOC)
+                  ->Alloc(sizeof(Column_node *) * table->s->fields)) {
+  memset(columns, 0, sizeof(Column_node *) * table->s->fields);
+
+  if (table->s->primary_key == MAX_KEY) {
+    add_successor(create_all_columns_node());
+    return;
+  }
+  uint key;
+  for (key = 0; key < table->s->keys; key++) {
+    if ((table->s->key_info[key].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
+        HA_NOSAME)
+      add_successor(create_key_node(&table->s->key_info[key]));
+  }
+}
+
+inline Column_node *Table_node::get_column_node(const Field *field) const
+    noexcept {
+  return columns[field->field_index()];
+}
+
+inline Column_node *Table_node::create_column_node(const Field *field) {
+  if (!get_column_node(field)) {
+    Column_node *column = new (*THR_MALLOC) Column_node;
+    columns[field->field_index()] = column;
+    /*
+      If the table is ORDERED or CONST, then all the columns are
+      ORDERED or CONST, so add the table as an successor of the column
+      node (Or_node).
+    */
+    column->add_successor(this);
+  }
+  return get_column_node(field);
+}
+
+All_columns_node *Table_node::create_all_columns_node() {
+  All_columns_node *node = new (*THR_MALLOC) All_columns_node;
+  uint i = 0;
+  for (i = 0; i < table->s->fields; i++) {
+    Column_node *column = create_column_node(table->field[i]);
+    node->add_successor(column);
+  }
+  return node;
+}
+
+Key_node *Table_node::create_key_node(const KEY *key_info) {
+  Key_node *node = new (*THR_MALLOC) Key_node;
+  uint key_parts = key_info->user_defined_key_parts;
+  uint i;
+  for (i = 0; i < key_parts; i++) {
+    KEY_PART_INFO *key_part = &key_info->key_part[i];
+    Field *field = table->field[key_part->fieldnr - 1];
+    node->add_successor(create_column_node(field));
+  }
+  return node;
+}
+
+class Const_ordered_table_node final : public Or_node {
+ public:
+  Const_ordered_table_node(const TABLE *table_arg);
+  const TABLE *get_table() const noexcept { return table; }
+  Column_node *get_ordered_column_node(const Field *field) const;
+  Column_node *get_const_column_node(const Field *field) const;
+
+ private:
+  const TABLE *table;
+  Table_node *ordered_table_node;
+  Table_node *const_table_node;
+};
+
+Const_ordered_table_node::Const_ordered_table_node(const TABLE *table_arg)
+    : table(table_arg),
+      ordered_table_node(new (*THR_MALLOC) Table_node(table)),
+      const_table_node(new (*THR_MALLOC) Table_node(table)) {
+  add_successor(ordered_table_node);
+  add_successor(const_table_node);
+}
+
+inline Column_node *Const_ordered_table_node::get_ordered_column_node(
+    const Field *field) const {
+  return ordered_table_node->create_column_node(field);
+}
+
+inline Column_node *Const_ordered_table_node::get_const_column_node(
+    const Field *field) const {
+  return const_table_node->create_column_node(field);
+}
+
+class Join_node : public And_node {
+ public:
+  Join_node(const mem_root_deque<Table_ref *> *join_list, Item *cond,
+            const ORDER *order);
+  Join_node(const Table_ref *table, Item *cond, const ORDER *order);
+  bool is_ordered() const;
+
+ private:
+  void add_join_list(const mem_root_deque<Table_ref *> *join_list);
+  Const_ordered_table_node *add_table(const TABLE *table);
+  Const_ordered_table_node *get_const_ordered_table_node(const TABLE *table);
+  Column_node *get_ordered_column_node(const Field *field);
+  Column_node *get_const_column_node(const Field *field);
+  void add_ordered_columns(const ORDER *order);
+  void add_const_equi_columns(Item *cond);
+  void add_const_column(const Field *field);
+  void add_equi_column(const Field *left, const Field *right);
+  bool field_belongs_to_tables(const Field *field) noexcept;
+  List<Const_ordered_table_node> tables;
+  List<Node> init_nodes;
+  ulong max_sort_length;
+};
+
+inline void Join_node::add_join_list(
+    const mem_root_deque<Table_ref *> *join_list) {
+  Item *join_cond = join_list->front()->join_cond();
+  for (auto table : *join_list)
+    if (table->nested_join)
+      add_join_list(&table->nested_join->m_tables);
+    else
+      add_table(table->table);
+  add_const_equi_columns(join_cond);
+}
+
+inline Const_ordered_table_node *Join_node::add_table(const TABLE *table) {
+  Const_ordered_table_node *tableNode =
+      new (*THR_MALLOC) Const_ordered_table_node(table);
+  add_successor(tableNode);
+  tables.push_back(tableNode);
+  return tableNode;
+}
+
+inline Join_node::Join_node(const mem_root_deque<Table_ref *> *join_list,
+                            Item *cond, const ORDER *order) {
+  assert(!join_list->empty());
+  max_sort_length = current_thd->variables.max_sort_length;
+  add_join_list(join_list);
+  add_ordered_columns(order);
+  add_const_equi_columns(cond);
+}
+
+inline Join_node::Join_node(const Table_ref *table, Item *cond,
+                            const ORDER *order) {
+  max_sort_length = current_thd->variables.max_sort_length;
+  if (table->table) {
+    add_table(table->table);
+  } else {
+    add_join_list(table->view_tables);
+  }
+  add_ordered_columns(order);
+  add_const_equi_columns(cond);
+}
+
+inline Const_ordered_table_node *Join_node::get_const_ordered_table_node(
+    const TABLE *table) {
+  List_iterator<Const_ordered_table_node> it(tables);
+  Const_ordered_table_node *node;
+  while ((node = it++)) {
+    if (node->get_table() == table) return node;
+  }
+  assert(0);
+  return add_table(table);
+}
+
+inline bool Join_node::field_belongs_to_tables(const Field *field) noexcept {
+  List_iterator<Const_ordered_table_node> it(tables);
+  Const_ordered_table_node *node;
+  while ((node = it++)) {
+    if (node->get_table() == field->table) return true;
+  }
+  return false;
+}
+
+inline Column_node *Join_node::get_ordered_column_node(const Field *field) {
+  return get_const_ordered_table_node(field->table)
+      ->get_ordered_column_node(field);
+}
+
+inline Column_node *Join_node::get_const_column_node(const Field *field) {
+  return get_const_ordered_table_node(field->table)
+      ->get_const_column_node(field);
+}
+
+inline void Join_node::add_const_column(const Field *field) {
+  Column_node *column = get_const_column_node(field);
+  init_nodes.push_back(column);
+}
+
+void Join_node::add_equi_column(const Field *left, const Field *right) {
+  Column_node *left_column = get_const_column_node(left);
+  Column_node *right_column = get_const_column_node(right);
+  left_column->add_successor(right_column);
+  right_column->add_successor(left_column);
+
+  left_column = get_ordered_column_node(left);
+  right_column = get_ordered_column_node(right);
+  left_column->add_successor(right_column);
+  right_column->add_successor(left_column);
+}
+
+inline bool is_cond_or(const Item *item) noexcept {
+  if (item->type() != Item::COND_ITEM) return false;
+
+  const Item_cond *cond_item = (const Item_cond *)item;
+  return (cond_item->functype() == Item_func::COND_OR_FUNC);
+}
+
+static bool is_cond_and(const Item *item) noexcept {
+  if (item->type() != Item::COND_ITEM) return false;
+
+  const Item_cond *cond_item = (const Item_cond *)item;
+  return (cond_item->functype() == Item_func::COND_AND_FUNC);
+}
+
+void Join_node::add_const_equi_columns(Item *cond) {
+  if (!cond) return;
+  if (is_cond_or(cond)) return;
+  if (is_cond_and(cond)) {
+    const List<Item> *args = ((const Item_cond *)cond)->argument_list();
+    List_iterator<Item> it(*const_cast<List<Item>*>(args));
+    Item *c;
+    while ((c = it++)) add_const_equi_columns(c);
+    return;
+  }
+  if (is_cond_equal(cond)) {
+    uint i;
+    Field *first_field = nullptr;
+    Field *second_field = nullptr;
+    Item **args = ((const Item_func *)cond)->arguments();
+    uint arg_count = ((const Item_func *)cond)->argument_count();
+    bool const_value = false;
+
+    assert(arg_count == 2);
+
+    bool variable_field = false;
+    for (i = 0; i < arg_count; i++) {
+      if (args[i]->real_item()->type() == Item::FIELD_ITEM &&
+          (variable_field = field_belongs_to_tables(
+               ((Item_field *)args[i]->real_item())->field))) {
+        if (!first_field)
+          first_field = ((const Item_field *)args[i]->real_item())->field;
+        else
+          second_field = ((const Item_field *)args[i]->real_item())->field;
+      } else if (args[i]->real_item()->basic_const_item() || !variable_field) {
+        const_value = true;
+      }
+    }
+    if (first_field && const_value)
+      add_const_column(first_field);
+    else if (second_field)
+      add_equi_column(first_field, second_field);
+    return;
+  }
+  if (is_cond_mult_equal(cond)) {
+    auto equal = down_cast<Item_equal *>(cond);
+
+    if (equal->const_arg()) {
+      for (Item_field &field : equal->get_fields()) {
+        add_const_column(field.field);
+      }
+    } else {
+      auto it = equal->get_fields().begin();
+      Item_field& first_item = *it++;
+      for (; it != equal->get_fields().end(); ++it) {
+        add_equi_column(first_item.field, it->field);
+      }
+    }
+  }
+  return;
+}
+
+void Join_node::add_ordered_columns(const ORDER *order) {
+  for (; order; order = order->next) {
+    if ((*order->item)->real_item()->type() == Item::FIELD_ITEM) {
+      Field *field = ((Item_field *)(*order->item)->real_item())->field;
+      /*
+        If the field length is larger than the max_sort_length, then
+        ORDER BY the field will not be guaranteed to be deterministic.
+       */
+      if (field->field_length > max_sort_length) continue;
+      Column_node *column = get_ordered_column_node(field);
+      init_nodes.push_back(column);
+    }
+  }
+}
+
+bool Join_node::is_ordered() const {
+  List<Node> nodes(init_nodes);
+  List_iterator<Node> it(nodes);
+  Node *node;
+
+  while ((node = it++)) {
+    node->todo--;
+    if (node->todo == 0) {
+      if (node == this) return true;
+      List_iterator<Node> pit(node->predecessors);
+      Node *pnode;
+      while ((pnode = pit++)) {
+        if (pnode->todo) nodes.push_back(pnode);
+      }
+    }
+  }
+  return false;
+}
+
+/*
+  Test if the result order is deterministic for a JOIN table list.
+
+  @retval false not deterministic
+  @retval true deterministic
+ */
+bool is_order_deterministic(const mem_root_deque<Table_ref *> *join_list,
+                            Item *cond, ORDER *order) {
+  /*
+    join_list->is_empty() means this is a UNION with a global LIMIT,
+    always mark such statements as non-deterministic, although it
+    might be deterministic for some cases (for example, UNION DISTINCT
+    with ORDER BY a unique key of both side of the UNION).
+  */
+  if (join_list->empty()) return false;
+
+  Join_node root(join_list, cond, order);
+  return root.is_ordered();
+}
+
+/*
+  Test if the result order is deterministic for a single table.
+
+  @retval false not deterministic
+  @retval true deterministic
+ */
+bool is_order_deterministic(Table_ref *table, Item *cond, ORDER *order) {
+  if (order == NULL && cond == NULL) return false;
+
+  Join_node root(table, cond, order);
+  return root.is_ordered();
 }
 
 /**

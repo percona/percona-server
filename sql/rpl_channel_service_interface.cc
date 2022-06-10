@@ -1014,7 +1014,7 @@ int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
   DBUG_TRACE;
   int result = -1;
 
-  Find_thd_with_id find_thd_with_id(thread_id);
+  Find_thd_with_id find_thd_with_id(thread_id, false);
   THD_ptr thd_ptr =
       Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd_ptr) {

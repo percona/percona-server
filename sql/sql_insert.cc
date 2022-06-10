@@ -627,8 +627,11 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         // continue when IGNORE clause is used.
         continue;
       }
-
-      if (write_record(thd, insert_table, &info, &update)) {
+      int error = insert_table->file->ha_upsert(thd, update_field_list,
+                                                update_value_list);
+      if (error == ENOTSUP)
+        error = write_record(thd, insert_table, &info, &update);
+      if (error) {
         has_error = true;
         break;
       }
@@ -737,15 +740,16 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
   assert(has_error == thd->get_stmt_da()->is_error());
   if (has_error) return true;
 
+  ha_rows row_count;
+
   if (insert_many_values.size() == 1 &&
       (!(thd->variables.option_bits & OPTION_WARNINGS) ||
        !thd->num_truncated_fields)) {
-    my_ok(thd,
-          info.stats.copied + info.stats.deleted +
-              (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
-                   ? info.stats.touched
-                   : info.stats.updated),
-          id);
+    row_count = info.stats.copied + info.stats.deleted +
+                (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
+                     ? info.stats.touched
+                     : info.stats.updated);
+    my_ok(thd, row_count, id);
   } else {
     char buff[160];
     const ha_rows updated =
@@ -761,8 +765,10 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
       snprintf(buff, sizeof(buff), ER_THD(thd, ER_INSERT_INFO),
                (long)info.stats.records, (long)(info.stats.deleted + updated),
                (long)thd->get_stmt_da()->current_statement_cond_count());
-    my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
+    row_count = info.stats.copied + info.stats.deleted + updated;
+    my_ok(thd, row_count, id, buff);
   }
+  thd->updated_row_count += row_count;
 
   /*
     If we have inserted into a VIEW, and the base table has
@@ -781,6 +787,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
+  thd->lex->clear_values_map();
+  DEBUG_SYNC(thd, "after_mysql_insert");
 
   return false;
 }
@@ -2521,6 +2529,7 @@ bool Query_result_insert::send_eof(THD *thd) {
                   : (info.stats.copied ? autoinc_value_of_last_inserted_row
                                        : 0));
   my_ok(thd, row_count, id, buff);
+  thd->updated_row_count += row_count;
 
   /*
     If we have inserted into a VIEW, and the base table has

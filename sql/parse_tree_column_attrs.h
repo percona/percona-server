@@ -178,15 +178,22 @@ class PT_secondary_column_attr : public PT_column_attr_base {
 
   @ingroup ptn_column_attrs
 */
-class PT_unique_key_column_attr : public PT_column_attr_base {
+class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
  public:
-  void apply_type_flags(ulong *type_flags) const override {
-    *type_flags |= UNIQUE_FLAG;
+  PT_unique_combo_clustering_key_column_attr(enum keytype key_type) noexcept
+      : m_key_type(key_type) {}
+
+  void apply_type_flags(ulong *type_flags) const noexcept override {
+    if (m_key_type & KEYTYPE_UNIQUE) *type_flags |= UNIQUE_FLAG;
+    if (m_key_type & KEYTYPE_CLUSTERING) *type_flags |= CLUSTERING_FLAG;
   }
 
   void apply_alter_info_flags(ulonglong *flags) const override {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
+
+ private:
+  const enum keytype m_key_type;
 };
 
 /**

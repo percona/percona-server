@@ -56,7 +56,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_rewrite.h"  // mysql_rewrite_query
 #include "sql/table.h"
-#include "sql_parse.h"  // command_name
+#include "sql_parse.h"  // Command_names
 #include "sql_string.h"
 #include "thr_mutex.h"
 
@@ -602,6 +602,10 @@ int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table) {
   mysql_event_table_access_subclass_t subclass;
   const char *subclass_name;
   int ret;
+
+  if ((thd->system_thread &
+       (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+    return 0;
 
   /* Do not generate events for non query table access. */
   if (!thd->lex->query_tables) return 0;

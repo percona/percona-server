@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <array>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -271,8 +272,6 @@ class Command_names {
     return COM_END;
   }
 };
-
-size_t get_command_name_len(void);
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 

@@ -31,6 +31,7 @@
 #include "mysql/psi/mysql_cond.h"                 // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"                // mysql_mutex_t
 #include "sql/conn_handler/connection_handler.h"  // Connection_handler
+#include "sql/threadpool.h"
 
 class Channel_info;
 class THD;
@@ -122,6 +123,22 @@ class One_thread_connection_handler : public Connection_handler {
   bool add_connection(Channel_info *channel_info) override;
 
   uint get_max_threads() const override { return 1; }
+};
+
+class Thread_pool_connection_handler : public Connection_handler {
+  Thread_pool_connection_handler(const Thread_pool_connection_handler &);
+  Thread_pool_connection_handler &operator=(
+      const Thread_pool_connection_handler &);
+
+ public:
+  Thread_pool_connection_handler() { tp_init(); }
+
+  ~Thread_pool_connection_handler() override { tp_end(); }
+
+ protected:
+  bool add_connection(Channel_info *channel_info) override;
+
+  uint get_max_threads() const override { return threadpool_max_threads; }
 };
 
 #endif  // CONNECTION_HANDLER_IMPL_INCLUDED

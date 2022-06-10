@@ -183,7 +183,7 @@ bool IO_CACHE_binlog_cache_storage::begin(unsigned char **buffer,
 
 bool IO_CACHE_binlog_cache_storage::next(unsigned char **buffer,
                                          my_off_t *length) {
-  my_b_fill(&m_io_cache);
+  if (my_b_bytes_in_cache(&m_io_cache) == 0) my_b_fill(&m_io_cache);
 
   *buffer = m_io_cache.read_pos;
   *length = my_b_bytes_in_cache(&m_io_cache);

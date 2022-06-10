@@ -52,9 +52,10 @@
 #include "sql/conn_handler/channel_info.h"  // Channel_info
 #include "sql/conn_handler/connection_handler_impl.h"
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
-#include "sql/log.h"                                      // Error_log_throttle
-#include "sql/mysqld.h"                                   // max_connections
-#include "sql/mysqld_thd_manager.h"                       // Global_THD_manager
+#include "sql/debug_sync.h"
+#include "sql/log.h"                 // Error_log_throttle
+#include "sql/mysqld.h"              // max_connections
+#include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_connect.h"  // close_connection
@@ -268,6 +269,11 @@ static void *handle_connection(void *arg) {
       Connection_handler_manager::dec_connection_count();
       break;  // We are out of resources, no sense in continuing.
     }
+
+    DBUG_EXECUTE_IF("after_thread_setup", {
+      const char act[] = "now signal thread_setup";
+      assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    };);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (pthread_reused) {

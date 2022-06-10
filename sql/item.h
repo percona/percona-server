@@ -6526,6 +6526,8 @@ class Item_insert_value final : public Item_field {
     return true;
   }
 
+  Item *get_arg() { return arg; }
+
  private:
   /// The argument for this function
   Item *arg;

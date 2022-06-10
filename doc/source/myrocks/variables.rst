@@ -1648,17 +1648,27 @@ Default value is ``1``.
 Allowed range is from ``0`` to ``2147483647``.
 Set to ``0`` if you do not want to override the returned value.
 
-.. variable:: rocksdb_hash_index_allow_collision
+.. _rocksdb_hash_index_allow_collision:
 
-  :cli: ``--rocksdb-hash-index-allow-collision``
-  :dyn: No
-  :scope: Global
-  :vartype: Boolean
-  :default: ``ON``
+.. rubric:: ``rocksdb_hash_index_allow_collision``
 
-Specifies whether hash collisions are allowed.
-Enabled by default, which uses less memory.
-If disabled, full prefix is stored to prevent hash collisions.
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--rocksdb-hash-index-allow-collision``
+   * - Dynamic
+     - No
+   * - Scope
+     - Global
+   * - Data type
+     - Boolean
+   * - Default
+     - ``ON``
+
+The variable was removed in :ref:`8.0.29-21`. This variable specifies whether hash collisions are allowed. Enabled by default, which uses less memory. If disabled, full prefix is stored to prevent hash collisions.
 
 .. variable:: rocksdb_ignore_unknown_options
 
@@ -2057,20 +2067,27 @@ is done without any sleep, so removing GBs of merge files within <1s may
 happen, which will cause trim stalls on Flash. This variable can be used to
 rate limit the delay in milliseconds.
 
-.. variable:: rocksdb_new_table_reader_for_compaction_inputs
+.. _rocksdb_new_table_reader_for_compaction_inputs:
 
-  :cli: ``--rocksdb-new-table-reader-for-compaction-inputs``
-  :dyn: No
-  :scope: Global
-  :vartype: Boolean
-  :default: ``OFF``
+.. rubric:: ``rocksdb_new_table_reader_for_compaction_inputs``
 
-Specifies whether MyRocks should create a new file descriptor and table reader
-for each compaction input.
-Disabled by default.
-Enabling this may increase memory consumption,
-but will also allow pre-fetch options to be specified for compaction
-input files without impacting table readers used for user queries.
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--rocksdb-new-table-reader-for-compaction-inputs``
+   * - Dynamic
+     - No
+   * - Scope
+     - Global
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+
+The variable was removed in :ref:`8.0.29-21`. This variable specifies whether MyRocks should create a new file descriptor and table reader for each compaction input. Disabled by default. Enabling this may increase memory consumption, but will also allow pre-fetch options to be specified for compaction input files without impacting table readers used for user queries.
 
 .. variable:: rocksdb_no_block_cache
 

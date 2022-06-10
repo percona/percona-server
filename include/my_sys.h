@@ -757,6 +757,7 @@ MY_NODISCARD
 extern int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
                          enum cache_type type, my_off_t seek_offset,
                          bool use_async_io, myf cache_myflags);
+MY_NODISCARD
 extern bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
                             my_off_t seek_offset, bool use_async_io,
                             bool clear_cache);

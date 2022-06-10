@@ -204,6 +204,7 @@ enum enum_sql_command {
   SQLCOM_CREATE_SRS,
   SQLCOM_DROP_SRS,
   SQLCOM_SHOW_PARSE_TREE,
+  SQLCOM_LOCK_TABLES_FOR_BACKUP,
   /* This should be the last !!! */
   SQLCOM_END
 };

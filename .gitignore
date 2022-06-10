@@ -16,6 +16,10 @@ TAGS_sorted_by_file
 # Configuration files for Visual Studio Code
 .vscode/
 
+/GPATH
+/GRTAGS
+/GTAGS
+
 build/
 datatool/
 datatools/
@@ -24,10 +28,15 @@ heatwaveml.*
 automl.egg-info/
 _userconf.sh
 scalability_jobs_*
+
 # Configuration files for Eclipse
 .cproject
 .project
 .settings/
+.idea
 
 # Cache directory used by e.g. clangd.
 .cache/
+
+.serena
+.merge_conflicts

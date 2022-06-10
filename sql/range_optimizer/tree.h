@@ -787,7 +787,7 @@ class SEL_ARG {
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root, SEL_ARG *key, SEL_ARG *par);
 #ifndef NDEBUG
-  friend int test_rb_tree(SEL_ARG *element, SEL_ARG *parent);
+  friend int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent);
 #endif
   SEL_ARG *first();
   const SEL_ARG *first() const;

@@ -110,6 +110,7 @@ class Connection_handler_manager {
   enum scheduler_types {
     SCHEDULER_ONE_THREAD_PER_CONNECTION = 0,
     SCHEDULER_NO_THREADS,
+    SCHEDULER_THREAD_POOL,
     SCHEDULER_TYPES_COUNT
   };
 

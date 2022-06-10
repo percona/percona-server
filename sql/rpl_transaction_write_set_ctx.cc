@@ -193,7 +193,7 @@ void Rpl_transaction_write_set_ctx::set_local_allow_drop_write_set(
 Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id) {
   DBUG_TRACE;
   Transaction_write_set *result_set = nullptr;
-  Find_thd_with_id find_thd_with_id(m_thread_id);
+  Find_thd_with_id find_thd_with_id(m_thread_id, false);
 
   THD_ptr thd_ptr =
       Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);

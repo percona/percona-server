@@ -683,6 +683,9 @@ cleanup:
     my_ok(thd, deleted_rows);
     DBUG_PRINT("info", ("%ld records deleted", (long)deleted_rows));
   }
+
+  thd->updated_row_count += deleted_rows;
+
   return error > 0;
 }
 
@@ -1301,6 +1304,8 @@ int DeleteRowsIterator::Read() {
       }
     }
   }
+
+  thd()->updated_row_count += m_deleted_rows;
 
   if (local_error) {
     return 1;

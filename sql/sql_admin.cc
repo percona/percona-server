@@ -1461,6 +1461,9 @@ static bool mysql_admin_table(
       }
     }
     if (table->table) {
+      const bool skip_flush =
+          (operator_func == &handler::ha_analyze) &&
+          (table->table->file->ha_table_flags() & HA_ONLINE_ANALYZE);
       if (table->table->s->tmp_table) {
         /*
           If the table was not opened successfully, do not try to get
@@ -1468,7 +1471,7 @@ static bool mysql_admin_table(
         */
         if (open_for_modify && !open_error)
           table->table->file->info(HA_STATUS_CONST);
-      } else if (open_for_modify || fatal_error) {
+      } else if ((!skip_flush && open_for_modify) || fatal_error) {
         if (operator_func == &handler::ha_analyze)
           /*
             Force update of key distribution statistics in rec_per_key array and
@@ -1927,7 +1930,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
     return true;
   });
 
-  thd->enable_slow_log = opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
 
   if (get_histogram_command() != Histogram_command::NONE) {
     res = handle_histogram_command(thd, first_table);
@@ -1980,7 +1983,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table, false,
                          UINT_MAX, false))
     goto error; /* purecov: inspected */
-  thd->enable_slow_log = opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
   res = (specialflag & SPECIAL_NO_NEW_FUNC)
             ? mysql_recreate_table(thd, first_table, true)
             : mysql_admin_table(thd, first_table, &thd->lex->check_opt,
@@ -2008,7 +2011,7 @@ bool Sql_cmd_repair_table::execute(THD *thd) {
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table, false,
                          UINT_MAX, false))
     goto error; /* purecov: inspected */
-  thd->enable_slow_log = opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
   res = mysql_admin_table(
       thd, first_table, &thd->lex->check_opt, "repair", TL_WRITE, true,
       thd->lex->check_opt.sql_flags & TT_USEFRM, HA_OPEN_FOR_REPAIR,

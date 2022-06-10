@@ -192,7 +192,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
 
     ret= SSL_read(ssl, buf, (int)size);
 
-    if (ret >= 0)
+    if (ret > 0)
       break;
 
     /* Process the SSL I/O error. */
@@ -229,7 +229,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
 
     ret= SSL_write(ssl, buf, (int)size);
 
-    if (ret >= 0)
+    if (ret > 0)
       break;
 
     /* Process the SSL I/O error. */
@@ -276,6 +276,12 @@ int vio_ssl_shutdown(Vio *vio, int how)
     default: /* Shutdown failed */
       DBUG_PRINT("vio_error", ("SSL_shutdown() failed, error: %d",
                                SSL_get_error(ssl, r)));
+#ifndef NDEBUG /* Debug build */
+      /* Note: the OpenSSL error queue gets cleared in report_errors(). */
+      report_errors(ssl);
+#else /* Release build */
+      ERR_clear_error();
+#endif
       break;
     }
   }

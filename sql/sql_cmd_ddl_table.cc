@@ -545,7 +545,7 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
     and thus classify as slow administrative statements just like
     ALTER TABLE.
   */
-  thd->enable_slow_log = opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
 
   create_info.db_type = nullptr;
   create_info.row_type = ROW_TYPE_NOT_USED;

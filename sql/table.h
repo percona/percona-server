@@ -1028,6 +1028,13 @@ struct TABLE_SHARE {
   */
   dd::Table *tmp_table_def{nullptr};
 
+  /**
+    True in the case if tokudb read-free-replication is used for the table
+    without explicit pk and corresponding warning was issued to disable
+    repeated warning.
+  */
+  bool rfr_lookup_warning{false};
+
   /// For materialized derived tables; @see add_derived_key().
   Query_block *owner_of_possible_tmp_keys{nullptr};
 
@@ -2215,6 +2222,7 @@ struct TABLE {
 #ifndef NDEBUG
   void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id = arg; }
 #endif
+
   /**
     Update covering keys depending on max read key length.
 

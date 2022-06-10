@@ -1,4 +1,6 @@
 /* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab
+   Copyright (C) 2012 Percona Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -504,9 +506,16 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
         return RESULT_ABORTED;  // Failed to log the transaction
   }
 
-  if (trx_coordinator::commit_in_engines(thd, all))
-    return RESULT_INCONSISTENT;  // Transaction logged, if not XA , but not
-                                 // committed
+  /*
+    Acquire a shared lock to block commits until START TRANSACTION WITH
+    CONSISTENT SNAPSHOT completes snapshot creation for all storage engines.
+  */
+  slock();
+  int rc = trx_coordinator::commit_in_engines(thd, all);
+  sunlock();
+
+  if (rc)
+    return RESULT_INCONSISTENT;  // Transaction logged, but not committed
 
   /* If cookie is non-zero, something was logged */
   if (cookie) unlog(cookie, xid);

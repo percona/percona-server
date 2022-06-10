@@ -109,7 +109,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_keyword_list
 )
 
-ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_POOL_OF_THREADS)
 ADD_SUBDIRECTORY(server_component)
 ADD_SUBDIRECTORY(protobuf)
 
@@ -610,6 +610,7 @@ SET(SQL_SHARED_SOURCES
   table_trigger_dispatcher.cc
   tc_log.cc
   thr_malloc.cc
+  threadpool_common.cc
   time_zone_common.cc
   transaction.cc
   transaction_info.cc
@@ -755,6 +756,13 @@ ELSEIF(WIN32)
     resourcegroups/platform/thread_attrs_api_win.cc)
 ENDIF()
 
+IF(WIN32)
+  LIST(APPEND SQL_SHARED_SOURCES threadpool_win.cc)
+ELSE()
+  LIST(APPEND SQL_SHARED_SOURCES threadpool_unix.cc)
+ENDIF()
+
+
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
@@ -894,6 +902,7 @@ IF(MY_COMPILER_IS_GNU)
   IF(HAS_WARN_FLAG)
     ADD_COMPILE_FLAGS(
       geometry_rtree.cc
+      join_optimizer/access_path.cc
       COMPILE_FLAGS ${HAS_WARN_FLAG}
       )
   ENDIF()

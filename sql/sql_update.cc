@@ -872,204 +872,210 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     uint dup_key_found;
 
-    while (true) {
-      error = iterator->Read();
-      if (error || thd->killed) break;
-      thd->inc_examined_row_count(1);
-      if (conds != nullptr) {
-        const bool skip_record = conds->val_int() == 0;
-        if (thd->is_error()) {
-          error = 1;
-          break;
-        }
-        if (skip_record) {
-          table->file
-              ->unlock_row();  // Row failed condition check, release lock
-          thd->get_stmt_da()->inc_current_row_for_condition();
-          continue;
-        }
-      }
-      assert(!thd->is_error());
-
-      if (table->file->was_semi_consistent_read())
-        /*
-          Reviewer: iterator is reading from the to-be-updated table or
-          from a tmp file.
-          In the latter case, if the condition of this if() is true,
-          it is wrong to "continue"; indeed this will pick up the _next_ row of
-          tempfile; it will not re-read-with-lock the current row of tempfile,
-          as tempfile is not an InnoDB table and not doing semi consistent read.
-          If that happens, we're potentially skipping a row which was found
-          matching! OTOH, as the rowid was written to the tempfile, it means it
-          matched and thus we have already re-read it in the tempfile-write loop
-          above and thus locked it. So we shouldn't come here. How about adding
-          an assertion that if reading from tmp file we shouldn't come here?
-        */
-        continue; /* repeat the read of the same row if it still exists */
-
-      table->clear_partial_update_diffs();
-
-      store_record(table, record[1]);
-      bool is_row_changed = false;
-      if (fill_record_n_invoke_before_triggers(
-              thd, &update, query_block->fields, *update_value_list, table,
-              TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
-        error = 1;
-        break;
-      }
-      found_rows++;
-
-      if (is_row_changed) {
-        /*
-          Default function and default expression values are filled before
-          evaluating the view check option. Check option on view using table(s)
-          with default function and default expression breaks otherwise.
-
-          It is safe to not invoke CHECK OPTION for VIEW if records are same.
-          In this case the row is coming from the view and thus should satisfy
-          the CHECK OPTION.
-        */
-        int check_result = table_list->view_check_option(thd);
-        if (check_result != VIEW_CHECK_OK) {
-          if (check_result == VIEW_CHECK_SKIP)
-            continue;
-          else if (check_result == VIEW_CHECK_ERROR) {
-            error = 1;
-            break;
-          }
-        }
-
-        /*
-          Existing rows in table should normally satisfy CHECK constraints. So
-          it should be safe to check constraints only for rows that has really
-          changed (i.e. after compare_records()).
-
-          In future, once addition/enabling of CHECK constraints without their
-          validation is supported, we might encounter old rows which do not
-          satisfy CHECK constraints currently enabled. However, rejecting no-op
-          updates to such invalid pre-existing rows won't make them valid and is
-          probably going to be confusing for users. So it makes sense to stick
-          to current behavior.
-        */
-        if (invoke_table_check_constraints(thd, table)) {
+    error = table->file->ha_fast_update(thd, query_block->fields,
+                                        *update_value_list, conds);
+    if (error == 0)
+      error = -1;  // error < 0 means really no error at all (see below)
+    else if (error != ENOTSUP) {
+      table->file->print_error(error, MYF(0));
+      error = 1;
+    } else {
+      while (true) {
+        error = iterator->Read();
+        if (error || thd->killed) break;
+        thd->inc_examined_row_count(1);
+        if (conds != nullptr) {
+          const bool skip_record = conds->val_int() == 0;
           if (thd->is_error()) {
             error = 1;
             break;
           }
-          // continue when IGNORE clause is used.
-          continue;
+          if (skip_record) {
+            table->file
+                ->unlock_row();  // Row failed condition check, release lock
+            thd->get_stmt_da()->inc_current_row_for_condition();
+            continue;
+          }
         }
+        assert(!thd->is_error());
 
-        if (will_batch) {
+        if (table->file->was_semi_consistent_read())
           /*
-            Typically a batched handler can execute the batched jobs when:
-            1) When specifically told to do so
-            2) When it is not a good idea to batch anymore
-            3) When it is necessary to send batch for other reasons
-            (One such reason is when READ's must be performed)
-
-            1) is covered by exec_bulk_update calls.
-            2) and 3) is handled by the bulk_update_row method.
-
-            bulk_update_row can execute the updates including the one
-            defined in the bulk_update_row or not including the row
-            in the call. This is up to the handler implementation and can
-            vary from call to call.
-
-            The dup_key_found reports the number of duplicate keys found
-            in those updates actually executed. It only reports those if
-            the extra call with HA_EXTRA_IGNORE_DUP_KEY have been issued.
-            If this hasn't been issued it returns an error code and can
-            ignore this number. Thus any handler that implements batching
-            for UPDATE IGNORE must also handle this extra call properly.
-
-            If a duplicate key is found on the record included in this
-            call then it should be included in the count of dup_key_found
-            and error should be set to 0 (only if these errors are ignored).
+            Reviewer: iterator is reading from the to-be-updated table or
+            from a tmp file.
+            In the latter case, if the condition of this if() is true,
+            it is wrong to "continue"; indeed this will pick up the _next_ row
+            of tempfile; it will not re-read-with-lock the current row of
+            tempfile, as tempfile is not an InnoDB table and not doing semi
+            consistent read. If that happens, we're potentially skipping a row
+            which was found matching! OTOH, as the rowid was written to the
+            tempfile, it means it matched and thus we have already re-read it in
+            the tempfile-write loop above and thus locked it. So we shouldn't
+            come here. How about adding an assertion that if reading from tmp
+            file we shouldn't come here?
           */
-          error = table->file->ha_bulk_update_row(
-              table->record[1], table->record[0], &dup_key_found);
-          limit += dup_key_found;
-          updated_rows -= dup_key_found;
-        } else {
-          /* Non-batched update */
-          error =
-              table->file->ha_update_row(table->record[1], table->record[0]);
+          continue; /* repeat the read of the same row if it still exists */
+
+        table->clear_partial_update_diffs();
+
+        store_record(table, record[1]);
+        bool is_row_changed = false;
+        if (fill_record_n_invoke_before_triggers(
+                thd, &update, query_block->fields, *update_value_list, table,
+                TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
+          error = 1;
+          break;
         }
-        if (error == 0)
-          updated_rows++;
-        else if (error == HA_ERR_RECORD_IS_THE_SAME)
-          error = 0;
-        else {
-          if (table->file->is_fatal_error(error)) error_flags |= ME_FATALERROR;
+        found_rows++;
 
-          table->file->print_error(error, error_flags);
+        if (is_row_changed) {
+          /*
+            Default function and default expression values are filled before
+            evaluating the view check option. Check option on view using
+            table(s) with default function and default expression breaks
+            otherwise.
 
-          // The error can have been downgraded to warning by IGNORE.
-          if (thd->is_error()) break;
-        }
-      }
+            It is safe to not invoke CHECK OPTION for VIEW if records are same.
+            In this case the row is coming from the view and thus should satisfy
+            the CHECK OPTION.
+          */
+          int check_result = table_list->view_check_option(thd);
+          if (check_result != VIEW_CHECK_OK) {
+            if (check_result == VIEW_CHECK_SKIP)
+              continue;
+            else if (check_result == VIEW_CHECK_ERROR) {
+              error = 1;
+              break;
+            }
+          }
 
-      if (!error && has_after_triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_AFTER, true)) {
-        error = 1;
-        break;
-      }
+          /*
+            Existing rows in table should normally satisfy CHECK constraints. So
+            it should be safe to check constraints only for rows that has really
+            changed (i.e. after compare_records()).
 
-      if (!--limit && using_limit) {
-        /*
-          We have reached end-of-file in most common situations where no
-          batching has occurred and if batching was supposed to occur but
-          no updates were made and finally when the batch execution was
-          performed without error and without finding any duplicate keys.
-          If the batched updates were performed with errors we need to
-          check and if no error but duplicate key's found we need to
-          continue since those are not counted for in limit.
-        */
-        if (will_batch &&
-            ((error = table->file->exec_bulk_update(&dup_key_found)) ||
-             dup_key_found)) {
-          if (error) {
+            In future, once addition/enabling of CHECK constraints without their
+            validation is supported, we might encounter old rows which do not
+            satisfy CHECK constraints currently enabled. However, rejecting
+            no-op updates to such invalid pre-existing rows won't make them
+            valid and is probably going to be confusing for users. So it makes
+            sense to stick to current behavior.
+          */
+          if (invoke_table_check_constraints(thd, table)) {
+            if (thd->is_error()) {
+              error = 1;
+              break;
+            }
+            // continue when IGNORE clause is used.
+            continue;
+          }
+
+          if (will_batch) {
             /*
-              ndbcluster is the only handler that returns an error at this
-              juncture
+              Typically a batched handler can execute the batched jobs when:
+              1) When specifically told to do so
+              2) When it is not a good idea to batch anymore
+              3) When it is necessary to send batch for other reasons
+              (One such reason is when READ's must be performed)
+
+              1) is covered by exec_bulk_update calls.
+              2) and 3) is handled by the bulk_update_row method.
+
+              bulk_update_row can execute the updates including the one
+              defined in the bulk_update_row or not including the row
+              in the call. This is up to the handler implementation and can
+              vary from call to call.
+
+              The dup_key_found reports the number of duplicate keys found
+              in those updates actually executed. It only reports those if
+              the extra call with HA_EXTRA_IGNORE_DUP_KEY have been issued.
+              If this hasn't been issued it returns an error code and can
+              ignore this number. Thus any handler that implements batching
+              for UPDATE IGNORE must also handle this extra call properly.
+
+              If a duplicate key is found on the record included in this
+              call then it should be included in the count of dup_key_found
+              and error should be set to 0 (only if these errors are ignored).
             */
-            assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER);
+            error = table->file->ha_bulk_update_row(
+                table->record[1], table->record[0], &dup_key_found);
+            limit += dup_key_found;
+            updated_rows -= dup_key_found;
+          } else {
+            /* Non-batched update */
+            error =
+                table->file->ha_update_row(table->record[1], table->record[0]);
+          }
+          if (error == 0)
+            updated_rows++;
+          else if (error == HA_ERR_RECORD_IS_THE_SAME)
+            error = 0;
+          else {
             if (table->file->is_fatal_error(error))
               error_flags |= ME_FATALERROR;
 
             table->file->print_error(error, error_flags);
-            error = 1;
-            break;
+
+            // The error can have been downgraded to warning by IGNORE.
+            if (thd->is_error()) break;
           }
-          /* purecov: begin inspected */
+        }
+
+        if (!error && has_after_triggers &&
+            table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                              TRG_ACTION_AFTER, true)) {
+          error = 1;
+          break;
+        }
+
+        if (!--limit && using_limit) {
           /*
+            We have reached end-of-file in most common situations where no
+            batching has occurred and if batching was supposed to occur but
+            no updates were made and finally when the batch execution was
+            performed without error and without finding any duplicate keys.
+            If the batched updates were performed with errors we need to
+            check and if no error but duplicate key's found we need to
+            continue since those are not counted for in limit.
+          */
+          if (will_batch &&
+              ((error = table->file->exec_bulk_update(&dup_key_found)) ||
+               dup_key_found)) {
+            if (error) {
+              /* purecov: begin inspected */
+              assert(false);
+              /*
+                The handler should not report error of duplicate keys if they
+                are ignored. This is a requirement on batching handlers.
+              */
+              if (table->file->is_fatal_error(error))
+                error_flags |= ME_FATALERROR;
+
+              table->file->print_error(error, error_flags);
+              error = 1;
+              break;
+              /* purecov: end */
+            }
+            /* purecov: begin inspected */
+            /*
             Either an error was found and we are ignoring errors or there were
             duplicate keys found with HA_IGNORE_DUP_KEY enabled. In both cases
             we need to correct the counters and continue the loop.
-          */
+            */
+            limit = dup_key_found;  // limit is 0 when we get here so need to +
+            updated_rows -= dup_key_found;
+          } else {
+            error = -1;  // Simulate end of file
+            break;
+          }
+        }
 
-          /*
-            Note that NDB disables batching when duplicate keys are to be
-            ignored. Any duplicate key found will result in an error returned
-            above.
-          */
-          assert(false);
-          limit = dup_key_found;  // limit is 0 when we get here so need to +
-          updated_rows -= dup_key_found;
-          /* purecov: end */
-        } else {
-          error = -1;  // Simulate end of file
+        thd->get_stmt_da()->inc_current_row_for_condition();
+        assert(!thd->is_error());
+        if (thd->is_error()) {
+          error = 1;
           break;
         }
-      }
-
-      thd->get_stmt_da()->inc_current_row_for_condition();
-      assert(!thd->is_error());
-      if (thd->is_error()) {
-        error = 1;
-        break;
       }
     }
     end_semi_consistent_read.rollback();
@@ -1164,11 +1170,12 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), (long)found_rows,
              (long)updated_rows,
              (long)thd->get_stmt_da()->current_statement_cond_count());
-    my_ok(thd,
-          thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
-              ? found_rows
-              : updated_rows,
-          id, buff);
+    const ha_rows row_count =
+        thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
+            ? found_rows
+            : updated_rows;
+    my_ok(thd, row_count, id, buff);
+    thd->updated_row_count += row_count;
     DBUG_PRINT("info", ("%ld records updated", (long)updated_rows));
   }
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
@@ -2955,11 +2962,12 @@ bool Query_result_update::send_eof(THD *thd) {
   snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), (long)found_rows,
            (long)updated_rows,
            (long)thd->get_stmt_da()->current_statement_cond_count());
-  ::my_ok(thd,
-          thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
-              ? found_rows
-              : updated_rows,
-          id, buff);
+  const ha_rows row_count =
+      thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
+          ? found_rows
+          : updated_rows;
+  ::my_ok(thd, row_count, id, buff);
+  thd->updated_row_count += row_count;
   return false;
 }
 

@@ -378,4 +378,3 @@ void LOCK_ORDER_error(YYLTYPE * yylloc_param, LO_parser_param * p, const char* m
     yylloc_param->last_column,
     msg);
 }
-

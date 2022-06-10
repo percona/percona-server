@@ -3438,6 +3438,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       return true;
     }
 
+
     if (check_system_user_privilege(thd, list)) {
       commit_and_close_mysql_tables(thd);
       return true;

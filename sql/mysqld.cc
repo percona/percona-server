@@ -881,6 +881,7 @@ MySQL clients support the protocol:
 #include "sql/tc_log.h"           // tc_log
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
+#include "sql/threadpool.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"  // Time_zone
 #include "sql/udf_service_impl.h"
@@ -913,6 +914,9 @@ MySQL clients support the protocol:
 #include "sql/named_pipe.h"
 #endif
 
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
 #ifdef MY_MSCRT_DEBUG
 #include <crtdbg.h>
 #endif
@@ -1178,6 +1182,7 @@ char *my_bind_addr_str;
 char *my_admin_bind_addr_str;
 uint mysqld_admin_port;
 bool listen_admin_interface_in_separate_thread;
+char *my_proxy_protocol_networks;
 static const char *default_collation_name;
 const char *default_storage_engine;
 const char *default_tmp_storage_engine;
@@ -1196,6 +1201,7 @@ bool opt_mandatory_roles_cache = false;
 bool opt_always_activate_granted_roles = false;
 bool opt_bin_log;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
+ulonglong slow_query_log_always_write_time = 10000000;
 ulonglong log_output_options;
 bool opt_log_queries_not_using_indexes = false;
 ulong opt_log_throttle_queries_not_using_indexes = 0;
@@ -1279,6 +1285,8 @@ bool opt_myisam_use_mmap = false;
 std::atomic<bool> offline_mode;
 uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
+ulonglong opt_slow_query_log_use_global_control = 0;
+ulong opt_slow_query_log_rate_type = 0;
 bool password_require_current = false;
 std::atomic<bool> partial_revokes;
 bool opt_partial_revokes;  // Initialized through Sys_var
@@ -1297,6 +1305,8 @@ MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
 bool trust_function_creators = false;
 bool check_proxy_users = false, mysql_native_password_proxy_users = false,
      sha256_password_proxy_users = false;
+bool opt_userstat = false;
+bool opt_thread_statistics = false;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -1332,7 +1342,7 @@ bool opt_log_unsafe_statements;
 
 const char *timestamp_type_names[] = {"UTC", "SYSTEM", NullS};
 ulong opt_log_timestamps;
-uint mysqld_port, test_flags, select_errors, ha_open_options;
+uint mysqld_port, test_flags = 0, select_errors, ha_open_options;
 uint mysqld_port_timeout;
 ulong delay_key_write_options;
 uint protocol_version;
@@ -1385,6 +1395,7 @@ bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
 
+ulonglong denied_connections = 0;
 ulonglong global_conn_mem_limit = 0;
 ulonglong global_conn_mem_counter = 0;
 
@@ -1504,10 +1515,13 @@ char *mysql_data_home = const_cast<char *>(".");
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
 char *opt_protocol_compression_algorithms;
 char server_version[SERVER_VERSION_LENGTH];
+char server_version_suffix[SERVER_VERSION_LENGTH];
 const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
 
 char *opt_authentication_policy;
+
+bool encrypt_tmp_files;
 
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
@@ -1552,6 +1566,9 @@ SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_statement_timeout = SHOW_OPTION_DISABLED;
+SHOW_COMP_OPTION have_backup_locks;
+SHOW_COMP_OPTION have_backup_safe_binlog_info;
+SHOW_COMP_OPTION have_snapshot_cloning;
 
 char *opt_libcoredumper_path = NULL;
 /* Thread specific variables */
@@ -1562,6 +1579,8 @@ mysql_mutex_t LOCK_status, LOCK_uuid_generator, LOCK_crypt,
     LOCK_global_system_variables, LOCK_user_conn, LOCK_error_messages;
 mysql_mutex_t LOCK_sql_rand;
 
+mysql_mutex_t LOCK_global_user_client_stats, LOCK_global_table_stats,
+    LOCK_global_index_stats;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -1603,6 +1622,7 @@ mysql_cond_t COND_socket_listener_active;
 mysql_mutex_t LOCK_start_signal_handler;
 mysql_cond_t COND_start_signal_handler;
 #endif
+mysql_rwlock_t LOCK_consistent_snapshot;
 
 /*
   The below lock protects access to global server variable
@@ -2278,8 +2298,8 @@ class Set_kill_conn : public Do_THD_Impl {
     } else {
       killing_thd->killed = THD::KILL_CONNECTION;
 
-      MYSQL_CALLBACK(Connection_handler_manager::event_functions,
-                     post_kill_notification, (killing_thd));
+      MYSQL_CALLBACK(killing_thd->scheduler, post_kill_notification,
+                     (killing_thd));
     }
 
     if (killing_thd->is_killable && killing_thd->kill_immunizer == nullptr) {
@@ -2776,6 +2796,11 @@ static void clean_up(bool print_message) {
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
+  free_global_user_stats();
+  free_global_client_stats();
+  free_global_thread_stats();
+  free_global_table_stats();
+  free_global_index_stats();
   delete binlog_filter;
   rpl_channel_filters.clean_up();
   end_ssl();
@@ -2889,6 +2914,10 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_keyring_operations);
   mysql_mutex_destroy(&LOCK_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
+  mysql_mutex_destroy(&LOCK_global_user_client_stats);
+  mysql_mutex_destroy(&LOCK_global_table_stats);
+  mysql_mutex_destroy(&LOCK_global_index_stats);
+  mysql_rwlock_destroy(&LOCK_consistent_snapshot);
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_partial_revokes);
   mysql_mutex_destroy(&LOCK_authentication_policy);
@@ -2899,6 +2928,174 @@ static void clean_up_mutexes() {
 /****************************************************************************
 ** Init IP and UNIX socket
 ****************************************************************************/
+
+/* Initialise proxy protocol. */
+static void set_proxy() {
+  if (opt_disable_networking) return;
+
+  struct st_vio_network net;
+
+  /* Check for special case '*'. */
+  if (strcmp(my_proxy_protocol_networks, "*") == 0) {
+    memset(&net, 0, sizeof(net));
+    net.family = AF_INET;
+    vio_proxy_protocol_add(net);
+    net.family = AF_INET6;
+    vio_proxy_protocol_add(net);
+    return;
+  }
+
+  const char *p = my_proxy_protocol_networks;
+
+  while (1) {
+    /* jump spaces. */
+    while (*p == ' ') p++;
+    if (*p == '\0') break;
+    const char *start = p;
+
+    /* look for separator */
+    while (*p != ',' && *p != '/' && *p != ' ' && *p != '\0') p++;
+    if (p - start > INET6_ADDRSTRLEN) {
+      sql_print_error(
+          "Too long network in 'proxy_protocol_networks' "
+          "directive.");
+      unireg_abort(1);
+    }
+    char buffer[INET6_ADDRSTRLEN + 1 + 3 + 1];
+    memcpy(buffer, start, p - start);
+    buffer[p - start] = '\0';
+
+    /* Try to convert to ipv4. */
+    if (inet_pton(AF_INET, buffer, &net.addr.in)) net.family = AF_INET;
+
+    /* Try to convert to ipv6. */
+    else if (inet_pton(AF_INET6, buffer, &net.addr.in6))
+      net.family = AF_INET6;
+
+    else {
+      sql_print_error(
+          "Bad network '%s' in 'proxy_protocol_networks' "
+          "directive.",
+          buffer);
+      unireg_abort(1);
+    }
+
+    /* Look for network. */
+    unsigned bits;
+    if (*p == '/') {
+      if (!my_isdigit(&my_charset_bin, *++p)) {
+        sql_print_error(
+            "Missing network prefix in 'proxy_protocol_networks' "
+            "directive.");
+        unireg_abort(1);
+      }
+      start = p;
+      bits = 0;
+      while (my_isdigit(&my_charset_bin, *p) && p - start < 3)
+        bits = bits * 10 + *p++ - '0';
+
+      /* Check bits value. */
+      if (net.family == AF_INET && bits > 32) {
+        sql_print_error(
+            "Bad IPv4 mask in 'proxy_protocol_networks' "
+            "directive.");
+        unireg_abort(1);
+      }
+      if (net.family == AF_INET6 && bits > 128) {
+        sql_print_error(
+            "Bad IPv6 mask in 'proxy_protocol_networks' "
+            "directive.");
+        unireg_abort(1);
+      }
+    } else {
+      if (net.family == AF_INET)
+        bits = 32;
+      else {
+        assert(net.family == AF_INET6);
+        bits = 128;
+      }
+    }
+
+    /* Build binary mask. */
+    if (net.family == AF_INET) {
+      /* Process IPv4 mask. */
+      if (bits == 0)
+        net.mask.in.s_addr = 0x00000000;
+      else if (bits == 32)
+        net.mask.in.s_addr = 0xffffffff;
+      else
+        net.mask.in.s_addr = ~((0x80000000 >> (bits - 1)) - 1);
+      net.mask.in.s_addr = htonl(net.mask.in.s_addr);
+
+      /* Apply mask */
+      struct in_addr check = net.addr.in;
+      check.s_addr &= net.mask.in.s_addr;
+
+      /* Check network. */
+      if (check.s_addr != net.addr.in.s_addr)
+        sql_print_warning(
+            "The network mask hides a part of the address for "
+            "'%s/%d' in 'proxy_protocol_networks' directive.",
+            buffer, bits);
+    } else {
+      /* Process IPv6 mask */
+      memset(&net.mask.in6, 0, sizeof(net.mask.in6));
+      if (bits > 0 && bits < 32) {
+        net.mask.in6.s6_addr32[0] = ~((0x80000000 >> (bits - 1)) - 1);
+      } else if (bits == 32) {
+        net.mask.in6.s6_addr32[0] = 0xffffffff;
+      } else if (bits > 32 && bits <= 64) {
+        net.mask.in6.s6_addr32[0] = 0xffffffff;
+        net.mask.in6.s6_addr32[1] =
+            (bits == 64) ? 0xffffffff : ~((0x80000000 >> (bits - 32 - 1)) - 1);
+      } else if (bits > 64 && bits <= 96) {
+        net.mask.in6.s6_addr32[0] = 0xffffffff;
+        net.mask.in6.s6_addr32[1] = 0xffffffff;
+        net.mask.in6.s6_addr32[2] =
+            (bits == 96) ? 0xffffffff : ~((0x80000000 >> (bits - 64 - 1)) - 1);
+      } else if (bits > 96) {
+        assert(bits <= 128);
+        net.mask.in6.s6_addr32[0] = 0xffffffff;
+        net.mask.in6.s6_addr32[1] = 0xffffffff;
+        net.mask.in6.s6_addr32[2] = 0xffffffff;
+        net.mask.in6.s6_addr32[3] =
+            (bits == 128) ? 0xffffffff : ~((0x80000000 >> (bits - 96 - 1)) - 1);
+      }
+
+      net.mask.in6.s6_addr32[0] = htonl(net.mask.in6.s6_addr32[0]);
+      net.mask.in6.s6_addr32[1] = htonl(net.mask.in6.s6_addr32[1]);
+      net.mask.in6.s6_addr32[2] = htonl(net.mask.in6.s6_addr32[2]);
+      net.mask.in6.s6_addr32[3] = htonl(net.mask.in6.s6_addr32[3]);
+
+      /* Apply mask */
+      struct in6_addr check = net.addr.in6;
+      check.s6_addr32[0] &= net.mask.in6.s6_addr32[0];
+      check.s6_addr32[1] &= net.mask.in6.s6_addr32[1];
+      check.s6_addr32[2] &= net.mask.in6.s6_addr32[2];
+      check.s6_addr32[3] &= net.mask.in6.s6_addr32[3];
+
+      /* Check network. */
+      if (memcmp(check.s6_addr, net.addr.in6.s6_addr, 16)) {
+        sql_print_warning(
+            "The network mask hides a part of the address for "
+            "'%s/%d' in 'proxy_protocol_networks' directive.",
+            buffer, bits);
+      }
+    }
+
+    if (*p != '\0' && *p != ',') {
+      sql_print_error("Bad syntax in 'proxy_protocol_networks' directive.");
+      unireg_abort(1);
+    }
+
+    /* add network. */
+    vio_proxy_protocol_add(net);
+
+    /* stop the parsing. */
+    if (*p == '\0') break;
+    p++;
+  }
+}
 
 static void set_ports() {
   char *env;
@@ -3286,6 +3483,7 @@ static bool check_admin_address_has_valid_value(
 static bool network_init(void) {
   if (opt_initialize) return false;
 
+  set_proxy();
 #ifdef HAVE_SYS_UN_H
   std::string const unix_sock_name(mysqld_unix_port ? mysqld_unix_port : "");
 #else
@@ -3852,6 +4050,10 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
       case SIGHUP:
         if (!connection_events_loop_aborted()) {
           int not_used;
+          DBUG_EXECUTE_IF("simulate_sighup_print_status", {
+            printf("\nStatus information:\n\n");
+            fflush(stdout);
+          });
           handle_reload_request(
               nullptr,
               (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST | REFRESH_GRANT),
@@ -4322,6 +4524,10 @@ SHOW_VAR com_status_vars[] = {
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"lock_tables",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_LOCK_TABLES]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"lock_tables_for_backup",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_LOCK_TABLES_FOR_BACKUP]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"optimize",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_OPTIMIZE]),
@@ -6958,6 +7164,14 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_collect_instance_log, &LOCK_collect_instance_log,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table, &COND_compress_gtid_table);
+
+  mysql_mutex_init(key_LOCK_global_user_client_stats,
+                   &LOCK_global_user_client_stats, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_table_stats, &LOCK_global_table_stats,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_index_stats, &LOCK_global_index_stats,
+                   MY_MUTEX_INIT_FAST);
+
   Events::init_mutexes();
 #if defined(_WIN32)
   mysql_mutex_init(key_LOCK_handler_count, &LOCK_handler_count,
@@ -7135,7 +7349,7 @@ static int generate_server_uuid() {
 
   delete thd;
 
-  strncpy(server_uuid, uuid.c_ptr(), UUID_LENGTH);
+  strncpy(server_uuid, uuid.c_ptr(), sizeof(server_uuid));
   DBUG_EXECUTE_IF("server_uuid_deterministic",
                   memcpy(server_uuid, "00000000-1111-0000-1111-000000000000",
                          UUID_LENGTH););
@@ -7819,6 +8033,9 @@ static int init_server_components() {
 
   randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
   setup_fpu();
+
+  init_global_table_stats();
+  init_global_index_stats();
 
   setup_error_log();  // opens the log if needed
 
@@ -8607,6 +8824,10 @@ static int init_server_components() {
 
   init_max_user_conn();
 
+  init_global_user_stats();
+  init_global_client_stats();
+  init_global_thread_stats();
+
 #if defined(MYSQL_ICU_DATADIR)
   init_icu_data_directory();
 #endif  // MYSQL_ICU_DATADIR
@@ -8985,6 +9206,10 @@ int mysqld_main(int argc, char **argv)
   init_pfs_instrument_array();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+  /* init_error_log() is required by error_log_printf() in
+     option_error_reporter() */
+  //  Init error log subsystem. This does not actually open the log yet.
+  if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
   heo_error = handle_early_options();
 
   // this is to prevent mtr from accidentally printing this log when it runs
@@ -9000,10 +9225,9 @@ int mysqld_main(int argc, char **argv)
   }
   init_sql_statement_names();
   ulong requested_open_files = 0;
-
-  //  Init error log subsystem. This does not actually open the log yet.
-  if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
   if (!opt_validate_config) adjust_related_options(&requested_open_files);
+  // moved signal initialization here so that PFS thread inherited signal mask
+  my_init_signals();
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (heo_error == 0) {
@@ -9314,7 +9538,6 @@ int mysqld_main(int argc, char **argv)
 
   keyring_lockable_init();
 
-  my_init_signals();
   /*
     Install server's my_abort routine to assure my_aborts prints signal info
     sequentially without sudden termination.
@@ -10339,6 +10562,51 @@ static void process_bootstrap() {
 ******************************************************************************/
 
 /**
+  Process command line options but use only "help", "initialize",
+  "initialize-insecure". If one of these options exists then change default
+  value of log_error_verbosity.
+*/
+static void adjust_log_error_verbosity(vector<my_option> *all_early_options) {
+  if (remaining_argc <= 1) return;
+
+  /* create a copy of remaining_argv */
+  int copy_argc = remaining_argc;
+  vector<char *> copy_argv;
+  copy_argv.reserve(copy_argc + 1);
+  for (int i = 0; i < copy_argc; i++) copy_argv.push_back(remaining_argv[i]);
+  copy_argv.push_back(nullptr);
+
+  /* select only "help", "initialize", "initialize-insecure" options */
+  vector<my_option> init_options;
+  static const vector<const char *> opt_names{"help", "initialize",
+                                              "initialize-insecure"};
+  for (my_option *opt = my_long_early_options; opt->name != nullptr; opt++)
+    if (std::find(opt_names.cbegin(), opt_names.cend(), opt->name) !=
+        opt_names.cend())
+      init_options.push_back(*opt);
+  add_terminator(&init_options);
+
+  char **copy_argv_ptr = &copy_argv[0];
+  int ho_error = handle_options(&copy_argc, &copy_argv_ptr, &init_options[0],
+                                mysqld_get_one_option);
+
+  if ((ho_error == 0) &&
+      (opt_help || opt_initialize || opt_initialize_insecure)) {
+    /*
+      Show errors during --help, but mute everything else so the info the
+      user actually wants isn't lost in the spam.  (For --help --verbose,
+      we need to set up far enough to be able to print variables provided
+      by plugins, so a good number of warnings/notes might get printed.)
+      Likewise for --initialize.
+    */
+    for (my_option *opt = &(*all_early_options)[0]; opt->name; opt++)
+      if (!strcmp("log_error_verbosity", opt->name)) {
+        opt->def_value = (opt_initialize || opt_initialize_insecure) ? 2 : 1;
+      }
+  }
+}
+
+/**
   Process command line options flagged as 'early'.
   Some components needs to be initialized as early as possible,
   because the rest of the server initialization depends on them.
@@ -10370,14 +10638,26 @@ static int handle_early_options() {
   my_getopt_error_reporter = option_error_reporter;
   my_charset_error_reporter = charset_error_reporter;
 
+  adjust_log_error_verbosity(&all_early_options);
+
   ho_error = handle_options(&remaining_argc, &remaining_argv,
                             &all_early_options[0], mysqld_get_one_option);
+
   if (ho_error == 0) {
+    /* update verbosity in filter engine, if needed */
+    log_builtins_filter_update_verbosity(log_error_verbosity);
+
     /* Add back the program name handle_options removes */
     remaining_argc++;
     remaining_argv--;
 
     if (opt_initialize_insecure) opt_initialize = true;
+
+    if (opt_debugging) {
+      /* Allow break with SIGINT, no core or stack trace */
+      test_flags |= TEST_SIGINT | TEST_NO_STACKTRACE;
+      test_flags &= ~TEST_CORE_ON_SIGNAL;
+    }
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.
@@ -10561,12 +10841,19 @@ struct my_option my_long_early_options[] = {
      "Validate the server configuration specified by the user.",
      &opt_validate_config, &opt_validate_config, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
+    {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"coredumper", OPT_COREDUMPER,
      "Use coredumper library to generate coredumps. Specify a path for "
      "coredump "
      "otherwise it will be generated on datadir",
      &opt_libcoredumper_path, &opt_libcoredumper_path, 0, GET_STR, OPT_ARG, 0,
      0, 0, 0, 0, 0},
+    {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
+     "Don't print a stack trace on failure.", 0, 0, nullptr, GET_NO_ARG, NO_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
+    /* We must always support the next option to make scripts like mysqltest
+       easier to do */
     {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
      &opt_debugging, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
@@ -10626,8 +10913,6 @@ struct my_option my_long_options[] = {
      "windows.",
      &opt_console, &opt_console, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"core-file", OPT_WANT_CORE, "Write core on errors.", nullptr, nullptr,
-     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     /* default-storage-engine should have "MyISAM" as def_value. Instead
        of initializing it here it is done in init_common_variables() due
        to a compiler bug in Sun Studio compiler. */
@@ -10802,9 +11087,6 @@ struct my_option my_long_options[] = {
     {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
      nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
-     "Don't print a stack trace on failure.", nullptr, nullptr, nullptr,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(_WIN32)
     {"slow-start-timeout", 0,
      "Maximum number of milliseconds that the service control manager should "
@@ -11210,6 +11492,16 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+#ifdef HAVE_POOL_OF_THREADS
+static int show_threadpool_idle_threads(THD *thd [[maybe_unused]],
+                                        SHOW_VAR *var, char *buff) {
+  var->type = SHOW_INT;
+  var->value = buff;
+  *(int *)buff = tp_get_idle_thread_count();
+  return 0;
+}
+#endif
+
 static int show_replica_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
   var->type = SHOW_INT;
   var->value = buf;
@@ -11355,7 +11647,6 @@ int show_deprecated_use_fk_on_non_standard_key_last_timestamp(THD *,
 /*
   Variables shown by SHOW STATUS in alphabetical order
 */
-
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,
@@ -11693,6 +11984,12 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Tc_log_page_waits", (char *)&tc_log_page_waits, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+#ifdef HAVE_POOL_OF_THREADS
+    {"Threadpool_idle_threads", (char *)&show_threadpool_idle_threads,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Threadpool_threads", (char *)&tp_stats.num_worker_threads, SHOW_INT,
+     SHOW_SCOPE_GLOBAL},
+#endif
     {"Threads_cached",
      (char *)&Per_thread_connection_handler::blocked_pthread_count,
      SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
@@ -11873,7 +12170,7 @@ static int mysql_init_variables() {
   mqh_used = false;
   server_shutting_down = false;
   server_id_supplied = false;
-  test_flags = select_errors = ha_open_options = 0;
+  select_errors = ha_open_options = 0;
   atomic_replica_open_temp_tables = 0;
   opt_endinfo = using_udf_functions = false;
   opt_using_transactions = false;
@@ -11967,6 +12264,10 @@ static int mysql_init_variables() {
 #if defined(_WIN32)
   shared_memory_base_name = default_shared_memory_base_name;
 #endif
+
+  have_backup_locks = SHOW_OPTION_YES;
+  have_backup_safe_binlog_info = SHOW_OPTION_YES;
+  have_snapshot_cloning = SHOW_OPTION_YES;
 
   return 0;
 }
@@ -12636,29 +12937,12 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
-  if (is_help_or_validate_option() || opt_initialize) {
-    /*
-      Show errors during --help, but mute everything else so the info the
-      user actually wants isn't lost in the spam.  (For --help --verbose,
-      we need to set up far enough to be able to print variables provided
-      by plugins, so a good number of warnings/notes might get printed.)
-      Likewise for --initialize.
-    */
-    struct my_option *opt = &all_options[0];
-    for (; opt->name; opt++)
-      if (!strcmp("log_error_verbosity", opt->name))
-        opt->def_value = opt_initialize ? 2 : 1;
-  }
-
   /* Skip unknown options so that they may be processed later by plugins */
   my_getopt_skip_unknown = true;
 
   if ((ho_error = handle_options(argc_ptr, argv_ptr, &all_options[0],
                                  mysqld_get_one_option)))
     return ho_error;
-
-  // update verbosity in filter engine, if needed
-  log_builtins_filter_update_verbosity(log_error_verbosity);
 
   // update suppression list in filter engine
   {
@@ -12792,11 +13076,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
   if (!my_enable_symlinks) have_symlink = SHOW_OPTION_DISABLED;
 
-  if (opt_debugging) {
-    /* Allow break with SIGINT, no core or stack trace */
-    test_flags |= TEST_SIGINT | TEST_NO_STACKTRACE;
-    test_flags &= ~TEST_CORE_ON_SIGNAL;
-  }
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write(nullptr, nullptr, OPT_GLOBAL);
 
@@ -12814,6 +13093,10 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
   global_system_variables.long_query_time =
       (ulonglong)(global_system_variables.long_query_time_double * 1e6);
+
+  init_log_slow_verbosity();
+  init_slow_query_log_use_global_control();
+  init_log_slow_sp_statements();
 
   if (opt_short_log_format) opt_specialflag |= SPECIAL_SHORT_LOG_FORMAT;
 
@@ -12882,6 +13165,10 @@ static void set_server_version(void) {
       static_cast<int>(sizeof("-tsan")))
     end = my_stpcpy(end, "-tsan");
 #endif
+
+  assert(end < server_version + SERVER_VERSION_LENGTH);
+  my_stpcpy(server_version_suffix,
+            server_version + strlen(MYSQL_SERVER_VERSION));
 }
 
 static const char *get_relative_path(const char *path) {
@@ -13430,6 +13717,10 @@ PSI_mutex_key key_LOCK_query_plan;
 PSI_mutex_key key_LOCK_thd_query;
 PSI_mutex_key key_LOCK_cost_const;
 PSI_mutex_key key_LOCK_current_cond;
+PSI_mutex_key key_LOCK_temporary_tables;
+PSI_mutex_key key_LOCK_global_user_client_stats;
+PSI_mutex_key key_LOCK_global_table_stats;
+PSI_mutex_key key_LOCK_global_index_stats;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
@@ -13473,11 +13764,18 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0, 0, PSI_DOCUMENT_ME},
   { &key_hash_filo_lock, "hash_filo::lock", 0, 0, PSI_DOCUMENT_ME},
   { &Gtid_set::key_gtid_executed_free_intervals_mutex, "Gtid_set::gtid_executed::free_intervals_mutex", 0, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_bloom_filter, "Bloom_filter", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #if defined(_WIN32)
   { &key_LOCK_handler_count, "LOCK_handler_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_global_user_client_stats,
+    "LOCK_global_user_client_stats", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_global_table_stats,
+    "LOCK_global_table_stats", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_global_index_stats,
+    "LOCK_global_index_stats", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #endif
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -13551,7 +13849,7 @@ PSI_rwlock_key key_rwlock_channel_lock;
 PSI_rwlock_key key_rwlock_receiver_tsid_lock;
 PSI_rwlock_key key_rwlock_rpl_filter_lock;
 PSI_rwlock_key key_rwlock_channel_to_filter_lock;
-
+PSI_rwlock_key key_rwlock_LOCK_consistent_snapshot;
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
@@ -13582,9 +13880,10 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_server_shutting_down, "server_shutting_down", 0, 0, "This lock protects server shutting down flag."},
 #ifdef _WIN32
   { &key_rwlock_LOCK_named_pipe_full_access_group, "LOCK_named_pipe_full_access_group", PSI_FLAG_SINGLETON, 0,
-     "This lock protects named pipe security attributes, preventing their "
-     "simultaneous application and modification."},
+    "This lock protects named pipe security attributes, preventing their "
+    "simultaneous application and modification."},
 #endif // _WIN32
+  { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 
@@ -13847,6 +14146,7 @@ PSI_stage_info stage_rpl_failover_fetching_source_member_details= { 0, "Fetching
 PSI_stage_info stage_rpl_failover_updating_source_member_details= { 0, "Updating fetched source member details on receiver", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_failover_wait_before_next_fetch= { 0, "Wait before trying to fetch next membership changes from source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_communication_delegation= { 0, "Connection delegated to Group Replication", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_wait_on_commit_ticket= { 0, "Waiting for Binlog Group Commit ticket", 0, PSI_DOCUMENT_ME};
 /* clang-format on */
 
@@ -13952,6 +14252,7 @@ PSI_stage_info *all_server_stages[] = {
     &stage_rpl_failover_updating_source_member_details,
     &stage_rpl_failover_wait_before_next_fetch,
     &stage_communication_delegation,
+    &stage_restoring_secondary_keys,
     &stage_wait_on_commit_ticket};
 
 PSI_socket_key key_socket_tcpip;

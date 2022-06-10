@@ -2002,6 +2002,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   bool cur_db_changed = false;
   bool err_status = false;
   uint ip = 0;
+  bool save_enable_slow_log = thd->enable_slow_log;
   sql_mode_t save_sql_mode;
   Query_arena *old_arena;
   /* per-instruction arena */
@@ -2242,6 +2243,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 #endif
 
     thd->m_digest = parent_digest;
+
+    thd->enable_slow_log = save_enable_slow_log;
 
     cleanup_items(i->m_arena.item_list());
 
@@ -3062,7 +3065,8 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
     DBUG_PRINT("info",
                (" %.*s: eval args done", (int)m_name.length, m_name.str));
   }
-  if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log) {
+  if (!(m_flags & LOG_SLOW_STATEMENTS || opt_log_slow_sp_statements == 1) &&
+      thd->enable_slow_log) {
     DBUG_PRINT("info", ("Disabling slow log for the execution"));
     save_enable_slow_log = true;
     thd->enable_slow_log = false;

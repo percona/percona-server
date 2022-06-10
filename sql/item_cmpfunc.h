@@ -1460,6 +1460,8 @@ struct interval_range {
   my_decimal dec;
 };
 
+#ifdef MYSQL_SERVER
+
 class Item_func_interval final : public Item_int_func {
   typedef Item_int_func super;
 
@@ -2575,6 +2577,8 @@ class Item_func_like final : public Item_bool_func2 {
   bool check_covering_prefix_keys(THD *thd);
 };
 
+#endif /* MYSQL_SERVER */
+
 class Item_cond : public Item_bool_func {
   typedef Item_bool_func super;
 
@@ -2621,6 +2625,7 @@ class Item_cond : public Item_bool_func {
 
   Type type() const override { return COND_ITEM; }
   List<Item> *argument_list() { return &list; }
+  const List<Item> *argument_list() const { return &list; }
   bool eq(const Item *item) const override;
   table_map used_tables() const override { return used_tables_cache; }
   void update_used_tables() override;
@@ -2643,6 +2648,8 @@ class Item_cond : public Item_bool_func {
   bool ignore_unknown() const { return abort_on_null; }
   bool equality_substitution_analyzer(uchar **) override { return true; }
 };
+
+#ifdef MYSQL_SERVER
 
 /**
   The class Item_multi_eq is used to represent conjunctions of equality
@@ -3013,5 +3020,7 @@ bool WalkConjunction(Item *condition, Func func) {
     return func(condition);
   }
 }
+
+#endif /* MYSQL_SERVER */
 
 #endif /* ITEM_CMPFUNC_INCLUDED */

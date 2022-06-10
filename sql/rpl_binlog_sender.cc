@@ -472,12 +472,12 @@ void Binlog_sender::run() {
   if (reader.is_open()) {
     if (is_fatal_error()) {
       /* output events range to error message */
-      snprintf(error_text, sizeof(error_text),
-               "%s; the first event '%s' at %lld, "
-               "the last event read from '%s' at %lld, "
-               "the last byte read from '%s' at %lld.",
-               m_errmsg, m_start_file, m_start_pos, m_last_file, m_last_pos,
-               log_file, reader.position());
+      my_snprintf_8bit(nullptr, error_text, sizeof(error_text),
+                       "%s; the first event '%s' at %lld, "
+                       "the last event read from '%s' at %lld, "
+                       "the last byte read from '%s' at %lld.",
+                       m_errmsg, m_start_file, m_start_pos, m_last_file,
+                       m_last_pos, log_file, reader.position());
       set_fatal_error(error_text);
     }
 
@@ -1245,9 +1245,10 @@ inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
 
   /*
     As we pre-allocate the buffer to store the event at reset_transmit_packet,
-    the buffer should not be changed while calling read_log_event, even knowing
-    that it might call functions to replace the buffer by one with the size to
-    fit the event.
+    the buffer should not be changed while calling read_log_event (unless binlog
+    encryption is on), even knowing that it might call functions to replace the
+    buffer by one with the size to fit the event. When encryption is on - the
+    buffer will be replaced with memory allocated for storing decrypted data.
   */
   assert(reinterpret_cast<char *>(*event_ptr) ==
          (m_packet.ptr() + event_offset));

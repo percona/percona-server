@@ -949,6 +949,8 @@ void reset_thd(THD *thd) {
     }
   }
 
+    DBUG_EXECUTE_IF("upgrade_failed_during_init", (*error_count)++;);
+
   return error_count->has_too_many_errors();
 }
 

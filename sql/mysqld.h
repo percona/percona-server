@@ -181,6 +181,7 @@ extern MYSQL_PLUGIN_IMPORT std::atomic<int32>
     connection_events_loop_aborted_flag;
 extern long opt_upgrade_mode;
 extern bool opt_initialize;
+extern bool dd_init_failed_during_upgrade;
 extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
 extern bool opt_replica_compressed_protocol;

@@ -2906,7 +2906,7 @@ static lsn_t srv_shutdown_log() {
   log_background_threads_inactive_validate();
   buf_assert_all_are_replaceable();
 
-  const lsn_t lsn = log_get_lsn(*log_sys);
+  lsn_t lsn = log_get_lsn(*log_sys);
 
   if (!srv_read_only_mode) {
     /* Redo log has been flushed at the log_flusher's exit. */
@@ -2920,7 +2920,6 @@ static lsn_t srv_shutdown_log() {
 
   ut_a(lsn == log_sys->last_checkpoint_lsn.load() ||
        srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
-
   ut_a(lsn == log_get_lsn(*log_sys));
 
   if (!srv_read_only_mode) {

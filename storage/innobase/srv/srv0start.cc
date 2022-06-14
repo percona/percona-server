@@ -593,10 +593,10 @@ static void create_log_files_rename(
 /* create the log file name
 @param[in/out] logfilename  buffer for log file name
 retrun the dir name lenght */
-static size_t create_log_file_name(char *logfilename) {
+static size_t create_log_file_name(char *logfilename, size_t logfilename_size) {
   size_t dirnamelen;
   dirnamelen = strlen(srv_log_group_home_dir);
-  ut_a(dirnamelen < (sizeof logfilename) - 10 - sizeof "ib_logfile");
+  ut_a(dirnamelen < logfilename_size - 10 - sizeof "ib_logfile");
   memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
 
   /* Add a path separator if needed. */
@@ -2622,7 +2622,7 @@ dberr_t srv_start(bool create_new_db) {
       return (srv_init_abort(err));
   }
 
-  dirnamelen = create_log_file_name(logfilename);
+  dirnamelen = create_log_file_name(logfilename, (sizeof logfilename));
 
   srv_log_file_size_requested = srv_log_file_size;
 
@@ -2755,7 +2755,6 @@ dberr_t srv_start(bool create_new_db) {
       return (srv_init_abort(DB_ERROR));
     }
   }
-
 
   ut_a(log_sys != nullptr);
 
@@ -3960,7 +3959,7 @@ static lsn_t srv_shutdown_log() {
   if (dd_init_failed_during_upgrade) {
     char logfilename[10000];
     char *logfile0 = nullptr;
-    size_t dirnamelen = create_log_file_name(logfilename);
+    size_t dirnamelen = create_log_file_name(logfilename, (sizeof logfilename));
     lsn_t new_checkpoint_lsn = 0;
 
     auto flushed_lsn = log_get_lsn(*log_sys);

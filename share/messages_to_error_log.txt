@@ -11696,10 +11696,6 @@ ER_XB_MSG_6
 ER_XB_UNDO_DELETE_FAILURE
   eng "Deletion of 5.7 undo tablespace %s failed"
 
-ER_XB_MSG_DOWNGRADING_LOG_FILE
-  eng "Upgrade fail, cleaning up redo logs, so server can start with previous version"
-
-
 ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION
   eng "Upgrade is not possible as there are tables that are KERYING encrypted. KEYRING encryption is still experimental feature in the version you are upgrading from. To upgrade please decrypt the tables encrypted with KEYRING encryption."
 
@@ -11774,6 +11770,9 @@ ER_SEC_LOG_PATH_NULL
 
 ER_KEYRING_COMPONENT_KMS_ERROR
   eng "KMS communication error: %s"
+
+ER_XB_MSG_DOWNGRADING_LOG_FILE
+  eng "Upgrade failed, cleaning up redo logs, so server can start with previous version"
 
 #
 # End of Percona Server 8.0 server error log messages

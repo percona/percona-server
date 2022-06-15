@@ -689,6 +689,7 @@ class Log_event {
     Placeholder for event checksum while writing to binlog.
   */
   ha_checksum crc;
+
   /**
     Index in @c rli->gaq array to indicate a group that this event is
     purging. The index is set by Coordinator to a group terminator
@@ -1487,6 +1488,71 @@ class Query_log_event : public virtual binary_log::Query_event,
   /** Whether or not the statement represented by this event requires
       `Q_DEFAULT_TABLE_ENCRYPTION` to be logged along aside. */
   bool needs_default_table_encryption{false};
+};
+
+/**
+  @class Start_encryption_log_event
+
+  Start_encryption_log_event marks the beginning of encrypted data (all events
+  after this event are encrypted).
+
+  It contains the cryptographic scheme used for the encryption as well as any
+  data required to decrypt (except the actual key).
+
+  For binlog cryptoscheme 1: key version, and nonce for iv generation.
+*/
+
+static_assert(
+    binary_log::Start_encryption_event::IV_LENGTH == MY_AES_BLOCK_SIZE,
+    "Start_encryption_event::IV_LENGTH must be equal to MY_AES_BLOCK_SIZE");
+
+class Start_encryption_log_event final
+    : public binary_log::Start_encryption_event,
+      public Log_event {
+ public:
+#ifdef MYSQL_SERVER
+  Start_encryption_log_event(uint crypto_scheme_arg, uint key_version_arg,
+                             const uchar *nonce_arg) noexcept
+      : Start_encryption_event(crypto_scheme_arg, key_version_arg, nonce_arg),
+        Log_event(header(), footer(), Log_event::EVENT_NO_CACHE,
+                  Log_event::EVENT_IMMEDIATE_LOGGING) {
+    assert(crypto_scheme == 1);
+    common_header->set_is_valid(crypto_scheme == 1);
+  }
+
+  bool write_data_body(Basic_ostream *ostream) override {
+    uchar scheme_buf = crypto_scheme;
+    uchar key_version_buf[KEY_VERSION_LENGTH];
+    int4store(key_version_buf, key_version);
+    return wrapper_my_b_safe_write(ostream, static_cast<uchar *>(&scheme_buf),
+                                   sizeof(scheme_buf)) ||
+           wrapper_my_b_safe_write(ostream,
+                                   static_cast<uchar *>(key_version_buf),
+                                   sizeof(key_version_buf)) ||
+           wrapper_my_b_safe_write(ostream, static_cast<uchar *>(nonce),
+                                   NONCE_LENGTH);
+  }
+#else
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
+#endif
+
+  Start_encryption_log_event(const char *buf,
+                             const Format_description_event *description_event);
+
+  Log_event_type get_type_code() const override {
+    return binary_log::START_5_7_ENCRYPTION_EVENT;
+  }
+
+  size_t get_data_size() noexcept override { return EVENT_DATA_LENGTH; }
+
+ protected:
+#ifdef MYSQL_SERVER
+  virtual int do_update_pos(Relay_log_info *rli) override;
+  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli
+                                         [[maybe_unused]]) noexcept override {
+    return Log_event::EVENT_SKIP_NOT;
+  }
+#endif
 };
 
 /**
@@ -2294,7 +2360,8 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
   Unknown_log_event(const char *buf,
                     const Format_description_event *description_event)
       : binary_log::Unknown_event(buf, description_event),
-        Log_event(header(), footer()) {
+        Log_event(header(), footer()),
+        what(kind::UNKNOWN) {
     DBUG_TRACE;
     if (!is_valid()) return;
     common_header->set_is_valid(true);

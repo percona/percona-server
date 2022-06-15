@@ -37,8 +37,8 @@ class AuditEventFilter {
    * @return Action which should be applied to a record by audit filter,
    *         one of actions defined by @ref AuditAction
    */
-  [[nodiscard]] AuditAction apply(
-      AuditRule *rule, const AuditRecordVariant &audit_record) noexcept;
+  [[nodiscard]] static AuditAction apply(
+      AuditRule *rule, AuditRecordVariant &audit_record) noexcept;
 };
 
 }  // namespace audit_log_filter

@@ -18,84 +18,31 @@
 
 #include "base.h"
 
+#include "plugin/audit_log_filter/event_filter_function/base.h"
+
 #include <string>
 #include <vector>
 
 namespace audit_log_filter::event_field_condition {
 
-enum class FunctionArgType { String, None };
-
-enum class FunctionArgSourceType { String, Field, None };
-
-struct FunctionArg {
-  FunctionArgType arg_type;
-  FunctionArgSourceType source_type;
-  std::string value;
-};
-
-using FunctionArgsList = std::vector<FunctionArg>;
+using event_filter_function::EventFilterFunctionBase;
 
 class EventFieldConditionFunction : public EventFieldConditionBase {
-  /*
-   * TODO: Add support for functions:
-   *    query_digest([str])
-   *    string_find(text, substr)
-   */
  public:
-  EventFieldConditionFunction(std::string name, FunctionArgsList args,
-                              AuditAction action);
+  explicit EventFieldConditionFunction(
+      std::unique_ptr<EventFilterFunctionBase> func);
 
   /**
    * @brief Check if logical condition applies to provided event fields.
    *
    * @param fields Event fields list
-   * @return One of @ref AuditAction which applies to an audit record
+   * @return true in case condition applies to an audit event, false otherwise
    */
-  [[nodiscard]] AuditAction check_applies(
+  [[nodiscard]] bool check_applies(
       const AuditRecordFieldsList &fields) const noexcept override;
 
-  /**
-   * @brief Check if function is supported.
-   *
-   * @param name Function name
-   * @return true in case function is supported, false otherwise
-   */
-  static bool check_function_name(const std::string &name) noexcept;
-
-  /**
-   * @brief Get function argument type.
-   *
-   * @param type_name Argument type name
-   * @return Argument type defined by @ref FunctionArgType,
-   *         @ref FunctionArgType::None in case unknown type name is provided
-   */
-  static FunctionArgType get_function_arg_type(
-      const std::string &type_name) noexcept;
-
-  /**
-   * @brief Get function argument value source type.
-   *
-   * @param type_name Source type name
-   * @return Value source type defined by @ref FunctionArgSourceType,
-   *         @ref FunctionArgSourceType::None in case unknown type name
-   *         is provided
-   */
-  static FunctionArgSourceType get_function_arg_source_type(
-      const std::string &type_name) noexcept;
-
-  /**
-   * @brief Validate function arguments.
-   *
-   * @param func_name Function name
-   * @param args Function arguments list
-   * @return true in case arguments are valid, false otherwise
-   */
-  static bool validate_args(const std::string &func_name,
-                            const FunctionArgsList &args) noexcept;
-
  private:
-  std::string m_name;
-  FunctionArgsList m_args;
+  std::unique_ptr<EventFilterFunctionBase> m_func;
 };
 
 }  // namespace audit_log_filter::event_field_condition

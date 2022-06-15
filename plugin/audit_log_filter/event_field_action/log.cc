@@ -13,17 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "plugin/audit_log_filter/event_field_condition/not.h"
+#include "plugin/audit_log_filter/event_field_action/log.h"
 
-namespace audit_log_filter::event_field_condition {
+#include "plugin/audit_log_filter/event_field_condition/base.h"
 
-EventFieldConditionNot::EventFieldConditionNot(
-    std::shared_ptr<EventFieldConditionBase> condition)
+#include <utility>
+
+namespace audit_log_filter::event_field_action {
+
+EventFieldActionLog::EventFieldActionLog(
+    std::shared_ptr<event_field_condition::EventFieldConditionBase> condition)
     : m_condition{std::move(condition)} {}
 
-bool EventFieldConditionNot::check_applies(
-    const AuditRecordFieldsList &fields) const noexcept {
-  return !m_condition->check_applies(fields);
+EventActionType EventFieldActionLog::get_action_type() const noexcept {
+  return EventActionType::Log;
 }
 
-}  // namespace audit_log_filter::event_field_condition
+bool EventFieldActionLog::apply(const AuditRecordFieldsList &fields,
+                                AuditRecordVariant &audit_record
+                                [[maybe_unused]]) const noexcept {
+  return m_condition->check_applies(fields);
+}
+
+}  // namespace audit_log_filter::event_field_action

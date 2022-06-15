@@ -22,6 +22,7 @@ MYSQL_ADD_PLUGIN(audit_log_filter
                  audit_psi_info.cc
                  audit_udf.cc
                  table_access_services.cc
+                 thd_attributes_services.cc
                  udf_services.cc
                  sys_var_services.cc
                  sys_vars.cc
@@ -52,6 +53,14 @@ MYSQL_ADD_PLUGIN(audit_log_filter
                  event_field_condition/variable.cc
                  event_field_condition/function.cc
                  event_field_condition/bool.cc
+                 event_field_action/log.cc
+                 event_field_action/block.cc
+                 event_field_action/replace_field.cc
+                 event_field_action/replace_filter.cc
+                 event_filter_function.cc
+                 event_filter_function/base.cc
+                 event_filter_function/string_find.cc
+                 event_filter_function/query_digest.cc
                  MODULE_ONLY MODULE_OUTPUT_NAME "audit_log_filter")
 
 IF(UNIX)

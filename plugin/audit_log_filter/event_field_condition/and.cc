@@ -18,18 +18,14 @@
 namespace audit_log_filter::event_field_condition {
 
 EventFieldConditionAnd::EventFieldConditionAnd(
-    std::vector<std::shared_ptr<EventFieldConditionBase>> conditions,
-    AuditAction action)
-    : EventFieldConditionBase{action}, m_conditions{std::move(conditions)} {}
+    std::vector<std::shared_ptr<EventFieldConditionBase>> conditions)
+    : m_conditions{std::move(conditions)} {}
 
-AuditAction EventFieldConditionAnd::check_applies(
+bool EventFieldConditionAnd::check_applies(
     const AuditRecordFieldsList &fields) const noexcept {
-  return std::all_of(m_conditions.cbegin(), m_conditions.cend(),
-                     [this, &fields](const auto &cond) {
-                       return cond->check_applies(fields) == get_match_action();
-                     })
-             ? get_match_action()
-             : AuditAction::Skip;
+  return std::all_of(
+      m_conditions.cbegin(), m_conditions.cend(),
+      [&fields](const auto &cond) { return cond->check_applies(fields); });
 }
 
 }  // namespace audit_log_filter::event_field_condition

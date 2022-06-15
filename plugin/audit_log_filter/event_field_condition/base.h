@@ -18,8 +18,14 @@
 
 #include "plugin/audit_log_filter/audit_action.h"
 #include "plugin/audit_log_filter/audit_record.h"
+#include "plugin/audit_log_filter/event_field_action/base.h"
+
+#include <memory>
+#include <utility>
 
 namespace audit_log_filter::event_field_condition {
+
+using event_field_action::EventFieldActionBase;
 
 /**
  * @brief Lists supported logical operations for event field.
@@ -38,32 +44,16 @@ enum class EventFieldConditionType {
 
 class EventFieldConditionBase {
  public:
-  explicit EventFieldConditionBase(AuditAction action = AuditAction::Log)
-      : m_match_action{action} {}
-
   virtual ~EventFieldConditionBase() = default;
 
   /**
    * @brief Check if logical condition applies to provided event fields.
    *
    * @param fields Event fields list
-   * @return One of @ref AuditAction which applies to an audit record
+   * @return true in case condition applies to an audit event, false otherwise
    */
-  [[nodiscard]] virtual AuditAction check_applies(
+  [[nodiscard]] virtual bool check_applies(
       const AuditRecordFieldsList &fields) const noexcept = 0;
-
- protected:
-  /**
-   * @brief Get action which should be applied to an event in case it
-   *        matches a condition.
-   * @return Action applied to matched condition
-   */
-  [[nodiscard]] AuditAction get_match_action() const noexcept {
-    return m_match_action;
-  }
-
- private:
-  AuditAction m_match_action;
 };
 
 }  // namespace audit_log_filter::event_field_condition

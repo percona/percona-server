@@ -973,6 +973,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
+      case binary_log::START_5_7_ENCRYPTION_EVENT:
         break;
       case binary_log::ROTATE_EVENT:
         /*
@@ -8250,7 +8251,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   } else {
     bool is_error = false;
     /* write the event to the relay log */
-    if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0)) {
+    if (likely(rli->relay_log.write_buffer(
+                   reinterpret_cast<uchar *>(const_cast<char *>(buf)),
+                   event_len, mi) == 0)) {
       DBUG_SIGNAL_WAIT_FOR(current_thd,
                            "pause_on_queue_event_after_write_buffer",
                            "receiver_reached_pause_on_queue_event",

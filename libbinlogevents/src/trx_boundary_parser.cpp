@@ -251,6 +251,7 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::SLAVE_EVENT:
     case binary_log::DELETE_FILE_EVENT:
     case binary_log::TRANSACTION_CONTEXT_EVENT:
+    case binary_log::START_5_7_ENCRYPTION_EVENT:
       boundary_type = EVENT_BOUNDARY_TYPE_IGNORE;
       break;
 

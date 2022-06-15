@@ -239,6 +239,8 @@ SET(MYSQLBINLOG_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_set.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_specification.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_tblmap.cc
+  ${CMAKE_SOURCE_DIR}/sql/event_crypt.cc
+  ${CMAKE_SOURCE_DIR}/sql/binlog_crypt_data.cc
   ${CMAKE_SOURCE_DIR}/sql/basic_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
@@ -268,6 +270,7 @@ SET(MYSQLBINLOG_LIBRARIES
   binlogevents_static
   client_base
   perconaserverclient
+  extra::unordered_dense
   )
 
 IF(WITH_JSON_BINLOG_LIBRARY)

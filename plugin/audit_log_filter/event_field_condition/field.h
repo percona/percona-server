@@ -24,16 +24,15 @@ namespace audit_log_filter::event_field_condition {
 
 class EventFieldConditionField : public EventFieldConditionBase {
  public:
-  EventFieldConditionField(std::string name, std::string expected_value,
-                           AuditAction action);
+  EventFieldConditionField(std::string name, std::string expected_value);
 
   /**
    * @brief Check if logical condition applies to provided event fields.
    *
    * @param fields Event fields list
-   * @return One of @ref AuditAction which applies to an audit record
+   * @return true in case condition applies to an audit event, false otherwise
    */
-  [[nodiscard]] AuditAction check_applies(
+  [[nodiscard]] bool check_applies(
       const AuditRecordFieldsList &fields) const noexcept override;
 
  private:

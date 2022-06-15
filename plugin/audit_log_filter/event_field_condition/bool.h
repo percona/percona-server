@@ -22,16 +22,19 @@ namespace audit_log_filter::event_field_condition {
 
 class EventFieldConditionBool : public EventFieldConditionBase {
  public:
-  explicit EventFieldConditionBool(AuditAction action);
+  explicit EventFieldConditionBool(bool value);
 
   /**
    * @brief Check if logical condition applies to provided event fields.
    *
    * @param fields Event fields list
-   * @return One of @ref AuditAction which applies to an audit record
+   * @return true in case condition applies to an audit event, false otherwise
    */
-  [[nodiscard]] AuditAction check_applies(
+  [[nodiscard]] bool check_applies(
       const AuditRecordFieldsList &fields) const noexcept override;
+
+ private:
+  const bool m_value;
 };
 
 }  // namespace audit_log_filter::event_field_condition

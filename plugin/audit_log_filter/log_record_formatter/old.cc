@@ -47,7 +47,10 @@ AuditRecordString LogRecordFormatterOld::apply(
          << make_escaped_string(&audit_record.event->general_external_user)
          << "\"\n"
          << "    SQLTEXT=\""
-         << make_escaped_string(&audit_record.event->general_query) << "\"\n"
+         << (audit_record.digest.empty()
+                 ? make_escaped_string(&audit_record.event->general_query)
+                 : make_escaped_string(audit_record.digest))
+         << "\"\n"
          << "    STATUS=\"" << audit_record.event->general_error_code
          << "\"/>\n";
 
@@ -104,7 +107,10 @@ AuditRecordString LogRecordFormatterOld::apply(
          << "    TIMESTAMP=\"" << make_timestamp(tp) << "\"\n"
          << "    COMMAND_CLASS=\""
          << event_class_to_string(audit_record.event_class) << "\"\n"
-         << "    SQLTEXT=\"" << make_escaped_string(&audit_record.event->query)
+         << "    SQLTEXT=\""
+         << (audit_record.digest.empty()
+                 ? make_escaped_string(&audit_record.event->query)
+                 : make_escaped_string(audit_record.digest))
          << "\"\n"
          << "    REWRITTEN_SQLTEXT=\""
          << make_escaped_string(audit_record.event->rewritten_query)
@@ -129,7 +135,10 @@ AuditRecordString LogRecordFormatterOld::apply(
          << "\"\n"
          << "    CONNECTION_ID=\"" << audit_record.event->connection_id
          << "\"\n"
-         << "    SQLTEXT=\"" << make_escaped_string(&audit_record.event->query)
+         << "    SQLTEXT=\""
+         << (audit_record.digest.empty()
+                 ? make_escaped_string(&audit_record.event->query)
+                 : make_escaped_string(audit_record.digest))
          << "\"\n"
          << "    DB=\""
          << make_escaped_string(&audit_record.event->table_database) << "\"\n"
@@ -242,7 +251,10 @@ AuditRecordString LogRecordFormatterOld::apply(
          << "    COMMAND_CLASS=\""
          << sql_command_id_to_string(audit_record.event->sql_command_id)
          << "\"\n"
-         << "    SQLTEXT=\"" << make_escaped_string(&audit_record.event->query)
+         << "    SQLTEXT=\""
+         << (audit_record.digest.empty()
+                 ? make_escaped_string(&audit_record.event->query)
+                 : make_escaped_string(audit_record.digest))
          << "\"/>\n";
 
   return result.str();
@@ -263,7 +275,10 @@ AuditRecordString LogRecordFormatterOld::apply(
          << "    COMMAND_CLASS=\""
          << sql_command_id_to_string(audit_record.event->sql_command_id)
          << "\"\n"
-         << "    SQLTEXT=\"" << make_escaped_string(&audit_record.event->query)
+         << "    SQLTEXT=\""
+         << (audit_record.digest.empty()
+                 ? make_escaped_string(&audit_record.event->query)
+                 : make_escaped_string(audit_record.digest))
          << "\"\n"
          << "    DB=\"" << make_escaped_string(&audit_record.event->database)
          << "\"\n"
@@ -289,7 +304,10 @@ AuditRecordString LogRecordFormatterOld::apply(
          << "    COMMAND_CLASS=\""
          << sql_command_id_to_string(audit_record.event->sql_command_id)
          << "\"\n"
-         << "    SQLTEXT=\"" << make_escaped_string(&audit_record.event->query)
+         << "    SQLTEXT=\""
+         << (audit_record.digest.empty()
+                 ? make_escaped_string(&audit_record.event->query)
+                 : make_escaped_string(audit_record.digest))
          << "\"\n"
          << "    STATUS=\"" << audit_record.event->status << "\"\n"
          << "    USER=\"" << make_escaped_string(&audit_record.event->user)

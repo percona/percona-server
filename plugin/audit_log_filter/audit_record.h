@@ -32,6 +32,7 @@ struct AuditRecordGeneral {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_general *event;
 };
 
@@ -39,6 +40,7 @@ struct AuditRecordConnection {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_connection *event;
 };
 
@@ -46,6 +48,7 @@ struct AuditRecordParse {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_parse *event;
 };
 
@@ -53,6 +56,7 @@ struct AuditRecordTableAccess {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_table_access *event;
 };
 
@@ -60,6 +64,7 @@ struct AuditRecordGlobalVariable {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_global_variable *event;
 };
 
@@ -67,6 +72,7 @@ struct AuditRecordServerStartup {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_server_startup *event;
 };
 
@@ -74,6 +80,7 @@ struct AuditRecordServerShutdown {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_server_shutdown *event;
 };
 
@@ -81,6 +88,7 @@ struct AuditRecordCommand {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_command *event;
 };
 
@@ -88,6 +96,7 @@ struct AuditRecordQuery {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_query *event;
 };
 
@@ -95,6 +104,7 @@ struct AuditRecordStoredProgram {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_stored_program *event;
 };
 
@@ -102,6 +112,7 @@ struct AuditRecordAuthentication {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_authentication *event;
 };
 
@@ -109,6 +120,7 @@ struct AuditRecordMessage {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const mysql_event_message *event;
 };
 
@@ -116,6 +128,7 @@ struct AuditRecordUnknown {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
+  std::string digest;
   const void *event;
 };
 

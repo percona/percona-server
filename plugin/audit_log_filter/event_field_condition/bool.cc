@@ -17,12 +17,12 @@
 
 namespace audit_log_filter::event_field_condition {
 
-EventFieldConditionBool::EventFieldConditionBool(AuditAction action)
-    : EventFieldConditionBase{action} {}
+EventFieldConditionBool::EventFieldConditionBool(const bool value)
+    : m_value{value} {}
 
-AuditAction EventFieldConditionBool::check_applies(
-    const AuditRecordFieldsList &fields [[maybe_unused]]) const noexcept {
-  return get_match_action();
+bool EventFieldConditionBool::check_applies(const AuditRecordFieldsList &fields
+                                            [[maybe_unused]]) const noexcept {
+  return m_value;
 }
 
 }  // namespace audit_log_filter::event_field_condition

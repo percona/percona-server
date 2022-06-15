@@ -26,16 +26,15 @@ namespace audit_log_filter::event_field_condition {
 class EventFieldConditionOr : public EventFieldConditionBase {
  public:
   explicit EventFieldConditionOr(
-      std::vector<std::shared_ptr<EventFieldConditionBase>> conditions,
-      AuditAction action);
+      std::vector<std::shared_ptr<EventFieldConditionBase>> conditions);
 
   /**
    * @brief Check if logical condition applies to provided event fields.
    *
    * @param fields Event fields list
-   * @return One of @ref AuditAction which applies to an audit record
+   * @return true in case condition applies to an audit event, false otherwise
    */
-  [[nodiscard]] AuditAction check_applies(
+  [[nodiscard]] bool check_applies(
       const AuditRecordFieldsList &fields) const noexcept override;
 
  private:

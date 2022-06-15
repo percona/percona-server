@@ -19,8 +19,8 @@
 
 namespace audit_log_filter {
 
-AuditAction AuditEventFilter::apply(
-    AuditRule *rule, const AuditRecordVariant &audit_record) noexcept {
+AuditAction AuditEventFilter::apply(AuditRule *rule,
+                                    AuditRecordVariant &audit_record) noexcept {
   if (!rule->check_parse_state()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Filtering rule '%s' has wrong format, "
@@ -29,33 +29,49 @@ AuditAction AuditEventFilter::apply(
     return AuditAction::Skip;
   }
 
-  AuditAction action = rule->get_global_action();
-
   auto event_class_name = std::visit(
       [](const auto &rec) { return rec.event_class_name; }, audit_record);
+  auto event_subclass_name = std::visit(
+      [](const auto &rec) { return rec.event_subclass_name; }, audit_record);
 
-  auto class_action = rule->get_event_class_action(event_class_name);
-
-  if (class_action == AuditAction::None) {
-    // No match for event class, use globally defined action
-    return action;
+  if (!rule->has_actions_for(event_class_name, event_subclass_name)) {
+    return rule->should_log_unmatched() ? AuditAction::Log : AuditAction::Skip;
   }
 
   const auto event_fields =
       std::visit([](const auto &rec) { return get_audit_record_fields(rec); },
                  audit_record);
 
-  auto event_subclass_name = std::visit(
-      [](const auto &rec) { return rec.event_subclass_name; }, audit_record);
+  const auto *block_action = rule->get_action(
+      EventActionType::Block, event_class_name, event_subclass_name);
 
-  auto subclass_action = rule->get_event_subclass_action(
-      event_class_name, event_subclass_name, event_fields);
-
-  if (subclass_action == AuditAction::None) {
-    return class_action;
+  if (block_action != nullptr &&
+      block_action->apply(event_fields, audit_record)) {
+    return AuditAction::Block;
   }
 
-  return subclass_action;
+  const auto *replace_field_action = rule->get_action(
+      EventActionType::ReplaceField, event_class_name, event_subclass_name);
+  const auto *replace_filter_action = rule->get_action(
+      EventActionType::ReplaceFilter, event_class_name, event_subclass_name);
+
+  if (replace_field_action != nullptr) {
+    replace_field_action->apply(event_fields, audit_record);
+  }
+
+  if (replace_filter_action != nullptr) {
+    replace_filter_action->apply(event_fields, audit_record);
+  }
+
+  const auto *log_action = rule->get_action(
+      EventActionType::Log, event_class_name, event_subclass_name);
+
+  if (log_action == nullptr) {
+    return rule->should_log_unmatched() ? AuditAction::Log : AuditAction::Skip;
+  }
+
+  return log_action->apply(event_fields, audit_record) ? AuditAction::Log
+                                                       : AuditAction::Skip;
 }
 
 }  // namespace audit_log_filter

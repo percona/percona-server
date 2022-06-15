@@ -42,6 +42,8 @@ SELECT * FROM product_list;
 --echo # Wrong arguments for string_find()
 --disable_query_log
 call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'missing_args' format, invalid arguments for 'string_find' function'");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'one_missing_arg' format, invalid arguments for 'string_find' function'");
 call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'wrong_pattern_type' format, wrong function args format provided'");
 call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'wrong_field_type' format, wrong function args format provided'");
 --enable_query_log

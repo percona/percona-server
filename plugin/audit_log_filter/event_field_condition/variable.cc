@@ -18,14 +18,13 @@
 namespace audit_log_filter::event_field_condition {
 
 EventFieldConditionVariable::EventFieldConditionVariable(
-    std::string name, std::string expected_value, AuditAction action)
-    : EventFieldConditionBase{action},
-      m_name{std::move(name)},
-      m_expected_value{std::move(expected_value)} {}
+    std::string name, std::string expected_value)
+    : m_name{std::move(name)}, m_expected_value{std::move(expected_value)} {}
 
-AuditAction EventFieldConditionVariable::check_applies(
+bool EventFieldConditionVariable::check_applies(
     const AuditRecordFieldsList &fields [[maybe_unused]]) const noexcept {
-  return get_match_action();
+  // TODO: not implemented
+  return false;
 }
 
 }  // namespace audit_log_filter::event_field_condition

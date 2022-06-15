@@ -311,7 +311,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
                              event_subclass_to_string(
                                  static_cast<const mysql_event_general *>(event)
                                      ->event_subclass),
-                             event_class,
+                             event_class, "",
                              static_cast<const mysql_event_general *>(event)}};
     }
     case MYSQL_AUDIT_CONNECTION_CLASS: {
@@ -322,7 +322,8 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
               event_subclass_to_string(
                   static_cast<const mysql_event_connection *>(event)
                       ->event_subclass),
-              event_class, static_cast<const mysql_event_connection *>(event)}};
+              event_class, "",
+              static_cast<const mysql_event_connection *>(event)}};
     }
     case MYSQL_AUDIT_PARSE_CLASS: {
       return AuditRecordVariant{
@@ -331,7 +332,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
                            event_subclass_to_string(
                                static_cast<const mysql_event_parse *>(event)
                                    ->event_subclass),
-                           event_class,
+                           event_class, "",
                            static_cast<const mysql_event_parse *>(event)}};
     }
     case MYSQL_AUDIT_TABLE_ACCESS_CLASS: {
@@ -342,7 +343,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
               event_subclass_to_string(
                   static_cast<const mysql_event_table_access *>(event)
                       ->event_subclass),
-              event_class,
+              event_class, "",
               static_cast<const mysql_event_table_access *>(event)}};
     }
     case MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS: {
@@ -353,7 +354,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
               event_subclass_to_string(
                   static_cast<const mysql_event_global_variable *>(event)
                       ->event_subclass),
-              event_class,
+              event_class, "",
               static_cast<const mysql_event_global_variable *>(event)}};
     }
     case MYSQL_AUDIT_SERVER_STARTUP_CLASS: {
@@ -364,7 +365,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
               event_subclass_to_string(
                   static_cast<const mysql_event_server_startup *>(event)
                       ->event_subclass),
-              event_class,
+              event_class, "",
               static_cast<const mysql_event_server_startup *>(event)}};
     }
     case MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS: {
@@ -375,7 +376,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
               event_subclass_to_string(
                   static_cast<const mysql_event_server_shutdown *>(event)
                       ->event_subclass),
-              event_class,
+              event_class, "",
               static_cast<const mysql_event_server_shutdown *>(event)}};
     }
     case MYSQL_AUDIT_COMMAND_CLASS: {
@@ -385,7 +386,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
                              event_subclass_to_string(
                                  static_cast<const mysql_event_command *>(event)
                                      ->event_subclass),
-                             event_class,
+                             event_class, "",
                              static_cast<const mysql_event_command *>(event)}};
     }
     case MYSQL_AUDIT_QUERY_CLASS: {
@@ -395,7 +396,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
                            event_subclass_to_string(
                                static_cast<const mysql_event_query *>(event)
                                    ->event_subclass),
-                           event_class,
+                           event_class, "",
                            static_cast<const mysql_event_query *>(event)}};
     }
     case MYSQL_AUDIT_STORED_PROGRAM_CLASS: {
@@ -406,7 +407,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
               event_subclass_to_string(
                   static_cast<const mysql_event_stored_program *>(event)
                       ->event_subclass),
-              event_class,
+              event_class, "",
               static_cast<const mysql_event_stored_program *>(event)}};
     }
     case MYSQL_AUDIT_AUTHENTICATION_CLASS: {
@@ -417,7 +418,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
               event_subclass_to_string(
                   static_cast<const mysql_event_authentication *>(event)
                       ->event_subclass),
-              event_class,
+              event_class, "",
               static_cast<const mysql_event_authentication *>(event)}};
     }
     case MYSQL_AUDIT_MESSAGE_CLASS: {
@@ -427,7 +428,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
                              event_subclass_to_string(
                                  static_cast<const mysql_event_message *>(event)
                                      ->event_subclass),
-                             event_class,
+                             event_class, "",
                              static_cast<const mysql_event_message *>(event)}};
     }
     default:
@@ -438,7 +439,7 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
 
   return AuditRecordVariant{
       std::in_place_index<12>,
-      AuditRecordUnknown{kNameUnknown, kNameUnknown, event_class, event}};
+      AuditRecordUnknown{kNameUnknown, kNameUnknown, event_class, "", event}};
 }
 
 void update_connection_type_pseudo_to_numeric(std::string &type) {

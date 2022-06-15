@@ -628,7 +628,7 @@ static dberr_t recreate_redo_logs(char *logfilename, size_t dirnamelen,
   log_sys_close();
 
   /* Finish clone file recovery before creating new log files. We
-      roll forward to remove any intermediate files here. */
+  roll forward to remove any intermediate files here. */
   clone_files_recovery(true);
 
   auto err =
@@ -639,8 +639,8 @@ static dberr_t recreate_redo_logs(char *logfilename, size_t dirnamelen,
     return err;
   }
 
-  /* create_log_files() can increase system lsn that is
-      why FIL_PAGE_FILE_FLUSH_LSN have to be updated */
+  /* create_log_files() can increase LSN, update the FIL_PAGE_FILE_FLUSH_LSN to
+  the last LSN */
   flushed_lsn = log_get_lsn(*log_sys);
   err = fil_write_flushed_lsn(flushed_lsn);
   if (err != DB_SUCCESS) {
@@ -3954,8 +3954,8 @@ static lsn_t srv_shutdown_log() {
 
   srv_wake_log_tracker_thread();
 
-  /* if upgrade is failed, delete and create new empty redo so old version do
-   not complaint  */
+  /* If the upgrade fails, new redo log format is not compatible with older
+  versions, recreate them */
   if (dd_init_failed_during_upgrade) {
     char logfilename[10000];
     char *logfile0 = nullptr;
@@ -3970,7 +3970,7 @@ static lsn_t srv_shutdown_log() {
         recreate_redo_logs(logfilename, dirnamelen, logfile0,
                            new_checkpoint_lsn, flushed_lsn, srv_n_log_files);
 
-    ut_a(err == DB_SUCCESS);
+    ut_ad(err == DB_SUCCESS);
     lsn = log_get_lsn(*log_sys);
   }
 

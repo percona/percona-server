@@ -11772,7 +11772,7 @@ ER_KEYRING_COMPONENT_KMS_ERROR
   eng "KMS communication error: %s"
 
 ER_XB_MSG_DOWNGRADING_LOG_FILE
-  eng "Upgrade failed, cleaning up redo logs, so server can start with previous version"
+  eng "Upgrade failed, recreating redo logs with previous version"
 
 #
 # End of Percona Server 8.0 server error log messages

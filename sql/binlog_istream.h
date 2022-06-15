@@ -70,7 +70,9 @@ class Binlog_read_error {
     INVALID_ENCRYPTION_HEADER,
     CANNOT_GET_FILE_PASSWORD,
     READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED,
-    ERROR_DECRYPTING_FILE
+    ERROR_DECRYPTING_FILE,
+    // Failed to initialize binlog decryption
+    DECRYPT_PRE_8_0_14_INIT_FAILURE
   };
 
   Binlog_read_error() = default;

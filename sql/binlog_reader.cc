@@ -22,6 +22,7 @@
 
 #include "sql/binlog_reader.h"
 #include "my_byteorder.h"
+#include "sql/event_crypt.h"
 #include "sql/log_event.h"
 
 unsigned char *Default_binlog_event_allocator::allocate(size_t size) {
@@ -48,7 +49,8 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
       "corrupt_read_log_event", unsigned char type = buffer[EVENT_TYPE_OFFSET];
       if (type != binary_log::FORMAT_DESCRIPTION_EVENT &&
           type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
-          type != binary_log::GTID_LOG_EVENT) {
+          type != binary_log::GTID_LOG_EVENT &&
+          type != binary_log::START_5_7_ENCRYPTION_EVENT) {
         int cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN -
                                 LOG_EVENT_MINIMAL_HEADER_LEN) +
                       LOG_EVENT_MINIMAL_HEADER_LEN;
@@ -57,6 +59,20 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
       });
 }
 #endif  // ifdef NDEBUG
+
+bool Binlog_event_data_istream::start_decryption(
+    binary_log::Start_encryption_event *see) {
+  assert(!crypto_data.is_enabled());
+
+  Start_encryption_log_event *sele =
+      down_cast<Start_encryption_log_event *>(see);
+  if (!sele->is_valid() ||
+      crypto_data.init(see->crypto_scheme, see->key_version, see->nonce)) {
+    m_error->set_type(Binlog_read_error::DECRYPT_PRE_8_0_14_INIT_FAILURE);
+    return true;
+  }
+  return false;
+}
 
 Binlog_event_data_istream::Binlog_event_data_istream(
     Binlog_read_error *error, Basic_istream *istream,
@@ -68,6 +84,51 @@ bool Binlog_event_data_istream::read_event_header() {
       m_header, LOG_EVENT_MINIMAL_HEADER_LEN);
 }
 
+Binlog_event_data_istream::Decryption_buffer::~Decryption_buffer() {
+  resize(0);
+}
+
+bool Binlog_event_data_istream::Decryption_buffer::resize(size_t new_size) {
+  memset_s(m_buffer, m_size, 0, m_size);
+  delete[] m_buffer;
+  m_size = 0;
+  m_buffer = nullptr;
+  if (new_size == 0) {
+    return false;
+  }
+  m_buffer = new (std::nothrow) uchar[new_size];
+  if (m_buffer == nullptr) {
+    return true;
+  }
+  m_size = new_size;
+  return false;
+}
+
+bool Binlog_event_data_istream::Decryption_buffer::set_size(
+    size_t size_to_set) {
+  if (size_to_set == m_size) {
+    return false;
+  }
+  if (size_to_set > m_size) {
+    return resize(size_to_set);
+  }
+  assert(size_to_set < m_size);
+
+  if (size_to_set < (m_size / 2) &&
+      ++m_number_of_events_with_half_the_size == 100) {
+    // There were already 101 events which size was a half of currently
+    // allocated size. This is strong indication that we had occured an
+    // event which was unusually big. Shrink the buffer to half the size.
+    if (resize(m_size / 2)) {
+      return true;
+    }
+    m_number_of_events_with_half_the_size = 0;
+  }
+  return false;
+}
+
+uchar *Binlog_event_data_istream::Decryption_buffer::data() { return m_buffer; }
+
 bool Binlog_event_data_istream::fill_event_data(
     unsigned char *event_data, bool verify_checksum,
     enum_binlog_checksum_alg checksum_alg) {
@@ -76,6 +137,24 @@ bool Binlog_event_data_istream::fill_event_data(
           event_data + LOG_EVENT_MINIMAL_HEADER_LEN,
           m_event_length - LOG_EVENT_MINIMAL_HEADER_LEN))
     return true;
+
+  if (crypto_data.is_enabled()) {
+    // crypto only works on binlog files
+    Basic_binlog_ifile *binlog_file =
+        down_cast<Basic_binlog_ifile *>(m_istream);
+
+    // if file position if larger than 4 bytes we still care only about
+    // least significant 4 bytes
+    if (m_decryption_buffer.set_size(m_event_length) ||
+        decrypt_event(
+            static_cast<uint32_t>((binlog_file->position() - m_event_length)),
+            crypto_data, event_data, m_decryption_buffer.data(),
+            m_event_length)) {
+      return m_error->set_type(Binlog_read_error::ERROR_DECRYPTING_FILE);
+    }
+
+    memcpy(event_data, m_decryption_buffer.data(), m_event_length);
+  }
 
 #ifndef NDEBUG
   debug_corrupt_event(event_data, m_event_length);
@@ -89,7 +168,9 @@ bool Binlog_event_data_istream::fill_event_data(
     if (Log_event_footer::event_checksum_test(event_data, m_event_length,
                                               checksum_alg) &&
         !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
-      return m_error->set_type(Binlog_read_error::CHECKSUM_FAILURE);
+      return m_error->set_type(crypto_data.is_enabled()
+                                   ? Binlog_read_error::ERROR_DECRYPTING_FILE
+                                   : Binlog_read_error::CHECKSUM_FAILURE);
     }
   }
   return false;
@@ -109,7 +190,7 @@ bool Binlog_event_data_istream::check_event_header() {
 Binlog_read_error::Error_type binlog_event_deserialize(
     const unsigned char *buffer, unsigned int event_len,
     const Format_description_event *fde, bool verify_checksum,
-    Log_event **event) {
+    Log_event **event, bool force_opt MY_ATTRIBUTE((unused))) {
   const char *buf = reinterpret_cast<const char *>(buffer);
   Log_event *ev = nullptr;
   enum_binlog_checksum_alg alg;
@@ -138,7 +219,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
                : Binlog_read_error::TRUNC_EVENT;
   }
 
-  uint event_type = buf[EVENT_TYPE_OFFSET];
+  uchar event_type = buf[EVENT_TYPE_OFFSET];
 
   /*
     Sanity check for Format description event. This is needed because
@@ -178,6 +259,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   }
 
   if (event_type > fde->number_of_event_types &&
+      event_type != binary_log::START_5_7_ENCRYPTION_EVENT &&
       /*
         Skip the event type check when simulating an unknown ignorable event.
       */
@@ -188,7 +270,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     */
     DBUG_PRINT("error", ("event type %d found, but the current "
                          "Format_description_event supports only %d event "
-                         "types",
+                         "types, plus Start Encryption Event",
                          event_type, fde->number_of_event_types));
     return Binlog_read_error::INVALID_EVENT;
   }
@@ -292,6 +374,9 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       break;
     case binary_log::TRANSACTION_PAYLOAD_EVENT:
       ev = new Transaction_payload_log_event(buf, fde);
+      break;
+    case binary_log::START_5_7_ENCRYPTION_EVENT:
+      ev = new Start_encryption_log_event(buf, fde);
       break;
     default:
       /*

@@ -11771,6 +11771,9 @@ ER_SEC_LOG_PATH_NULL
 ER_KEYRING_COMPONENT_KMS_ERROR
   eng "KMS communication error: %s"
 
+ER_XB_MSG_DOWNGRADING_LOG_FILE
+  eng "Upgrade failed, recreating redo logs with previous version"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

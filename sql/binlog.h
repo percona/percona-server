@@ -45,7 +45,8 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"          // Item_result
+#include "mysql_com.h"  // Item_result
+#include "sql/binlog_crypt_data.h"
 #include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
@@ -245,6 +246,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
   // current file sequence number for load data infile binary logging
   uint file_id;
 
+  /* binlog encryption data */
+  Binlog_crypt_data crypto;
+
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
      sync_relay_log_period
@@ -301,6 +305,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
                                   uint32 new_index_number);
   int generate_new_name(char *new_name, const char *log_name,
                         uint32 new_index_number = 0);
+#if defined(MYSQL_SERVER)
   /**
    * Read binary log stream header and Format_desc event from
    * binlog_file_reader. Check for LOG_EVENT_BINLOG_IN_USE_F flag.
@@ -310,6 +315,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
    *                 while reading log events
    */
   bool read_binlog_in_use_flag(Binlog_file_reader &binlog_file_reader);
+#endif /* defined(MYSQL_SERVER) */
 
  protected:
   /**
@@ -839,7 +845,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  bool write_buffer(const char *buf, uint len, Master_info *mi);
+  bool write_buffer(uchar *buf, uint len, Master_info *mi);
   bool write_event(Log_event *ev, Master_info *mi);
 
   /**
@@ -1048,6 +1054,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
+
+  Binlog_crypt_data *get_crypto_data() { return &crypto; }
 
  public:
   /**

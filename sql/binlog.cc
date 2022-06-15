@@ -74,6 +74,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
+#include "my_rnd.h"
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"  // my_safe_print_system_time
 #include "my_thread_local.h"
@@ -1428,6 +1429,7 @@ class Binlog_event_writer : public Basic_ostream {
   ha_checksum initial_checksum;
   ha_checksum checksum;
   uint32 end_log_pos;
+  THD *thd;
   uchar header[LOG_EVENT_HEADER_LEN];
   my_off_t header_len = 0;
   uint32 event_len = 0;
@@ -1439,14 +1441,16 @@ class Binlog_event_writer : public Basic_ostream {
     binlog.
 
     @param binlog_file to write to.
+    @param thd_arg THD to account written binlog byte statistics to
   */
-  Binlog_event_writer(MYSQL_BIN_LOG::Binlog_ofile *binlog_file)
+  Binlog_event_writer(MYSQL_BIN_LOG::Binlog_ofile *binlog_file, THD *thd_arg)
       : m_binlog_file(binlog_file),
         have_checksum(binlog_checksum_options !=
                       binary_log::BINLOG_CHECKSUM_ALG_OFF),
         initial_checksum(my_checksum(0L, nullptr, 0)),
         checksum(initial_checksum),
-        end_log_pos(binlog_file->position()) {
+        end_log_pos(binlog_file->position()),
+        thd(thd_arg) {
     // Simulate checksum error
     if (DBUG_EVALUATE_IF("fault_injection_crc_value", 1, 0)) checksum--;
   }
@@ -2386,7 +2390,7 @@ int binlog_cache_data::flush(THD *thd, my_off_t *bytes_written,
       non-empty then we get two Anonymous_gtid_log_events, which is
       correct.
     */
-    Binlog_event_writer writer(mysql_bin_log.get_binlog_file());
+    Binlog_event_writer writer(mysql_bin_log.get_binlog_file(), thd);
 
     /* The GTID ownership process might set the commit_error */
     error = (thd->commit_error == THD::CE_FLUSH_ERROR ||
@@ -4204,6 +4208,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
       case binary_log::ROTATE_EVENT:
+      case binary_log::START_5_7_ENCRYPTION_EVENT:
         // do nothing; just accept this event and go to next
         break;
       case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
@@ -4397,6 +4402,7 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
       case binary_log::ROTATE_EVENT:
+      case binary_log::START_5_7_ENCRYPTION_EVENT:
         // do nothing; just accept this event and go to next
         break;
       case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
@@ -5076,11 +5082,14 @@ bool MYSQL_BIN_LOG::open_binlog(
     }
   }
 
+  crypto.disable();
+
   if (!s.is_valid()) goto err;
   s.dont_set_created = null_created_arg;
   /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
   if (is_relay_log) s.set_relay_log_event();
   if (write_event_to_binlog(&s)) goto err;
+
   /*
     We need to revisit this code and improve it.
     See further comments in the mysqld.
@@ -5186,7 +5195,6 @@ bool MYSQL_BIN_LOG::open_binlog(
     extra_description_event->created = 0;
     /* Don't set log_pos in event header */
     extra_description_event->set_artificial_event();
-
     if (binary_event_serialize(extra_description_event, m_binlog_file))
       goto err;
     bytes_written += extra_description_event->common_header->data_written;
@@ -7189,7 +7197,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *ev, Master_info *mi) {
   return error;
 }
 
-bool MYSQL_BIN_LOG::write_buffer(const char *buf, uint len, Master_info *mi) {
+bool MYSQL_BIN_LOG::write_buffer(uchar *buf, uint len, Master_info *mi) {
   DBUG_TRACE;
 
   // check preconditions
@@ -12117,7 +12125,7 @@ static const binlog_cache_mngr *get_cache_mngr(THD *thd) {
 }
 
 static int show_binlog_vars(THD *thd, SHOW_VAR *var,
-                            char *buff MY_ATTRIBUTE((unused))) {
+                            char *buff [[maybe_unused]]) {
   mysql_mutex_assert_owner(&LOCK_status);
 
   const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);
@@ -12137,8 +12145,8 @@ static int show_binlog_vars(THD *thd, SHOW_VAR *var,
   return 0;
 }
 
-static int show_binlog_snapshot_gtid_executed(
-    THD *thd, SHOW_VAR *var, char *buff MY_ATTRIBUTE((unused))) {
+static int show_binlog_snapshot_gtid_executed(THD *thd, SHOW_VAR *var,
+                                              char *buff [[maybe_unused]]) {
   mysql_mutex_assert_owner(&LOCK_status);
 
   const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);

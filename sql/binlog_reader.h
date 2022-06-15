@@ -22,6 +22,7 @@
 
 #ifndef BINLOG_READER_INCLUDED
 #define BINLOG_READER_INCLUDED
+#include "sql/binlog_crypt_data.h"
 #include "sql/binlog_istream.h"
 #include "sql/log_event.h"
 
@@ -41,7 +42,7 @@
 Binlog_read_error::Error_type binlog_event_deserialize(
     const unsigned char *event_data, unsigned int event_data_len,
     const Format_description_event *fde, bool verify_checksum,
-    Log_event **event);
+    Log_event **event, bool force_opt = false);
 
 class Default_binlog_event_allocator {
  public:
@@ -97,6 +98,11 @@ class Binlog_event_data_istream {
     return false;
   }
 
+  bool start_decryption(binary_log::Start_encryption_event *see);
+  void reset_crypto() noexcept { crypto_data.disable(); }
+
+  Binlog_crypt_data crypto_data;
+
  protected:
   unsigned char m_header[LOG_EVENT_MINIMAL_HEADER_LEN];
   /**
@@ -147,12 +153,28 @@ class Binlog_event_data_istream {
      streams. So Binlog_read_error pointer is defined here. It should be
      initialized in constructor by caller.
   */
+
   Binlog_read_error *m_error;
 
  private:
   Basic_istream *m_istream = nullptr;
   unsigned int m_max_event_size;
   unsigned int m_event_length = 0;
+
+  class Decryption_buffer final {
+   public:
+    ~Decryption_buffer();
+    bool set_size(size_t size);
+    uchar *data();
+
+   private:
+    bool resize(size_t new_size);
+
+    uchar *m_buffer = nullptr;
+    size_t m_size = 0;
+    uint m_number_of_events_with_half_the_size = 0;
+  };
+  Decryption_buffer m_decryption_buffer;
 
   /**
      Fill the event data into the given buffer and verify checksum if
@@ -278,6 +300,8 @@ class Basic_binlog_file_reader {
     DBUG_TRACE;
     if (m_ifile.open(file_name)) return true;
 
+    m_data_istream.reset_crypto();
+
     Format_description_log_event *fd = read_fdle(offset);
 
     if (!fd) return has_fatal_error();
@@ -320,8 +344,17 @@ class Basic_binlog_file_reader {
     m_event_start_pos = position();
     Log_event *ev = m_object_istream.read_event_object(m_fde, m_verify_checksum,
                                                        &m_allocator);
-    if (ev && ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
-      m_fde = dynamic_cast<Format_description_event &>(*ev);
+    if (ev && ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
+      Format_description_log_event *const new_fde =
+          down_cast<Format_description_log_event *>(ev);
+      m_fde = *new_fde;
+    } else if (ev &&
+               ev->get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT &&
+               m_data_istream.start_decryption(
+                   down_cast<Start_encryption_log_event *>(ev))) {
+      delete ev;
+      ev = nullptr;
+    }
     return ev;
   }
 
@@ -345,6 +378,10 @@ class Basic_binlog_file_reader {
   }
   const Format_description_event *format_description_event() { return &m_fde; }
   my_off_t event_start_pos() { return m_event_start_pos; }
+
+  bool start_decryption(binary_log::Start_encryption_event *see) {
+    return m_data_istream.start_decryption(see);
+  }
 
  private:
   Binlog_read_error m_error;
@@ -387,8 +424,20 @@ class Basic_binlog_file_reader {
       if (ev == nullptr) break;
       if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
         delete fdle;
-        fdle = dynamic_cast<Format_description_log_event *>(ev);
+        Format_description_log_event *new_fdev =
+            down_cast<Format_description_log_event *>(ev);
+        fdle = new_fdev;
         m_fde = *fdle;
+        assert(m_fde.footer()->checksum_alg ==
+                   binary_log::BINLOG_CHECKSUM_ALG_OFF ||
+               m_fde.footer()->checksum_alg ==
+                   binary_log::BINLOG_CHECKSUM_ALG_CRC32);
+      } else if (ev->get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT &&
+                 m_data_istream.start_decryption(
+                     down_cast<Start_encryption_log_event *>(ev))) {
+        delete ev;
+        ev = nullptr;
+        break;
       } else {
         binary_log::Log_event_type type = ev->get_type_code();
         delete ev;

@@ -952,12 +952,22 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
   /*
     Verify if flow control is required.
   */
-  if (it->second.is_flow_control_needed()) {
-    ++m_holds_in_period;
+  int members_needing_flow_control = 0;
+  int total_members = 0;
+  it = m_info.begin();
+  while (it != m_info.end()) {
+    total_members += 1;
+    if (it->second.is_flow_control_needed()) {
+      members_needing_flow_control += 1;
 #ifndef NDEBUG
-    it->second.debug(it->first.c_str(), m_quota_size.load(),
-                     m_quota_used.load());
+      it->second.debug(it->first.c_str(), m_quota_size.load(),
+                       m_quota_used.load());
 #endif
+    }
+    it++;
+  }
+  if (members_needing_flow_control > total_members / 2) {
+    ++m_holds_in_period;
   }
 
   m_flow_control_module_info_lock->unlock();

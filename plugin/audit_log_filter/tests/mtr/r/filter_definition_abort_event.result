@@ -4,8 +4,28 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 #
 # Check read-only access to a table
-SELECT audit_log_filter_set_filter('table_readonly', '{"filter": {"class": {"name": "table_access", "event": {"name": ["insert", "update", "delete"], "abort": true}}}}');
-audit_log_filter_set_filter('table_readonly', '{"filter": {"class": {"name": "table_access", "event": {"name": ["insert", "update", "delete"], "abort": true}}}}')
+SELECT audit_log_filter_set_filter('table_readonly', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert", "update", "delete"],
+"abort": true
+}
+}
+}
+}');
+audit_log_filter_set_filter('table_readonly', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert", "update", "delete"],
+"abort": true
+}
+}
+}
+}')
 OK
 SELECT audit_log_filter_set_user('%', 'table_readonly');
 audit_log_filter_set_user('%', 'table_readonly')
@@ -33,8 +53,32 @@ audit_log_filter_remove_user('%')
 OK
 #
 # Abort access to a particular table
-SELECT audit_log_filter_set_filter('no_t1_access', '{"filter": {"class": {"name": "table_access", "event": {"name": ["read", "insert", "update", "delete"], "abort": {"and": [{"field": {"name": "table_database.str", "value": "test"}}, {"field": {"name": "table_name.str", "value": "t1"}}]}}}}}');
-audit_log_filter_set_filter('no_t1_access', '{"filter": {"class": {"name": "table_access", "event": {"name": ["read", "insert", "update", "delete"], "abort": {"and": [{"field": {"name": "table_database.str", "value": "test"}}, {"field": {"name": "table_na
+SELECT audit_log_filter_set_filter('no_t1_access', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["read", "insert", "update", "delete"],
+"abort": {
+"and": [
+{"field": {"name": "table_database.str", "value": "test"}},
+{"field": {"name": "table_name.str", "value": "t1"}}
+]
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('no_t1_access', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["read", "insert", "update", "delete"],
+"abort": {
+"and": [
+{"field": {"name": "table_database.str", "value": "test"}},
+{"field": {"name": "ta
 OK
 SELECT audit_log_filter_set_user('%', 'no_t1_access');
 audit_log_filter_set_user('%', 'no_t1_access')
@@ -55,8 +99,28 @@ c2
 3
 #
 # Check mysql_event_message events may be aborted
-SELECT audit_log_filter_set_filter('abort_message', '{"filter": {"class": {"name": "message", "event": {"name": "user", "abort": true}}}}');
-audit_log_filter_set_filter('abort_message', '{"filter": {"class": {"name": "message", "event": {"name": "user", "abort": true}}}}')
+SELECT audit_log_filter_set_filter('abort_message', '{
+"filter": {
+"class": {
+"name": "message",
+"event": {
+"name": "user",
+"abort": true
+}
+}
+}
+}');
+audit_log_filter_set_filter('abort_message', '{
+"filter": {
+"class": {
+"name": "message",
+"event": {
+"name": "user",
+"abort": true
+}
+}
+}
+}')
 OK
 SELECT audit_log_filter_set_user('%', 'abort_message');
 audit_log_filter_set_user('%', 'abort_message')

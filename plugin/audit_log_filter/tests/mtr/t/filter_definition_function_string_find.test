@@ -14,7 +14,27 @@ SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
 
 --echo #
 --echo # Match table name by its suffix using string_find() function
-SELECT audit_log_filter_set_filter('log_users_access', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": "user_"}}]}}}}}}');
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": "table_name.str"}},
+              {"string": {"string": "user_"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_users_access', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_users_access');
 
 SELECT * FROM user_list;
@@ -27,7 +47,27 @@ SELECT * FROM product_list;
 
 --echo #
 --echo # Make sure string_find() does a case-sensitive search
-SELECT audit_log_filter_set_filter('log_users_access_case_sensitive', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": "User_"}}]}}}}}}');
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": "table_name.str"}},
+              {"string": {"string": "User_"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_users_access_case_sensitive', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_users_access_case_sensitive');
 
 SELECT * FROM user_list;
@@ -48,10 +88,88 @@ call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter '
 call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'wrong_field_type' format, wrong function args format provided'");
 --enable_query_log
 
-SELECT audit_log_filter_set_filter('missing_args', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find"}}}}}}');
-SELECT audit_log_filter_set_filter('one_missing_arg', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}]}}}}}}');
-SELECT audit_log_filter_set_filter('wrong_pattern_type', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": 2}}]}}}}}}');
-SELECT audit_log_filter_set_filter('wrong_field_type', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": 2}}, {"string": {"string": "User_"}}]}}}}}}');
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find"
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('missing_args', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": "table_name.str"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('one_missing_arg', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": "table_name.str"}},
+              {"string": {"string": 2}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('wrong_pattern_type', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": 2}},
+              {"string": {"string": "User_"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('wrong_field_type', '$filter');
 
 --echo #
 --echo # Cleanup

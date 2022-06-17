@@ -6,8 +6,38 @@ SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
 SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
 #
 # Match table name by its suffix using string_find() function
-SELECT audit_log_filter_set_filter('log_users_access', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": "user_"}}]}}}}}}');
-audit_log_filter_set_filter('log_users_access', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": "user_"}}]}}}}}}')
+SELECT audit_log_filter_set_filter('log_users_access', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": "user_"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_users_access', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": "user_"}}
+]
 OK
 SELECT audit_log_filter_set_user('%', 'log_users_access');
 audit_log_filter_set_user('%', 'log_users_access')
@@ -22,8 +52,37 @@ Tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>.*<TABLE>user_list</TABLE> 
 No tag <TABLE>product_list</TABLE> Ok
 #
 # Make sure string_find() does a case-sensitive search
-SELECT audit_log_filter_set_filter('log_users_access_case_sensitive', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": "User_"}}]}}}}}}');
-audit_log_filter_set_filter('log_users_access_case_sensitive', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": "Us
+SELECT audit_log_filter_set_filter('log_users_access_case_sensitive', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": "User_"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_users_access_case_sensitive', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"strin
 OK
 SELECT audit_log_filter_set_user('%', 'log_users_access_case_sensitive');
 audit_log_filter_set_user('%', 'log_users_access_case_sensitive')
@@ -38,17 +97,147 @@ No tag <TABLE>user_list</TABLE> Ok
 No tag <TABLE>product_list</TABLE> Ok
 #
 # Wrong arguments for string_find()
-SELECT audit_log_filter_set_filter('missing_args', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find"}}}}}}');
-audit_log_filter_set_filter('missing_args', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find"}}}}}}')
+SELECT audit_log_filter_set_filter('missing_args', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find"
+          }
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('missing_args', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find"
+          }
+}
+}
+}
+}
+}')
 ERROR: Incorrect rule definition
-SELECT audit_log_filter_set_filter('one_missing_arg', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}]}}}}}}');
-audit_log_filter_set_filter('one_missing_arg', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}]}}}}}}')
+SELECT audit_log_filter_set_filter('one_missing_arg', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('one_missing_arg', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}}
+]
+}
+}
+}
+}
+}
+}')
 ERROR: Incorrect rule definition
-SELECT audit_log_filter_set_filter('wrong_pattern_type', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": 2}}]}}}}}}');
-audit_log_filter_set_filter('wrong_pattern_type', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": "table_name.str"}}, {"string": {"string": 2}}]}}}}}}')
+SELECT audit_log_filter_set_filter('wrong_pattern_type', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": 2}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('wrong_pattern_type', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": "table_name.str"}},
+{"string": {"string": 2}}
+]
+}
+}
 ERROR: Incorrect rule definition
-SELECT audit_log_filter_set_filter('wrong_field_type', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": 2}}, {"string": {"string": "User_"}}]}}}}}}');
-audit_log_filter_set_filter('wrong_field_type', '{"filter": {"class": {"name": "table_access", "event": {"name": "read", "log": {"function": {"name": "string_find", "args": [{"string": {"field": 2}}, {"string": {"string": "User_"}}]}}}}}}')
+SELECT audit_log_filter_set_filter('wrong_field_type', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": 2}},
+{"string": {"string": "User_"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('wrong_field_type', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": "read",
+"log": {
+"function": {
+"name": "string_find",
+"args": [
+{"string": {"field": 2}},
+{"string": {"string": "User_"}}
+]
+}
+}
+}
+}
+}
+}')
 ERROR: Incorrect rule definition
 #
 # Cleanup

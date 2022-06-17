@@ -122,7 +122,7 @@ SELECT audit_log_filter_set_user('%', 'log_message');
 SELECT audit_log_filter_set_filter('log_classes_list_1', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}');
 SELECT audit_log_filter_set_user('%', 'log_classes_list_1');
 --source generate_audit_events.inc
---let $search_tag=[<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>|<EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME>]
+--let $search_tag=<EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME>
 --source check_all_events_with_tag.inc
 
 --echo #
@@ -130,7 +130,7 @@ SELECT audit_log_filter_set_user('%', 'log_classes_list_1');
 SELECT audit_log_filter_set_filter('log_classes_list_2', '{"filter": {"class": [{"name": ["general", "connection"]}]}}');
 SELECT audit_log_filter_set_user('%', 'log_classes_list_2');
 --source generate_audit_events.inc
---let $search_tag=[<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>|<EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME>]
+--let $search_tag=<EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME>
 --source check_all_events_with_tag.inc
 
 --echo #

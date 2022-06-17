@@ -142,7 +142,7 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_classes_list_1');
 audit_log_filter_set_user('%', 'log_classes_list_1')
 OK
-Tag [<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>|<EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME>] Ok
+Tag <EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME> Ok
 #
 # Another way to enable logging multiple classes with one rule
 SELECT audit_log_filter_set_filter('log_classes_list_2', '{"filter": {"class": [{"name": ["general", "connection"]}]}}');
@@ -151,7 +151,7 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_classes_list_2');
 audit_log_filter_set_user('%', 'log_classes_list_2')
 OK
-Tag [<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>|<EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME>] Ok
+Tag <EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME> Ok
 #
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';

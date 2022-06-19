@@ -246,7 +246,7 @@ bool SysVars::init() noexcept {
           "The logging method used by the audit log filter plugin, "
           "if FILE handler is used.",
           nullptr, nullptr, static_cast<void *>(&strategy_arg_check),
-          static_cast<void *>(&m_file_stategy))) {
+          static_cast<void *>(&m_file_stategy_type))) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to init %s.%s variable", kComponentName,
                     kVarNameStrategy);

@@ -101,8 +101,8 @@ class SysVars : public AuditBaseComponent {
    * @return Audit log filter file logging strategy, may be one of possible
    *         values of AuditLogStrategyType
    */
-  [[nodiscard]] AuditLogStrategyType get_file_strategy() noexcept {
-    return m_file_stategy;
+  [[nodiscard]] AuditLogStrategyType get_file_strategy_type() noexcept {
+    return m_file_stategy_type;
   }
 
   /**
@@ -160,7 +160,7 @@ class SysVars : public AuditBaseComponent {
   char *m_file_name = nullptr;
   AuditLogHandlerType m_handler_type = AuditLogHandlerType::File;
   AuditLogFormatType m_format_type = AuditLogFormatType::New;
-  AuditLogStrategyType m_file_stategy = AuditLogStrategyType::Asynchronous;
+  AuditLogStrategyType m_file_stategy_type = AuditLogStrategyType::Asynchronous;
   ulonglong m_buffer_size = 1048576UL;
   ulonglong m_rotate_on_size = 0UL;
   ulonglong m_rotations = 0UL;

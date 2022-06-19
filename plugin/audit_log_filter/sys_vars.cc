@@ -15,6 +15,7 @@
 
 #include "plugin/audit_log_filter/sys_vars.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
+#include "plugin/audit_log_filter/audit_log_filter.h"
 #include "plugin/audit_log_filter/sys_var_services.h"
 
 #include "mysql/plugin.h"
@@ -40,15 +41,16 @@ const char *kVarNameStrategy{"strategy"};
 const char *kVarNameBufferSize{"buffer_size"};
 const char *kVarNameRotateOnSize{"rotate_on_size"};
 const char *kVarNameRotations{"rotations"};
+const char *kVarNameFlush{"flush"};
 const char *kVarNameSyslogIdent{"syslog_ident"};
 const char *kVarNameSyslogFacility{"syslog_facility"};
 const char *kVarNameSyslogPriority{"syslog_priority"};
 
-const std::array<const char *, 10> var_names_list{
-    kVarNameFile,          kVarNameHandler,     kVarNameFormat,
-    kVarNameStrategy,      kVarNameBufferSize,  kVarNameRotateOnSize,
-    kVarNameRotations,     kVarNameSyslogIdent, kVarNameSyslogFacility,
-    kVarNameSyslogPriority};
+const std::array<const char *, 11> var_names_list{
+    kVarNameFile,           kVarNameHandler,     kVarNameFormat,
+    kVarNameStrategy,       kVarNameBufferSize,  kVarNameRotateOnSize,
+    kVarNameRotations,      kVarNameSyslogIdent, kVarNameSyslogFacility,
+    kVarNameSyslogPriority, kVarNameFlush};
 
 /*
  * TYPE_LIB definition for audit_log_filter.handler
@@ -121,10 +123,23 @@ TYPE_LIB audit_log_filter_syslog_priority_typelib = {
     "audit_log_filter_syslog_priority_typelib",
     audit_log_filter_syslog_priority_names, nullptr};
 
+void flush_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr, const void *save) {
+  const auto *val = static_cast<const bool *>(save);
+  auto *sys_vars = static_cast<VarWrapper<bool> *>(val_ptr)->get_container();
+
+  if (*val && sys_vars->get_rotate_on_size() == 0) {
+    sys_vars->get_mediator()->on_audit_log_flush_requested();
+  }
+}
+
 }  // namespace
 
 SysVars::SysVars(std::unique_ptr<SysVarServices> sys_var_services)
-    : m_sys_var_services{std::move(sys_var_services)} {}
+    : AuditBaseComponent(),
+      m_sys_var_services{std::move(sys_var_services)},
+      m_log_flush_requested{false} {
+  m_log_flush_requested.set_container(this);
+}
 
 SysVars::~SysVars() {
   auto *sys_var_srv = m_sys_var_services->get_sys_var_unreg();
@@ -142,6 +157,7 @@ bool SysVars::init() noexcept {
   using ulonglong_arg_check_t = INTEGRAL_CHECK_ARG(ulonglong);
   using str_arg_check_t = STR_CHECK_ARG(str);
   using enum_arg_check_t = ENUM_CHECK_ARG(enum);
+  using bool_arg_check_t = BOOL_CHECK_ARG(bool);
 
   auto *sys_var_srv = m_sys_var_services->get_sys_var_reg();
 
@@ -303,6 +319,23 @@ bool SysVars::init() noexcept {
   }
 
   /*
+   * When this variable is set to ON log file will be closed and reopened.
+   * This can be used for manual log rotation.
+   */
+  bool_arg_check_t flush_arg_check{false};
+
+  if (sys_var_srv->register_variable(
+          kComponentName, kVarNameFlush, PLUGIN_VAR_BOOL | PLUGIN_VAR_NOCMDARG,
+          "Close and reopen log file when set to ON.", nullptr,
+          flush_update_func, static_cast<void *>(&flush_arg_check),
+          static_cast<void *>(&m_log_flush_requested))) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to init %s.%s variable", kComponentName,
+                    kVarNameFlush);
+    return false;
+  }
+
+  /*
    * The audit_log_filter.syslog_ident variable is used to specify the ident
    * value for syslog.
    */
@@ -374,7 +407,6 @@ bool SysVars::init() noexcept {
 //  audit_log_disable
 //  audit_log_encryption
 //  audit_log_filter_id
-//  audit_log_flush
 //  audit_log_password_history_keep_days
 //  audit_log_prune_seconds
 //  audit_log_read_buffer_size
@@ -389,11 +421,11 @@ bool SysVars::init() noexcept {
 //  Audit_log_total_size
 //  Audit_log_write_waits
 
-int SysVars::get_syslog_facility() noexcept {
+int SysVars::get_syslog_facility() const noexcept {
   return audit_log_filter_syslog_facility_codes[m_syslog_facility];
 }
 
-int SysVars::get_syslog_priority() noexcept {
+int SysVars::get_syslog_priority() const noexcept {
   return audit_log_filter_syslog_priority_codes[m_syslog_priority];
 }
 

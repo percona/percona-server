@@ -100,4 +100,9 @@ void LogWriterFile::rotate() noexcept {
   m_is_rotating = false;
 }
 
+void LogWriterFile::flush() noexcept {
+  do_close_file();
+  do_open_file();
+}
+
 }  // namespace audit_log_filter::log_writer

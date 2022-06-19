@@ -88,6 +88,11 @@ class LogWriterBase {
   virtual void rotate() noexcept {}
 
   /**
+   * @brief Close and reopen current log file. Used for manual log rotation.
+   */
+  virtual void flush() noexcept = 0;
+
+  /**
    * @brief Get current log file size in bytes.
    *
    * @return Current log file size in bytes

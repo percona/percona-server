@@ -17,6 +17,7 @@
 
 #include "plugin/audit_log_filter/audit_error_log.h"
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
+#include "plugin/audit_log_filter/sys_vars.h"
 
 #include "sql/mysqld.h"
 
@@ -25,16 +26,12 @@
 namespace audit_log_filter::log_writer {
 
 LogWriter<AuditLogHandlerType::File>::LogWriter(
-    std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter,
-    const LogWriterConfig &conf)
-    : LogWriterBase{std::move(formatter)},
-      m_file_name{conf.file_name},
-      m_file_size_limit{conf.file_size_limit},
-      m_file_rotations{conf.file_rotations},
-      m_file_buffer_size{conf.file_buffer_size},
-      m_file_strategy_type{conf.file_strategy_type},
+    std::shared_ptr<SysVars> config,
+    std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter)
+    : LogWriterBase{std::move(config), std::move(formatter)},
       m_is_rotating{false},
-      m_strategy{get_log_writer_strategy(m_file_strategy_type)} {}
+      m_strategy{
+          get_log_writer_strategy(get_config()->get_file_strategy_type())} {}
 
 LogWriter<AuditLogHandlerType::File>::~LogWriter() { do_close_file(); }
 
@@ -44,7 +41,7 @@ bool LogWriterFile::close() noexcept { return do_close_file(); }
 
 bool LogWriterFile::do_open_file() noexcept {
   auto file_path = std::filesystem::path{mysql_data_home} /
-                   std::filesystem::path{m_file_name};
+                   std::filesystem::path{get_config()->get_file_name()};
   bool is_new_file = !std::filesystem::exists(file_path);
 
   if (!is_new_file) {
@@ -53,7 +50,7 @@ bool LogWriterFile::do_open_file() noexcept {
   }
 
   if (!m_strategy->do_open_file(&m_file_handle, file_path,
-                                m_file_buffer_size)) {
+                                get_config()->get_buffer_size())) {
     return false;
   }
 
@@ -74,8 +71,10 @@ bool LogWriterFile::do_close_file() noexcept {
 void LogWriterFile::write(const std::string &record) noexcept {
   m_strategy->do_write(&m_file_handle, record);
 
-  if (m_file_size_limit > 0 && !m_is_rotating &&
-      m_file_size_limit < get_log_size()) {
+  const auto file_size_limit = get_config()->get_rotate_on_size();
+
+  if (file_size_limit > 0 && !m_is_rotating &&
+      file_size_limit < get_log_size()) {
     rotate();
   }
 }
@@ -88,7 +87,7 @@ void LogWriterFile::rotate() noexcept {
   m_is_rotating = true;
   do_close_file();
 
-  auto ec = FileHandle::rotate(mysql_data_home, m_file_name);
+  auto ec = FileHandle::rotate(mysql_data_home, get_config()->get_file_name());
 
   if (ec.value() != 0) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,

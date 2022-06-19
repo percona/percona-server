@@ -34,7 +34,7 @@ class AuditLogFilter : public AuditBaseMediator {
   AuditLogFilter() = delete;
   AuditLogFilter(std::unique_ptr<AuditRuleRegistry> audit_rules_registry,
                  std::unique_ptr<AuditUdf> audit_udf,
-                 std::unique_ptr<SysVars> sys_vars,
+                 std::shared_ptr<SysVars> sys_vars,
                  std::unique_ptr<log_writer::LogWriterBase> log_writer);
 
   /**
@@ -69,7 +69,7 @@ class AuditLogFilter : public AuditBaseMediator {
  private:
   std::unique_ptr<AuditRuleRegistry> m_audit_rules_registry;
   std::unique_ptr<AuditUdf> m_audit_udf;
-  std::unique_ptr<SysVars> m_sys_vars;
+  std::shared_ptr<SysVars> m_sys_vars;
   std::unique_ptr<log_writer::LogWriterBase> m_log_writer;
   std::unique_ptr<AuditEventFilter> m_filter;
 };

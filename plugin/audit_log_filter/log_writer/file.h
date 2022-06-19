@@ -34,8 +34,8 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
  public:
   LogWriter<AuditLogHandlerType::File>() = delete;
   LogWriter<AuditLogHandlerType::File>(
-      std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter,
-      const LogWriterConfig &conf);
+      std::shared_ptr<SysVars> config,
+      std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
   ~LogWriter<AuditLogHandlerType::File>() override;
 
   /**
@@ -92,13 +92,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   void rotate() noexcept override;
 
  private:
-  std::string m_file_name;
-  size_t m_file_size_limit;
-  size_t m_file_rotations;
-  size_t m_file_buffer_size;
-  AuditLogStrategyType m_file_strategy_type;
   bool m_is_rotating;
-
   FileHandle m_file_handle;
   std::unique_ptr<log_writer_strategy::FileWriterStrategyBase> m_strategy;
 };

@@ -50,6 +50,11 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
   void write(const std::string &record [[maybe_unused]]) noexcept override {}
 
   /**
+   * @brief Close and reopen current log file. Used for manual log rotation.
+   */
+  void flush() noexcept override {}
+
+  /**
    * @brief Get current log file size in bytes.
    *
    * @return Current log file size in bytes

@@ -16,6 +16,7 @@
 #ifndef AUDIT_LOG_FILTER_SYS_VARS_H_INCLUDED
 #define AUDIT_LOG_FILTER_SYS_VARS_H_INCLUDED
 
+#include "plugin/audit_log_filter/audit_base_component.h"
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
 #include "plugin/audit_log_filter/log_writer/base.h"
 #include "plugin/audit_log_filter/log_writer_strategy/base.h"
@@ -26,12 +27,34 @@
 namespace audit_log_filter {
 
 class SysVarServices;
+class SysVars;
 
 using log_record_formatter::AuditLogFormatType;
 using log_writer::AuditLogHandlerType;
 using log_writer_strategy::AuditLogStrategyType;
 
-class SysVars {
+template <typename T>
+class VarWrapper {
+ public:
+  explicit VarWrapper(T def_value) : m_value{def_value}, m_container{nullptr} {}
+
+  VarWrapper &operator=(T val) noexcept {
+    m_value = val;
+    return *this;
+  }
+
+  explicit operator const T &() const noexcept { return m_value; }
+  explicit operator T &() noexcept { return m_value; }
+
+  [[nodiscard]] SysVars *get_container() const noexcept { return m_container; }
+  void set_container(SysVars *container) noexcept { m_container = container; }
+
+ private:
+  T m_value;
+  SysVars *m_container;
+};
+
+class SysVars : public AuditBaseComponent {
  public:
   SysVars() = delete;
   explicit SysVars(std::unique_ptr<SysVarServices> sys_var_services);
@@ -87,14 +110,16 @@ class SysVars {
    *
    * @return Size of memory buffer used for logging in bytes
    */
-  [[nodiscard]] ulonglong get_buffer_size() noexcept { return m_buffer_size; }
+  [[nodiscard]] ulonglong get_buffer_size() const noexcept {
+    return m_buffer_size;
+  }
 
   /**
    * @brief Get the maximum size of the audit filter log file in bytes.
    *
    * @return Maximum size of the audit filter log file in bytes
    */
-  [[nodiscard]] ulonglong get_rotate_on_size() noexcept {
+  [[nodiscard]] ulonglong get_rotate_on_size() const noexcept {
     return m_rotate_on_size;
   }
 
@@ -104,7 +129,7 @@ class SysVars {
    *
    * @return Number of rotated log files kept on disk
    */
-  [[nodiscard]] ulonglong get_rotations() noexcept { return m_rotations; }
+  [[nodiscard]] ulonglong get_rotations() const noexcept { return m_rotations; }
 
   /**
    * @brief Get the ident value for syslog.
@@ -120,14 +145,14 @@ class SysVars {
    *
    * @return Facility value for syslog
    */
-  [[nodiscard]] int get_syslog_facility() noexcept;
+  [[nodiscard]] int get_syslog_facility() const noexcept;
 
   /**
    * @brief Get the priority value for syslog.
    *
    * @return Priority value for syslog
    */
-  [[nodiscard]] int get_syslog_priority() noexcept;
+  [[nodiscard]] int get_syslog_priority() const noexcept;
 
  private:
   std::unique_ptr<SysVarServices> m_sys_var_services;
@@ -142,6 +167,7 @@ class SysVars {
   char *m_syslog_ident = nullptr;
   ulong m_syslog_facility = 0UL;
   ulong m_syslog_priority = 0UL;
+  VarWrapper<bool> m_log_flush_requested;
 };
 
 }  // namespace audit_log_filter

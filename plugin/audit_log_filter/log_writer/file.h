@@ -66,6 +66,11 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
    */
   [[nodiscard]] uint64_t get_log_size() const noexcept override;
 
+  /**
+   * @brief Close and reopen current log file. Used for manual log rotation.
+   */
+  void flush() noexcept override;
+
  private:
   /**
    * @brief Implement actual file opening logic.

@@ -331,6 +331,7 @@ AuditLogFilter::AuditLogFilter(
       m_log_writer{std::move(log_writer)},
       m_filter{std::make_unique<AuditEventFilter>()} {
   m_audit_udf->set_mediator(this);
+  m_sys_vars->set_mediator(this);
 }
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
@@ -424,6 +425,10 @@ void AuditLogFilter::on_audit_rule_flush_requested() noexcept {
 
   DBUG_EXECUTE_IF("audit_log_filter_rotate_after_audit_rules_flush",
                   { m_log_writer->rotate(); });
+}
+
+void AuditLogFilter::on_audit_log_flush_requested() noexcept {
+  m_log_writer->flush();
 }
 
 }  // namespace audit_log_filter

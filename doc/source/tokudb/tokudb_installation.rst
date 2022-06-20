@@ -55,12 +55,11 @@ package by using the :program:`apt`` or :program:`yum` package
 manager, but *Percona Server for MySQL* instance should be restarted for
 ``libjemalloc`` to be loaded. This way ``libjemalloc`` will be loaded
 with ``LD_PRELOAD``. You can also enable ``libjemalloc`` by specifying
-:variable:`malloc-lib` variable in the ``[mysqld_safe]`` section of
+:ref:`malloc-lib` variable in the ``[mysqld_safe]`` section of
 the :file:`my.cnf` file: ::
 
   [mysqld_safe]
   malloc-lib= /path/to/jemalloc
-
 
 Transparent huge pages
 --------------------------------------------------------------------------------
@@ -131,7 +130,6 @@ Once the *TokuDB* server package is installed, the following output is shown:
      * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_installation.html for more installation details
 
      * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_intro.html for an introduction to TokuDB
-
 
 *Percona Server for MySQL* has implemented :program:`ps-admin` to make the enabling the
 *TokuDB* storage engine easier. This script will automatically disable

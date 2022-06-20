@@ -35,7 +35,7 @@ version of *Percona Server for MySQL*.
    <http://www.percona.com/downloads/Percona-Server-8.0/LATEST/>`_ *TokuDB*
    engine should be used with *Percona Server for MySQL*. A *TokuDB* engine downloaded
    from other sources is not compatible. *TokuDB* file formats are not the same
-   across *MySQL* variants. Migrating from one variant to any other variant
+   across MySQL variants. Migrating from one variant to any other variant
    requires a logical data dump and reload.
 
 Additional features unique to *TokuDB* include:

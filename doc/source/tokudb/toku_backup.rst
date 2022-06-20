@@ -85,7 +85,7 @@ following command:
 
 .. note::
 
-   Setting the :variable:`tokudb_backup_dir` variable automatically
+   Setting the :ref:`tokudb_backup_dir` variable automatically
    starts the backup process to the specified directory. Percona
    TokuBackup will take full backup each time, currently there is no
    incremental backup option
@@ -121,7 +121,7 @@ Since attributes of files are preserved, in most cases you will need to change t
 
   $ chown -R mysql:mysql /var/lib/mysql
 
-If you have changed default *TokuDB* data directory (:variable:`tokudb_data_dir`) or *TokuDB* log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately:
+If you have changed default *TokuDB* data directory (:ref:`tokudb_data_dir`) or *TokuDB* log directory (:ref:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately:
 
 .. code-block:: bash
 
@@ -146,7 +146,7 @@ Monitoring Progress
 Excluding Source Files
 **********************
 
-You can exclude certain files and directories based on a regular expression set in the :variable:`tokudb_backup_exclude` session variable. If the source file name matches the excluded regular expression, then the source file is excluded from backup.
+You can exclude certain files and directories based on a regular expression set in the :ref:`tokudb_backup_exclude` session variable. If the source file name matches the excluded regular expression, then the source file is excluded from backup.
 
 For example, to exclude all :file:`lost+found` directories from backup, use the following command:
 
@@ -163,7 +163,7 @@ For example, to exclude all :file:`lost+found` directories from backup, use the 
 Throttling Backup Rate
 **********************
 
-You can throttle the backup rate using the :variable:`tokudb_backup_throttle` session-level variable. This variable throttles the write rate in bytes per second of the backup to prevent TokuBackup from crowding out other jobs in the system. The default and max value is 18446744073709551615.
+You can throttle the backup rate using the :ref:`tokudb_backup_throttle` session-level variable. This variable throttles the write rate in bytes per second of the backup to prevent TokuBackup from crowding out other jobs in the system. The default and max value is 18446744073709551615.
 
 .. code-block:: mysql
 
@@ -172,7 +172,7 @@ You can throttle the backup rate using the :variable:`tokudb_backup_throttle` se
 Restricting Backup Target
 *************************
 
-You can restrict the location of the destination directory where the backups can be located using the :variable:`tokudb_backup_allowed_prefix` system-level variable. Attempts to backup to a location outside of the specified directory or its children will result in an error.
+You can restrict the location of the destination directory where the backups can be located using the :ref:`tokudb_backup_allowed_prefix` system-level variable. Attempts to backup to a location outside of the specified directory or its children will result in an error.
 
 The default is ``null``, backups have no restricted locations. This read-only variable can be set in the :file:`my.cnf` configuration file and displayed with the ``SHOW VARIABLES`` command:
 
@@ -189,7 +189,7 @@ The default is ``null``, backups have no restricted locations. This read-only va
 Reporting Errors
 ****************
 
-*Percona TokuBackup* uses two variables to capture errors. They are :variable:`tokudb_backup_last_error` and :variable:`tokudb_backup_last_error_string`. When *TokuBackup* encounters an error, these will report on the error number and the error string respectively. For example, the following output shows these parameters following an attempted backup to a directory that was not empty:
+*Percona TokuBackup* uses two variables to capture errors. They are :ref:`tokudb_backup_last_error` and :ref:`tokudb_backup_last_error_string`. When *TokuBackup* encounters an error, these will report on the error number and the error string respectively. For example, the following output shows these parameters following an attempted backup to a directory that was not empty:
 
 .. code-block:: mysql
 
@@ -266,9 +266,9 @@ created with temporary tables created by binlog events can cause issues when
 restored because the temporary tables are not restored. The data may be
 inconsistent.
 
-The following system variables :variable:`--tokudb-backup-safe-slave`, which
+The following system variables :ref:`--tokudb-backup-safe-slave`, which
 enables or disables the safe-slave mode, and
-:variable:`--tokudb-backup-safe-slave-timeout`, which defines the maximum amount
+:ref:`--tokudb-backup-safe-slave-timeout`, which defines the maximum amount
 of time in seconds to wait until temporary tables disappear.  The
 ``safe-slave`` mode, when used with ``LOCK BINLOG FOR BACKUP``, the replica SQL
 thread is stopped and checked to see if temporary tables produced by the replica
@@ -306,15 +306,15 @@ Limitations and known issues
 
 * The database is copied locally to the path specified in :file:`/path/to/backup`. This folder must exist, be writable, be empty, and contain enough space for a full copy of the database.
 
-* *TokuBackup* always makes a backup of the *MySQL* :variable:`datadir` and optionally the :variable:`tokudb_data_dir`, :variable:`tokudb_log_dir`, and the binary log folder. The latter three are only backed up separately if they are not the same as or contained in the *MySQL* :variable:`datadir`. None of these three folders can be a parent of the *MySQL* :variable:`datadir`.
+* *TokuBackup* always makes a backup of the *MySQL* :ref:`datadir` and optionally the :ref:`tokudb_data_dir`, :ref:`tokudb_log_dir`, and the binary log folder. The latter three are only backed up separately if they are not the same as or contained in the *MySQL* :ref:`datadir`. None of these three folders can be a parent of the *MySQL* :ref:`datadir`.
 
-* No other directory structures are supported. All *InnoDB*, *MyISAM*, and other storage engine files must be within the *MySQL* :variable:`datadir`.
+* No other directory structures are supported. All *InnoDB*, *MyISAM*, and other storage engine files must be within the *MySQL* :ref:`datadir`.
 
 * *TokuBackup* does not follow symbolic links.
 
 * *TokuBackup* does not backup *MySQL* configuration file(s).
 
-* *TokuBackup* does not backup tablespaces if they are out of :variable:`datadir`.
+* *TokuBackup* does not backup tablespaces if they are out of :ref:`datadir`.
 
 * Due to upstream bug :mysqlbug:`80183`, *TokuBackup* can't recover backed-up table data if backup was taken while running ``OPTIMIZE TABLE`` or ``ALTER TABLE ... TABLESPACE``.
 

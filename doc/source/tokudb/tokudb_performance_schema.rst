@@ -20,7 +20,7 @@ TokuDB Performance Schema Integration
 This integration can be used for profiling additional *TokuDB* operations.
 
 *TokuDB* instruments available in Performance Schema can be seen in
-:table:`PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS` table:
+:ref:`PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS` table:
 
 .. code-block:: mysql
 
@@ -108,7 +108,7 @@ Performance Schema tables:
  * ``WHERE NAME LIKE '%fti%'``
 
 For example, to get the information about *TokuDB* related events you can query
-:table:`PERFORMANCE_SCHEMA.events_waits_summary_global_by_event_name` like:
+:ref:`PERFORMANCE_SCHEMA.events_waits_summary_global_by_event_name` like:
 
 .. code-block:: mysql
 

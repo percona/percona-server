@@ -93,7 +93,7 @@ These are typically named:
 ``_<database>_<table>_<key>_<internal_txn_id>.tokudb``
 
 *Percona FT* creates/expects these files in the directory specified by
-:variable:`tokudb_data_dir` if set, otherwise the *MySQL* ``datadir`` is used.
+:ref:`tokudb_data_dir` if set, otherwise the *MySQL* ``datadir`` is used.
 
 Recovery log files
 ------------------
@@ -108,8 +108,7 @@ These files have a rolling naming convention, but use:
 ``log<log_file_number>.tokulog<log_file_format_version>``.
 
 *Percona FT* creates/expects these files in the directory specified by
-:variable:`tokudb_log_dir` if set, otherwise the *MySQL* `datadir` is
-used.
+:ref:`tokudb_log_dir` if set, otherwise the *MySQL* `datadir` is used.
 
 *Percona FT* does not track what log files should or shouldn't be present. Upon
 startup, it discovers the logs in the log directory, and replays them in order.
@@ -128,7 +127,7 @@ As different operations start and finish, the files will come and go.
 There are no temporary files left behind upon a clean shutdown,
 
 *Percona FT* creates/expects these files in the directory specified by
-:variable:`tokudb_tmp_dir` if set. If not, the :variable:`tokudb_data_dir` is
+:ref:`tokudb_tmp_dir` if set. If not, the :ref:`tokudb_data_dir` is
 used if set, otherwise the *MySQL* `datadir` is used.
 
 Lock files

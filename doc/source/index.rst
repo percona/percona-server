@@ -161,6 +161,7 @@ Security Improvements
   security/verifying-encryption
   security/ssl-improvement
   security/data-masking
+  security/system-variables
 
 Diagnostics Improvements
 ================================================================================

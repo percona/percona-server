@@ -4,7 +4,7 @@
 SEQUENCE_TABLE(n) Function
 ===============================================================================
 
-|Percona Server| 8.0.20-11 adds the SEQUENCE_TABLE() function.
+*Percona Server for MySQL* 8.0.20-11 adds the SEQUENCE_TABLE() function.
 
 A sequence of numbers can be defined as an arithmetic progression when the common difference between two consecutive terms is always the same.
 

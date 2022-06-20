@@ -1,4 +1,6 @@
 CREATE TABLE t1 (a int, b varchar(1000) character set ucs2, c varchar(10000)) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (null,null,null),(1,'',''),(2,'a','a');
 CREATE INDEX i1 ON t1 (b(550));
 CREATE PROCEDURE p1 ()

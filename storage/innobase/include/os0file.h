@@ -103,6 +103,9 @@ struct Block {
 
   /** Pointer to the memory block. */
   byte *m_ptr;
+  /** Size of the data in memory block. This may be not UNIV_PAGE_SIZE if the
+  data was compressed before encryption. */
+  size_t m_size;
   /** This padding is needed to avoid false sharing. TBD: of what exactly? We
   can't use alignas because std::vector<Block> uses std::allocator which in
   C++14 doesn't have to handle overaligned types. (see 20.7.9.1.5 of N4140
@@ -286,6 +289,8 @@ static const ulint OS_FILE_AIO_INTERRUPTED = 79;
 static const ulint OS_FILE_OPERATION_ABORTED = 80;
 static const ulint OS_FILE_ACCESS_VIOLATION = 81;
 static const ulint OS_FILE_NAME_TOO_LONG = 82;
+static const ulint OS_FILE_TOO_MANY_OPENED = 83;
+
 static const ulint OS_FILE_ERROR_MAX = 100;
 /** @} */
 
@@ -471,6 +476,14 @@ class IORequest {
   @param[in] block_size		Block size to set */
   void block_size(ulint block_size) {
     m_block_size = static_cast<uint32_t>(block_size);
+  }
+
+  /** Returns original size of the IO to make. If one was not specified, then 0
+  is returned. */
+  uint32_t get_original_size() const { return m_original_size; }
+
+  void set_original_size(uint32_t original_size) {
+    m_original_size = original_size;
   }
 
   /** Clear all compression related flags */
@@ -707,6 +720,12 @@ class IORequest {
   bool m_is_page_zip_compressed;
 
   ulint m_zip_page_physical_size;
+
+  /** Length of the original IO size.
+  For reads it is an expected uncompressed length.
+  For writes it is a length up to which the write is to be extended with a punch
+  hole, if supported. */
+  uint32_t m_original_size{};
 };
 
 /** @} */
@@ -1321,7 +1340,8 @@ an asynchronous I/O operation.
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
+@param[in]	n		how many bytes to read or write; this
+must not cross a file boundary; in AIO this must be a block size multiple
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in,out]	m1		Message for the AIO handler, (can be used to
                                 identify a completed AIO operation); ignored
@@ -1832,24 +1852,21 @@ Requests an asynchronous i/o operation.
 @param[in]	type		IO request context
 @param[in]	aio_mode	IO mode
 @param[in]	name		Name of the file or path as NUL terminated
-                                string
+string
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
+@param[in]	n		how many bytes to read or write; this
+must not cross a file boundary; in AIO this must be a block size multiple
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in,out]	m1		Message for the AIO handler, (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is OS_AIO_SYNC
+identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
 @param[in,out]	m2		message for the AIO handler (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is OS_AIO_SYNC
+identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
 @param[in]	should_buffer	Whether to buffer an aio request.
-                                AIO read ahead uses this. If you plan to
-                                use this parameter, make sure you remember to
-                                call os_aio_dispatch_read_array_submit()
-                                when you're ready to commit all your
-                                requests.
+AIO read ahead uses this. If you plan to use this parameter,
+make sure you remember to call os_aio_dispatch_read_array_submit()
+when you're ready to commit all your requests.
 @return DB_SUCCESS or error code */
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
@@ -2102,10 +2119,10 @@ inline void file::Block::free(file::Block *obj) noexcept { os_free_block(obj); }
 /** Encrypt a page content when write it to disk.
 @param[in]	type		IO flags
 @param[out]	buf		buffer to read or write
-@param[in,out]	n		number of bytes to read/write, starting from
+@param[in]	n		number of bytes to read/write, starting from
                                 offset
 @return pointer to the encrypted page */
-file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n);
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint n);
 
 /** Allocate the buffer for IO on a transparently compressed table.
 @param[in]	type		IO flags

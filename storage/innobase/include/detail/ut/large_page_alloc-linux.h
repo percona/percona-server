@@ -34,8 +34,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/mman.h>
 #include <sys/types.h>
 
+#include "mysqld_error.h"
 #include "storage/innobase/include/detail/ut/helper.h"
 #include "storage/innobase/include/os0populate.h"
+#include "storage/innobase/include/ut0log.h"
 
 extern const size_t large_page_default_size;
 
@@ -54,7 +56,13 @@ inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
       nullptr, n_bytes, PROT_READ | PROT_WRITE,
       MAP_PRIVATE | MAP_ANON | MAP_HUGETLB | (populate ? OS_MAP_POPULATE : 0),
       -1, 0);
-  if (ptr == (void *)-1) return nullptr;
+  if (unlikely(ptr == (void *)-1)) {
+    ib::log_warn(ER_IB_MSG_856) << "large_page_aligned_alloc mmap(" << n_bytes
+                                << " bytes) failed;"
+                                   " errno "
+                                << errno;
+    return nullptr;
+  }
 
   if (populate) prefault_if_not_map_populate(ptr, n_bytes);
 
@@ -70,8 +78,16 @@ inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
 inline bool large_page_aligned_free(void *ptr, size_t n_bytes) {
   if (unlikely(!ptr)) return false;
   // Freeing huge-pages require size to be the multiple of huge-page size
-  auto ret = munmap(ptr, pow2_round(n_bytes + (large_page_default_size - 1),
-                                    large_page_default_size));
+  size_t n_bytes_rounded = pow2_round(n_bytes + (large_page_default_size - 1),
+                                      large_page_default_size);
+  auto ret = munmap(ptr, n_bytes_rounded);
+  if (unlikely(ret != 0)) {
+    ib::log_error(ER_IB_MSG_858)
+        << "large_page_aligned_free munmap(" << ptr << ", " << n_bytes_rounded
+        << ") failed;"
+           " errno "
+        << errno;
+  }
   return ret == 0;
 }
 

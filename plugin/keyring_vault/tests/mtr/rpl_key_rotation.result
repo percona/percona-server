@@ -66,7 +66,6 @@ include/stop_slave_sql.inc
 [On Master]
 CREATE TABLE t4(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t4 VALUES(1, "rpltest");
-include/save_master_pos.inc
 [On Slave]
 START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=3185]
@@ -80,7 +79,7 @@ PLUGIN_NAME	keyring_vault
 PLUGIN_VERSION	1.0
 PLUGIN_STATUS	ACTIVE
 include/start_slave_sql.inc
-include/sync_slave_sql.inc
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t4;
 c1	c2
 1	rpltest

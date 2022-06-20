@@ -10980,8 +10980,6 @@ TABLE *open_log_table(THD *thd, TABLE_LIST *one_table,
                 MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY | MYSQL_OPEN_IGNORE_FLUSH |
                 MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_LOCK_LOG_TABLE);
   TABLE *table;
-  /* Save value that is changed in mysql_lock_tables() */
-  ulonglong save_utime_after_lock = thd->utime_after_lock;
   DBUG_TRACE;
 
   thd->reset_n_backup_open_tables_state(backup,
@@ -10996,7 +10994,6 @@ TABLE *open_log_table(THD *thd, TABLE_LIST *one_table,
   } else
     thd->restore_backup_open_tables_state(backup);
 
-  thd->utime_after_lock = save_utime_after_lock;
   return table;
 }
 

@@ -608,6 +608,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_cp932;
 # Testing character set "dec8" collation "dec8_bin" padding "PAD SPACE"
 CREATE TABLE t_dec8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET dec8 COLLATE dec8_bin;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_dec8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_dec8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_dec8.PRIMARY'
@@ -629,6 +632,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_dec8;
 # Testing character set "dec8" collation "dec8_swedish_ci" padding "PAD SPACE"
 CREATE TABLE t_dec8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET dec8 COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_dec8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_dec8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_dec8.PRIMARY'
@@ -1007,6 +1013,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_hebrew;
 # Testing character set "hp8" collation "hp8_bin" padding "PAD SPACE"
 CREATE TABLE t_hp8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET hp8 COLLATE hp8_bin;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_bin' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_hp8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_hp8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_hp8.PRIMARY'
@@ -1028,6 +1037,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_hp8;
 # Testing character set "hp8" collation "hp8_english_ci" padding "PAD SPACE"
 CREATE TABLE t_hp8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET hp8 COLLATE hp8_english_ci;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_hp8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_hp8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_hp8.PRIMARY'
@@ -1553,6 +1565,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_latin7;
 # Testing character set "macce" collation "macce_bin" padding "PAD SPACE"
 CREATE TABLE t_macce (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET macce COLLATE macce_bin;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_macce VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macce VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_macce.PRIMARY'
@@ -1574,6 +1589,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_macce;
 # Testing character set "macce" collation "macce_general_ci" padding "PAD SPACE"
 CREATE TABLE t_macce (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET macce COLLATE macce_general_ci;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_macce VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macce VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_macce.PRIMARY'
@@ -1595,6 +1613,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_macce;
 # Testing character set "macroman" collation "macroman_bin" padding "PAD SPACE"
 CREATE TABLE t_macroman (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET macroman COLLATE macroman_bin;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_macroman VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macroman VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_macroman.PRIMARY'
@@ -1616,6 +1637,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_macroman;
 # Testing character set "macroman" collation "macroman_general_ci" padding "PAD SPACE"
 CREATE TABLE t_macroman (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET macroman COLLATE macroman_general_ci;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_macroman VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macroman VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_macroman.PRIMARY'
@@ -1763,6 +1787,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_tis620;
 # Testing character set "ucs2" collation "ucs2_bin" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_bin;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1784,6 +1811,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_croatian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_croatian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_croatian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1805,6 +1835,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_czech_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_czech_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1826,6 +1859,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_danish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_danish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1847,6 +1883,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_esperanto_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_esperanto_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_esperanto_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1868,6 +1907,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_estonian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_estonian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_estonian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1889,6 +1931,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_general_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_general_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1910,6 +1955,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_general_mysql500_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_general_mysql500_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_mysql500_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1931,6 +1979,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_german2_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_german2_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_german2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1952,6 +2003,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_hungarian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_hungarian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_hungarian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1973,6 +2027,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_icelandic_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_icelandic_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_icelandic_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1994,6 +2051,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_latvian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_latvian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_latvian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2015,6 +2075,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_lithuanian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_lithuanian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_lithuanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2036,6 +2099,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_persian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_persian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2057,6 +2123,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_polish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_polish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2078,6 +2147,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_romanian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_romanian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_romanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2099,6 +2171,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_roman_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_roman_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_roman_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2120,6 +2195,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_sinhala_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_sinhala_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_sinhala_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2141,6 +2219,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_slovak_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_slovak_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_slovak_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2162,6 +2243,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_slovenian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_slovenian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_slovenian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2183,6 +2267,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_spanish2_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_spanish2_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_spanish2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2204,6 +2291,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_spanish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_spanish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_spanish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2225,6 +2315,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_swedish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_swedish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2246,6 +2339,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_turkish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_turkish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_turkish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2267,6 +2363,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_unicode_520_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_unicode_520_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_520_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2288,6 +2387,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_unicode_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_unicode_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2309,6 +2411,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_vietnamese_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_vietnamese_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_vietnamese_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'

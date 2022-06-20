@@ -714,6 +714,7 @@ MySQL clients support the protocol:
 #include "my_time.h"
 #include "my_timer.h"  // my_timer_initialize
 #include "myisam.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_runtime_error_service.h"
@@ -728,7 +729,6 @@ MySQL clients support the protocol:
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"
 #include "mysql/psi/psi_error.h"
@@ -752,6 +752,7 @@ MySQL clients support the protocol:
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "mysys/buffered_error_log.h"
 #include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
 #include "print_version.h"
@@ -802,11 +803,11 @@ MySQL clients support the protocol:
 #include "sql/persisted_variable.h"               // Persisted_variables_cache
 #include "sql/plugin_table.h"
 #include "sql/protocol.h"
-#include "sql/sql_profile.h"
 #include "sql/psi_memory_key.h"  // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
 #include "sql/replication.h"                        // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
+#include "sql/sql_profile.h"
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
@@ -928,6 +929,7 @@ MySQL clients support the protocol:
 #include <crtdbg.h>
 #include <process.h>
 #endif
+#include "unicode/putil.h"   // u_setDataDirectory()
 #include "unicode/uclean.h"  // u_cleanup()
 
 #include <algorithm>
@@ -1011,6 +1013,7 @@ inline void setup_fpu() {
 }
 
 extern "C" void handle_fatal_signal(int sig);
+void my_server_abort();
 
 /* Constants */
 
@@ -1115,6 +1118,7 @@ static PSI_mutex_key key_LOCK_admin_tls_ctx_options;
 static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
 static PSI_mutex_key key_LOCK_partial_revokes;
 static PSI_mutex_key key_LOCK_authentication_policy;
+static PSI_mutex_key key_LOCK_global_conn_mem_limit;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1241,6 +1245,7 @@ bool relay_log_purge;
 bool relay_log_recovery;
 bool opt_allow_suspicious_udfs;
 const char *opt_secure_file_priv;
+const char *opt_secure_log_path;
 bool opt_log_slow_admin_statements = false;
 bool opt_log_slow_replica_statements = false;
 bool lower_case_file_system = false;
@@ -1365,6 +1370,8 @@ bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
 
 ulonglong denied_connections = 0;
+ulonglong global_conn_mem_limit = 0;
+ulonglong global_conn_mem_counter = 0;
 
 /**
   This variable holds handle to the object that's responsible
@@ -1478,6 +1485,7 @@ uint reg_ext_length;
 char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
+char secure_log_real_path[FN_REFLEN];
 Time_zone *default_tz;
 char *mysql_data_home = const_cast<char *>(".");
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
@@ -1627,6 +1635,8 @@ mysql_mutex_t LOCK_rotate_binlog_master_key;
   'SET @@GLOBAL.authentication_policy...' in parallel.
 */
 mysql_mutex_t LOCK_authentication_policy;
+
+mysql_mutex_t LOCK_global_conn_mem_limit;
 
 bool mysqld_server_started = false;
 /**
@@ -1862,6 +1872,19 @@ struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated) {
   return &thd->status_var;
 }
 
+#ifndef NDEBUG
+bool thd_mem_cnt_alloc(THD *thd, size_t size, const char *key_name) {
+  thd->current_key_name = key_name;
+  return thd->mem_cnt->alloc_cnt(size);
+}
+#else
+bool thd_mem_cnt_alloc(THD *thd, size_t size) {
+  return thd->mem_cnt->alloc_cnt(size);
+}
+#endif
+
+void thd_mem_cnt_free(THD *thd, size_t size) { thd->mem_cnt->free_cnt(size); }
+
 static void option_error_reporter(enum loglevel level, uint ecode, ...) {
   va_list args;
   va_start(args, ecode);
@@ -1955,7 +1978,7 @@ static bool pid_file_created = false;
 static void usage(void);
 static void clean_up_mutexes(void);
 static bool create_pid_file();
-static void mysqld_exit(int exit_code) MY_ATTRIBUTE((noreturn));
+[[noreturn]] static void mysqld_exit(int exit_code);
 static void delete_pid_file(myf flags);
 static void clean_up(bool print_message);
 static int handle_early_options();
@@ -2737,6 +2760,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_partial_revokes);
   mysql_mutex_destroy(&LOCK_authentication_policy);
+  mysql_mutex_destroy(&LOCK_global_conn_mem_limit);
 }
 
 /****************************************************************************
@@ -5357,7 +5381,9 @@ int init_common_variables() {
   FIX_LOG_VAR(opt_general_logname,
               make_query_log_name(logname_path, QUERY_LOG_GENERAL));
   FIX_LOG_VAR(opt_slow_logname,
-              make_query_log_name(slow_logname_path, QUERY_LOG_SLOW));
+              my_strdup(key_memory_LOG_name,
+                        make_query_log_name(slow_logname_path, QUERY_LOG_SLOW),
+                        MYF(MY_WME)));
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the debug sync facility. See debug_sync.cc. */
@@ -5512,6 +5538,8 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_partial_revokes, &LOCK_partial_revokes,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_authentication_policy, &LOCK_authentication_policy,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_conn_mem_limit, &LOCK_global_conn_mem_limit,
                    MY_MUTEX_INIT_FAST);
   return 0;
 }
@@ -6069,7 +6097,110 @@ static int setup_error_log_components() {
   return 0;
 }
 
+#if defined(MYSQL_ICU_DATADIR)
+
+// For "bundled" ICU:
+// Verify that we can find <directory_path>/icudt69l
+//   and                   <directory_path>/icudt69l/unames.icu
+// or <directory_path>/icudt69b on Sparc
+static bool icu_data_directory_is_valid(const char *directory_path) {
+  MY_STAT stat_info;
+  bool directory_exists = mysql_file_stat(key_file_misc, directory_path,
+                                          &stat_info, MYF(0)) != nullptr;
+  if (directory_exists) {
+    char icudt_path[FN_REFLEN];
+    fn_format(icudt_path, ICUDT_DIR, directory_path, "", 0);
+    bool icudt_dir_exists =
+        mysql_file_stat(key_file_misc, icudt_path, &stat_info, MYF(0));
+    if (icudt_dir_exists) {
+      char icunames_path[FN_REFLEN];
+      fn_format(icunames_path, "unames.icu", icudt_path, "", 0);
+      bool icu_unames_exists =
+          mysql_file_stat(key_file_misc, icunames_path, &stat_info, MYF(0));
+      if (icu_unames_exists) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// For "bundled" ICU:
+// Look for icudt69l.lnk in build directory.
+static char *get_icu_data_directory_in_build_dir(char *to) {
+  char icudt_path[FN_REFLEN];
+  fn_format(icudt_path, ICUDT_DIR, mysql_home, ".lnk", 0);
+  MY_STAT stat_info;
+  bool icudt_lnk_exists =
+      mysql_file_stat(key_file_misc, icudt_path, &stat_info, MYF(0)) != nullptr;
+  if (icudt_lnk_exists) {
+    File file = mysql_file_open(key_file_misc, icudt_path, O_RDONLY, 0);
+    if (file != -1) {
+      char icudt_lnk_contents[FN_REFLEN];
+      size_t num_bytes_read =
+          mysql_file_read(file, reinterpret_cast<uchar *>(icudt_lnk_contents),
+                          sizeof(icudt_lnk_contents), 0);
+      mysql_file_close(file, 0);
+      if (num_bytes_read != MY_FILE_ERROR) {
+        icudt_lnk_contents[num_bytes_read] = '\0';
+        memcpy(to, icudt_lnk_contents, num_bytes_read + 1);
+        return to;
+      }
+    }
+  }
+  return nullptr;
+}
+
+// For "bundled" ICU:
+// Look for MYSQL_ICU_DATADIR which depends on INSTALL_PRIV_LIBDIR
+static char *get_icu_data_directory_in_install_dir(char *to) {
+  char buff[FN_REFLEN];
+  const char *mysql_icu_datadir = get_relative_path(MYSQL_ICU_DATADIR);
+  if (test_if_hard_path(mysql_icu_datadir))
+    strmake(buff, mysql_icu_datadir, sizeof(buff) - 1);
+  else
+    strxnmov(buff, sizeof(buff) - 1, mysql_home, mysql_icu_datadir, NullS);
+  convert_dirname(buff, buff, NullS);
+  memcpy(to, buff, sizeof(buff));
+  return to;
+}
+
+// Where to look for data files for "bundled" ICU:
+// Look in environment ICU_DATA.
+// In a build sandbox we expect cmake to write a .lnk file.
+// In an install directory, we look in MYSQL_ICU_DATADIR.
+static void init_icu_data_directory() {
+  // Use environment variable if available.
+  const char *env_icu_data = getenv("ICU_DATA");
+  if (env_icu_data != nullptr) {
+    if (icu_data_directory_is_valid(env_icu_data)) {
+      return;
+    }
+    LogErr(WARNING_LEVEL, ER_REGEXP_MISSING_ICU_DATADIR, env_icu_data);
+    // Continue, looking for ICU in build or install directory.
+  }
+
+  char build_dir_buffer[FN_REFLEN];
+  const char *in_build = get_icu_data_directory_in_build_dir(build_dir_buffer);
+  if (in_build != nullptr && icu_data_directory_is_valid(in_build)) {
+    u_setDataDirectory(in_build);
+    return;
+  }
+  char install_dir_buffer[FN_REFLEN];
+  const char *in_install =
+      get_icu_data_directory_in_install_dir(install_dir_buffer);
+  if (in_install != nullptr && icu_data_directory_is_valid(in_install)) {
+    u_setDataDirectory(in_install);
+    return;
+  }
+  LogErr(WARNING_LEVEL, ER_REGEXP_MISSING_ICU_DATADIR, install_dir_buffer);
+}
+
+#endif  // MYSQL_ICU_DATADIR
+
 static int init_server_components() {
+  buffered_error_log.resize(buffered_error_log_size * 1024);
+
   DBUG_TRACE;
   /*
     We need to call each of these following functions to ensure that
@@ -6077,7 +6208,7 @@ static int init_server_components() {
   */
   mdl_init();
   partitioning_init();
-  if (table_def_init() | hostname_cache_init(host_cache_size))
+  if (table_def_init() || hostname_cache_init(host_cache_size))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
   /*
@@ -6955,6 +7086,11 @@ static int init_server_components() {
   init_global_user_stats();
   init_global_client_stats();
   init_global_thread_stats();
+
+#if defined(MYSQL_ICU_DATADIR)
+  init_icu_data_directory();
+#endif  // MYSQL_ICU_DATADIR
+
   return 0;
 }
 
@@ -7471,6 +7607,12 @@ int mysqld_main(int argc, char **argv)
   }
 
   keyring_lockable_init();
+
+  /*
+    Install server's my_abort routine to assure my_aborts prints signal info
+    sequentially without sudden termination.
+  */
+  set_my_abort(my_server_abort);
 
   size_t guardize = 0;
 #ifndef _WIN32
@@ -9420,6 +9562,14 @@ static int show_prepared_stmt_count(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+static int show_global_mem_counter(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  MUTEX_LOCK(lock, &LOCK_global_conn_mem_limit);
+  *((longlong *)buff) = (longlong)global_conn_mem_counter;
+  return 0;
+}
+
 static int show_table_definitions(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
@@ -9668,6 +9818,8 @@ SHOW_VAR status_vars[] = {
     {"Error_log_latest_write", (char *)&log_sink_pfs_latest_timestamp,
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"Flush_commands", (char *)&refresh_version, SHOW_LONG_NOFLUSH,
+     SHOW_SCOPE_GLOBAL},
+    {"Global_connection_memory", (char *)&show_global_mem_counter, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Handler_commit", (char *)offsetof(System_status_var, ha_commit_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
@@ -10382,12 +10534,18 @@ bool mysqld_get_one_option(int optid,
     case OPT_TLS_CIPHERSUITES:
     case OPT_SSL_CRL:
     case OPT_SSL_CRLPATH:
-    case OPT_TLS_VERSION:
       /*
         Enable use of SSL if we are using any ssl option.
         One can disable SSL later by using --skip-ssl or --ssl=0.
       */
       opt_use_ssl = true;
+      break;
+    case OPT_TLS_VERSION:
+      opt_use_ssl = true;
+      if (validate_tls_version(argument)) {
+        LogErr(ERROR_LEVEL, ER_INVALID_TLS_VERSION, argument);
+        return true;
+      }
       break;
     case OPT_USE_ADMIN_SSL:
       if (opt_use_admin_ssl)
@@ -10410,13 +10568,20 @@ bool mysqld_get_one_option(int optid,
     case OPT_ADMIN_TLS_CIPHERSUITES:
     case OPT_ADMIN_SSL_CRL:
     case OPT_ADMIN_SSL_CRLPATH:
-    case OPT_ADMIN_TLS_VERSION:
       /*
         Enable use of SSL if we are using any ssl option.
         One can disable SSL later by using --skip-admin-ssl or --admin-ssl=0.
       */
       g_admin_ssl_configured = true;
       opt_use_admin_ssl = true;
+      break;
+    case OPT_ADMIN_TLS_VERSION:
+      g_admin_ssl_configured = true;
+      opt_use_admin_ssl = true;
+      if (validate_tls_version(argument)) {
+        LogErr(ERROR_LEVEL, ER_INVALID_TLS_VERSION, argument);
+        return true;
+      }
       break;
     case 'V':
       print_server_version();
@@ -11120,30 +11285,19 @@ static const char *get_relative_path(const char *path) {
   return path;
 }
 
-/**
-  Test a file path to determine if the path is compatible with the secure file
-  path restriction.
-
-  @param path null terminated character string
-
-  @retval true The path is secure
-  @retval false The path isn't secure
-*/
-
-bool is_secure_file_path(const char *path) {
+static bool is_secure_path(const char *path, const char *opt_base) {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
-  size_t opt_secure_file_priv_len;
+  size_t opt_base_len;
   /*
-    All paths are secure if opt_secure_file_priv is 0
+    All paths are secure if opt_base is 0
   */
-  if (!opt_secure_file_priv[0]) return true;
+  if (!opt_base[0]) return true;
 
-  opt_secure_file_priv_len = strlen(opt_secure_file_priv);
+  opt_base_len = strlen(opt_base);
 
   if (strlen(path) >= FN_REFLEN) return false;
 
-  if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
-    return false;
+  if (!my_strcasecmp(system_charset_info, opt_base, "NULL")) return false;
 
   if (my_realpath(buff1, path, 0)) {
     /*
@@ -11157,15 +11311,175 @@ bool is_secure_file_path(const char *path) {
   }
   convert_dirname(buff2, buff1, NullS);
   if (!lower_case_file_system) {
-    if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
-      return false;
+    if (strncmp(opt_base, buff2, opt_base_len)) return false;
   } else {
     if (files_charset_info->coll->strnncoll(
             files_charset_info, (uchar *)buff2, strlen(buff2),
-            pointer_cast<const uchar *>(opt_secure_file_priv),
-            opt_secure_file_priv_len, true))
+            pointer_cast<const uchar *>(opt_base), opt_base_len, true))
       return false;
   }
+  return true;
+}
+
+/**
+  Test a file path to determine if the path is compatible with the secure file
+  path restriction.
+
+  @param path null terminated character string
+
+  @retval true The path is secure
+  @retval false The path isn't secure
+*/
+bool is_secure_file_path(const char *path) {
+  return is_secure_path(path, opt_secure_file_priv);
+}
+
+/**
+  Test a file path to determine if the path is compatible with the secure log
+  path restriction.
+
+  @param path null terminated character string
+
+  @retval true The path is secure
+  @retval false The path isn't secure
+*/
+bool is_secure_log_path(const char *path) {
+  return is_secure_path(path, opt_secure_log_path);
+}
+
+/**
+  check_secure_file_priv_path : Checks path specified through
+  --secure-file-priv and raises warning in following cases:
+  1. If path is empty string or NULL and mysqld is not running
+     with --initialize (bootstrap mode).
+  2. If path can access data directory
+  3. If path points to a directory which is accessible by
+     all OS users (non-Windows build only)
+
+  It throws error in following cases:
+
+  1. If path normalization fails
+  2. If it can not get stats of the directory
+
+  Assumptions :
+  1. Data directory path has been normalized
+  2. opt_secure_file_priv has been normalized unless it is set
+     to "NULL".
+
+  @returns Status of validation
+    @retval true : Validation is successful with/without warnings
+    @retval false : Validation failed. Error is raised.
+*/
+
+static bool check_secure_path(const char *opt_var, const char *variable_name,
+                              int warn_empty_err) {
+  char datadir_buffer[FN_REFLEN + 1] = {0};
+  char plugindir_buffer[FN_REFLEN + 1] = {0};
+  char whichdir[20] = {0};
+  size_t opt_plugindir_len = 0;
+  size_t opt_datadir_len = 0;
+  size_t opt_var_len = 0;
+  bool warn = false;
+  bool case_insensitive_fs;
+#ifndef _WIN32
+  MY_STAT dir_stat;
+#endif
+
+  if (!opt_var[0]) {
+    if (opt_initialize) {
+      /*
+        Do not impose --secure-file-priv restriction
+        in bootstrap mode
+      */
+      LogErr(INFORMATION_LEVEL, ER_SEC_FILE_PRIV_IGNORED, variable_name);
+    } else {
+      LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_EMPTY, variable_name);
+    }
+    return true;
+  }
+
+  /*
+    Setting --secure-file-priv to NULL would disable
+    reading/writing from/to file
+  */
+  if (!my_strcasecmp(system_charset_info, opt_var, "NULL")) {
+    LogErr(INFORMATION_LEVEL, warn_empty_err, variable_name);
+    return true;
+  }
+
+  /*
+    Check if --secure-file-priv can access data directory
+  */
+  opt_var_len = strlen(opt_var);
+
+  /*
+    Adds dir separator at the end.
+    This is required in subsequent comparison
+  */
+  convert_dirname(datadir_buffer, mysql_unpacked_real_data_home, NullS);
+  opt_datadir_len = strlen(datadir_buffer);
+
+  case_insensitive_fs = (test_if_case_insensitive(datadir_buffer) == 1);
+
+  if (!case_insensitive_fs) {
+    if (!strncmp(
+            datadir_buffer, opt_var,
+            opt_datadir_len < opt_var_len ? opt_datadir_len : opt_var_len)) {
+      warn = true;
+      strcpy(whichdir, "Data directory");
+    }
+  } else {
+    if (!files_charset_info->coll->strnncoll(
+            files_charset_info, (uchar *)datadir_buffer, opt_datadir_len,
+            pointer_cast<const uchar *>(opt_var), opt_var_len, true)) {
+      warn = true;
+      strcpy(whichdir, "Data directory");
+    }
+  }
+
+  /*
+    Don't bother comparing --secure-file-priv with --plugin-dir
+    if we already have a match against --datdir or
+    --plugin-dir is not pointing to a valid directory.
+  */
+  if (!warn && !my_realpath(plugindir_buffer, opt_plugin_dir, 0)) {
+    convert_dirname(plugindir_buffer, plugindir_buffer, NullS);
+    opt_plugindir_len = strlen(plugindir_buffer);
+
+    if (!case_insensitive_fs) {
+      if (!strncmp(plugindir_buffer, opt_var,
+                   opt_plugindir_len < opt_var_len ? opt_plugindir_len
+                                                   : opt_var_len)) {
+        warn = true;
+        strcpy(whichdir, "Plugin directory");
+      }
+    } else {
+      if (!files_charset_info->coll->strnncoll(
+              files_charset_info, (uchar *)plugindir_buffer, opt_plugindir_len,
+              pointer_cast<const uchar *>(opt_var), opt_var_len, true)) {
+        warn = true;
+        strcpy(whichdir, "Plugin directory");
+      }
+    }
+  }
+
+  if (warn)
+    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_DIRECTORY_INSECURE, variable_name,
+           whichdir, variable_name);
+
+#ifndef _WIN32
+  /*
+     Check for --secure-file-priv directory's permission
+  */
+  if (!(my_stat(opt_var, &dir_stat, MYF(0)))) {
+    LogErr(ERROR_LEVEL, ER_SEC_FILE_PRIV_CANT_STAT, variable_name);
+    return false;
+  }
+
+  if (dir_stat.st_mode & S_IRWXO)
+    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS,
+           variable_name);
+#endif
   return true;
 }
 
@@ -11194,117 +11508,15 @@ bool is_secure_file_path(const char *path) {
 */
 
 static bool check_secure_file_priv_path() {
-  char datadir_buffer[FN_REFLEN + 1] = {0};
-  char plugindir_buffer[FN_REFLEN + 1] = {0};
-  char whichdir[20] = {0};
-  size_t opt_plugindir_len = 0;
-  size_t opt_datadir_len = 0;
-  size_t opt_secure_file_priv_len = 0;
-  bool warn = false;
-  bool case_insensitive_fs;
-#ifndef _WIN32
-  MY_STAT dir_stat;
-#endif
-
-  if (!opt_secure_file_priv[0]) {
-    if (opt_initialize) {
-      /*
-        Do not impose --secure-file-priv restriction
-        in bootstrap mode
-      */
-      LogErr(INFORMATION_LEVEL, ER_SEC_FILE_PRIV_IGNORED);
-    } else {
-      LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_EMPTY);
-    }
-    return true;
-  }
-
-  /*
-    Setting --secure-file-priv to NULL would disable
-    reading/writing from/to file
-  */
-  if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL")) {
-    LogErr(INFORMATION_LEVEL, ER_SEC_FILE_PRIV_NULL);
-    return true;
-  }
-
-  /*
-    Check if --secure-file-priv can access data directory
-  */
-  opt_secure_file_priv_len = strlen(opt_secure_file_priv);
-
-  /*
-    Adds dir separator at the end.
-    This is required in subsequent comparison
-  */
-  convert_dirname(datadir_buffer, mysql_unpacked_real_data_home, NullS);
-  opt_datadir_len = strlen(datadir_buffer);
-
-  case_insensitive_fs = (test_if_case_insensitive(datadir_buffer) == 1);
-
-  if (!case_insensitive_fs) {
-    if (!strncmp(datadir_buffer, opt_secure_file_priv,
-                 opt_datadir_len < opt_secure_file_priv_len
-                     ? opt_datadir_len
-                     : opt_secure_file_priv_len)) {
-      warn = true;
-      strcpy(whichdir, "Data directory");
-    }
-  } else {
-    if (!files_charset_info->coll->strnncoll(
-            files_charset_info, (uchar *)datadir_buffer, opt_datadir_len,
-            pointer_cast<const uchar *>(opt_secure_file_priv),
-            opt_secure_file_priv_len, true)) {
-      warn = true;
-      strcpy(whichdir, "Data directory");
-    }
-  }
-
-  /*
-    Don't bother comparing --secure-file-priv with --plugin-dir
-    if we already have a match against --datdir or
-    --plugin-dir is not pointing to a valid directory.
-  */
-  if (!warn && !my_realpath(plugindir_buffer, opt_plugin_dir, 0)) {
-    convert_dirname(plugindir_buffer, plugindir_buffer, NullS);
-    opt_plugindir_len = strlen(plugindir_buffer);
-
-    if (!case_insensitive_fs) {
-      if (!strncmp(plugindir_buffer, opt_secure_file_priv,
-                   opt_plugindir_len < opt_secure_file_priv_len
-                       ? opt_plugindir_len
-                       : opt_secure_file_priv_len)) {
-        warn = true;
-        strcpy(whichdir, "Plugin directory");
-      }
-    } else {
-      if (!files_charset_info->coll->strnncoll(
-              files_charset_info, (uchar *)plugindir_buffer, opt_plugindir_len,
-              pointer_cast<const uchar *>(opt_secure_file_priv),
-              opt_secure_file_priv_len, true)) {
-        warn = true;
-        strcpy(whichdir, "Plugin directory");
-      }
-    }
-  }
-
-  if (warn)
-    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_DIRECTORY_INSECURE, whichdir);
-
-#ifndef _WIN32
-  /*
-     Check for --secure-file-priv directory's permission
-  */
-  if (!(my_stat(opt_secure_file_priv, &dir_stat, MYF(0)))) {
-    LogErr(ERROR_LEVEL, ER_SEC_FILE_PRIV_CANT_STAT);
-    return false;
-  }
-
-  if (dir_stat.st_mode & S_IRWXO)
-    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS);
-#endif
-  return true;
+  return check_secure_path(opt_secure_file_priv, "secure-file-priv",
+                           ER_SEC_FILE_PRIV_NULL);
 }
+
+static bool check_secure_log_path() {
+  return check_secure_path(opt_secure_log_path, "secure-log-path",
+                           ER_SEC_LOG_PATH_NULL);
+}
+
 #ifdef WIN32
 // check_tmpdir_path_lengths returns true if all paths are valid,
 // false if any path is too long.
@@ -11324,9 +11536,53 @@ static bool check_tmpdir_path_lengths(const MY_TMPDIR &tmpdir_list) {
   return result;
 }
 #endif
+
+static int fix_secure_path(const char *&opt_path, char *realpath,
+                           const char *variable_name) {
+  bool opt_nonempty = false;
+  /*
+    Convert the secure-file-priv/secure-log-path option to system format,
+    allowing a quick strcmp to check if read or write is in an allowed dir
+  */
+  if (opt_initialize) opt_path = "";
+  opt_nonempty = opt_path[0] ? true : false;
+
+  if (opt_nonempty && strlen(opt_path) > FN_REFLEN) {
+    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_ARGUMENT_TOO_LONG, variable_name,
+           FN_REFLEN - 1);
+    return 1;
+  }
+
+  char buff[FN_REFLEN] = {
+      0,
+  };
+  if (opt_nonempty && my_strcasecmp(system_charset_info, opt_path, "NULL")) {
+    int retval = my_realpath(buff, opt_path, MYF(MY_WME));
+    if (!retval) {
+      convert_dirname(realpath, buff, NullS);
+#ifdef WIN32
+      MY_DIR *dir = my_dir(realpath, MYF(MY_DONT_SORT + MY_WME));
+      if (!dir) {
+        retval = 1;
+      } else {
+        my_dirend(dir);
+      }
+#endif
+    }
+
+    if (retval) {
+      LogErr(ERROR_LEVEL, ER_SEC_FILE_PRIV_CANT_ACCESS_DIR, variable_name,
+             opt_path);
+      return 1;
+    }
+    opt_path = realpath;
+  }
+
+  return 0;
+}
+
 static int fix_paths(void) {
   char buff[FN_REFLEN];
-  bool secure_file_priv_nonempty = false;
   convert_dirname(mysql_home, mysql_home, NullS);
   /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
   my_realpath(mysql_home, mysql_home, MYF(0));
@@ -11381,43 +11637,16 @@ static int fix_paths(void) {
   if (!replica_load_tmpdir) replica_load_tmpdir = mysql_tmpdir;
 
   if (opt_help) return 0;
-  /*
-    Convert the secure-file-priv option to system format, allowing
-    a quick strcmp to check if read or write is in an allowed dir
-  */
-  if (opt_initialize) opt_secure_file_priv = "";
-  secure_file_priv_nonempty = opt_secure_file_priv[0] ? true : false;
 
-  if (secure_file_priv_nonempty && strlen(opt_secure_file_priv) > FN_REFLEN) {
-    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_ARGUMENT_TOO_LONG, FN_REFLEN - 1);
+  if (fix_secure_path(opt_secure_file_priv, secure_file_real_path,
+                      "secure-file-priv"))
     return 1;
-  }
-
-  memset(buff, 0, sizeof(buff));
-  if (secure_file_priv_nonempty &&
-      my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL")) {
-    int retval = my_realpath(buff, opt_secure_file_priv, MYF(MY_WME));
-    if (!retval) {
-      convert_dirname(secure_file_real_path, buff, NullS);
-#ifdef WIN32
-      MY_DIR *dir = my_dir(secure_file_real_path, MYF(MY_DONT_SORT + MY_WME));
-      if (!dir) {
-        retval = 1;
-      } else {
-        my_dirend(dir);
-      }
-#endif
-    }
-
-    if (retval) {
-      LogErr(ERROR_LEVEL, ER_SEC_FILE_PRIV_CANT_ACCESS_DIR,
-             opt_secure_file_priv);
-      return 1;
-    }
-    opt_secure_file_priv = secure_file_real_path;
-  }
-
   if (!check_secure_file_priv_path()) return 1;
+
+  if (fix_secure_path(opt_secure_log_path, secure_log_real_path,
+                      "secure-log-path"))
+    return 1;
+  if (!check_secure_log_path()) return 1;
 
   return 0;
 }
@@ -11629,6 +11858,7 @@ PSI_mutex_key key_LOCK_error_log;
 PSI_mutex_key key_LOCK_thd_data;
 PSI_mutex_key key_LOCK_thd_sysvar;
 PSI_mutex_key key_LOCK_thd_protocol;
+PSI_mutex_key key_LOCK_thd_security_ctx;
 PSI_mutex_key key_LOG_LOCK_log;
 PSI_mutex_key key_source_info_data_lock;
 PSI_mutex_key key_source_info_run_lock;
@@ -11723,6 +11953,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_thd_query, "THD::LOCK_thd_query", 0, PSI_VOLATILITY_SESSION, PSI_DOCUMENT_ME},
   { &key_LOCK_thd_sysvar, "THD::LOCK_thd_sysvar", 0, PSI_VOLATILITY_SESSION, PSI_DOCUMENT_ME},
   { &key_LOCK_thd_protocol, "THD::LOCK_thd_protocol", 0, PSI_VOLATILITY_SESSION, PSI_DOCUMENT_ME},
+  { &key_LOCK_thd_security_ctx, "THD::LOCK_thd_security_ctx", 0, PSI_VOLATILITY_SESSION, "A lock to control access to a THD's security context"},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_sql_rand, "LOCK_sql_rand", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -11767,7 +11998,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_monitor_info_run_lock, "Source_IO_monitor::run_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_delegate_connection_mutex, "LOCK_delegate_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_group_replication_connection_mutex, "LOCK_group_replication_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_authentication_policy, "LOCK_authentication_policy", PSI_FLAG_SINGLETON, 0, "A lock to ensure execution of CREATE USER or ALTER USER sql and SET @@global.authentication_policy variable are serialized"}
+{ &key_LOCK_authentication_policy, "LOCK_authentication_policy", PSI_FLAG_SINGLETON, 0, "A lock to ensure execution of CREATE USER or ALTER USER sql and SET @@global.authentication_policy variable are serialized"},
+  { &key_LOCK_global_conn_mem_limit, "LOCK_global_conn_mem_limit", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -110,8 +110,8 @@ dberr_t File_reader::prepare() noexcept {
 
   ut_a(m_size > m_offset);
   m_read_len = get_read_len_next();
-  const auto err = ddl::pread(m_fd, m_io_buffer.first, m_read_len, m_offset,
-                              m_crypt_buffer.first, m_space_id);
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
+                              m_offset, m_crypt_buffer.first, m_space_id);
 
   if (err != DB_SUCCESS) {
     return err;
@@ -130,8 +130,8 @@ dberr_t File_reader::seek(os_offset_t offset) noexcept {
   m_offset = offset;
 
   m_read_len = get_read_len_next();
-  const auto err = ddl::pread(m_fd, m_io_buffer.first, m_read_len, m_offset,
-                              m_crypt_buffer.first, m_space_id);
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
+                              m_offset, m_crypt_buffer.first, m_space_id);
 
   m_ptr = m_io_buffer.first;
 
@@ -206,7 +206,7 @@ dberr_t File_reader::next() noexcept {
     }
 
     {
-      /* Copy the reamining record from the file buffer to the aux buffer. */
+      /* Copy the remaining record from the file buffer to the aux buffer. */
       const auto len = extra_size - partial_size;
 
       memcpy(rec + partial_size, m_ptr, len);

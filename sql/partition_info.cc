@@ -906,6 +906,7 @@ const char *partition_info::find_duplicate_name() {
     then we could just return NULL, but that has not been verified.
     And this only happens when in ALTER TABLE with full table copy.
   */
+
   while ((p_elem = (parts_it++))) {
     const char *partition_name = p_elem->partition_name;
     if (!partition_names.insert(partition_name).second) return partition_name;

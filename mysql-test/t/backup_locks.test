@@ -3,3 +3,28 @@
 --let $tmp_table_support= 1
 --let $for_export_support= 1
 --source include/backup_locks.inc
+
+
+#
+# InnoDB Specific Tests
+#
+# LTFB + key rotation
+#
+
+--connect(con,localhost,root,,)
+LOCK TABLES FOR BACKUP;
+
+--connection default
+SET SESSION lock_wait_timeout=1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+--connection con
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+
+--disconnect con
+--connection default
+SET SESSION lock_wait_timeout=default;
+

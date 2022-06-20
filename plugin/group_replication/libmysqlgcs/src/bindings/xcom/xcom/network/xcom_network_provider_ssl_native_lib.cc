@@ -40,6 +40,11 @@
 
 #include "openssl/engine.h"
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/evp.h>
+#include <openssl/provider.h>
+#endif
+
 #include "xcom/task_debug.h"
 #include "xcom/x_platform.h"
 
@@ -166,25 +171,24 @@ static long process_tls_version(const char *tls_version) {
   const char *separator = ", ";
   char *token = NULL;
 #ifdef HAVE_TLSv13
-  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2",
-                                         "TLSv1.3"};
+  const char *tls_version_name_list[] = {"TLSv1.2", "TLSv1.3"};
 #else
-  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
+  const char *tls_version_name_list[] = {"TLSv1.2"};
 #endif /* HAVE_TLSv13 */
 #define TLS_VERSIONS_COUNTS \
   (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
   unsigned int tls_versions_count = TLS_VERSIONS_COUNTS;
 #ifdef HAVE_TLSv13
-  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {
-      SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
-  const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3";
+  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {SSL_OP_NO_TLSv1_2,
+                                                  SSL_OP_NO_TLSv1_3};
+  const char *ctx_flag_default = "TLSv1.2,TLSv1.3";
   long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
-                      SSL_OP_NO_TLSv1_3;
+                      SSL_OP_NO_TLSv1_3 | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 #else
-  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {
-      SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
-  const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2";
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {SSL_OP_NO_TLSv1_2};
+  const char *ctx_flag_default = "TLSv1.2";
+  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
+                      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 #endif /* HAVE_TLSv13 */
   unsigned int index = 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
@@ -228,7 +232,8 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
                                     const char *tls_ciphersuites
                                     [[maybe_unused]]) {
   DH *dh = NULL;
-  long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+  long ssl_ctx_options =
+      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
   long ssl_ctx_flags = -1;
 #ifdef HAVE_TLSv13
@@ -325,12 +330,21 @@ static int configure_ssl_fips_mode(const int fips_mode) {
   if (fips_mode > 2) {
     goto EXIT;
   }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  fips_mode_old = EVP_default_properties_is_fips_enabled(NULL) &&
+                  OSSL_PROVIDER_available(NULL, "fips");
+#else
   fips_mode_old = FIPS_mode();
+#endif
   if (fips_mode_old == fips_mode) {
     rc = 1;
     goto EXIT;
   }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (!(rc = EVP_default_properties_enable_fips(NULL, fips_mode))) {
+#else
   if (!(rc = FIPS_mode_set(fips_mode))) {
+#endif
     err_library = ERR_get_error();
     ERR_error_string_n(err_library, err_string, sizeof(err_string) - 1);
     err_string[sizeof(err_string) - 1] = '\0';

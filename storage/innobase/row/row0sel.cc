@@ -2716,6 +2716,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
     case DATA_SYS:
       /* These column types should never be shipped to MySQL. */
       ut_ad(0);
+      [[fallthrough]];
 
     case DATA_CHAR:
     case DATA_FIXBINARY:
@@ -3868,7 +3869,6 @@ static ICP_RESULT row_search_idx_cond_check(
   }
 
   ut_error;
-  return (result);
 }
 
 /** Return the record field length in characters.
@@ -4418,6 +4418,60 @@ static inline rec_t *row_search_debug_copy_rec_order_prefix(
 }
 #endif /* UNIV_DEBUG */
 
+/* Avoid the clustered index lookup if all of the following are true:
+1) all columns are in the secondary index
+2) all values for columns that are prefix-only indexes are shorter than the
+prefix size This optimization can avoid many IOs for certain schemas.  */
+static bool use_secondary_index(const row_prebuilt_t *prebuilt,
+                                const ulint *offsets, const dict_index_t *index,
+                                const rec_t *rec) {
+  for (auto i = 0; i < prebuilt->n_template; ++i) {
+    const mysql_row_templ_t *templ = prebuilt->mysql_template + i;
+    const auto secondary_index_field_no = templ->rec_prefix_field_no;
+
+    // Condition (1): is the field in the index (prefix or not)?
+    if (secondary_index_field_no == ULINT_UNDEFINED) {
+      return false;
+    }
+
+    // Condition (2): if this is a prefix, is this row's value size shorter than
+    // the prefix?
+    if (templ->rec_field_is_prefix) {
+      // Must be a character type
+      ut_ad(templ->mbminlen > 0);
+      ut_ad(templ->mbmaxlen >= templ->mbminlen);
+
+      const dict_field_t *field = index->get_field(secondary_index_field_no);
+      ut_a(field->prefix_len > 0);
+
+      const auto record_size =
+          rec_offs_nth_size(offsets, secondary_index_field_no);
+      const auto prefix_len_chars = field->prefix_len / templ->mbmaxlen;
+
+      if (record_size < prefix_len_chars) {
+        // Record in bytes shorter than the index prefix length in characters
+        continue;
+      }
+
+      if (record_size >= field->prefix_len) {
+        /* The shortest representable string by the byte length of the record is
+        longer than the maximum possible index prefix. */
+        return false;
+      }
+
+      /* The record could or could not fit into the index prefix,
+       * calculate length to find out */
+      const auto record_size_chars = rec_field_len_in_chars(
+          *field->col, secondary_index_field_no, rec, offsets);
+      if (record_size_chars >= prefix_len_chars) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 /** Searches for rows in the database using cursor.
 Function is mainly used for tables that are shared accorss connection and
 so it employs technique that can help re-construct the rows that
@@ -4531,7 +4585,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   bool need_vrow = dict_index_has_virtual(prebuilt->index) &&
                    (prebuilt->read_just_key || prebuilt->m_read_virtual_key);
 
-  /* Reset the new record lock info if trx_t::allow_semi_consistent().
+  /* Reset the new record lock info.
   Then we are able to remove the record locks set here on an
   individual row. */
   std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
@@ -4547,6 +4601,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
     prebuilt->n_rows_fetched = 0;
     prebuilt->n_fetch_cached = 0;
     prebuilt->fetch_cache_first = 0;
+    prebuilt->m_end_range = false;
     if (record_buffer != nullptr) {
       record_buffer->reset();
     }
@@ -4574,6 +4629,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
       prebuilt->n_rows_fetched = 0;
       prebuilt->n_fetch_cached = 0;
       prebuilt->fetch_cache_first = 0;
+      prebuilt->m_end_range = false;
 
       /* A record buffer is not used for scroll cursors.
       Otherwise, it would have to be reset here too. */
@@ -4586,8 +4642,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
       err = DB_SUCCESS;
       goto func_exit;
-    } else if (prebuilt->m_end_range == true) {
-      prebuilt->m_end_range = false;
+    } else if (prebuilt->m_end_range) {
       err = DB_RECORD_NOT_FOUND;
       goto func_exit;
     }
@@ -5265,7 +5320,7 @@ rec_loop:
     switch (err) {
       const rec_t *old_vers;
       case DB_SUCCESS_LOCKED_REC:
-        if (trx->allow_semi_consistent()) {
+        if (trx->releases_non_matching_rows()) {
           /* Note that a record of
           prebuilt->index was locked. */
           ut_ad(!prebuilt->new_rec_lock[row_prebuilt_t::LOCK_PCUR]);
@@ -5292,7 +5347,7 @@ rec_loop:
             unique_search || index != clust_index) {
           goto lock_wait_or_error;
         }
-
+        ut_a(trx->allow_semi_consistent());
         /* The following call returns 'offsets' associated with 'old_vers' */
         row_sel_build_committed_vers_for_mysql(
             clust_index, prebuilt, rec, &offsets, &heap, &old_vers,
@@ -5425,6 +5480,16 @@ rec_loop:
     }
   }
 
+#ifdef UNIV_DEBUG
+  if (did_semi_consistent_read) {
+    ut_a(prebuilt->select_lock_type != LOCK_NONE);
+    ut_a(!prebuilt->table->is_intrinsic());
+    ut_a(prebuilt->row_read_type == ROW_READ_TRY_SEMI_CONSISTENT);
+    ut_a(prebuilt->trx->allow_semi_consistent());
+    ut_a(prebuilt->new_rec_locks_count() == 0);
+  }
+#endif /* UNIV_DEBUG */
+
   /* NOTE that at this point rec can be an old version of a clustered
   index record built for a consistent read. We cannot assume after this
   point that rec is on a buffer pool page. Functions like
@@ -5433,13 +5498,10 @@ rec_loop:
   if (rec_get_deleted_flag(rec, comp)) {
     /* The record is delete-marked: we can skip it */
 
-    if (trx->allow_semi_consistent() &&
-        prebuilt->select_lock_type != LOCK_NONE && !did_semi_consistent_read) {
-      /* No need to keep a lock on a delete-marked record
-      if we do not want to use next-key locking. */
-
-      row_unlock_for_mysql(prebuilt, TRUE);
-    }
+    /* No need to keep a lock on a delete-marked record in lower isolation
+    levels - it's similar to when Server sees the WHERE condition doesn't match
+    and calls unlock_row(). */
+    prebuilt->try_unlock(true);
 
     /* This is an optimization to skip setting the next key lock
     on the record that follows this delete-marked record. This
@@ -5466,12 +5528,11 @@ rec_loop:
   /* Check if the record matches the index condition. */
   switch (row_search_idx_cond_check(buf, prebuilt, rec, offsets)) {
     case ICP_NO_MATCH:
-      if (did_semi_consistent_read) {
-        row_unlock_for_mysql(prebuilt, TRUE);
-      }
+      prebuilt->try_unlock(true);
       goto next_rec;
     case ICP_OUT_OF_RANGE:
       err = DB_RECORD_NOT_FOUND;
+      prebuilt->try_unlock(true);
       goto idx_cond_failed;
     case ICP_MATCH:
       break;
@@ -5487,65 +5548,17 @@ rec_loop:
     /* ...but, perhaps avoid the clustered index lookup if
     all of the following are true:
     1) all columns are in the secondary index
-    2) all values for columns that are prefix-only
-       indexes are shorter than the prefix size
-    This optimization can avoid many IOs for certain schemas.
+    2) all values for columns that are prefix-only indexes are shorter than the
+    prefix size This optimization can avoid many IOs for certain schemas.
     */
-    bool row_contains_all_values = true;
-    unsigned int i;
-    for (i = 0; i < prebuilt->n_template; i++) {
-      /* Condition (1) from above: is the field in the
-      index (prefix or not)? */
-      const mysql_row_templ_t *templ = prebuilt->mysql_template + i;
-      const auto secondary_index_field_no = templ->rec_prefix_field_no;
-      if (secondary_index_field_no == ULINT_UNDEFINED) {
-        row_contains_all_values = false;
-        break;
-      }
-      /* Condition (2) from above: if this is a
-      prefix, is this row's value size shorter
-      than the prefix? */
-      if (templ->rec_field_is_prefix) {
-        const auto record_size =
-            rec_offs_nth_size(offsets, secondary_index_field_no);
-        const dict_field_t *field = index->get_field(secondary_index_field_no);
-        ut_a(field->prefix_len > 0);
+    bool row_contains_all_values =
+        use_secondary_index(prebuilt, offsets, index, rec);
 
-        /* Must be a character type */
-        ut_ad(templ->mbminlen > 0);
-        ut_ad(templ->mbmaxlen >= templ->mbminlen);
-
-        if (record_size < field->prefix_len / templ->mbmaxlen) {
-          /* Record in bytes shorter than the
-          index prefix length in characters */
-          continue;
-
-        } else if (record_size * templ->mbminlen >= field->prefix_len) {
-          /* The shortest represantable string by
-          the byte length of the record is longer
-          than the maximum possible index
-          prefix. */
-          row_contains_all_values = false;
-          break;
-        } else {
-          /* The record could or could not fit
-          into the index prefix, calculate length
-          to find out */
-
-          if (rec_field_len_in_chars(*field->col, secondary_index_field_no, rec,
-                                     offsets) >=
-              (field->prefix_len / templ->mbmaxlen)) {
-            row_contains_all_values = false;
-            break;
-          }
-        }
-      }
-    }
     /* If (1) and (2) were true for all columns above, use
-    rec_prefix_field_no instead of rec_field_no, and skip
-    the clustered lookup below. */
+    rec_prefix_field_no instead of rec_field_no, and skip the clustered lookup
+    below. */
     if (row_contains_all_values) {
-      for (i = 0; i < prebuilt->n_template; i++) {
+      for (unsigned int i = 0; i < prebuilt->n_template; i++) {
         mysql_row_templ_t *templ = prebuilt->mysql_template + i;
         templ->rec_field_no = templ->rec_prefix_field_no;
         ut_a(templ->rec_field_no != ULINT_UNDEFINED);
@@ -5591,7 +5604,7 @@ rec_loop:
         goto next_rec;
       case DB_SUCCESS_LOCKED_REC:
         ut_a(clust_rec != nullptr);
-        if (trx->allow_semi_consistent()) {
+        if (trx->releases_non_matching_rows()) {
           /* Note that the clustered index record
           was locked. */
           ut_ad(!prebuilt->new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]);
@@ -5607,14 +5620,10 @@ rec_loop:
     if (rec_get_deleted_flag(clust_rec, comp)) {
       /* The record is delete marked: we can skip it */
 
-      if (trx->allow_semi_consistent() &&
-          prebuilt->select_lock_type != LOCK_NONE) {
-        /* No need to keep a lock on a delete-marked
-        record if we do not want to use next-key
-        locking. */
-
-        row_unlock_for_mysql(prebuilt, TRUE);
-      }
+      /* No need to keep a lock on a delete-marked record in lower isolation
+      levels - it's similar to when Server sees the WHERE condition doesn't
+      match and calls unlock_row(). */
+      prebuilt->try_unlock(true);
 
       goto next_rec;
     }
@@ -6061,10 +6070,10 @@ lock_table_wait:
       prev_rec = nullptr;
     }
 
-    if (!same_user_rec && trx->allow_semi_consistent()) {
+    if (!same_user_rec && trx->releases_non_matching_rows()) {
       /* Since we were not able to restore the cursor
       on the same user record, we cannot use
-      row_unlock_for_mysql() to unlock any records, and
+      row_prebuilt_t::try_unlock() to unlock any records, and
       we must thus reset the new rec lock info. Since
       in lock0lock.cc we have blocked the inheriting of gap
       X-locks, we actually do not have any new record locks

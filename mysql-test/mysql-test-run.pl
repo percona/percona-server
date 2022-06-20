@@ -203,7 +203,6 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
-my $ports_per_thread   = 30;
 my $source_dist        = 0;
 my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
@@ -248,6 +247,7 @@ our $opt_suite_opt;
 our $opt_summary_report;
 our $opt_vardir;
 our $opt_xml_report;
+our $ports_per_thread   = 30;
 
 #
 # Suites run by default (i.e. when invoking ./mtr without parameters)
@@ -315,7 +315,6 @@ our @DEFAULT_SUITES = qw(
   engines/funcs
   funcs_1
   group_replication
-  interactive_utilities
   jp
   stress
 );
@@ -358,6 +357,7 @@ our $opt_warnings  = 1;
 
 our @opt_cases;
 our @opt_combinations;
+our $opt_only_combinations;
 our @opt_extra_bootstrap_opt;
 our @opt_extra_mysqld_opt;
 our @opt_extra_mysqltest_opt;
@@ -769,6 +769,8 @@ sub main {
 
   if ($secondary_engine_support) {
     secondary_engine_offload_count_report_init();
+    # Create virtual environment
+    create_virtual_env($bindir);
   }
 
   if ($opt_summary_report) {
@@ -984,6 +986,11 @@ sub main {
        }}, $bindir);
   }
 
+  # Cleanup the secondary engine environment
+  if ($secondary_engine_support) {
+    clean_virtual_env();
+  }
+
   print_total_times($opt_parallel) if $opt_report_times;
 
   report_stats("Completed", $completed);
@@ -1025,7 +1032,7 @@ sub run_test_server ($$$) {
   my ($server, $tests, $childs) = @_;
 
   my $num_failed_test   = 0; # Number of tests failed so far
-  my $num_saved_cores   = 0; # Number of core files saved in vardir/log/ so far.
+  my %saved_cores_paths;     # Paths of core files found in vardir/log/ so far
   my $num_saved_datadir = 0; # Number of datadirs saved in vardir/log/ so far.
 
   # Scheduler variables
@@ -1124,6 +1131,12 @@ sub run_test_server ($$$) {
                       my $core_name = basename($core_file);
 
                       if (is_core_dump($core_name)) {
+
+                        if (exists $saved_cores_paths{$core_file}) {
+                          mtr_report(" - found '$core_name' again, keeping it");
+                          return;
+                        }
+                        my $num_saved_cores = %saved_cores_paths;
                         mtr_report(" - found '$core_name'",
                                    "($num_saved_cores/$opt_max_save_core)");
 
@@ -1142,8 +1155,8 @@ sub run_test_server ($$$) {
                           unlink("$core_file");
                         } else {
                           mtr_compress_file($core_file) unless @opt_cases;
+                          $saved_cores_paths{$core_file} = 1;
                         }
-                        ++$num_saved_cores;
                       }
                     }
                   },
@@ -1727,6 +1740,7 @@ sub command_line_setup {
     # Control what test suites or cases to run
     'big-test'                           => \$opt_big_test,
     'combination=s'                      => \@opt_combinations,
+    'only-combinations=s'                => \$opt_only_combinations,
     'do-suite=s'                         => \$opt_do_suite,
     'do-test=s'                          => \&collect_option,
     'force'                              => \$opt_force,
@@ -5383,6 +5397,10 @@ sub run_testcase ($) {
       return 1;
     }
 
+    my $driver_ret = check_secondary_driver_crash($tinfo, $proc, $test)
+      if $tinfo->{'secondary-engine'};
+    return 1 if $driver_ret;
+
     # Check if it was a server that died
     if (grep($proc eq $_, started(all_servers()))) {
       # Server failed, probably crashed
@@ -7789,6 +7807,7 @@ Options to control what engine/variation to run
 
   combination=<opt>     Use at least twice to run tests with specified
                         options to mysqld.
+  only-combinations=<name>  Use only given combinations, separated by ",".
   compress              Use the compressed protocol between client and server.
   async-client          Use async-client with select() to run the test case
   cursor-protocol       Use the cursor protocol between client and server

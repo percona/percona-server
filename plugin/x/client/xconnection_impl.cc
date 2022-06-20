@@ -29,6 +29,10 @@
 #include <netinet/in.h>
 #endif  // HAVE_NETINET_IN_H
 #include <openssl/x509v3.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/evp.h>
+#include <openssl/provider.h>
+#endif
 #include <cassert>
 #include <chrono>  // NOLINT(build/c++11)
 #include <future>  // NOLINT(build/c++11)
@@ -72,17 +76,18 @@ const char *const ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED =
 const char *const ER_TEXT_TLS_ALREADY_ACTIVATED = "TLS already activated";
 const char *const ER_TEXT_TLS_NOT_CONFIGURATED = "TLS not configured";
 const char *const ER_TEXT_INVALID_SOCKET = "Invalid socket";
-const char *const ER_TEXT_UN_SOCKET_FILE_NOT_SET =
-    "UNIX Socket file was not specified";
 const char *const ER_TEXT_CANT_TIMEOUT_WHILE_READING =
     "Read operation failed because of a timeout";
 const char *const ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING =
     "Write operation failed because of a timeout";
 
-#if !defined(HAVE_SYS_UN_H)
+#if defined(HAVE_SYS_UN_H)
+const char *const ER_TEXT_UN_SOCKET_FILE_NOT_SET =
+    "UNIX Socket file was not specified";
+#else
 const char *const ER_TEXT_UN_SOCKET_NOT_SUPPORTED =
     "UNIX sockets aren't supported on current OS";
-#endif  // !defined(HAVE_SYS_UN_H)
+#endif  // defined(HAVE_SYS_UN_H)
 
 namespace details {
 
@@ -643,12 +648,21 @@ int set_fips_mode(const uint32_t fips_mode,
   if (fips_mode > 2) {
     goto EXIT;
   }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  fips_mode_old = EVP_default_properties_is_fips_enabled(NULL) &&
+                  OSSL_PROVIDER_available(NULL, "fips");
+#else
   fips_mode_old = FIPS_mode();
+#endif
   if (fips_mode_old == fips_mode) {
     rc = 1;
     goto EXIT;
   }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (!(rc = EVP_default_properties_enable_fips(NULL, fips_mode))) {
+#else
   if (!(rc = FIPS_mode_set(fips_mode))) {
+#endif
     err_library = ERR_get_error();
     ERR_error_string_n(err_library, err_string, OPENSSL_ERROR_LENGTH - 1);
     err_string[OPENSSL_ERROR_LENGTH - 1] = '\0';

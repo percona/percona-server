@@ -36,8 +36,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 // the include order
 #include <memoryapi.h>
 
+#include "mysqld_error.h"
 #include "storage/innobase/include/detail/ut/helper.h"
 #include "storage/innobase/include/os0populate.h"
+#include "storage/innobase/include/ut0log.h"
 
 extern const size_t large_page_default_size;
 
@@ -51,13 +53,19 @@ namespace detail {
 */
 inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
   // VirtualAlloc requires for n_bytes to be a multiple of large-page size
-  const auto n_bytes_rounded = pow2_round(
-      n_bytes + (large_page_default_size - 1), large_page_default_size);
-
+  size_t n_bytes_rounded = pow2_round(n_bytes + (large_page_default_size - 1),
+                                      large_page_default_size);
   void *ptr =
       VirtualAlloc(nullptr, n_bytes_rounded,
                    MEM_COMMIT | MEM_RESERVE | MEM_LARGE_PAGES, PAGE_READWRITE);
-  if (!ptr && populate) prefault_if_not_map_populate(ptr, n_bytes_rounded);
+  if (unlikely(!ptr)) {
+    ib::log_warn(ER_IB_MSG_856)
+        << "large_page_aligned_alloc VirtualAlloc(" << n_bytes_rounded
+        << " bytes) failed; Windows error " << GetLastError();
+    return nullptr;
+  }
+
+  if (populate) prefault_if_not_map_populate(ptr, n_bytes_rounded);
 
   return ptr;
 }
@@ -72,6 +80,13 @@ inline bool large_page_aligned_free(void *ptr, size_t n_bytes) {
   if (unlikely(!ptr)) return false;
   auto ret = VirtualFree(ptr, 0, MEM_RELEASE);
   (void)n_bytes;
+  if (unlikely(ret == 0)) {
+    ib::log_error(ER_IB_MSG_858)
+        << "large_page_aligned_free VirtualFree(" << ptr
+        << ")  failed;"
+           " Windows error "
+        << GetLastError();
+  }
   return ret != 0;
 }
 

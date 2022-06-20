@@ -30,8 +30,8 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
-#include <utility>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <mysql/components/minimal_chassis.h>
@@ -133,9 +133,18 @@ bool signal_restart_server();
 void kill_mysql(void);
 void refresh_status();
 bool is_secure_file_path(const char *path);
+bool is_secure_log_path(const char *path);
 ulong sql_rnd_with_mutex();
 
 struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated);
+
+#ifndef NDEBUG
+bool thd_mem_cnt_alloc(THD *thd, size_t size, const char *key_name);
+#else
+bool thd_mem_cnt_alloc(THD *thd, size_t size);
+#endif
+
+void thd_mem_cnt_free(THD *thd, size_t size);
 
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
@@ -226,6 +235,7 @@ extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
 extern const char *opt_secure_file_priv;
+extern const char *opt_secure_log_path;
 extern bool opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
@@ -429,6 +439,9 @@ extern char *opt_keyring_migration_socket;
 extern char *opt_keyring_migration_source;
 extern char *opt_keyring_migration_destination;
 extern ulong opt_keyring_migration_port;
+
+extern ulonglong global_conn_mem_limit;
+extern ulonglong global_conn_mem_counter;
 /**
   Variable to check if connection related options are set
   as part of keyring migration.
@@ -452,6 +465,7 @@ extern PSI_mutex_key key_LOCK_error_log;
 extern PSI_mutex_key key_LOCK_thd_data;
 extern PSI_mutex_key key_LOCK_thd_sysvar;
 extern PSI_mutex_key key_LOCK_thd_protocol;
+extern PSI_mutex_key key_LOCK_thd_security_ctx;
 extern PSI_mutex_key key_LOG_LOCK_log;
 extern PSI_mutex_key key_source_info_data_lock;
 extern PSI_mutex_key key_source_info_run_lock;
@@ -756,6 +770,7 @@ extern mysql_mutex_t LOCK_admin_tls_ctx_options;
 extern mysql_mutex_t LOCK_rotate_binlog_master_key;
 extern mysql_mutex_t LOCK_partial_revokes;
 extern mysql_mutex_t LOCK_authentication_policy;
+extern mysql_mutex_t LOCK_global_conn_mem_limit;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;

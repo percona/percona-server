@@ -905,17 +905,6 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
 
   rc = validate_lex_and_execute_core(thd, nextp, false);
 
-  /*
-    thd->utime_after_query can be used for counting
-    statement execution time. thd->update_slow_query_status()
-    updates this value but only if function/procedure
-    budy has been already executed, if we want to measure
-    statement execution time inside function/procedure
-    we have to update this value here independent of
-    value returned by thd->get_stmt_da()->is_eof().
-  */
-  thd->update_slow_query_status();
-
   if (thd->get_stmt_da()->is_eof()) {
     /* Finalize server status flags after executing a statement. */
     thd->update_slow_query_status();

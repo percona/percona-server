@@ -245,6 +245,11 @@ bool Table_function_json::do_init_args() {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "JSON_TABLE");
     return true;
   }
+
+  if (source->check_cols(1)) {
+    return true;
+  }
+
   try {
     /*
       Check whether given JSON source is a const and it's valid, see also
@@ -837,6 +842,9 @@ bool Table_function_sequence::do_init_args() {
 
   Item *dummy = m_source;
   if (m_source->fix_fields(current_thd, &dummy)) return true;
+
+  // Set the default type of '?'
+  if (m_source->propagate_type(current_thd, MYSQL_TYPE_LONGLONG)) return true;
 
   assert(m_source->data_type() != MYSQL_TYPE_VAR_STRING);
   if (m_source->has_aggregation() || m_source->has_subquery() ||

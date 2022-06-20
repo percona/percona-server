@@ -670,7 +670,7 @@ struct trx_lock_t {
   /** Lock wait started at this time.
   Writes under shared lock_sys latch combined with trx->mutex.
   Reads require either trx->mutex or exclusive lock_sys latch. */
-  time_t wait_started;
+  std::chrono::system_clock::time_point wait_started;
 
   /** query thread belonging to this trx that is in QUE_THR_LOCK_WAIT state.
   For threads suspended in a lock wait, this is protected by lock_sys latch for
@@ -856,7 +856,7 @@ class trx_stats final {
 #pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
-    ut_ad(lock_que_wait_ustarted == 0);
+    ut_ad(lock_que_wait_ustarted == std::chrono::steady_clock::time_point{});
     ut_ad(take_stats == false);
 #pragma GCC diagnostic pop
 #endif
@@ -871,7 +871,8 @@ class trx_stats final {
   @return value to be passed to end_io_read
   */
   MY_NODISCARD
-  static ib_time_monotonic_us_t start_io_read(trx_t *trx, ulint bytes) noexcept;
+  static std::chrono::steady_clock::time_point start_io_read(
+      trx_t *trx, ulint bytes) noexcept;
 
   /**
   Register start of an I/O read or wait.
@@ -882,8 +883,8 @@ class trx_stats final {
   @return value to be passed to end_io_read
   */
   MY_NODISCARD
-  static ib_time_monotonic_us_t start_io_read(const trx_t &trx,
-                                              ulint bytes) noexcept;
+  static std::chrono::steady_clock::time_point start_io_read(
+      const trx_t &trx, ulint bytes) noexcept;
 
   /**
   Register, if needed, end of an I/O read or wait.
@@ -891,16 +892,17 @@ class trx_stats final {
   @param	trx		transaction to account I/O to or NULL
   @param	start_time	return value of start_io_read
   */
-  static void end_io_read(trx_t *trx,
-                          ib_time_monotonic_us_t start_time) noexcept;
+  static void end_io_read(
+      trx_t *trx, std::chrono::steady_clock::time_point start_time) noexcept;
 
   /**
   Register end of an I/O read or wait.
 
   @param	trx		transaction to account I/O to
   @param	start_time	return value of start_io_read*/
-  static void end_io_read(const trx_t &trx,
-                          ib_time_monotonic_us_t start_time) noexcept;
+  static void end_io_read(
+      const trx_t &trx,
+      std::chrono::steady_clock::time_point start_time) noexcept;
 
   /**
   Register, if needed, a single untimed I/O read.
@@ -927,9 +929,9 @@ class trx_stats final {
 #pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
-    ut_ad(lock_que_wait_ustarted == 0);
+    ut_ad(lock_que_wait_ustarted == std::chrono::steady_clock::time_point{});
 #pragma GCC diagnostic pop
-    lock_que_wait_ustarted = ut_time_monotonic_us();
+    lock_que_wait_ustarted = std::chrono::steady_clock::now();
   }
 
   /**
@@ -967,7 +969,7 @@ class trx_stats final {
  private:
   // FIXME: only used for reclock-waiting threads, thus could be moved to
   // e.g. que_thr_t if there's benefit
-  ib_time_monotonic_us_t lock_que_wait_ustarted;
+  std::chrono::steady_clock::time_point lock_que_wait_ustarted;
   bool take_stats;
 };
 
@@ -1227,7 +1229,9 @@ struct trx_t {
   by dict_operation_lock. */
 
   /** Time the state last time became TRX_STATE_ACTIVE. */
-  std::atomic<time_t> start_time;
+  std::atomic<std::chrono::system_clock::time_point> start_time{
+      std::chrono::system_clock::time_point{}};
+  static_assert(decltype(start_time)::is_always_lock_free);
 
   lsn_t commit_lsn; /*!< lsn at the time of the commit */
 
@@ -1428,6 +1432,11 @@ struct trx_t {
   }
 
   bool allow_semi_consistent() const { return (skip_gap_locks()); }
+  /** Checks if this transaction releases locks on non matching records due to
+  low isolation level.
+  @return true iff in this transaction's isolation level locks on records which
+               do not match the WHERE clause are released */
+  bool releases_non_matching_rows() const { return skip_gap_locks(); }
 };
 #ifndef UNIV_HOTBACKUP
 
@@ -1459,32 +1468,40 @@ inline bool trx_is_started(const trx_t *trx) {
   return trx_was_started(trx);
 }
 
-inline ib_time_monotonic_us_t trx_stats::start_io_read(const trx_t &trx,
-                                                       ulint bytes) noexcept {
+inline std::chrono::steady_clock::time_point trx_stats::start_io_read(
+    const trx_t &trx, ulint bytes) noexcept {
   if (bytes) {
     thd_report_innodb_stat(trx.mysql_thd, trx.id, MYSQL_TRX_STAT_IO_READ_BYTES,
                            bytes);
   }
-  return ut_time_monotonic_us();
+  return std::chrono::steady_clock::now();
 }
 
-inline ib_time_monotonic_us_t trx_stats::start_io_read(trx_t *trx,
-                                                       ulint bytes) noexcept {
+inline std::chrono::steady_clock::time_point trx_stats::start_io_read(
+    trx_t *trx, ulint bytes) noexcept {
   if (UNIV_LIKELY_NULL(trx)) return start_io_read(*trx, bytes);
-  return 0;
+  return std::chrono::steady_clock::time_point{};
 }
 
-inline void trx_stats::end_io_read(const trx_t &trx,
-                                   ib_time_monotonic_us_t start_time) noexcept {
-  const auto finish_time = ut_time_monotonic_us();
+inline auto get_us_from_now(
+    const std::chrono::steady_clock::time_point tp) noexcept {
+  const auto diff_us = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::steady_clock::now() - tp);
+  return diff_us.count();
+}
+
+inline void trx_stats::end_io_read(
+    const trx_t &trx,
+    std::chrono::steady_clock::time_point start_time) noexcept {
+  const auto duration_us = get_us_from_now(start_time);
   thd_report_innodb_stat(trx.mysql_thd, trx.id,
-                         MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
-                         finish_time - start_time);
+                         MYSQL_TRX_STAT_IO_READ_WAIT_USECS, duration_us);
 }
 
-inline void trx_stats::end_io_read(trx_t *trx,
-                                   ib_time_monotonic_us_t start_time) noexcept {
-  if (UNIV_UNLIKELY(start_time != 0)) end_io_read(*trx, start_time);
+inline void trx_stats::end_io_read(
+    trx_t *trx, std::chrono::steady_clock::time_point start_time) noexcept {
+  if (UNIV_UNLIKELY(start_time != std::chrono::steady_clock::time_point{}))
+    end_io_read(*trx, start_time);
 }
 
 inline void trx_stats::bump_io_read(const trx_t &trx, ulint n) noexcept {
@@ -1505,15 +1522,16 @@ inline void trx_stats::bump_innodb_enter_wait(const trx_t &trx, ulint us) const
 
 inline void trx_stats::stop_lock_wait(const trx_t &trx) noexcept {
   if (UNIV_LIKELY(!take_stats)) return;
-  const auto now = ut_time_monotonic_us();
+  const auto duration_us = get_us_from_now(lock_que_wait_ustarted);
   thd_report_innodb_stat(trx.mysql_thd, trx.id, MYSQL_TRX_STAT_LOCK_WAIT_USECS,
-                         now - lock_que_wait_ustarted);
+                         duration_us);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
-  ut_d(lock_que_wait_ustarted = 0);
+  ut_d(lock_que_wait_ustarted =
+           std::chrono::steady_clock::time_point{});
 #pragma GCC diagnostic pop
 }
 

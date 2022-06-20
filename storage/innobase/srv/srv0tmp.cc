@@ -354,7 +354,7 @@ dberr_t Tablespace_pool::expand(size_t size) {
     Tablespace *ts = ut::new_withkey<Tablespace>(UT_NEW_THIS_FILE_PSI_KEY);
 
     if (ts == nullptr) {
-      return (DB_OUT_OF_MEMORY);
+      return DB_OUT_OF_MEMORY;
     }
 
     dberr_t err = ts->create();
@@ -363,10 +363,10 @@ dberr_t Tablespace_pool::expand(size_t size) {
       m_free->push_back(ts);
     } else {
       ut::delete_(ts);
-      return (err);
+      return err;
     }
   }
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 void Tablespace_pool::delete_old_pool(bool create_new_db) {
@@ -459,6 +459,8 @@ void delete_pool_manager() { ut::delete_(tbsp_pool); }
 
 void close_files() {
   auto close = [&](const ibt::Tablespace *ts) { ts->close(); };
+
+  if (!ibt::tbsp_pool) return;
 
   ibt::tbsp_pool->iterate_tbsp(close);
 }

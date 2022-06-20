@@ -110,7 +110,7 @@ struct TABLE_LIST;
 struct TABLE_SHARE;
 struct handlerton;
 struct Name_resolution_context;
-typedef int8 plan_idx;
+using plan_idx = int;
 
 namespace dd {
 class Table;
@@ -3465,6 +3465,8 @@ struct TABLE_LIST {
   }
 
   const Lock_descriptor &lock_descriptor() const { return m_lock_descriptor; }
+
+  bool is_derived_unfinished_materialization() const;
 
  private:
   /**

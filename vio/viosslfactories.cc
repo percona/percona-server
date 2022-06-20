@@ -45,6 +45,11 @@
 #include <openssl/ec.h>
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/evp.h>
+#include <openssl/provider.h>
+#endif
+
 #define TLS_VERSION_OPTION_SIZE 256
 
 /*
@@ -340,7 +345,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock,
 
       fprintf(stderr, "Fatal: OpenSSL interface problem (mode=0x%x)", mode);
       fflush(stderr);
-      abort();
+      my_abort();
   }
   if (err) {
     DBUG_PRINT("error", ("Fatal OpenSSL: %s:%d: can't %s OpenSSL lock\n", file,
@@ -348,7 +353,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock,
 
     fprintf(stderr, "Fatal: can't %s OpenSSL lock", what);
     fflush(stderr);
-    abort();
+    my_abort();
   }
 }
 
@@ -362,7 +367,7 @@ static void openssl_lock_function(int mode, int n,
 
     fprintf(stderr, "Fatal: OpenSSL interface problem (n = %d)", n);
     fflush(stderr);
-    abort();
+    my_abort();
   }
   openssl_lock(mode, &openssl_stdlocks[n], file, line);
 }
@@ -497,12 +502,20 @@ int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
   if (fips_mode > 2) {
     goto EXIT;
   }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  fips_mode_old = EVP_default_properties_is_fips_enabled(NULL);
+#else
   fips_mode_old = FIPS_mode();
+#endif
   if (fips_mode_old == fips_mode) {
     rc = 1;
     goto EXIT;
   }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (!(rc = EVP_default_properties_enable_fips(NULL, fips_mode))) {
+#else
   if (!(rc = FIPS_mode_set(fips_mode))) {
+#endif
     /*
       If OS doesn't have FIPS enabled openssl library and user sets FIPS mode
       ON, It fails with proper error. But in the same time it doesn't allow to
@@ -510,7 +523,11 @@ int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
       error, setting old working FIPS mode value in the OpenSSL library. It will
       allow successful cryptographic operation and will not abort the server.
     */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_default_properties_enable_fips(NULL, fips_mode_old);
+#else
     FIPS_mode_set(fips_mode_old);
+#endif
     err_library = ERR_get_error();
     ERR_error_string_n(err_library, err_string, OPENSSL_ERROR_LENGTH - 1);
     err_string[OPENSSL_ERROR_LENGTH - 1] = '\0';
@@ -524,7 +541,14 @@ EXIT:
 
   @returns openssl current fips mode
 */
-uint get_fips_mode() { return FIPS_mode(); }
+uint get_fips_mode() {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  return EVP_default_properties_is_fips_enabled(NULL) &&
+         OSSL_PROVIDER_available(NULL, "fips");
+#else
+  return FIPS_mode();
+#endif
+}
 
 /**
   Toggle FIPS mode, to see whether it is available with the current SSL library.
@@ -532,7 +556,13 @@ uint get_fips_mode() { return FIPS_mode(); }
   @retval non-zero: FIPS is supported.
 */
 int test_ssl_fips_mode(char *err_string) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  int ret = EVP_default_properties_enable_fips(
+      NULL, !(EVP_default_properties_is_fips_enabled(NULL) &&
+              OSSL_PROVIDER_available(NULL, "fips")));
+#else
   int ret = FIPS_mode_set(FIPS_mode() == 0 ? 1 : 0);
+#endif
   unsigned long err = (ret == 0) ? ERR_get_error() : 0;
 
   if (err != 0) {
@@ -546,19 +576,17 @@ long process_tls_version(const char *tls_version) {
   char *token, *lasts = nullptr;
 
 #ifdef HAVE_TLSv13
-  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2",
-                                         "TLSv1.3"};
-  const char ctx_flag_default[] = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3";
-  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1,
-                               SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
+  const char *tls_version_name_list[] = {"TLSv1.2", "TLSv1.3"};
+  const char ctx_flag_default[] = "TLSv1.2,TLSv1.3";
+  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
   long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
-                      SSL_OP_NO_TLSv1_3;
+                      SSL_OP_NO_TLSv1_3 | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 #else
-  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
-  const char ctx_flag_default[] = "TLSv1,TLSv1.1,TLSv1.2";
-  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1,
-                               SSL_OP_NO_TLSv1_2};
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+  const char *tls_version_name_list[] = {"TLSv1.2"};
+  const char ctx_flag_default[] = "TLSv1.2";
+  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1_2};
+  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
+                      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 #endif /* HAVE_TLSv13 */
   const unsigned int tls_versions_count = array_elements(tls_version_name_list);
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
@@ -598,7 +626,8 @@ static struct st_VioSSLFd *new_VioSSLFd(
     const long ssl_ctx_flags, const char *server_host [[maybe_unused]]) {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
-  long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+  long ssl_ctx_options =
+      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   int ret_set_cipherlist = 0;
   std::string cipher_list;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L

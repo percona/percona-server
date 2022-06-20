@@ -49,8 +49,9 @@ SELECT * FROM t1;
 
 --echo
 --echo # Restart server with keysbad3.txt
+--let keys_bad=$MYSQLTEST_VARDIR/std_data/keysbad3.txt
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
---let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keysbad3.txt --log-error=$test_error_log
+--let $restart_parameters=restart:--keyring-file-data=$keys_bad --log-error=$test_error_log
 --source include/start_mysqld.inc
 
 --error ER_GET_ERRMSG
@@ -65,6 +66,9 @@ DROP TABLE t1;
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$test_error_log
 --source include/search_pattern_in_file.inc
+
+--remove_file $keys_bad
+
 --echo # Start server with keys3.txt
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
 -- let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt --log-error=$test_error_log

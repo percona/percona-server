@@ -27,7 +27,7 @@ Only the temporary tables that were explicitly created with `CREATE TEMPORARY TA
       * - Column Name
         - Description
       * - 'SESSION_ID'
-        - 'MySQL connection id'
+        - '*MySQL* connection id'
       * - 'TABLE_SCHEMA'
         - 'Schema in which the temporary table is created'
       * - 'TABLE_NAME'
@@ -63,7 +63,7 @@ This table holds information on the temporary tables that exist for all connecti
       * - Column Name
         - Description
       * - 'SESSION_ID'
-        - 'MySQL connection id'
+        - '*MySQL* connection id'
       * - 'TABLE_SCHEMA'
         - 'Schema in which the temporary table is created'
       * - 'TABLE_NAME'

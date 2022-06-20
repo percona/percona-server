@@ -14,7 +14,7 @@ Garbage collection can also cause large-scale write amplification. The ``stale``
 
 The zone storage model organizes the SSD into a set of zones that are uniform in size and uses the Zoned Namespaces (ZNS) technology. ZNS is optimized for an SSD and exposes this zoned block storage interface between the host and SSD. ZNS enables smart data placement. Writes are sequential within a zone.
 
-ZenFS is a file system plugin for RocksDB which uses the RocksDB file system to place files into zones on a raw zoned block device (ZBD). The plugin adds native support for ZNS, avoids garbage collection, and minimizes write amplification. File data is stored in a set of extents. Within a zone, extents are a contiguous part of the address space. Garbage collection is an option, but this selection can cause write amplification. 
+ZenFS is a file system plugin for RocksDB which uses the RocksDB file system to place files into zones on a raw zoned block device (ZBD). The plugin adds native support for ZNS, avoids on device garbage collection, and minimizes write amplification. File data is stored in a set of extents. Within a zone, extents are a contiguous part of the address space. Garbage collection is an option, but this selection can cause write amplification.
 
 ZenFS depends on the ``libzbd`` user library and requires a Linux kernel implementation that supports NVMe Zoned Namespaces. The kernel
 must be configured with `zone block device support
@@ -30,8 +30,8 @@ The following procedure installs Percona Server for MySQL and then configures
 
 .. note::
 
-   The ``<block_device_name>`` can have a short name designation which is the ``<short_block_device_name>``. For the purposes of this document, the ``block_device_name`` is ``/dev/nvme0n2`` and the short name is ``nvme0n2``. 
-    
+   The <block_device_name> can have a short name designation which is the <short_block_device_name>. For example, if the <block_device_name> is ``/dev/nvme0n2`` remove the ``/dev/`` portion and the <short_block_device_name> is ``nvme0n2``.
+   The block device name and short block device name must be substituted with the appropriate name from your system. To indicate that such a substitution is needed in statements, we use <block_device_name> and <short_block_device_name>.
 
 For the moment, the ZenFS plugin can be enabled in following distributions:
 
@@ -63,10 +63,10 @@ Start with the installation of *Percona Server for MySQL*.
    .. code-block:: bash
 
       $ wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb	
-      $ sudo apt install gnupg2 lsb-release ./percona-release_latest.generic_all.deb	
+      $ sudo apt install gnupg2 lsb-release ./percona-release_latest.*_all.deb
       $ sudo percona-release setup ps80
 
-2. Install the `zenfs` package. The Percona Server for MySQL with MyRocks and the ZenFS plugin package is listed in the :ref:`installing_from_binary_tarball` section of the *Percona Server for MySQL* installation instructions. 
+2. Install Percona Server for MySQL with MyRocks and the ZenFS plugin package. The binaries are listed in the :ref:`installing_from_binary_tarball` section of the *Percona Server for MySQL* installation instructions.
    
    .. code-block:: bash
 	
@@ -84,40 +84,54 @@ Start with the installation of *Percona Server for MySQL*.
 Configuration
 ============================================================
 
-#. Identify your ZBD device, ``<block_device_name>``, with `lsblk <https://manpages.debian.org/stretch/util-linux/lsblk.8.en.html>`__. Add the ``-o`` option and specify which columns to print. 
+#. Identify your ZBD device, <block_device_name>, with `lsblk <https://manpages.debian.org/stretch/util-linux/lsblk.8.en.html>`__. Add the ``-o`` option and specify which columns to print. 
 
    In the example, the ``NAME`` column returns the block device name, the ``SIZE`` column returns the size of the device, and the ``ZONED`` column returns information if the device uses the zone model. The value, ``host-managed``, identifies a ZBD model.
 
    .. sourcecode:: bash
 
       lsblk -o NAME,SIZE,ZONED
-      NAME        SIZE  ZONED
-      sda       247.9G  none
-      |-sda1    230.9G  none
-      |-sda2        1G  none
-      |-sda3       16G  none
-      sdb        15.5T  host-managed
+      NAME                    SIZE  ZONED
+      sda                       247.9G  none
+      |-sda1                    230.9G  none
+      |-sda2                        1G  none
+      |-sda3                       16G  none
+      <short_block_device_name>   7.2T  host-managed
 
 		
-#. Change the ownership of ``nvme0n2`` to the ``mysql:mysql`` user account.
+#. Change the ownership of <block_device_name> to the ``mysql:mysql`` user account.
 
    .. code-block:: bash
 	
-	  $ sudo chown mysql:mysql /dev/nvme0n2
+	  $ sudo chown mysql:mysql <block_device_name>
 		
-#. Change the permissions so that the user or owner can read and write and the MySQL group can read, in case they must take a backup, for ``nvme0n2``.
+#. Change the permissions so that the user or owner can read and write and the MySQL group can read, in case they must take a backup, for <block_device_name>.
 
    .. code-block:: bash
 	
-	  $ sudo chmod 640 /dev/nvme0n2
+	  $ sudo chmod 640 <block_device_name>
 
 #. Change the scheduler  to ``mq_deadline`` with a ``udev`` rule. Create ``/etc/udev/rules.d/60-scheduler.rules`` if the file does not exist, and add the following rule:
 
    .. code-block:: text
 
-      ACTION=="add|change", KERNEL=="sd*[!0-9]|sr*", ATTR{queue/scheduler}="mq-deadline"
+      ACTION=="add|change", KERNEL=="<short_block_device_name>", ATTR{queue/scheduler}="mq-deadline"
 
-#. Create an auxiliary directory for ZenFS. For example, you could create the ``/var/lib/mysql_aux`` directory. 
+#. Restart the machine to apply the rule.
+
+#. Verify if the rule was applied correctly by running the following line:
+
+   .. code-block:: bash
+
+    $ cat /sys/block/<short_block_device_name>/queue/scheduler
+
+#. Review that the output of the previous command matches:
+
+   .. code-block:: text
+
+    [mq-deadline] none
+
+#. Create an auxiliary directory for ZenFS. For example ``/var/lib/mysql_aux_nvme0n2``.
 
    The ZenFS auxiliary directory is a regular (POSIX) file directory used internally to resolve file locks and shared access. There are no strict requirements for the location but the directory must be write accessible for the `mysql:mysql` UNIX system user account. Each ZBD must have an individual auxiliary directory. This directory is recommended to be at the same level as "/var/lib/mysql", which is the default Percona Server for MySQL directory.
 
@@ -138,39 +152,40 @@ Configuration
 
       For more information, see :ref:`enable-apparmor`.
 
-#. Initialize ZenFS on ``nvme0n2``.
-
-   .. code-block:: bash
-	
-	  $ sudo -H -u mysql zenfs mkfs --zbd=nvme0n2 --aux_path=/var/lib/mysql_zenfs_aux_ nvme0n2 --finish_threshold=0 --force
-		
    .. note::
 	
 		 If you must configure ZenFS to use a directory inside ``/var/lib`` (owned by ``root:root`` without write permissions for other user accounts), edit your AppArmor profile (described in an earlier step), if needed, and do the following steps manually:
 		
-		 #. Create the ``aux_path`` for ``nvme0n2``:
+		 #. Create the ``aux_path`` for <block_device_name>:
 		
 		    .. code-block:: bash
 		
-			    $ sudo mkdir /var/lib/mysql_zenfs_aux_ nvme0n2
+			    $ sudo mkdir /var/lib/mysql_aux_<short_block_device_name>
 			
 		 #. Change the ownership of the ``aux_path``:
 		
 		    .. code-block:: bash
 		
-			    $ sudo chown mysql:mysql /var/lib/mysql_zenfs_ nvme0n2
+			    $ sudo chown mysql:mysql /var/lib/mysql_aux_<short_block_device_name>
 			
-		 #. Set the permissions for the ``aux_path`` for ``nvme0n2``:
+		 #. Set the permissions for the ``aux_path`` for <block_device_name>:
 		
 		    .. code-block:: bash
 		
-			    $ sudo chmod 750 /var/lib/mysql_zenfs_aux_ nvme0n2
+			    $ sudo chmod 750 /var/lib/mysql_aux_<short_block_device_name>
 
- 		 #. Create the file system:
-		
-		    .. code-block:: bash
-		
-			    $ sudo -H -u mysql zenfs mkfs     
+
+#. Change the ownership of <block_device_name>.
+
+   .. code-block:: bash
+
+          $ sudo chown mysql:mysql <block_device_name>
+
+#. Initialize ZenFS on <block_device_name>.
+
+   .. code-block:: bash
+
+	  $ sudo -H -u mysql zenfs mkfs --zbd=<short_block_device_name> --aux_path=/var/lib/mysql_aux_<short_block_device_name> --finish_threshold=0 --force
 		
 #. Stop *Percona Server for MySQL*:
 
@@ -178,13 +193,13 @@ Configuration
 	
 	  sudo service mysql stop 
 		
-#. Edit my.cnf. Add the following line to the "[mysqld]" section: 
+#. Edit my.cnf. Add the following line to the "[mysqld]" section:
 
    .. code-block:: text 
 		
 	  [mysqld]
 	  ...
-	  loose-rocksdb-fs-uri=zenfs://dev:nvme0n2
+	  loose-rocksdb-fs-uri=zenfs://dev:<short_block_device_name>
 	  ...
         
    .. note::
@@ -201,7 +216,19 @@ Configuration
 
    .. code-block:: bash
 	
-	  $ sudo ps-admin --enable-rocksdb -u root -p <password>
+	  $ sudo ps-admin --enable-rocksdb -u root -p
+
+#. Enter the MyRocks password.
+
+   Alternatively, enable RocksDB by adding the following lines to the my.cnf file:
+
+   .. code-block:: text
+
+	  [mysqld]
+    ...
+    plugin-load-add=rocksdb=ha_rocksdb.so
+    default-storage-engine=rocksdb
+    ...
 		
 #. Verify that the ".rocksdb" directory in the default data directory has only "LOG*" files:
 
@@ -213,23 +240,25 @@ Configuration
 
    .. code-block:: bash
 	
-	  $ sudo -H -u mysql zenfs list --zbd=nvme0n2 --path=./.rocksdb
+	  $ sudo -H -u mysql zenfs list --zbd=<short_block_device_name> --path=./.rocksdb
+    #OR
+	  $ sudo -H -u mysql zenfs dump --zbd=<short_block_device_name>
 
 #. You can verify if the ZenFS was successfully created with the following command:
 
    .. sourcecode:: bash
 
-      zenfs ls-uuid
+      $ sudo -H -u mysql zenfs ls-uuid
       ...
-      13e421af-1967-435c-ab15-faf4529710b6    nvme0n2
+      13e421af-1967-435c-ab15-faf4529710b6    <short_block_device_name>
       ...
 
 #. You can check the available storage with the following command:
 
    .. sourcecode:: bash
 
-      zenfs df --zbd=nvme0n2
-      Free: 7563 MB
+      $ sudo -H -u mysql zenfs df --zbd=<short_block_device_name>
+      Free: 971453 MB
       Used: 0 MB
       Reclaimable: 0 MB
       Space amplification: 0%

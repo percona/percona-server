@@ -147,6 +147,7 @@ Security Improvements
   security/vault
   security/using-keyring-plugin
   security/using-kmip
+  security/encryption-functions
   security/using-amz-kms
   security/rotating-master-key
   security/encrypting-tables

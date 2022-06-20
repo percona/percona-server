@@ -189,6 +189,8 @@ ENDIF()
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_definitions(-DOS_LINUX)
+ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  add_definitions(-DOS_MACOSX)
 ENDIF()
 
 ROCKSDB_SET_DEFINTIONS()
@@ -201,6 +203,7 @@ message(STATUS "MyRocks compile definitions: ${COMPILE_DEFINITIONS}")
 append_cflags_if_supported(-Wno-unused-parameter -Wno-suggest-override)
 # "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef -Wextra-semi" which cause warnings with RocksDB
 remove_compile_flags(-Wcast-qual -Wundef -Wextra-semi)
+append_cflags_if_supported(-Wno-invalid-offsetof)
 
 # Suppress warnings for all clang versions
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -275,7 +278,6 @@ SET(ROCKSDB_SOURCES
   ${ZSTD_SOURCES}
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
   logger.h
-  rdb_comparator.h
   rdb_datadic.cc rdb_datadic.h
   rdb_iterator.cc rdb_iterator.h
   rdb_cf_options.cc rdb_cf_options.h
@@ -304,7 +306,10 @@ IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
 ENDIF()
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl" ${PLUGIN_LD})
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-ldl" ${PLUGIN_LD})
+IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  SET(rocksdb_static_libs ${rocksdb_static_libs} "-lrt")
+ENDIF()
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}

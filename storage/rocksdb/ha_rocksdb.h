@@ -53,19 +53,11 @@
 
 /* MyRocks header files */
 #include "./rdb_buff.h"
-#include "./rdb_comparator.h"
 #include "./rdb_global.h"
 #include "./rdb_index_merge.h"
 #include "./rdb_perf_context.h"
 #include "./rdb_sst_info.h"
 #include "./rdb_utils.h"
-
-/**
-  @note MyRocks Coding Conventions:
-  MyRocks code follows the baseline MySQL coding conventions, available at
-  http://dev.mysql.com/doc/internals/en/coding-guidelines.html, with several
-  refinements (@see /storage/rocksdb/README file).
-*/
 
 /**
   @note MyRocks Coding Conventions:
@@ -405,7 +397,8 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   /*
     Update stats
   */
-  static int update_stats(ha_statistics *ha_stats, Rdb_tbl_def *tbl_def);
+  static int update_stats(ha_statistics *ha_stats, Rdb_tbl_def *tbl_def,
+                          bool from_handler = false);
 
   /*
     Controls whether writes include checksums. This is updated from the session
@@ -491,9 +484,9 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   }
 
   int rename_table(const char *const from, const char *const to,
-                   const dd::Table *from_table_def,
-                   dd::Table *to_table_def) override
-      MY_ATTRIBUTE((__warn_unused_result__));
+                   const dd::Table *from_table_def MY_ATTRIBUTE((__unused__)),
+                   dd::Table *to_table_def MY_ATTRIBUTE((__unused__))) override
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_record_from_storage_format(const rocksdb::Slice *const key,
                                          const rocksdb::Slice *const value,
@@ -674,6 +667,22 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
     bool skip_unique_check;
   };
 
+  /** Flags indicating if current operation can be done instantly */
+  enum class Instant_Type : uint16_t {
+    /** Impossible to alter instantly */
+    INSTANT_IMPOSSIBLE,
+
+    /** Can be instant without any change */
+    INSTANT_NO_CHANGE,
+
+    /** Adding or dropping virtual columns only */
+    INSTANT_VIRTUAL_ONLY,
+
+    /** ADD COLUMN which can be done instantly, including
+    adding stored column only (or along with adding virtual columns) */
+    INSTANT_ADD_COLUMN
+  };
+
   int create_cfs(const TABLE *const table_arg, Rdb_tbl_def *const tbl_def_arg,
                  const std::string &actual_user_table_name,
                  std::array<struct key_def_cf_info, MAX_INDEXES + 1> *const cfs)
@@ -781,6 +790,9 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   bool should_recreate_snapshot(const int rc, const bool is_new_snapshot) const;
 
   bool can_assume_tracked(THD *thd);
+  Instant_Type rocksdb_support_instant(
+      my_core::Alter_inplace_info *const ha_alter_info, const TABLE *old_table,
+      const TABLE *altered_table) const;
 
  public:
   void set_pk_can_be_decoded(bool flag) { m_pk_can_be_decoded = flag; }
@@ -1158,5 +1170,6 @@ extern std::atomic<uint64_t> rocksdb_partial_index_groups_sorted;
 extern std::atomic<uint64_t> rocksdb_partial_index_groups_materialized;
 extern std::atomic<uint64_t> rocksdb_partial_index_rows_sorted;
 extern std::atomic<uint64_t> rocksdb_partial_index_rows_materialized;
+extern bool rocksdb_enable_tmp_table;
 
 }  // namespace myrocks

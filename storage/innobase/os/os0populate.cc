@@ -6,6 +6,8 @@
 #include <sys/utsname.h> /* uname() */
 #endif
 
+#if OS_MAP_POPULATE
+
 /** Retrieve and compare operating system release.
 @return	TRUE if the OS release is equal to, or later than release. */
 static bool os_compare_release(const char *release [[maybe_unused]]) {
@@ -16,6 +18,8 @@ static bool os_compare_release(const char *release [[maybe_unused]]) {
   return 0;
 #endif
 }
+
+#endif
 
 void prefault_if_not_map_populate(void *ptr [[maybe_unused]],
                                   size_t n_bytes [[maybe_unused]]) {

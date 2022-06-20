@@ -147,6 +147,7 @@ Security Improvements
   security/vault
   security/using-keyring-plugin
   security/using-kmip
+  security/using-amz-kms
   security/rotating-master-key
   security/encrypting-tables
   security/encrypting-tablespaces
@@ -160,6 +161,7 @@ Security Improvements
   security/verifying-encryption
   security/ssl-improvement
   security/data-masking
+  security/system-variables
 
 Diagnostics Improvements
 ================================================================================

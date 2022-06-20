@@ -373,11 +373,12 @@ Rdb_iterator_partial::Rdb_iterator_partial(
       m_converter(thd, tbl_def, table),
       m_valid(false),
       m_materialized(false),
+      m_iterator_pk_position(Iterator_position::UNKNOWN),
       m_threshold(kd->partial_index_threshold()),
       m_prefix_keyparts(kd->partial_index_keyparts()),
       m_cur_prefix_key_len(0),
-      m_records(slice_comparator(m_kd->get_cf()->GetComparator())),
-      m_records_it(m_records.end()) {
+      m_records_it(m_records.end()),
+      m_comparator(slice_comparator(m_kd->get_cf()->GetComparator())) {
   init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 4096, 0);
   auto max_mem = get_partial_index_sort_max_mem(thd);
   if (max_mem) {
@@ -452,13 +453,13 @@ int Rdb_iterator_partial::get_prefix_from_start(
   if (rc) {
     return rc;
   }
-  DBUG_ASSERT_IMP(prefix_cnt == 0,
-                  prefix_len == Rdb_key_def::INDEX_NUMBER_SIZE);
+  assert_IMP(prefix_cnt == 0, prefix_len == Rdb_key_def::INDEX_NUMBER_SIZE);
 
   // There are 2 scenarios where a read is required to determine the prefix:
   // 1. There are not enough keyparts in the start_key.
   // 2. An exclusive seek key is provided, meaning that we need to read the next
   // prefix.
+  m_iterator_pk_position = Iterator_position::UNKNOWN;
   if (prefix_cnt < m_prefix_keyparts ||
       (prefix_len == start_key.size() &&
        (find_flag == HA_READ_AFTER_KEY || find_flag == HA_READ_BEFORE_KEY))) {
@@ -499,9 +500,29 @@ int Rdb_iterator_partial::get_next_prefix(bool direction) {
   rocksdb::Slice cur_prefix_key((const char *)m_cur_prefix_key,
                                 m_cur_prefix_key_len);
   uint tmp;
+  int rc = 0;
 
-  int rc = get_prefix_from_start(
-      direction ? HA_READ_AFTER_KEY : HA_READ_BEFORE_KEY, cur_prefix_key);
+  if (direction && m_iterator_pk_position != Iterator_position::UNKNOWN &&
+      m_iterator_pk_position != Iterator_position::START_CUR_PREFIX) {
+    if (m_iterator_pk_position == Iterator_position::END_OF_FILE) {
+      return HA_ERR_END_OF_FILE;
+    } else if (m_iterator_pk_position == Iterator_position::START_NEXT_PREFIX) {
+      uint prefix_cnt = 0;
+      uint prefix_len = 0;
+      rc = get_prefix_len(m_iterator_pk.key(), &prefix_cnt, &prefix_len);
+      if (rc) {
+        m_iterator_pk_position = Iterator_position::UNKNOWN;
+        return rc;
+      }
+      memcpy(m_cur_prefix_key, m_iterator_pk.key().data(), prefix_len);
+      m_cur_prefix_key_len = prefix_len;
+      m_iterator_pk_position = Iterator_position::START_CUR_PREFIX;
+    }
+  } else {
+    m_iterator_pk_position = Iterator_position::UNKNOWN;
+    rc = get_prefix_from_start(
+        direction ? HA_READ_AFTER_KEY : HA_READ_BEFORE_KEY, cur_prefix_key);
+  }
   m_kd->get_infimum_key(m_cur_prefix_key, &tmp);
 
   cur_prefix_key =
@@ -524,26 +545,16 @@ int Rdb_iterator_partial::seek_next_prefix(bool direction) {
   int rc = get_next_prefix(direction);
   if (rc) return rc;
 
-  // Rdb_iterator_base::seek below will overwrite m_prefix_tuple, so we save a
-  // copy here.
-  size_t prefix_buf_len = m_prefix_tuple.size();
-  uchar *prefix_buf_copy = (uchar *)my_alloca(prefix_buf_len);
-  memcpy(prefix_buf_copy, m_prefix_buf, prefix_buf_len);
-
   // First try reading from SK in the current prefix.
   rocksdb::Slice cur_prefix_key((const char *)m_cur_prefix_key,
                                 m_cur_prefix_key_len);
   m_kd->get_infimum_key(m_cur_prefix_key, &tmp);
 
-  rc = Rdb_iterator_base::seek(
-      direction ? HA_READ_KEY_EXACT : HA_READ_PREFIX_LAST, cur_prefix_key,
-      false, empty_end_key);
+  rocksdb::PinnableSlice value;
+  rc = Rdb_iterator_base::get(&cur_prefix_key, &value, RDB_LOCK_NONE,
+                              true /* skip ttl check*/);
 
-  // Restore m_prefix_tuple
-  memcpy(m_prefix_buf, prefix_buf_copy, prefix_buf_len);
-  m_prefix_tuple = rocksdb::Slice((char *)m_prefix_buf, prefix_buf_len);
-
-  if (rc == HA_ERR_END_OF_FILE) {
+  if (rc == HA_ERR_KEY_NOT_FOUND) {
     // Nothing in SK, so check PK.
     rc = read_prefix_from_pk();
 
@@ -564,6 +575,25 @@ int Rdb_iterator_partial::seek_next_prefix(bool direction) {
   } else if (rc == 0) {
     // Found rows in SK, so use them
     m_materialized = true;
+    assert(value.size() == 0);
+
+    // Rdb_iterator_base::seek below will overwrite m_prefix_tuple, so we save a
+    // copy here.
+    size_t prefix_buf_len = m_prefix_tuple.size();
+    uchar *prefix_buf_copy = (uchar *)my_alloca(prefix_buf_len);
+    memcpy(prefix_buf_copy, m_prefix_buf, prefix_buf_len);
+
+    rc = Rdb_iterator_base::seek(
+        direction ? HA_READ_KEY_EXACT : HA_READ_PREFIX_LAST, cur_prefix_key,
+        true, empty_end_key);
+    // Skip sentinel values.
+    if (rc == 0 && Rdb_iterator_base::key().size() == m_cur_prefix_key_len) {
+      rc = direction ? Rdb_iterator_base::next() : Rdb_iterator_base::prev();
+    }
+
+    // Restore m_prefix_tuple
+    memcpy(m_prefix_buf, prefix_buf_copy, prefix_buf_len);
+    m_prefix_tuple = rocksdb::Slice((char *)m_prefix_buf, prefix_buf_len);
   }
 
   return rc;
@@ -612,6 +642,15 @@ int Rdb_iterator_partial::materialize_prefix() {
   optimize.skip_concurrency_control = true;
 
   auto wb = std::unique_ptr<rocksdb::WriteBatch>(new rocksdb::WriteBatch);
+  // Write sentinel key with empty value.
+  s = wb->Put(m_kd->get_cf(), cur_prefix_key, rocksdb::Slice());
+  if (!s.ok()) {
+    rc = rdb_tx_set_status_error(tx, s, *m_kd, m_tbl_def);
+    rdb_tx_release_lock(tx, *m_kd, cur_prefix_key, true /* force */);
+    thd_proc_info(m_thd, old_proc_info);
+    return rc;
+  }
+
   m_pkd->get_infimum_key(m_cur_prefix_key, &tmp);
   Rdb_iterator_base iter_pk(m_thd, m_pkd, m_pkd, m_tbl_def);
   rc = iter_pk.seek(HA_READ_KEY_EXACT, cur_prefix_key, false, cur_prefix_key,
@@ -688,19 +727,33 @@ int Rdb_iterator_partial::read_prefix_from_pk() {
   m_pkd->get_infimum_key(m_cur_prefix_key, &tmp);
 
   // Since order does not matter (as we will reorder in SK order later), it is
-  // btter to read in reverse direction for rev cf.
+  // better to read in reverse direction for rev cf.
   //
   // However rocksdb does not support reverse prefix seeks, so we always seek in
-  // the forwards direction (even PK is a reverse cf). This ensures that we can
-  // make good use of bloom filters.
+  // the forwards direction (even if PK is a reverse cf). This ensures that we
+  // can make good use of bloom filters.
   //
-  rc = m_iterator_pk.seek(HA_READ_KEY_EXACT, cur_prefix_key, false,
-                          cur_prefix_key);
+  assert(m_iterator_pk_position != Iterator_position::END_OF_FILE);
+  if (m_iterator_pk_position != Iterator_position::START_CUR_PREFIX) {
+    rocksdb::Slice empty_end_key;
+    rc = m_iterator_pk.seek(HA_READ_KEY_OR_NEXT, cur_prefix_key, false,
+                            empty_end_key);
+  }
 
-  while (!rc) {
+  while (true) {
     if (thd_killed(m_thd)) {
       rc = HA_ERR_QUERY_INTERRUPTED;
       goto exit;
+    }
+
+    if (rc == HA_ERR_END_OF_FILE) {
+      m_iterator_pk_position = Iterator_position::END_OF_FILE;
+      break;
+    } else if (!m_pkd->value_matches_prefix(m_iterator_pk.key(),
+                                            cur_prefix_key)) {
+      rc = HA_ERR_END_OF_FILE;
+      m_iterator_pk_position = Iterator_position::START_NEXT_PREFIX;
+      break;
     }
 
     const rocksdb::Slice &rkey = m_iterator_pk.key();
@@ -726,8 +779,8 @@ int Rdb_iterator_partial::read_prefix_from_pk() {
       goto exit;
     }
 
-    m_records.emplace(rocksdb::Slice(key, sk_packed_size),
-                      rocksdb::Slice(val, m_sk_tails.get_current_pos()));
+    m_records.emplace_back(rocksdb::Slice(key, sk_packed_size),
+                           rocksdb::Slice(val, m_sk_tails.get_current_pos()));
 
     num_rows++;
     rc = m_iterator_pk.next();
@@ -736,6 +789,7 @@ int Rdb_iterator_partial::read_prefix_from_pk() {
   if (rc != HA_ERR_END_OF_FILE) goto exit;
   rc = HA_EXIT_SUCCESS;
 
+  std::sort(m_records.begin(), m_records.end(), m_comparator);
   rocksdb_partial_index_groups_sorted++;
   rocksdb_partial_index_rows_sorted += num_rows;
 
@@ -750,8 +804,7 @@ exit:
 }
 
 int Rdb_iterator_partial::seek(enum ha_rkey_function find_flag,
-                               const rocksdb::Slice start_key,
-                               bool full_key_match,
+                               const rocksdb::Slice start_key, bool,
                                const rocksdb::Slice end_key,
                                bool read_current) {
   int rc = 0;
@@ -778,8 +831,12 @@ int Rdb_iterator_partial::seek(enum ha_rkey_function find_flag,
                                 m_cur_prefix_key_len);
   m_kd->get_infimum_key(m_cur_prefix_key, &tmp);
 
-  rc = Rdb_iterator_base::seek(find_flag, start_key, full_key_match, end_key,
+  rc = Rdb_iterator_base::seek(find_flag, start_key, true, end_key,
                                read_current);
+
+  if (rc == 0 && Rdb_iterator_base::key().size() == m_cur_prefix_key_len) {
+    rc = direction ? Rdb_iterator_base::next() : Rdb_iterator_base::prev();
+  }
 
   // Check if we're still in our current prefix. If not, we may have missed
   // some unmaterialized keys, so we have to check PK.
@@ -820,27 +877,31 @@ int Rdb_iterator_partial::seek(enum ha_rkey_function find_flag,
       if (direction) {
         if (m_kd->m_is_reverse_cf) {
           // Emulate "SeekForPrev" behaviour.
-          m_records_it = m_records.upper_bound(start_key);
+          m_records_it = std::upper_bound(m_records.begin(), m_records.end(),
+                                          start_key, m_comparator);
           if (m_records_it == m_records.begin()) {
             next_prefix = true;
           } else {
             m_records_it--;
           }
         } else {
-          m_records_it = m_records.lower_bound(start_key);
+          m_records_it = std::lower_bound(m_records.begin(), m_records.end(),
+                                          start_key, m_comparator);
           if (m_records_it == m_records.end()) {
             next_prefix = true;
           }
         }
       } else {
         if (m_kd->m_is_reverse_cf) {
-          m_records_it = m_records.upper_bound(start_key);
+          m_records_it = std::upper_bound(m_records.begin(), m_records.end(),
+                                          start_key, m_comparator);
           if (m_records_it == m_records.end()) {
             next_prefix = true;
           }
         } else {
           // Emulate "SeekForPrev" behaviour.
-          m_records_it = m_records.lower_bound(start_key);
+          m_records_it = std::lower_bound(m_records.begin(), m_records.end(),
+                                          start_key, m_comparator);
           if (m_records_it == m_records.begin()) {
             next_prefix = true;
           } else {
@@ -910,6 +971,9 @@ int Rdb_iterator_partial::next_with_direction_in_group(bool direction) {
   int rc = HA_EXIT_SUCCESS;
   if (m_materialized) {
     rc = direction ? Rdb_iterator_base::next() : Rdb_iterator_base::prev();
+    if (rc == 0 && Rdb_iterator_base::key().size() == m_cur_prefix_key_len) {
+      rc = direction ? Rdb_iterator_base::next() : Rdb_iterator_base::prev();
+    }
 
     if (rc == HA_EXIT_SUCCESS) {
       rocksdb::Slice cur_prefix_key((const char *)m_cur_prefix_key,
@@ -977,6 +1041,7 @@ int Rdb_iterator_partial::prev() {
 void Rdb_iterator_partial::reset() {
   m_valid = false;
   m_materialized = false;
+  m_iterator_pk_position = Iterator_position::UNKNOWN;
   m_mem_root.ClearForReuse();
   m_records.clear();
   m_iterator_pk.reset();

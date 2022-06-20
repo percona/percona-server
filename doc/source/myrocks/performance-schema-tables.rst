@@ -10,7 +10,7 @@ RocksDB WAL file information can be seen in the
 `performance_schema.log_status <https://dev.mysql.com/doc/refman/8.0/en/performance-schema-log-status-table.html>`__
 table in the ``STORAGE ENGINE`` column.
 
-This feature has been implemented in Percona Server :rn:`8.0.15-6` release.
+This feature has been implemented in Percona Server :ref:`8.0.15-6` release.
 
 Example
 -------------------------------------------------------------------------------

@@ -1,12 +1,12 @@
-.. rn:: 8.0.14:
+.. _8.0.14:
 
 ================================================================================
-|Percona Server| |release|
+*Percona Server for MySQL* 8.0.14
 ================================================================================
 
 Due to a critical fix, |mysql-cs| 8.0.15 was released shortly (11 days later)
 after |mysql-cs| 8.0.14. |Percona| has skipped the release of |Percona Server|
-|release|. The next release of |Percona Server| is :rn:`8.0.15-5` which contains
+|release|. The next release of |Percona Server| is :ref:`8.0.15-5` which contains
 all bug fixes and contents of both |mysql-cs| 8.0.14 and |mysql-cs| 8.0.15.
 
 |Percona Server| 8.0 includes all the `features available in MySQL 8.0 Community

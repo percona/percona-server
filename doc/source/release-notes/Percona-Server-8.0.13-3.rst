@@ -1,7 +1,7 @@
-.. rn:: 8.0.13-3
+.. _8.0.13-3:
 
 ================================================================================
-|Percona Server| |release|
+*Percona Server for MySQL* 8.0.13-3
 ================================================================================
 
 |Percona| announces the GA release of |Percona Server| |release| on |date|

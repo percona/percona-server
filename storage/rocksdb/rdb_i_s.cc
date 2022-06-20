@@ -540,8 +540,6 @@ static int rdb_i_s_cfoptions_fill_table(
          std::to_string(opts.level0_slowdown_writes_trigger)},
         {"LEVEL0_STOP_WRITES_TRIGGER",
          std::to_string(opts.level0_stop_writes_trigger)},
-        {"MAX_MEM_COMPACTION_LEVEL",
-         std::to_string(opts.max_mem_compaction_level)},
         {"TARGET_FILE_SIZE_BASE", std::to_string(opts.target_file_size_base)},
         {"TARGET_FILE_SIZE_MULTIPLIER",
          std::to_string(opts.target_file_size_multiplier)},
@@ -551,15 +549,9 @@ static int rdb_i_s_cfoptions_fill_table(
          opts.level_compaction_dynamic_level_bytes ? "ON" : "OFF"},
         {"MAX_BYTES_FOR_LEVEL_MULTIPLIER",
          std::to_string(opts.max_bytes_for_level_multiplier)},
-        {"SOFT_RATE_LIMIT", std::to_string(opts.soft_rate_limit)},
-        {"HARD_RATE_LIMIT", std::to_string(opts.hard_rate_limit)},
-        {"RATE_LIMIT_DELAY_MAX_MILLISECONDS",
-         std::to_string(opts.rate_limit_delay_max_milliseconds)},
         {"ARENA_BLOCK_SIZE", std::to_string(opts.arena_block_size)},
         {"DISABLE_AUTO_COMPACTIONS",
          opts.disable_auto_compactions ? "ON" : "OFF"},
-        {"PURGE_REDUNDANT_KVS_WHILE_FLUSH",
-         opts.purge_redundant_kvs_while_flush ? "ON" : "OFF"},
         {"MAX_SEQUENTIAL_SKIP_IN_ITERATIONS",
          std::to_string(opts.max_sequential_skip_in_iterations)},
         {"MEMTABLE_FACTORY", opts.memtable_factory == nullptr
@@ -634,9 +626,10 @@ static int rdb_i_s_cfoptions_fill_table(
 
     // get PREFIX_EXTRACTOR option
     cf_option_types.push_back(
-        {"PREFIX_EXTRACTOR", opts.prefix_extractor == nullptr
-                                 ? "NULL"
-                                 : std::string(opts.prefix_extractor->Name())});
+        {"PREFIX_EXTRACTOR",
+         opts.prefix_extractor == nullptr
+             ? "NULL"
+             : std::string(opts.prefix_extractor->AsString())});
 
     // get COMPACTION_STYLE option
     switch (opts.compaction_style) {
@@ -801,13 +794,14 @@ static int rdb_i_s_global_info_fill_table(
   }
 
   /* max index info */
-  Rdb_dict_manager *const dict_manager = rdb_get_dict_manager();
+  Rdb_dict_manager_selector *const dict_manager = rdb_get_dict_manager();
   assert(dict_manager != nullptr);
 
   uint32_t max_index_id;
   char max_index_id_buf[INT_BUF_LEN] = {0};
 
-  if (dict_manager->get_max_index_id(&max_index_id)) {
+  if (dict_manager->get_dict_manager_selector_const(false /*is_tmp_table*/)
+          ->get_max_index_id(&max_index_id)) {
     snprintf(max_index_id_buf, INT_BUF_LEN, "%u", max_index_id);
 
     ret |= rdb_global_info_fill_row(thd, tables, "MAX_INDEX_ID", "MAX_INDEX_ID",
@@ -832,15 +826,16 @@ static int rdb_i_s_global_info_fill_table(
     });
 
     uint flags;
-
-    if (!dict_manager->get_cf_flags(cf_handle->GetID(), &flags)) {
+    uint cf_id = cf_handle->GetID();
+    if (!dict_manager->get_dict_manager_selector_const(cf_id)->get_cf_flags(
+            cf_id, &flags)) {
       // If cf flags cannot be retrieved, set flags to 0. It can happen
       // if the CF is dropped. flags is only used to print information
       // here and so it doesn't affect functional correctness.
       flags = 0;
     }
 
-    snprintf(cf_id_buf, INT_BUF_LEN, "%u", cf_handle->GetID());
+    snprintf(cf_id_buf, INT_BUF_LEN, "%u", cf_id);
     snprintf(cf_value_buf, FN_REFLEN, "%s [%u]", cf_handle->GetName().c_str(),
              flags);
 
@@ -854,8 +849,12 @@ static int rdb_i_s_global_info_fill_table(
 
   /* DDL_DROP_INDEX_ONGOING */
   std::unordered_set<GL_INDEX_ID> gl_index_ids;
-  dict_manager->get_ongoing_index_operation(
-      &gl_index_ids, Rdb_key_def::DDL_DROP_INDEX_ONGOING);
+  auto dict_manager_list = dict_manager->get_all_dict_manager_selector();
+  for_each(dict_manager_list.begin(), dict_manager_list.end(),
+           [&](Rdb_dict_manager *local_dict_manager) {
+             local_dict_manager->get_ongoing_index_operation(
+                 &gl_index_ids, Rdb_key_def::DDL_DROP_INDEX_ONGOING);
+           });
   char cf_id_index_buf[CF_ID_INDEX_BUF_LEN] = {0};
 
   for (auto gl_index_id : gl_index_ids) {
@@ -1097,6 +1096,17 @@ static int rdb_i_s_compact_history_fill_table(
     field[7]->store(record.start_timestamp, false /* unsigned_val */);
     field[8]->store(record.end_timestamp, false /* unsigned_val */);
 
+    // Input and output compaction bytes.
+    field[9]->store(record.info.stats.total_input_bytes, false);
+    field[10]->store(record.info.stats.total_output_bytes, false);
+
+    // Input files count and output files count.
+    field[11]->store(record.info.input_files.size(), false);
+    field[12]->store(record.info.output_files.size(), false);
+
+    // CPU micros.
+    field[13]->store(record.info.stats.cpu_micros, false);
+
     int ret = static_cast<int>(
         my_core::schema_table_store_record(thd, tables->table));
     if (ret != 0) {
@@ -1134,6 +1144,13 @@ static ST_FIELD_INFO rdb_i_s_compact_history_fields_info[] = {
     ROCKSDB_FIELD_INFO("START_TIMESTAMP", sizeof(uint64), MYSQL_TYPE_LONGLONG,
                        0),
     ROCKSDB_FIELD_INFO("END_TIMESTAMP", sizeof(uint64), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("INPUT_COMPACTION_BYTES", sizeof(uint64),
+                       MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("OUTPUT_COMPACTION_BYTES", sizeof(uint64),
+                       MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("INPUT_FILE_COUNT", sizeof(uint32), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("OUTPUT_FILE_COUNT", sizeof(uint32), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("CPU_MICROS", sizeof(uint64), MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO_END};
 
 namespace  // anonymous namespace = not visible outside this source file
@@ -1192,7 +1209,7 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
   assert(m_table != nullptr);
   Field **field = m_table->field;
   assert(field != nullptr);
-  const Rdb_dict_manager *dict_manager = rdb_get_dict_manager();
+  const Rdb_dict_manager_selector *dict_manager = rdb_get_dict_manager();
 
   const std::string &dbname = tdef->base_dbname();
   field[RDB_DDL_FIELD::TABLE_SCHEMA]->store(dbname.c_str(), dbname.size(),
@@ -1230,8 +1247,10 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
     field[RDB_DDL_FIELD::CF]->store(cf_name.c_str(), cf_name.size(),
                                     system_charset_info);
     ulonglong auto_incr;
-    if (dict_manager->get_auto_incr_val(tdef->get_autoincr_gl_index_id(),
-                                        &auto_incr)) {
+    if (dict_manager
+            ->get_dict_manager_selector_const(
+                tdef->get_autoincr_gl_index_id().cf_id)
+            ->get_auto_incr_val(tdef->get_autoincr_gl_index_id(), &auto_incr)) {
       field[RDB_DDL_FIELD::AUTO_INCREMENT]->set_notnull();
       field[RDB_DDL_FIELD::AUTO_INCREMENT]->store(auto_incr, true);
     } else {

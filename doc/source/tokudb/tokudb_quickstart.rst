@@ -120,12 +120,12 @@ however it is a good idea to review some of the configuration parameters.
 .. rubric:: Memory allocation
 
 *TokuDB* will allocate 50% of the installed RAM for its own cache (global
-variable :variable:`tokudb_cache_size`). While this is optimal in most
+variable :ref:`tokudb_cache_size`). While this is optimal in most
 situations, there are cases where it may lead to memory over allocation. If the
 system tries to allocate more memory than is available, the machine will begin
 swapping and run much slower than normal.
 
-It is necessary to set the :variable:`tokudb_cache_size` to a value other than
+It is necessary to set the :ref:`tokudb_cache_size` to a value other than
 the default in the following cases:
 
 Running other memory heavy processes on the same server as TokuDB
@@ -139,7 +139,7 @@ Running other memory heavy processes on the same server as TokuDB
    consider moving some of the other processes to a different system or using a
    dedicated database server.
 
-   :variable:`tokudb_cache_size` is a static variable, so it needs to be set
+   :ref:`tokudb_cache_size` is a static variable, so it needs to be set
    before starting the server and cannot be changed while the server is
    running. For example, to set up TokuDB's cache to 4G, add the following line
    to your :file:`my.cnf` file:
@@ -179,9 +179,11 @@ As with *InnoDB*, it is possible to specify different locations than the default
 for TokuDB's data, log and temporary files. This way you may distribute the load
 and control the disk space. The following variables control file location:
 
-- :variable:`tokudb_data_dir`
-- :variable:`tokudb_log_dir`
-- :variable:`tokudb_tmp_dir`
+* :ref:`tokudb_data_dir`: This variable defines the directory where the TokuDB tables are stored. The default location for TokuDB's data files is the MySQL data directory.
+
+* :ref:`tokudb_log_dir`: This variable defines the directory where the TokuDB log files are stored. The default location for TokuDB's log files is the MySQL data directory. Configuring a separate log directory is somewhat involved and should be done only if absolutely necessary. We recommend to keep the data and log files under the same directory.
+
+* :ref:`tokudb_tmp_dir`: This variable defines the directory where the TokuDB bulk loader stores temporary files. The bulk loader can create large temporary files while it is loading a table, so putting these temporary files on a disk separate from the data directory can be useful. For example, it can make sense to use a high-performance disk for the data directory and a very inexpensive disk for the temporary directory. The default location for TokuDB's temporary files is the MySQL data directory.
 
 Table Maintenance
 ================================================================================
@@ -206,7 +208,7 @@ Hot Optimize Throttling
 
 By default, table optimization will run with all available resources. To limit
 the amount of resources, it is possible to limit the speed of table
-optimization.  The :variable:`tokudb_optimize_throttle` session variable
+optimization.  The :ref:`tokudb_optimize_throttle` session variable
 determines an upper bound on how many fractal tree leaf nodes per second are
 optimized.  The default is 0 (no upper bound) with a valid range of
 [0,1000000]. For example, to limit the table optimization to 1 leaf node per
@@ -216,7 +218,7 @@ Optimize a Single Index of a Table
 --------------------------------------------------------------------------------
 
 To optimize a single index in a table, the
-:variable:`tokudb_optimize_index_name` session variable can be set to select the
+:ref:`tokudb_optimize_index_name` session variable can be set to select the
 index by name. For example, to optimize the primary key of a table:
 
 .. code-block:: mysql
@@ -231,7 +233,7 @@ For patterns where the left side of the tree has many deletions (a common
 pattern with increasing id or date values), it may be useful to delete a
 percentage of the tree. In this case, it is possible to optimize a subset of a
 fractal tree starting at the left side. The
-:variable:`tokudb_optimize_index_fraction` session variable controls the size of
+:ref:`tokudb_optimize_index_fraction` session variable controls the size of
 the sub tree. Valid values are in the range [0.0,1.0] with default 1.0 (optimize
 the whole tree). For example, to optimize the leftmost 10% of the primary key:
 

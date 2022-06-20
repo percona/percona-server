@@ -1,4 +1,4 @@
-.. _PS-8.0.23-14:
+.. _8.0.23-14:
 
 ================================================================================
 *Percona Server for MySQL* 8.0.23-14
@@ -15,12 +15,12 @@ in addition to enterprise-grade features developed by Percona.
 New Features
 ================================================================================
 
-* :jirabug:`PS-7364`: The :variable:`net_buffer_length` status variable shows the buffer size of the current connection. Specify `SHOW GLOBAL` to see cumulative buffer size for all connections. For more information, see :ref:`adaptive_network_buffers`.
+* :jirabug:`PS-7364`: The :ref:`net_buffer_length` status variable shows the buffer size of the current connection. Specify `SHOW GLOBAL` to see cumulative buffer size for all connections. For more information, see :ref:`adaptive_network_buffers`.
 * :jirabug:`PS-5364`: Update the keyring_vault plugin to support KV Secrets Engine Version 2 (kv-v2) (Thanks to Andrey Prokofyev for reporting this issue)
 * :jirabug:`PS-4894`: Users can add calculated/virtual columns + index for the MyRocks storage engine.
 * :jirabug:`PS-7125`: Users can reconfigure the TLS certificate at runtime and reload the certificate to the X Plugin (Upstream :mysqlbug:`99895`)
 * :jirabug:`PS-7442`: Add documentation for the MyRocks Information Schema Tables `ROCKSDB_ACTIVE_COMPACTION_STATS` and `ROCKSDB_COMPACTION_HISTORY`.
-* :jirabug:`PS-7441`: Add documentation for the RocksDB variable :variable:`rocksdb_max_compaction_history` and deprecated the :variable:`strict_collation_check` variable.
+* :jirabug:`PS-7441`: Add documentation for the RocksDB variable :ref:`rocksdb_max_compaction_history` and deprecated the :ref:`strict_collation_check` variable.
 * :jirabug:`PS-7049`: Update the SELinux profile and the AppArmor Policy, making these security features easier to implement for organizations.
 
 

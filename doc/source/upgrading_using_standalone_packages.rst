@@ -18,7 +18,7 @@ DEB-based distributions
 * ``percona-server-common``
 * ``libperconaserverclient21``
 
-The following example will download *Percona Server for MySQL* :rn:`8.0.13-3` release
+The following example will download *Percona Server for MySQL* :ref:`8.0.13-3` release
 packages for *Debian* 9.0:
 
 .. code-block:: bash

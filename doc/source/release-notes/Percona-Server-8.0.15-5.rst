@@ -1,7 +1,7 @@
-.. rn:: 8.0.15-5
+.. _8.0.15-5:
 
 ================================================================================
-|Percona Server| |release|
+*Percona Server for MySQL* 8.0.15-5
 ================================================================================
 
 |Percona| announces the release of |Percona Server| |release| on |date|
@@ -23,7 +23,7 @@ Server| 8.0.
 .. include:: ../.res/text/encrypt_binlog.removing.txt
 
 This release is based on |MySQL| 8.0.14 and 8.0.15. It includes all
-bug fixes in these releases. |Percona Server| :rn:`8.0.14` was skipped.
+bug fixes in these releases. |Percona Server| :ref:`8.0.14` was skipped.
 
 |Percona Server| |release| is now the current GA release in the 8.0
 series. All of |Percona|’s software is open-source and free.

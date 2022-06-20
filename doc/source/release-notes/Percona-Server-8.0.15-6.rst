@@ -1,7 +1,7 @@
-.. rn:: 8.0.15-6
+.. _8.0.15-6:
 
 ================================================================================
-|Percona Server| |release|
+*Percona Server for MySQL* 8.0.15-6
 ================================================================================
 
 |Percona| announces the release of |Percona Server| |release| on |date|
@@ -36,18 +36,18 @@ New Features
 ================================================================================
 
 - The server part of MyRocks cross-engine consistent physical backups has been
-  implemented by introducing :variable:`rocksdb_disable_file_deletions` and
-  :variable:`rocksdb_create_temporary_checkpoint` session variables. These
+  implemented by introducing :ref:`rocksdb_disable_file_deletions` and
+  :ref:`rocksdb_create_temporary_checkpoint` session variables. These
   variables are intended to be used by backup tools. Prolonged use or
   other misuse can have serious side effects to the server instance.
 
 - RocksDB WAL file information can now be seen in the
-  :table:`performance_schema.log_status` :ref:`table <log_status>`.
+  :ref:`performance_schema.log_status` :ref:`table <log_status>`.
 
-- New :variable:`Audit_log_buffer_size_overflow` status variable has been
+- New :ref:`Audit_log_buffer_size_overflow` status variable has been
   implemented to track when an :ref:`audit_log_plugin` entry was either
   dropped or written directly to the file due to its size being bigger
-  than :variable:`audit_log_buffer_size` variable.
+  than :ref:`audit_log_buffer_size` variable.
 
 
 Bugs Fixed
@@ -61,7 +61,7 @@ Bugs Fixed
 - using TokuDB or MyRocks native partitioning and ``index_merge`` could lead to
   a server crash. Bugs fixed :psbug:`5206`, :psbug:`5562`.
 
-- upgrade from |Percona Server| 5.7.24 to :rn:`8.0.13-3` wasn't working with
+- upgrade from |Percona Server| 5.7.24 to :ref:`8.0.13-3` wasn't working with
   encrypted undo tablespaces. Bug fixed :psbug:`5223`.
 
 - `keyring_vault_plugin` couldn't be initialized on *Ubuntu Cosmic 17.10*.
@@ -70,17 +70,17 @@ Bugs Fixed
 - rotated key encryption did not register ``encryption_key_id`` as a valid
   table option. Bug fixed :psbug:`5482`.
 
-- :table:`INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES` queries could crash if
+- :ref:`INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES` queries could crash if
   online ``ALTER TABLE`` was running in parallel. Bug fixed :psbug:`5566`.
 
-- setting the :variable:`log_slow_verbosity` to include ``innodb`` value and
-  enabling the :variable:`slow_query_log` could lead to a server crash.
+- setting the :ref:`log_slow_verbosity` to include ``innodb`` value and
+  enabling the :ref:`slow_query_log` could lead to a server crash.
   Bug fixed :psbug:`4933`.
 
 - :ref:`compression_dictionary` operations were not allowed under
-  :variable:`innodb-force-recovery`. Now they work correctly when
-  :variable:`innodb_force_recovery` is <= ``2``, and are forbidden when
-  :variable:`innodb_force_recovery` is >= ``3``.
+  :ref:`innodb-force-recovery`. Now they work correctly when
+  :ref:`innodb_force_recovery` is <= ``2``, and are forbidden when
+  :ref:`innodb_force_recovery` is >= ``3``.
   Bug fixed :psbug:`5148`.
 
 - ``BLOB`` entries in the binary log could become corrupted
@@ -95,18 +95,18 @@ Bugs Fixed
   Bug fixed :psbug:`5447`.
 
 - ``innodb_system`` tablespace information was missing from the
-  :table:`INFORMATION_SCHEMA.innodb_tablespaces` view.
+  :ref:`INFORMATION_SCHEMA.innodb_tablespaces` view.
   Bug fixed :psbug:`5473`.
 
 - undo log tablespace encryption status is now available through
-  :table:`INFORMATION_SCHEMA.innodb_tablespaces` view.
+  :ref:`INFORMATION_SCHEMA.innodb_tablespaces` view.
   Bug fixed :psbug:`5485` (upstream :mysqlbug:`94665`).
 
 - enabling temporay tablespace encryption didn't mark the
   ``innodb_temporary`` tablespace with the encryption flag. Bug fixed
   :psbug:`5490`.
 
-- server would crash during bootstrap if :variable:`innodb_encrypt_tables`
+- server would crash during bootstrap if :ref:`innodb_encrypt_tables`
   was set to ``1``. Bug fixed :psbug:`5492`.
 
 - fixed intermittent shutdown crashes that were happening if :ref:`threadpool`
@@ -114,7 +114,7 @@ Bugs Fixed
 
 - compression dictionary ``INFORMATION_SCHEMA`` views were missing when `datadir` was upgraded from 8.0.13 to 8.0.15. Bug fixed :psbug:`5529`.
 
-- :variable:`innodb_encrypt_tables` variable accepted ``FORCE`` option only
+- :ref:`innodb_encrypt_tables` variable accepted ``FORCE`` option only
   as a string. Bug fixed :psbug:`5538`.
 
 - ``ibd2sdi`` utility was missing in Debian/Ubuntu packages. Bug fixed

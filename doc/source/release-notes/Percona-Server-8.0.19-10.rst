@@ -1,4 +1,4 @@
-.. _PS-8.0.19-10:
+.. _8.0.19-10:
 
 ================================================================================
 *Percona Server for MySQL* 8.0.19-10
@@ -25,7 +25,7 @@ New Features
 Improvements
 ================================================================================
 
-* :jirabug:`PS-6775`: Removed the KEYRING_ON option from :variable:`default_table_encryption`.
+* :jirabug:`PS-6775`: Removed the KEYRING_ON option from :ref:`default_table_encryption`.
 * :jirabug:`PS-6733`: Added binary search to the Data masking plugin.
 
 
@@ -42,7 +42,7 @@ Bugs Fixed
 * :jirabug:`PS-5675`: Concurrent INSERT ... ON DUPLICATE KEY UPDATE statements could cause a failure with a unique index violation. (Upstream :mysqlbug:`96578`)
 * :jirabug:`PS-6857`: New package naming broke dbdeployer.
 * :jirabug:`PS-6767`: The execution of a stored function in a WHERE clause was skipped. (Upstream :mysqlbug:`98160`)
-* :jirabug:`PS-5421`: MyRocks: Corrected documentation for :variable:`rocksdb_db_write_buffer_size`.
+* :jirabug:`PS-5421`: MyRocks: Corrected documentation for :ref:`rocksdb_db_write_buffer_size`.
 * :jirabug:`PS-6761`: MacOS error in threadpool_unix.cc: there was no matching member function for call to 'compare_exchange_weak'.
 * :jirabug:`PS-6900`: The test big-test required re-recording after explicit_encryption was re-added.
 * :jirabug:`PS-6897`: The main.udf_myisam test and main.transactional_acl_tables test failed on trunk.
@@ -53,7 +53,7 @@ Bugs Fixed
 * :jirabug:`PS-6881`: Documented that mysql 8.0 does not require mysql_upgrade.
 * :jirabug:`PS-6796`: The test, percona_changed_page_bmp_shutdown_thread, was unstable.
 * :jirabug:`PS-6773`: A conditional jump or move depended on uninitialized value(s) in sha256_password_authenticate. (Upstream :mysqlbug:`98223`)
-* :jirabug:`PS-6125`: MyRocks: To set :variable:`rocksdb_update_cf_options` with a nonexistent column family created a partially-defined column family which could cause a server exit.
+* :jirabug:`PS-6125`: MyRocks: To set :ref:`rocksdb_update_cf_options` with a nonexistent column family created a partially-defined column family which could cause a server exit.
 * :jirabug:`PS-6037`: When Extra Packages Enterprise Linux (EPEL) 8 repo was enabled on CentOS/RHEL 8, jemalloc v5 was installed.
 * :jirabug:`PS-5956`: Root session could kill :ref:`psaas_utility_user` session.
 * :jirabug:`PS-5952`: :ref:`psaas_utility_user` was visible in performance_schema.threads.

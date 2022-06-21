@@ -28,7 +28,7 @@ In versions before *Percona Server for MySQL* 8.0.16-7, use the variable
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-encrypt-tables``
@@ -68,7 +68,7 @@ System Variable
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``default-table-encryption``
@@ -129,7 +129,7 @@ The variable has the following possible values:
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb_encrypt-online-alter-logs``

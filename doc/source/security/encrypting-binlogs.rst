@@ -102,18 +102,18 @@ Binary log file variables
 .. _encrypt_binlog:
 
 .. rubric:: ``encrypt_binlog``
-
+ 
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--encrypt-binlog``
-   * - Scope
-     - Global
    * - Dynamic
      - No
+   * - Scope
+     - Global
    * - Data type
      - Boolean
    * - Default

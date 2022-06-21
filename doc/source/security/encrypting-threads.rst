@@ -47,7 +47,7 @@ these variables.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-encryption-threads``
@@ -73,7 +73,7 @@ encryption, the value must be greater than **zero**.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-online-encryption-rotate-key-age``
@@ -106,7 +106,7 @@ You should select the value which best fits your operational requirements.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-encryption-rotation-iops``
@@ -129,7 +129,7 @@ use by a key rotation processes.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-default-encryption-key-id``

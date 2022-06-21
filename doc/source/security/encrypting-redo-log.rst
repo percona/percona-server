@@ -14,18 +14,18 @@ The Redo log files uses the tablespace encryption key.
 .. _innodb_redo_log_encrypt:
 
 .. rubric:: ``innodb_redo_log_encrypt``
-
+ 
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-redo-log-encrypt``
-   * - Scope
-     - Global
    * - Dynamic
      - Yes
+   * - Scope
+     - Global
    * - Data type
      - Text
    * - Default

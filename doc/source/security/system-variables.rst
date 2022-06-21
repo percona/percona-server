@@ -5,19 +5,13 @@ Server variables
 ================================================================================
 
 Use system variables to configure the server operation. 
-
-.. list-table::
-   :header-rows: 1
-   
-   * - Variable Name
-   * - :ref:`secure_log_path`
     
 .. _secure_log_path:
 
 .. rubric:: `secure_log_path`
 
 
-Implemented in :ref:`Percona Server for MySQL 8.0.28-19 <PS-8.0.28-19>`.
+Implemented in :ref:`8.0.28-19`.
 
 .. list-table::
    :header-rows: 1
@@ -25,7 +19,7 @@ Implemented in :ref:`Percona Server for MySQL 8.0.28-19 <PS-8.0.28-19>`.
    * - Variable Name
      - Description
    * - Command-line
-     - --secure-log-path
+     - ``--secure-log-path``
    * - Dynamic
      - No
    * - Scope

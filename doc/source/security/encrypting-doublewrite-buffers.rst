@@ -41,7 +41,7 @@ For *Percona Server for MySQL* versions below *Percona Server for MySQL* version
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-parallel-dblwr-encrypt``

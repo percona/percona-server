@@ -93,18 +93,18 @@ table is of the data dictionary kind, concurrent reads are allowed, but writes
 are serialized, and reads are blocked by writes. Table read through old read
 views are not supported, similar to *InnoDB* internal DDL transactions.
 
-Interaction with :ref:`innodb_force_recovery` variable
+Interaction with `innodb_force_recovery` variable
 -----------------------------------------------------------
 
 Compression dictionary operations are treated like DDL operations with the
-exception when :ref:`innodb_force_value` is set to ``3``: with values
+exception when `innodb_force_value` is set to ``3``: with values
 less than ``3``, compression dictionary operations are allowed, and with
 values >= ``3``, they are forbidden.
 
 .. note::
 
-  Prior to *Percona Server for MySQL* :ref:`8.0.15-6` using Compression dictionary operations
-  with :ref:`innodb_force_recovery` variable set to value > 0 would result in
+  Prior to :ref:`8.0.15-6` using Compression dictionary operations
+  with `innodb_force_recovery` variable set to value > 0 would result in
   an error.
 
 Example
@@ -286,8 +286,7 @@ following fragment (regardless of the values of
 Version Specific Information
 ============================
 
-  * :ref:`8.0.13-3`
-    Feature ported from *Percona Server for MySQL* 5.7.
+  * :ref:`8.0.13-3`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 System Variables
 ================

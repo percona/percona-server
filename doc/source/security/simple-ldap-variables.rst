@@ -51,7 +51,7 @@ The following variables are static and can only be changed at runtime.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--authentication-ldap-simple-bind-root-dn=value``
@@ -74,7 +74,7 @@ The ``root`` credential used to authenticate against an LDAP. This variable is u
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--authentication-ldap-simple-bind-root-pwd=value``
@@ -97,7 +97,7 @@ The ``root`` password used to authenticate against an LDAP. This variable is use
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--authentication-ldap-simple-ca_path=value``
@@ -119,7 +119,7 @@ The certificate authority's absolute path used to verify the LDAP certificate.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--authentication-ldap-simple-server-host=value``
@@ -141,7 +141,7 @@ The LDAP server host used for LDAP authentication.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--authentication-ldap-simple-server-port=value``
@@ -163,7 +163,7 @@ The LDAP server TCP/IP port number used for LDAP authentication.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--authentication-ldap-simple-ssl=value``
@@ -185,7 +185,7 @@ If this variable is enabled, the plugin connects to the server with SSL.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--authentication-ldap-simple-tls=value``

@@ -76,18 +76,18 @@ binary log if the system variable :ref:`binlog_skip_flush_commands` is set
 to **ON**.
 
 In addition, the following changes were implemented in the behavior of
-``read_only`` and :ref:`super_read_only` modes:
+``read_only`` and `super_read_only` modes:
 
 - When ``read_only`` is set to **ON**, any ``FLUSH ...`` command executed by a
   normal user (without the ``SUPER`` privilege) are not written to the binary
   log regardless of the value of the :ref:`binlog_skip_flush_command` variable.
-- When :ref:`super_read_only` is set to **ON**, any ``FLUSH ...`` command executed by
+- When `super_read_only` is set to **ON**, any ``FLUSH ...`` command executed by
   any user (even by those with the ``SUPER`` privilege) are not written to the
-  binary log regardless of the value of the :ref:`binlog_skip_flush_command` variable.
+  binary log regardless of the value of the :ref:`binlog_skip_flush_commands` variable.
 
 An attempt to run a ``FLUSH`` command without either ``SUPER`` or ``RELOAD``
 privileges results in the ``ER_SPECIFIC_ACCESS_DENIED_ERROR`` exception
-regardless of the value of the :ref:`binlog_skip_flush_command` variable.
+regardless of the value of the :ref:`binlog_skip_flush_commands` variable.
 
 .. _binlog_skip_flush_commands:
 

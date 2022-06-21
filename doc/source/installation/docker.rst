@@ -215,7 +215,7 @@ except that you must specify at least one of the following:
 
 .. note:: 
 
-   Starting with Percona Server for MySQL :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds. For more information, see :ref:`tokudb_intro`.
+   Starting with :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds. For more information, see :ref:`tokudb_intro`.
 
 .. _INIT_ROCKSDB:
 

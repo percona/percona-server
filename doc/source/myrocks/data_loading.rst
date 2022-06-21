@@ -127,7 +127,7 @@ Other Approaches
 ================
 
 If :ref:`rocksdb_commit_in_the_middle` is enabled, MyRocks implicitly
-commits every :ref:`rocksdb_bulk_load_size records` (default is ``1,000``)
+commits every :ref:`rocksdb_bulk_load_size` records (default is ``1,000``)
 in the middle of your transaction. If your data loading fails in the middle of
 the statement (``LOAD DATA`` or bulk ``INSERT``), rows are not entirely rolled
 back, but some of rows are stored in the table. To restart data loading, you'll

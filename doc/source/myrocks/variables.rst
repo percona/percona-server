@@ -1148,7 +1148,7 @@ When the `rocksdb_bulk_load` variable is enabled, it behaves as if the variable 
    * - Default
      - ``ON``
 
-The variable was implemented in :ref:`8.0.27-17`. Materializes partial index during bulk load instead of leaving the index empty.
+The variable was implemented in :ref:`8.0.27-18`. Materializes partial index during bulk load instead of leaving the index empty.
 
 .. _rocksdb_bulk_load_size:
 
@@ -1273,7 +1273,7 @@ RocksDB will allocate additional memory to maintain these data blocks.
    * - Default
      - ``OFF``
   
-The variable was implemented in :ref:`8.0.27-17`. Cancels all ongoing manual compactions.
+The variable was implemented in :ref:`8.0.27-18`. Cancels all ongoing manual compactions.
 
 .. _rocksdb_checksums_pct:
 
@@ -1650,7 +1650,7 @@ Disabled by default.
    * - Data type
      - String
 
-This variable has been implemented in *Percona Server for MySQL* :ref:`8.0.15-6`.
+This variable has been implemented in :ref:`8.0.15-6`.
 When specified it will create a temporary RocksDB 'checkpoint' or
 'snapshot' in the `datadir`. If the session ends with an existing
 checkpoint, or if the variable is reset to another value, the checkpoint
@@ -1819,7 +1819,7 @@ on Primary Key TTL data. This variable is a no-op in non-debug builds.
      - ``0``
 
 For debugging purposes only.  Overrides the TTL read
-filtering time to time + :ref:`debug_ttl_read_filter_ts`.
+filtering time to time + `debug_ttl_read_filter_ts`.
 A value of ``0`` denotes that the variable is not set.
 This variable is a no-op in non-debug builds.
 
@@ -1844,7 +1844,7 @@ This variable is a no-op in non-debug builds.
      - ``0``
 
 For debugging purposes only.  Overrides the TTL of
-records to ``now()`` + :ref:`debug_ttl_rec_ts`.
+records to ``now()`` + `debug_ttl_rec_ts`.
 The value can be +/- to simulate a record inserted in the past vs a record
 inserted in the  future . A value of ``0`` denotes that the
 variable is not set.
@@ -1871,7 +1871,7 @@ This variable is a no-op in non-debug builds.
      - ``0``
 
 For debugging purposes only. Sets the snapshot during
-compaction to ``now()`` + :ref:`rocksdb_debug_set_ttl_snapshot_ts`.
+compaction to ``now()`` + `rocksdb_debug_set_ttl_snapshot_ts`.
 
 The value can be +/- to simulate a snapshot in the past vs a
 snapshot created in the  future . A value of ``0`` denotes
@@ -1895,15 +1895,17 @@ non-debug builds.
      - Global
    * - Data type
      - String
-   * - Default
-     - | block_based_table_factory= {cache_index_and_filter_blocks=1;
-      |                             filter_policy=bloomfilter:10:false;
-      |                             whole_key_filtering=1};
-      | level_compaction_dynamic_level_bytes=true;
-      | optimize_filters_for_hits=true;
-      | compaction_pri=kMinOverlappingRatio;
-      | compression=kLZ4Compression;
-      | bottommost_compression=kLZ4Compression;
+ 
+The dafaul value is: 
+
+| block_based_table_factory= {cache_index_and_filter_blocks=1;
+|                             filter_policy=bloomfilter:10:false;
+|                             whole_key_filtering=1};
+| level_compaction_dynamic_level_bytes=true;
+| optimize_filters_for_hits=true;
+| compaction_pri=kMinOverlappingRatio;
+| compression=kLZ4Compression;
+| bottommost_compression=kLZ4Compression;
 
 Specifies the default column family options for MyRocks. On startup, the
 server applies this option to all existing column families. This option is
@@ -2006,7 +2008,7 @@ Allowed range is up to ``9223372036854775807``.
    * - Default
      - ``OFF``
 
-This variable has been implemented in *Percona Server for MySQL* :ref:`8.0.15-6`.
+This variable has been implemented in :ref:`8.0.15-6`.
 It allows a client to temporarily disable RocksDB deletion
 of old ``WAL`` and ``.sst`` files for the purposes of making a consistent
 backup. If the client session terminates for any reason after disabling
@@ -2415,7 +2417,7 @@ be used instead of computing it every time during the query plan analysis.
    * - Default
      - ``OFF``
 
-Works similar to :ref:`force_flush_memtable_now`
+Works similar to :ref:`rocksdb_force_flush_memtable_now`
 but also flushes all L0 files.
 
 .. _rocksdb_force_flush_memtable_now:
@@ -2857,7 +2859,7 @@ The default value is ``-1`` The allowed range is ``-1`` to ``64``.
 This variable was replaced
 by :ref:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
-This variable was re-implemented in *Percona Server for MySQL* 8.0.20-11.
+This variable was re-implemented in :ref:`8.0.20-11`.
 
 .. _rocksdb_max_background_flushes:
 
@@ -2886,7 +2888,7 @@ The default value is ``-1``. The allowed range is ``-1`` to ``64``.
 This variable has been replaced
 by :ref:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
-This variable was re-implemented in *Percona Server for MySQL* 8.0.20-11.
+This variable was re-implemented in :ref: `8.0.20-11`.
 
 .. _rocksdb_max_background_jobs:
 
@@ -3298,10 +3300,10 @@ Controls the processing of the column family name given in the ``COMMENT``
 clause in the ``CREATE TABLE`` or ``ALTER TABLE`` statement in case the column family
 name does not refer to an existing column family.
 
-If :ref:`--rocksdb-no-create-column-family` is set to `NO`, a new column family will be created and the new index will
+If :ref:`rocksdb_no_create_column_family` is set to `NO`, a new column family will be created and the new index will
 be placed into it.
 
-If :ref:`--rocksdb-no-create-column-family` is set to `YES`, no new column family will be created and the index will be
+If :ref:`rocksdb_no_create_column_family` is set to `YES`, no new column family will be created and the index will be
 placed into the `default` column family. A warning is issued in this case informing that
 the specified column family does not exist and cannot be created.
 
@@ -3376,7 +3378,7 @@ Enabled by default.
    * - Default
      - ``0``
 
-The variable was implemented in :ref:`8.0.27-17`. Maximum memory to use when sorting an unmaterialized group for partial indexes. The 0(zero) value is defined as no limit.
+The variable was implemented in :ref:`8.0.27-18`. Maximum memory to use when sorting an unmaterialized group for partial indexes. The 0(zero) value is defined as no limit.
 
 .. _rocksdb_pause_background_work:
 
@@ -4619,7 +4621,7 @@ Specifies the path to the directory where MyRocks stores WAL files.
 
 .. note::
 
-    In version 8.0.20-11 and later, the default is changed from ``1`` to ``2``.
+    In version :ref:`8.0.20-11` and later, the default is changed from ``1`` to ``2``.
 
 Specifies the level of tolerance when recovering write-ahead logs (WAL) files
 after a system crash.

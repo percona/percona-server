@@ -12,7 +12,7 @@ The functionality is disabled by default, and must be enabled by setting ``users
 Version Specific Information
 ============================
 
-  * :rn:`8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 Other Information
 =================

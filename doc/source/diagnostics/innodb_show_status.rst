@@ -78,8 +78,7 @@ Makes *InnoDB* to write information about all lock wait timeout errors
 into the log file. 
 
 This allows to find out details about the failed transaction, and, most 
-importantly, the blocking transaction. Query string can be obtained from 
-:ref:`EVENTS_STATEMENTS_CURRENT` table, based on the 
+importantly, the blocking transaction. Query string can be obtained from `EVENTS_STATEMENTS_CURRENT` table, based on the 
 ``PROCESSLIST_ID`` field, which corresponds to ``thread_id`` from the log
 output.
 
@@ -469,7 +468,7 @@ order to make buffer pool room to read in new data pages.
      - Numeric
 
 This variable shows the number of times a buffer pool page was not marked as
-accessed recently in the LRU list because of :ref:`innodb_old_blocks_time`
+accessed recently in the LRU list because of `innodb_old_blocks_time`
 variable setting.
 
 .. _Innodb_buffer_pool_pages_made_young:

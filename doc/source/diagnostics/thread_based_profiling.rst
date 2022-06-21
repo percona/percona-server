@@ -13,5 +13,5 @@ This feature is enabled by default if your system supports it, in other cases it
 Version Specific Information
 ============================
 
-  * :ref:`8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 

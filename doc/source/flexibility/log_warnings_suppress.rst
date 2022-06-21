@@ -15,7 +15,7 @@ This feature is intended to provide a general mechanism (using ``log_warnings_si
 Version Specific Information
 ============================
 
-  * :ref:`8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7
 
 System Variables
 ================

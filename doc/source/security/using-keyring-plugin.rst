@@ -234,7 +234,7 @@ System Variables
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--keyring-vault-config``
@@ -257,7 +257,7 @@ configuration file.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--keyring-vault-timeout``

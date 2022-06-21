@@ -8,7 +8,7 @@
 
 This feature enables the server to keep the top performance even with a large number of client connections by introducing a dynamic thread pool. By using the thread pool server would decrease the number of threads, which will then reduce the context switching and hot locks contentions. Using the thread pool will have the most effect with ``OLTP`` workloads (relatively short CPU-bound queries).
 
-In order to enable the thread pool variable :variable:`thread_handling` should be set up to ``pool-of-threads`` value. This can be done by adding: ::
+In order to enable the thread pool variable :ref:`thread_handling` should be set up to ``pool-of-threads`` value. This can be done by adding: ::
 
  thread_handling=pool-of-threads
 
@@ -60,8 +60,7 @@ Certain types of workloads (large result sets, BLOBs, slow clients) can have lon
 Version Specific Information
 ============================
 
- * :ref:`8.0.12-1`
-    ``Thread Pool`` feature ported from *Percona Server for MySQL* 5.7.
+ * `8.0.12-1`: ``Thread Pool`` feature was ported from *Percona Server for MySQL* 5.7.
 
 System Variables
 ================
@@ -246,7 +245,7 @@ The number of milliseconds before a running thread is considered stalled. When t
 
 .. rubric:: Upgrading from a version before 8.0.14 to 8.0.14 or higher
 
-Starting with the release of version `8.0.141`, *Percona Server for MySQL* uses the upstream implementation of the admin_port. The variables :ref:`extra_port` and :ref:`extra_max_connections` are removed and not supported. It is essential to remove the ``extra_port`` and ``extra_max_connections`` variables from your configuration file before you attempt to upgrade from a release before `8.0.14` to *Percona Server for MySQL* version `8.0.14` or higher. Otherwise, a server produces a boot error and refuses to start.
+Starting with `8.0.14`, *Percona Server for MySQL* uses the upstream implementation of the admin_port. The variables :ref:`extra_port` and :ref:`extra_max_connections` are removed and not supported. It is essential to remove the ``extra_port`` and ``extra_max_connections`` variables from your configuration file before you attempt to upgrade from a release before `8.0.14` to *Percona Server for MySQL* version `8.0.14` or higher. Otherwise, a server produces a boot error and refuses to start.
 
 .. seealso::
     *MySQL* Documentation:

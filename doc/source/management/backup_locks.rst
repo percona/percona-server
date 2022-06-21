@@ -79,19 +79,18 @@ MyISAM index and data buffering
 to a *MyISAM* table is completed, all index updates are written to disk. The
 only exception is delayed key writing feature which is disabled by default.
 
-When the global system variable :ref:`delay_key_write` is set to ``ALL``,
+When the global system variable `delay_key_write` is set to ``ALL``,
 key buffers for all *MyISAM* tables are not flushed between updates, so a
 physical backup of those tables may result in broken *MyISAM* indexes. To
 prevent this, ``LOCK TABLES FOR BACKUP`` will fail with an error if
-``delay_key_write`` is set to ``ALL``. An attempt to set
-:ref:`delay_key_write` to ``ALL`` when there's an active backup lock will
+`delay_key_write` is set to ``ALL``. An attempt to set `delay_key_write` to ``ALL`` when there's an active backup lock will
 also fail with an error.
 
 Another option to involve delayed key writing is to create *MyISAM* tables with
-the DELAY_KEY_WRITE option and set the :ref:`delay_key_write` variable to
+the DELAY_KEY_WRITE option and set the `delay_key_write` variable to
 ``ON`` (which is the default). In this case, ``LOCK TABLES FOR BACKUP`` will not
 be able to prevent stale index files from appearing in the backup. Users are
-encouraged to set :ref:`delay_key_writes` to ``OFF`` in the configuration
+encouraged to set `delay_key_writes` to ``OFF`` in the configuration
 file, :file:`my.cnf`, or repair *MyISAM* indexes after restoring from a physical
 backup created with backup locks.
 
@@ -105,16 +104,14 @@ The mysqldump Command
 
 ``mysqldump`` has also been extended with a new option,
 :ref:`lock-for-backup` (disabled by default). When used together with the
-:ref:`--single-transaction` option, the option makes ``mysqldump`` issue
+`--single-transaction` option, the option makes ``mysqldump`` issue
 ``LOCK TABLES FOR BACKUP`` before starting the dump operation to prevent unsafe
 statements that would normally result in an inconsistent backup.
 
-When used without the :ref:`single-transaction` option,
-:ref:`lock-for-backup` is automatically converted to
-:ref:`lock-all-tables`.
+When used without the `--single-transaction` option,
+:ref:`lock-for-backup` is automatically converted to `lock-all-tables`.
 
-The option :ref:`lock-for-backup` is mutually exclusive with
-:ref:`lock-all-tables`, i.e. specifying both on the command line will lead to
+The option :ref:`lock-for-backup` is mutually exclusive with `lock-all-tables`, i.e. specifying both on the command line will lead to
 an error.
 
 If the backup locks feature is not supported by the target server, but
@@ -199,7 +196,7 @@ Client Command Line Parameter
    * - Default
      - Off
 
-When used together with the :ref:`--single-transaction` option, the option
+When used together with the `--single-transaction` option, the option
 makes ``mysqldump`` issue ``LOCK TABLES FOR BACKUP`` before starting the dump
 operation to prevent unsafe statements that would normally result in an
 inconsistent backup.

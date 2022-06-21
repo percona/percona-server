@@ -12,7 +12,7 @@ options for *XtraDB*.
 Version Specific Information
 ================================================================================
 
-  * :ref:`8.0.12-1` - the feature was ported from *Percona Server for MySQL* 5.7.
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 System Variables
 ================================================================================

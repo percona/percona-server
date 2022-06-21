@@ -30,29 +30,29 @@ Option :ref:`utility_user` specifies the user which the system will create and r
 
 This user must not be an exact match to any other user that exists in the mysql.user table. If the server detects that the user specified with this option exactly matches any user within the mysql.user table on start up, the server will report an error and shut down gracefully. If host name wildcards are used and a more specific user specification is identified on start up, the server will report a warning and continue. 
 
- Example: :ref:`--utility_user` =frank@% and frank@localhost exists within the mysql.user table.
+ Example: :ref:`utility_user` =frank@% and frank@localhost exists within the mysql.user table.
 
 If a client attempts to create a MySQL user that matches this user specification exactly or if host name wildcards are used for the utility user and the user being created has the same name and a more specific host, the creation attempt will fail with an error.
 
- Example: :ref:`--utility_user` =frank@% and CREATE USER 'frank@localhost';
+ Example: :ref:`utility_user` =frank@% and CREATE USER 'frank@localhost';
 
 As a result of these requirements, it is strongly recommended that a very unique user name and reasonably specific host be used and that any script or tools test that they are running within the correct user by executing 'SELECT CURRENT_USER()' and comparing the result against the known utility user.
 
 Option :ref:`utility_user_password` specifies the password for the utility user and MUST be specified or the server will shut down gracefully with an error.
 
- Example: :ref:`--utility_user_password` =`Passw0rD`
+ Example: :ref:`utility_user_password` =`Passw0rD`
 
 Option :ref:`utility_user_schema_access` specifies the name(s) of the schema(s) that the utility user will have access to read write and modify. If a particular schema named here does not exist on start up it will be ignored. If a schema by the name of any of those listed in this option is created after the server is started, the utility user will have full access to it.
 
- Example: :ref:`--utility_user_schema_access` =schema1,schema2,schema3
+ Example: :ref:`utility_user_schema_access` =schema1,schema2,schema3
 
 Option :ref:`utility_user_privileges` allows a comma-separated list of extra access privileges to grant to the utility user.
 
- Example: :ref:`--utility-user-privileges` ="CREATE,DROP,LOCK TABLES"
+ Example: :ref:`utility-user-privileges` ="CREATE,DROP,LOCK TABLES"
 
 Option :ref:`utility_user_dynamic_privileges` allows a comma-separated list of extra access dynamic privileges to grant to the utility user.
 
- Example: :ref:`--utility-user-dynamic-privileges` ="SYSTEM_USER,AUDIT_ADMIN"
+ Example: :ref:`utility-user-dynamic-privileges` ="SYSTEM_USER,AUDIT_ADMIN"
 
 Version Specific Information
 ============================

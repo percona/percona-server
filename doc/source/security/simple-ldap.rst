@@ -5,7 +5,7 @@
 Using Simple LDAP Authentication
 ======================================================
 
-This feature was implemented in *Percona Server for MySQL* version :ref:`8.0.19-10`.
+This feature was implemented in :ref:`8.0.19-10`.
 
 LDAP (Lightweight Directory Access Protocol) provides an alternative method to
 access existing directory servers, which maintain information about

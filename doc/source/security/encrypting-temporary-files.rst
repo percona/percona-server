@@ -14,7 +14,7 @@ file, use the :ref:`innodb_temp_tablespace_encrypt` variable.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``innodb-temp-tablespace-encrypt``
@@ -89,7 +89,7 @@ System Variables
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--encrypt_tmp_files``

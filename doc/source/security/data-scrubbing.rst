@@ -47,7 +47,7 @@ System Variables
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-background-scrub-data-compressed``
@@ -69,7 +69,7 @@ Enables compressed data scrubbing.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-background-scrub-data-uncompressed``
@@ -91,7 +91,7 @@ Enables uncompressed data scrubbing.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-scrub-log``
@@ -113,7 +113,7 @@ Enables redo log scrubbing.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-scrub-log-speed``
@@ -135,7 +135,7 @@ Defines the scrubbing speed in bytes/sec of the redo log.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-immediate-scrub-data-uncompressed``

@@ -53,7 +53,7 @@ System Variables
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb-sys-tablespace-encrypt``

@@ -19,7 +19,7 @@ is disabled by default.
 .. list-table::
    :header-rows: 1
 
- * - Option
+   * - Option
      - Description
    * - Command-line
      - ``--innodb_undo-log_encrypt``

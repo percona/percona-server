@@ -12,7 +12,7 @@ by mistake.
 Version Specific Information
 ============================
 
-  * :ref:`8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 System Variables
 ================
@@ -27,18 +27,17 @@ System Variables
    * - Option
      - Description
    * - Config file
-     - ``YES``
+     - Yes
    * - Scope
-     - ``GLOBAL``
+     - Global
    * - Dynamic
-     - ``YES``
+     - Yes
    * - Data type
-     - ``INTEGER``
+     - Integer
    * - Default
      - 0 (disabled)
    * - Units
      - Seconds
-
-   If non-zero, any idle transaction will be killed after being idle for this
-   many seconds.
+   
+If non-zero, any idle transaction will be killed after being idle for this many seconds.
 

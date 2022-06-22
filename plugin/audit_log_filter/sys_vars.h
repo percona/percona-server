@@ -49,6 +49,8 @@ class VarWrapper {
   [[nodiscard]] SysVars *get_container() const noexcept { return m_container; }
   void set_container(SysVars *container) noexcept { m_container = container; }
 
+  [[nodiscard]] T value() const noexcept { return m_value; }
+
  private:
   T m_value;
   SysVars *m_container;
@@ -124,12 +126,24 @@ class SysVars : public AuditBaseComponent {
   }
 
   /**
-   * @brief Get the number of log files which should be kept when rotations
-   *        are done.
+   * @brief Get the maximum combined size above which log files become subject
+   *        to pruning.
    *
-   * @return Number of rotated log files kept on disk
+   * @return Maximum combined size for log files
    */
-  [[nodiscard]] ulonglong get_rotations() const noexcept { return m_rotations; }
+  [[nodiscard]] ulonglong get_log_max_size() const noexcept {
+    return m_log_max_size.value();
+  }
+
+  /**
+   * @brief Get the number of seconds after which log files become subject
+   *        to pruning.
+   *
+   * @return Number of seconds after which log files may be pruned
+   */
+  [[nodiscard]] ulonglong get_log_prune_seconds() const noexcept {
+    return m_log_prune_seconds.value();
+  }
 
   /**
    * @brief Get the ident value for syslog.
@@ -155,6 +169,12 @@ class SysVars : public AuditBaseComponent {
   [[nodiscard]] int get_syslog_priority() const noexcept;
 
  private:
+  /**
+   * @brief Check plugin configuration is correct.
+   */
+  void validate() const noexcept;
+
+ private:
   std::unique_ptr<SysVarServices> m_sys_var_services;
 
   char *m_file_name = nullptr;
@@ -163,11 +183,12 @@ class SysVars : public AuditBaseComponent {
   AuditLogStrategyType m_file_stategy_type = AuditLogStrategyType::Asynchronous;
   ulonglong m_buffer_size = 1048576UL;
   ulonglong m_rotate_on_size = 0UL;
-  ulonglong m_rotations = 0UL;
   char *m_syslog_ident = nullptr;
   ulong m_syslog_facility = 0UL;
   ulong m_syslog_priority = 0UL;
-  VarWrapper<bool> m_log_flush_requested;
+  VarWrapper<bool> m_log_flush_requested{false};
+  VarWrapper<ulonglong> m_log_max_size{0};
+  VarWrapper<ulonglong> m_log_prune_seconds{0};
 };
 
 }  // namespace audit_log_filter

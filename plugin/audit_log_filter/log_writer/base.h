@@ -84,6 +84,11 @@ class LogWriterBase {
   virtual void flush() noexcept = 0;
 
   /**
+   * @brief Prune outdated log files.
+   */
+  virtual void prune() noexcept = 0;
+
+  /**
    * @brief Get current log file size in bytes.
    *
    * @return Current log file size in bytes

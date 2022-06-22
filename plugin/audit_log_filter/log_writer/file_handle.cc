@@ -18,6 +18,15 @@
 
 #include <mysql/psi/mysql_mutex.h>
 
+#include <chrono>
+#include <ctime>
+#include <regex>
+#include <string>
+
+namespace {
+const std::string kRotationTimeFormat{"%Y%m%dT%H%M%S"};
+}
+
 #if defined(HAVE_PSI_INTERFACE)
 static PSI_mutex_key key_LOCK_audit_filter_service;
 static PSI_mutex_info mutex_list[] = {
@@ -88,6 +97,11 @@ uint64_t FileHandle::get_file_size() const noexcept {
   return std::filesystem::file_size(m_path);
 }
 
+bool FileHandle::remove_file(const std::filesystem::path &path) noexcept {
+  std::error_code ec;
+  return std::filesystem::remove(path, ec);
+}
+
 void FileHandle::remove_file_footer(
     const std::filesystem::path &file_path,
     const std::string &expected_footer) const noexcept {
@@ -137,7 +151,9 @@ std::error_code FileHandle::rotate(const std::string &working_dir_name,
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   std::stringstream new_file_name;
   new_file_name << current_file_path.filename().replace_extension().c_str()
-                << "." << std::put_time(std::localtime(&t), "%Y%m%dT%H%M%S")
+                << "."
+                << std::put_time(std::localtime(&t),
+                                 kRotationTimeFormat.c_str())
                 << current_file_path.extension().c_str();
 
   std::filesystem::path new_file_path{current_file_path};
@@ -147,6 +163,40 @@ std::error_code FileHandle::rotate(const std::string &working_dir_name,
   std::filesystem::rename(current_file_path, new_file_path, ec);
 
   return ec;
+}
+
+PruneFilesList FileHandle::get_prune_files(
+    const std::string &working_dir_name,
+    const std::string &file_name) noexcept {
+  PruneFilesList prune_files;
+  const std::regex log_time_regex(R"(.*\.(\d{8}T\d{6})\..*)");
+  auto base_file_name =
+      std::filesystem::path{file_name}.replace_extension().string();
+  auto time_now = std::time(nullptr);
+
+  for (const auto &entry :
+       std::filesystem::directory_iterator{working_dir_name}) {
+    const auto name = entry.path().filename().string();
+
+    if (entry.is_regular_file() &&
+        name.find(base_file_name) != std::string::npos) {
+      std::smatch pieces_match;
+
+      if (std::regex_match(name, pieces_match, log_time_regex)) {
+        std::tm tm{};
+        std::istringstream ss(pieces_match[1].str());
+        ss >> std::get_time(&tm, kRotationTimeFormat.c_str());
+        tm.tm_isdst = -1;
+        auto time_rotated = timelocal(&tm);
+
+        prune_files.push_back(
+            {entry.path(), entry.file_size(),
+             static_cast<ulonglong>(time_now - time_rotated)});
+      }
+    }
+  }
+
+  return prune_files;
 }
 
 }  // namespace audit_log_filter::log_writer

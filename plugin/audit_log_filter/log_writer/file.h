@@ -71,6 +71,11 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
    */
   void flush() noexcept override;
 
+  /**
+   * @brief Prune outdated log files.
+   */
+  void prune() noexcept override;
+
  private:
   /**
    * @brief Implement actual file opening logic.

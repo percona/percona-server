@@ -21,8 +21,17 @@
 
 #include <filesystem>
 #include <fstream>
+#include <vector>
 
 namespace audit_log_filter::log_writer {
+
+struct PruneFileInfo {
+  std::filesystem::path path;
+  ulonglong size;
+  ulonglong age;
+};
+
+using PruneFilesList = std::vector<PruneFileInfo>;
 
 class FileHandle {
  public:
@@ -103,6 +112,24 @@ class FileHandle {
    */
   static std::error_code rotate(const std::string &working_dir_name,
                                 const std::string &file_name) noexcept;
+
+  /**
+   * @brief Get list of rotated log files which may be a subject for pruning.
+   *
+   * @param working_dir_name Working directory name
+   * @param file_name File name
+   * @return List of rotated log files
+   */
+  static PruneFilesList get_prune_files(const std::string &working_dir_name,
+                                        const std::string &file_name) noexcept;
+
+  /**
+   * @brief Remove a file.
+   *
+   * @param path File path
+   * @return true in case file removed successfully, false otherwise
+   */
+  static bool remove_file(const std::filesystem::path &path) noexcept;
 
  private:
   std::fstream m_file;

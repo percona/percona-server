@@ -55,6 +55,11 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
   void flush() noexcept override {}
 
   /**
+   * @brief Prune outdated log files.
+   */
+  void prune() noexcept override {}
+
+  /**
    * @brief Get current log file size in bytes.
    *
    * @return Current log file size in bytes

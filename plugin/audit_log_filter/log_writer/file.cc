@@ -22,6 +22,7 @@
 #include "sql/mysqld.h"
 
 #include <filesystem>
+#include <queue>
 
 namespace audit_log_filter::log_writer {
 
@@ -76,6 +77,7 @@ void LogWriterFile::write(const std::string &record) noexcept {
   if (file_size_limit > 0 && !m_is_rotating &&
       file_size_limit < get_log_size()) {
     rotate();
+    prune();
   }
 }
 
@@ -102,6 +104,57 @@ void LogWriterFile::rotate() noexcept {
 void LogWriterFile::flush() noexcept {
   do_close_file();
   do_open_file();
+}
+
+void LogWriterFile::prune() noexcept {
+  if (get_config()->get_rotate_on_size() == 0) {
+    return;
+  }
+
+  const auto log_max_size = get_config()->get_log_max_size();
+  const auto prune_seconds = get_config()->get_log_prune_seconds();
+
+  if (log_max_size > 0) {
+    auto log_file_list = FileHandle::get_prune_files(
+        mysql_data_home, get_config()->get_file_name());
+
+    ulonglong current_logs_size = std::accumulate(
+        log_file_list.begin(), log_file_list.end(), 0,
+        [](const ulonglong &a, const PruneFileInfo &b) { return a + b.size; });
+    current_logs_size += get_log_size();
+
+    if (current_logs_size < log_max_size) {
+      return;
+    }
+
+    auto comparator = [](const PruneFileInfo &a, const PruneFileInfo &b) {
+      return a.age < b.age;
+    };
+
+    std::priority_queue<PruneFileInfo, PruneFilesList, decltype(comparator)>
+        file_queue{comparator, log_file_list};
+
+    while (current_logs_size > log_max_size && !file_queue.empty()) {
+      const auto &entry = file_queue.top();
+
+      if (!FileHandle::remove_file(entry.path)) {
+        return;
+      }
+
+      current_logs_size =
+          (entry.size < current_logs_size) ? current_logs_size - entry.size : 0;
+      file_queue.pop();
+    }
+  } else if (prune_seconds > 0) {
+    auto log_file_list = FileHandle::get_prune_files(
+        mysql_data_home, get_config()->get_file_name());
+
+    for (const auto &entry : log_file_list) {
+      if (entry.age > prune_seconds) {
+        FileHandle::remove_file(entry.path);
+      }
+    }
+  }
 }
 
 }  // namespace audit_log_filter::log_writer

@@ -1343,9 +1343,13 @@ ulint dict_make_room_in_cache(
 
   i = len = UT_LIST_GET_LEN(dict_sys->table_LRU);
 
-  if (len < max_tables) {
+  if (len <= max_tables) {
     return (0);
   }
+
+  auto start = std::chrono::steady_clock::now();
+  std::cout << "!! making room in table cache: len=" << len
+            << " / max_tables=" << max_tables << std::endl;
 
   check_up_to = len - ((len * pct_check) / 100);
 
@@ -1380,6 +1384,10 @@ ulint dict_make_room_in_cache(
 
     table = prev_table;
   }
+
+  auto end = std::chrono::steady_clock::now();
+  std::cout << "!! done evicting table cache after " << (end - start).count()
+            << "ns: n_evicted=" << n_evicted << std::endl;
 
   return (n_evicted);
 }

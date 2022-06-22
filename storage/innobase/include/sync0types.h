@@ -654,11 +654,17 @@ class LatchCounter {
   };
 
   /** Constructor */
-  LatchCounter() UNIV_NOTHROW : m_active(false) { m_mutex.init(); }
+  LatchCounter() UNIV_NOTHROW : m_sum(nullptr), m_active(false) {
+    m_mutex.init();
+  }
 
   /** Destructor */
   ~LatchCounter() UNIV_NOTHROW {
     m_mutex.destroy();
+
+    if (m_sum != nullptr) {
+      UT_DELETE(m_sum);
+    }
 
     for (Count *count : m_counters) {
       UT_DELETE(count);
@@ -676,6 +682,10 @@ class LatchCounter {
       count->reset();
     }
 
+    if (m_sum != nullptr) {
+      m_sum->reset();
+    }
+
     m_mutex.exit();
   }
 
@@ -685,12 +695,12 @@ class LatchCounter {
 
     Count *count;
 
-    if (m_counters.empty()) {
+    if (m_sum == nullptr) {
       count = UT_NEW_NOKEY(Count());
-      m_counters.push_back(count);
+      m_sum = count;
     } else {
-      ut_a(m_counters.size() == 1);
-      count = m_counters[0];
+      ut_a(m_counters.size() == 0);
+      count = m_sum;
     }
 
     m_mutex.exit();
@@ -707,7 +717,7 @@ class LatchCounter {
   void single_register(Count *count) UNIV_NOTHROW {
     m_mutex.enter();
 
-    m_counters.push_back(count);
+    m_counters.insert(count);
 
     m_mutex.exit();
   }
@@ -717,8 +727,7 @@ class LatchCounter {
   void single_deregister(Count *count) UNIV_NOTHROW {
     m_mutex.enter();
 
-    m_counters.erase(std::remove(m_counters.begin(), m_counters.end(), count),
-                     m_counters.end());
+    m_counters.erase(count);
 
     m_mutex.exit();
   }
@@ -769,10 +778,13 @@ class LatchCounter {
 
  private:
   typedef OSMutex Mutex;
-  typedef std::vector<Count *> Counters;
+  typedef std::unordered_set<Count *> Counters;
 
   /** Mutex protecting m_counters */
   mutable Mutex m_mutex;
+
+  /** Aggregate Counter */
+  Count *m_sum;
 
   /** Counters for the latches */
   Counters m_counters;

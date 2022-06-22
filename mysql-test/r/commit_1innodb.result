@@ -840,7 +840,7 @@ create table t3 select a from t2;
 call p_verify_status_increment(<commit_count>, 4, 4, 4);
 SUCCESS
 
-alter table t3 add column (b int);
+alter table t3 add column (b int), algorithm=instant;
 call p_verify_status_increment(X, 4, 2, 0);
 SUCCESS
 

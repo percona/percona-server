@@ -863,6 +863,8 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
     if (!log_index_versioned_fields(instant_fields_to_log, log_ptr, f, index)) {
       return false;
     }
+  } else {
+    ut_ad(!is_versioned);
   }
 
   if (size == 0) {

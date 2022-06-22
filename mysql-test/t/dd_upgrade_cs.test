@@ -389,7 +389,7 @@ ALTER TABLE test.t ENGINE = InnoDB;
 --echo # Verify that we can add a column (instant) to upgraded table with
 --echo # subpartitions
 SHOW CREATE TABLE t1;
-ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15);
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15), ALGORITHM=INSTANT;
 
 --echo # Search log file for warning.
 

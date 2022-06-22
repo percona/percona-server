@@ -8,7 +8,7 @@
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -29,7 +29,7 @@ SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
 count(*)
 0
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -77,7 +77,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -92,7 +92,7 @@ SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_d
 Expect 0
 0
 INSERT INTO t1(b, c1, c2) SELECT b, c1, c2 FROM t1;
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -135,7 +135,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -196,7 +196,7 @@ INSERT INTO t1(a, b) VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22
 SELECT c FROM t1 GROUP BY c;
 c
 100
-ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -250,7 +250,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -264,7 +264,7 @@ Expect 0
 SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 5
 5
-ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20;
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -278,7 +278,7 @@ Expect 0
 SELECT count(*) AS `Expect 6` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 6
 6
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -328,7 +328,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -349,7 +349,7 @@ SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
 count(*)
 0
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -397,7 +397,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -412,7 +412,7 @@ SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_d
 Expect 0
 0
 INSERT INTO t1(b, c1, c2) SELECT b, c1, c2 FROM t1;
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -455,7 +455,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -516,7 +516,7 @@ INSERT INTO t1(a, b) VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22
 SELECT c FROM t1 GROUP BY c;
 c
 100
-ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -570,7 +570,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -584,7 +584,7 @@ Expect 0
 SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 5
 5
-ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20;
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -598,7 +598,7 @@ Expect 0
 SELECT count(*) AS `Expect 6` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 6
 6
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -648,7 +648,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -669,7 +669,7 @@ SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
 count(*)
 0
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -717,7 +717,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -732,7 +732,7 @@ SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_d
 Expect 0
 0
 INSERT INTO t1(b, c1, c2) SELECT b, c1, c2 FROM t1;
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -775,7 +775,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -836,7 +836,7 @@ INSERT INTO t1(a, b) VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22
 SELECT c FROM t1 GROUP BY c;
 c
 100
-ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -890,7 +890,7 @@ Expect 0
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 0
 0
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -904,7 +904,7 @@ Expect 0
 SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 5
 5
-ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20;
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0
@@ -918,7 +918,7 @@ Expect 0
 SELECT count(*) AS `Expect 6` FROM information_schema.innodb_columns WHERE has_default = 1;
 Expect 6
 6
-ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30, ALGORITHM=INSTANT;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
 0

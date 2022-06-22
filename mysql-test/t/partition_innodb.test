@@ -1090,7 +1090,7 @@ SHOW CREATE TABLE t1;
 --list_files $MYSQL_DATA_DIR/test
 
 
-ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
+ALTER TABLE t1 ADD extracol VARCHAR(32) NULL, ALGORITHM=INSTANT;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/

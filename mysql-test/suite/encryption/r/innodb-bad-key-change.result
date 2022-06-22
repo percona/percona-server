@@ -1,0 +1,99 @@
+# Start server with keys2.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=MYSQL_TMP_DIR/error_log.err
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (c VARCHAR(8)) ENGINE=InnoDB ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2;
+INSERT INTO t1 VALUES ('foobar');
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES ('foobar',2);
+SELECT * FROM t1;
+c	c2
+foobar	NULL
+foobar	2
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+c	c2
+INSERT INTO t1 VALUES ('foobar',1);
+INSERT INTO t1 VALUES ('foobar',2);
+FLUSH TABLE WITH READ LOCK;
+SELECT * FROM t1;
+c	c2
+foobar	1
+foobar	2
+#### Missing key errors ####
+# Make sure that there is no error in error log related to missing key for t1
+
+# Restart server with keysbad3.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keysbad3.txt --log-error=MYSQL_TMP_DIR/error_log.err
+SELECT * FROM t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+DROP TABLE t1;
+# Start server with keys3.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys3.txt --log-error=MYSQL_TMP_DIR/error_log.err
+SET GLOBAL innodb_stats_persistent=OFF;
+#### Decryption errors ####
+SET SESSION innodb_default_encryption_key_id=5;
+CREATE TABLE t2 (c VARCHAR(8), id int not null primary key, b int, key(b)) ENGINE=InnoDB ENCRYPTION='KEYRING';
+INSERT INTO t2 VALUES ('foobar',1,2);
+# Make sure that there is no error in error log related to decryption failures of t2
+
+# Restart server with keys2.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=MYSQL_TMP_DIR/error_log.err
+SET GLOBAL innodb_stats_persistent=ON;
+SELECT * FROM t2;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+SELECT * FROM t2 where id = 1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+SELECT * FROM t2 where b = 1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+INSERT INTO t2 VALUES ('tmp',3,3);
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+DELETE FROM t2 where b = 3;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+DELETE FROM t2 where id = 3;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+UPDATE t2 set b = b +1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	Error	Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+test.t2	optimize	error	Corrupt
+ALTER TABLE t2 ADD COLUMN d INT, ALGORITHM=INSTANT;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	Error	Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+test.t2	analyze	error	Corrupt
+TRUNCATE TABLE t2;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
+DROP TABLE t2;
+# Make sure that log contains t2 decryption errors
+
+# Start server with initial mysecret_keyring
+# restart:--keyring-file-data=MYSQL_TMP_DIR/mysecret_keyring

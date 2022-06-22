@@ -1,0 +1,166 @@
+--source include/have_64bit.inc
+
+# Later on we grep for decryption/missing key errors to make sure that they are
+# present in error log
+--let $test_error_log=$MYSQL_TMP_DIR/error_log.err
+
+# Keys in std_data/keys2 and std_data/keys3 belong to the server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
+# to be able to read those keys we need to assign this uuid to server_uuid via auto.conf file.
+--let $uuid_file= auto.cnf
+--let $original_server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $datadir= query_get_value(SELECT @@DATADIR, @@DATADIR, 1)
+--copy_file $datadir/$uuid_file $datadir/original_$uuid_file
+
+--remove_file $datadir/$uuid_file
+--write_file $datadir/$uuid_file
+[auto]
+server_uuid=b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99
+EOF
+
+--echo # Start server with keys2.txt
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=$test_error_log
+--source include/restart_mysqld.inc
+
+SET GLOBAL innodb_file_per_table = ON;
+
+CREATE TABLE t1 (c VARCHAR(8)) ENGINE=InnoDB ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2;
+INSERT INTO t1 VALUES ('foobar');
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES ('foobar',2);
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+INSERT INTO t1 VALUES ('foobar',1);
+INSERT INTO t1 VALUES ('foobar',2);
+FLUSH TABLE WITH READ LOCK;
+SELECT * FROM t1;
+
+--source include/shutdown_mysqld.inc
+
+--echo #### Missing key errors ####
+--echo # Make sure that there is no error in error log related to missing key for t1
+
+--let SEARCH_PATTERN=Tablespace id . in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$test_error_log
+--source include/search_pattern_in_file.inc
+
+--echo
+--echo # Restart server with keysbad3.txt
+--let keys_bad=$MYSQLTEST_VARDIR/std_data/keysbad3.txt
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$keys_bad --log-error=$test_error_log
+--source include/start_mysqld.inc
+
+--error ER_GET_ERRMSG
+SELECT * FROM t1;
+
+--replace_regex /tablespace [0-9]*/tablespace /
+DROP TABLE t1;
+
+--source include/shutdown_mysqld.inc
+
+--let SEARCH_PATTERN=Tablespace id . in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$test_error_log
+--source include/search_pattern_in_file.inc
+
+--remove_file $keys_bad
+
+--echo # Start server with keys3.txt
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+-- let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt --log-error=$test_error_log
+-- source include/start_mysqld.inc
+
+SET GLOBAL innodb_stats_persistent=OFF;
+
+--echo #### Decryption errors ####
+
+# encryption_key_id 5 exists in keys3.txt and in keys2.txt. The id is the same, but the keys themselves
+# are different.
+SET SESSION innodb_default_encryption_key_id=5;
+CREATE TABLE t2 (c VARCHAR(8), id int not null primary key, b int, key(b)) ENGINE=InnoDB ENCRYPTION='KEYRING';
+
+INSERT INTO t2 VALUES ('foobar',1,2);
+
+--source include/shutdown_mysqld.inc
+
+--echo # Make sure that there is no error in error log related to decryption failures of t2
+--let SEARCH_PATTERN=[InnoDB] Tablespace id 5 in file t1.ibd is encrypted but keyring or used key_id 2 is not available. Can't continue reading table. Please provide the correct keyring.
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$test_error_log
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=The page \[page id: space=6, page number=4\] in file '\./test/t2\.ibd' cannot be decrypted\. Are you using correct keyring?
+--source include/search_pattern_in_file.inc
+
+--echo
+--echo # Restart server with keys2.txt
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=$test_error_log
+--source include/start_mysqld.inc
+
+SET GLOBAL innodb_stats_persistent=ON;
+
+--error ER_GET_ERRMSG
+SELECT * FROM t2;
+--let $expected_error_message=Got error 501 Table encrypted but decryption key was not found. Is correct keyring loaded? from InnoDB
+--source check_error_in_warnings.inc
+
+--error ER_GET_ERRMSG
+SELECT * FROM t2 where id = 1;
+--source check_error_in_warnings.inc
+
+--error ER_GET_ERRMSG
+SELECT * FROM t2 where b = 1;
+--source check_error_in_warnings.inc
+
+--replace_regex /tablespace [0-9]*/tablespace /
+--error ER_GET_ERRMSG
+INSERT INTO t2 VALUES ('tmp',3,3);
+--source check_error_in_warnings.inc
+
+--error ER_GET_ERRMSG
+DELETE FROM t2 where b = 3;
+--source check_error_in_warnings.inc
+
+--error ER_GET_ERRMSG
+DELETE FROM t2 where id = 3;
+--source check_error_in_warnings.inc
+
+--error ER_GET_ERRMSG
+UPDATE t2 set b = b +1;
+--source check_error_in_warnings.inc
+
+OPTIMIZE TABLE t2;
+
+--error ER_GET_ERRMSG
+ALTER TABLE t2 ADD COLUMN d INT, ALGORITHM=INSTANT;
+--source check_error_in_warnings.inc
+
+ANALYZE TABLE t2;
+
+--error ER_GET_ERRMSG
+TRUNCATE TABLE t2;
+--source check_error_in_warnings.inc
+
+DROP TABLE t2;
+
+--source include/shutdown_mysqld.inc
+
+--echo # Make sure that log contains t2 decryption errors
+--let SEARCH_PATTERN=\[InnoDB\] Tablespace id 7 in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring\.
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$test_error_log
+--source include/search_pattern_in_file.inc
+
+--remove_file $test_error_log
+--remove_file $datadir/$uuid_file
+--move_file $datadir/original_$uuid_file $datadir/$uuid_file
+
+--echo
+--echo # Start server with initial mysecret_keyring
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQL_TMP_DIR/mysecret_keyring
+--source include/start_mysqld.inc

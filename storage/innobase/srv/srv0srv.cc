@@ -1752,6 +1752,7 @@ void srv_export_innodb_status(void) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
     export_vars.innodb_buffer_pool_pages_old += buf_pool->LRU_old_len;
   }
+
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);
   export_vars.innodb_lsn_flushed = log_sys->flushed_to_disk_lsn;
   export_vars.innodb_lsn_last_checkpoint = log_sys->last_checkpoint_lsn;

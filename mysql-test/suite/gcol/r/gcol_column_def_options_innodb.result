@@ -36,11 +36,11 @@ drop table t1;
 create table t1 (a int);
 insert into t1 values(1);
 alter table t1 add column (b int generated always as (a+1) virtual, c int);
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 alter table t1 add column (d int, e int generated always as (a+1) virtual);
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 alter table t1 add column (f int generated always as (a+1) virtual, g int as(5) stored);
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
@@ -576,8 +576,8 @@ ALTER TABLE t DROP d, ADD e varchar(10);
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t ADD d int, ADD f char(10) AS ('aaa');
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t CHANGE d dd int, CHANGE f ff varchar(10) AS ('bbb');
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0

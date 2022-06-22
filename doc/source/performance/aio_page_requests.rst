@@ -26,18 +26,26 @@ requests at once, while only
 Version Specific Information
 ============================
 
- * :rn:`5.7.20-18`- Feature ported from the *Facebook MySQL* patch.
+ * :ref:`5.7.20-18`: The feature was ported from the *Facebook MySQL* patch.
 
 Status Variables
 ================
 
-.. variable:: Innodb_buffered_aio_submitted
+.. _Innodb_buffered_aio_submitted:
 
-  :version 5.7.20-18: Implemented
-  :vartype: Numeric
-  :scope: Global
+.. rubric:: ``Innodb_buffered_aio_submitted``
 
-This variable shows the number of submitted buffered asynchronous I/O requests.
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Data type
+     - Numeric
+   * - Scope
+     - Global
+
+The variable has been implemented in :ref:`5.7.20-18`. This variable shows the number of submitted buffered asynchronous I/O requests.
 
 Other Reading
 =============
@@ -45,5 +53,5 @@ Other Reading
  * `Optimizing full table scans in 
    InnoDB <http://yoshinorimatsunobu.blogspot.hr/2013/10/making-full-table-scan-10x-faster-in.html>`_
 
- * `Bug #68659	InnoDB Linux native aio should submit more i/o requests at once
+ * `Bug #68659  InnoDB Linux native aio should submit more i/o requests at once
    <https://bugs.mysql.com/bug.php?id=68659>`_

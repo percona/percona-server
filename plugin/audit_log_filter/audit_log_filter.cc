@@ -417,6 +417,10 @@ void AuditLogFilter::on_audit_log_flush_requested() noexcept {
   m_log_writer->flush();
 }
 
+void AuditLogFilter::on_audit_log_prune_requested() noexcept {
+  m_log_writer->prune();
+}
+
 }  // namespace audit_log_filter
 
 static void MY_ATTRIBUTE((constructor)) audit_log_filter_so_init() noexcept {}

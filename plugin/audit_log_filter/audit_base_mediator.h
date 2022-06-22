@@ -23,6 +23,7 @@ class AuditBaseMediator {
   virtual ~AuditBaseMediator() = default;
   virtual void on_audit_rule_flush_requested() noexcept = 0;
   virtual void on_audit_log_flush_requested() noexcept = 0;
+  virtual void on_audit_log_prune_requested() noexcept = 0;
 };
 
 }  // namespace audit_log_filter

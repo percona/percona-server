@@ -66,6 +66,11 @@ class AuditLogFilter : public AuditBaseMediator {
    */
   void on_audit_log_flush_requested() noexcept override;
 
+  /**
+   * @brief Handle log files prunning request.
+   */
+  void on_audit_log_prune_requested() noexcept override;
+
  private:
   std::unique_ptr<AuditRuleRegistry> m_audit_rules_registry;
   std::unique_ptr<AuditUdf> m_audit_udf;

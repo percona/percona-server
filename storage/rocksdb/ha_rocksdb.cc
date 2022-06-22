@@ -5710,8 +5710,8 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   rocksdb::DBOptions loaded_db_opt;
   std::vector<rocksdb::ColumnFamilyDescriptor> loaded_cf_descs;
   rocksdb::Status status =
-      LoadLatestOptions(dbpath, rocksdb::Env::Default(), &loaded_db_opt,
-                        &loaded_cf_descs, rocksdb_ignore_unknown_options);
+      LoadLatestOptions(dbpath, main_opts.env, &loaded_db_opt, &loaded_cf_descs,
+                        rocksdb_ignore_unknown_options);
 
   // If we're starting from scratch and there are no options saved yet then this
   // is a valid case. Therefore we can't compare the current set of options to
@@ -5750,7 +5750,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   // This is the essence of the function - determine if it's safe to open the
   // database or not.
-  status = CheckOptionsCompatibility(dbpath, rocksdb::Env::Default(), main_opts,
+  status = CheckOptionsCompatibility(dbpath, main_opts.env, main_opts,
                                      loaded_cf_descs,
                                      rocksdb_ignore_unknown_options);
 
@@ -5877,6 +5877,18 @@ static int rocksdb_init_internal(void *const p) {
                       rdb_corruption_marker_file_name().c_str());
       exit(0);
     }
+  }
+
+  rocksdb::Status s;
+  if (rocksdb_fs_uri) {
+    std::shared_ptr<rocksdb::FileSystem> fs;
+    s = rocksdb::FileSystem::Load(rocksdb_fs_uri, &fs);
+    if (fs == nullptr) {
+      LogPluginErrMsg(ERROR_LEVEL, 0, "Loading custom file system failed: %s\n",
+                      s.ToString().c_str());
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+    rocksdb_db_options->env = GetCompositeEnv(fs);
   }
 
   DBUG_EXECUTE_IF("rocksdb_init_failure_files_corruption",
@@ -6014,8 +6026,8 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_db_options->delayed_write_rate = rocksdb_delayed_write_rate;
 
   std::shared_ptr<Rdb_logger> myrocks_logger = std::make_shared<Rdb_logger>();
-  rocksdb::Status s = rocksdb::CreateLoggerFromOptions(
-      rocksdb_datadir, *rocksdb_db_options, &rocksdb_db_options->info_log);
+  s = rocksdb::CreateLoggerFromOptions(rocksdb_datadir, *rocksdb_db_options,
+                                       &rocksdb_db_options->info_log);
   if (s.ok()) {
     myrocks_logger->SetRocksDBLogger(rocksdb_db_options->info_log);
   }
@@ -6043,17 +6055,6 @@ static int rocksdb_init_internal(void *const p) {
         ERROR_LEVEL, 0,
         "Can't enable both use_direct_reads and allow_mmap_reads\n");
     DBUG_RETURN(HA_EXIT_FAILURE);
-  }
-
-  if (rocksdb_fs_uri) {
-    std::shared_ptr<rocksdb::FileSystem> fs;
-    s = rocksdb::FileSystem::Load(rocksdb_fs_uri, &fs);
-    if (fs == nullptr) {
-      LogPluginErrMsg(ERROR_LEVEL, 0, "Loading custom file system failed: %s\n",
-                      s.ToString().c_str());
-      DBUG_RETURN(HA_EXIT_FAILURE);
-    }
-    rocksdb_db_options->env = GetCompositeEnv(fs);
   }
 
   // Check whether the filesystem backing rocksdb_datadir allows O_DIRECT
@@ -6242,7 +6243,7 @@ static int rocksdb_init_internal(void *const p) {
     std::shared_ptr<rocksdb::PersistentCache> pcache;
     uint64_t cache_size_bytes = rocksdb_persistent_cache_size_mb * 1024 * 1024;
     status = rocksdb::NewPersistentCache(
-        rocksdb::Env::Default(), std::string(rocksdb_persistent_cache_path),
+        rocksdb_db_options->env, std::string(rocksdb_persistent_cache_path),
         cache_size_bytes, myrocks_logger, true, &pcache);
     if (!status.ok()) {
       LogPluginErrMsg(ERROR_LEVEL, 0, "Persistent cache returned error: (%s)",

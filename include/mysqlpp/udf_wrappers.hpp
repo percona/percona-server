@@ -33,7 +33,7 @@
 #ifdef WIN32
 #define MYSQLPP_UDF_EXPORT extern "C" __declspec(dllexport)
 #else
-#define MYSQLPP_UDF_EXPORT extern "C"
+#define MYSQLPP_UDF_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
 
 namespace mysqlpp {
@@ -103,9 +103,13 @@ class generic_udf_base {
 #pragma clang diagnostic pop
 #endif
     } catch (const udf_exception &e) {
-      if (e.has_error_code())
-        my_error(e.get_error_code(), MYF(0), get_function_label(buffer),
-                 e.what());
+      if (e.has_error_code()) {
+        auto error_code = e.get_error_code();
+        if (error_code == ER_QUERY_INTERRUPTED)
+          my_error(error_code, MYF(0));
+        else
+          my_error(error_code, MYF(0), get_function_label(buffer), e.what());
+      }
     } catch (const std::exception &e) {
       my_error(ER_UDF_ERROR, MYF(0), get_function_label(buffer), e.what());
     } catch (...) {
@@ -185,8 +189,8 @@ template <typename ImplType>
 class generic_udf<ImplType, INT_RESULT>
     : public generic_udf_base<ImplType, INT_RESULT> {
  public:
-  static double func(UDF_INIT *initid, UDF_ARGS *args, unsigned char *is_null,
-                     unsigned char *error) noexcept {
+  static long long func(UDF_INIT *initid, UDF_ARGS *args,
+                        unsigned char *is_null, unsigned char *error) noexcept {
     auto &extended_impl = *generic_udf_base<
         ImplType, INT_RESULT>::get_extended_impl_from_udf_initid(initid);
     udf_result_t<INT_RESULT> res;

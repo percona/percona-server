@@ -1,0 +1,266 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+** checking digests calculation
+SET @random_pattern = REPEAT(MD5(42), 16 * 7 DIV 32 + 1);
+CREATE TEMPORARY TABLE digest_type(
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+digest_name VARCHAR(64) NOT NULL,
+builtin_template VARCHAR(64),
+PRIMARY KEY(id)
+);
+INSERT INTO digest_type(digest_name, builtin_template) VALUES
+('MD5' , 'MD5(@message)'),
+('SHA1', 'SHA(@message)'),
+('SHA224', 'SHA2(@message, 224)'),
+('SHA256', 'SHA2(@message, 256)'),
+('SHA384', 'SHA2(@message, 384)'),
+('SHA512', 'SHA2(@message, 512)'),
+('MD4'       , NULL),
+('RIPEMD160' , NULL)
+;
+**** [MD5] checking digest
+****** [MD5][message_len=0] checking digest calculation on message
+******** [MD5][message_len=0] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=7] checking digest calculation on message
+******** [MD5][message_len=7] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=14] checking digest calculation on message
+******** [MD5][message_len=14] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=21] checking digest calculation on message
+******** [MD5][message_len=21] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=28] checking digest calculation on message
+******** [MD5][message_len=28] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=35] checking digest calculation on message
+******** [MD5][message_len=35] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=42] checking digest calculation on message
+******** [MD5][message_len=42] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=49] checking digest calculation on message
+******** [MD5][message_len=49] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=56] checking digest calculation on message
+******** [MD5][message_len=56] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=63] checking digest calculation on message
+******** [MD5][message_len=63] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=70] checking digest calculation on message
+******** [MD5][message_len=70] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=77] checking digest calculation on message
+******** [MD5][message_len=77] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=84] checking digest calculation on message
+******** [MD5][message_len=84] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=91] checking digest calculation on message
+******** [MD5][message_len=91] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=98] checking digest calculation on message
+******** [MD5][message_len=98] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=105] checking digest calculation on message
+******** [MD5][message_len=105] checking if identical to built-in MD5(@message)
+****** [MD5][message_len=112] checking digest calculation on message
+******** [MD5][message_len=112] checking if identical to built-in MD5(@message)
+**** [SHA1] checking digest
+****** [SHA1][message_len=0] checking digest calculation on message
+******** [SHA1][message_len=0] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=7] checking digest calculation on message
+******** [SHA1][message_len=7] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=14] checking digest calculation on message
+******** [SHA1][message_len=14] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=21] checking digest calculation on message
+******** [SHA1][message_len=21] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=28] checking digest calculation on message
+******** [SHA1][message_len=28] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=35] checking digest calculation on message
+******** [SHA1][message_len=35] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=42] checking digest calculation on message
+******** [SHA1][message_len=42] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=49] checking digest calculation on message
+******** [SHA1][message_len=49] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=56] checking digest calculation on message
+******** [SHA1][message_len=56] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=63] checking digest calculation on message
+******** [SHA1][message_len=63] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=70] checking digest calculation on message
+******** [SHA1][message_len=70] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=77] checking digest calculation on message
+******** [SHA1][message_len=77] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=84] checking digest calculation on message
+******** [SHA1][message_len=84] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=91] checking digest calculation on message
+******** [SHA1][message_len=91] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=98] checking digest calculation on message
+******** [SHA1][message_len=98] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=105] checking digest calculation on message
+******** [SHA1][message_len=105] checking if identical to built-in SHA(@message)
+****** [SHA1][message_len=112] checking digest calculation on message
+******** [SHA1][message_len=112] checking if identical to built-in SHA(@message)
+**** [SHA224] checking digest
+****** [SHA224][message_len=0] checking digest calculation on message
+******** [SHA224][message_len=0] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=7] checking digest calculation on message
+******** [SHA224][message_len=7] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=14] checking digest calculation on message
+******** [SHA224][message_len=14] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=21] checking digest calculation on message
+******** [SHA224][message_len=21] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=28] checking digest calculation on message
+******** [SHA224][message_len=28] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=35] checking digest calculation on message
+******** [SHA224][message_len=35] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=42] checking digest calculation on message
+******** [SHA224][message_len=42] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=49] checking digest calculation on message
+******** [SHA224][message_len=49] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=56] checking digest calculation on message
+******** [SHA224][message_len=56] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=63] checking digest calculation on message
+******** [SHA224][message_len=63] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=70] checking digest calculation on message
+******** [SHA224][message_len=70] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=77] checking digest calculation on message
+******** [SHA224][message_len=77] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=84] checking digest calculation on message
+******** [SHA224][message_len=84] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=91] checking digest calculation on message
+******** [SHA224][message_len=91] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=98] checking digest calculation on message
+******** [SHA224][message_len=98] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=105] checking digest calculation on message
+******** [SHA224][message_len=105] checking if identical to built-in SHA2(@message, 224)
+****** [SHA224][message_len=112] checking digest calculation on message
+******** [SHA224][message_len=112] checking if identical to built-in SHA2(@message, 224)
+**** [SHA256] checking digest
+****** [SHA256][message_len=0] checking digest calculation on message
+******** [SHA256][message_len=0] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=7] checking digest calculation on message
+******** [SHA256][message_len=7] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=14] checking digest calculation on message
+******** [SHA256][message_len=14] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=21] checking digest calculation on message
+******** [SHA256][message_len=21] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=28] checking digest calculation on message
+******** [SHA256][message_len=28] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=35] checking digest calculation on message
+******** [SHA256][message_len=35] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=42] checking digest calculation on message
+******** [SHA256][message_len=42] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=49] checking digest calculation on message
+******** [SHA256][message_len=49] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=56] checking digest calculation on message
+******** [SHA256][message_len=56] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=63] checking digest calculation on message
+******** [SHA256][message_len=63] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=70] checking digest calculation on message
+******** [SHA256][message_len=70] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=77] checking digest calculation on message
+******** [SHA256][message_len=77] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=84] checking digest calculation on message
+******** [SHA256][message_len=84] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=91] checking digest calculation on message
+******** [SHA256][message_len=91] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=98] checking digest calculation on message
+******** [SHA256][message_len=98] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=105] checking digest calculation on message
+******** [SHA256][message_len=105] checking if identical to built-in SHA2(@message, 256)
+****** [SHA256][message_len=112] checking digest calculation on message
+******** [SHA256][message_len=112] checking if identical to built-in SHA2(@message, 256)
+**** [SHA384] checking digest
+****** [SHA384][message_len=0] checking digest calculation on message
+******** [SHA384][message_len=0] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=7] checking digest calculation on message
+******** [SHA384][message_len=7] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=14] checking digest calculation on message
+******** [SHA384][message_len=14] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=21] checking digest calculation on message
+******** [SHA384][message_len=21] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=28] checking digest calculation on message
+******** [SHA384][message_len=28] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=35] checking digest calculation on message
+******** [SHA384][message_len=35] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=42] checking digest calculation on message
+******** [SHA384][message_len=42] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=49] checking digest calculation on message
+******** [SHA384][message_len=49] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=56] checking digest calculation on message
+******** [SHA384][message_len=56] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=63] checking digest calculation on message
+******** [SHA384][message_len=63] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=70] checking digest calculation on message
+******** [SHA384][message_len=70] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=77] checking digest calculation on message
+******** [SHA384][message_len=77] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=84] checking digest calculation on message
+******** [SHA384][message_len=84] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=91] checking digest calculation on message
+******** [SHA384][message_len=91] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=98] checking digest calculation on message
+******** [SHA384][message_len=98] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=105] checking digest calculation on message
+******** [SHA384][message_len=105] checking if identical to built-in SHA2(@message, 384)
+****** [SHA384][message_len=112] checking digest calculation on message
+******** [SHA384][message_len=112] checking if identical to built-in SHA2(@message, 384)
+**** [SHA512] checking digest
+****** [SHA512][message_len=0] checking digest calculation on message
+******** [SHA512][message_len=0] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=7] checking digest calculation on message
+******** [SHA512][message_len=7] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=14] checking digest calculation on message
+******** [SHA512][message_len=14] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=21] checking digest calculation on message
+******** [SHA512][message_len=21] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=28] checking digest calculation on message
+******** [SHA512][message_len=28] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=35] checking digest calculation on message
+******** [SHA512][message_len=35] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=42] checking digest calculation on message
+******** [SHA512][message_len=42] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=49] checking digest calculation on message
+******** [SHA512][message_len=49] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=56] checking digest calculation on message
+******** [SHA512][message_len=56] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=63] checking digest calculation on message
+******** [SHA512][message_len=63] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=70] checking digest calculation on message
+******** [SHA512][message_len=70] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=77] checking digest calculation on message
+******** [SHA512][message_len=77] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=84] checking digest calculation on message
+******** [SHA512][message_len=84] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=91] checking digest calculation on message
+******** [SHA512][message_len=91] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=98] checking digest calculation on message
+******** [SHA512][message_len=98] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=105] checking digest calculation on message
+******** [SHA512][message_len=105] checking if identical to built-in SHA2(@message, 512)
+****** [SHA512][message_len=112] checking digest calculation on message
+******** [SHA512][message_len=112] checking if identical to built-in SHA2(@message, 512)
+**** [MD4] checking digest
+****** [MD4][message_len=0] checking digest calculation on message
+****** [MD4][message_len=7] checking digest calculation on message
+****** [MD4][message_len=14] checking digest calculation on message
+****** [MD4][message_len=21] checking digest calculation on message
+****** [MD4][message_len=28] checking digest calculation on message
+****** [MD4][message_len=35] checking digest calculation on message
+****** [MD4][message_len=42] checking digest calculation on message
+****** [MD4][message_len=49] checking digest calculation on message
+****** [MD4][message_len=56] checking digest calculation on message
+****** [MD4][message_len=63] checking digest calculation on message
+****** [MD4][message_len=70] checking digest calculation on message
+****** [MD4][message_len=77] checking digest calculation on message
+****** [MD4][message_len=84] checking digest calculation on message
+****** [MD4][message_len=91] checking digest calculation on message
+****** [MD4][message_len=98] checking digest calculation on message
+****** [MD4][message_len=105] checking digest calculation on message
+****** [MD4][message_len=112] checking digest calculation on message
+**** [RIPEMD160] checking digest
+****** [RIPEMD160][message_len=0] checking digest calculation on message
+****** [RIPEMD160][message_len=7] checking digest calculation on message
+****** [RIPEMD160][message_len=14] checking digest calculation on message
+****** [RIPEMD160][message_len=21] checking digest calculation on message
+****** [RIPEMD160][message_len=28] checking digest calculation on message
+****** [RIPEMD160][message_len=35] checking digest calculation on message
+****** [RIPEMD160][message_len=42] checking digest calculation on message
+****** [RIPEMD160][message_len=49] checking digest calculation on message
+****** [RIPEMD160][message_len=56] checking digest calculation on message
+****** [RIPEMD160][message_len=63] checking digest calculation on message
+****** [RIPEMD160][message_len=70] checking digest calculation on message
+****** [RIPEMD160][message_len=77] checking digest calculation on message
+****** [RIPEMD160][message_len=84] checking digest calculation on message
+****** [RIPEMD160][message_len=91] checking digest calculation on message
+****** [RIPEMD160][message_len=98] checking digest calculation on message
+****** [RIPEMD160][message_len=105] checking digest calculation on message
+****** [RIPEMD160][message_len=112] checking digest calculation on message
+UNINSTALL COMPONENT 'file://component_encryption_udf';

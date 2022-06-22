@@ -1,0 +1,8 @@
+--source include/have_encryption_udf_component.inc
+--source include/have_openssl_binary.inc
+
+--let $algorithm = DSA
+--let $key_length = 4096
+--let $use_openssl_binary = 1
+
+--source include/percona_encryption_udf_xsa.inc

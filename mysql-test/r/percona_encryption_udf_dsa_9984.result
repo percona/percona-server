@@ -1,0 +1,129 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+CREATE TEMPORARY TABLE digest_type(
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+digest_name VARCHAR(64) NOT NULL,
+builtin_template VARCHAR(64),
+PRIMARY KEY(id)
+);
+INSERT INTO digest_type(digest_name, builtin_template) VALUES
+('MD5' , 'MD5(@message)'),
+('SHA1', 'SHA(@message)'),
+('SHA224', 'SHA2(@message, 224)'),
+('SHA256', 'SHA2(@message, 256)'),
+('SHA384', 'SHA2(@message, 384)'),
+('SHA512', 'SHA2(@message, 512)'),
+('MD4'       , NULL),
+('RIPEMD160' , NULL)
+;
+
+** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
+
+** [DSA] checking asymmertic algorithm functions
+** [DSA][9984] checking asymmetric algorithm functions
+**** [DSA][9984] generating private key
+**** [DSA][9984] deriving public key
+**** [DSA][9984][message_len=0] checking operations
+****** [DSA][9984][message_len=0] checking sign/verify functionality
+******** [DSA][9984][message_len=0][MD5] calculating digest
+******** [DSA][9984][message_len=0][MD5] calculating signature
+******** [DSA][9984][message_len=0][MD5] verifying signature
+******** [DSA][9984][message_len=0][SHA1] calculating digest
+******** [DSA][9984][message_len=0][SHA1] calculating signature
+******** [DSA][9984][message_len=0][SHA1] verifying signature
+******** [DSA][9984][message_len=0][SHA224] calculating digest
+******** [DSA][9984][message_len=0][SHA224] calculating signature
+******** [DSA][9984][message_len=0][SHA224] verifying signature
+******** [DSA][9984][message_len=0][SHA256] calculating digest
+******** [DSA][9984][message_len=0][SHA256] calculating signature
+******** [DSA][9984][message_len=0][SHA256] verifying signature
+******** [DSA][9984][message_len=0][SHA384] calculating digest
+******** [DSA][9984][message_len=0][SHA384] calculating signature
+******** [DSA][9984][message_len=0][SHA384] verifying signature
+******** [DSA][9984][message_len=0][SHA512] calculating digest
+******** [DSA][9984][message_len=0][SHA512] calculating signature
+******** [DSA][9984][message_len=0][SHA512] verifying signature
+******** [DSA][9984][message_len=0][MD4] calculating digest
+******** [DSA][9984][message_len=0][MD4] calculating signature
+******** [DSA][9984][message_len=0][MD4] verifying signature
+******** [DSA][9984][message_len=0][RIPEMD160] calculating digest
+******** [DSA][9984][message_len=0][RIPEMD160] calculating signature
+******** [DSA][9984][message_len=0][RIPEMD160] verifying signature
+**** [DSA][9984][message_len=1] checking operations
+****** [DSA][9984][message_len=1] checking sign/verify functionality
+******** [DSA][9984][message_len=1][MD5] calculating digest
+******** [DSA][9984][message_len=1][MD5] calculating signature
+******** [DSA][9984][message_len=1][MD5] verifying signature
+******** [DSA][9984][message_len=1][SHA1] calculating digest
+******** [DSA][9984][message_len=1][SHA1] calculating signature
+******** [DSA][9984][message_len=1][SHA1] verifying signature
+******** [DSA][9984][message_len=1][SHA224] calculating digest
+******** [DSA][9984][message_len=1][SHA224] calculating signature
+******** [DSA][9984][message_len=1][SHA224] verifying signature
+******** [DSA][9984][message_len=1][SHA256] calculating digest
+******** [DSA][9984][message_len=1][SHA256] calculating signature
+******** [DSA][9984][message_len=1][SHA256] verifying signature
+******** [DSA][9984][message_len=1][SHA384] calculating digest
+******** [DSA][9984][message_len=1][SHA384] calculating signature
+******** [DSA][9984][message_len=1][SHA384] verifying signature
+******** [DSA][9984][message_len=1][SHA512] calculating digest
+******** [DSA][9984][message_len=1][SHA512] calculating signature
+******** [DSA][9984][message_len=1][SHA512] verifying signature
+******** [DSA][9984][message_len=1][MD4] calculating digest
+******** [DSA][9984][message_len=1][MD4] calculating signature
+******** [DSA][9984][message_len=1][MD4] verifying signature
+******** [DSA][9984][message_len=1][RIPEMD160] calculating digest
+******** [DSA][9984][message_len=1][RIPEMD160] calculating signature
+******** [DSA][9984][message_len=1][RIPEMD160] verifying signature
+**** [DSA][9984][message_len=624] checking operations
+****** [DSA][9984][message_len=624] checking sign/verify functionality
+******** [DSA][9984][message_len=624][MD5] calculating digest
+******** [DSA][9984][message_len=624][MD5] calculating signature
+******** [DSA][9984][message_len=624][MD5] verifying signature
+******** [DSA][9984][message_len=624][SHA1] calculating digest
+******** [DSA][9984][message_len=624][SHA1] calculating signature
+******** [DSA][9984][message_len=624][SHA1] verifying signature
+******** [DSA][9984][message_len=624][SHA224] calculating digest
+******** [DSA][9984][message_len=624][SHA224] calculating signature
+******** [DSA][9984][message_len=624][SHA224] verifying signature
+******** [DSA][9984][message_len=624][SHA256] calculating digest
+******** [DSA][9984][message_len=624][SHA256] calculating signature
+******** [DSA][9984][message_len=624][SHA256] verifying signature
+******** [DSA][9984][message_len=624][SHA384] calculating digest
+******** [DSA][9984][message_len=624][SHA384] calculating signature
+******** [DSA][9984][message_len=624][SHA384] verifying signature
+******** [DSA][9984][message_len=624][SHA512] calculating digest
+******** [DSA][9984][message_len=624][SHA512] calculating signature
+******** [DSA][9984][message_len=624][SHA512] verifying signature
+******** [DSA][9984][message_len=624][MD4] calculating digest
+******** [DSA][9984][message_len=624][MD4] calculating signature
+******** [DSA][9984][message_len=624][MD4] verifying signature
+******** [DSA][9984][message_len=624][RIPEMD160] calculating digest
+******** [DSA][9984][message_len=624][RIPEMD160] calculating signature
+******** [DSA][9984][message_len=624][RIPEMD160] verifying signature
+**** [DSA][9984][message_len=1248] checking operations
+****** [DSA][9984][message_len=1248] checking sign/verify functionality
+******** [DSA][9984][message_len=1248][MD5] calculating digest
+******** [DSA][9984][message_len=1248][MD5] calculating signature
+******** [DSA][9984][message_len=1248][MD5] verifying signature
+******** [DSA][9984][message_len=1248][SHA1] calculating digest
+******** [DSA][9984][message_len=1248][SHA1] calculating signature
+******** [DSA][9984][message_len=1248][SHA1] verifying signature
+******** [DSA][9984][message_len=1248][SHA224] calculating digest
+******** [DSA][9984][message_len=1248][SHA224] calculating signature
+******** [DSA][9984][message_len=1248][SHA224] verifying signature
+******** [DSA][9984][message_len=1248][SHA256] calculating digest
+******** [DSA][9984][message_len=1248][SHA256] calculating signature
+******** [DSA][9984][message_len=1248][SHA256] verifying signature
+******** [DSA][9984][message_len=1248][SHA384] calculating digest
+******** [DSA][9984][message_len=1248][SHA384] calculating signature
+******** [DSA][9984][message_len=1248][SHA384] verifying signature
+******** [DSA][9984][message_len=1248][SHA512] calculating digest
+******** [DSA][9984][message_len=1248][SHA512] calculating signature
+******** [DSA][9984][message_len=1248][SHA512] verifying signature
+******** [DSA][9984][message_len=1248][MD4] calculating digest
+******** [DSA][9984][message_len=1248][MD4] calculating signature
+******** [DSA][9984][message_len=1248][MD4] verifying signature
+******** [DSA][9984][message_len=1248][RIPEMD160] calculating digest
+******** [DSA][9984][message_len=1248][RIPEMD160] calculating signature
+******** [DSA][9984][message_len=1248][RIPEMD160] verifying signature
+UNINSTALL COMPONENT 'file://component_encryption_udf';

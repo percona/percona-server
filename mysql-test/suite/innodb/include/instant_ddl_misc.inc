@@ -16,7 +16,7 @@ create table t1 (c1 char(10), c2 char(10));
 --source suite/innodb/include/print_instant_metadata.inc
 insert into t1 values ("r1c1", "r1c2");
 select * from t1;
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 --source suite/innodb/include/print_instant_metadata.inc
 insert into t1 values ("r2c1", "r2c3", "r2c2");
 select * from t1;
@@ -25,7 +25,7 @@ drop table t1;
 --echo # Scenario 2
 create table t1 (c1 char(10), c2 char(10), c3 char(10));
 insert into t1 values ("r1c1", "r1c2", "r1c3");
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 --let $table_name=t1
 --source suite/innodb/include/print_instant_metadata.inc
 select * from t1;
@@ -46,24 +46,24 @@ drop table t1;
 create table t1 (c1 char(10), c2 char(10), c3 char(10));
 insert into t1 values ("r1c1", "r1c2", "r1c3");
 select * from t1;
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 drop table t1;
 
 --echo # Scenario 5
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 select * from t1;
 insert into t1 value ("r2c1", "r2c3", "r2c2");
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 drop table t1;
 
 --echo # Scenario 6
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c2 char(10) default "def_c3", drop column c2;
+alter table t1 add column c2 char(10) default "def_c3", drop column c2, algorithm=instant;
 select * from t1;
 insert into t1 value ("r2c1", "r2c2");
 select * from t1;
@@ -72,11 +72,11 @@ drop table t1;
 --echo # Scenario 7
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c3 int after c1;
+alter table t1 add column c3 int after c1, algorithm=instant;
 select * from t1;
 insert into t1 value ("r2c1", 3, "r2c2");
 select * from t1;
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 drop table t1;
 
@@ -84,7 +84,7 @@ drop table t1;
 create table t1 (c1 char(10), c2 char(10), c3 char(10));
 insert into t1 values ("r1c1", NULL, "r1c3");
 select * from t1;
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 --let $table_name=t1
 --source suite/innodb/include/print_instant_metadata.inc
 select * from t1;
@@ -93,9 +93,9 @@ drop table t1;
 --echo # Scenario 9
 --eval CREATE TABLE t1 (C1 char(10), C2 char(10), C3 char(10)) ROW_FORMAT=$row_format
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
-alter table t1 drop column c1;
+alter table t1 drop column c1, algorithm=instant;
 select * from t1;
-alter table t1 drop column c3;
+alter table t1 drop column c3, algorithm=instant;
 select * from t1;
 drop table t1;
 
@@ -103,7 +103,7 @@ drop table t1;
 create table t1 (c1 char(10) KEY, c2 char(10), key sec_idx(c2));
 insert into t1 values ("r1c1", "r1c2");
 select * from t1;
-alter table t1 add column c3 char(10) default "def_c3";
+alter table t1 add column c3 char(10) default "def_c3", algorithm=instant;
 select * from t1;
 insert into t1 values ("r2c1", "r2c2", "r3c3");
 drop table t1;
@@ -129,7 +129,7 @@ DROP TABLE t1;
 --eval CREATE TABLE t1 (col1 int(11) DEFAULT NULL, col2 int(11) DEFAULT NULL, col3 int(11) DEFAULT NULL, col4 int(11) DEFAULT NULL, col5 int(11) GENERATED ALWAYS AS (col4 * col2) VIRTUAL, col6 int(11) GENERATED ALWAYS AS (col2 % col4) VIRTUAL, col7 int(11) GENERATED ALWAYS AS (col5 / col6) VIRTUAL, col8 int(11) GENERATED ALWAYS AS (col5 + col5) VIRTUAL, col9 text, extra int(11) DEFAULT NULL) ROW_FORMAT=$row_format
 
 ALTER TABLE t1 DROP COLUMN col7;
-ALTER TABLE t1 DROP COLUMN col6, DROP COLUMN col9;
+ALTER TABLE t1 DROP COLUMN col6, DROP COLUMN col9, ALGORITHM=INSTANT;
 DROP TABLE t1;
 
 --echo # Scenario 15
@@ -153,7 +153,7 @@ DROP TABLE t1;
 --eval CREATE TABLE t1 (c1 char(20), c2 char(20), c3 char(20), c4 char(20)) ROW_FORMAT=$row_format
 ALTER TABLE t1 DROP COLUMN c4, ALGORITHM=INSTANT;
 ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
-ALTER TABLE test.t1 ADD c6 char(20), DROP COLUMN c3;
+ALTER TABLE test.t1 ADD c6 char(20), DROP COLUMN c3, ALGORITHM=INSTANT;
 DROP TABLE t1;
 
 --echo # Scenario 18
@@ -165,11 +165,11 @@ DROP TABLE t1;
 
 --echo # Scenario 19
 --eval CREATE TABLE t1 (a INT, b INT, c INT, d INT) ENGINE=InnoDB ROW_FORMAT=$row_format
-ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 FIRST;
+ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 FIRST, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE aa e INT;
 INSERT INTO t1 VALUES (1,1,1,1,1);
-ALTER TABLE t1 ADD COLUMN a INT DEFAULT 1 FIRST, DROP COLUMN a, CHANGE b b INT;
-ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 AFTER a, DROP COLUMN b, CHANGE c c INT;
+ALTER TABLE t1 ADD COLUMN a INT DEFAULT 1 FIRST, DROP COLUMN a, CHANGE b b INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 AFTER a, DROP COLUMN b, CHANGE c c INT, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE aa b INT;
 DROP TABLE t1;
 
@@ -206,18 +206,18 @@ create table t1 (c1 char(10), c2 char(10));
 --source suite/innodb/include/print_instant_metadata.inc
 insert into t1 values ("r1c1", "r1c2");
 select * from t1;
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 --source suite/innodb/include/print_instant_metadata.inc
 insert into t1 values ("r2c1", "r2c3", "r2c2");
 select * from t1;
-alter table t1 add column c3 char(10) default "newnewnew", drop column c3;
+alter table t1 add column c3 char(10) default "newnewnew", drop column c3, algorithm=instant;
 select * from t1;
 DROP TABLE t1;
 
 --echo # Scenario 24
 --eval CREATE TABLE t1 (c1 char(10)) ROW_FORMAT=$row_format
-ALTER TABLE t1 ADD COLUMN c2 INT;
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 INSERT INTO t1 (c1) VALUES("aaaa");
 select * from t1;
 check table t1;
@@ -225,7 +225,7 @@ DROP TABLE t1;
 
 --echo # Scenario 25
 --eval CREATE TABLE t1 (c1 int, c2 char(10)) ROW_FORMAT=$row_format PARTITION BY HASH (c1) PARTITIONS 2
-alter table t1 drop column c2;
+alter table t1 drop column c2, ALGORITHM=INSTANT;
 DROP TABLE t1;
 
 --echo # Scenario 26
@@ -244,8 +244,8 @@ DROP TABLE t1;
 
 --echo # Scenario 27
 --eval CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=$row_format
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL;
-ALTER TABLE t1 ADD COLUMN d VARCHAR(100);
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN d VARCHAR(100), ALGORITHM=INSTANT;
 INSERT INTO t1 VALUES(0, 5, 20, 'Hello world');
 DROP TABLE t1;
 
@@ -253,7 +253,7 @@ DROP TABLE t1;
 --eval CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=$row_format
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 SELECT * from t1;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 SELECT * from t1;
 UPDATE t1 SET c = 200 WHERE a > 3;
 SELECT * from t1;
@@ -286,7 +286,7 @@ DROP TABLE t1;
 --echo # Scenario 31
 --eval CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=$row_format
 INSERT INTO t1 VALUES("r1c1", "r1c2");
-ALTER TABLE t1 ADD COLUMN c3 char(10) default "def_c3";
+ALTER TABLE t1 ADD COLUMN c3 char(10) default "def_c3", ALGORITHM=INSTANT;
 SELECT * from t1;
 UPDATE t1 SET c3 = "new_c3";
 SELECT * from t1;
@@ -297,7 +297,7 @@ DROP TABLE t1;
 --echo # Scenario 32
 --eval CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b)) ROW_FORMAT=$row_format
 INSERT INTO t1 VALUES(0, 1), (1, 2), (2, 3), (3, 4);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 SELECT * FROM t1;
 UPDATE t1 SET c = b WHERE b <= 2;
@@ -487,7 +487,7 @@ DROP TABLE t1;
 --echo # Scenario 41
 --eval CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 TEXT) ROW_FORMAT=$row_format PARTITION BY RANGE(col1 * 2)  (PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256), PARTITION p2 VALUES LESS THAN (384), PARTITION p3 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
-ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500) default "def", ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500) default "def", ADD COLUMN col6 TEXT, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 SELECT * FROM t1;
 ALTER TABLE t1 ALGORITHM INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (64), PARTITION p0_b VALUES LESS THAN (128));
@@ -511,7 +511,7 @@ SELECT * FROM t1;
 ALTER TABLE t1 ALGORITHM INSTANT, ADD COLUMN col4 CHAR(10) DEFAULT "def_4";
 CHECK TABLE t1;
 SELECT * FROM t1;
-ALTER TABLE t1 ALGORITHM INSTANT, DROP COLUMN c2;
+ALTER TABLE t1 ALGORITHM INSTANT, DROP COLUMN c2, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 SELECT * FROM t1;
 ALTER TABLE t1 ALGORITHM INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (50), PARTITION p0_b VALUES LESS THAN (100));
@@ -533,7 +533,7 @@ DROP TABLE t1;
 --eval CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=$row_format PARTITION BY HASH(a) PARTITIONS 3;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
 SELECT * FROM t1;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 SELECT * FROM t1;
 ALTER TABLE t1 ADD PARTITION PARTITIONS 10;
@@ -572,7 +572,7 @@ connect (conn1, localhost, root,,);
 connection default;
 --eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT) ROW_FORMAT=$row_format
 INSERT INTO t1 VALUES(1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 6, 6);
-ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT * FROM t1;
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
 --send ALTER TABLE t1 DROP COLUMN c, algorithm=inplace;
@@ -593,7 +593,7 @@ DROP TABLE t1;
 
 --echo # Scenario 47
 --eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT) ROW_FORMAT=$row_format PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20))
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT NAME, POS, MTYPE, PRTYPE, LEN, HAS_DEFAULT, DEFAULT_VALUE, VERSION_ADDED, VERSION_DROPPED, PHYSICAL_POS FROM information_schema.innodb_columns WHERE has_default = 1;
 ALTER TABLE t1 REORGANIZE PARTITION p2 INTO (PARTITION p21 VALUES LESS THAN(15), PARTITION p22 VALUES LESS THAN(20));
 SELECT NAME, POS, MTYPE, PRTYPE, LEN, HAS_DEFAULT, DEFAULT_VALUE, VERSION_ADDED, VERSION_DROPPED, PHYSICAL_POS FROM information_schema.innodb_columns WHERE has_default = 1;
@@ -601,9 +601,9 @@ DROP TABLE t1;
 
 --echo # Scenario 48
 --eval CREATE TABLE t1 (c1 integer PRIMARY KEY AUTO_INCREMENT, c2 integer NULL UNIQUE) ROW_FORMAT=$row_format
-ALTER TABLE t1 ADD COLUMN c3 int;
-ALTER TABLE t1 DROP COLUMN c3;
-ALTER TABLE t1 ADD COLUMN c4 int DEFAULT 1;
+ALTER TABLE t1 ADD COLUMN c3 int, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c4 int DEFAULT 1, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE COLUMN c4 c4_new int NULL DEFAULT 1;
 ALTER TABLE t1 CHANGE COLUMN c4_new c4_new int NULL DEFAULT 1;
 DROP TABLE t1;
@@ -622,7 +622,7 @@ DROP TABLE t1;
 
 --echo # Scenario 50
 --eval CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=$row_format
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 truncate table t1;
 truncate table t1;
 truncate table t1;
@@ -644,7 +644,7 @@ ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
 SELECT * FROM t1;
 ALTER TABLE t1 DROP COLUMN c4, ALGORITHM=INSTANT;
 SELECT * FROM t1;
-ALTER TABLE t1 ADD COLUMN c6 DOUBLE GENERATED ALWAYS AS (2*c1+c2) VIRTUAL, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c6 DOUBLE GENERATED ALWAYS AS (2*c1+c2) VIRTUAL;
 SELECT * FROM t1;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER TABLE t1 ADD COLUMN c7 DOUBLE GENERATED ALWAYS AS (c1+2*c2) STORED, ALGORITHM=INSTANT;
@@ -782,7 +782,7 @@ DROP TABLE t1;
 --echo # also reset instant metadata of columns.
 eval CREATE TABLE t1 (c1 VARCHAR(1008)) ROW_FORMAT=$row_format;
 
-ALTER TABLE t1 ADD COLUMN c2 INT;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 TRUNCATE TABLE t1;
 
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),1);
@@ -794,7 +794,7 @@ INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),6);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),7);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),8);
 
-ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500);
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500), ALGORITHM=INSTANT;
 UPDATE t1 SET c3 = CONCAT(REPEAT('c', 500));
 
 DROP TABLE t1;
@@ -805,10 +805,10 @@ eval CREATE TABLE t1 (c1 CHAR(10)) ROW_FORMAT=$row_format;
 INSERT INTO t1 VALUES ("r1c1");
 SELECT * FROM t1;
 
-ALTER TABLE t1 ADD COLUMN c2 INT;
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 
-ALTER TABLE t1 ADD COLUMN c3 TEXT;
+ALTER TABLE t1 ADD COLUMN c3 TEXT, ALGORITHM=INSTANT;
 UPDATE t1 SET c3 = CONCAT(REPEAT('z', 8204));
 
 ALTER TABLE t1 ADD PRIMARY KEY (c3(10)), ADD FULLTEXT KEY idx (c3);
@@ -826,7 +826,7 @@ INSERT INTO t1 values (5, 50), (15, 150);
 SELECT * FROM t1 PARTITION (p1);
 SELECT * FROM t1 PARTITION (p2);
 
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 --source suite/innodb/include/print_instant_part_metadata.inc
 
 ALTER TABLE t1 ADD PARTITION (PARTITION p3 VALUES LESS THAN(30));
@@ -888,7 +888,7 @@ Insert into t1 values(
  REPEAT("7", 69),
  REPEAT("8", 79));
 
-Alter table t1 add column c9 char(90);
+Alter table t1 add column c9 char(90), algorithm=instant;
 
 Insert into t1 values(
  REPEAT("c", 8),

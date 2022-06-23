@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,69 @@
 #include "storage/perfschema/terminology_use_previous.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+<<<<<<< HEAD
 #define MAX_CONNECTIONS 100000
+||||||| 6846e6b2f72
+=======
+static constexpr const unsigned long DEFAULT_ERROR_COUNT{1024};
+static constexpr const unsigned long DEFAULT_SORT_MEMORY{256UL * 1024UL};
+static constexpr const unsigned HOST_CACHE_SIZE{128};
+static constexpr const unsigned long SCHEMA_DEF_CACHE_DEFAULT{256};
+static constexpr const unsigned long STORED_PROGRAM_DEF_CACHE_DEFAULT{256};
+static constexpr const unsigned long TABLESPACE_DEF_CACHE_DEFAULT{256};
+
+/**
+  We must have room for at least 400 table definitions in the table
+  cache, since otherwise there is no chance prepared
+  statements that use these many tables can work.
+  Prepared statements use table definition cache ids (table_map_id)
+  as table version identifiers. If the table definition
+  cache size is less than the number of tables used in a statement,
+  the contents of the table definition cache is guaranteed to rotate
+  between a prepare and execute. This leads to stable validation
+  errors. In future we shall use more stable version identifiers,
+  for now the only solution is to ensure that the table definition
+  cache can contain at least all tables of a given statement.
+*/
+static constexpr const unsigned long TABLE_DEF_CACHE_MIN{400};
+static constexpr const unsigned long SCHEMA_DEF_CACHE_MIN{256};
+static constexpr const unsigned long STORED_PROGRAM_DEF_CACHE_MIN{256};
+static constexpr const unsigned long TABLESPACE_DEF_CACHE_MIN{256};
+/*
+  Default time to wait before aborting a new client connection
+  that does not respond to "initial server greeting" timely
+*/
+static constexpr const unsigned long CONNECT_TIMEOUT{10};
+
+/* Defaults for deprecated "insert delayed" */
+static constexpr const unsigned long DELAYED_LIMIT{100};
+static constexpr const unsigned long DELAYED_QUEUE_SIZE{1000};
+static constexpr const unsigned long DELAYED_WAIT_TIMEOUT{5 * 60};
+
+static constexpr const unsigned long QUERY_ALLOC_BLOCK_SIZE{8192};
+static constexpr const unsigned long QUERY_ALLOC_PREALLOC_SIZE{8192};
+static constexpr const unsigned long TRANS_ALLOC_PREALLOC_SIZE{4096};
+static constexpr const unsigned long RANGE_ALLOC_BLOCK_SIZE{4096};
+
+// Including the switch in this set, makes its default 'on'
+static constexpr const unsigned long long OPTIMIZER_SWITCH_DEFAULT{
+    OPTIMIZER_SWITCH_INDEX_MERGE | OPTIMIZER_SWITCH_INDEX_MERGE_UNION |
+    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION |
+    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT |
+    OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |
+    OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | OPTIMIZER_SWITCH_MRR |
+    OPTIMIZER_SWITCH_MRR_COST_BASED | OPTIMIZER_SWITCH_BNL |
+    OPTIMIZER_SWITCH_MATERIALIZATION | OPTIMIZER_SWITCH_SEMIJOIN |
+    OPTIMIZER_SWITCH_LOOSE_SCAN | OPTIMIZER_SWITCH_FIRSTMATCH |
+    OPTIMIZER_SWITCH_DUPSWEEDOUT | OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED |
+    OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS |
+    OPTIMIZER_SWITCH_COND_FANOUT_FILTER | OPTIMIZER_SWITCH_DERIVED_MERGE |
+    OPTIMIZER_SKIP_SCAN | OPTIMIZER_SWITCH_HASH_JOIN |
+    OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX |
+    OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN};
+
+static constexpr const unsigned long MYSQLD_NET_RETRY_COUNT{10};
+>>>>>>> mysql-8.0.29
 
 TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values,
                         nullptr};
@@ -199,7 +261,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   if (!key_cache->key_cache_inited)
-    error = ha_init_key_cache(nullptr, key_cache);
+    error = ha_init_key_cache({}, key_cache);
   else
     error = ha_resize_key_cache(key_cache);
 
@@ -1164,10 +1226,9 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100000 /* max connections */),
     DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
-static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
+static bool check_outside_trx(sys_var *var, THD *thd, set_var *) {
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->name.str);
     return true;
   }
   if (!thd->owned_gtid_is_empty()) {
@@ -1176,8 +1237,7 @@ static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
       thd->owned_gtid.to_string(thd->owned_sid, buf);
     else
       strcpy(buf, "ANONYMOUS");
-    my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->var->name.str,
-             buf);
+    my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->name.str, buf);
     return true;
   }
   return false;
@@ -1186,8 +1246,7 @@ static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
 static bool check_session_admin_outside_trx_outside_sf(sys_var *self, THD *thd,
                                                        set_var *var) {
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (check_outside_trx(self, thd, var)) return true;
@@ -1207,13 +1266,11 @@ static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd,
                           self->name.str);
   }
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1234,13 +1291,11 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var) {
       thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_PREPARED);
 
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (!is_prepared_trx && thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return check_session_admin_or_replication_applier(self, thd, var);
@@ -1250,7 +1305,7 @@ static bool check_session_admin_outside_trx_outside_sf_outside_sp(
     sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin_outside_trx_outside_sf(self, thd, var)) return true;
   if (thd->lex->sphead) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1449,8 +1504,7 @@ static bool check_binlog_trx_compression(sys_var *self [[maybe_unused]],
   if (check_session_admin(self, thd, var)) return true;
 
   if (!var->is_global_persist() && thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1473,7 +1527,7 @@ static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
     DEFAULT(binary_log::transaction::compression::Zstd_comp::
                 DEFAULT_COMPRESSION_LEVEL),
     BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(NULL));
+    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
 
 static bool on_session_track_gtids_update(sys_var *, THD *thd, enum_var_type) {
   thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
@@ -1755,10 +1809,10 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
       lex_cstring_set(&se_name, res->ptr());
     } else {
       // Use the default value defined by sys_var.
-      lex_cstring_set(&se_name,
-                      pointer_cast<const char *>(
-                          down_cast<Sys_var_plugin *>(self)->global_value_ptr(
-                              thd, nullptr)));
+      lex_cstring_set(
+          &se_name,
+          pointer_cast<const char *>(
+              down_cast<Sys_var_plugin *>(self)->global_value_ptr(thd, {})));
     }
 
     plugin_ref plugin;
@@ -1802,7 +1856,7 @@ static bool check_charset(sys_var *, THD *thd, set_var *var) {
     }
     warn_on_deprecated_charset(
         thd, static_cast<const CHARSET_INFO *>(var->save_result.ptr),
-        static_cast<const CHARSET_INFO *>(var->save_result.ptr)->name);
+        static_cast<const CHARSET_INFO *>(var->save_result.ptr)->m_coll_name);
   }
   return false;
 }
@@ -1814,7 +1868,7 @@ namespace {
 struct Get_name {
   explicit Get_name(const CHARSET_INFO *ci) : m_ci(ci) {}
   const uchar *get_name() const {
-    return pointer_cast<const uchar *>(m_ci->name);
+    return pointer_cast<const uchar *>(m_ci->m_coll_name);
   }
   const CHARSET_INFO *m_ci;
 };
@@ -1822,7 +1876,7 @@ struct Get_name {
 struct Get_csname {
   explicit Get_csname(const CHARSET_INFO *ci) : m_ci(ci) {}
   const uchar *get_name() const {
-    return pointer_cast<const uchar *>(replace_utf8_utf8mb3(m_ci->csname));
+    return pointer_cast<const uchar *>(m_ci->csname);
   }
   const CHARSET_INFO *m_ci;
 };
@@ -2215,6 +2269,14 @@ static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(2592000), BLOCK_SIZE(1), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_expire_logs_seconds), ON_UPDATE(nullptr));
 
+static Sys_var_bool Sys_binlog_expire_logs_auto_purge(
+    "binlog_expire_logs_auto_purge",
+    "Controls whether the server shall automatically purge binary log "
+    "files or not. If this variable is set to FALSE then the server will "
+    "not purge binary log files automatically.",
+    GLOBAL_VAR(opt_binlog_expire_logs_auto_purge), CMD_LINE(OPT_ARG),
+    DEFAULT(true));
+
 static Sys_var_bool Sys_flush(
     "flush", "Flush MyISAM tables to disk between SQL commands",
     GLOBAL_VAR(myisam_flush), CMD_LINE(OPT_ARG), DEFAULT(false));
@@ -2442,21 +2504,20 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
 
   if ((var->is_global_persist()) &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW) {
-    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), self->name.str);
     return true;
   }
 
   if (var->type == OPT_SESSION &&
       thd->variables.binlog_format != BINLOG_FORMAT_ROW) {
-    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), self->name.str);
     return true;
   }
   /*
     if in a stored function/trigger, it's too late to change
   */
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   /*
@@ -2464,8 +2525,7 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
     inside a transaction.
   */
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   /*
@@ -3345,6 +3405,19 @@ static Sys_var_ulong Sys_optimizer_search_depth(
     HINT_UPDATEABLE SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, MAX_TABLES + 1), DEFAULT(MAX_TABLES + 1), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_optimizer_max_subgraph_pairs(
+    "optimizer_max_subgraph_pairs",
+    "Maximum depth of subgraph pairs a query can have before the "
+    "hypergraph join optimizer starts reducing the search space "
+    "heuristically. Larger values may result in better query plans "
+    "for large queries, but also more time and memory spent during planning. "
+    "Increasing this larger than the actual number of subgraph pairs "
+    "in the query will have no further effect. "
+    "Ignored by the old (non-hypergraph) join optimizer",
+    HINT_UPDATEABLE SESSION_VAR(optimizer_max_subgraph_pairs),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, INT_MAX), DEFAULT(100000),
+    BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_range_optimizer_max_mem_size(
     "range_optimizer_max_mem_size",
     "Maximum amount of memory used by the range optimizer "
@@ -3971,7 +4044,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
     SESSION_VAR(query_prealloc_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(QUERY_ALLOC_PREALLOC_SIZE, ULONG_MAX),
     DEFAULT(QUERY_ALLOC_PREALLOC_SIZE), BLOCK_SIZE(1024), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(fix_thd_mem_root));
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 #if defined(_WIN32)
 static Sys_var_bool Sys_shared_memory(
@@ -4056,7 +4129,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
     SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, 128 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
     BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(fix_trans_mem_root));
+    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static const char *thread_handling_names[] = {"one-thread-per-connection",
                                               "no-threads",
@@ -4252,10 +4325,10 @@ static Sys_var_enum Sys_replica_parallel_type(
     "transactions can be applied in parallel using the logical timestamps "
     "computed by the source, according to "
     "binlog_transaction_dependency_tracking.",
-    PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
-    mts_parallel_type_names, DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
-    ON_UPDATE(nullptr));
+    PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option),
+    CMD_LINE(REQUIRED_ARG, OPT_REPLICA_PARALLEL_TYPE), mts_parallel_type_names,
+    DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_slave_stopped), ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_deprecated_alias Sys_slave_parallel_type(
     "slave_parallel_type", Sys_replica_parallel_type);
@@ -4367,7 +4440,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var) {
          binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
 
-  if (check_purge) mysql_bin_log.purge();
+  if (check_purge) mysql_bin_log.auto_purge();
 
   return false;
 }
@@ -5530,7 +5603,7 @@ static Sys_var_bool Sys_temptable_use_mmap(
     "Use mmap files for temptables. "
     "This variable is deprecated and will be removed in a future release.",
     GLOBAL_VAR(temptable_use_mmap), CMD_LINE(OPT_ARG), DEFAULT(true),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(update_deprecated_with_removal_message), nullptr,
     sys_var::PARSE_NORMAL);
 
@@ -5831,7 +5904,7 @@ static Sys_var_session_special_double Sys_timestamp(
 
 static bool update_last_insert_id(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->first_successful_insert_id_in_prev_stmt =
@@ -5875,7 +5948,7 @@ static Sys_var_session_special Sys_identity(
 */
 static bool update_insert_id(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->force_one_auto_inc_interval(var->save_result.ulonglong_value);
@@ -5895,7 +5968,7 @@ static Sys_var_session_special Sys_insert_id(
 
 static bool update_rand_seed1(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->rand.seed1 = (ulong)var->save_result.ulonglong_value;
@@ -5912,7 +5985,7 @@ static Sys_var_session_special Sys_rand_seed1(
 
 static bool update_rand_seed2(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->rand.seed2 = (ulong)var->save_result.ulonglong_value;
@@ -7178,8 +7251,8 @@ Gtid_set *gtid_purged;
 static Sys_var_gtid_purged Sys_gtid_purged(
     "gtid_purged",
     "The set of GTIDs that existed in previous, purged binary logs.",
-    GLOBAL_VAR(gtid_purged), NO_CMD_LINE, DEFAULT(nullptr), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_gtid_purged));
+    NON_PERSIST GLOBAL_VAR(gtid_purged), NO_CMD_LINE, DEFAULT(nullptr),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_gtid_purged));
 export sys_var *Sys_gtid_purged_ptr = &Sys_gtid_purged;
 
 static Sys_var_gtid_owned Sys_gtid_owned(
@@ -7274,6 +7347,7 @@ static Sys_var_charptr Sys_track_session_sys_vars(
             "character_set_connection"),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_track_session_sys_vars),
     ON_UPDATE(update_track_session_sys_vars));
+export sys_var *Sys_track_session_sys_vars_ptr = &Sys_track_session_sys_vars;
 
 static bool update_session_track_schema(sys_var *, THD *thd, enum_var_type) {
   DBUG_TRACE;
@@ -7596,7 +7670,7 @@ static bool check_default_collation_for_utf8mb4(sys_var *self, THD *thd,
       cs == &my_charset_utf8mb4_general_ci)
     return false;
 
-  my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->name);
+  my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->m_coll_name);
   return true;
 }
 
@@ -8101,6 +8175,7 @@ static Sys_var_enum Sys_terminology_use_previous(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
 
+<<<<<<< HEAD
 std::size_t buffered_error_log_size;
 
 static bool buffered_error_log_size_update(sys_var *, THD *, enum_var_type) {
@@ -8124,3 +8199,38 @@ static Sys_var_ulonglong Sys_var_buffered_error_log_size(
 #ifndef NDEBUG
 Debug_shutdown_actions Debug_shutdown_actions::instance;
 #endif
+||||||| 6846e6b2f72
+=======
+static Sys_var_bool Sys_xa_detatch_on_prepare(
+    "xa_detach_on_prepare",
+    "When set, XA transactions will be detached (AKA dissociated or "
+    "disconnected) from connection as part of XA PREPARE. This means that "
+    "the XA transaction can be committed/rolled back by any connection, "
+    "even if the starting connection has not terminated, and the starting "
+    "connection can start new transactions. As a side effect, temporary "
+    "tables cannot be used inside XA transactions. "
+    "When disabled, XA transactions are associated with the same connection "
+    "until the session disconnects. ON is the only safe choice for "
+    "replication.",
+    HINT_UPDATEABLE SESSION_VAR(xa_detach_on_prepare), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_session_admin_outside_trx_outside_sf));
+
+#ifndef NDEBUG
+static Sys_var_charptr Sys_debug_sensitive_session_string(
+    "debug_sensitive_session_string",
+    "Debug variable to test sensitive session string variable.",
+    SENSITIVE SESSION_VAR(debug_sensitive_session_str), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(""));
+#endif /* NDEBUG */
+
+static Sys_var_bool Sys_persist_sensitive_variables_in_plaintext(
+    "persist_sensitive_variables_in_plaintext",
+    "If set to FALSE, server will refuse to persist SENSITIVE variables in "
+    "plaintext and refuse to start if encrypted part of persited file cannot "
+    "be processed.",
+    READ_ONLY NON_PERSIST
+        GLOBAL_VAR(opt_persist_sensitive_variables_in_plaintext),
+    CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);
+>>>>>>> mysql-8.0.29

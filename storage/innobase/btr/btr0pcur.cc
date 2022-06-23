@@ -74,10 +74,16 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
   ut_ad(m_latch_mode != BTR_NO_LATCHES);
 
   auto block = get_block();
+<<<<<<< HEAD
 
   SRV_CORRUPT_TABLE_CHECK(block, return;);
 
   auto index = btr_cur_get_index(get_btr_cur());
+||||||| 6846e6b2f72
+  auto index = btr_cur_get_index(get_btr_cur());
+=======
+  auto index = get_btr_cur()->index;
+>>>>>>> mysql-8.0.29
 
   auto page_cursor = get_page_cur();
 
@@ -140,7 +146,6 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
 
   m_old_rec = dict_index_copy_rec_order_prefix(index, rec, &m_old_n_fields,
                                                &m_old_rec_buf, &m_buf_size);
-
   m_block_when_stored.store(block);
 
   m_modify_clock = block->get_modify_clock(
@@ -179,7 +184,7 @@ void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
 }
 
 bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
-                                  const char *file, ulint line) {
+                                  ut::Location location) {
   dtuple_t *tuple;
   page_cur_mode_t mode;
 
@@ -187,7 +192,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
   ut_ad(m_old_stored);
   ut_ad(is_positioned());
 
-  auto index = btr_cur_get_index(get_btr_cur());
+  auto index = get_btr_cur()->index;
 
   if (m_rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE ||
       m_rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE) {
@@ -196,7 +201,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
     btr_cur_open_at_index_side(m_rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
                                index, latch_mode, get_btr_cur(), m_read_level,
-                               mtr);
+                               UT_LOCATION_HERE, mtr);
 
     m_latch_mode = BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 
@@ -217,9 +222,10 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
       !m_btr_cur.index->table->is_intrinsic()) {
     /* Try optimistic restoration. */
     if (m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
-          return hint != nullptr && btr_cur_optimistic_latch_leaves(
-                                        hint, m_modify_clock, &latch_mode,
-                                        &m_btr_cur, file, line, mtr);
+          return hint != nullptr &&
+                 btr_cur_optimistic_latch_leaves(
+                     hint, m_modify_clock, &latch_mode, &m_btr_cur,
+                     location.filename, location.line, mtr);
         })) {
       m_pos_state = BTR_PCUR_IS_POSITIONED;
 
@@ -237,7 +243,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
         rec = get_rec();
 
-        auto heap = mem_heap_create(256);
+        auto heap = mem_heap_create(256, UT_LOCATION_HERE);
 
         offsets1 =
             rec_get_offsets(m_old_rec, index, nullptr, m_old_n_fields, &heap);
@@ -264,7 +270,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
   /* If optimistic restoration did not succeed, open the cursor anew */
 
-  auto heap = mem_heap_create(256);
+  auto heap = mem_heap_create(256, UT_LOCATION_HERE);
 
   tuple = dict_index_build_data_tuple(index, m_old_rec, m_old_n_fields, heap);
 
@@ -285,7 +291,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
       ut_error;
   }
 
-  open_no_init(index, tuple, mode, latch_mode, 0, mtr, file, line);
+  open_no_init(index, tuple, mode, latch_mode, 0, mtr, location);
 
   /* Restore the old search mode */
   m_search_mode = old_mode;
@@ -356,11 +362,21 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
 
   auto block = get_block();
 
+<<<<<<< HEAD
   btr_update_scan_stats(page, next_page_no, true /* forward */);
 
   auto next_block =
       btr_block_get(page_id_t(block->page.id.space(), next_page_no),
                     block->page.size, mode, get_btr_cur()->index, mtr);
+||||||| 6846e6b2f72
+  auto next_block =
+      btr_block_get(page_id_t(block->page.id.space(), next_page_no),
+                    block->page.size, mode, get_btr_cur()->index, mtr);
+=======
+  auto next_block = btr_block_get(
+      page_id_t(block->page.id.space(), next_page_no), block->page.size, mode,
+      UT_LOCATION_HERE, get_btr_cur()->index, mtr);
+>>>>>>> mysql-8.0.29
 
   auto next_page = buf_block_get_frame(next_block);
 
@@ -418,16 +434,22 @@ void btr_pcur_t::move_backward_from_page(mtr_t *mtr) {
 
   mtr_start(mtr);
 
-  restore_position(latch_mode2, mtr, __FILE__, __LINE__);
+  restore_position(latch_mode2, mtr, UT_LOCATION_HERE);
 
   auto page = get_page();
   auto prev_page_no = btr_page_get_prev(page, mtr);
 
   /* For intrinsic table we don't do optimistic restore and so there is
   no left block that is pinned that needs to be released. */
+<<<<<<< HEAD
   if (!btr_cur_get_index(get_btr_cur())->table->is_intrinsic()) {
     if (prev_page_no != FIL_NULL)
       btr_update_scan_stats(page, prev_page_no, false /* backward */);
+||||||| 6846e6b2f72
+  if (!btr_cur_get_index(get_btr_cur())->table->is_intrinsic()) {
+=======
+  if (!get_btr_cur()->index->table->is_intrinsic()) {
+>>>>>>> mysql-8.0.29
     buf_block_t *prev_block;
 
     if (prev_page_no == FIL_NULL) {
@@ -477,8 +499,8 @@ bool btr_pcur_t::move_to_prev(mtr_t *mtr) {
 
 void btr_pcur_t::open_on_user_rec(dict_index_t *index, const dtuple_t *tuple,
                                   page_cur_mode_t mode, ulint latch_mode,
-                                  mtr_t *mtr, const char *file, ulint line) {
-  open(index, 0, tuple, mode, latch_mode, mtr, file, line);
+                                  mtr_t *mtr, ut::Location location) {
+  open(index, 0, tuple, mode, latch_mode, mtr, location);
 
   if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) {
     if (is_after_last_on_page()) {

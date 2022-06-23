@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -343,7 +343,6 @@ SET(SQL_GIS_SOURCES
 )
 
 SET(SQL_SHARED_SOURCES
-  abstract_query_plan.cc
   auth/auth_acls.cc
   auth/auth_common.cc
   auth/dynamic_privileges_impl.cc
@@ -428,10 +427,12 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/estimate_selectivity.cc
   join_optimizer/explain_access_path.cc
   join_optimizer/finalize_plan.cc
+  join_optimizer/graph_simplification.cc
   join_optimizer/hypergraph.cc
   join_optimizer/interesting_orders.cc
   join_optimizer/join_optimizer.cc
   join_optimizer/make_join_hypergraph.cc
+  join_optimizer/online_cycle_finder.cc
   join_optimizer/overflow_bitset.cc
   join_optimizer/print_utils.cc
   join_optimizer/replace_item.cc
@@ -819,6 +820,30 @@ MY_ADD_COMPILE_DEFINITIONS(
   COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
   )
 
+# Workaround for Apple Clang bug on ARM.
+# When linking mysqld (and executables using server_unittest_library)
+# we get linker warnings about
+# ld: warning: direct access in function ....
+#     to global weak symbol 'typeinfo for .... '
+# It turns out we end up with conflicting visibilities for typeinfo symbols:
+# e.g. in in singleton.cc.o  vs  histogram.cc.o
+# (__DATA,__const) weak external __ZTIN10histograms9SingletonI6StringEE
+# (__DATA,__const) weak private external __ZTIN10histograms9SingletonI6StringEE
+#
+# Setting an explicit visibility here fixes the warnings.
+# Note that the LINK_PUBLIC for server_unittest_library
+# will make unit tests pick up histogram symbols from libsql_main.a.
+IF(APPLE_ARM)
+  ADD_COMPILE_FLAGS(
+    histograms/equi_height.cc
+    histograms/equi_height_bucket.cc
+    histograms/histogram.cc
+    histograms/singleton.cc
+    histograms/value_map.cc
+    COMPILE_FLAGS -fvisibility=hidden
+    )
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
   iterators/hash_join_iterator.cc
@@ -1072,7 +1097,12 @@ IF(WITH_ICU STREQUAL "bundled")
 ENDIF()
 
 IF(WIN32)
-  SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
+  SET(MYSQLD_SOURCE
+    main.cc
+    enable_win_jemalloc.cc
+    nt_servc.cc
+    nt_servc.h
+    message.rc)
 ELSE()
   SET(MYSQLD_SOURCE main.cc)
 ENDIF()
@@ -1221,6 +1251,10 @@ ENDIF()
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
 
+IF(TARGET copy_jemalloc_dll)
+  ADD_DEPENDENCIES(mysqld copy_jemalloc_dll)
+ENDIF()
+
 # See DEBUG_EXTNAME above: mysqld may already have name mysqld-debug,
 # and the rename is a no-op. If it is called 'mysqld' we rename it.
 INSTALL_DEBUG_TARGET(mysqld
@@ -1228,9 +1262,7 @@ INSTALL_DEBUG_TARGET(mysqld
   RENAME mysqld-debug${CMAKE_EXECUTABLE_SUFFIX}
 )
 
-# Check BISON_VERSION and set BISON_FLAGS_WARNINGS
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
-
+# We have already included cmake/bison.cmake, and done FIND_PACKAGE(BISON)
 IF(BISON_FOUND)
   SET(USE_BISON_RESULTS_FROM_MAKE_DIST_DEFAULT OFF)
 ELSE()
@@ -1299,7 +1331,11 @@ SET_SOURCE_FILES_PROPERTIES(
 MYSQL_ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc SKIP_INSTALL)
 
 IF(HAS_MISSING_PROFILE)
-  ADD_COMPILE_FLAGS(gen_lex_hash.cc COMPILE_FLAGS ${HAS_MISSING_PROFILE})
+  ADD_COMPILE_FLAGS(
+    ../sql-common/oci/signing_key.cc
+    ../sql-common/oci/ssl.cc
+    gen_lex_hash.cc
+    COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 
 ADD_CUSTOM_COMMAND(
@@ -1331,6 +1367,15 @@ MY_ADD_CUSTOM_TARGET(
   GenKeywordList
   DEPENDS ${GEN_KEYWORD_LIST_SOURCES}
 )
+
+ADD_DEPENDENCIES(clang_tidy_prerequisites
+  GenBootstrapPriv
+  GenDigestServerSource
+  GenFixPrivs
+  GenKeywordList
+  GenServerSource
+  GenSysSchema
+  )
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
   MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example"

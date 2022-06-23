@@ -155,6 +155,7 @@ IF (WIN32)
     my_winerr.cc
     my_winfile.cc
     win_timers.cc
+    my_nojemalloc.cc
   )
 ENDIF()
 

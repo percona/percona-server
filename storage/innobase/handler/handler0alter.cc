@@ -1021,6 +1021,15 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
             Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
           /* Still fall back to INPLACE since the behaviour is different */
           break;
+        } else if (m_prebuilt->table->n_def == REC_MAX_N_FIELDS) {
+          if (ha_alter_info->alter_info->requested_algorithm ==
+              Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+            my_error(ER_TOO_MANY_FIELDS, MYF(0),
+                     m_prebuilt->table->name.m_name);
+            return HA_ALTER_ERROR;
+          }
+          /* INSTANT can't be done any more. Fall back to INPLACE. */
+          break;
         } else if (m_prebuilt->table->current_row_version == MAX_ROW_VERSION) {
           if (ha_alter_info->alter_info->requested_algorithm ==
               Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
@@ -10117,6 +10126,14 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
     case Instant_Type::INSTANT_ADD_DROP_COLUMN:
       if (ha_alter_info->alter_info->requested_algorithm ==
           Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
+        break;
+      } else if (m_prebuilt->table->n_def == REC_MAX_N_FIELDS) {
+        if (ha_alter_info->alter_info->requested_algorithm ==
+            Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+          my_error(ER_TOO_MANY_FIELDS, MYF(0), m_prebuilt->table->name.m_name);
+          return HA_ALTER_ERROR;
+        }
+        /* INSTANT can't be done any more. Fall back to INPLACE. */
         break;
       } else if (m_prebuilt->table->current_row_version == MAX_ROW_VERSION) {
         if (ha_alter_info->alter_info->requested_algorithm ==

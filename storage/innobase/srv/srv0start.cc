@@ -1285,6 +1285,22 @@ static dberr_t srv_open_tmp_tablespace(bool create_new_db,
     /* Open this shared temp tablespace in the fil_system so that
     it stays open until shutdown. */
     if (fil_space_open(tmp_space->space_id())) {
+      if (srv_tmp_tablespace_encrypt) {
+        /* Make sure the keyring is loaded. */
+        if (!Encryption::check_keyring()) {
+          srv_tmp_tablespace_encrypt = false;
+          ib::error() << "Can't set temporary"
+                      << " tablespace to be encrypted"
+                      << " because keyring plugin is"
+                      << " not available.";
+          return (DB_ERROR);
+        }
+        fil_space_t *const space = fil_space_get(dict_sys_t::s_temp_space_id);
+        err = fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
+        tmp_space->set_flags(space->flags);
+        ut_a(err == DB_SUCCESS);
+      }
+
       /* Initialize the header page */
       mtr_start(&mtr);
       mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
@@ -2537,6 +2553,9 @@ void srv_start_threads() {
     purge_sys->state = PURGE_STATE_DISABLED;
     return;
   }
+
+  /* Enable row log encryption if it is set */
+  log_tmp_enable_encryption_if_set();
 
   /* Create the master thread which does purge and other utility
   operations */

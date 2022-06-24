@@ -2055,6 +2055,12 @@ inline void fil_space_open_if_needed(fil_space_t *space) {
   }
 }
 
+/** Enable encryption of temporary tablespace
+@param[in,out]	space	tablespace object
+@return DB_SUCCESS on success, DB_ERROR on failure */
+MY_NODISCARD
+dberr_t fil_temp_update_encryption(fil_space_t *space);
+
 #ifdef UNIV_LINUX
 /**
 Try and enable FusionIO atomic writes.

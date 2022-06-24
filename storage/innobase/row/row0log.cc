@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "handler0alter.h"
 #include "lob0lob.h"
 #include "log0chkp.h"
+#include "my_crypt.h"
 #include "my_rnd.h"
 #include "que0que.h"
 #include "row0ext.h"
@@ -242,6 +243,133 @@ struct row_log_t {
   const char *path;
 };
 
+struct crypt_info_t {
+  /** Encryption algorithm */
+  Encryption::Type encryption_type;
+
+  /** Encryption key */
+  byte encryption_key[Encryption::KEY_LEN];
+
+  /** Encryption key length*/
+  ulint encryption_klen;
+};
+
+bool srv_encrypt_online_alter_logs = false;
+
+crypt_info_t crypt_info = crypt_info_t();
+
+/** Find out if temporary log files encrypted.
+@return true if temporary log file should be encrypted, false if not */
+bool log_tmp_is_encrypted() noexcept {
+  return (crypt_info.encryption_type != Encryption::NONE);
+}
+
+/** Check the row log encryption is enabled or not.
+It will enable the row log encryption. */
+void log_tmp_enable_encryption_if_set() {
+  if (srv_encrypt_online_alter_logs) {
+    if (crypt_info.encryption_type == Encryption::NONE) {
+      crypt_info.encryption_type = Encryption::AES;
+      crypt_info.encryption_klen = Encryption::KEY_LEN;
+      my_rand_buffer(crypt_info.encryption_key, Encryption::KEY_LEN);
+    }
+  }
+}
+
+/** Encrypt a temporary file block.
+@param[in]	src_block	block to encrypt
+@param[in]	size		size of the block
+@param[out]	dst_block	destination block
+@param[in]	offs		offset to block
+@param[in]	space_id	tablespace id
+@return whether the operation succeeded */
+bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
+                           os_offset_t offs, space_id_t space_id) {
+  size_t dst_len;
+  byte iv[MY_AES_BLOCK_SIZE];
+
+  memset(iv, 0, MY_AES_BLOCK_SIZE);
+
+  mach_write_to_8(iv, space_id);
+  mach_write_to_8(iv + 8, offs);
+
+  int res = my_aes_crypt(
+      my_aes_mode::ECB, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD, iv,
+      MY_AES_BLOCK_SIZE, iv, &dst_len, crypt_info.encryption_key,
+      crypt_info.encryption_klen, nullptr, 0);
+
+  if (res != MY_AES_OK) {
+    ib::error() << "Unable to encrypt IV";
+    return false;
+  }
+
+  ut_ad(dst_len == MY_AES_BLOCK_SIZE);
+
+  res = my_aes_crypt(my_aes_mode::CBC,
+                     ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD, src_block,
+                     size, dst_block, &dst_len, crypt_info.encryption_key,
+                     crypt_info.encryption_klen, iv, MY_AES_BLOCK_SIZE);
+
+  if (res != MY_AES_OK) {
+    ib::error() << "Unable to encrypt data block  src: "
+                << static_cast<const void *>(src_block) << " srclen: " << size
+                << " buf: " << static_cast<const void *>(dst_block)
+                << " buflen: " << dst_len << ".";
+    return false;
+  }
+
+  ut_ad(dst_len == size);
+
+  return true;
+}
+
+/** Decrypt a temporary file block.
+@param[in]	src_block	block to decrypt
+@param[in]	size		size of the block
+@param[out]	dst_block	destination block
+@param[in]	offs		offset to block
+@param[in]	space_id	tablespace id
+@return whether the operation succeeded */
+bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
+                           os_offset_t offs, space_id_t space_id) {
+  size_t dst_len;
+  byte iv[MY_AES_BLOCK_SIZE];
+
+  memset(iv, 0, MY_AES_BLOCK_SIZE);
+
+  mach_write_to_8(iv, space_id);
+  mach_write_to_8(iv + 8, offs);
+
+  int res = my_aes_crypt(
+      my_aes_mode::ECB, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD, iv,
+      MY_AES_BLOCK_SIZE, iv, &dst_len, crypt_info.encryption_key,
+      crypt_info.encryption_klen, nullptr, 0);
+
+  if (res != MY_AES_OK) {
+    ib::error() << "Unable to encrypt IV";
+    return false;
+  }
+
+  ut_ad(dst_len == MY_AES_BLOCK_SIZE);
+
+  res = my_aes_crypt(my_aes_mode::CBC,
+                     ENCRYPTION_FLAG_DECRYPT | ENCRYPTION_FLAG_NOPAD, src_block,
+                     size, dst_block, &dst_len, crypt_info.encryption_key,
+                     crypt_info.encryption_klen, iv, MY_AES_BLOCK_SIZE);
+
+  if (res != MY_AES_OK) {
+    ib::error() << "Unable to decrypt data block src: "
+                << static_cast<const void *>(src_block) << " srclen: " << size
+                << " buf: " << static_cast<const void *>(dst_block)
+                << " buflen: " << dst_len << ".";
+    return false;
+  }
+
+  ut_ad(dst_len == size);
+
+  return true;
+}
+
 /** Create the file or online log if it does not exist.
 @param[in,out] log     online rebuild log
 @return true if success, false if not */
@@ -392,6 +520,20 @@ void row_log_online_op(
       goto err_exit;
     }
 
+    /* If encryption is enabled encrypt buffer before writing it to file
+    system. */
+    if (log_tmp_is_encrypted()) {
+      if (!log_tmp_block_encrypt(log->tail.block, srv_sort_buf_size,
+                                 log->crypt_tail, byte_offset,
+                                 index->table->space)) {
+        log->error = DB_IO_DECRYPT_FAIL;
+        goto err_exit;
+      }
+
+      srv_stats.n_rowlog_blocks_encrypted.inc();
+      buf = log->crypt_tail;
+    }
+
     err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
                                buf, byte_offset, srv_sort_buf_size);
 
@@ -493,6 +635,19 @@ static void row_log_table_close_func(row_log_t *log,
     if (!row_log_tmpfile(log)) {
       log->error = DB_OUT_OF_MEMORY;
       goto err_exit;
+    }
+
+    /* If encryption is enabled encrypt buffer before writing it
+       to file system. */
+    if (log_tmp_is_encrypted()) {
+      if (!log_tmp_block_encrypt(log->tail.block, srv_sort_buf_size,
+                                 log->crypt_tail, byte_offset,
+                                 log->index->table->space)) {
+        log->error = DB_IO_DECRYPT_FAIL;
+        goto err_exit;
+      }
+
+      srv_stats.n_rowlog_blocks_encrypted.inc();
     }
 
     err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
@@ -2865,6 +3020,20 @@ next_block:
         request, index->online_log->path, index->online_log->file.get(), buf,
         ofs, srv_sort_buf_size, nullptr);
 
+    /* If encryption is enabled decrypt buffer after reading it
+    from file system. */
+    if (log_tmp_is_encrypted()) {
+      if (!log_tmp_block_decrypt(buf, srv_sort_buf_size,
+                                 index->online_log->crypt_head, ofs,
+                                 index->table->space)) {
+        error = DB_IO_DECRYPT_FAIL;
+        goto func_exit;
+      }
+
+      srv_stats.n_rowlog_blocks_decrypted.inc();
+      memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
+    }
+
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_961) << "Unable to read temporary file"
                                   " for table "
@@ -3146,6 +3315,19 @@ bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
 
   dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
   index->online_log = log;
+
+  if (log_tmp_is_encrypted()) {
+    auto size = srv_sort_buf_size;
+    log->crypt_head = static_cast<byte *>(ut::malloc_large_page_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, size, ut::fallback_to_normal_page_t{}));
+    log->crypt_tail = static_cast<byte *>(ut::malloc_large_page_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, size, ut::fallback_to_normal_page_t{}));
+
+    if (!log->crypt_head || !log->crypt_tail) {
+      row_log_free(log);
+      return false;
+    }
+  }
 
   /* While we might be holding an exclusive data dictionary lock
   here, in row_log_abort_sec() we will not always be holding it. Use
@@ -3628,6 +3810,20 @@ next_block:
     dberr_t err = os_file_read_no_error_handling_int_fd(
         request, index->online_log->path, index->online_log->file.get(), buf,
         ofs, srv_sort_buf_size, nullptr);
+
+    /* If encryption is enabled decrypt buffer after reading it
+    from file system. */
+    if (log_tmp_is_encrypted()) {
+      if (!log_tmp_block_decrypt(buf, srv_sort_buf_size,
+                                 index->online_log->crypt_head, ofs,
+                                 index->table->space)) {
+        error = DB_IO_DECRYPT_FAIL;
+        goto func_exit;
+      }
+
+      srv_stats.n_rowlog_blocks_decrypted.inc();
+      memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
+    }
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_963) << "Unable to read temporary file"

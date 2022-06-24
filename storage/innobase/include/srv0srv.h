@@ -437,6 +437,9 @@ extern bool srv_undo_log_truncate;
 /** Enable or disable Encrypt of UNDO tablespace. */
 extern bool srv_undo_log_encrypt;
 
+/** Enable or disable encryption of temporary tablespace.*/
+extern bool srv_tmp_tablespace_encrypt;
+
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 extern const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT;
@@ -792,6 +795,8 @@ extern std::atomic<int> srv_fatal_semaphore_wait_extend;
 
 extern ulint srv_dml_needed_delay;
 
+extern bool srv_encrypt_online_alter_logs;
+
 #ifdef UNIV_HOTBACKUP
 // MAHI: changed from 130 to 1 assuming the apply-log is single threaded
 constexpr uint32_t SRV_MAX_N_IO_THREADS = 1;
@@ -851,6 +856,8 @@ extern bool srv_print_ddl_logs;
 extern bool srv_print_lock_wait_timeout_info;
 
 extern bool srv_cmp_per_index_enabled;
+
+extern ulong srv_encrypt_tables;
 
 /** Number of times secondary index lookup triggered cluster lookup */
 extern std::atomic<ulint> srv_sec_rec_cluster_reads;
@@ -1214,6 +1221,13 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
                                              void *var_ptr, const void *save);
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+
+/** Set temporary tablespace to be encrypted if global variable
+innodb_temp_tablespace_encrypt is TRUE
+@param[in]	enable	true to enable encryption, false to disable
+@return DB_SUCCESS on success, DB_ERROR on failure */
+MY_NODISCARD
+dberr_t srv_temp_encryption_update(bool enable);
 
 /** Status variables to be passed to MySQL */
 struct export_var_t {

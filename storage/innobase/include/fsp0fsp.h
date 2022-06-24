@@ -763,6 +763,12 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 @return tablespace flags (fil_space_t::flags) */
 uint32_t fsp_flags_to_dict_tf(uint32_t fsp_flags, bool compact);
 
+/** Enable encryption for already existing tablespace.
+@param[in,out]	space	tablespace object
+@return true if success, else false */
+MY_NODISCARD
+bool fsp_enable_encryption(fil_space_t *space);
+
 /** Calculates the descriptor index within a descriptor page.
 @param[in]      page_size       page size
 @param[in]      offset          page offset

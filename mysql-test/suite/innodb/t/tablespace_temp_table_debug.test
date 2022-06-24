@@ -58,10 +58,7 @@ let crash = $args --innodb-force-recovery-crash;
 --exec $MYSQLD_CMD $crash=100
 let SEARCH_PATTERN =  Creating shared tablespace for temporary tables;
 --source include/search_pattern.inc
-# Remove the separate doublewrite buffer from the crashed instance as we
-# are making the instance clean manually
---remove_file $MYSQL_DATA_DIR/xb_doublewrite
-#
+
 --source include/start_mysqld.inc
 --echo # files in MYSQL_DATA_DIR
 --list_files $MYSQL_DATA_DIR/ ibtmp*

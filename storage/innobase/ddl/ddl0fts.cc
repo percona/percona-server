@@ -169,6 +169,10 @@ struct FTS::Parser {
     /** Buffer for IO to use for temporary file writes. */
     IO_buffer m_io_buffer;
 
+    /** Aligned buffer for cryptography. */
+    ut::unique_ptr_aligned<byte[]> m_aligned_buffer_crypt;
+    IO_buffer m_io_buffer_crypt;
+
     /** Record list start offsets. */
     Merge_offsets m_offsets{};
   };
@@ -187,7 +191,7 @@ struct FTS::Parser {
 
   /** Function performs parallel tokenization of the incoming doc strings.
   @param[in,out] builder        Index builder instance. */
-  void parse(Builder *builder) noexcept;
+  void parse(Builder *builder, uint32_t space_id) noexcept;
 
   /** Set the parent thread state.
   @param[in] state              The parent state. */
@@ -386,6 +390,19 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
     }
 
     handler->m_io_buffer = {handler->m_aligned_buffer.get(), buffer_size.first};
+
+    if (log_tmp_is_encrypted()) {
+      handler->m_aligned_buffer_crypt =
+          ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
+                                          UNIV_SECTOR_SIZE, buffer_size.first);
+
+      if (!handler->m_aligned_buffer_crypt) {
+        return DB_OUT_OF_MEMORY;
+      }
+
+      handler->m_io_buffer_crypt = {handler->m_aligned_buffer_crypt.get(),
+                                    buffer_size.first};
+    }
 
     if (!file_create(&handler->m_file, path)) {
       return DB_OUT_OF_MEMORY;
@@ -841,7 +858,7 @@ void FTS::Parser::get_next_doc_item(FTS::Doc_item *&doc_item) noexcept {
   }
 }
 
-void FTS::Parser::parse(Builder *builder) noexcept {
+void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
   fts_doc_t doc;
   size_t retried{};
   dtype_t word_dtype;
@@ -920,7 +937,8 @@ void FTS::Parser::parse(Builder *builder) noexcept {
         handler->m_offsets.push_back(file.m_size);
 
         auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
-          return builder->append(file, io_buffer);
+          return builder->append(file, io_buffer,
+                                 handler->m_io_buffer_crypt.first, space_id);
         };
 
         err = key_buffer->serialize(io_buffer, persistor);
@@ -1049,7 +1067,8 @@ void FTS::Parser::parse(Builder *builder) noexcept {
       handler->m_offsets.push_back(file.m_size);
 
       auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
-        return builder->append(file, io_buffer);
+        return builder->append(file, io_buffer,
+                               handler->m_io_buffer_crypt.first, space_id);
       };
 
       err = key_buffer->serialize(io_buffer, persistor);
@@ -1554,7 +1573,7 @@ dberr_t FTS::start_parse_threads(Builder *builder) noexcept {
       ut_ad(current_thd == thd);
 
       thd->push_diagnostics_area(&parser->da, false);
-      parser->parse(builder);
+      parser->parse(builder, m_ctx.new_table()->space);
       thd->pop_diagnostics_area();
 
       destroy_internal_thd(current_thd);

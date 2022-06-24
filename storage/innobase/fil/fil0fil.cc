@@ -7574,6 +7574,14 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
+  /* For writing temporary tablespace, if encryption for temporary
+  tablespace is disabled, skip setting encryption. */
+  if (fsp_is_system_temporary(space->id) && !srv_tmp_tablespace_encrypt &&
+      req_type.is_write()) {
+    req_type.clear_encrypted();
+    return;
+  }
+
   /* For writing undo log, if encryption for undo log is disabled,
   skip set encryption. */
   if (fsp_is_undo_tablespace(space->id) && !srv_undo_log_encrypt &&
@@ -9054,6 +9062,12 @@ dberr_t fil_temp_update_encryption(fil_space_t *space) {
     return (DB_ERROR);
   }
 
+  if (!fsp_enable_encryption(space)) {
+    ib::error() << "Can't set temporary tablespace"
+                << " to be encrypted.";
+    return (DB_ERROR);
+  }
+
   const dberr_t err =
       fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
 
@@ -9104,6 +9118,13 @@ size_t Fil_shard::encryption_rotate(size_t *rotate_count) {
     if (!needs_encryption_rotate(space)) {
       continue;
     }
+
+    /* Skip the temporary tablespace when it's in default key status,
+    since it's the first server startup after bootstrap, and the
+    server uuid is not ready yet. */
+    if (fsp_is_system_temporary(space->id) &&
+        Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID)
+      continue;
 
     spaces2rotate.push_back(space);
   }

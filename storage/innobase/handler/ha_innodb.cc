@@ -13303,6 +13303,57 @@ bool create_table_info_t::create_option_compression_is_valid() {
   return (true);
 }
 
+/** Validate ENCRYPTION option.
+@return true if valid, false if not. */
+bool create_table_info_t::create_option_encryption_is_valid() const {
+  if (m_create_info->encrypt_type.length > 0) {
+    dberr_t err = Encryption::validate(m_create_info->encrypt_type.str);
+    if (err == DB_UNSUPPORTED) {
+      my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+      return (false);
+    }
+  }
+
+  const bool table_is_encrypted =
+      !Encryption::is_none(m_create_info->encrypt_type.str);
+
+  ulint space_id;
+  if (m_use_shared_space) {
+    space_id = fil_space_get_id_by_name(m_create_info->tablespace);
+  } else if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+    space_id = srv_tmp_space.space_id();
+  } else if (!m_use_file_per_table) {
+    space_id = TRX_SYS_SPACE;
+  } else {
+    return (true);
+  }
+
+  fil_space_t *space = fil_space_get(space_id);
+  const auto fsp_flags = space->flags;
+
+  const bool tablespace_is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
+  const char *const tablespace_name =
+      m_create_info->tablespace ? m_create_info->tablespace : space->name;
+
+  if (table_is_encrypted && !tablespace_is_encrypted) {
+    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                    "InnoDB: Tablespace `%s` cannot contain an"
+                    " ENCRYPTED table.",
+                    MYF(0), tablespace_name);
+    return (false);
+  }
+
+  if (!table_is_encrypted && tablespace_is_encrypted) {
+    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                    "InnoDB: Tablespace `%s` can contain only an"
+                    " ENCRYPTED tables.",
+                    MYF(0), tablespace_name);
+    return (false);
+  }
+
+  return (true);
+}
+
 /** Validate the create options. Check that the options KEY_BLOCK_SIZE,
 ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE are compatible with
 each other and other settings.  These CREATE OPTIONS are not validated
@@ -13327,6 +13378,9 @@ const char *create_table_info_t::create_options_are_invalid() {
   if (!create_option_tablespace_is_valid()) {
     return ("TABLESPACE");
   }
+
+  /* Validate encryption parameter even if strict_mode is OFF. */
+  if (!create_option_encryption_is_valid()) return ("ENCRYPTION");
 
   /* If innodb_strict_mode is not set don't do any more validation.
   Also, if this table is being put into a shared general tablespace
@@ -22792,6 +22846,34 @@ static void innodb_log_checksums_update(THD *, SYS_VAR *, void *var_ptr,
   innodb_log_checksums_func_update(check);
 }
 
+/** Enable or disable encryption of temporary tablespace
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	immediate result from check function */
+static void innodb_temp_tablespace_encryption_update(THD *thd, SYS_VAR *var,
+                                                     void *var_ptr,
+                                                     const void *save) {
+  if (srv_read_only_mode) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        " Temporary tablespace cannot be"
+                        " encrypted in innodb_read_only mode");
+    return;
+  }
+
+  bool check = *static_cast<const bool *>(save);
+
+  dberr_t err = srv_temp_encryption_update(check);
+  if (err != DB_SUCCESS) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        " Temporary tablespace couldn't be"
+                        " encrypted. Check if keyring plugin"
+                        " is loaded.");
+  } else {
+    *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
+  }
+}
+
 static SHOW_VAR innodb_status_variables_export[] = {
     {"Innodb", (char *)&show_innodb_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
@@ -23752,6 +23834,11 @@ static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
                         "Path to files and their sizes making temp-tablespace.",
                         nullptr, nullptr, (char *)"ibtmp1:12M:autoextend");
 
+static MYSQL_SYSVAR_BOOL(
+    temp_tablespace_encrypt, srv_tmp_tablespace_encrypt, PLUGIN_VAR_OPCMDARG,
+    "Enable or disable encryption of temporary tablespace.", nullptr,
+    innodb_temp_tablespace_encryption_update, false);
+
 static MYSQL_SYSVAR_STR(
     undo_directory, srv_undo_dir,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
@@ -24139,6 +24226,11 @@ static MYSQL_SYSVAR_ULONG(
     "Compress column data if its length exceeds this value. Default is 96",
     nullptr, nullptr, 96, 1, ~0UL, 0);
 
+static MYSQL_SYSVAR_BOOL(encrypt_online_alter_logs,
+                         srv_encrypt_online_alter_logs,
+                         PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+                         "Encrypt online alter logs.", nullptr, nullptr, false);
+
 static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(api_trx_level),
     MYSQL_SYSVAR(api_bk_commit_interval),
@@ -24169,6 +24261,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(ddl_threads),
     MYSQL_SYSVAR(data_file_path),
     MYSQL_SYSVAR(temp_data_file_path),
+    MYSQL_SYSVAR(temp_tablespace_encrypt),
     MYSQL_SYSVAR(data_home_dir),
     MYSQL_SYSVAR(extend_and_initialize),
     MYSQL_SYSVAR(doublewrite),
@@ -24374,6 +24467,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(compressed_columns_zip_level),
     MYSQL_SYSVAR(compressed_columns_threshold),
     MYSQL_SYSVAR(ft_ignore_stopwords),
+    MYSQL_SYSVAR(encrypt_online_alter_logs),
     MYSQL_SYSVAR(records_in_range),
     MYSQL_SYSVAR(force_index_records_in_range),
     nullptr};

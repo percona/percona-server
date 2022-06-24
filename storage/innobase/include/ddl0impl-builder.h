@@ -195,8 +195,8 @@ struct Builder {
   @param[in,out] file           File handle.
   @param[in] file_buffer        Write the buffer contents to disk.
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t append(ddl::file_t &file,
-                               IO_buffer file_buffer) noexcept;
+  [[nodiscard]] dberr_t append(ddl::file_t &file, IO_buffer file_buffer,
+                               void *crypt_buffer, uint32_t space_id) noexcept;
 
   /** @return the path for temporary files. */
   const char *tmpdir() const noexcept { return m_tmpdir; }
@@ -222,6 +222,8 @@ struct Builder {
   the flushing of such pages to the data files was completed.
   @param[in] index              Index on which redo logging was disabled */
   static void write_redo(const dict_index_t *index) noexcept;
+
+  [[nodiscard]] space_id_t get_space_id();
 
  private:
   /** State of a cluster index reader thread. */
@@ -253,6 +255,10 @@ struct Builder {
 
     /** Buffer to use for file writes. */
     IO_buffer m_io_buffer;
+
+    /** Aligned buffer for cryptography. */
+    ut::unique_ptr_aligned<byte[]> m_aligned_buffer_crypt{};
+    IO_buffer m_io_buffer_crypt;
 
     /** Record list starting offset in the output file. */
     Merge_offsets m_offsets{};
@@ -456,6 +462,8 @@ struct Builder {
 
   /** Stage per builder. */
   Alter_stage *m_local_stage{};
+
+  row_prebuilt_t *m_prebuilt;
 };
 
 struct Load_cursor : Btree_load::Cursor {

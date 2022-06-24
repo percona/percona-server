@@ -5464,6 +5464,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   bool add_fts_idx = false;
   dict_s_col_list *s_cols = nullptr;
   mem_heap_t *s_heap = nullptr;
+  ulint encrypt_flag = 0;
 
   DBUG_TRACE;
   assert(!ha_alter_info->handler_ctx);
@@ -5609,6 +5610,26 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   if (!info.innobase_table_flags()) {
     goto err_exit_no_heap;
+  }
+
+  /* create_table_info_t::innobase_table_flags does not set encryption
+  flags. There are places where it is done afterwards, there are places
+  where it isn't done. We need to inspect all code paths and check if
+  encryption flag can be set in one place. */
+  if (!Encryption::is_none(ha_alter_info->create_info->encrypt_type.str)) {
+    /* Set the encryption flag. */
+    byte *master_key = nullptr;
+    uint32_t master_key_id;
+
+    /* Check if keyring is ready. */
+    Encryption::get_master_key(&master_key_id, &master_key);
+
+    if (master_key == nullptr) {
+      goto err_exit_no_heap;
+    } else {
+      my_free(master_key);
+      encrypt_flag = DICT_TF2_ENCRYPTION_FILE_PER_TABLE;
+    }
   }
 
   max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
@@ -6062,7 +6083,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   return prepare_inplace_alter_table_dict(
       ha_alter_info, altered_table, table, old_dd_tab, new_dd_tab,
-      table_share->table_name.str, info.flags(), info.flags2(),
+      table_share->table_name.str, info.flags(), info.flags2() | encrypt_flag,
       fts_doc_col_no, add_fts_doc_id, add_fts_doc_id_idx, m_prebuilt);
 }
 

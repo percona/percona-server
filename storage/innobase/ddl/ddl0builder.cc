@@ -247,7 +247,8 @@ File_cursor::File_cursor(Builder *builder,
                          size_t buffer_size, os_offset_t size,
                          Alter_stage *stage) noexcept
     : Load_cursor(builder, nullptr),
-      m_reader(file, builder->index(), buffer_size, size),
+      m_reader(file, builder->index(), buffer_size, size,
+               builder->get_space_id()),
       m_stage(stage) {
   ut_a(m_reader.m_file.is_open());
 }
@@ -678,6 +679,19 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     thread_ctx->m_io_buffer = {thread_ctx->m_aligned_buffer.get(),
                                buffer_size.second};
 
+    if (log_tmp_is_encrypted()) {
+      thread_ctx->m_aligned_buffer_crypt =
+          ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
+                                          UNIV_SECTOR_SIZE, buffer_size.second);
+
+      if (!thread_ctx->m_aligned_buffer_crypt) {
+        return DB_OUT_OF_MEMORY;
+      }
+
+      thread_ctx->m_io_buffer_crypt = {thread_ctx->m_aligned_buffer_crypt.get(),
+                                       buffer_size.second};
+    }
+
     if (is_spatial_index()) {
       thread_ctx->m_rtree_inserter = ut::new_withkey<RTree_inserter>(
           ut::make_psi_memory_key(mem_key_ddl), m_ctx, index);
@@ -995,7 +1009,11 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
     }
 
     ut_a(len <= col->len || DATA_LARGE_MTYPE(col->mtype) ||
-         (col->mtype == DATA_POINT && len == DATA_MBR_LEN));
+         (col->mtype == DATA_POINT && len == DATA_MBR_LEN) ||
+         ((col->mtype == DATA_VARCHAR || col->mtype == DATA_BINARY ||
+           col->mtype == DATA_VARMYSQL) &&
+          (col->len == 0 ||
+           len <= col->len + prtype_get_compression_extra(col->prtype))));
 
     auto fixed_len = ifield->fixed_len;
 
@@ -1175,9 +1193,10 @@ bool Builder::create_file(ddl::file_t &file) noexcept {
   }
 }
 
-dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer) noexcept {
+dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer,
+                        void *crypt_buffer, uint32_t space_id) noexcept {
   auto err = ddl::pwrite(file.m_file.get(), io_buffer.first, io_buffer.second,
-                         file.m_size);
+                         file.m_size, crypt_buffer, space_id);
 
   if (err != DB_SUCCESS) {
     set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1543,8 +1562,9 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       ut_a(n != 0);
       ut_a(n % IO_BLOCK_SIZE == 0);
 
-      auto err =
-          ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size);
+      auto crypt_buffer = thread_ctx->m_io_buffer_crypt;
+      auto err = ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size,
+                             crypt_buffer.first, get_space_id());
 
       if (err != DB_SUCCESS) {
         set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1951,6 +1971,12 @@ dberr_t Builder::fts_sort_and_build() noexcept {
   }
 }
 
+space_id_t Builder::get_space_id() {
+  auto new_table = m_ctx.m_new_table;
+  return new_table != nullptr ? new_table->space
+                              : dict_sys_t::s_invalid_space_id;
+}
+
 dberr_t Builder::finalize(bool apply_log) noexcept {
   ut_a(m_ctx.m_need_observer);
   ut_a(get_state() == State::FINISH);
@@ -1960,9 +1986,7 @@ dberr_t Builder::finalize(bool apply_log) noexcept {
   observer->flush();
 
   dberr_t err = DB_SUCCESS;
-  auto new_table = m_ctx.m_new_table;
-  auto space_id =
-      new_table != nullptr ? new_table->space : dict_sys_t::s_invalid_space_id;
+  auto space_id = get_space_id();
 
   Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_INPLACE_BULK, space_id,
                         false);

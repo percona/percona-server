@@ -1159,37 +1159,38 @@ bool Log_event::need_checksum() {
             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options)
             : mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
 
-  assert(!ret ||
-         ((common_footer->checksum_alg ==
-               static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
-           /*
-              Stop event closes the relay-log and its checksum alg
-              preference is set by the caller can be different
-              from the server's binlog_checksum_options.
-           */
-           get_type_code() == mysql::binlog::event::STOP_EVENT ||
-           /*
-              Rotate:s can be checksummed regardless of the server's
-              binlog_checksum_options. That applies to both
-              the local RL's Rotate and the master's Rotate
-              which IO thread instantiates via queue_binlog_ver_3_event.
-           */
-           get_type_code() == mysql::binlog::event::ROTATE_EVENT ||
-           /*
-              The previous event has its checksum option defined
-              according to the format description event.
-           */
-           get_type_code() == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT ||
-           /* FD is always checksummed */
-           get_type_code() == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
-           /*
-              View_change_log_event is queued into relay log by the
-              local member, which may have a different checksum algorithm
-              than the one of the event source.
-           */
-           get_type_code() == mysql::binlog::event::VIEW_CHANGE_EVENT) &&
-          common_footer->checksum_alg !=
-              mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF));
+  assert(
+      !ret ||
+      ((common_footer->checksum_alg ==
+            static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
+        /*
+           Stop event closes the relay-log and its checksum alg
+           preference is set by the caller can be different
+           from the server's binlog_checksum_options.
+        */
+        get_type_code() == mysql::binlog::event::STOP_EVENT ||
+        /*
+           Rotate:s can be checksummed regardless of the server's
+           binlog_checksum_options. That applies to both
+           the local RL's Rotate and the master's Rotate
+           which IO thread instantiates via queue_binlog_ver_3_event.
+        */
+        get_type_code() == mysql::binlog::event::ROTATE_EVENT ||
+        /*
+           The previous event has its checksum option defined
+           according to the format description event.
+        */
+        get_type_code() == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT ||
+        /* FD is always checksummed */
+        get_type_code() == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
+        /*
+           View_change_log_event is queued into relay log by the
+           local member, which may have a different checksum algorithm
+           than the one of the event source.
+        */
+        get_type_code() == mysql::binlog::event::VIEW_CHANGE_EVENT) &&
+       common_footer->checksum_alg !=
+           mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF));
 
   assert(common_footer->checksum_alg !=
          mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF);
@@ -6961,8 +6962,11 @@ void User_var_log_event::claim_memory_ownership(bool claim) {
 void Unknown_log_event::print(FILE *,
                               PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
-  print_header(&print_event_info->head_cache, print_event_info, false);
-  my_b_printf(&print_event_info->head_cache, "\n# %s", "Unknown event\n");
+  if (what != kind::ENCRYPTED) {
+    print_header(&print_event_info->head_cache, print_event_info, false);
+    my_b_printf(&print_event_info->head_cache, "\n# %s", "Unknown event\n");
+  } else
+    my_b_printf(&print_event_info->head_cache, "\n# %s", "Encrypted event\n");
 }
 
 /**************************************************************************

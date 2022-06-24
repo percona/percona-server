@@ -17,7 +17,6 @@ wait/io/file/innodb/innodb_tablespace_open_file	5
 wait/io/file/innodb/innodb_data_file	5
 wait/io/file/innodb/innodb_log_file	5
 wait/io/file/innodb/innodb_bmp_file	5
-wait/io/file/innodb/innodb_parallel_dblwrite_file	5
 wait/io/file/innodb/innodb_temp_file	5
 wait/io/file/innodb/innodb_arch_file	5
 wait/io/file/innodb/innodb_clone_file	5

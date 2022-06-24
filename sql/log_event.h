@@ -1011,7 +1011,8 @@ class Log_event {
         */
         (get_type_code() == binary_log::ROTATE_EVENT &&
          ((server_id == (uint32)::server_id) ||
-          (common_header->log_pos == 0 && mts_in_group))))
+          (common_header->log_pos == 0 && mts_in_group))) ||
+        (get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT))
       return EVENT_EXEC_ASYNC;
     else if (is_mts_sequential_exec())
       return EVENT_EXEC_SYNC;
@@ -2284,6 +2285,7 @@ class Load_query_generator {
 */
 class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
  public:
+  enum class kind { UNKNOWN, ENCRYPTED } what;
   /**
     Even if this is an unknown event, we still pass description_event to
     Log_event's ctor, this way we can extract maximum information from the

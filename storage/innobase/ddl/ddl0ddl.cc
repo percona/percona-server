@@ -89,7 +89,9 @@ void Dup::report(const dfield_t *dfield) noexcept {
   }
 }
 
-dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
+dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset,
+              void *crypt_buf, /*!< in: crypt buf or NULL */
+              space_id_t space_id) noexcept {
   IF_ENABLED("ddl_read_failure", return DB_IO_ERROR;)
 
   IORequest request;
@@ -105,15 +107,41 @@ dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
   posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
+  /* For encrypted tables, decrypt data after reading and copy data */
+  if (err == DB_SUCCESS && log_tmp_is_encrypted()) {
+    if (log_tmp_block_decrypt(static_cast<const byte *>(ptr), len,
+                              static_cast<byte *>(crypt_buf), offset,
+                              space_id)) {
+      srv_stats.n_merge_blocks_decrypted.inc();
+      memcpy(ptr, crypt_buf, len);
+    } else {
+      err = DB_IO_DECRYPT_FAIL;
+    }
+  }
+
   return err;
 }
 
-dberr_t pwrite(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
+dberr_t pwrite(os_fd_t fd, void *ptr, size_t len, os_offset_t offset,
+               void *crypt_buf,                /*!< in: crypt buf or NULL */
+               space_id_t space_id) noexcept { /*!< in: tablespace id */
   IF_ENABLED("ddl_write_failure", return DB_IO_ERROR;)
 
   IORequest request(IORequest::WRITE);
 
   request.disable_compression();
+
+  /* For encrypted tables, encrypt data before writing */
+  if (log_tmp_is_encrypted()) {
+    if (!log_tmp_block_encrypt(static_cast<const byte *>(ptr), len,
+                               static_cast<byte *>(crypt_buf), offset,
+                               space_id)) {
+      ib::error() << "Failed encrypt block at " << offset;
+      return DB_IO_ERROR;
+    }
+    srv_stats.n_merge_blocks_encrypted.inc();
+    ptr = crypt_buf;
+  }
 
   auto err = os_file_write_int_fd(request, "(ddl)", fd, ptr, offset, len);
 

@@ -86,9 +86,6 @@ SELECT * FROM t1;
 --echo # Restore the original t1.ibd
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
 --move_file $MYSQLD_DATADIR/test/t1.ibd.backup $MYSQLD_DATADIR/test/t1.ibd
-# Remove the separate doublewrite buffer from the crashed instance as we
-# are making the instance clean manually
---remove_file $MYSQLD_DATADIR/xb_doublewrite
 
 --source include/start_mysqld.inc
 

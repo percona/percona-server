@@ -64,7 +64,7 @@ DROP TABLE one_k;
 #
 # temp table
 #
-CREATE TABLE `t1` (`c1` INT, `c2` INT, `c3` CHAR(255), `c4` CHAR(255));
+CREATE TABLE `t1` (`c1` INT, `c2` INT, `c3` CHAR(255), `c4` CHAR(255)) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES
 (1,1,'t1','t1'), (2,2,'t1','t1'), (3,3,'t1','t1'), (4,4,'t1','t1'), (5,5,'t1','t1'),
 (6,6,'t1','t1'), (7,7,'t1','t1'), (8,8,'t1','t1'), (9,9,'t1','t1'), (10,10,'t1','t1'),

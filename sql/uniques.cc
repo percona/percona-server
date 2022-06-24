@@ -926,6 +926,7 @@ bool Unique::get(TABLE *table) {
                    open_cached_file(outfile, mysql_tmpdir, TEMP_PREFIX,
                                     READ_RECORD_BUFFER, MYF(MY_WME))))
     return true;
+  if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return true;
 
   [[maybe_unused]]
   int reinit_res = reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0);

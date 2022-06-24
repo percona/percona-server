@@ -47,8 +47,12 @@ struct File_reader : private ut::Non_copyable {
   @param[in] buffer_size        Size of file buffer for reading.
   @param[in] size               File size in bytes. */
   File_reader(const Unique_os_file_descriptor &file, dict_index_t *index,
-              size_t buffer_size, os_offset_t size) noexcept
-      : m_index(index), m_file(file), m_size(size), m_buffer_size(buffer_size) {
+              size_t buffer_size, os_offset_t size, space_id_t space_id) noexcept
+      : m_index(index),
+        m_file(file),
+        m_size(size),
+        m_buffer_size(buffer_size),
+        m_space_id(space_id) {
     ut_a(size > 0);
     ut_a(m_buffer_size > 0);
     ut_a(m_index != nullptr);
@@ -144,8 +148,17 @@ struct File_reader : private ut::Non_copyable {
   /** Aligned IO buffer. */
   ut::unique_ptr_aligned<byte[]> m_aligned_buffer{};
 
+  /** Aligned buffer for cryptography. */
+  ut::unique_ptr_aligned<byte[]> m_aligned_buffer_crypt{};
+
   /** File buffer for reading. */
   IO_buffer m_io_buffer{};
+
+  /** File buffer for cryptography. */
+  IO_buffer m_crypt_buffer{};
+
+  /** Space id used to encrypt the file */
+  space_id_t m_space_id{};
 
   /** Number of rows read from the file. */
   uint64_t m_n_rows_read{};

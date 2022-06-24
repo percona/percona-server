@@ -2062,6 +2062,12 @@ inline void fil_space_open_if_needed(fil_space_t *space) {
   }
 }
 
+/** Enable encryption of temporary tablespace
+@param[in,out]	space	tablespace object
+@return DB_SUCCESS on success, DB_ERROR on failure */
+MY_NODISCARD
+dberr_t fil_temp_update_encryption(fil_space_t *space);
+
 /** Note that the file system where the file resides doesn't support PUNCH HOLE.
 Called from AIO handlers when IO returns DB_IO_NO_PUNCH_HOLE
 @param[in,out]  file            file to set */

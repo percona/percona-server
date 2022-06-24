@@ -2383,6 +2383,8 @@ class Unknown_log_event : public mysql::binlog::event::Unknown_event,
   Unknown_log_event(const Unknown_log_event &) = delete;
   Unknown_log_event &operator=(const Unknown_log_event &) = delete;
 
+  enum class kind { UNKNOWN, ENCRYPTED } what;
+
   /**
     Even if this is an unknown event, we still pass description_event to
     Log_event's ctor, this way we can extract maximum information from the

@@ -992,6 +992,46 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
                                       false, true, mtr));
 }
 
+/** Enable encryption for already existing tablespace.
+@param[in]	space	tablespace id
+@return true if success */
+bool fsp_enable_encryption(fil_space_t *space) {
+  byte encrypt_info[Encryption::INFO_SIZE];
+
+  memset(encrypt_info, 0, Encryption::INFO_SIZE);
+  if (!Encryption::fill_encryption_info(space->m_encryption_metadata,
+                                        true,
+                                        encrypt_info)) {
+    return (false);
+  }
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+  mtr_x_lock_space(space, &mtr);
+
+  const page_size_t page_size(space->flags);
+  buf_block_t *block = buf_page_get(page_id_t(space->id, 0), page_size,
+                                    RW_SX_LATCH, UT_LOCATION_HERE, &mtr);
+  buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+  ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
+
+  page_t *page = buf_block_get_frame(block);
+  mlog_write_ulint(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page, space->flags,
+                   MLOG_4BYTES, &mtr);
+
+  const auto offset = fsp_header_get_encryption_offset(page_size);
+  ut_ad(offset != 0);
+  ut_ad(offset < UNIV_PAGE_SIZE);
+
+  mlog_write_string(page + offset, encrypt_info, Encryption::INFO_SIZE, &mtr);
+
+  mtr_commit(&mtr);
+
+  return (true);
+}
+
 /** Read the server version number from the DD tablespace header.
 @param[out]     version server version from tablespace header
 @return false if success. */

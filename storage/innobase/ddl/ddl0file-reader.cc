@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 #include "rem/rec.h"
 #include "rem0rec.h"
+#include "row0log.h"
 
 namespace ddl {
 
@@ -54,6 +55,17 @@ dberr_t File_reader::prepare() noexcept {
   }
 
   m_io_buffer = {m_aligned_buffer.get(), m_buffer_size};
+
+  if (log_tmp_is_encrypted()) {
+    m_aligned_buffer_crypt = ut::make_unique_aligned<byte[]>(
+        ut::make_psi_memory_key(mem_key_ddl), UNIV_SECTOR_SIZE, m_buffer_size);
+
+    if (!m_aligned_buffer_crypt) {
+      return DB_OUT_OF_MEMORY;
+    }
+
+    m_crypt_buffer = {m_aligned_buffer_crypt.get(), m_buffer_size};
+  }
 
   m_mrec = m_io_buffer.first;
   m_bounds.first = m_io_buffer.first;
@@ -81,7 +93,8 @@ dberr_t File_reader::prepare() noexcept {
 
   ut_a(m_size > m_offset);
   const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len,
+                              m_offset, m_crypt_buffer.first, m_space_id);
 
   if (err != DB_SUCCESS) {
     return err;
@@ -100,7 +113,8 @@ dberr_t File_reader::seek(os_offset_t offset) noexcept {
   m_offset = offset;
 
   const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len,
+                              m_offset, m_crypt_buffer.first, m_space_id);
 
   m_ptr = m_io_buffer.first;
 

@@ -73,6 +73,7 @@ static const std::unordered_map<Log_event_type, const std::string>
                             {XA_PREPARE_LOG_EVENT, "XA_prepare"},
                             {PARTIAL_UPDATE_ROWS_EVENT, "Update_rows_partial"},
                             {TRANSACTION_PAYLOAD_EVENT, "Transaction_payload"},
+                            {START_5_7_ENCRYPTION_EVENT, "Start_5_7_encryption"},
                             {UNKNOWN_EVENT, "Unknown"}};
 
 const std::string &get_event_type_as_string(Log_event_type type) {

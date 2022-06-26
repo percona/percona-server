@@ -6,6 +6,7 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 audit_log_filter_set_user('%', 'log_all')
 OK
 SET GLOBAL audit_log_filter.flush = ON;
+JSON audit filtering log is valid
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;

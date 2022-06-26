@@ -182,6 +182,15 @@ class LogRecordFormatter<AuditLogFormatType::Csv>
   }
 
   /**
+   * @brief Get separator added between event records in a log file.
+   *
+   * @return Event resords separator string
+   */
+  [[nodiscard]] std::string get_record_separator() const noexcept override {
+    return "";
+  }
+
+  /**
    * @brief Insert audit event class and subclass names into record printed to
    *        log. Needed for testing.
    *

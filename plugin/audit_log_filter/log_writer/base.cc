@@ -53,7 +53,7 @@ void LogWriterBase::write(AuditRecordVariant record) noexcept {
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Formatted log record %s", record_str.c_str());
 
-  write(record_str);
+  write(record_str, true);
 }
 
 SysVars *LogWriterBase::get_config() const noexcept { return m_config.get(); }

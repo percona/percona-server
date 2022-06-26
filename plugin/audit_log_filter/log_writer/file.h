@@ -56,8 +56,10 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
    * @brief Write audit record to log.
    *
    * @param record String representation of audit record
+   * @param print_separator Add lor record separator before a record
+   *                        if set to true
    */
-  void write(const std::string &record) noexcept override;
+  void write(const std::string &record, bool print_separator) noexcept override;
 
   /**
    * @brief Get current log file size in bytes.
@@ -98,6 +100,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
 
  private:
   bool m_is_rotating;
+  bool m_is_log_empty;
   FileHandle m_file_handle;
   std::unique_ptr<log_writer_strategy::FileWriterStrategyBase> m_strategy;
 };

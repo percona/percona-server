@@ -13,14 +13,13 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --move_file $log_path$log_base_name $log_path$log_base_name.1
 SET GLOBAL audit_log_filter.flush = ON;
 
---let $xml_file_path = $log_path
---let $xml_file_name = $log_base_name.1
-
---source validate_xml_file.inc
+--let $json_file_path = $log_path
+--let $json_file_name = $log_base_name.1
+--source validate_json_file.inc
 
 --echo #
 --echo # Cleanup
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
 
---remove_file $xml_file_path$xml_file_name
+--remove_file $json_file_path$json_file_name

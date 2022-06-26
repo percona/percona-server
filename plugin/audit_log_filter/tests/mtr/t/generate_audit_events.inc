@@ -47,6 +47,7 @@ UNINSTALL COMPONENT "file://component_audit_api_message_emit";
 # AuditRecordConnection
 # AuditRecordAuthentication
 CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+GRANT SUPER ON *.* to 'user1'@'%';
 connect (conn1,localhost,user1,111,test);
 disconnect conn1;
 connection default;

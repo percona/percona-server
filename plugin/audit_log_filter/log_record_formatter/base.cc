@@ -35,6 +35,11 @@ const std::string_view kAuditEventNameStoredProgram{"Stored Program"};
 const std::string_view kAuditEventNameAuthentication{"Authentication"};
 const std::string_view kAuditEventNameMessage{"Message"};
 
+const std::string_view kAuditEventNameGeneralLog{"Log"};
+const std::string_view kAuditEventNameGeneralError{"Error"};
+const std::string_view kAuditEventNameGeneralResult{"Result"};
+const std::string_view kAuditEventNameGeneralStatus{"Status"};
+
 const std::string_view kAuditEventNameConnect{"Connect"};
 const std::string_view kAuditEventNameDisconnect{"Disconnect"};
 const std::string_view kAuditEventNameChangeUser{"Change user"};
@@ -77,6 +82,15 @@ const std::string_view kAuditEventNameAuthCredentialChange{
 const std::string_view kAuditEventNameAuthAuthidRename{"Auth Authid Rename"};
 const std::string_view kAuditEventNameAuthAuthidDrop{"Auth Authid Drop"};
 
+const std::string_view kAuditEventNameServerStartupStartup{"Startup"};
+
+const std::string_view kAuditEventNameServerShutdownShutdown{"Shutdown"};
+
+const std::string_view kAuditEventNameStoredProgramExecute{"Execute"};
+
+const std::string_view kAuditEventNameMessageInternal{"Internal"};
+const std::string_view kAuditEventNameMessageUser{"User"};
+
 const std::string_view kAuditNameUnknown{"unknown"};
 
 }  // namespace
@@ -87,6 +101,10 @@ std::string LogRecordFormatterBase::make_record_id(
   id << get_next_record_id() << "_" << make_timestamp(time_point);
 
   return id.str();
+}
+
+uint64_t LogRecordFormatterBase::make_record_id() const noexcept {
+  return get_next_record_id();
 }
 
 std::string LogRecordFormatterBase::make_timestamp(
@@ -138,7 +156,7 @@ std::string LogRecordFormatterBase::make_escaped_string(
 }
 
 std::string_view LogRecordFormatterBase::event_class_to_string(
-    mysql_event_class_t event_class) const noexcept {
+    mysql_event_class_t event_class) noexcept {
   switch (event_class) {
     case MYSQL_AUDIT_GENERAL_CLASS:
       return kAuditEventNameGeneral;
@@ -166,6 +184,24 @@ std::string_view LogRecordFormatterBase::event_class_to_string(
       return kAuditEventNameAuthentication;
     case MYSQL_AUDIT_MESSAGE_CLASS:
       return kAuditEventNameMessage;
+    default:
+      assert(false);
+  }
+
+  return kAuditNameUnknown;
+}
+
+std::string_view LogRecordFormatterBase::event_subclass_to_string(
+    mysql_event_general_subclass_t event_subclass) const noexcept {
+  switch (event_subclass) {
+    case MYSQL_AUDIT_GENERAL_LOG:
+      return kAuditEventNameGeneralLog;
+    case MYSQL_AUDIT_GENERAL_ERROR:
+      return kAuditEventNameGeneralError;
+    case MYSQL_AUDIT_GENERAL_RESULT:
+      return kAuditEventNameGeneralResult;
+    case MYSQL_AUDIT_GENERAL_STATUS:
+      return kAuditEventNameGeneralStatus;
     default:
       assert(false);
   }
@@ -289,6 +325,56 @@ std::string_view LogRecordFormatterBase::event_subclass_to_string(
   return kAuditNameUnknown;
 }
 
+std::string_view LogRecordFormatterBase::event_subclass_to_string(
+    mysql_event_server_startup_subclass_t event_subclass) const noexcept {
+  switch (event_subclass) {
+    case MYSQL_AUDIT_SERVER_STARTUP_STARTUP:
+      return kAuditEventNameServerStartupStartup;
+    default:
+      assert(false);
+  }
+
+  return kAuditNameUnknown;
+}
+
+std::string_view LogRecordFormatterBase::event_subclass_to_string(
+    mysql_event_server_shutdown_subclass_t event_subclass) const noexcept {
+  switch (event_subclass) {
+    case MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN:
+      return kAuditEventNameServerShutdownShutdown;
+    default:
+      assert(false);
+  }
+
+  return kAuditNameUnknown;
+}
+
+std::string_view LogRecordFormatterBase::event_subclass_to_string(
+    mysql_event_stored_program_subclass_t event_subclass) const noexcept {
+  switch (event_subclass) {
+    case MYSQL_AUDIT_STORED_PROGRAM_EXECUTE:
+      return kAuditEventNameStoredProgramExecute;
+    default:
+      assert(false);
+  }
+
+  return kAuditNameUnknown;
+}
+
+std::string_view LogRecordFormatterBase::event_subclass_to_string(
+    mysql_event_message_subclass_t event_subclass) const noexcept {
+  switch (event_subclass) {
+    case MYSQL_AUDIT_MESSAGE_INTERNAL:
+      return kAuditEventNameMessageInternal;
+    case MYSQL_AUDIT_MESSAGE_USER:
+      return kAuditEventNameMessageUser;
+    default:
+      assert(false);
+  }
+
+  return kAuditNameUnknown;
+}
+
 std::string_view LogRecordFormatterBase::connection_type_name_to_string(
     int connection_type) const noexcept {
   switch (connection_type) {
@@ -326,7 +412,7 @@ std::string_view LogRecordFormatterBase::shutdown_reason_to_string(
 }
 
 std::string_view LogRecordFormatterBase::sql_command_id_to_string(
-    enum_sql_command_t sql_command_id) const noexcept {
+    enum_sql_command_t sql_command_id) noexcept {
   static const std::unordered_map<enum_sql_command_t, std::string_view>
       name_map{
           {SQLCOM_SELECT, "select"},
@@ -509,7 +595,7 @@ std::string_view LogRecordFormatterBase::sql_command_id_to_string(
 }
 
 std::string_view LogRecordFormatterBase::command_id_to_string(
-    enum_server_command_t command_id) const noexcept {
+    enum_server_command_t command_id) noexcept {
   static const std::unordered_map<enum_server_command_t, std::string_view>
       name_map{{COM_SLEEP, "slep"},
                {COM_QUIT, "quit"},
@@ -569,6 +655,10 @@ std::string LogRecordFormatterBaseXml::get_file_header() const noexcept {
 
 std::string LogRecordFormatterBaseXml::get_file_footer() const noexcept {
   return "</AUDIT>\n";
+}
+
+std::string LogRecordFormatterBaseXml::get_record_separator() const noexcept {
+  return "";
 }
 
 const EscapeRulesContainer &LogRecordFormatterBaseXml::get_escape_rules()

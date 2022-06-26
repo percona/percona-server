@@ -189,6 +189,13 @@ class LogRecordFormatterBase {
   [[nodiscard]] virtual std::string get_file_footer() const noexcept = 0;
 
   /**
+   * @brief Get separator added between event records in a log file.
+   *
+   * @return Event records separator string
+   */
+  [[nodiscard]] virtual std::string get_record_separator() const noexcept = 0;
+
+  /**
    * @brief Init record sequence number.
    *
    * Set initial value to record sequence number. Initialized to current
@@ -233,6 +240,13 @@ class LogRecordFormatterBase {
       std::chrono::system_clock::time_point time_point) const noexcept;
 
   /**
+   * @brief Get numeric record ID.
+   *
+   * @return Record ID
+   */
+  [[nodiscard]] uint64_t make_record_id() const noexcept;
+
+  /**
    * @brief Apply escaping rules to provided string.
    *
    * @param in String to be escaped
@@ -256,8 +270,8 @@ class LogRecordFormatterBase {
    * @param event_class Audit event class
    * @return String representation of audit event class name
    */
-  [[nodiscard]] std::string_view event_class_to_string(
-      mysql_event_class_t event_class) const noexcept;
+  [[nodiscard]] static std::string_view event_class_to_string(
+      mysql_event_class_t event_class) noexcept;
 
   /**
    * @brief Get string representation of audit event subclass name.
@@ -265,7 +279,16 @@ class LogRecordFormatterBase {
    * @param event_subclass Audit event subclass
    * @return String representation of audit event subclass name
    */
-  [[nodiscard]] std::string_view event_subclass_to_string(
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
+      mysql_event_general_subclass_t event_subclass) const noexcept;
+
+  /**
+   * @brief Get string representation of audit event subclass name.
+   *
+   * @param event_subclass Audit event subclass
+   * @return String representation of audit event subclass name
+   */
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
       mysql_event_connection_subclass_t event_subclass) const noexcept;
 
   /**
@@ -274,7 +297,7 @@ class LogRecordFormatterBase {
    * @param event_subclass Audit event subclass
    * @return String representation of audit event subclass name
    */
-  [[nodiscard]] std::string_view event_subclass_to_string(
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
       mysql_event_parse_subclass_t event_subclass) const noexcept;
 
   /**
@@ -283,7 +306,7 @@ class LogRecordFormatterBase {
    * @param event_subclass Audit event subclass
    * @return String representation of audit event subclass name
    */
-  [[nodiscard]] std::string_view event_subclass_to_string(
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
       mysql_event_table_access_subclass_t event_subclass) const noexcept;
 
   /**
@@ -292,7 +315,7 @@ class LogRecordFormatterBase {
    * @param event_subclass Audit event subclass
    * @return String representation of audit event subclass name
    */
-  [[nodiscard]] std::string_view event_subclass_to_string(
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
       mysql_event_global_variable_subclass_t event_subclass) const noexcept;
 
   /**
@@ -301,7 +324,7 @@ class LogRecordFormatterBase {
    * @param event_subclass Audit event subclass
    * @return String representation of audit event subclass name
    */
-  [[nodiscard]] std::string_view event_subclass_to_string(
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
       mysql_event_command_subclass_t event_subclass) const noexcept;
 
   /**
@@ -310,7 +333,7 @@ class LogRecordFormatterBase {
    * @param event_subclass Audit event subclass
    * @return String representation of audit event subclass name
    */
-  [[nodiscard]] std::string_view event_subclass_to_string(
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
       mysql_event_query_subclass_t event_subclass) const noexcept;
 
   /**
@@ -319,8 +342,44 @@ class LogRecordFormatterBase {
    * @param event_subclass Audit event subclass
    * @return String representation of audit event subclass name
    */
-  [[nodiscard]] std::string_view event_subclass_to_string(
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
       mysql_event_authentication_subclass_t event_subclass) const noexcept;
+
+  /**
+   * @brief Get string representation of audit event subclass name.
+   *
+   * @param event_subclass Audit event subclass
+   * @return String representation of audit event subclass name
+   */
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
+      mysql_event_server_startup_subclass_t event_subclass) const noexcept;
+
+  /**
+   * @brief Get string representation of audit event subclass name.
+   *
+   * @param event_subclass Audit event subclass
+   * @return String representation of audit event subclass name
+   */
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
+      mysql_event_server_shutdown_subclass_t event_subclass) const noexcept;
+
+  /**
+   * @brief Get string representation of audit event subclass name.
+   *
+   * @param event_subclass Audit event subclass
+   * @return String representation of audit event subclass name
+   */
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
+      mysql_event_stored_program_subclass_t event_subclass) const noexcept;
+
+  /**
+   * @brief Get string representation of audit event subclass name.
+   *
+   * @param event_subclass Audit event subclass
+   * @return String representation of audit event subclass name
+   */
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
+      mysql_event_message_subclass_t event_subclass) const noexcept;
 
   /**
    * @brief Get string representation of connection type name.
@@ -328,7 +387,7 @@ class LogRecordFormatterBase {
    * @param connection_type Connection type
    * @return String representation of connection type name
    */
-  [[nodiscard]] std::string_view connection_type_name_to_string(
+  [[nodiscard]] virtual std::string_view connection_type_name_to_string(
       int connection_type) const noexcept;
 
   /**
@@ -337,7 +396,7 @@ class LogRecordFormatterBase {
    * @param reason Shutdown reason
    * @return String representation of shutdown reason
    */
-  [[nodiscard]] std::string_view shutdown_reason_to_string(
+  [[nodiscard]] virtual std::string_view shutdown_reason_to_string(
       mysql_server_shutdown_reason_t reason) const noexcept;
 
   /**
@@ -346,8 +405,8 @@ class LogRecordFormatterBase {
    * @param sql_command_id SQL command ID
    * @return String representation of SQL command ID
    */
-  [[nodiscard]] std::string_view sql_command_id_to_string(
-      enum_sql_command_t sql_command_id) const noexcept;
+  [[nodiscard]] static std::string_view sql_command_id_to_string(
+      enum_sql_command_t sql_command_id) noexcept;
 
   /**
    * @brief Get string representation of command ID.
@@ -355,8 +414,8 @@ class LogRecordFormatterBase {
    * @param command_id Command ID
    * @return String representation of command ID
    */
-  [[nodiscard]] std::string_view command_id_to_string(
-      enum_server_command_t command_id) const noexcept;
+  [[nodiscard]] static std::string_view command_id_to_string(
+      enum_server_command_t command_id) noexcept;
 
  private:
   /**
@@ -395,6 +454,13 @@ class LogRecordFormatterBaseXml : public LogRecordFormatterBase {
    * @return Log file footer string
    */
   [[nodiscard]] std::string get_file_footer() const noexcept override;
+
+  /**
+   * @brief Get separator added between event records in a log file.
+   *
+   * @return Event resords separator string
+   */
+  [[nodiscard]] std::string get_record_separator() const noexcept override;
 
  private:
   /**

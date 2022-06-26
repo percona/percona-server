@@ -70,8 +70,11 @@ class LogWriterBase {
    * @brief Write audit record to log.
    *
    * @param record String representation of audit record
+   * @param print_separator Add lor record separator before a record
+   *                        if set to true
    */
-  virtual void write(const std::string &record) noexcept = 0;
+  virtual void write(const std::string &record,
+                     bool print_separator) noexcept = 0;
 
   /**
    * @brief Rotate log file.

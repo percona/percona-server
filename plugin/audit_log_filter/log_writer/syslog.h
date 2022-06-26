@@ -46,8 +46,11 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
    * @brief Write audit record to log.
    *
    * @param record String representation of audit record
+   * @param print_separator Add lor record separator before a record
+   *                        if set to true
    */
-  void write(const std::string &record [[maybe_unused]]) noexcept override {}
+  void write(const std::string &record [[maybe_unused]],
+             bool print_separator [[maybe_unused]]) noexcept override {}
 
   /**
    * @brief Close and reopen current log file. Used for manual log rotation.

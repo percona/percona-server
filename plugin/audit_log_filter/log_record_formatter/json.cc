@@ -339,9 +339,9 @@ AuditRecordString LogRecordFormatterJson::apply(
          << make_escaped_string(&audit_record.event->general_sql_command)
          << "\",\n"
          << R"(      "query": ")"
-         << (audit_record.digest.empty()
+         << (audit_record.extended_info.digest.empty()
                  ? make_escaped_string(&audit_record.event->general_query)
-                 : make_escaped_string(audit_record.digest))
+                 : make_escaped_string(audit_record.extended_info.digest))
          << "\",\n"
          << R"(      "status": )" << audit_record.event->general_error_code
          << "}\n"
@@ -383,10 +383,27 @@ AuditRecordString LogRecordFormatterJson::apply(
          << "\",\n"
          << R"(      "status": )" << audit_record.event->status << ",\n"
          << R"(      "db": ")"
-         << make_escaped_string(&audit_record.event->database) << "\"}\n"
-         << "  }";
+         << make_escaped_string(&audit_record.event->database) << "\"";
 
-  // TODO: add connection_attributes from PFS into "connection_data"
+  if (audit_record.event->event_subclass ==
+          mysql_event_connection_subclass_t::MYSQL_AUDIT_CONNECTION_CONNECT &&
+      !audit_record.extended_info.attrs.empty()) {
+    result << ",\n"
+           << "      \"connection_attributes\": {\n";
+
+    bool is_first_attr = true;
+    for (const auto &attr : audit_record.extended_info.attrs) {
+      result << (is_first_attr ? "" : ",\n") << "        \""
+             << make_escaped_string(attr.first) << "\": \""
+             << make_escaped_string(attr.second) << "\"";
+      is_first_attr = false;
+    }
+
+    result << "\n      }\n";
+  }
+
+  result << "    }\n"
+         << "  }";
 
   return result.str();
 }
@@ -407,9 +424,9 @@ AuditRecordString LogRecordFormatterJson::apply(
          << R"(    "parse_data": {)"
          << "\n"
          << R"(      "query": ")"
-         << (audit_record.digest.empty()
+         << (audit_record.extended_info.digest.empty()
                  ? make_escaped_string(&audit_record.event->query)
-                 : make_escaped_string(audit_record.digest))
+                 : make_escaped_string(audit_record.extended_info.digest))
          << "\",\n"
          << R"(      "rewritten_query": ")"
          << make_escaped_string(audit_record.event->rewritten_query) << "\"}\n"
@@ -440,9 +457,9 @@ AuditRecordString LogRecordFormatterJson::apply(
          << R"(      "table": ")"
          << make_escaped_string(&audit_record.event->table_name) << "\",\n"
          << R"(      "query": ")"
-         << (audit_record.digest.empty()
+         << (audit_record.extended_info.digest.empty()
                  ? make_escaped_string(&audit_record.event->query)
-                 : make_escaped_string(audit_record.digest))
+                 : make_escaped_string(audit_record.extended_info.digest))
          << "\",\n"
          << R"(      "sql_command": ")"
          << sql_command_id_to_string(audit_record.event->sql_command_id)
@@ -576,9 +593,9 @@ AuditRecordString LogRecordFormatterJson::apply(
          << R"(    "query_data": {)"
          << "\n"
          << R"(      "query": ")"
-         << (audit_record.digest.empty()
+         << (audit_record.extended_info.digest.empty()
                  ? make_escaped_string(&audit_record.event->query)
-                 : make_escaped_string(audit_record.digest))
+                 : make_escaped_string(audit_record.extended_info.digest))
          << "\",\n"
          << R"(      "status": )" << audit_record.event->status << ",\n"
          << R"(      "sql_command": ")"
@@ -611,9 +628,9 @@ AuditRecordString LogRecordFormatterJson::apply(
          << R"(      "db": ")"
          << make_escaped_string(&audit_record.event->database) << "\",\n"
          << R"(      "query": ")"
-         << (audit_record.digest.empty()
+         << (audit_record.extended_info.digest.empty()
                  ? make_escaped_string(&audit_record.event->query)
-                 : make_escaped_string(audit_record.digest))
+                 : make_escaped_string(audit_record.extended_info.digest))
          << "\",\n"
          << R"(      "sql_command": ")"
          << sql_command_id_to_string(audit_record.event->sql_command_id)
@@ -654,9 +671,9 @@ AuditRecordString LogRecordFormatterJson::apply(
          << "\n"
          << R"(      "status": )" << audit_record.event->status << ",\n"
          << R"(      "query": ")"
-         << (audit_record.digest.empty()
+         << (audit_record.extended_info.digest.empty()
                  ? make_escaped_string(&audit_record.event->query)
-                 : make_escaped_string(audit_record.digest))
+                 : make_escaped_string(audit_record.extended_info.digest))
          << "\",\n"
          << R"(      "sql_command": ")"
          << sql_command_id_to_string(audit_record.event->sql_command_id)

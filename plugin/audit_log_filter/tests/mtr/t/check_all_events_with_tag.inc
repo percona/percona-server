@@ -6,6 +6,7 @@
 #
 # --let $audit_filter_log_path = path to dir containing audit filter log
 # --let $audit_filter_log_name = audit filter log file name
+# --let $audit_filter_log_format = [xml|json] audit filter log format
 # --let $search_tag = text to search in audit event record
 # --source check_all_events_with_tag.inc
 #
@@ -15,6 +16,8 @@
 #   Path to dir containing audit filter log.
 # $audit_filter_log_name
 #   Audit filter log file name.
+# $audit_filter_log_format
+#   Audit filter log format. One of: xml, json. Defaults to xml.
 # $search_tag
 #   Text to search in audit event record. For example, set it to
 #   '<TABLE>table1</TABLE>' in order to make sure each record in the
@@ -25,6 +28,7 @@
 
 --let audit_filter_log_path = $audit_filter_log_path
 --let audit_filter_log_name = $audit_filter_log_name
+--let audit_filter_log_format = $audit_filter_log_format
 --let search_tag = $search_tag
 
 perl;
@@ -34,6 +38,7 @@ perl;
 
   my $full_log_name = "$ENV{audit_filter_log_path}$ENV{audit_filter_log_name}";
   my $search_tag = $ENV{'search_tag'};
+  my $log_format = $ENV{'audit_filter_log_format'} || "xml";
   my $search_neg = 0;
 
   if ($search_tag =~ /^!/) {
@@ -44,41 +49,16 @@ perl;
   open(my $fh, '<:encoding(UTF-8)', $full_log_name)
     or die "Could not open file '$full_log_name' $!";
 
-  my $event_info = '';
-  my $event_start_found = 0;
-  my $event_end_found = 0;
-
-  while (my $row = <$fh>) {
-    if ($row =~ /<AUDIT_RECORD>/) {
-      $event_start_found = 1;
-    }
-
-    if ($row =~ /<\/AUDIT_RECORD>/) {
-      $event_end_found = 1;
-    }
-
-    if ($event_start_found && !$event_end_found) {
-      $event_info .= $row;
-    }
-
-    if ($event_start_found && $event_end_found) {
-      my $search_str = $event_info;
-      $search_str =~ s/\R//g;
-
-      if ($search_neg) {
-        if ($search_str =~ /$search_tag/) {
-          die "Tag '$search_tag' is not expected in event \n'$event_info'\n";
-        }
+  while (my $event = read_event($fh, $log_format)) {
+    if ($search_neg) {
+      if ($event =~ /$search_tag/) {
+        die "Tag '$search_tag' is not expected in event \n'$event_info'\n";
       }
-      else {
-        if ($search_str !~ /$search_tag/) {
-          die "Missing '$search_tag' in event \n'$event_info'\n";
-        }
+    }
+    else {
+      if ($event !~ /$search_tag/) {
+        die "Missing '$search_tag' in event \n'$event_info'\n";
       }
-
-      $event_info = '';
-      $event_start_found = 0;
-      $event_end_found = 0;
     }
   }
 
@@ -86,4 +66,55 @@ perl;
 
   print $search_neg ? "No tag" : "Tag";
   print " $search_tag Ok\n";
+
+  sub read_event {
+    my ($fh, $format) = @_;
+    my $result = "";
+
+    if ($format eq 'xml') {
+      my $event_start_found = 0;
+      my $event_end_found = 0;
+
+      while (my $row = <$fh>) {
+        $event_start_found = 1 if ($row =~ /<AUDIT_RECORD>/);
+        $event_end_found = 1 if ($row =~ /<\/AUDIT_RECORD>/);
+
+        if ($event_start_found && !$event_end_found) {
+          $result .= $row;
+        }
+
+        if ($event_start_found && $event_end_found) {
+          break;
+        }
+      }
+    }
+    elsif ($format eq 'json') {
+      my $num_opening_tags = 0;
+      my $num_closing_tags = 0;
+
+      while (my $row = <$fh>) {
+        next if ($row =~ /\{.*\}/);
+
+        $num_opening_tags++ if ($row =~ /\{/);
+        $num_closing_tags++ if ($row =~ /\}/);
+
+        if ($num_opening_tags > 0) {
+          $result .= $row;
+        }
+
+        if ($num_opening_tags > 0 && $num_closing_tags > 0 &&
+            $num_opening_tags == $num_closing_tags) {
+          break;
+        }
+      }
+    }
+    else {
+      die "Unknown log format '$format'\n";
+    }
+
+    $result =~ s/\R//g;
+
+    return $result;
+  }
+
 EOF

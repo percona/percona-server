@@ -17,7 +17,6 @@
 
 #include "plugin/audit_log_filter/audit_filter.h"
 #include "plugin/audit_log_filter/audit_log_filter.h"
-#include "plugin/audit_log_filter/audit_record.h"
 #include "plugin/audit_log_filter/audit_rule.h"
 #include "plugin/audit_log_filter/audit_rule_registry.h"
 #include "plugin/audit_log_filter/audit_udf.h"
@@ -28,6 +27,9 @@
 #include "plugin/audit_log_filter/sys_vars.h"
 #include "plugin/audit_log_filter/table_access_services.h"
 #include "plugin/audit_log_filter/udf_services.h"
+
+#include <mysql/components/services/mysql_connection_attributes_iterator.h>
+#include <mysql/service_plugin_registry.h>
 
 #include "mysql/plugin.h"
 #include "sql/debug_sync.h"
@@ -397,6 +399,10 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     return 1;
   }
 
+  if (event_class == mysql_event_class_t::MYSQL_AUDIT_CONNECTION_CLASS) {
+    get_connection_attrs(thd, audit_record);
+  }
+
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Writing audit event '%s' with class %i to audit log",
                   ev_name.data(), event_class);
@@ -419,6 +425,41 @@ void AuditLogFilter::on_audit_log_flush_requested() noexcept {
 
 void AuditLogFilter::on_audit_log_prune_requested() noexcept {
   m_log_writer->prune();
+}
+
+void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
+                                          AuditRecordVariant &audit_record) {
+  SERVICE_TYPE(registry) *reg_srv = mysql_plugin_registry_acquire();
+  my_service<SERVICE_TYPE(mysql_connection_attributes_iterator)> attrs_service(
+      "mysql_connection_attributes_iterator", reg_srv);
+
+  if (!attrs_service.is_valid()) {
+    return;
+  }
+
+  my_h_connection_attributes_iterator iterator;
+  MYSQL_LEX_CSTRING attr_name{nullptr, 0};
+  MYSQL_LEX_CSTRING attr_value{nullptr, 0};
+  const char *charset_string = nullptr;
+
+  if (attrs_service->init(thd, &iterator)) {
+    return;
+  }
+
+  auto &info =
+      std::visit([](auto &rec) -> ExtendedInfo & { return rec.extended_info; },
+                 audit_record);
+
+  while (!attrs_service->get(thd, &iterator, &attr_name.str, &attr_name.length,
+                             &attr_value.str, &attr_value.length,
+                             &charset_string)) {
+    info.attrs.emplace(std::string{attr_name.str, attr_name.length},
+                       std::string{attr_value.str, attr_value.length});
+  }
+
+  attrs_service->deinit(iterator);
+
+  mysql_plugin_registry_release(reg_srv);
 }
 
 }  // namespace audit_log_filter

@@ -1763,6 +1763,7 @@ void dd_part_adjust_table_id(dd::Table *new_table) {
 void dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
   dd_table.se_private_data().remove(
       dd_table_key_strings[DD_TABLE_INSTANT_COLS]);
+  std::vector<dd::Column *> cols_to_remove;
 
   for (auto col : *dd_table.columns()) {
     auto fn = [&](const char *s) {
@@ -1781,12 +1782,25 @@ void dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
       fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
       fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
     } else {
-      /* Possibly an INSTANT ADD/DROP column with a version */
-      fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
-      fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
-      fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
-      fn(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED]);
-      fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
+      if (dd_column_is_dropped(col)) {
+        cols_to_remove.push_back(col);
+      } else {
+        /* Possibly an INSTANT ADD/DROP column with a version */
+        fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
+        fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
+        fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
+        fn(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED]);
+        fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
+      }
+    }
+  }
+
+  if (cols_to_remove.size() > 0) {
+    dd::Abstract_table::Column_collection *col_collection = dd_table.columns();
+    for (auto col : cols_to_remove) {
+      ut_ad(std::find(col_collection->begin(), col_collection->end(), col) !=
+            col_collection->end());
+      col_collection->remove(dynamic_cast<dd::Column_impl *>(col));
     }
   }
 }

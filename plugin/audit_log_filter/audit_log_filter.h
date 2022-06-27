@@ -18,6 +18,7 @@
 
 #include "mysql/plugin_audit.h"
 #include "plugin/audit_log_filter/audit_base_mediator.h"
+#include "plugin/audit_log_filter/audit_record.h"
 
 namespace audit_log_filter {
 namespace log_writer {
@@ -70,6 +71,10 @@ class AuditLogFilter : public AuditBaseMediator {
    * @brief Handle log files prunning request.
    */
   void on_audit_log_prune_requested() noexcept override;
+
+ private:
+  static void get_connection_attrs(MYSQL_THD thd,
+                                   AuditRecordVariant &audit_record);
 
  private:
   std::unique_ptr<AuditRuleRegistry> m_audit_rules_registry;

@@ -66,12 +66,12 @@ bool EventFieldActionReplaceField::apply(
   if (std::holds_alternative<AuditRecordGeneral>(audit_record)) {
     auto *rec = std::get_if<AuditRecordGeneral>(&audit_record);
     if (rec != nullptr) {
-      rec->digest = std::move(new_value);
+      rec->extended_info.digest = std::move(new_value);
     }
   } else if (std::holds_alternative<AuditRecordTableAccess>(audit_record)) {
     auto *rec = std::get_if<AuditRecordTableAccess>(&audit_record);
     if (rec != nullptr) {
-      rec->digest = std::move(new_value);
+      rec->extended_info.digest = std::move(new_value);
     }
   }
 

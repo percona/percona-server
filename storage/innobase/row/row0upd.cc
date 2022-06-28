@@ -635,13 +635,19 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
 
     len = dfield_get_len(new_val);
 
+    /* DD tables do not have their field physical positions determined and they
+    never undergo INSTANT ADD/DROP COLUMN. So use field_no for them or for any
+    indexes that do not have row_versions */
+    ulint field_off = index->has_row_versions() ? upd_field->field_phy_pos
+                                                : upd_field->field_no;
+
     /* If this is a virtual column, mark it using special
     field_no */
-    ulint field_no = upd_fld_is_virtual_col(upd_field)
-                         ? REC_MAX_N_FIELDS + upd_field->field_no
-                         : upd_field->field_no;
+    ulint field_pos = upd_fld_is_virtual_col(upd_field)
+                          ? REC_MAX_N_FIELDS + field_off
+                          : field_off;
 
-    log_ptr += mach_write_compressed(log_ptr, field_no);
+    log_ptr += mach_write_compressed(log_ptr, field_pos);
     log_ptr += mach_write_compressed(log_ptr, len);
 
     if (len != UNIV_SQL_NULL) {

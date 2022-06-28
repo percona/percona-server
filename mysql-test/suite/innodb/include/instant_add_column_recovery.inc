@@ -10,7 +10,7 @@ INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 
 
 let $new_cols = 1;
-let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
@@ -47,7 +47,7 @@ SELECT * FROM t1;
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 
 let $new_cols = 2;
-let $instant_add_column = ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
+let $instant_add_column = ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!', ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
@@ -74,7 +74,7 @@ INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 
 
 let $new_cols = 1;
-let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
@@ -177,7 +177,7 @@ INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 
 
 let $new_cols = 1;
-let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 

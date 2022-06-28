@@ -25,7 +25,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	6	0	1	2	3	3
@@ -54,7 +54,7 @@ drop table t1;
 # Scenario 2
 create table t1 (c1 char(10), c2 char(10), c3 char(10));
 insert into t1 values ("r1c1", "r1c2", "r1c3");
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	5	0	1	3	2	3
@@ -102,7 +102,7 @@ insert into t1 values ("r1c1", "r1c2", "r1c3");
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	r1c3
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	r1c3
@@ -110,12 +110,12 @@ drop table t1;
 # Scenario 5
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 select * from t1;
 c1	c3	c2
 r1c1	def_c3	r1c2
 insert into t1 value ("r2c1", "r2c3", "r2c2");
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	def_c3
@@ -124,7 +124,7 @@ drop table t1;
 # Scenario 6
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c2 char(10) default "def_c3", drop column c2;
+alter table t1 add column c2 char(10) default "def_c3", drop column c2, algorithm=instant;
 select * from t1;
 c1	c2
 r1c1	def_c3
@@ -137,7 +137,7 @@ drop table t1;
 # Scenario 7
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c3 int after c1;
+alter table t1 add column c3 int after c1, algorithm=instant;
 select * from t1;
 c1	c3	c2
 r1c1	NULL	r1c2
@@ -146,7 +146,7 @@ select * from t1;
 c1	c3	c2
 r1c1	NULL	r1c2
 r2c1	3	r2c2
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	NULL
@@ -158,7 +158,7 @@ insert into t1 values ("r1c1", NULL, "r1c3");
 select * from t1;
 c1	c2	c3
 r1c1	NULL	r1c3
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	5	0	1	3	2	3
@@ -185,11 +185,11 @@ drop table t1;
 # Scenario 9
 CREATE TABLE t1 (C1 char(10), C2 char(10), C3 char(10)) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
-alter table t1 drop column c1;
+alter table t1 drop column c1, algorithm=instant;
 select * from t1;
 C2	C3
 r1c2	r1c3
-alter table t1 drop column c3;
+alter table t1 drop column c3, algorithm=instant;
 select * from t1;
 C2
 r1c2
@@ -200,7 +200,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3";
+alter table t1 add column c3 char(10) default "def_c3", algorithm=instant;
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	def_c3
@@ -235,7 +235,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 DROP COLUMN col7;
-ALTER TABLE t1 DROP COLUMN col6, DROP COLUMN col9;
+ALTER TABLE t1 DROP COLUMN col6, DROP COLUMN col9, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 15
 create table t1(a text, b text, fulltext(a,b));
@@ -257,7 +257,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 char(20), c2 char(20), c3 char(20), c4 char(20)) ROW_FORMAT=REDUNDANT;
 ALTER TABLE t1 DROP COLUMN c4, ALGORITHM=INSTANT;
 ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
-ALTER TABLE test.t1 ADD c6 char(20), DROP COLUMN c3;
+ALTER TABLE test.t1 ADD c6 char(20), DROP COLUMN c3, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 18
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2)) ROW_FORMAT=REDUNDANT;
@@ -272,11 +272,11 @@ Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 DROP TABLE t1;
 # Scenario 19
 CREATE TABLE t1 (a INT, b INT, c INT, d INT) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
-ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 FIRST;
+ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 FIRST, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE aa e INT;
 INSERT INTO t1 VALUES (1,1,1,1,1);
-ALTER TABLE t1 ADD COLUMN a INT DEFAULT 1 FIRST, DROP COLUMN a, CHANGE b b INT;
-ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 AFTER a, DROP COLUMN b, CHANGE c c INT;
+ALTER TABLE t1 ADD COLUMN a INT DEFAULT 1 FIRST, DROP COLUMN a, CHANGE b b INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 AFTER a, DROP COLUMN b, CHANGE c c INT, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE aa b INT;
 DROP TABLE t1;
 # Scenario 20
@@ -328,7 +328,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	6	0	1	2	3	3
@@ -353,7 +353,7 @@ select * from t1;
 c1	c3	c2
 r1c1	def_c3	r1c2
 r2c1	r2c3	r2c2
-alter table t1 add column c3 char(10) default "newnewnew", drop column c3;
+alter table t1 add column c3 char(10) default "newnewnew", drop column c3, algorithm=instant;
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	newnewnew
@@ -361,8 +361,8 @@ r2c1	r2c2	newnewnew
 DROP TABLE t1;
 # Scenario 24
 CREATE TABLE t1 (c1 char(10)) ROW_FORMAT=REDUNDANT;
-ALTER TABLE t1 ADD COLUMN c2 INT;
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 INSERT INTO t1 (c1) VALUES("aaaa");
 select * from t1;
 c1
@@ -373,7 +373,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 # Scenario 25
 CREATE TABLE t1 (c1 int, c2 char(10)) ROW_FORMAT=REDUNDANT PARTITION BY HASH (c1) PARTITIONS 2;
-alter table t1 drop column c2;
+alter table t1 drop column c2, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 26
 CREATE TABLE t1 (c1 char(10) KEY, c2 char(10)) ROW_FORMAT=REDUNDANT;
@@ -394,8 +394,8 @@ ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 27
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL;
-ALTER TABLE t1 ADD COLUMN d VARCHAR(100);
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN d VARCHAR(100), ALGORITHM=INSTANT;
 INSERT INTO t1 VALUES(0, 5, 20, 'Hello world');
 DROP TABLE t1;
 # Scenario 28
@@ -408,7 +408,7 @@ a	b
 3	3
 4	4
 5	5
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 SELECT * from t1;
 a	b	c	d	e
 1	1	100	201	Hello world
@@ -466,7 +466,7 @@ DROP TABLE t1;
 # Scenario 31
 CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES("r1c1", "r1c2");
-ALTER TABLE t1 ADD COLUMN c3 char(10) default "def_c3";
+ALTER TABLE t1 ADD COLUMN c3 char(10) default "def_c3", ALGORITHM=INSTANT;
 SELECT * from t1;
 c1	c2	c3
 r1c1	r1c2	def_c3
@@ -482,7 +482,7 @@ DROP TABLE t1;
 # Scenario 32
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b)) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (1, 2), (2, 3), (3, 4);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -881,7 +881,7 @@ DROP TABLE t1;
 # Scenario 41
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 TEXT) ROW_FORMAT=REDUNDANT PARTITION BY RANGE(col1 * 2)  (PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256), PARTITION p2 VALUES LESS THAN (384), PARTITION p3 VALUES LESS THAN MAXVALUE);;
 INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
-ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500) default "def", ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500) default "def", ADD COLUMN col6 TEXT, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -944,7 +944,7 @@ c1	c2	c3	col4
 1	r1c2	r1c3	def_4
 100	r2c2	r2c3	def_4
 200	r3c2	r3c3	def_4
-ALTER TABLE t1 ALGORITHM INSTANT, DROP COLUMN c2;
+ALTER TABLE t1 ALGORITHM INSTANT, DROP COLUMN c2, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1004,7 +1004,7 @@ a	b
 2	2
 5	5
 8	8
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1073,7 +1073,7 @@ DROP TABLE t1;
 # Scenario 46
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 6, 6);
-ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT * FROM t1;
 a	b	c	d
 1	1	1	10
@@ -1099,7 +1099,7 @@ a	b	d
 DROP TABLE t1;
 # Scenario 47
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20));
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT NAME, POS, MTYPE, PRTYPE, LEN, HAS_DEFAULT, DEFAULT_VALUE, VERSION_ADDED, VERSION_DROPPED, PHYSICAL_POS FROM information_schema.innodb_columns WHERE has_default = 1;
 NAME	POS	MTYPE	PRTYPE	LEN	HAS_DEFAULT	DEFAULT_VALUE	VERSION_ADDED	VERSION_DROPPED	PHYSICAL_POS
 c	2	6	1027	4	1	80000064	1	0	4
@@ -1113,9 +1113,9 @@ c	2	6	1027	4	1	80000064	1	0	4
 DROP TABLE t1;
 # Scenario 48
 CREATE TABLE t1 (c1 integer PRIMARY KEY AUTO_INCREMENT, c2 integer NULL UNIQUE) ROW_FORMAT=REDUNDANT;
-ALTER TABLE t1 ADD COLUMN c3 int;
-ALTER TABLE t1 DROP COLUMN c3;
-ALTER TABLE t1 ADD COLUMN c4 int DEFAULT 1;
+ALTER TABLE t1 ADD COLUMN c3 int, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c4 int DEFAULT 1, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE COLUMN c4 c4_new int NULL DEFAULT 1;
 ALTER TABLE t1 CHANGE COLUMN c4_new c4_new int NULL DEFAULT 1;
 DROP TABLE t1;
@@ -1142,7 +1142,7 @@ row2_c2	y
 DROP TABLE t1;
 # Scenario 50
 CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 truncate table t1;
 truncate table t1;
 truncate table t1;
@@ -1168,7 +1168,7 @@ ALTER TABLE t1 DROP COLUMN c4, ALGORITHM=INSTANT;
 SELECT * FROM t1;
 c1	c2	c5
 1	1	0
-ALTER TABLE t1 ADD COLUMN c6 DOUBLE GENERATED ALWAYS AS (2*c1+c2) VIRTUAL, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c6 DOUBLE GENERATED ALWAYS AS (2*c1+c2) VIRTUAL;
 SELECT * FROM t1;
 c1	c2	c5	c6
 1	1	0	3
@@ -1332,7 +1332,7 @@ DROP TABLE t1;
 # When a table is truncated, it's instant metadata is reset. It shall
 # also reset instant metadata of columns.
 CREATE TABLE t1 (c1 VARCHAR(1008)) ROW_FORMAT=REDUNDANT;
-ALTER TABLE t1 ADD COLUMN c2 INT;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 TRUNCATE TABLE t1;
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),1);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),2);
@@ -1342,7 +1342,7 @@ INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),5);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),6);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),7);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),8);
-ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500);
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500), ALGORITHM=INSTANT;
 UPDATE t1 SET c3 = CONCAT(REPEAT('c', 500));
 DROP TABLE t1;
 # Scenario 62
@@ -1352,9 +1352,9 @@ INSERT INTO t1 VALUES ("r1c1");
 SELECT * FROM t1;
 c1
 r1c1
-ALTER TABLE t1 ADD COLUMN c2 INT;
-ALTER TABLE t1 DROP COLUMN c2;
-ALTER TABLE t1 ADD COLUMN c3 TEXT;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c3 TEXT, ALGORITHM=INSTANT;
 UPDATE t1 SET c3 = CONCAT(REPEAT('z', 8204));
 ALTER TABLE t1 ADD PRIMARY KEY (c3(10)), ADD FULLTEXT KEY idx (c3);
 Warnings:
@@ -1397,7 +1397,7 @@ a	b
 SELECT * FROM t1 PARTITION (p2);
 a	b
 15	150
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
 a	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
@@ -1658,7 +1658,7 @@ REPEAT("5", 49),
 REPEAT("6", 59),
 REPEAT("7", 69),
 REPEAT("8", 79));
-Alter table t1 add column c9 char(90);
+Alter table t1 add column c9 char(90), algorithm=instant;
 Insert into t1 values(
 REPEAT("c", 8),
 REPEAT("1", 9),
@@ -1829,7 +1829,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	6	0	1	2	3	3
@@ -1858,7 +1858,7 @@ drop table t1;
 # Scenario 2
 create table t1 (c1 char(10), c2 char(10), c3 char(10));
 insert into t1 values ("r1c1", "r1c2", "r1c3");
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	5	0	1	3	2	3
@@ -1906,7 +1906,7 @@ insert into t1 values ("r1c1", "r1c2", "r1c3");
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	r1c3
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	r1c3
@@ -1914,12 +1914,12 @@ drop table t1;
 # Scenario 5
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 select * from t1;
 c1	c3	c2
 r1c1	def_c3	r1c2
 insert into t1 value ("r2c1", "r2c3", "r2c2");
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	def_c3
@@ -1928,7 +1928,7 @@ drop table t1;
 # Scenario 6
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c2 char(10) default "def_c3", drop column c2;
+alter table t1 add column c2 char(10) default "def_c3", drop column c2, algorithm=instant;
 select * from t1;
 c1	c2
 r1c1	def_c3
@@ -1941,7 +1941,7 @@ drop table t1;
 # Scenario 7
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c3 int after c1;
+alter table t1 add column c3 int after c1, algorithm=instant;
 select * from t1;
 c1	c3	c2
 r1c1	NULL	r1c2
@@ -1950,7 +1950,7 @@ select * from t1;
 c1	c3	c2
 r1c1	NULL	r1c2
 r2c1	3	r2c2
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	NULL
@@ -1962,7 +1962,7 @@ insert into t1 values ("r1c1", NULL, "r1c3");
 select * from t1;
 c1	c2	c3
 r1c1	NULL	r1c3
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	5	0	1	3	2	3
@@ -1989,11 +1989,11 @@ drop table t1;
 # Scenario 9
 CREATE TABLE t1 (C1 char(10), C2 char(10), C3 char(10)) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
-alter table t1 drop column c1;
+alter table t1 drop column c1, algorithm=instant;
 select * from t1;
 C2	C3
 r1c2	r1c3
-alter table t1 drop column c3;
+alter table t1 drop column c3, algorithm=instant;
 select * from t1;
 C2
 r1c2
@@ -2004,7 +2004,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3";
+alter table t1 add column c3 char(10) default "def_c3", algorithm=instant;
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	def_c3
@@ -2039,7 +2039,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 DROP COLUMN col7;
-ALTER TABLE t1 DROP COLUMN col6, DROP COLUMN col9;
+ALTER TABLE t1 DROP COLUMN col6, DROP COLUMN col9, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 15
 create table t1(a text, b text, fulltext(a,b));
@@ -2061,7 +2061,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 char(20), c2 char(20), c3 char(20), c4 char(20)) ROW_FORMAT=DYNAMIC;
 ALTER TABLE t1 DROP COLUMN c4, ALGORITHM=INSTANT;
 ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
-ALTER TABLE test.t1 ADD c6 char(20), DROP COLUMN c3;
+ALTER TABLE test.t1 ADD c6 char(20), DROP COLUMN c3, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 18
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2)) ROW_FORMAT=DYNAMIC;
@@ -2076,11 +2076,11 @@ Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 DROP TABLE t1;
 # Scenario 19
 CREATE TABLE t1 (a INT, b INT, c INT, d INT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
-ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 FIRST;
+ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 FIRST, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE aa e INT;
 INSERT INTO t1 VALUES (1,1,1,1,1);
-ALTER TABLE t1 ADD COLUMN a INT DEFAULT 1 FIRST, DROP COLUMN a, CHANGE b b INT;
-ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 AFTER a, DROP COLUMN b, CHANGE c c INT;
+ALTER TABLE t1 ADD COLUMN a INT DEFAULT 1 FIRST, DROP COLUMN a, CHANGE b b INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 AFTER a, DROP COLUMN b, CHANGE c c INT, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE aa b INT;
 DROP TABLE t1;
 # Scenario 20
@@ -2132,7 +2132,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	6	0	1	2	3	3
@@ -2157,7 +2157,7 @@ select * from t1;
 c1	c3	c2
 r1c1	def_c3	r1c2
 r2c1	r2c3	r2c2
-alter table t1 add column c3 char(10) default "newnewnew", drop column c3;
+alter table t1 add column c3 char(10) default "newnewnew", drop column c3, algorithm=instant;
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	newnewnew
@@ -2165,8 +2165,8 @@ r2c1	r2c2	newnewnew
 DROP TABLE t1;
 # Scenario 24
 CREATE TABLE t1 (c1 char(10)) ROW_FORMAT=DYNAMIC;
-ALTER TABLE t1 ADD COLUMN c2 INT;
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 INSERT INTO t1 (c1) VALUES("aaaa");
 select * from t1;
 c1
@@ -2177,7 +2177,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 # Scenario 25
 CREATE TABLE t1 (c1 int, c2 char(10)) ROW_FORMAT=DYNAMIC PARTITION BY HASH (c1) PARTITIONS 2;
-alter table t1 drop column c2;
+alter table t1 drop column c2, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 26
 CREATE TABLE t1 (c1 char(10) KEY, c2 char(10)) ROW_FORMAT=DYNAMIC;
@@ -2198,8 +2198,8 @@ ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 27
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL;
-ALTER TABLE t1 ADD COLUMN d VARCHAR(100);
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN d VARCHAR(100), ALGORITHM=INSTANT;
 INSERT INTO t1 VALUES(0, 5, 20, 'Hello world');
 DROP TABLE t1;
 # Scenario 28
@@ -2212,7 +2212,7 @@ a	b
 3	3
 4	4
 5	5
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 SELECT * from t1;
 a	b	c	d	e
 1	1	100	201	Hello world
@@ -2270,7 +2270,7 @@ DROP TABLE t1;
 # Scenario 31
 CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES("r1c1", "r1c2");
-ALTER TABLE t1 ADD COLUMN c3 char(10) default "def_c3";
+ALTER TABLE t1 ADD COLUMN c3 char(10) default "def_c3", ALGORITHM=INSTANT;
 SELECT * from t1;
 c1	c2	c3
 r1c1	r1c2	def_c3
@@ -2286,7 +2286,7 @@ DROP TABLE t1;
 # Scenario 32
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b)) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (1, 2), (2, 3), (3, 4);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -2685,7 +2685,7 @@ DROP TABLE t1;
 # Scenario 41
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 TEXT) ROW_FORMAT=DYNAMIC PARTITION BY RANGE(col1 * 2)  (PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256), PARTITION p2 VALUES LESS THAN (384), PARTITION p3 VALUES LESS THAN MAXVALUE);;
 INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
-ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500) default "def", ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500) default "def", ADD COLUMN col6 TEXT, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -2748,7 +2748,7 @@ c1	c2	c3	col4
 1	r1c2	r1c3	def_4
 100	r2c2	r2c3	def_4
 200	r3c2	r3c3	def_4
-ALTER TABLE t1 ALGORITHM INSTANT, DROP COLUMN c2;
+ALTER TABLE t1 ALGORITHM INSTANT, DROP COLUMN c2, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -2808,7 +2808,7 @@ a	b
 2	2
 5	5
 8	8
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -2877,7 +2877,7 @@ DROP TABLE t1;
 # Scenario 46
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 6, 6);
-ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT * FROM t1;
 a	b	c	d
 1	1	1	10
@@ -2903,7 +2903,7 @@ a	b	d
 DROP TABLE t1;
 # Scenario 47
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20));
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT NAME, POS, MTYPE, PRTYPE, LEN, HAS_DEFAULT, DEFAULT_VALUE, VERSION_ADDED, VERSION_DROPPED, PHYSICAL_POS FROM information_schema.innodb_columns WHERE has_default = 1;
 NAME	POS	MTYPE	PRTYPE	LEN	HAS_DEFAULT	DEFAULT_VALUE	VERSION_ADDED	VERSION_DROPPED	PHYSICAL_POS
 c	2	6	1027	4	1	80000064	1	0	4
@@ -2917,9 +2917,9 @@ c	2	6	1027	4	1	80000064	1	0	4
 DROP TABLE t1;
 # Scenario 48
 CREATE TABLE t1 (c1 integer PRIMARY KEY AUTO_INCREMENT, c2 integer NULL UNIQUE) ROW_FORMAT=DYNAMIC;
-ALTER TABLE t1 ADD COLUMN c3 int;
-ALTER TABLE t1 DROP COLUMN c3;
-ALTER TABLE t1 ADD COLUMN c4 int DEFAULT 1;
+ALTER TABLE t1 ADD COLUMN c3 int, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c4 int DEFAULT 1, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE COLUMN c4 c4_new int NULL DEFAULT 1;
 ALTER TABLE t1 CHANGE COLUMN c4_new c4_new int NULL DEFAULT 1;
 DROP TABLE t1;
@@ -2946,7 +2946,7 @@ row2_c2	y
 DROP TABLE t1;
 # Scenario 50
 CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 truncate table t1;
 truncate table t1;
 truncate table t1;
@@ -2972,7 +2972,7 @@ ALTER TABLE t1 DROP COLUMN c4, ALGORITHM=INSTANT;
 SELECT * FROM t1;
 c1	c2	c5
 1	1	0
-ALTER TABLE t1 ADD COLUMN c6 DOUBLE GENERATED ALWAYS AS (2*c1+c2) VIRTUAL, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c6 DOUBLE GENERATED ALWAYS AS (2*c1+c2) VIRTUAL;
 SELECT * FROM t1;
 c1	c2	c5	c6
 1	1	0	3
@@ -3136,7 +3136,7 @@ DROP TABLE t1;
 # When a table is truncated, it's instant metadata is reset. It shall
 # also reset instant metadata of columns.
 CREATE TABLE t1 (c1 VARCHAR(1008)) ROW_FORMAT=DYNAMIC;
-ALTER TABLE t1 ADD COLUMN c2 INT;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 TRUNCATE TABLE t1;
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),1);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),2);
@@ -3146,7 +3146,7 @@ INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),5);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),6);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),7);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),8);
-ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500);
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500), ALGORITHM=INSTANT;
 UPDATE t1 SET c3 = CONCAT(REPEAT('c', 500));
 DROP TABLE t1;
 # Scenario 62
@@ -3156,9 +3156,9 @@ INSERT INTO t1 VALUES ("r1c1");
 SELECT * FROM t1;
 c1
 r1c1
-ALTER TABLE t1 ADD COLUMN c2 INT;
-ALTER TABLE t1 DROP COLUMN c2;
-ALTER TABLE t1 ADD COLUMN c3 TEXT;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c3 TEXT, ALGORITHM=INSTANT;
 UPDATE t1 SET c3 = CONCAT(REPEAT('z', 8204));
 ALTER TABLE t1 ADD PRIMARY KEY (c3(10)), ADD FULLTEXT KEY idx (c3);
 Warnings:
@@ -3201,7 +3201,7 @@ a	b
 SELECT * FROM t1 PARTITION (p2);
 a	b
 15	150
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
 a	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
@@ -3462,7 +3462,7 @@ REPEAT("5", 49),
 REPEAT("6", 59),
 REPEAT("7", 69),
 REPEAT("8", 79));
-Alter table t1 add column c9 char(90);
+Alter table t1 add column c9 char(90), algorithm=instant;
 Insert into t1 values(
 REPEAT("c", 8),
 REPEAT("1", 9),
@@ -3633,7 +3633,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	6	0	1	2	3	3
@@ -3662,7 +3662,7 @@ drop table t1;
 # Scenario 2
 create table t1 (c1 char(10), c2 char(10), c3 char(10));
 insert into t1 values ("r1c1", "r1c2", "r1c3");
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	5	0	1	3	2	3
@@ -3710,7 +3710,7 @@ insert into t1 values ("r1c1", "r1c2", "r1c3");
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	r1c3
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	r1c3
@@ -3718,12 +3718,12 @@ drop table t1;
 # Scenario 5
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 select * from t1;
 c1	c3	c2
 r1c1	def_c3	r1c2
 insert into t1 value ("r2c1", "r2c3", "r2c2");
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	def_c3
@@ -3732,7 +3732,7 @@ drop table t1;
 # Scenario 6
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c2 char(10) default "def_c3", drop column c2;
+alter table t1 add column c2 char(10) default "def_c3", drop column c2, algorithm=instant;
 select * from t1;
 c1	c2
 r1c1	def_c3
@@ -3745,7 +3745,7 @@ drop table t1;
 # Scenario 7
 create table t1 (c1 char(10), c2 char(10));
 insert into t1 values ("r1c1", "r1c2");
-alter table t1 add column c3 int after c1;
+alter table t1 add column c3 int after c1, algorithm=instant;
 select * from t1;
 c1	c3	c2
 r1c1	NULL	r1c2
@@ -3754,7 +3754,7 @@ select * from t1;
 c1	c3	c2
 r1c1	NULL	r1c2
 r2c1	3	r2c2
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 select * from t1;
 c1	c3
 r1c1	NULL
@@ -3766,7 +3766,7 @@ insert into t1 values ("r1c1", NULL, "r1c3");
 select * from t1;
 c1	c2	c3
 r1c1	NULL	r1c3
-alter table t1 drop column c2;
+alter table t1 drop column c2, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	5	0	1	3	2	3
@@ -3793,11 +3793,11 @@ drop table t1;
 # Scenario 9
 CREATE TABLE t1 (C1 char(10), C2 char(10), C3 char(10)) ROW_FORMAT=COMPACT;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
-alter table t1 drop column c1;
+alter table t1 drop column c1, algorithm=instant;
 select * from t1;
 C2	C3
 r1c2	r1c3
-alter table t1 drop column c3;
+alter table t1 drop column c3, algorithm=instant;
 select * from t1;
 C2
 r1c2
@@ -3808,7 +3808,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3";
+alter table t1 add column c3 char(10) default "def_c3", algorithm=instant;
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	def_c3
@@ -3843,7 +3843,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 DROP COLUMN col7;
-ALTER TABLE t1 DROP COLUMN col6, DROP COLUMN col9;
+ALTER TABLE t1 DROP COLUMN col6, DROP COLUMN col9, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 15
 create table t1(a text, b text, fulltext(a,b));
@@ -3865,7 +3865,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 char(20), c2 char(20), c3 char(20), c4 char(20)) ROW_FORMAT=COMPACT;
 ALTER TABLE t1 DROP COLUMN c4, ALGORITHM=INSTANT;
 ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
-ALTER TABLE test.t1 ADD c6 char(20), DROP COLUMN c3;
+ALTER TABLE test.t1 ADD c6 char(20), DROP COLUMN c3, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 18
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2)) ROW_FORMAT=COMPACT;
@@ -3880,11 +3880,11 @@ Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 DROP TABLE t1;
 # Scenario 19
 CREATE TABLE t1 (a INT, b INT, c INT, d INT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
-ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 FIRST;
+ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 FIRST, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE aa e INT;
 INSERT INTO t1 VALUES (1,1,1,1,1);
-ALTER TABLE t1 ADD COLUMN a INT DEFAULT 1 FIRST, DROP COLUMN a, CHANGE b b INT;
-ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 AFTER a, DROP COLUMN b, CHANGE c c INT;
+ALTER TABLE t1 ADD COLUMN a INT DEFAULT 1 FIRST, DROP COLUMN a, CHANGE b b INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN aa INT DEFAULT 1 AFTER a, DROP COLUMN b, CHANGE c c INT, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE aa b INT;
 DROP TABLE t1;
 # Scenario 20
@@ -3936,7 +3936,7 @@ insert into t1 values ("r1c1", "r1c2");
 select * from t1;
 c1	c2
 r1c1	r1c2
-alter table t1 add column c3 char(10) default "def_c3" after c1;
+alter table t1 add column c3 char(10) default "def_c3" after c1, algorithm=instant;
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1	6	0	1	2	3	3
@@ -3961,7 +3961,7 @@ select * from t1;
 c1	c3	c2
 r1c1	def_c3	r1c2
 r2c1	r2c3	r2c2
-alter table t1 add column c3 char(10) default "newnewnew", drop column c3;
+alter table t1 add column c3 char(10) default "newnewnew", drop column c3, algorithm=instant;
 select * from t1;
 c1	c2	c3
 r1c1	r1c2	newnewnew
@@ -3969,8 +3969,8 @@ r2c1	r2c2	newnewnew
 DROP TABLE t1;
 # Scenario 24
 CREATE TABLE t1 (c1 char(10)) ROW_FORMAT=COMPACT;
-ALTER TABLE t1 ADD COLUMN c2 INT;
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 INSERT INTO t1 (c1) VALUES("aaaa");
 select * from t1;
 c1
@@ -3981,7 +3981,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 # Scenario 25
 CREATE TABLE t1 (c1 int, c2 char(10)) ROW_FORMAT=COMPACT PARTITION BY HASH (c1) PARTITIONS 2;
-alter table t1 drop column c2;
+alter table t1 drop column c2, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 26
 CREATE TABLE t1 (c1 char(10) KEY, c2 char(10)) ROW_FORMAT=COMPACT;
@@ -4002,8 +4002,8 @@ ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 DROP TABLE t1;
 # Scenario 27
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL;
-ALTER TABLE t1 ADD COLUMN d VARCHAR(100);
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN d VARCHAR(100), ALGORITHM=INSTANT;
 INSERT INTO t1 VALUES(0, 5, 20, 'Hello world');
 DROP TABLE t1;
 # Scenario 28
@@ -4016,7 +4016,7 @@ a	b
 3	3
 4	4
 5	5
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 SELECT * from t1;
 a	b	c	d	e
 1	1	100	201	Hello world
@@ -4074,7 +4074,7 @@ DROP TABLE t1;
 # Scenario 31
 CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES("r1c1", "r1c2");
-ALTER TABLE t1 ADD COLUMN c3 char(10) default "def_c3";
+ALTER TABLE t1 ADD COLUMN c3 char(10) default "def_c3", ALGORITHM=INSTANT;
 SELECT * from t1;
 c1	c2	c3
 r1c1	r1c2	def_c3
@@ -4090,7 +4090,7 @@ DROP TABLE t1;
 # Scenario 32
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b)) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (1, 2), (2, 3), (3, 4);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -4489,7 +4489,7 @@ DROP TABLE t1;
 # Scenario 41
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 TEXT) ROW_FORMAT=COMPACT PARTITION BY RANGE(col1 * 2)  (PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256), PARTITION p2 VALUES LESS THAN (384), PARTITION p3 VALUES LESS THAN MAXVALUE);;
 INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
-ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500) default "def", ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500) default "def", ADD COLUMN col6 TEXT, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -4552,7 +4552,7 @@ c1	c2	c3	col4
 1	r1c2	r1c3	def_4
 100	r2c2	r2c3	def_4
 200	r3c2	r3c3	def_4
-ALTER TABLE t1 ALGORITHM INSTANT, DROP COLUMN c2;
+ALTER TABLE t1 ALGORITHM INSTANT, DROP COLUMN c2, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -4612,7 +4612,7 @@ a	b
 2	2
 5	5
 8	8
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -4681,7 +4681,7 @@ DROP TABLE t1;
 # Scenario 46
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 6, 6);
-ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10, ALGORITHM=INSTANT;
 SELECT * FROM t1;
 a	b	c	d
 1	1	1	10
@@ -4707,7 +4707,7 @@ a	b	d
 DROP TABLE t1;
 # Scenario 47
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT) ROW_FORMAT=COMPACT PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20));
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 SELECT NAME, POS, MTYPE, PRTYPE, LEN, HAS_DEFAULT, DEFAULT_VALUE, VERSION_ADDED, VERSION_DROPPED, PHYSICAL_POS FROM information_schema.innodb_columns WHERE has_default = 1;
 NAME	POS	MTYPE	PRTYPE	LEN	HAS_DEFAULT	DEFAULT_VALUE	VERSION_ADDED	VERSION_DROPPED	PHYSICAL_POS
 c	2	6	1027	4	1	80000064	1	0	4
@@ -4721,9 +4721,9 @@ c	2	6	1027	4	1	80000064	1	0	4
 DROP TABLE t1;
 # Scenario 48
 CREATE TABLE t1 (c1 integer PRIMARY KEY AUTO_INCREMENT, c2 integer NULL UNIQUE) ROW_FORMAT=COMPACT;
-ALTER TABLE t1 ADD COLUMN c3 int;
-ALTER TABLE t1 DROP COLUMN c3;
-ALTER TABLE t1 ADD COLUMN c4 int DEFAULT 1;
+ALTER TABLE t1 ADD COLUMN c3 int, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c4 int DEFAULT 1, ALGORITHM=INSTANT;
 ALTER TABLE t1 CHANGE COLUMN c4 c4_new int NULL DEFAULT 1;
 ALTER TABLE t1 CHANGE COLUMN c4_new c4_new int NULL DEFAULT 1;
 DROP TABLE t1;
@@ -4750,7 +4750,7 @@ row2_c2	y
 DROP TABLE t1;
 # Scenario 50
 CREATE TABLE t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
-ALTER TABLE t1 DROP COLUMN c2;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
 truncate table t1;
 truncate table t1;
 truncate table t1;
@@ -4776,7 +4776,7 @@ ALTER TABLE t1 DROP COLUMN c4, ALGORITHM=INSTANT;
 SELECT * FROM t1;
 c1	c2	c5
 1	1	0
-ALTER TABLE t1 ADD COLUMN c6 DOUBLE GENERATED ALWAYS AS (2*c1+c2) VIRTUAL, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c6 DOUBLE GENERATED ALWAYS AS (2*c1+c2) VIRTUAL;
 SELECT * FROM t1;
 c1	c2	c5	c6
 1	1	0	3
@@ -4940,7 +4940,7 @@ DROP TABLE t1;
 # When a table is truncated, it's instant metadata is reset. It shall
 # also reset instant metadata of columns.
 CREATE TABLE t1 (c1 VARCHAR(1008)) ROW_FORMAT=COMPACT;
-ALTER TABLE t1 ADD COLUMN c2 INT;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 TRUNCATE TABLE t1;
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),1);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),2);
@@ -4950,7 +4950,7 @@ INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),5);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),6);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),7);
 INSERT INTO t1 (c1, c2) VALUES (CONCAT(REPEAT('z', 1008)),8);
-ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500);
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500), ALGORITHM=INSTANT;
 UPDATE t1 SET c3 = CONCAT(REPEAT('c', 500));
 DROP TABLE t1;
 # Scenario 62
@@ -4960,9 +4960,9 @@ INSERT INTO t1 VALUES ("r1c1");
 SELECT * FROM t1;
 c1
 r1c1
-ALTER TABLE t1 ADD COLUMN c2 INT;
-ALTER TABLE t1 DROP COLUMN c2;
-ALTER TABLE t1 ADD COLUMN c3 TEXT;
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN c3 TEXT, ALGORITHM=INSTANT;
 UPDATE t1 SET c3 = CONCAT(REPEAT('z', 8204));
 ALTER TABLE t1 ADD PRIMARY KEY (c3(10)), ADD FULLTEXT KEY idx (c3);
 Warnings:
@@ -5005,7 +5005,7 @@ a	b
 SELECT * FROM t1 PARTITION (p2);
 a	b
 15	150
-ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100, ALGORITHM=INSTANT;
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
 a	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
@@ -5266,7 +5266,7 @@ REPEAT("5", 49),
 REPEAT("6", 59),
 REPEAT("7", 69),
 REPEAT("8", 79));
-Alter table t1 add column c9 char(90);
+Alter table t1 add column c9 char(90), algorithm=instant;
 Insert into t1 values(
 REPEAT("c", 8),
 REPEAT("1", 9),

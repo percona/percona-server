@@ -614,6 +614,7 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
 
   log_ptr += mach_write_compressed(log_ptr, log_fields);
 
+  IF_DEBUG(std::vector<ulint> used_phy_pos;)
   for (i = 0; i < n_fields; i++) {
     static_assert(MLOG_BUF_MARGIN > 30, "MLOG_BUF_MARGIN <= 30");
 
@@ -635,17 +636,20 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
 
     len = dfield_get_len(new_val);
 
-    /* DD tables do not have their field physical positions determined and they
-    never undergo INSTANT ADD/DROP COLUMN. So use field_no for them or for any
-    indexes that do not have row_versions */
-    ulint field_off = index->has_row_versions() ? upd_field->field_phy_pos
-                                                : upd_field->field_no;
+    ulint field_phy_pos =
+        index->get_field(upd_field->field_no)->col->get_col_phy_pos();
+
+    /* Check if multiple fields are updated, they should be different fields
+    i.e different physical positions */
+    ut_ad(std::find(used_phy_pos.begin(), used_phy_pos.end(), field_phy_pos) ==
+          used_phy_pos.end());
+    IF_DEBUG(used_phy_pos.push_back(field_phy_pos);)
 
     /* If this is a virtual column, mark it using special
     field_no */
     ulint field_pos = upd_fld_is_virtual_col(upd_field)
-                          ? REC_MAX_N_FIELDS + field_off
-                          : field_off;
+                          ? REC_MAX_N_FIELDS + field_phy_pos
+                          : field_phy_pos;
 
     log_ptr += mach_write_compressed(log_ptr, field_pos);
     log_ptr += mach_write_compressed(log_ptr, len);

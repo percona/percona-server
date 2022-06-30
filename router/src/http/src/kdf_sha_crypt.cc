@@ -310,8 +310,8 @@ std::string ShaCrypt::derive(ShaCrypt::Type type, unsigned long rounds,
 
   if (get_digest_type(type) == Digest::Type::Sha256) {
     const std::array<std::uint8_t, 32> shuffle_ndxes{
-        20, 10, 0,  11, 1, 21, 2, 22, 12, 23, 13, 3,  14, 4, 24, 5,
-        25, 15, 26, 16, 6, 17, 7, 27, 8,  28, 18, 29, 19, 9, 30, 31};
+        {20, 10, 0,  11, 1, 21, 2, 22, 12, 23, 13, 3,  14, 4, 24, 5,
+         25, 15, 26, 16, 6, 17, 7, 27, 8,  28, 18, 29, 19, 9, 30, 31}};
     auto shuffled_it = shuffled.begin();
     for (auto const &ndx : shuffle_ndxes) {
       *(shuffled_it++) = a_out[ndx];
@@ -319,10 +319,10 @@ std::string ShaCrypt::derive(ShaCrypt::Type type, unsigned long rounds,
 
   } else {
     const std::array<std::uint8_t, 64> shuffle_ndxes{
-        42, 21, 0,  1,  43, 22, 23, 2,  44, 45, 24, 3,  4,  46, 25, 26,
-        5,  47, 48, 27, 6,  7,  49, 28, 29, 8,  50, 51, 30, 9,  10, 52,
-        31, 32, 11, 53, 54, 33, 12, 13, 55, 34, 35, 14, 56, 57, 36, 15,
-        16, 58, 37, 38, 17, 59, 60, 39, 18, 19, 61, 40, 41, 20, 62, 63};
+        {42, 21, 0,  1,  43, 22, 23, 2,  44, 45, 24, 3,  4,  46, 25, 26,
+         5,  47, 48, 27, 6,  7,  49, 28, 29, 8,  50, 51, 30, 9,  10, 52,
+         31, 32, 11, 53, 54, 33, 12, 13, 55, 34, 35, 14, 56, 57, 36, 15,
+         16, 58, 37, 38, 17, 59, 60, 39, 18, 19, 61, 40, 41, 20, 62, 63}};
     auto shuffled_it = shuffled.begin();
     for (auto const &ndx : shuffle_ndxes) {
       *(shuffled_it++) = a_out[ndx];

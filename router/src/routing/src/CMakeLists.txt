@@ -34,7 +34,7 @@ ADD_LIBRARY(sql_lexer STATIC
 TARGET_INCLUDE_DIRECTORIES(sql_lexer
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # generate sql_yacc.h
-ADD_DEPENDENCIES(sql_lexer GenServerSource)
+ADD_DEPENDENCIES(sql_lexer GenServerSource GenError)
 
 ADD_LIBRARY(routing_frontend_lib STATIC
   routing.cc

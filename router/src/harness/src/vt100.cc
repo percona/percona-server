@@ -92,7 +92,7 @@ std::string cursor_abs_row(Vt100::value_type n) {
   return csi_default<1>(Csi::VPA, n);
 }
 std::string cursor_abs_pos(Vt100::value_type row, Vt100::value_type col) {
-  return csi_default<1, 2>(Csi::CUP, {row, col});
+  return csi_default<1, 2>(Csi::CUP, {{row, col}});
 }
 
 std::string erase_in_display(Vt100::Erase n) {
@@ -137,13 +137,13 @@ std::string foreground(Color c) {
 
 std::string foreground(const Rgb &rgb) {
   return render<65535, 5>(
-      {static_cast<Vt100::value_type>(Render::ForegroundExtended), 2, rgb[0],
-       rgb[1], rgb[2]});
+      {{static_cast<Vt100::value_type>(Render::ForegroundExtended), 2, rgb[0],
+        rgb[1], rgb[2]}});
 }
 
 std::string foreground(uint8_t ndx) {
   return render<0, 3>(
-      {static_cast<Vt100::value_type>(Render::ForegroundExtended), 5, ndx});
+      {{static_cast<Vt100::value_type>(Render::ForegroundExtended), 5, ndx}});
 }
 
 std::string background(Color c) {
@@ -153,13 +153,13 @@ std::string background(Color c) {
 
 std::string background(const Rgb &rgb) {
   return render<65535, 5>(
-      {static_cast<Vt100::value_type>(Render::BackgroundExtended), 2, rgb[0],
-       rgb[1], rgb[2]});
+      {{static_cast<Vt100::value_type>(Render::BackgroundExtended), 2, rgb[0],
+        rgb[1], rgb[2]}});
 }
 
 std::string background(uint8_t ndx) {
   return render<0, 3>(
-      {static_cast<Vt100::value_type>(Render::BackgroundExtended), 5, ndx});
+      {{static_cast<Vt100::value_type>(Render::BackgroundExtended), 5, ndx}});
 }
 
 }  // namespace Vt100

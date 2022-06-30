@@ -30,8 +30,10 @@
 
 MY_COMPILER_DIAGNOSTIC_PUSH()
 MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-dynamic-exception-spec")
+#if !defined(__clang__) || (__clang_major__ >= 5)
 MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE(
     "-Winconsistent-missing-destructor-override")
+#endif
 #include <google/protobuf/message_lite.h>  // ShutdownProtobufLibrary()
 MY_COMPILER_DIAGNOSTIC_POP()
 

@@ -164,6 +164,10 @@ FUNCTION(_ADD_TEST_FILE FILE)
       ENVIRONMENT
       "${TEST_ENV_PREFIX};PATH=$<TARGET_FILE_DIR:harness-library>\;$<TARGET_FILE_DIR:http_common>\;$<TARGET_FILE_DIR:duktape>\;${ESC_ENV_PATH};${TEST_ENVIRONMENT}")
   ELSE()
+    # longer timeout for routertest_integration_routing_sharing
+    IF(${test_name} STREQUAL "routertest_integration_routing_sharing")
+      SET_TESTS_PROPERTIES(${test_name} PROPERTIES TIMEOUT 3000)
+    ENDIF()
     SET_TESTS_PROPERTIES(${test_name} PROPERTIES
       ENVIRONMENT
       "${TEST_ENV_PREFIX};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};TSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/router/tsan.supp;${TEST_ENVIRONMENT}")

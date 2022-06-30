@@ -196,7 +196,6 @@ TARGET_INCLUDE_DIRECTORIES(http_server PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
 
-
 ADD_LIBRARY(http_client
   SHARED
   rest_client.cc

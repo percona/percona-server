@@ -209,7 +209,7 @@ script:
        sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
        sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev || travis_terminate 1;
        if [[ "$INVERTED" != "ON" ]]; then
-         sudo -E apt-get -yq --no-install-suggests --no-install-recommends install libeditline-dev libevent-dev liblz4-dev libre2-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || travis_terminate 1;
+         sudo -E apt-get -yq --no-install-suggests --no-install-recommends install libeditline-dev liblz4-dev libre2-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || travis_terminate 1;
        fi;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CC;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
@@ -257,12 +257,12 @@ script:
         -DWITH_MECAB=system
         -DWITH_RAPIDJSON=bundled
         -DWITH_SSL=system
+        -DWITH_LIBEVENT=bundled
       ";
       if [[ "$INVERTED" != "ON" ]]; then
         CMAKE_OPT+="
           -DWITH_READLINE=system
           -DWITH_ICU=system
-          -DWITH_LIBEVENT=system
           -DWITH_LZ4=system
           -DWITH_PROTOBUF=system
           -DWITH_RE2=system
@@ -273,7 +273,6 @@ script:
         CMAKE_OPT+="
           -DWITH_EDITLINE=bundled
           -DWITH_ICU=bundled
-          -DWITH_LIBEVENT=bundled
           -DWITH_LZ4=bundled
           -DWITH_PROTOBUF=bundled
           -DWITH_RE2=bundled

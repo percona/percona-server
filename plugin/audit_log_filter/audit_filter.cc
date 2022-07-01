@@ -46,7 +46,7 @@ AuditAction AuditEventFilter::apply(AuditRule *rule,
       EventActionType::Block, event_class_name, event_subclass_name);
 
   if (block_action != nullptr &&
-      block_action->apply(event_fields, audit_record)) {
+      block_action->apply(event_fields, audit_record, rule)) {
     return AuditAction::Block;
   }
 
@@ -56,22 +56,29 @@ AuditAction AuditEventFilter::apply(AuditRule *rule,
       EventActionType::ReplaceFilter, event_class_name, event_subclass_name);
 
   if (replace_field_action != nullptr) {
-    replace_field_action->apply(event_fields, audit_record);
-  }
-
-  if (replace_filter_action != nullptr) {
-    replace_filter_action->apply(event_fields, audit_record);
+    replace_field_action->apply(event_fields, audit_record, rule);
   }
 
   const auto *log_action = rule->get_action(
       EventActionType::Log, event_class_name, event_subclass_name);
 
+  AuditAction result = AuditAction::None;
+
   if (log_action == nullptr) {
-    return rule->should_log_unmatched() ? AuditAction::Log : AuditAction::Skip;
+    result =
+        rule->should_log_unmatched() ? AuditAction::Log : AuditAction::Skip;
+  } else {
+    result = log_action->apply(event_fields, audit_record, rule)
+                 ? AuditAction::Log
+                 : AuditAction::Skip;
   }
 
-  return log_action->apply(event_fields, audit_record) ? AuditAction::Log
-                                                       : AuditAction::Skip;
+  // Filter replacement if any should not affect current event processing
+  if (replace_filter_action != nullptr) {
+    replace_filter_action->apply(event_fields, audit_record, rule);
+  }
+
+  return result;
 }
 
 }  // namespace audit_log_filter

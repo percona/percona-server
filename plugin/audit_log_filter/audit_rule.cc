@@ -18,6 +18,7 @@
 
 #include "plugin/audit_log_filter/event_field_action/block.h"
 #include "plugin/audit_log_filter/event_field_action/log.h"
+#include "plugin/audit_log_filter/event_field_action/replace_filter.h"
 #include "plugin/audit_log_filter/event_field_condition/and.h"
 #include "plugin/audit_log_filter/event_field_condition/bool.h"
 #include "plugin/audit_log_filter/event_field_condition/field.h"
@@ -42,9 +43,19 @@ AuditRule::AuditRule(uint64_t filter_id, const char *rule_name,
       m_rule_name{rule_name},
       m_json_rule_parsed{false},
       m_json_rule_format_valid{false},
-      m_should_log_unmatched{false} {
+      m_should_log_unmatched{false},
+      m_replacement_rule{nullptr} {
   m_json_rule_doc.Parse(rule_str);
 }
+
+AuditRule::AuditRule(rapidjson::Document json_doc)
+    : m_filter_id{0},
+      m_rule_name{},
+      m_json_rule_doc{std::move(json_doc)},
+      m_json_rule_parsed{false},
+      m_json_rule_format_valid{false},
+      m_should_log_unmatched{false},
+      m_replacement_rule{nullptr} {}
 
 std::string AuditRule::to_string() noexcept {
   rapidjson::StringBuffer buffer;
@@ -57,6 +68,14 @@ std::string AuditRule::to_string() noexcept {
 uint64_t AuditRule::get_filter_id() const noexcept { return m_filter_id; }
 
 std::string AuditRule::get_rule_name() const noexcept { return m_rule_name; }
+
+void AuditRule::set_replacement_rule(AuditRule *rule) noexcept {
+  m_replacement_rule = rule;
+}
+
+void AuditRule::clear_replacement_rule() noexcept {
+  m_replacement_rule = nullptr;
+}
 
 bool AuditRule::check_valid() noexcept {
   if (m_json_rule_doc.HasParseError()) {
@@ -113,44 +132,55 @@ void AuditRule::add_action_for_event(
 bool AuditRule::has_actions_for(
     std::string_view event_class_name,
     std::string_view event_subclass_name) const noexcept {
-  std::stringstream subclass_key;
-  subclass_key << event_class_name << "." << event_subclass_name;
+  if (m_replacement_rule == nullptr) {
+    std::stringstream subclass_key;
+    subclass_key << event_class_name << "." << event_subclass_name;
 
-  if (m_matched_event_to_action_map.count(subclass_key.str()) > 0) {
-    return true;
+    if (m_matched_event_to_action_map.count(subclass_key.str()) > 0) {
+      return true;
+    }
+
+    return m_matched_event_to_action_map.count(event_class_name.data()) > 0;
   }
 
-  return m_matched_event_to_action_map.count(event_class_name.data()) > 0;
+  return m_replacement_rule->has_actions_for(event_class_name,
+                                             event_subclass_name);
 }
 
 const EventFieldActionBase *AuditRule::get_action(
     const EventActionType action_type, const std::string_view event_class_name,
     const std::string_view event_subclass_name) const noexcept {
-  assert(m_json_rule_parsed);
+  if (m_replacement_rule == nullptr) {
+    assert(m_json_rule_parsed);
 
-  std::stringstream subclass_key;
-  subclass_key << event_class_name << "." << event_subclass_name;
+    std::stringstream subclass_key;
+    subclass_key << event_class_name << "." << event_subclass_name;
 
-  auto it = m_matched_event_to_action_map.find(subclass_key.str());
+    auto it = m_matched_event_to_action_map.find(subclass_key.str());
 
-  if (it == m_matched_event_to_action_map.cend()) {
-    it = m_matched_event_to_action_map.find(event_class_name.data());
+    if (it == m_matched_event_to_action_map.cend()) {
+      it = m_matched_event_to_action_map.find(event_class_name.data());
+    }
+
+    if (it == m_matched_event_to_action_map.cend()) {
+      return nullptr;
+    }
+
+    const auto action =
+        std::find_if(it->second.cbegin(), it->second.cend(),
+                     [&action_type](const auto &act) {
+                       return act->get_action_type() == action_type;
+                     });
+
+    if (action == std::cend(it->second)) {
+      return nullptr;
+    }
+
+    return action->get();
   }
 
-  if (it == m_matched_event_to_action_map.cend()) {
-    return nullptr;
-  }
-
-  const auto action = std::find_if(
-      it->second.cbegin(), it->second.cend(), [&action_type](const auto &act) {
-        return act->get_action_type() == action_type;
-      });
-
-  if (action == std::cend(it->second)) {
-    return nullptr;
-  }
-
-  return action->get();
+  return m_replacement_rule->get_action(action_type, event_class_name,
+                                        event_subclass_name);
 }
 
 bool AuditRule::parse_json_rule() noexcept {
@@ -488,11 +518,29 @@ bool AuditRule::parse_event_subclass_json(
     }
   }
 
+  std::shared_ptr<EventFieldActionBase> replace_filter;
+
+  if (event_subclass_json.HasMember("filter")) {
+    replace_filter =
+        parse_action_json(EventActionType::ReplaceFilter, event_subclass_json);
+
+    if (replace_filter == nullptr) {
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Wrong JSON filter '%s' format, "
+                      "failed to parse 'filter' replacement rule",
+                      m_rule_name.c_str());
+      return false;
+    }
+  }
+
   for (const auto &subclass_name : subclass_names) {
     add_action_for_event(action, class_name, subclass_name);
 
     if (replace_field != nullptr) {
       add_action_for_event(replace_field, class_name, subclass_name);
+    }
+    if (replace_filter != nullptr) {
+      add_action_for_event(replace_filter, class_name, subclass_name);
     }
   }
 
@@ -1058,11 +1106,77 @@ std::shared_ptr<EventFieldActionBase> AuditRule::parse_action_json(
       return std::make_shared<EventFieldActionReplaceField>(
           replaced_field_name, print_cond, std::move(replacement_func));
     }
+    case EventActionType::ReplaceFilter: {
+      /*
+       * "filter": {
+       *   "class": {
+       *     "name": "general",
+       *     "event" : { "name": "status",
+       *                 "filter": { "ref": "main" } }
+       *   },
+       *   "activate": {
+       *     "or": [
+       *       { "field": { "name": "table_name.str", "value": "temp_1" } },
+       *       { "field": { "name": "table_name.str", "value": "temp_2" } }
+       *     ]
+       *   }
+       * }
+       */
+      if (!action_json["filter"].IsObject()) {
+        return nullptr;
+      }
+
+      if (action_json["filter"].MemberCount() == 1 &&
+          action_json["filter"].HasMember("ref") &&
+          action_json["filter"]["ref"].IsString()) {
+        // This is a filter defined within temporary replacement rule,
+        // here "ref" points to original rule making it effective again.
+        return std::make_shared<EventFieldActionReplaceFilter>(
+            action_json["filter"]["ref"].GetString());
+      }
+
+      if (action_json["filter"].MemberCount() != 2 ||
+          !action_json["filter"].HasMember("class") ||
+          !action_json["filter"].HasMember("activate") ||
+          !action_json["filter"]["class"].IsObject() ||
+          !action_json["filter"]["activate"].IsObject()) {
+        return nullptr;
+      }
+
+      auto activation_cond = parse_condition(action_json["filter"]["activate"]);
+
+      if (activation_cond == nullptr) {
+        return nullptr;
+      }
+
+      auto replacement_rule =
+          make_replacement_rule(action_json["filter"]["class"]);
+
+      if (!replacement_rule->check_parse_state()) {
+        return nullptr;
+      }
+
+      return std::make_shared<EventFieldActionReplaceFilter>(
+          std::move(activation_cond), std::move(replacement_rule));
+    }
     default:
       assert(false);
   }
 
   return nullptr;
+}
+
+std::shared_ptr<AuditRule> AuditRule::make_replacement_rule(
+    const rapidjson::Value &rule_json) noexcept {
+  rapidjson::Document d;
+  d.SetObject();
+  d.AddMember("filter", rapidjson::Value{rapidjson::kObjectType},
+              d.GetAllocator());
+  d["filter"].AddMember("class", rapidjson::Value{rapidjson::kObjectType},
+                        d.GetAllocator());
+  d["filter"]["class"].CopyFrom(rule_json, d.GetAllocator());
+
+  return std::shared_ptr<AuditRule>(new AuditRule{std::move(d)});
 }
 
 }  // namespace audit_log_filter

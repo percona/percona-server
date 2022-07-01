@@ -43,6 +43,10 @@ class AuditRule {
   AuditRule(const char *rule_name, const char *rule_str);
   AuditRule(uint64_t filter_id, const char *rule_name, const char *rule_str);
 
+ private:
+  explicit AuditRule(rapidjson::Document json_doc);
+
+ public:
   /**
    * @brief Get string representation of a filtering rule.
    *
@@ -63,6 +67,18 @@ class AuditRule {
    * @return Filtering rule name
    */
   [[nodiscard]] std::string get_rule_name() const noexcept;
+
+  /**
+   * @brief Set temporary replacement filtering rule.
+   *
+   * @param rule Pointer to replacement filtering rule
+   */
+  void set_replacement_rule(AuditRule *rule) noexcept;
+
+  /**
+   * @brief Clear temporary replacement filtering rule.
+   */
+  void clear_replacement_rule() noexcept;
 
   /**
    * @brief Do basic rule format validation.
@@ -229,6 +245,15 @@ class AuditRule {
       EventActionType action_type,
       const rapidjson::Value &action_json) noexcept;
 
+  /**
+   * @brief Build replacement filtering rule.
+   *
+   * @param rule_json JSON definition of replacement filtering rule
+   * @return Replacement filtering rule instance
+   */
+  [[nodiscard]] static std::shared_ptr<AuditRule> make_replacement_rule(
+      const rapidjson::Value &rule_json) noexcept;
+
  private:
   uint64_t m_filter_id;
   std::string m_rule_name;
@@ -241,6 +266,8 @@ class AuditRule {
   std::unordered_map<std::string,
                      std::vector<std::shared_ptr<EventFieldActionBase>>>
       m_matched_event_to_action_map;
+
+  AuditRule *m_replacement_rule;
 };
 
 }  // namespace audit_log_filter

@@ -38,11 +38,12 @@ class EventFieldActionLog : public EventFieldActionBase {
    *
    * @param fields Audit event field list
    * @param audit_record Audit record
+   * @param audit_rule Effective audit rule
    * @return true in case action applied successfully, false otherwise
    */
-  [[nodiscard]] bool apply(
-      const AuditRecordFieldsList &fields,
-      AuditRecordVariant &audit_record) const noexcept override;
+  [[nodiscard]] bool apply(const AuditRecordFieldsList &fields,
+                           AuditRecordVariant &audit_record,
+                           AuditRule *audit_rule) const noexcept override;
 
  private:
   std::shared_ptr<event_field_condition::EventFieldConditionBase> m_condition;

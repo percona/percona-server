@@ -18,10 +18,24 @@
 
 #include "plugin/audit_log_filter/event_field_action/base.h"
 
-namespace audit_log_filter::event_field_action {
+namespace audit_log_filter {
+
+class AuditRule;
+
+namespace event_field_condition {
+class EventFieldConditionBase;
+}
+
+namespace event_field_action {
 
 class EventFieldActionReplaceFilter : public EventFieldActionBase {
  public:
+  explicit EventFieldActionReplaceFilter(std::string replacement_filter_ref);
+  EventFieldActionReplaceFilter(
+      std::shared_ptr<event_field_condition::EventFieldConditionBase>
+          activation_cond,
+      std::shared_ptr<AuditRule> replacement_rule);
+
   /**
    * @brief Get action type.
    *
@@ -34,13 +48,21 @@ class EventFieldActionReplaceFilter : public EventFieldActionBase {
    *
    * @param fields Audit event field list
    * @param audit_record Audit record
+   * @param audit_rule Effective audit rule
    * @return true in case action applied successfully, false otherwise
    */
-  [[nodiscard]] bool apply(
-      const AuditRecordFieldsList &fields,
-      AuditRecordVariant &audit_record) const noexcept override;
+  [[nodiscard]] bool apply(const AuditRecordFieldsList &fields,
+                           AuditRecordVariant &audit_record,
+                           AuditRule *audit_rule) const noexcept override;
+
+ private:
+  std::shared_ptr<event_field_condition::EventFieldConditionBase>
+      m_activation_cond;
+  std::shared_ptr<AuditRule> m_replacement_rule;
+  std::string m_replacement_filter_ref;
 };
 
-}  // namespace audit_log_filter::event_field_action
+}  // namespace event_field_action
+}  // namespace audit_log_filter
 
 #endif  // AUDIT_LOG_FILTER_EVENT_FIELD_ACTION_REPLACE_FILTER_H_INCLUDED

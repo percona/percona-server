@@ -45,9 +45,10 @@ EventActionType EventFieldActionReplaceField::get_action_type() const noexcept {
   return EventActionType::ReplaceField;
 }
 
-bool EventFieldActionReplaceField::apply(
-    const AuditRecordFieldsList &fields,
-    AuditRecordVariant &audit_record) const noexcept {
+bool EventFieldActionReplaceField::apply(const AuditRecordFieldsList &fields,
+                                         AuditRecordVariant &audit_record,
+                                         AuditRule *audit_rule
+                                         [[maybe_unused]]) const noexcept {
   if (m_print_cond->check_applies(fields)) {
     // print unchanged
     return false;

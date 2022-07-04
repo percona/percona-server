@@ -16,17 +16,16 @@
 #include "plugin/audit_log_filter/sys_vars.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
 #include "plugin/audit_log_filter/audit_log_filter.h"
-#include "plugin/audit_log_filter/sys_var_services.h"
 
 #include "mysql/plugin.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_plugin_var.h"
 
+#include <mysql/components/services/component_sys_var_service.h>
+
 #include <syslog.h>
 #include <array>
-
-//#include <boost/lexical_cast/try_lexical_convert.hpp>
 
 namespace audit_log_filter {
 namespace {
@@ -176,18 +175,23 @@ void prune_seconds_update_func(MYSQL_THD thd, SYS_VAR *, void *val_ptr,
 
 }  // namespace
 
-SysVars::SysVars(std::unique_ptr<SysVarServices> sys_var_services)
-    : AuditBaseComponent(), m_sys_var_services{std::move(sys_var_services)} {
+SysVars::SysVars(comp_registry_srv_t *comp_registry_srv)
+    : AuditBaseComponent(), m_comp_registry_srv{comp_registry_srv} {
   m_log_flush_requested.set_container(this);
   m_log_max_size.set_container(this);
   m_log_prune_seconds.set_container(this);
 }
 
 SysVars::~SysVars() {
-  auto *sys_var_srv = m_sys_var_services->get_sys_var_unreg();
+  my_service<SERVICE_TYPE(component_sys_variable_unregister)> sys_var_unreg_srv(
+      "component_sys_variable_unregister", m_comp_registry_srv);
+
+  if (!sys_var_unreg_srv.is_valid()) {
+    return;
+  }
 
   for (const auto &var_name : var_names_list) {
-    if (sys_var_srv->unregister_variable(kComponentName, var_name)) {
+    if (sys_var_unreg_srv->unregister_variable(kComponentName, var_name)) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to unregister %s.%s variable", kComponentName,
                       var_name);
@@ -201,7 +205,12 @@ bool SysVars::init() noexcept {
   using enum_arg_check_t = ENUM_CHECK_ARG(enum);
   using bool_arg_check_t = BOOL_CHECK_ARG(bool);
 
-  auto *sys_var_srv = m_sys_var_services->get_sys_var_reg();
+  my_service<SERVICE_TYPE(component_sys_variable_register)> sys_var_reg_srv(
+      "component_sys_variable_register", m_comp_registry_srv);
+
+  if (!sys_var_reg_srv.is_valid()) {
+    return false;
+  }
 
   /*
    * The audit_log_filter.file variable is used to specify the filename that’s
@@ -210,7 +219,7 @@ bool SysVars::init() noexcept {
    */
   str_arg_check_t file_arg_check{strdup("audit_filter.log")};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameFile,
           PLUGIN_VAR_STR | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
               PLUGIN_VAR_MEMALLOC,
@@ -233,7 +242,7 @@ bool SysVars::init() noexcept {
       static_cast<ulong>(AuditLogHandlerType::File),
       &audit_log_filter_handler_typelib};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameHandler,
           PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
           "The audit log filter handler.", nullptr, nullptr,
@@ -255,7 +264,7 @@ bool SysVars::init() noexcept {
   enum_arg_check_t format_arg_check{static_cast<ulong>(AuditLogFormatType::New),
                                     &audit_log_filter_format_typelib};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameFormat,
           PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
           "The audit log filter file format.", nullptr, nullptr,
@@ -282,7 +291,7 @@ bool SysVars::init() noexcept {
       static_cast<ulong>(AuditLogStrategyType::Asynchronous),
       &audit_log_filter_strategy_typelib};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameStrategy,
           PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
           "The logging method used by the audit log filter plugin, "
@@ -304,7 +313,7 @@ bool SysVars::init() noexcept {
   ulonglong_arg_check_t buffer_size_arg_check{1048576UL, 4096UL, ULLONG_MAX,
                                               4096UL};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameBufferSize,
           PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_RQCMDARG |
               PLUGIN_VAR_READONLY,
@@ -327,7 +336,7 @@ bool SysVars::init() noexcept {
    */
   ulonglong_arg_check_t rotate_on_size_arg_check{0UL, 0UL, ULLONG_MAX, 4096UL};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameRotateOnSize,
           PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_RQCMDARG,
           "Maximum size of the log to start the rotation, "
@@ -346,7 +355,7 @@ bool SysVars::init() noexcept {
    */
   ulonglong_arg_check_t max_size_arg_check{0UL, 0UL, ULLONG_MAX, 4096UL};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameMaxSize,
           PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_OPCMDARG,
           "The maximum combined size of log files in bytes after which log "
@@ -366,7 +375,7 @@ bool SysVars::init() noexcept {
    */
   ulonglong_arg_check_t prune_seconds_arg_check{0UL, 0UL, ULLONG_MAX, 0UL};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNamePruneSeconds,
           PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_OPCMDARG,
           "The maximum log file age in seconds after which log file "
@@ -386,7 +395,7 @@ bool SysVars::init() noexcept {
    */
   bool_arg_check_t flush_arg_check{false};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameFlush, PLUGIN_VAR_BOOL | PLUGIN_VAR_NOCMDARG,
           "Close and reopen log file when set to ON.", nullptr,
           flush_update_func, static_cast<void *>(&flush_arg_check),
@@ -403,7 +412,7 @@ bool SysVars::init() noexcept {
    */
   str_arg_check_t syslog_ident_arg_check{strdup("percona-audit-event-filter")};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameSyslogIdent,
           PLUGIN_VAR_STR | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
               PLUGIN_VAR_MEMALLOC,
@@ -424,7 +433,7 @@ bool SysVars::init() noexcept {
   enum_arg_check_t syslog_facility_arg_check{
       0, &audit_log_filter_syslog_facility_typelib};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameSyslogFacility,
           PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG,
           "The syslog facility to assign to messages, if SYSLOG handler is "
@@ -445,7 +454,7 @@ bool SysVars::init() noexcept {
   enum_arg_check_t syslog_priority_arg_check{
       0, &audit_log_filter_syslog_priority_typelib};
 
-  if (sys_var_srv->register_variable(
+  if (sys_var_reg_srv->register_variable(
           kComponentName, kVarNameSyslogPriority,
           PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG,
           "Priority to be assigned to all messages written to syslog.", nullptr,
@@ -473,13 +482,10 @@ void SysVars::validate() const noexcept {
 // sys vars
 //  MYSQL_SYSVAR(record_buffer),
 //  MYSQL_SYSVAR(query_stack),
-//  audit_log_compression
 //  audit_log_current_session
 //  audit_log_disable
-//  audit_log_encryption
 //  audit_log_filter_id
 //  audit_log_password_history_keep_days
-//  audit_log_prune_seconds
 //  audit_log_read_buffer_size
 //
 // status vars

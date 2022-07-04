@@ -23,13 +23,9 @@
 #include "plugin/audit_log_filter/log_record_formatter.h"
 #include "plugin/audit_log_filter/log_writer.h"
 #include "plugin/audit_log_filter/log_writer_strategy.h"
-#include "plugin/audit_log_filter/sys_var_services.h"
 #include "plugin/audit_log_filter/sys_vars.h"
-#include "plugin/audit_log_filter/table_access_services.h"
-#include "plugin/audit_log_filter/udf_services.h"
 
 #include <mysql/components/services/mysql_connection_attributes_iterator.h>
-#include <mysql/service_plugin_registry.h>
 
 #include "mysql/plugin.h"
 #include "sql/debug_sync.h"
@@ -47,6 +43,9 @@
 #else
 #define PLUGIN_EXPORT extern "C"
 #endif
+
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 namespace audit_log_filter {
 namespace {
@@ -162,21 +161,15 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Initializing Audit Event Filter...");
 
-  auto sys_var_services = std::make_unique<SysVarServices>();
+  auto comp_registry_srv = get_component_registry_service();
 
-  if (sys_var_services == nullptr) {
+  if (comp_registry_srv == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to create sys var services instance");
+                 "Failed to acquire components registry service");
     return 1;
   }
 
-  if (!sys_var_services->acquire()) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to init sys var services");
-    return 1;
-  }
-
-  auto sys_vars = std::make_shared<SysVars>(std::move(sys_var_services));
+  auto sys_vars = std::make_shared<SysVars>(comp_registry_srv.get());
 
   if (sys_vars == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -189,35 +182,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  auto udf_services = std::make_unique<UdfServices>();
-
-  if (udf_services == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to create UDF services instance");
-    return 1;
-  }
-
-  if (!udf_services->acquire()) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to init UDF services");
-    return 1;
-  }
-
-  auto table_access_services = std::make_shared<TableAccessServices>();
-
-  if (udf_services == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to create table access services instance");
-    return 1;
-  }
-
-  if (!table_access_services->init()) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to init table access services");
-    return 1;
-  }
-
-  auto audit_udf = std::make_unique<AuditUdf>(table_access_services,
-                                              std::move(udf_services));
+  auto audit_udf = std::make_unique<AuditUdf>(comp_registry_srv.get());
 
   if (audit_udf == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -231,7 +196,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   }
 
   auto audit_rule_registry =
-      std::make_unique<AuditRuleRegistry>(table_access_services);
+      std::make_unique<AuditRuleRegistry>(comp_registry_srv.get());
 
   if (audit_rule_registry == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -267,9 +232,9 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  audit_log_filter =
-      new AuditLogFilter(std::move(audit_rule_registry), std::move(audit_udf),
-                         std::move(sys_vars), std::move(log_writer));
+  audit_log_filter = new AuditLogFilter(
+      std::move(comp_registry_srv), std::move(audit_rule_registry),
+      std::move(audit_udf), std::move(sys_vars), std::move(log_writer));
 
   return 0;
 }
@@ -310,10 +275,12 @@ int audit_log_notify(MYSQL_THD thd, mysql_event_class_t event_class,
 }
 
 AuditLogFilter::AuditLogFilter(
+    comp_registry_srv_container_t comp_registry_srv,
     std::unique_ptr<AuditRuleRegistry> audit_rules_registry,
     std::unique_ptr<AuditUdf> audit_udf, std::shared_ptr<SysVars> sys_vars,
     std::unique_ptr<log_writer::LogWriterBase> log_writer)
-    : m_audit_rules_registry{std::move(audit_rules_registry)},
+    : m_comp_registry_srv{std::move(comp_registry_srv)},
+      m_audit_rules_registry{std::move(audit_rules_registry)},
       m_audit_udf{std::move(audit_udf)},
       m_sys_vars{std::move(sys_vars)},
       m_log_writer{std::move(log_writer)},
@@ -429,9 +396,8 @@ void AuditLogFilter::on_audit_log_prune_requested() noexcept {
 
 void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
                                           AuditRecordVariant &audit_record) {
-  SERVICE_TYPE(registry) *reg_srv = mysql_plugin_registry_acquire();
   my_service<SERVICE_TYPE(mysql_connection_attributes_iterator)> attrs_service(
-      "mysql_connection_attributes_iterator", reg_srv);
+      "mysql_connection_attributes_iterator", m_comp_registry_srv.get());
 
   if (!attrs_service.is_valid()) {
     return;
@@ -458,8 +424,6 @@ void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
   }
 
   attrs_service->deinit(iterator);
-
-  mysql_plugin_registry_release(reg_srv);
 }
 
 }  // namespace audit_log_filter

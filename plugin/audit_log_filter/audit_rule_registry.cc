@@ -16,7 +16,6 @@
 #include "plugin/audit_log_filter/audit_rule_registry.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
 #include "plugin/audit_log_filter/audit_rule.h"
-#include "plugin/audit_log_filter/table_access_services.h"
 
 #include <string>
 #include <tuple>
@@ -27,9 +26,8 @@ const std::string kDefaultUserName = "%";
 const std::string kDefaultHostName = "%";
 }  // namespace
 
-AuditRuleRegistry::AuditRuleRegistry(
-    std::shared_ptr<TableAccessServices> table_access_services)
-    : m_table_access_services{table_access_services} {}
+AuditRuleRegistry::AuditRuleRegistry(comp_registry_srv_t *comp_registry_srv)
+    : m_comp_registry_srv{comp_registry_srv} {}
 
 AuditRule *AuditRuleRegistry::get_rule(const std::string &rule_name) noexcept {
   if (m_audit_filter_rules.count(rule_name) == 0) {
@@ -59,8 +57,8 @@ bool AuditRuleRegistry::lookup_rule_name(const std::string &user_name,
 }
 
 bool AuditRuleRegistry::load() noexcept {
-  audit_table::AuditLogFilter audit_log_filter{m_table_access_services.get()};
-  audit_table::AuditLogUser audit_log_user{m_table_access_services.get()};
+  audit_table::AuditLogFilter audit_log_filter{m_comp_registry_srv};
+  audit_table::AuditLogUser audit_log_user{m_comp_registry_srv};
 
   auto users_result = audit_log_user.load_users(m_audit_users);
   auto filter_result = audit_log_filter.load_filters(m_audit_filter_rules);

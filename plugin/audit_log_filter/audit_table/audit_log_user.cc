@@ -16,7 +16,7 @@
 #include "plugin/audit_log_filter/audit_table/audit_log_user.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
 
-#include <memory>
+#include "my_dbug.h"
 
 namespace audit_log_filter::audit_table {
 namespace {
@@ -52,8 +52,8 @@ const size_t kKeyPrimaryLength = 7;
 
 }  // namespace
 
-AuditLogUser::AuditLogUser(TableAccessServices *table_access_services)
-    : AuditTableBase{table_access_services} {}
+AuditLogUser::AuditLogUser(comp_registry_srv_t *comp_registry_srv)
+    : AuditTableBase{comp_registry_srv} {}
 
 const char *AuditLogUser::get_table_db_name() noexcept { return kAuditDbName; }
 
@@ -72,27 +72,36 @@ size_t AuditLogUser::get_table_field_count() noexcept {
 TableResult AuditLogUser::index_scan_locate_record_by_rule_name(
     TableAccessContext *ta_context, TA_key *key,
     const std::string &rule_name) noexcept {
-  if (get_ta_srv()->get_ta_index_srv()->init(
-          ta_context->ta_session, ta_context->ta_table, kKeyFilterNameName,
-          kKeyFilterNameNameLength, key_filter_name_cols, kKeyFilterNameNumcol,
-          key)) {
+  my_service<SERVICE_TYPE(table_access_index_v1)> index_srv(
+      "table_access_index_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_charset)> charset_srv("mysql_charset",
+                                                      get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_string_factory)> string_srv(
+      "mysql_string_factory", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_convert_srv(
+      "mysql_string_charset_converter", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(field_varchar_access_v1)> varchar_srv(
+      "field_varchar_access_v1", get_comp_registry_srv());
+
+  if (index_srv->init(ta_context->ta_session, ta_context->ta_table,
+                      kKeyFilterNameName, kKeyFilterNameNameLength,
+                      key_filter_name_cols, kKeyFilterNameNumcol, key)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to init index access of %s table",
                     get_table_name());
     return TableResult::Fail;
   }
 
-  CHARSET_INFO_h utf8 = get_ta_srv()->get_charset_srv()->get_utf8mb4();
-  HStringContainer filter_name_value{get_ta_srv()->get_string_factory_srv()};
-  get_ta_srv()->get_string_converter_srv()->convert_from_buffer(
+  CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
+  HStringContainer filter_name_value{string_srv};
+  string_convert_srv->convert_from_buffer(
       filter_name_value.get(), rule_name.c_str(), rule_name.length(), utf8);
 
-  get_ta_srv()->get_fa_varchar_srv()->set(
-      ta_context->ta_session, ta_context->ta_table, kAuditLogUserFiltername,
-      filter_name_value.get());
+  varchar_srv->set(ta_context->ta_session, ta_context->ta_table,
+                   kAuditLogUserFiltername, filter_name_value.get());
 
-  int rc = get_ta_srv()->get_ta_index_srv()->read_map(
-      ta_context->ta_session, ta_context->ta_table, 1, *key);
+  int rc = index_srv->read_map(ta_context->ta_session, ta_context->ta_table, 1,
+                               *key);
 
   return rc == 0 ? TableResult::Found : TableResult::NotFound;
 }
@@ -100,34 +109,43 @@ TableResult AuditLogUser::index_scan_locate_record_by_rule_name(
 TableResult AuditLogUser::index_scan_locate_record_by_user_name_host(
     TableAccessContext *ta_context, TA_key *key, const std::string &user_name,
     const std::string &user_host) noexcept {
-  if (get_ta_srv()->get_ta_index_srv()->init(
-          ta_context->ta_session, ta_context->ta_table, kKeyPrimaryName,
-          kKeyPrimaryLength, key_primary_cols, kKeyPrimaryNumcol, key)) {
+  my_service<SERVICE_TYPE(table_access_index_v1)> index_srv(
+      "table_access_index_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_charset)> charset_srv("mysql_charset",
+                                                      get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_string_factory)> string_srv(
+      "mysql_string_factory", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_convert_srv(
+      "mysql_string_charset_converter", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(field_varchar_access_v1)> varchar_srv(
+      "field_varchar_access_v1", get_comp_registry_srv());
+
+  if (index_srv->init(ta_context->ta_session, ta_context->ta_table,
+                      kKeyPrimaryName, kKeyPrimaryLength, key_primary_cols,
+                      kKeyPrimaryNumcol, key)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to init index access of %s table",
                     get_table_name());
     return TableResult::Fail;
   }
 
-  CHARSET_INFO_h utf8 = get_ta_srv()->get_charset_srv()->get_utf8mb4();
+  CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
 
-  HStringContainer user_name_value{get_ta_srv()->get_string_factory_srv()};
-  get_ta_srv()->get_string_converter_srv()->convert_from_buffer(
+  HStringContainer user_name_value{string_srv};
+  string_convert_srv->convert_from_buffer(
       user_name_value.get(), user_name.c_str(), user_name.length(), utf8);
 
-  HStringContainer user_host_value{get_ta_srv()->get_string_factory_srv()};
-  get_ta_srv()->get_string_converter_srv()->convert_from_buffer(
+  HStringContainer user_host_value{string_srv};
+  string_convert_srv->convert_from_buffer(
       user_host_value.get(), user_host.c_str(), user_host.length(), utf8);
 
-  get_ta_srv()->get_fa_varchar_srv()->set(
-      ta_context->ta_session, ta_context->ta_table, kAuditLogUserUsername,
-      user_name_value.get());
-  get_ta_srv()->get_fa_varchar_srv()->set(
-      ta_context->ta_session, ta_context->ta_table, kAuditLogUserUserhost,
-      user_host_value.get());
+  varchar_srv->set(ta_context->ta_session, ta_context->ta_table,
+                   kAuditLogUserUsername, user_name_value.get());
+  varchar_srv->set(ta_context->ta_session, ta_context->ta_table,
+                   kAuditLogUserUserhost, user_host_value.get());
 
-  int rc = get_ta_srv()->get_ta_index_srv()->read_map(
-      ta_context->ta_session, ta_context->ta_table, kKeyPrimaryNumcol, *key);
+  int rc = index_srv->read_map(ta_context->ta_session, ta_context->ta_table,
+                               kKeyPrimaryNumcol, *key);
 
   return rc == 0 ? TableResult::Found : TableResult::NotFound;
 }
@@ -135,8 +153,9 @@ TableResult AuditLogUser::index_scan_locate_record_by_user_name_host(
 void AuditLogUser::index_scan_end(TableAccessContext *ta_context,
                                   TA_key key) noexcept {
   if (key != nullptr) {
-    get_ta_srv()->get_ta_index_srv()->end(ta_context->ta_session,
-                                          ta_context->ta_table, key);
+    my_service<SERVICE_TYPE(table_access_index_v1)> index_srv(
+        "table_access_index_v1", get_comp_registry_srv());
+    index_srv->end(ta_context->ta_session, ta_context->ta_table, key);
   }
 }
 
@@ -149,60 +168,66 @@ TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
     return TableResult::Fail;
   }
 
-  if (get_ta_srv()->get_ta_scan_srv()->init(ta_context->ta_session,
-                                            ta_context->ta_table)) {
+  my_service<SERVICE_TYPE(mysql_charset)> charset_srv("mysql_charset",
+                                                      get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_string_factory)> string_srv(
+      "mysql_string_factory", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_convert_srv(
+      "mysql_string_charset_converter", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(field_varchar_access_v1)> varchar_srv(
+      "field_varchar_access_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(table_access_scan_v1)> scan_srv(
+      "table_access_scan_v1", get_comp_registry_srv());
+
+  if (scan_srv->init(ta_context->ta_session, ta_context->ta_table)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to init full scan of %s table", get_table_name());
     return TableResult::Fail;
   }
 
-  CHARSET_INFO_h utf8 = get_ta_srv()->get_charset_srv()->get_utf8mb4();
+  CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
 
   char buff_user_name_value[kAuditFieldLengthUsername + 1];
   char buff_user_host_value[kAuditFieldLengthUserhost + 1];
   char buff_user_filter_name_value[kAuditFieldLengthFiltername + 1];
-  HStringContainer user_name_value{get_ta_srv()->get_string_factory_srv()};
-  HStringContainer user_host_value{get_ta_srv()->get_string_factory_srv()};
-  HStringContainer user_filter_name_value{
-      get_ta_srv()->get_string_factory_srv()};
+  HStringContainer user_name_value{string_srv};
+  HStringContainer user_host_value{string_srv};
+  HStringContainer user_filter_name_value{string_srv};
 
   while (true) {
-    if (get_ta_srv()->get_ta_scan_srv()->next(ta_context->ta_session,
-                                              ta_context->ta_table)) {
+    if (scan_srv->next(ta_context->ta_session, ta_context->ta_table)) {
       LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                       "Nothing more to read from %s", get_table_name());
       break;
     }
 
-    if (get_ta_srv()->get_fa_varchar_srv()->get(
-            ta_context->ta_session, ta_context->ta_table, kAuditLogUserUsername,
-            user_name_value.get())) {
+    if (varchar_srv->get(ta_context->ta_session, ta_context->ta_table,
+                         kAuditLogUserUsername, user_name_value.get())) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to read %s.username", get_table_name());
       return TableResult::Fail;
     }
-    if (get_ta_srv()->get_fa_varchar_srv()->get(
-            ta_context->ta_session, ta_context->ta_table, kAuditLogUserUserhost,
-            user_host_value.get())) {
+    if (varchar_srv->get(ta_context->ta_session, ta_context->ta_table,
+                         kAuditLogUserUserhost, user_host_value.get())) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to read %s.userhost", get_table_name());
       return TableResult::Fail;
     }
-    if (get_ta_srv()->get_fa_varchar_srv()->get(
-            ta_context->ta_session, ta_context->ta_table,
-            kAuditLogUserFiltername, user_filter_name_value.get())) {
+    if (varchar_srv->get(ta_context->ta_session, ta_context->ta_table,
+                         kAuditLogUserFiltername,
+                         user_filter_name_value.get())) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to read %s.filtername", get_table_name());
       return TableResult::Fail;
     }
 
-    get_ta_srv()->get_string_converter_srv()->convert_to_buffer(
-        user_name_value.get(), buff_user_name_value,
-        sizeof(buff_user_name_value), utf8);
-    get_ta_srv()->get_string_converter_srv()->convert_to_buffer(
-        user_host_value.get(), buff_user_host_value,
-        sizeof(buff_user_host_value), utf8);
-    get_ta_srv()->get_string_converter_srv()->convert_to_buffer(
+    string_convert_srv->convert_to_buffer(user_name_value.get(),
+                                          buff_user_name_value,
+                                          sizeof(buff_user_name_value), utf8);
+    string_convert_srv->convert_to_buffer(user_host_value.get(),
+                                          buff_user_host_value,
+                                          sizeof(buff_user_host_value), utf8);
+    string_convert_srv->convert_to_buffer(
         user_filter_name_value.get(), buff_user_filter_name_value,
         sizeof(buff_user_filter_name_value), utf8);
 
@@ -215,8 +240,7 @@ TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
                       buff_user_filter_name_value});
   }
 
-  if (get_ta_srv()->get_ta_scan_srv()->end(ta_context->ta_session,
-                                           ta_context->ta_table)) {
+  if (scan_srv->end(ta_context->ta_session, ta_context->ta_table)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to end full scan of %s table", get_table_name());
     return TableResult::Fail;
@@ -249,10 +273,17 @@ TableResult AuditLogUser::delete_user_by_filter(
     return TableResult::Ok;
   }
 
+  my_service<SERVICE_TYPE(table_access_index_v1)> index_srv(
+      "table_access_index_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(table_access_update_v1)> table_update_srv(
+      "table_access_update_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(table_access_v1)> table_access_srv(
+      "table_access_v1", get_comp_registry_srv());
+
   int rc = 0;
   while (rc == 0) {
-    if (get_ta_srv()->get_ta_update_srv()->delete_row(
-            ta_context->ta_session, ta_context->ta_table) != 0) {
+    if (table_update_srv->delete_row(ta_context->ta_session,
+                                     ta_context->ta_table) != 0) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to delete record for filter '%s'",
                       rule_name.c_str());
@@ -261,11 +292,11 @@ TableResult AuditLogUser::delete_user_by_filter(
     }
 
     // Find next record
-    rc = get_ta_srv()->get_ta_index_srv()->next_same(
-        ta_context->ta_session, ta_context->ta_table, filter_name_key);
+    rc = index_srv->next_same(ta_context->ta_session, ta_context->ta_table,
+                              filter_name_key);
   }
 
-  if (get_ta_srv()->get_ta_srv()->commit(ta_context->ta_session)) {
+  if (table_access_srv->commit(ta_context->ta_session)) {
     index_scan_end(ta_context.get(), filter_name_key);
 
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -298,9 +329,14 @@ TableResult AuditLogUser::delete_user_by_name_host(
     return scan_result;
   }
 
+  my_service<SERVICE_TYPE(table_access_update_v1)> table_update_srv(
+      "table_access_update_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(table_access_v1)> table_access_srv(
+      "table_access_v1", get_comp_registry_srv());
+
   if (scan_result == TableResult::Found &&
-      get_ta_srv()->get_ta_update_srv()->delete_row(
-          ta_context->ta_session, ta_context->ta_table) != 0) {
+      table_update_srv->delete_row(ta_context->ta_session,
+                                   ta_context->ta_table) != 0) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to delete record for user '%s@%s'",
                     user_name.c_str(), user_host.c_str());
@@ -308,7 +344,7 @@ TableResult AuditLogUser::delete_user_by_name_host(
     return TableResult::Fail;
   }
 
-  if (get_ta_srv()->get_ta_srv()->commit(ta_context->ta_session)) {
+  if (table_access_srv->commit(ta_context->ta_session)) {
     index_scan_end(ta_context.get(), user_host_key);
 
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -342,22 +378,32 @@ TableResult AuditLogUser::set_update_filter(
     return scan_result;
   }
 
-  CHARSET_INFO_h utf8 = get_ta_srv()->get_charset_srv()->get_utf8mb4();
-  HStringContainer filter_name_value{get_ta_srv()->get_string_factory_srv()};
-  get_ta_srv()->get_string_converter_srv()->convert_from_buffer(
+  my_service<SERVICE_TYPE(mysql_charset)> charset_srv("mysql_charset",
+                                                      get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_string_factory)> string_srv(
+      "mysql_string_factory", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_convert_srv(
+      "mysql_string_charset_converter", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(field_varchar_access_v1)> varchar_srv(
+      "field_varchar_access_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(table_access_update_v1)> table_update_srv(
+      "table_access_update_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(table_access_v1)> table_access_srv(
+      "table_access_v1", get_comp_registry_srv());
+
+  CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
+  HStringContainer filter_name_value{string_srv};
+  string_convert_srv->convert_from_buffer(
       filter_name_value.get(), filter_name.c_str(), filter_name.length(), utf8);
-  get_ta_srv()->get_fa_varchar_srv()->set(
-      ta_context->ta_session, ta_context->ta_table, kAuditLogUserFiltername,
-      filter_name_value.get());
+  varchar_srv->set(ta_context->ta_session, ta_context->ta_table,
+                   kAuditLogUserFiltername, filter_name_value.get());
 
   int rc = 0;
 
   if (scan_result == TableResult::Found) {
-    rc = get_ta_srv()->get_ta_update_srv()->update(ta_context->ta_session,
-                                                   ta_context->ta_table);
+    rc = table_update_srv->update(ta_context->ta_session, ta_context->ta_table);
   } else {
-    rc = get_ta_srv()->get_ta_update_srv()->insert(ta_context->ta_session,
-                                                   ta_context->ta_table);
+    rc = table_update_srv->insert(ta_context->ta_session, ta_context->ta_table);
   }
 
   if (rc != 0) {
@@ -369,7 +415,7 @@ TableResult AuditLogUser::set_update_filter(
     return TableResult::Fail;
   }
 
-  if (get_ta_srv()->get_ta_srv()->commit(ta_context->ta_session)) {
+  if (table_access_srv->commit(ta_context->ta_session)) {
     index_scan_end(ta_context.get(), user_host_key);
 
     LogPluginErrMsg(

@@ -23,12 +23,26 @@ const size_t kAccessedTableCount = 1;
 
 }  // namespace
 
-AuditTableBase::AuditTableBase(TableAccessServices *table_access_services)
-    : m_table_access_services{table_access_services} {}
+TableAccessContext::~TableAccessContext() {
+  ta_table = nullptr;
+  table_ticket = 0;
+
+  if (ta_session != nullptr) {
+    my_service<SERVICE_TYPE(table_access_factory_v1)> ta_factory_srv(
+        "table_access_factory_v1", comp_registry_srv);
+    ta_factory_srv->destroy(ta_session);
+    ta_session = nullptr;
+  }
+
+  thd = nullptr;
+}
+
+AuditTableBase::AuditTableBase(comp_registry_srv_t *comp_registry_srv)
+    : m_comp_registry_srv{comp_registry_srv} {}
 
 std::unique_ptr<TableAccessContext> AuditTableBase::open_table() noexcept {
   auto ta_context =
-      std::make_unique<TableAccessContext>(m_table_access_services);
+      std::make_unique<TableAccessContext>(get_comp_registry_srv());
 
   if (ta_context == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -36,30 +50,35 @@ std::unique_ptr<TableAccessContext> AuditTableBase::open_table() noexcept {
     return nullptr;
   }
 
-  m_table_access_services->get_current_thd_srv()->get(&ta_context->thd);
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(table_access_factory_v1)> ta_factory_srv(
+      "table_access_factory_v1", get_comp_registry_srv());
+  my_service<SERVICE_TYPE(table_access_v1)> table_access_srv(
+      "table_access_v1", get_comp_registry_srv());
+
+  thd_reader_srv->get(&ta_context->thd);
 
   ta_context->ta_session =
-      m_table_access_services->get_ta_factory_srv()->create(
-          ta_context->thd, kAccessedTableCount);
+      ta_factory_srv->create(ta_context->thd, kAccessedTableCount);
   if (ta_context->ta_session == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Failed to init table access service");
     return nullptr;
   }
 
-  ta_context->table_ticket = m_table_access_services->get_ta_srv()->add(
+  ta_context->table_ticket = table_access_srv->add(
       ta_context->ta_session, get_table_db_name(), strlen(get_table_db_name()),
       get_table_name(), strlen(get_table_name()), TA_WRITE);
 
-  if (m_table_access_services->get_ta_srv()->begin(ta_context->ta_session) !=
-      0) {
+  if (table_access_srv->begin(ta_context->ta_session) != 0) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Failed to start table access transaction");
     return nullptr;
   }
 
-  ta_context->ta_table = m_table_access_services->get_ta_srv()->get(
-      ta_context->ta_session, ta_context->table_ticket);
+  ta_context->ta_table =
+      table_access_srv->get(ta_context->ta_session, ta_context->table_ticket);
 
   if (ta_context->ta_table == nullptr) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -67,9 +86,9 @@ std::unique_ptr<TableAccessContext> AuditTableBase::open_table() noexcept {
     return nullptr;
   }
 
-  if (m_table_access_services->get_ta_srv()->check(
-          ta_context->ta_session, ta_context->ta_table, get_table_field_def(),
-          get_table_field_count()) != 0) {
+  if (table_access_srv->check(ta_context->ta_session, ta_context->ta_table,
+                              get_table_field_def(),
+                              get_table_field_count()) != 0) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to check %s table fields", get_table_name());
     return nullptr;

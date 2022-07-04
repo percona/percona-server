@@ -21,10 +21,7 @@ MYSQL_ADD_PLUGIN(audit_log_filter
                  audit_rule_registry.cc
                  audit_psi_info.cc
                  audit_udf.cc
-                 table_access_services.cc
-                 thd_attributes_services.cc
-                 udf_services.cc
-                 sys_var_services.cc
+                 component_registry_service.cc
                  sys_vars.cc
                  audit_table/base.cc
                  audit_table/audit_log_filter.cc

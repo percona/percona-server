@@ -16,7 +16,9 @@
 #ifndef AUDIT_LOG_FILTER_AUDIT_TABLE_BASE_H_INCLUDED
 #define AUDIT_LOG_FILTER_AUDIT_TABLE_BASE_H_INCLUDED
 
-#include "plugin/audit_log_filter/table_access_services.h"
+#include "plugin/audit_log_filter/component_registry_service.h"
+
+#include <mysql/components/services/table_access_service.h>
 
 #include <cstddef>
 #include <memory>
@@ -39,40 +41,57 @@ struct TableAccessContext {
   size_t table_ticket = 0;
   TA_table ta_table = nullptr;
 
-  TableAccessServices *ta_services;
+  comp_registry_srv_t *comp_registry_srv;
 
   TableAccessContext() = delete;
-  explicit TableAccessContext(TableAccessServices *ta_services_)
-      : ta_services{ta_services_} {}
+  explicit TableAccessContext(comp_registry_srv_t *comp_registry_srv_)
+      : comp_registry_srv{comp_registry_srv_} {}
 
-  ~TableAccessContext() {
-    ta_table = nullptr;
-    table_ticket = 0;
+  ~TableAccessContext();
+};
 
-    if (ta_session != nullptr) {
-      ta_services->get_ta_factory_srv()->destroy(ta_session);
-      ta_session = nullptr;
-    }
+/**
+ * @brief Wrapper class around my_h_string to make sure resources are released
+ *        once string is not needed any more.
+ */
+class HStringContainer {
+  using string_factory_srv_t = SERVICE_TYPE(mysql_string_factory);
 
-    thd = nullptr;
+ public:
+  explicit HStringContainer(string_factory_srv_t *string_factory)
+      : m_string_factory{string_factory}, m_string{nullptr} {
+    m_string_factory->create(&m_string);
   }
+
+  ~HStringContainer() { m_string_factory->destroy(m_string); }
+
+  /**
+   * @brief Get wrapped string object.
+   *
+   * @return Wrapped string object
+   */
+  my_h_string get() { return m_string; }
+
+ private:
+  string_factory_srv_t *m_string_factory;
+  my_h_string m_string;
 };
 
 class AuditTableBase {
  public:
-  explicit AuditTableBase(TableAccessServices *table_access_services);
+  explicit AuditTableBase(comp_registry_srv_t *comp_registry_srv);
   virtual ~AuditTableBase() = default;
 
+ protected:
   /**
-   * @brief Get table access service instance.
+   * @brief Get pointer to a component registry service.
    *
-   * @return Table access service
+   * @return Pointer to a component registry service
    */
-  [[nodiscard]] TableAccessServices *get_ta_srv() noexcept {
-    return m_table_access_services;
+  [[nodiscard]] comp_registry_srv_t *get_comp_registry_srv() noexcept {
+    return m_comp_registry_srv;
   }
 
- protected:
   /**
    * @brief Open table.
    *
@@ -111,7 +130,7 @@ class AuditTableBase {
   [[nodiscard]] virtual size_t get_table_field_count() noexcept = 0;
 
  private:
-  TableAccessServices *m_table_access_services = nullptr;
+  comp_registry_srv_t *m_comp_registry_srv;
 };
 
 }  // namespace audit_log_filter::audit_table

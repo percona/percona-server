@@ -15,16 +15,17 @@
 
 #include "plugin/audit_log_filter/event_filter_function/query_digest.h"
 
+#include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_string.h>
+#include <mysql/components/services/mysql_thd_attributes.h>
 
 namespace audit_log_filter::event_filter_function {
 
 EventFilterFunction<EventFilterFunctionType::QueryDigest>::EventFilterFunction(
     FunctionArgsList args)
-    : EventFilterFunctionBase{std::move(args)},
-      m_thd_attrs_services{std::make_unique<ThdAttributesServices>()} {
-  m_thd_attrs_services->acquire();
+    : EventFilterFunctionBase{std::move(args)} {
+  m_comp_registry_srv = get_component_registry_service();
 }
 
 bool EventFilterFunctionQueryDigest::validate_args(
@@ -44,51 +45,16 @@ bool EventFilterFunctionQueryDigest::validate_args(
 }
 
 std::string EventFilterFunctionQueryDigest::get_query_digest() const noexcept {
-  std::string result;
-
-  // TODO: component services handling refactoring
-  SERVICE_TYPE(mysql_charset) * charset_srv;
-  m_thd_attrs_services->get_reg_srv()->acquire(
-      "mysql_charset",
-      reinterpret_cast<my_h_service *>(
-          const_cast<SERVICE_TYPE_NO_CONST(mysql_charset) **>(&charset_srv)));
-
-  if (charset_srv == nullptr) {
-    return result;
-  }
-
-  SERVICE_TYPE_NO_CONST(mysql_string_factory) * string_factory_srv;
-  m_thd_attrs_services->get_reg_srv()->acquire(
-      "mysql_string_factory",
-      reinterpret_cast<my_h_service *>(
-          const_cast<SERVICE_TYPE_NO_CONST(mysql_string_factory) **>(
-              &string_factory_srv)));
-
-  if (string_factory_srv == nullptr) {
-    return result;
-  }
-
-  SERVICE_TYPE(mysql_string_charset_converter) * string_converter_srv;
-  m_thd_attrs_services->get_reg_srv()->acquire(
-      "mysql_string_charset_converter",
-      reinterpret_cast<my_h_service *>(
-          const_cast<SERVICE_TYPE_NO_CONST(mysql_string_charset_converter) **>(
-              &string_converter_srv)));
-
-  if (string_converter_srv == nullptr) {
-    return result;
-  }
-
-  SERVICE_TYPE(mysql_current_thread_reader) * current_thd_srv;
-  m_thd_attrs_services->get_reg_srv()->acquire(
-      "mysql_current_thread_reader",
-      reinterpret_cast<my_h_service *>(
-          const_cast<SERVICE_TYPE_NO_CONST(mysql_current_thread_reader) **>(
-              &current_thd_srv)));
-
-  if (current_thd_srv == nullptr) {
-    return result;
-  }
+  my_service<SERVICE_TYPE(mysql_charset)> charset_srv(
+      "mysql_charset", m_comp_registry_srv.get());
+  my_service<SERVICE_TYPE(mysql_string_factory)> string_factory_srv(
+      "mysql_string_factory", m_comp_registry_srv.get());
+  my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_converter_srv(
+      "mysql_string_charset_converter", m_comp_registry_srv.get());
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> current_thd_srv(
+      "mysql_current_thread_reader", m_comp_registry_srv.get());
+  my_service<SERVICE_TYPE(mysql_thd_attributes)> thd_attrs_srv(
+      "mysql_thd_attributes", m_comp_registry_srv.get());
 
   CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
 
@@ -99,24 +65,16 @@ std::string EventFilterFunctionQueryDigest::get_query_digest() const noexcept {
   current_thd_srv->get(&thd);
 
   char buff_digest[1024];
+  std::string result;
 
-  if (!m_thd_attrs_services->get_thd_attrs_srv()->get(
-          thd, "query_digest", reinterpret_cast<void *>(&digest))) {
+  if (!thd_attrs_srv->get(thd, "query_digest",
+                          reinterpret_cast<void *>(&digest))) {
     string_converter_srv->convert_to_buffer(digest, buff_digest,
                                             sizeof(buff_digest), utf8);
     result.append(buff_digest);
   }
 
   string_factory_srv->destroy(digest);
-  m_thd_attrs_services->get_reg_srv()->release(reinterpret_cast<my_h_service>(
-      const_cast<SERVICE_TYPE_NO_CONST(mysql_string_factory) *>(
-          string_factory_srv)));
-  m_thd_attrs_services->get_reg_srv()->release(reinterpret_cast<my_h_service>(
-      const_cast<SERVICE_TYPE_NO_CONST(mysql_string_charset_converter) *>(
-          string_converter_srv)));
-  m_thd_attrs_services->get_reg_srv()->release(reinterpret_cast<my_h_service>(
-      const_cast<SERVICE_TYPE_NO_CONST(mysql_current_thread_reader) *>(
-          current_thd_srv)));
 
   return result;
 }

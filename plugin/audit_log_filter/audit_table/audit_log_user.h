@@ -21,18 +21,14 @@
 #include <map>
 #include <string>
 
-namespace audit_log_filter {
-
-class TableAccessServices;
-
-namespace audit_table {
+namespace audit_log_filter::audit_table {
 
 class AuditLogUser : public AuditTableBase {
  public:
   using AuditUsersContainer =
       std::map<std::pair<std::string, std::string>, std::string>;
 
-  explicit AuditLogUser(TableAccessServices *table_access_services);
+  explicit AuditLogUser(comp_registry_srv_t *comp_registry_srv);
 
   /**
    * @brief Load user list.
@@ -136,7 +132,6 @@ class AuditLogUser : public AuditTableBase {
   [[nodiscard]] size_t get_table_field_count() noexcept override;
 };
 
-}  // namespace audit_table
-}  // namespace audit_log_filter
+}  // namespace audit_log_filter::audit_table
 
 #endif  // AUDIT_LOG_FILTER_AUDIT_TABLE_AUDIT_LOG_USER_H_INCLUDED

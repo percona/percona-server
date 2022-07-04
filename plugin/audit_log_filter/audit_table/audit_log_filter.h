@@ -22,17 +22,13 @@
 #include <map>
 #include <string>
 
-namespace audit_log_filter {
-
-class TableAccessServices;
-
-namespace audit_table {
+namespace audit_log_filter::audit_table {
 
 class AuditLogFilter : public AuditTableBase {
  public:
   using AuditRulesContainer = std::map<std::string, AuditRule>;
 
-  explicit AuditLogFilter(TableAccessServices *table_access_services);
+  explicit AuditLogFilter(comp_registry_srv_t *comp_registry_srv);
 
   /**
    * @brief Load filtering rules list.
@@ -130,7 +126,6 @@ class AuditLogFilter : public AuditTableBase {
   [[nodiscard]] size_t get_table_field_count() noexcept override;
 };
 
-}  // namespace audit_table
-}  // namespace audit_log_filter
+}  // namespace audit_log_filter::audit_table
 
 #endif  // AUDIT_LOG_FILTER_AUDIT_TABLE_AUDIT_LOG_FILTER_H_INCLUDED

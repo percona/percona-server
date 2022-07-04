@@ -17,6 +17,7 @@
 #define AUDIT_LOG_FILTER_AUDIT_UDF_H_INCLUDED
 
 #include "plugin/audit_log_filter/audit_base_component.h"
+#include "plugin/audit_log_filter/component_registry_service.h"
 
 #include <mysql/udf_registration_types.h>
 
@@ -26,9 +27,6 @@
 #include <vector>
 
 namespace audit_log_filter {
-
-class TableAccessServices;
-class UdfServices;
 
 struct UdfFuncInfo {
   const char *udf_name;
@@ -41,8 +39,7 @@ struct UdfFuncInfo {
 class AuditUdf : public AuditBaseComponent {
  public:
   AuditUdf() = delete;
-  AuditUdf(std::shared_ptr<TableAccessServices> table_access_services,
-           std::unique_ptr<UdfServices> udf_services);
+  explicit AuditUdf(comp_registry_srv_t *comp_registry_srv);
   ~AuditUdf();
 
   /**
@@ -333,12 +330,12 @@ class AuditUdf : public AuditBaseComponent {
   static void audit_log_read_bookmark_udf_deinit(UDF_INIT *initid);
 
   /**
-   * @brief Get pointer to table access service.
+   * @brief Get pointer to a component registry service.
    *
-   * @return Pointer to table access service
+   * @return Pointer to a component registry service
    */
-  TableAccessServices *get_ta_srv() noexcept {
-    return m_table_access_services.get();
+  [[nodiscard]] comp_registry_srv_t *get_comp_registry_srv() const noexcept {
+    return m_comp_registry_srv;
   }
 
  private:
@@ -363,8 +360,7 @@ class AuditUdf : public AuditBaseComponent {
                         const std::string &charset_name = "utf8mb4") noexcept;
 
  private:
-  std::shared_ptr<TableAccessServices> m_table_access_services;
-  std::unique_ptr<UdfServices> m_udf_services;
+  comp_registry_srv_t *m_comp_registry_srv;
   std::vector<std::string> m_active_udf_names;
 };
 

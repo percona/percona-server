@@ -18,7 +18,7 @@
 
 #include "plugin/audit_log_filter/event_filter_function/base.h"
 
-#include "plugin/audit_log_filter/thd_attributes_services.h"
+#include "plugin/audit_log_filter/component_registry_service.h"
 
 #include <string>
 
@@ -70,7 +70,7 @@ class EventFilterFunction<EventFilterFunctionType::QueryDigest>
   [[nodiscard]] std::string get_query_digest() const noexcept;
 
  private:
-  std::unique_ptr<ThdAttributesServices> m_thd_attrs_services;
+  comp_registry_srv_container_t m_comp_registry_srv;
 };
 
 using EventFilterFunctionQueryDigest =

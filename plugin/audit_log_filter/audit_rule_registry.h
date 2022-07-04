@@ -18,6 +18,7 @@
 
 #include "plugin/audit_log_filter/audit_table/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_user.h"
+#include "plugin/audit_log_filter/component_registry_service.h"
 
 #include "mysql/plugin.h"
 
@@ -26,14 +27,12 @@
 
 namespace audit_log_filter {
 
-class TableAccessServices;
 class AuditRule;
 
 class AuditRuleRegistry {
  public:
   AuditRuleRegistry() = delete;
-  explicit AuditRuleRegistry(
-      std::shared_ptr<TableAccessServices> table_access_services);
+  explicit AuditRuleRegistry(comp_registry_srv_t *_comp_registry_srv);
 
   /**
    * @brief Load filtering rules from DB.
@@ -73,7 +72,7 @@ class AuditRuleRegistry {
   bool init_audit_tables() noexcept;
 
  private:
-  std::shared_ptr<TableAccessServices> m_table_access_services;
+  comp_registry_srv_t *m_comp_registry_srv;
 
   audit_table::AuditLogUser::AuditUsersContainer m_audit_users;
   audit_table::AuditLogFilter::AuditRulesContainer m_audit_filter_rules;

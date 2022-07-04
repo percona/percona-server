@@ -18,13 +18,13 @@
 #include "plugin/audit_log_filter/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_user.h"
-#include "plugin/audit_log_filter/table_access_services.h"
-#include "plugin/audit_log_filter/udf_services.h"
 
 #include "mysql/plugin.h"
 
+#include <mysql/components/services/udf_metadata.h>
+#include <mysql/components/services/udf_registration.h>
+
 #include <cstring>
-#include <memory>
 #include <regex>
 #include <utility>
 
@@ -102,25 +102,29 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
 
 }  // namespace
 
-AuditUdf::AuditUdf(std::shared_ptr<TableAccessServices> table_access_services,
-                   std::unique_ptr<UdfServices> udf_services)
-    : m_table_access_services{std::move(table_access_services)},
-      m_udf_services{std::move(udf_services)} {}
+AuditUdf::AuditUdf(comp_registry_srv_t *comp_registry_srv)
+    : m_comp_registry_srv{comp_registry_srv} {}
 
 AuditUdf::~AuditUdf() {
   int was_present = 0;
+  my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
+      "udf_registration", m_comp_registry_srv);
+
   for (const auto &name : m_active_udf_names) {
-    m_udf_services->get_udf_reg()->udf_unregister(name.c_str(), &was_present);
+    udf_registration_srv->udf_unregister(name.c_str(), &was_present);
   }
 
   m_active_udf_names.clear();
 }
 
 bool AuditUdf::init(UdfFuncInfo *begin, UdfFuncInfo *end) {
+  my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
+      "udf_registration", m_comp_registry_srv);
+
   for (UdfFuncInfo *it = begin; it != end; ++it) {
-    if (m_udf_services->get_udf_reg()->udf_register(
-            it->udf_name, STRING_RESULT, (Udf_func_any)it->udf_func,
-            it->init_func, it->deinit_func)) {
+    if (udf_registration_srv->udf_register(it->udf_name, STRING_RESULT,
+                                           (Udf_func_any)it->udf_func,
+                                           it->init_func, it->deinit_func)) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to register %s UDF", it->udf_name);
       return false;
@@ -208,7 +212,7 @@ char *AuditUdf::audit_log_filter_set_filter_udf(
     return result;
   }
 
-  audit_table::AuditLogFilter audit_log_filter{udf->get_ta_srv()};
+  audit_table::AuditLogFilter audit_log_filter{udf->get_comp_registry_srv()};
 
   auto check_result = audit_log_filter.check_name_exists(udf_args->args[0]);
 
@@ -303,8 +307,8 @@ char *AuditUdf::audit_log_filter_remove_filter_udf(
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogFilter audit_log_filter{udf->get_ta_srv()};
-  audit_table::AuditLogUser audit_log_user{udf->get_ta_srv()};
+  audit_table::AuditLogFilter audit_log_filter{udf->get_comp_registry_srv()};
+  audit_table::AuditLogUser audit_log_user{udf->get_comp_registry_srv()};
 
   auto check_result = audit_log_filter.check_name_exists(udf_args->args[0]);
 
@@ -420,8 +424,8 @@ char *AuditUdf::audit_log_filter_set_user_udf(AuditUdf *udf, UDF_INIT *initid,
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogFilter audit_log_filter{udf->get_ta_srv()};
-  audit_table::AuditLogUser audit_log_user{udf->get_ta_srv()};
+  audit_table::AuditLogFilter audit_log_filter{udf->get_comp_registry_srv()};
+  audit_table::AuditLogUser audit_log_user{udf->get_comp_registry_srv()};
 
   std::string filter_name{udf_args->args[1]};
 
@@ -531,7 +535,7 @@ char *AuditUdf::audit_log_filter_remove_user_udf(
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogUser audit_log_user{udf->get_ta_srv()};
+  audit_table::AuditLogUser audit_log_user{udf->get_comp_registry_srv()};
 
   auto *user_info_data = reinterpret_cast<UserNameInfo *>(initid->ptr);
 
@@ -652,18 +656,22 @@ void AuditUdf::audit_log_read_bookmark_udf_deinit(UDF_INIT *) {}
 
 bool AuditUdf::set_return_value_charset(
     UDF_INIT *initid, const std::string &charset_name) noexcept {
+  my_service<SERVICE_TYPE(mysql_udf_metadata)> udf_metadata_srv(
+      "mysql_udf_metadata", m_comp_registry_srv);
   char *charset = const_cast<char *>(charset_name.c_str());
-  return !m_udf_services->get_udf_metadata()->result_set(
-      initid, "charset", static_cast<void *>(charset));
+  return !udf_metadata_srv->result_set(initid, "charset",
+                                       static_cast<void *>(charset));
 }
 
 bool AuditUdf::set_args_charset(UDF_ARGS *udf_args,
                                 const std::string &charset_name) noexcept {
+  my_service<SERVICE_TYPE(mysql_udf_metadata)> udf_metadata_srv(
+      "mysql_udf_metadata", m_comp_registry_srv);
   char *charset = const_cast<char *>(charset_name.c_str());
   for (uint index = 0; index < udf_args->arg_count; ++index) {
     if (udf_args->arg_type[index] == STRING_RESULT &&
-        m_udf_services->get_udf_metadata()->argument_set(
-            udf_args, "charset", index, static_cast<void *>(charset))) {
+        udf_metadata_srv->argument_set(udf_args, "charset", index,
+                                       static_cast<void *>(charset))) {
       return false;
     }
   }

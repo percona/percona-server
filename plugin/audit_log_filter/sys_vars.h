@@ -17,6 +17,7 @@
 #define AUDIT_LOG_FILTER_SYS_VARS_H_INCLUDED
 
 #include "plugin/audit_log_filter/audit_base_component.h"
+#include "plugin/audit_log_filter/component_registry_service.h"
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
 #include "plugin/audit_log_filter/log_writer/base.h"
 #include "plugin/audit_log_filter/log_writer_strategy/base.h"
@@ -59,7 +60,7 @@ class VarWrapper {
 class SysVars : public AuditBaseComponent {
  public:
   SysVars() = delete;
-  explicit SysVars(std::unique_ptr<SysVarServices> sys_var_services);
+  explicit SysVars(comp_registry_srv_t *comp_registry_srv);
   ~SysVars();
 
   /**
@@ -175,7 +176,7 @@ class SysVars : public AuditBaseComponent {
   void validate() const noexcept;
 
  private:
-  std::unique_ptr<SysVarServices> m_sys_var_services;
+  comp_registry_srv_t *m_comp_registry_srv;
 
   char *m_file_name = nullptr;
   AuditLogHandlerType m_handler_type = AuditLogHandlerType::File;

@@ -22,10 +22,12 @@
 #include "sql/sql_error.h"
 #include "sql/sql_plugin_var.h"
 
+#include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 
 #include <syslog.h>
 #include <array>
+#include <atomic>
 
 namespace audit_log_filter {
 namespace {
@@ -173,6 +175,24 @@ void prune_seconds_update_func(MYSQL_THD thd, SYS_VAR *, void *val_ptr,
   }
 }
 
+/*
+ * Status variables
+ */
+std::atomic<uint64_t> events_lost{0};
+
+int show_events_lost(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = events_lost.load(std::memory_order_relaxed);
+  return 0;
+}
+
+SHOW_VAR status_vars[] = {
+    {"Audit_log_filter.events_lost", (char *)&show_events_lost, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
+
 }  // namespace
 
 SysVars::SysVars(comp_registry_srv_t *comp_registry_srv)
@@ -185,8 +205,10 @@ SysVars::SysVars(comp_registry_srv_t *comp_registry_srv)
 SysVars::~SysVars() {
   my_service<SERVICE_TYPE(component_sys_variable_unregister)> sys_var_unreg_srv(
       "component_sys_variable_unregister", m_comp_registry_srv);
+  my_service<SERVICE_TYPE(status_variable_registration)> status_var_reg_srv(
+      "status_variable_registration", m_comp_registry_srv);
 
-  if (!sys_var_unreg_srv.is_valid()) {
+  if (!sys_var_unreg_srv.is_valid() || !status_var_reg_srv.is_valid()) {
     return;
   }
 
@@ -196,6 +218,11 @@ SysVars::~SysVars() {
                       "Failed to unregister %s.%s variable", kComponentName,
                       var_name);
     }
+  }
+
+  if (status_var_reg_srv->unregister_variable((SHOW_VAR *)&status_vars)) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to unregister status variables");
   }
 }
 
@@ -207,8 +234,10 @@ bool SysVars::init() noexcept {
 
   my_service<SERVICE_TYPE(component_sys_variable_register)> sys_var_reg_srv(
       "component_sys_variable_register", m_comp_registry_srv);
+  my_service<SERVICE_TYPE(status_variable_registration)> status_var_reg_srv(
+      "status_variable_registration", m_comp_registry_srv);
 
-  if (!sys_var_reg_srv.is_valid()) {
+  if (!sys_var_reg_srv.is_valid() || !status_var_reg_srv.is_valid()) {
     return false;
   }
 
@@ -466,6 +495,12 @@ bool SysVars::init() noexcept {
     return false;
   }
 
+  if (status_var_reg_srv->register_variable((SHOW_VAR *)&status_vars)) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to init status variable");
+    return false;
+  }
+
   validate();
 
   return true;
@@ -504,6 +539,14 @@ int SysVars::get_syslog_facility() const noexcept {
 
 int SysVars::get_syslog_priority() const noexcept {
   return audit_log_filter_syslog_priority_codes[m_syslog_priority];
+}
+
+uint64_t SysVars::get_events_lost() noexcept {
+  return events_lost.load(std::memory_order_relaxed);
+}
+
+void SysVars::inc_events_lost() noexcept {
+  events_lost.fetch_add(1, std::memory_order_relaxed);
 }
 
 }  // namespace audit_log_filter

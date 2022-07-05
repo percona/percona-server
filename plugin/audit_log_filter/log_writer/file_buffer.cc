@@ -109,8 +109,9 @@ void FileBuffer::write(const char *buf, size_t len) noexcept {
       m_write_func(buf, len);
       resume();
     }
-    //    audit_log_buffer_size_overflow.fetch_add(1,
-    //    std::memory_order_relaxed);
+
+    m_sys_vars->inc_events_lost();
+
     return;
   }
 

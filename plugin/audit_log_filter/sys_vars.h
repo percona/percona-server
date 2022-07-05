@@ -169,6 +169,18 @@ class SysVars : public AuditBaseComponent {
    */
   [[nodiscard]] int get_syslog_priority() const noexcept;
 
+  /**
+   * @brief Get number of events lost in performance logging mode.
+   *
+   * @return number of lost events
+   */
+  [[nodiscard]] static uint64_t get_events_lost() noexcept;
+
+  /**
+   * @brief Increment counter of events lost in performance logging mode.
+   */
+  static void inc_events_lost() noexcept;
+
  private:
   /**
    * @brief Check plugin configuration is correct.

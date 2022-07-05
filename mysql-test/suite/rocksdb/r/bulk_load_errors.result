@@ -93,3 +93,4 @@ ERROR HY000: Rows inserted during bulk load must not overlap existing rows
 SET rocksdb_bulk_load=0;
 DROP TABLE t1;
 DROP TABLE t2;
+# restart

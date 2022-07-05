@@ -24,9 +24,9 @@
 namespace audit_log_filter::log_writer {
 
 LogWriterBase::LogWriterBase(
-    std::shared_ptr<SysVars> config,
+    SysVars *sys_vars,
     std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter)
-    : m_config{std::move(config)}, m_formatter{std::move(formatter)} {}
+    : m_sys_vars{sys_vars}, m_formatter{std::move(formatter)} {}
 
 void LogWriterBase::init_formatter() noexcept {
   m_formatter->init_record_id(get_log_size());
@@ -56,6 +56,6 @@ void LogWriterBase::write(AuditRecordVariant record) noexcept {
   write(record_str, true);
 }
 
-SysVars *LogWriterBase::get_config() const noexcept { return m_config.get(); }
+SysVars *LogWriterBase::get_sys_vars() const noexcept { return m_sys_vars; }
 
 }  // namespace audit_log_filter::log_writer

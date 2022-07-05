@@ -169,7 +169,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  auto sys_vars = std::make_shared<SysVars>(comp_registry_srv.get());
+  auto sys_vars = std::make_unique<SysVars>(comp_registry_srv.get());
 
   if (sys_vars == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -218,7 +218,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  auto log_writer = get_log_writer(sys_vars, std::move(formatter));
+  auto log_writer = get_log_writer(sys_vars.get(), std::move(formatter));
 
   if (log_writer == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -277,7 +277,7 @@ int audit_log_notify(MYSQL_THD thd, mysql_event_class_t event_class,
 AuditLogFilter::AuditLogFilter(
     comp_registry_srv_container_t comp_registry_srv,
     std::unique_ptr<AuditRuleRegistry> audit_rules_registry,
-    std::unique_ptr<AuditUdf> audit_udf, std::shared_ptr<SysVars> sys_vars,
+    std::unique_ptr<AuditUdf> audit_udf, std::unique_ptr<SysVars> sys_vars,
     std::unique_ptr<log_writer::LogWriterBase> log_writer)
     : m_comp_registry_srv{std::move(comp_registry_srv)},
       m_audit_rules_registry{std::move(audit_rules_registry)},

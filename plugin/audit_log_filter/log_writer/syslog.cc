@@ -20,8 +20,8 @@
 namespace audit_log_filter::log_writer {
 
 LogWriterSyslog::LogWriter(
-    std::shared_ptr<SysVars> config,
+    SysVars *sys_vars,
     std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter)
-    : LogWriterBase{std::move(config), std::move(formatter)} {}
+    : LogWriterBase{sys_vars, std::move(formatter)} {}
 
 }  // namespace audit_log_filter::log_writer

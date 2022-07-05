@@ -155,3 +155,19 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 --source include/wait_until_count_sessions.inc
+
+--source include/parse_rocksdb_fs_uri.inc
+if (!$rocksdb_zenfs_disabled)
+{
+  --file_exists $MYSQL_ZENFS
+  --let $rocksdb_base_dir = `SELECT @@rocksdb_datadir`
+  --let $expected_bulk_load_tmp_sst = test.t1_PRIMARY_2_0.bulk_load.tmp.sst
+  --source include/shutdown_mysqld.inc
+  --exec $MYSQL_ZENFS delete --zbd=$extracted_zenfs_device --path=$rocksdb_base_dir/$expected_bulk_load_tmp_sst > /dev/null 2>&1
+  --source include/start_mysqld.inc
+}
+if ($rocksdb_zenfs_disabled)
+{
+  # fake "# restart" message written to the test log to get identical results in ZenFS / non-ZenFS modes
+  --echo # restart
+}

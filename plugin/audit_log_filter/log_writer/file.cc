@@ -27,13 +27,14 @@
 namespace audit_log_filter::log_writer {
 
 LogWriter<AuditLogHandlerType::File>::LogWriter(
-    std::shared_ptr<SysVars> config,
+    SysVars *sys_vars,
     std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter)
-    : LogWriterBase{std::move(config), std::move(formatter)},
+    : LogWriterBase{sys_vars, std::move(formatter)},
       m_is_rotating{false},
       m_is_log_empty{true},
+      m_file_handle{sys_vars},
       m_strategy{
-          get_log_writer_strategy(get_config()->get_file_strategy_type())} {}
+          get_log_writer_strategy(sys_vars->get_file_strategy_type())} {}
 
 LogWriter<AuditLogHandlerType::File>::~LogWriter() { do_close_file(); }
 
@@ -43,7 +44,7 @@ bool LogWriterFile::close() noexcept { return do_close_file(); }
 
 bool LogWriterFile::do_open_file() noexcept {
   auto file_path = std::filesystem::path{mysql_data_home} /
-                   std::filesystem::path{get_config()->get_file_name()};
+                   std::filesystem::path{get_sys_vars()->get_file_name()};
   bool is_new_file = !std::filesystem::exists(file_path);
 
   if (!is_new_file) {
@@ -52,7 +53,7 @@ bool LogWriterFile::do_open_file() noexcept {
   }
 
   if (!m_strategy->do_open_file(&m_file_handle, file_path,
-                                get_config()->get_buffer_size())) {
+                                get_sys_vars()->get_buffer_size())) {
     return false;
   }
 
@@ -84,7 +85,7 @@ void LogWriterFile::write(const std::string &record,
     m_is_log_empty = false;
   }
 
-  const auto file_size_limit = get_config()->get_rotate_on_size();
+  const auto file_size_limit = get_sys_vars()->get_rotate_on_size();
 
   if (file_size_limit > 0 && !m_is_rotating &&
       file_size_limit < get_log_size()) {
@@ -101,7 +102,7 @@ void LogWriterFile::rotate() noexcept {
   m_is_rotating = true;
   do_close_file();
 
-  auto ec = FileHandle::rotate(mysql_data_home, get_config()->get_file_name());
+  auto ec = FileHandle::rotate(mysql_data_home, get_sys_vars()->get_file_name());
 
   if (ec.value() != 0) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -119,16 +120,16 @@ void LogWriterFile::flush() noexcept {
 }
 
 void LogWriterFile::prune() noexcept {
-  if (get_config()->get_rotate_on_size() == 0) {
+  if (get_sys_vars()->get_rotate_on_size() == 0) {
     return;
   }
 
-  const auto log_max_size = get_config()->get_log_max_size();
-  const auto prune_seconds = get_config()->get_log_prune_seconds();
+  const auto log_max_size = get_sys_vars()->get_log_max_size();
+  const auto prune_seconds = get_sys_vars()->get_log_prune_seconds();
 
   if (log_max_size > 0) {
     auto log_file_list = FileHandle::get_prune_files(
-        mysql_data_home, get_config()->get_file_name());
+        mysql_data_home, get_sys_vars()->get_file_name());
 
     ulonglong current_logs_size = std::accumulate(
         log_file_list.begin(), log_file_list.end(), 0,
@@ -159,7 +160,7 @@ void LogWriterFile::prune() noexcept {
     }
   } else if (prune_seconds > 0) {
     auto log_file_list = FileHandle::get_prune_files(
-        mysql_data_home, get_config()->get_file_name());
+        mysql_data_home, get_sys_vars()->get_file_name());
 
     for (const auto &entry : log_file_list) {
       if (entry.age > prune_seconds) {

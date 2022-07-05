@@ -25,7 +25,7 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
  public:
   LogWriter() = delete;
   LogWriter(
-      std::shared_ptr<SysVars> config,
+      SysVars *sys_vars,
       std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
 
   /**

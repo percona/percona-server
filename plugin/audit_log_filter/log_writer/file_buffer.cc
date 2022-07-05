@@ -15,6 +15,7 @@
 
 #include "plugin/audit_log_filter/log_writer/file_buffer.h"
 #include "plugin/audit_log_filter/audit_psi_info.h"
+#include "plugin/audit_log_filter/sys_vars.h"
 
 #include "my_sys.h"
 #include "my_systime.h"
@@ -37,7 +38,7 @@ PSI_cond_info cond_key_list[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 #endif
 
-static void *buffer_flush_worker(void *arg) {
+void *buffer_flush_worker(void *arg) {
   auto *buffer = static_cast<FileBuffer *>(arg);
 
   my_thread_init();
@@ -49,6 +50,8 @@ static void *buffer_flush_worker(void *arg) {
   return nullptr;
 }
 }  // namespace
+
+FileBuffer::FileBuffer(SysVars *sys_vars) : m_sys_vars{sys_vars} {}
 
 FileBuffer::~FileBuffer() {
   if (m_buf != nullptr) {
@@ -145,7 +148,7 @@ void FileBuffer::pause() noexcept {
 
 void FileBuffer::resume() noexcept { mysql_mutex_unlock(&m_mutex); }
 
-bool FileBuffer::check_flush_stopped() noexcept {
+bool FileBuffer::check_flush_stopped() const noexcept {
   return m_stop_flush_worker && m_flush_pos == m_write_pos;
 }
 

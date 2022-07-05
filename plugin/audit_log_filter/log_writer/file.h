@@ -34,7 +34,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
  public:
   LogWriter<AuditLogHandlerType::File>() = delete;
   LogWriter<AuditLogHandlerType::File>(
-      std::shared_ptr<SysVars> config,
+      SysVars *sys_vars,
       std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
   ~LogWriter<AuditLogHandlerType::File>() override;
 

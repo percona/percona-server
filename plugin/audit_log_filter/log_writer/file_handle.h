@@ -23,7 +23,11 @@
 #include <fstream>
 #include <vector>
 
-namespace audit_log_filter::log_writer {
+namespace audit_log_filter {
+
+class SysVars;
+
+namespace log_writer {
 
 struct PruneFileInfo {
   std::filesystem::path path;
@@ -35,6 +39,9 @@ using PruneFilesList = std::vector<PruneFileInfo>;
 
 class FileHandle {
  public:
+  FileHandle() = delete;
+  explicit FileHandle(SysVars *sys_vars);
+
   /**
    * @brief Open file.
    *
@@ -136,8 +143,10 @@ class FileHandle {
   std::filesystem::path m_path;
   FileBuffer m_buffer;
   mysql_mutex_t m_lock;
+  SysVars *m_sys_vars;
 };
 
-}  // namespace audit_log_filter::log_writer
+}  // namespace log_writer
+}  // namespace audit_log_filter
 
 #endif  // AUDIT_LOG_FILTER_LOG_WRITER_FILE_HANDLE_H_INCLUDED

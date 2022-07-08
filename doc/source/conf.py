@@ -287,7 +287,7 @@ latex_elements = {
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'perconaserver56', u'Percona Server for MySQL 5.6 Documentation',
-     [u'Percona LLC and/or its affiliates 2009-2020'], 1)
+     [u'Percona LLC and/or its affiliates 2009-2022'], 1)
 ]
 
 

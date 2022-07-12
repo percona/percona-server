@@ -9,6 +9,7 @@ SELECT audit_log_filter_set_user('%', 'log_general');
 --source include/restart_mysqld.inc
 
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter.events_lost';
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter.event_max_drop_size';
 
 --disable_query_log
 --disable_result_log
@@ -17,12 +18,14 @@ SELECT "4IHYyOZMEAUJcURiOO9nLoceKvbRi3HSZZObmonjTjv4IHYyOZMEAUJcURiOO9nLoceKvbRi
 --enable_query_log
 
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter.events_lost';
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter.event_max_drop_size';
 
 # Test it with audit_log_filter.strategy = PERFORMANCE
 --let $restart_parameters="restart: --audit_log_filter.buffer_size=4096 --audit_log_filter.strategy=PERFORMANCE"
 --source include/restart_mysqld.inc
 
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter.events_lost';
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter.event_max_drop_size';
 
 --disable_query_log
 --disable_result_log
@@ -30,6 +33,7 @@ SELECT "4IHYyOZMEAUJcURiOO9nLoceKvbRi3HSZZObmonjTjv4IHYyOZMEAUJcURiOO9nLoceKvbRi
 --enable_result_log
 --enable_query_log
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter.events_lost';
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter.event_max_drop_size';
 
 --echo #
 --echo # Cleanup

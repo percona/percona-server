@@ -178,7 +178,22 @@ void prune_seconds_update_func(MYSQL_THD thd, SYS_VAR *, void *val_ptr,
 /*
  * Status variables
  */
+std::atomic<uint64_t> events_total{0};
 std::atomic<uint64_t> events_lost{0};
+std::atomic<uint64_t> events_filtered{0};
+std::atomic<uint64_t> events_written{0};
+std::atomic<uint64_t> write_waits{0};
+std::atomic<uint64_t> event_max_drop_size{0};
+std::atomic<uint64_t> current_log_size{0};
+std::atomic<uint64_t> total_log_size{0};
+
+int show_events_total(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = events_total.load(std::memory_order_relaxed);
+  return 0;
+}
 
 int show_events_lost(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
@@ -188,8 +203,75 @@ int show_events_lost(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+int show_events_filtered(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = events_filtered.load(std::memory_order_relaxed);
+  return 0;
+}
+
+int show_events_written(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = events_written.load(std::memory_order_relaxed);
+  return 0;
+}
+
+int show_write_waits(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = write_waits.load(std::memory_order_relaxed);
+  return 0;
+}
+
+int show_event_max_drop_size(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = event_max_drop_size.load(std::memory_order_relaxed);
+  return 0;
+}
+
+int show_current_log_size(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = current_log_size.load(std::memory_order_relaxed);
+  return 0;
+}
+
+int show_total_log_size(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = total_log_size.load(std::memory_order_relaxed);
+  return 0;
+}
+
 SHOW_VAR status_vars[] = {
-    {"Audit_log_filter.events_lost", (char *)&show_events_lost, SHOW_FUNC,
+    {"Audit_log_filter.events", reinterpret_cast<char *>(&show_events_total),
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter.events_lost",
+     reinterpret_cast<char *>(&show_events_lost), SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter.events_filtered",
+     reinterpret_cast<char *>(&show_events_filtered), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter.events_written",
+     reinterpret_cast<char *>(&show_events_written), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter.write_waits",
+     reinterpret_cast<char *>(&show_write_waits), SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter.event_max_drop_size",
+     reinterpret_cast<char *>(&show_event_max_drop_size), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter.current_size",
+     reinterpret_cast<char *>(&show_current_log_size), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter.total_size",
+     reinterpret_cast<char *>(&show_total_log_size), SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
@@ -522,16 +604,6 @@ void SysVars::validate() const noexcept {
 //  audit_log_filter_id
 //  audit_log_password_history_keep_days
 //  audit_log_read_buffer_size
-//
-// status vars
-//  Audit_log_current_size
-//  Audit_log_event_max_drop_size
-//  Audit_log_events
-//  Audit_log_events_filtered
-//  Audit_log_events_lost
-//  Audit_log_events_written
-//  Audit_log_total_size
-//  Audit_log_write_waits
 
 int SysVars::get_syslog_facility() const noexcept {
   return audit_log_filter_syslog_facility_codes[m_syslog_facility];
@@ -545,8 +617,51 @@ uint64_t SysVars::get_events_lost() noexcept {
   return events_lost.load(std::memory_order_relaxed);
 }
 
+void SysVars::inc_events_total() noexcept {
+  events_total.fetch_add(1, std::memory_order_relaxed);
+}
+
 void SysVars::inc_events_lost() noexcept {
   events_lost.fetch_add(1, std::memory_order_relaxed);
+}
+
+void SysVars::inc_events_filtered() noexcept {
+  events_filtered.fetch_add(1, std::memory_order_relaxed);
+}
+
+void SysVars::inc_events_written() noexcept {
+  events_written.fetch_add(1, std::memory_order_relaxed);
+}
+
+void SysVars::inc_write_waits() noexcept {
+  write_waits.fetch_add(1, std::memory_order_relaxed);
+}
+
+void SysVars::update_event_max_drop_size(uint64_t size) noexcept {
+  uint64_t prev_max_size = event_max_drop_size.load();
+  while (prev_max_size < size &&
+         !event_max_drop_size.compare_exchange_weak(prev_max_size, size)) {
+  }
+}
+
+void SysVars::set_current_log_size(uint64_t size) noexcept {
+  uint64_t current_size = current_log_size.load();
+  while (!current_log_size.compare_exchange_weak(current_size, size)) {
+  }
+}
+
+void SysVars::update_current_log_size(uint64_t size) noexcept {
+  current_log_size.fetch_add(size, std::memory_order_relaxed);
+}
+
+void SysVars::set_total_log_size(uint64_t size) noexcept {
+  uint64_t current_size = total_log_size.load();
+  while (!total_log_size.compare_exchange_weak(current_size, size)) {
+  }
+}
+
+void SysVars::update_total_log_size(uint64_t size) noexcept {
+  total_log_size.fetch_add(size, std::memory_order_relaxed);
 }
 
 }  // namespace audit_log_filter

@@ -57,6 +57,10 @@ bool LogWriterFile::do_open_file() noexcept {
     return false;
   }
 
+  SysVars::set_total_log_size(FileHandle::get_total_log_size(
+      mysql_data_home, get_sys_vars()->get_file_name()));
+  SysVars::set_current_log_size(get_log_size());
+
   init_formatter();
 
   if (is_new_file) {
@@ -80,6 +84,10 @@ void LogWriterFile::write(const std::string &record,
   }
 
   m_strategy->do_write(&m_file_handle, record);
+
+  auto record_size = record.size();
+  SysVars::update_current_log_size(record_size);
+  SysVars::update_total_log_size(record_size);
 
   if (m_is_log_empty) {
     m_is_log_empty = false;
@@ -168,6 +176,9 @@ void LogWriterFile::prune() noexcept {
       }
     }
   }
+
+  SysVars::set_total_log_size(FileHandle::get_total_log_size(
+      mysql_data_home, get_sys_vars()->get_file_name()));
 }
 
 }  // namespace audit_log_filter::log_writer

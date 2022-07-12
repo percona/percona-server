@@ -294,6 +294,8 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Audit event %i received ===================", event_class);
 
+  SysVars::inc_events_total();
+
   std::string user_name;
   std::string user_host;
 
@@ -356,6 +358,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Skip logging audit event '%s' with class %i",
                     ev_name.data(), event_class);
+    SysVars::inc_events_filtered();
     return 0;
   }
 
@@ -375,6 +378,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
                   ev_name.data(), event_class);
 
   m_log_writer->write(audit_record);
+  SysVars::inc_events_written();
 
   return 0;
 }

@@ -100,6 +100,31 @@ uint64_t FileHandle::get_file_size() const noexcept {
   return std::filesystem::file_size(m_path);
 }
 
+uint64_t FileHandle::get_total_log_size(const std::string &working_dir_name,
+                                        const std::string &file_name) noexcept {
+  auto base_name = std::filesystem::path{file_name}.filename();
+  while (base_name.has_extension()) {
+    base_name.replace_extension();
+  }
+
+  uint64_t size = 0;
+
+  for (const auto &entry :
+       std::filesystem::directory_iterator(working_dir_name)) {
+    auto entry_file_name = entry.path().filename();
+
+    while (entry_file_name.has_extension()) {
+      entry_file_name.replace_extension();
+    }
+
+    if (entry.is_regular_file() && entry_file_name == base_name) {
+      size += entry.file_size();
+    }
+  }
+
+  return size;
+}
+
 bool FileHandle::remove_file(const std::filesystem::path &path) noexcept {
   std::error_code ec;
   return std::filesystem::remove(path, ec);

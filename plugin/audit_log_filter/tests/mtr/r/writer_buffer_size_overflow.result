@@ -8,16 +8,28 @@ OK
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter.events_lost';
 Variable_name	Value
 Audit_log_filter.events_lost	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter.event_max_drop_size';
+Variable_name	Value
+Audit_log_filter.event_max_drop_size	0
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter.events_lost';
 Variable_name	Value
 Audit_log_filter.events_lost	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter.event_max_drop_size';
+Variable_name	Value
+Audit_log_filter.event_max_drop_size	0
 # restart: --audit_log_filter.buffer_size=4096 --audit_log_filter.strategy=PERFORMANCE
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter.events_lost';
 Variable_name	Value
 Audit_log_filter.events_lost	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter.event_max_drop_size';
+Variable_name	Value
+Audit_log_filter.event_max_drop_size	0
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter.events_lost';
 Variable_name	Value
 Audit_log_filter.events_lost	3
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter.event_max_drop_size';
+Variable_name	Value
+Audit_log_filter.event_max_drop_size	4448
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;

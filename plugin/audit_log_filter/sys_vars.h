@@ -170,6 +170,11 @@ class SysVars : public AuditBaseComponent {
   [[nodiscard]] int get_syslog_priority() const noexcept;
 
   /**
+   * @brief Increment counter of events handled by the audit log plugin.
+   */
+  static void inc_events_total() noexcept;
+
+  /**
    * @brief Get number of events lost in performance logging mode.
    *
    * @return number of lost events
@@ -180,6 +185,58 @@ class SysVars : public AuditBaseComponent {
    * @brief Increment counter of events lost in performance logging mode.
    */
   static void inc_events_lost() noexcept;
+
+  /**
+   * @brief Increment counter of events handled by the audit log plugin
+   *        that were filtered.
+   */
+  static void inc_events_filtered() noexcept;
+
+  /**
+   * @brief Increment counter of events written to the audit log.
+   */
+  static void inc_events_written() noexcept;
+
+  /**
+   * @brief Increment number of times an event had to wait for space
+   *        in the audit log buffer.
+   */
+  static void inc_write_waits() noexcept;
+
+  /**
+   * @brief Set size of the largest dropped event in performance logging mode.
+   *
+   * @param size Size of the dropped event in bytes
+   */
+  static void update_event_max_drop_size(uint64_t size) noexcept;
+
+  /**
+   * @brief Set Audit_log_filter.current_size status variable value.
+   *
+   * @param size Current log size in bytes
+   */
+  static void set_current_log_size(uint64_t size) noexcept;
+
+  /**
+   * @brief Increase Audit_log_filter.current_size status variable value.
+   *
+   * @param size Size to add to current value in bytes
+   */
+  static void update_current_log_size(uint64_t size) noexcept;
+
+  /**
+   * @brief Set Audit_log_filter.total_size status variable value.
+   *
+   * @param size Total logs size in bytes
+   */
+  static void set_total_log_size(uint64_t size) noexcept;
+
+  /**
+   * @brief Increase Audit_log_filter.total_size status variable value.
+   *
+   * @param size Size to add to current value in bytes
+   */
+  static void update_total_log_size(uint64_t size) noexcept;
 
  private:
   /**

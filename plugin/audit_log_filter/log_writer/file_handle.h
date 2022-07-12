@@ -102,6 +102,17 @@ class FileHandle {
   [[nodiscard]] uint64_t get_file_size() const noexcept;
 
   /**
+   * @brief Get total logs size in bytes.
+   *
+   * @param working_dir_name Working directory name
+   * @param file_name Log file name
+   * @return Total logs size in bytes
+   */
+  [[nodiscard]] static uint64_t get_total_log_size(
+      const std::string &working_dir_name,
+      const std::string &file_name) noexcept;
+
+  /**
    * @brief Remove log footer from the end of a file.
    *
    * @param file_path File path

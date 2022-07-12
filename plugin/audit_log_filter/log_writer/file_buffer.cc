@@ -110,7 +110,8 @@ void FileBuffer::write(const char *buf, size_t len) noexcept {
       resume();
     }
 
-    m_sys_vars->inc_events_lost();
+    SysVars::inc_events_lost();
+    SysVars::update_event_max_drop_size(len);
 
     return;
   }
@@ -128,9 +129,13 @@ loop:
     assert(m_write_pos >= m_flush_pos);
   } else {
     if (!m_drop_if_full) {
+      SysVars::inc_write_waits();
       mysql_cond_wait(&m_flushed_cond, &m_mutex);
       goto loop;
     }
+
+    SysVars::inc_events_lost();
+    SysVars::update_event_max_drop_size(len);
   }
 
   if (m_write_pos > m_flush_pos + m_size / 2) {

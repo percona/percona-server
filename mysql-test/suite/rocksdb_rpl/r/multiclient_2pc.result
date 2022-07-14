@@ -14,7 +14,6 @@ set @@global.sync_binlog = 1;
 insert into t1 values (1000000, 1, "i_am_just_here_to_trigger_a_flush");
 set debug_sync='now SIGNAL go';
 **found 'prepare' log entry**
-**found 'commit' log entry**
 select * from t1 where a=1;
 a	b	c
 1	1	iamtheogthealphaandomega

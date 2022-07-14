@@ -383,11 +383,13 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   return 0;
 }
 
-void AuditLogFilter::on_audit_rule_flush_requested() noexcept {
-  m_audit_rules_registry->load();
+bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
+  const bool is_flushed = m_audit_rules_registry->load();
 
   DBUG_EXECUTE_IF("audit_log_filter_rotate_after_audit_rules_flush",
                   { m_log_writer->rotate(); });
+
+  return is_flushed;
 }
 
 void AuditLogFilter::on_audit_log_flush_requested() noexcept {

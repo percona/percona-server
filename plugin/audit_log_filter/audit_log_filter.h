@@ -61,8 +61,10 @@ class AuditLogFilter : public AuditBaseMediator {
  public:
   /**
    * @brief Handle filters flush request.
+   *
+   * @return true in case filters reloaded successfully, false otherwise
    */
-  void on_audit_rule_flush_requested() noexcept override;
+  bool on_audit_rule_flush_requested() noexcept override;
 
   /**
    * @brief Handle log file flush request.

@@ -568,10 +568,14 @@ void AuditUdf::audit_log_filter_remove_user_udf_deinit(UDF_INIT *initid) {
 // audit_log_filter_flush()
 bool AuditUdf::audit_log_filter_flush_udf_init(AuditUdf *udf [[maybe_unused]],
                                                UDF_INIT *initid,
-                                               UDF_ARGS *udf_args
-                                               [[maybe_unused]],
-                                               char *message
-                                               [[maybe_unused]]) noexcept {
+                                               UDF_ARGS *udf_args,
+                                               char *message) noexcept {
+  if (udf_args->arg_count != 0) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Wrong argument list: audit_log_filter_flush()");
+    return true;
+  }
+
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -584,7 +588,12 @@ char *AuditUdf::audit_log_filter_flush_udf(AuditUdf *udf [[maybe_unused]],
                                            char *result, unsigned long *length,
                                            unsigned char *is_null,
                                            unsigned char *error) noexcept {
-  std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
+  if (udf->get_mediator()->on_audit_rule_flush_requested()) {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
+  } else {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE,
+                  "ERROR: Could not reinitialize audit log filters");
+  }
 
   *length = std::strlen(result);
   *is_null = 0;

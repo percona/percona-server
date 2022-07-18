@@ -29,6 +29,7 @@ Clone Plugin: Client implementation
 
 #include "plugin/clone/include/clone_client.h"
 #include "plugin/clone/include/clone_os.h"
+#include "plugin/clone/include/clone.h"
 
 #include "my_byteorder.h"
 #include "my_systime.h"  // my_sleep()
@@ -1043,6 +1044,26 @@ int Client::validate_remote_params() {
     last_error = ER_CLONE_PLUGIN_MATCH;
   }
 
+  /* Build list of plugins from comma separated value of the variable
+  clone_exclude_plugins_match */
+  std::vector<std::string> excl_plugins_vec;
+  if (clone_exclude_plugins_match != nullptr) {
+    std::string excl_plugins_str(clone_exclude_plugins_match);
+    std::transform(excl_plugins_str.begin(), excl_plugins_str.end(),
+                   excl_plugins_str.begin(), ::tolower);
+
+    std::stringstream exclude_stream(excl_plugins_str);
+
+    while (exclude_stream.good()) {
+      std::string substr;
+      getline(exclude_stream, substr, ',');
+      substr.erase(remove(substr.begin(), substr.end(), ' '), substr.end());
+      if (!substr.empty()) {
+        excl_plugins_vec.push_back(substr);
+      }
+    }
+  }
+
   /* Validate plugins and check if shared objects can be loaded. */
   for (auto &plugin : m_parameters.m_plugins_with_so) {
     assert(m_share->m_protocol_version > CLONE_PROTOCOL_VERSION_V1);
@@ -1059,6 +1080,25 @@ int Client::validate_remote_params() {
 
     if (so_name.empty() || plugin_is_loadable(so_name)) {
       continue;
+    }
+
+    /* Plugin is not installed in recipient but active on donor. Check if this
+    plugin can be exempted from matching with donor */
+    if (clone_exclude_plugins_match != nullptr) {
+      std::string plugin_str(plugin_name);
+      std::transform(plugin_str.begin(), plugin_str.end(), plugin_str.begin(),
+                     ::tolower);
+
+      if (std::find(excl_plugins_vec.begin(), excl_plugins_vec.end(),
+                    plugin_str) != excl_plugins_vec.end()) {
+        char info_mesg[128];
+        snprintf(info_mesg, 128,
+                 "Plugin %s is not installed on recipient but ignored due to "
+                 "'clone_exclude_plugins_match'",
+                 plugin_name.c_str());
+        LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
+        continue;
+      }
     }
 
     /* Donor plugin is not there in recipient. */

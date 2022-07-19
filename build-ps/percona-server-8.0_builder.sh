@@ -609,7 +609,7 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.tar.gz
+    wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
     #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
@@ -1012,7 +1012,7 @@ MYSQL_VERSION_MINOR=0
 MYSQL_VERSION_PATCH=27
 MYSQL_VERSION_EXTRA=-18
 PRODUCT_FULL=Percona-Server-8.0.27
-BOOST_PACKAGE_NAME=boost_1_73_0
+BOOST_PACKAGE_NAME=boost_1_77_0
 BUILD_TOKUDB_TOKUBACKUP=0
 PERCONAFT_BRANCH=Percona-Server-8.0.27-18
 TOKUBACKUP_BRANCH=Percona-Server-8.0.27-18

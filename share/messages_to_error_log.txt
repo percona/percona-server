@@ -11672,10 +11672,10 @@ ER_XB_MSG_1
 ER_COMPRESSION_DICTIONARY_NO_CREATE
   eng "Cannot create compression dictionary tables in %s%sread-only mode."
 
-ER_XB_MSG_2
+ER_XB_UNUSED_1
   eng "%s"
 
-ER_XB_MSG_3
+ER_XB_UNUSED_2
   eng "%s"
 
 ER_XB_MSG_4
@@ -11687,14 +11687,14 @@ ER_XB_MSG_5
 ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD
   eng "Waiting for keyring encryption threads to exit"
 
-ER_PARALLEL_DOUBLEWRITE_WRITE_ERROR
-  eng "Parallel doublewrite buffer write failed, crashing the server to avoid data loss"
+ER_XB_UNUSED_3
+  eng "%s"
 
 ER_XB_MSG_6
   eng "Key rotation of encrypted session temporary tablespace %s failed"
 
-ER_XB_UNDO_DELETE_FAILURE
-  eng "Deletion of 5.7 undo tablespace %s failed"
+ER_XB_UNUSED_4
+  eng "%s"
 
 ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION
   eng "Upgrade is not possible as there are tables that are KERYING encrypted. KEYRING encryption is still experimental feature in the version you are upgrading from. To upgrade please decrypt the tables encrypted with KEYRING encryption."

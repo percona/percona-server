@@ -108,7 +108,6 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count) {
 
   enable_iocp_notification(&vio->pipe_overlapped);
 
-  DBUG_RETURN(ret);
   return ret;
 }
 

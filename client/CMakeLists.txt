@@ -25,9 +25,9 @@ ADD_WSHADOW_WARNING()
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()
 
-## Subdirectory with common client code.
-
 INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
+
+## Subdirectory with common client code.
 
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.

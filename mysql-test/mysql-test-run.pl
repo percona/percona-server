@@ -687,8 +687,6 @@ sub main {
   mtr_report("Collecting tests");
   my $tests = collect_test_cases($opt_reorder, $opt_suites,
                                  \@opt_cases,  $opt_skip_test_list);
-  my $all_tests;
-  @$all_tests = @$tests;
   mark_time_used('collect');
   # A copy of the tests list, that will not be modified even after the tests
   # are executed.

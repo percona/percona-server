@@ -5660,22 +5660,22 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       }
 
 #ifdef UNIV_LINUX
-    /* A crash during extending file might cause the inconsistent contents.
-    No problem for the cases. Just fills with zero for them.
-    - The next log record to apply is initializing
-    - No redo log record for the page yet (brand new page) */
-    if (recv_recovery_is_on() && (is_corrupted || is_wrong_page_id) &&
-        recv_page_is_brand_new((buf_block_t *)bpage)) {
-      memset(frame, 0, bpage->size.logical());
-      is_corrupted = false;
-    }
+      /* A crash during extending file might cause the inconsistent contents.
+      No problem for the cases. Just fills with zero for them.
+      - The next log record to apply is initializing
+      - No redo log record for the page yet (brand new page) */
+      if (recv_recovery_is_on() && (is_corrupted || is_wrong_page_id) &&
+          recv_page_is_brand_new((buf_block_t *)bpage)) {
+        memset(frame, 0, bpage->size.logical());
+        is_corrupted = false;
+      }
 #endif /* UNIV_LINUX */
 
-    if (compressed_page || is_corrupted) {
-      /* Not a real corruption if it was triggered by
-      error injection */
-      DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
-                      goto page_not_corrupt;);
+      if (compressed_page || is_corrupted) {
+        /* Not a real corruption if it was triggered by
+        error injection */
+        DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
+                        goto page_not_corrupt;);
 
       corrupt:
         /* Compressed pages are basically gibberish avoid

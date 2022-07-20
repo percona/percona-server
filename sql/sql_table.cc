@@ -14623,7 +14623,6 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
 
   /* List with secondary keys which should be created after copying the data */
   Mem_root_array<const Key_spec *> delayed_key_list(thd->mem_root);
-  /* Foreign key list returned by handler::get_foreign_key_list() */
   /*
     Alter_info::alter_list is used by fill_alter_inplace_info() call as well.
     So this function works on its copy rather than original list.

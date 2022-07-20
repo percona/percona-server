@@ -125,12 +125,12 @@ const byte *row_decompress_column(const byte *data, ulint *len,
 @param[in]	lenlen	bytes used to store the length of data
 @param[in]	dict_data	optional dictionary data used for compression
 @param[in]	dict_data_len	optional dictionary data length
-@param[in]	prebuilt	use prebuilt->compress_heap only
+@param[in]	compress_heap
 @return pointer to the compressed data */
 MY_NODISCARD
 byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
                           const byte *dict_data, ulint dict_data_len,
-                          row_prebuilt_t *prebuilt);
+                          mem_heap_t **compress_heap);
 
 /** Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
  format.
@@ -1027,6 +1027,7 @@ dfield_t *innobase_get_computed_value(
     mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
     THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
     upd_t *parent_update, dict_foreign_t *foreign, mem_heap_t **compress_heap);
+
 /** Parse out multi-values from a MySQL record
 @param[in]      mysql_table     MySQL table structure
 @param[in]      f_idx           field index of the multi-value column

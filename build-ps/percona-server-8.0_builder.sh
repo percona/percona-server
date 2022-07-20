@@ -392,9 +392,9 @@ install_deps() {
             source /opt/rh/gcc-toolset-10/enable
         fi
         if [ "x${RHEL}" = "x7" ]; then
-            yum -y install devtoolset-10
+            yum -y install devtoolset-11
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
-            source /opt/rh/devtoolset-10/enable
+            source /opt/rh/devtoolset-11/enable
         fi
 	 if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable
@@ -408,8 +408,8 @@ install_deps() {
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
-            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-gcc-c++ devtoolset-10-binutils devtoolset-10-valgrind devtoolset-10-valgrind-devel devtoolset-10-libatomic-devel
-            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-libasan-devel devtoolset-10-libubsan-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-11-gcc-c++ devtoolset-11-binutils devtoolset-11-valgrind devtoolset-11-valgrind-devel devtoolset-11-libatomic-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-11-libasan-devel devtoolset-11-libubsan-devel
             rm -f /usr/bin/cmake
 	    cp -p /usr/bin/cmake3 /usr/bin/cmake
         fi
@@ -667,7 +667,7 @@ build_rpm(){
         source /opt/rh/devtoolset-8/enable
     fi
     if [ "x${RHEL}" = "x7" ]; then
-        source /opt/rh/devtoolset-10/enable
+        source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
         source /opt/rh/gcc-toolset-10/enable
@@ -682,7 +682,7 @@ build_rpm(){
         sudo ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
     fi
     if [ "x${RHEL}" = "x7" ]; then
-        source /opt/rh/devtoolset-10/enable
+        source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
         source /opt/rh/gcc-toolset-10/enable
@@ -850,7 +850,7 @@ build_tarball(){
           source /opt/rh/devtoolset-8/enable
       fi
       if [ "x${RHEL}" = "x7" ]; then
-          source /opt/rh/devtoolset-10/enable
+          source /opt/rh/devtoolset-11/enable
       fi
       if [ "x${RHEL}" = "x8" ]; then
           source /opt/rh/gcc-toolset-10/enable

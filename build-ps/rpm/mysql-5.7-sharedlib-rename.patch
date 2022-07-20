@@ -220,37 +220,6 @@
    ${MYSQLX_CLIENT_FULL_LIB}
    ${MYSQLX_PROTOCOL_FULL_LIB}
    ${PROTOBUF_LIBRARY}
---- router/src/metadata_cache/CMakeLists.txt
-+++ router/src/metadata_cache/CMakeLists.txt
-@@ -71,7 +71,7 @@ IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
-   ADD_LIBRARY(metadata_cache_static STATIC ${METADATA_CACHE_SOURCES})
-   TARGET_LINK_LIBRARIES(metadata_cache_static
-     router_lib
--    perconaserverclient
-+    mysqlclient
-     mysqlxmessages_lite
-     ${PROTOBUF_LITE_LIBRARY}
-     )
---- router/src/metadata_cache/tests/CMakeLists.txt
-+++ router/src/metadata_cache/tests/CMakeLists.txt
-@@ -56,7 +56,7 @@
-   TARGET_LINK_LIBRARIES(metadata_cache_tests
-     router_lib
-     metadata_cache
--    perconaserverclient
-+    mysqlclient
-     mysqlxclient_lite
-     mysqlxmessages_lite
-     ${PROTOBUF_LITE_LIBRARY}
-@@ -69,7 +69,7 @@
-   ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
-   TARGET_LINK_LIBRARIES(metadata_cache_tests
-     router_lib
--    perconaserverclient
-+    mysqlclient
-     mysqlxclient_lite
-     mysqlxmessages_lite
-     ${PROTOBUF_LITE_LIBRARY}
 --- router/src/router/src/CMakeLists.txt
 +++ router/src/router/src/CMakeLists.txt
 @@ -71,7 +71,7 @@ TARGET_LINK_LIBRARIES(router_lib

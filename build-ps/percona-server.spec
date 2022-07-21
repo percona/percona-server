@@ -1392,11 +1392,15 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_tls.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_connection_pool.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
 %{_libdir}/mysqlrouter/private/libprotobuf-lite.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.1
+%{_libdir}/mysqlrouter/private/libmysqlrouter_metadata_cache.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so

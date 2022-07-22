@@ -205,10 +205,10 @@ override_dh_strip:
 	dh_strip -Xlibprotobuf-lite
 
 override_dh_shlibdeps:
-        patchelf --print-rpath debian/percona-mysql-router/usr/lib/mysqlrouter/plugin/metadata_cache.so
-        patchelf --print-rpath debian/percona-mysql-router/usr/lib/mysqlrouter/plugin/rest_routing.so
-        find / -name "libmysqlrouter_routing.so"
-        find / -name "libmysqlrouter_metadata_cache.so.1"
+	patchelf --print-rpath debian/percona-mysql-router/usr/lib/mysqlrouter/plugin/metadata_cache.so
+	patchelf --print-rpath debian/percona-mysql-router/usr/lib/mysqlrouter/plugin/rest_routing.so
+	find / -name "libmysqlrouter_routing.so"
+	find / -name "libmysqlrouter_metadata_cache.so.1"
 	dh_shlibdeps -Lpercona-server-server -l/usr/lib/mysql/private --dpkg-shlibdeps-params=--ignore-missing-info
 
 override_dh_installinit:

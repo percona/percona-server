@@ -14,7 +14,7 @@ eval SELECT audit_log_filter_set_filter('log_connect', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_connect');
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
---let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 --let $audit_filter_log_format = json
 
 --source generate_audit_events.inc

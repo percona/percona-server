@@ -38,9 +38,6 @@ static PSI_mutex_info mutex_list[] = {
 
 namespace audit_log_filter::log_writer {
 
-FileHandle::FileHandle(SysVars *sys_vars)
-    : m_buffer{sys_vars}, m_sys_vars{sys_vars} {}
-
 bool FileHandle::open_file(std::filesystem::path file_path) noexcept {
   assert(!m_file.is_open() && m_path.empty());
   m_path = std::move(file_path);

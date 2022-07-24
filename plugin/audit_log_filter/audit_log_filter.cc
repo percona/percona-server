@@ -98,6 +98,10 @@ bool get_connection_user(MYSQL_THD thd, std::string &user_name,
 
 }  // namespace
 
+AuditLogFilter *get_audit_log_filter_instance() noexcept {
+  return audit_log_filter;
+}
+
 /*
  * Audit UDF functions
  */
@@ -161,24 +165,13 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Initializing Audit Event Filter...");
 
+  SysVars::validate();
+
   auto comp_registry_srv = get_component_registry_service();
 
   if (comp_registry_srv == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Failed to acquire components registry service");
-    return 1;
-  }
-
-  auto sys_vars = std::make_unique<SysVars>(comp_registry_srv.get());
-
-  if (sys_vars == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to create sys vars handler instance");
-    return 1;
-  }
-
-  if (!sys_vars->init()) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to init sys vars");
     return 1;
   }
 
@@ -210,7 +203,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  auto formatter = get_log_record_formatter(sys_vars->get_format_type());
+  auto formatter = get_log_record_formatter(SysVars::get_format_type());
 
   if (formatter == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -218,7 +211,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  auto log_writer = get_log_writer(sys_vars.get(), std::move(formatter));
+  auto log_writer = get_log_writer(std::move(formatter));
 
   if (log_writer == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -234,7 +227,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
 
   audit_log_filter = new AuditLogFilter(
       std::move(comp_registry_srv), std::move(audit_rule_registry),
-      std::move(audit_udf), std::move(sys_vars), std::move(log_writer));
+      std::move(audit_udf), std::move(log_writer));
 
   return 0;
 }
@@ -277,16 +270,14 @@ int audit_log_notify(MYSQL_THD thd, mysql_event_class_t event_class,
 AuditLogFilter::AuditLogFilter(
     comp_registry_srv_container_t comp_registry_srv,
     std::unique_ptr<AuditRuleRegistry> audit_rules_registry,
-    std::unique_ptr<AuditUdf> audit_udf, std::unique_ptr<SysVars> sys_vars,
+    std::unique_ptr<AuditUdf> audit_udf,
     std::unique_ptr<log_writer::LogWriterBase> log_writer)
     : m_comp_registry_srv{std::move(comp_registry_srv)},
       m_audit_rules_registry{std::move(audit_rules_registry)},
       m_audit_udf{std::move(audit_udf)},
-      m_sys_vars{std::move(sys_vars)},
       m_log_writer{std::move(log_writer)},
       m_filter{std::make_unique<AuditEventFilter>()} {
   m_audit_udf->set_mediator(this);
-  m_sys_vars->set_mediator(this);
 }
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
@@ -471,8 +462,8 @@ mysql_declare_plugin(audit_log){
     nullptr,
     audit_log_filter::audit_log_filter_deinit, /* deinit function          */
     PLUGIN_VERSION,                            /* version                  */
-    nullptr,
-    nullptr,
+    audit_log_filter::SysVars::get_status_var_defs(),
+    audit_log_filter::SysVars::get_sys_var_defs(),
     nullptr,
     0,
 } mysql_declare_plugin_end;

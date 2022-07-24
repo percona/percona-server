@@ -4,9 +4,9 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_general');
 audit_log_filter_set_user('%', 'log_general')
 OK
-Audit_log_filter.events counter updated
-Audit_log_filter.events_filtered counter updated
-Audit_log_filter.events_written counter updated
+Audit_log_filter_events counter updated
+Audit_log_filter_events_filtered counter updated
+Audit_log_filter_events_written counter updated
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;

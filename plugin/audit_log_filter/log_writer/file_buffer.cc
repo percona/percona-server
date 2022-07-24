@@ -51,8 +51,6 @@ void *buffer_flush_worker(void *arg) {
 }
 }  // namespace
 
-FileBuffer::FileBuffer(SysVars *sys_vars) : m_sys_vars{sys_vars} {}
-
 FileBuffer::~FileBuffer() {
   if (m_buf != nullptr) {
     shutdown();

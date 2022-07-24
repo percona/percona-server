@@ -37,7 +37,7 @@ DROP PROCEDURE p1;
 DROP TABLE t1, t2, t3;
 
 # AuditRecordGlobalVariable
-SELECT @@global.audit_log_filter.file;
+SELECT @@global.audit_log_filter_file;
 
 # AuditRecordMessage
 INSTALL COMPONENT "file://component_audit_api_message_emit";

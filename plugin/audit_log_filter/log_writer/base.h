@@ -26,8 +26,6 @@ namespace log_record_formatter {
 class LogRecordFormatterBase;
 }
 
-class SysVars;
-
 namespace log_writer {
 
 enum class AuditLogHandlerType {
@@ -38,8 +36,7 @@ enum class AuditLogHandlerType {
 
 class LogWriterBase {
  public:
-  LogWriterBase(
-      SysVars *sys_vars,
+  explicit LogWriterBase(
       std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
 
   virtual ~LogWriterBase() = default;
@@ -114,15 +111,7 @@ class LogWriterBase {
    */
   void init_formatter() noexcept;
 
-  /**
-   * @brief Get system variables handler.
-   *
-   * @return System variables handler
-   */
-  [[nodiscard]] SysVars *get_sys_vars() const noexcept;
-
  private:
-  SysVars *m_sys_vars;
   std::unique_ptr<log_record_formatter::LogRecordFormatterBase> m_formatter;
 };
 

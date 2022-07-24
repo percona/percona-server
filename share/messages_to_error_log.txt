@@ -12374,7 +12374,7 @@ ER_PERCONA_IGNORE_TMP_TABLE_SIZE
   eng "Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning."
 
 ER_WARN_ADUIT_FILTER_MAX_SIZE_AND_PRUNE_SECONDS_LOG
-  eng "Both audit_log_filter.max_size and audit_log_filter.prune_seconds are set to non-zero. audit_log_filter.max_size takes precedence and audit_log_filter.prune_seconds is ignored"
+  eng "Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored"
 
 #
 # End of Percona Server 8.0 server error log messages

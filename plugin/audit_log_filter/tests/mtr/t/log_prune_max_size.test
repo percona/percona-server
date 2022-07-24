@@ -1,5 +1,5 @@
 
-SET @old_max_size = @@global.audit_log_filter.max_size;
+SET @old_max_size = @@global.audit_log_filter_max_size;
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
@@ -15,13 +15,13 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 SELECT audit_log_filter_remove_user('%');
 
 --let $log_path = `SELECT @@global.datadir`
---let $log_name = `SELECT @@global.audit_log_filter.file`
+--let $log_name = `SELECT @@global.audit_log_filter_file`
 --let $log_max_size = 8192
 
 --source check_logs_size.inc
 
 # logs get pruned after max_size update
-SET GLOBAL audit_log_filter.max_size = 8192;
+SET GLOBAL audit_log_filter_max_size = 8192;
 
 --source check_logs_size.inc
 
@@ -43,4 +43,4 @@ SELECT audit_log_filter_remove_user('%');
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
 
-SET GLOBAL audit_log_filter.max_size = @old_max_size;
+SET GLOBAL audit_log_filter_max_size = @old_max_size;

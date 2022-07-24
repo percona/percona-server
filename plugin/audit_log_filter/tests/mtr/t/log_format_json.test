@@ -5,13 +5,13 @@ SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
 
 --let $log_path = `SELECT @@global.datadir`
---let $log_base_name = `SELECT @@global.audit_log_filter.file`
+--let $log_base_name = `SELECT @@global.audit_log_filter_file`
 
 --source generate_audit_events.inc
 
 # rotate log manually for it to properly close and have closing tags added
 --move_file $log_path$log_base_name $log_path$log_base_name.1
-SET GLOBAL audit_log_filter.flush = ON;
+SET GLOBAL audit_log_filter_flush = ON;
 
 --let $json_file_path = $log_path
 --let $json_file_name = $log_base_name.1

@@ -22,19 +22,15 @@
 
 namespace audit_log_filter {
 
-class SysVars;
-
 using namespace log_writer;
 
 /**
  * @brief Get an instance of log file writer.
  *
- * @param [in] sys_vars Configuration parameters
  * @param [in] formatter An instance of log record formatter
  * @return An instance of log file writer
  */
 std::unique_ptr<LogWriterBase> get_log_writer(
-    SysVars *sys_vars,
     std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
 
 }  // namespace audit_log_filter

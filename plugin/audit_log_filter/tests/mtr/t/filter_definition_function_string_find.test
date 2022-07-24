@@ -2,7 +2,7 @@
 --source include/have_debug_sync.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
---let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 
 CREATE TABLE user_list (id INT, name VARCHAR(32));
 CREATE TABLE product_list (id INT, name VARCHAR(32));

@@ -15,13 +15,11 @@
 
 #include "plugin/audit_log_filter/log_writer/syslog.h"
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
-#include "plugin/audit_log_filter/sys_vars.h"
 
 namespace audit_log_filter::log_writer {
 
 LogWriterSyslog::LogWriter(
-    SysVars *sys_vars,
     std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter)
-    : LogWriterBase{sys_vars, std::move(formatter)} {}
+    : LogWriterBase{std::move(formatter)} {}
 
 }  // namespace audit_log_filter::log_writer

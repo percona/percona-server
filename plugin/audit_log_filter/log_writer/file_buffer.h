@@ -26,11 +26,7 @@
 #include <functional>
 #include <memory>
 
-namespace audit_log_filter {
-
-class SysVars;
-
-namespace log_writer {
+namespace audit_log_filter::log_writer {
 
 enum class FileBufferState { COMPLETE, INCOMPLETE };
 
@@ -39,7 +35,6 @@ using LogFileWriteFunc = std::function<void(const char *, size_t)>;
 class FileBuffer {
  public:
   FileBuffer() = default;
-  explicit FileBuffer(SysVars *sys_vars);
   FileBuffer(FileBuffer &other) = delete;
   FileBuffer(FileBuffer &&other) = delete;
   ~FileBuffer();
@@ -105,10 +100,8 @@ class FileBuffer {
   mysql_cond_t m_flushed_cond;
   mysql_cond_t m_written_cond;
   FileBufferState m_state;
-  SysVars *m_sys_vars;
 };
 
-}  // namespace log_writer
-}  // namespace audit_log_filter
+}  // namespace audit_log_filter::log_writer
 
 #endif  // AUDIT_LOG_FILTER_LOG_WRITER_FILE_BUFFER_H_INCLUDED

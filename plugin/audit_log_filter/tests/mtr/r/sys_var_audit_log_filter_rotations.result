@@ -1,39 +1,39 @@
-SET GLOBAL audit_log_filter.rotations=0;
-SELECT @@global.audit_log_filter.rotations;
-@@global.audit_log_filter.rotations
+SET GLOBAL audit_log_filter_rotations=0;
+SELECT @@global.audit_log_filter_rotations;
+@@global.audit_log_filter_rotations
 0
-SET GLOBAL audit_log_filter.rotations=1;
-SELECT @@global.audit_log_filter.rotations;
-@@global.audit_log_filter.rotations
+SET GLOBAL audit_log_filter_rotations=1;
+SELECT @@global.audit_log_filter_rotations;
+@@global.audit_log_filter_rotations
 1
-SET GLOBAL audit_log_filter.rotations=999;
-SELECT @@global.audit_log_filter.rotations;
-@@global.audit_log_filter.rotations
+SET GLOBAL audit_log_filter_rotations=999;
+SELECT @@global.audit_log_filter_rotations;
+@@global.audit_log_filter_rotations
 999
-SET GLOBAL audit_log_filter.rotations=1000;
+SET GLOBAL audit_log_filter_rotations=1000;
 Warnings:
-Warning	1292	Truncated incorrect audit_log_filter.rotations value: '1000'
-SELECT @@global.audit_log_filter.rotations;
-@@global.audit_log_filter.rotations
+Warning	1292	Truncated incorrect audit_log_filter_rotations value: '1000'
+SELECT @@global.audit_log_filter_rotations;
+@@global.audit_log_filter_rotations
 999
-SET GLOBAL audit_log_filter.rotations=-1;
+SET GLOBAL audit_log_filter_rotations=-1;
 Warnings:
-Warning	1292	Truncated incorrect audit_log_filter.rotations value: '-1'
-SELECT @@global.audit_log_filter.rotations;
-@@global.audit_log_filter.rotations
+Warning	1292	Truncated incorrect audit_log_filter_rotations value: '-1'
+SELECT @@global.audit_log_filter_rotations;
+@@global.audit_log_filter_rotations
 0
-SET GLOBAL audit_log_filter.rotations=0.5;
-ERROR 42000: Incorrect argument type to variable 'audit_log_filter.rotations'
-SELECT @@global.audit_log_filter.rotations;
-@@global.audit_log_filter.rotations
+SET GLOBAL audit_log_filter_rotations=0.5;
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_rotations'
+SELECT @@global.audit_log_filter_rotations;
+@@global.audit_log_filter_rotations
 0
-SET GLOBAL audit_log_filter.rotations='str';
-ERROR 42000: Incorrect argument type to variable 'audit_log_filter.rotations'
-SELECT @@global.audit_log_filter.rotations;
-@@global.audit_log_filter.rotations
+SET GLOBAL audit_log_filter_rotations='str';
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_rotations'
+SELECT @@global.audit_log_filter_rotations;
+@@global.audit_log_filter_rotations
 0
-SET GLOBAL audit_log_filter.rotations='';
-ERROR 42000: Incorrect argument type to variable 'audit_log_filter.rotations'
-SELECT @@global.audit_log_filter.rotations;
-@@global.audit_log_filter.rotations
+SET GLOBAL audit_log_filter_rotations='';
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_rotations'
+SELECT @@global.audit_log_filter_rotations;
+@@global.audit_log_filter_rotations
 0

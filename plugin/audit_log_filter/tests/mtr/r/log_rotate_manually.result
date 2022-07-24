@@ -5,8 +5,8 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_general');
 audit_log_filter_set_user('%', 'log_general')
 OK
-SET GLOBAL audit_log_filter.flush = ON;
-SET GLOBAL audit_log_filter.flush = ON;
+SET GLOBAL audit_log_filter_flush = ON;
+SET GLOBAL audit_log_filter_flush = ON;
 Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
 Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
 #

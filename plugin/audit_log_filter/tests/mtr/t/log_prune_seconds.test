@@ -1,5 +1,5 @@
 
-SET @old_prune_seconds = @@global.audit_log_filter.prune_seconds;
+SET @old_prune_seconds = @@global.audit_log_filter_prune_seconds;
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
@@ -16,13 +16,13 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 SELECT audit_log_filter_remove_user('%');
 
 --let $log_path = `SELECT @@global.datadir`
---let $log_name = `SELECT @@global.audit_log_filter.file`
+--let $log_name = `SELECT @@global.audit_log_filter_file`
 --let $prune_seconds = 2
 
 --source check_logs_age.inc
 
 # logs get pruned after prune_seconds update
-SET GLOBAL audit_log_filter.prune_seconds = 2;
+SET GLOBAL audit_log_filter_prune_seconds = 2;
 
 --source check_logs_age.inc
 
@@ -46,4 +46,4 @@ SELECT audit_log_filter_remove_user('%');
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
 
-SET GLOBAL audit_log_filter.prune_seconds = @old_prune_seconds;
+SET GLOBAL audit_log_filter_prune_seconds = @old_prune_seconds;

@@ -62,16 +62,16 @@ perl;
   closedir $dh;
 
   if ($log_current_size == $expected_current_log_size) {
-    print "Audit_log_filter.current_size Ok\n";
+    print "Audit_log_filter_current_size Ok\n";
   }
   else {
-    print "Expected Audit_log_filter.current_size '$expected_current_log_size' doesn't match actual log size '$log_current_size'\n";
+    print "Expected Audit_log_filter_current_size '$expected_current_log_size' doesn't match actual log size '$log_current_size'\n";
   }
 
   if ($log_total_size == $expected_total_log_size) {
-    print "Audit_log_filter.total_size Ok\n";
+    print "Audit_log_filter_total_size Ok\n";
   }
   else {
-    print "Expected Audit_log_filter.total_size '$expected_total_log_size' doesn't match actual log size '$log_total_size'\n";
+    print "Expected Audit_log_filter_total_size '$expected_total_log_size' doesn't match actual log size '$log_total_size'\n";
   }
 EOF

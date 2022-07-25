@@ -135,6 +135,14 @@ class SysVars {
   [[nodiscard]] static int get_syslog_priority() noexcept;
 
   /**
+   * @brief Set filter_id for a session.
+   *
+   * @param thd MYSQL_THD for current session
+   * @param id Filtering rule ID
+   */
+  static void set_session_filter_id(MYSQL_THD thd, ulong id) noexcept;
+
+  /**
    * @brief Increment counter of events handled by the audit log plugin.
    */
   static void inc_events_total() noexcept;

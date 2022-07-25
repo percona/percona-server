@@ -2491,9 +2491,8 @@ Set to ``0`` if you do not want to override the returned value.
    * - Default
      - ``ON``
 
-Specifies whether hash collisions are allowed.
-Enabled by default, which uses less memory.
-If disabled, full prefix is stored to prevent hash collisions.
+This variable was removed in :ref:`8.0.29-21`. The variable specifies whether hash collisions are allowed. 
+Enabled by default, which uses less memory. If disabled, full prefix is stored to prevent hash collisions.
 
 .. _rocksdb_ignore_unknown_options:
 
@@ -3245,12 +3244,8 @@ rate limit the delay in milliseconds.
    * - Default
      - ``OFF``
 
-Specifies whether MyRocks should create a new file descriptor and table reader
-for each compaction input.
-Disabled by default.
-Enabling this may increase memory consumption,
-but will also allow pre-fetch options to be specified for compaction
-input files without impacting table readers used for user queries.
+This variable was removed in :ref:`8.0.29-21`. The variable specifies whether MyRocks should create a new file descriptor and table reader for each compaction input. 
+Disabled by default. If you enable this variable, the memory consumption may increase, but it will also allow to specify pre-fetch options for compaction input files without impacting table readers used for user queries.
 
 .. _rocksdb_no_block_cache:
 

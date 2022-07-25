@@ -295,11 +295,11 @@ get_sources(){
     if [ ${BUILD_TOKUDB_TOKUBACKUP} != 1 ]; then
         rm -rf storage/tokudb
         rm -rf plugin/tokudb-backup-plugin
+    else
+        # set tokudb version - can be seen with show variables like '%version%'
+        sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     fi
 
-    # set tokudb version - can be seen with show variables like '%version%'
-    sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
-    #
     sed -i "s:@@PERCONA_VERSION_EXTRA@@:${MYSQL_VERSION_EXTRA#-}:g" build-ps/debian/rules
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/debian/rules
     sed -i "s:@@TOKUDB_BACKUP_VERSION@@:${TOKUDB_VERSION}:g" build-ps/debian/rules

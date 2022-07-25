@@ -77,6 +77,18 @@ class AuditLogFilter : public AuditBaseMediator {
  private:
   void get_connection_attrs(MYSQL_THD thd, AuditRecordVariant &audit_record);
 
+  /**
+   * @brief Get user and host name from connection THD instance
+   *
+   * @param thd Server thread instance
+   * @param user_name Returned user name
+   * @param user_host Returned host name
+   * @return true in case user and host name are fetched successfully,
+   *         false otherwise
+   */
+  bool get_connection_user(MYSQL_THD thd, std::string &user_name,
+                           std::string &user_host) noexcept;
+
  private:
   comp_registry_srv_container_t m_comp_registry_srv;
   std::unique_ptr<AuditRuleRegistry> m_audit_rules_registry;

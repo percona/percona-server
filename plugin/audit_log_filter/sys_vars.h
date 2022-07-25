@@ -143,6 +143,13 @@ class SysVars {
   static void set_session_filter_id(MYSQL_THD thd, ulong id) noexcept;
 
   /**
+   * @brief Get value of audit_log_filter_disable variable.
+   *
+   * @return Value of audit_log_filter_disable variable
+   */
+  static bool get_log_disabled() noexcept;
+
+  /**
    * @brief Increment counter of events handled by the audit log plugin.
    */
   static void inc_events_total() noexcept;

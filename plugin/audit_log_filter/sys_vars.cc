@@ -17,7 +17,11 @@
 #include "plugin/audit_log_filter/audit_error_log.h"
 #include "plugin/audit_log_filter/audit_log_filter.h"
 
+#include <mysql/components/services/dynamic_privilege.h>
+#include <mysql/components/services/security_context.h>
+
 #include "mysql/plugin.h"
+#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_plugin_var.h"
@@ -142,6 +146,7 @@ ulonglong log_rotate_on_size = 0;
 ulonglong log_max_size = 0;
 ulonglong log_prune_seconds = 0;
 bool log_flush_requested = false;
+bool log_disabled = false;
 char *log_syslog_ident = nullptr;
 const char default_log_syslog_ident[] = "percona-audit-event-filter";
 ulong log_syslog_facility = 0;
@@ -389,6 +394,46 @@ MYSQL_THDVAR_ULONG(
     "the current session.",
     nullptr, nullptr, 0UL, 0UL, ULONG_MAX, 0UL);
 
+/*
+ * Permits disabling audit logging for all connecting and connected sessions.
+ */
+int log_disabled_check_func(MYSQL_THD thd, SYS_VAR *var, void *save,
+                            st_mysql_value *value) {
+  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
+      "mysql_thd_security_context",
+      get_audit_log_filter_instance()->get_comp_registry_srv());
+  my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
+      "global_grants_check",
+      get_audit_log_filter_instance()->get_comp_registry_srv());
+
+  bool has_audit_admin_grant = false;
+  bool has_system_variables_admin_grant = false;
+
+  if (security_context_service.is_valid() && grants_check_service.is_valid()) {
+    Security_context_handle ctx;
+
+    if (!security_context_service->get(thd, &ctx)) {
+      has_audit_admin_grant = grants_check_service->has_global_grant(
+          ctx, STRING_WITH_LEN("AUDIT_ADMIN"));
+      has_system_variables_admin_grant = grants_check_service->has_global_grant(
+          ctx, STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
+    }
+  }
+
+  if (!has_audit_admin_grant || !has_system_variables_admin_grant) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SYSTEM_VARIABLES_ADMIN and AUDIT_ADMIN");
+    return 1;
+  }
+
+  return check_func_bool(thd, var, save, value);
+}
+
+MYSQL_SYSVAR_BOOL(disable, log_disabled, PLUGIN_VAR_RQCMDARG,
+                  "Disable audit logging for all connecting and "
+                  "connected sessions.",
+                  log_disabled_check_func, nullptr, false);
+
 SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(handler),
                        MYSQL_SYSVAR(format),
@@ -402,6 +447,7 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(syslog_facility),
                        MYSQL_SYSVAR(syslog_priority),
                        MYSQL_SYSVAR(filter_id),
+                       MYSQL_SYSVAR(disable),
                        nullptr};
 
 }  // namespace
@@ -421,7 +467,6 @@ void SysVars::validate() noexcept {
 // sys vars
 //  MYSQL_SYSVAR(record_buffer),
 //  MYSQL_SYSVAR(query_stack),
-//  audit_log_disable
 //  audit_log_read_buffer_size
 
 const char *SysVars::get_file_name() noexcept { return log_file_name; }
@@ -461,6 +506,8 @@ int SysVars::get_syslog_priority() noexcept {
 void SysVars::set_session_filter_id(MYSQL_THD thd, ulong id) noexcept {
   THDVAR(thd, filter_id) = id;
 }
+
+bool SysVars::get_log_disabled() noexcept { return log_disabled; }
 
 uint64_t SysVars::get_events_lost() noexcept {
   return events_lost.load(std::memory_order_relaxed);

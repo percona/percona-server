@@ -120,7 +120,7 @@ void AuditLogFilter::index_scan_end(TableAccessContext *ta_context,
 TableResult AuditLogFilter::get_next_pk_value(TableAccessContext *ta_context,
                                               long long &next_pk) noexcept {
   TA_key filter_id_key = nullptr;
-  next_pk = 0;
+  next_pk = 1;
 
   my_service<SERVICE_TYPE(table_access_index_v1)> index_srv(
       "table_access_index_v1", get_comp_registry_srv());

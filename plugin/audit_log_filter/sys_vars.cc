@@ -376,6 +376,19 @@ MYSQL_SYSVAR_ENUM(syslog_priority, log_syslog_priority, PLUGIN_VAR_RQCMDARG,
                   nullptr, nullptr, 0,
                   &audit_log_filter_syslog_priority_typelib);
 
+/*
+ * The session value of this variable indicates the internally maintained ID
+ * of the audit filter for the current session. A value of 0 means that the
+ * session has no filter assigned.
+ */
+MYSQL_THDVAR_ULONG(
+    filter_id,
+    PLUGIN_VAR_READONLY | PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NODEFAULT |
+        PLUGIN_VAR_NOPERSIST,
+    "Indicates the internally maintained ID of the audit filter for "
+    "the current session.",
+    nullptr, nullptr, 0UL, 0UL, ULONG_MAX, 0UL);
+
 SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(handler),
                        MYSQL_SYSVAR(format),
@@ -388,6 +401,7 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(syslog_ident),
                        MYSQL_SYSVAR(syslog_facility),
                        MYSQL_SYSVAR(syslog_priority),
+                       MYSQL_SYSVAR(filter_id),
                        nullptr};
 
 }  // namespace
@@ -407,10 +421,7 @@ void SysVars::validate() noexcept {
 // sys vars
 //  MYSQL_SYSVAR(record_buffer),
 //  MYSQL_SYSVAR(query_stack),
-//  audit_log_current_session
 //  audit_log_disable
-//  audit_log_filter_id
-//  audit_log_password_history_keep_days
 //  audit_log_read_buffer_size
 
 const char *SysVars::get_file_name() noexcept { return log_file_name; }
@@ -445,6 +456,10 @@ int SysVars::get_syslog_facility() noexcept {
 
 int SysVars::get_syslog_priority() noexcept {
   return audit_log_filter_syslog_priority_codes[log_syslog_priority];
+}
+
+void SysVars::set_session_filter_id(MYSQL_THD thd, ulong id) noexcept {
+  THDVAR(thd, filter_id) = id;
 }
 
 uint64_t SysVars::get_events_lost() noexcept {

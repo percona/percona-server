@@ -283,6 +283,8 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     return 0;
   }
 
+  SysVars::set_session_filter_id(thd, filter_rule->get_filter_id());
+
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Found filtering rule '%s' with the definition '%s'",
                   rule_name.c_str(), filter_rule->to_string().c_str());

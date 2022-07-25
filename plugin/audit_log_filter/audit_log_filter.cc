@@ -191,6 +191,10 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
       std::move(comp_registry_srv), std::move(audit_rule_registry),
       std::move(audit_udf), std::move(log_writer));
 
+  if (SysVars::get_log_disabled()) {
+    LogPluginErr(WARNING_LEVEL, ER_WARN_AUDIT_LOG_FILTER_DISABLED);
+  }
+
   return 0;
 }
 
@@ -244,6 +248,10 @@ AuditLogFilter::AuditLogFilter(
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
                                  const void *event) {
+  if (SysVars::get_log_disabled()) {
+    return 0;
+  }
+
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Audit event %i received ===================", event_class);
 
@@ -433,6 +441,10 @@ bool AuditLogFilter::get_connection_user(
   user_host = host.str;
 
   return true;
+}
+
+comp_registry_srv_t *AuditLogFilter::get_comp_registry_srv() noexcept {
+  return m_comp_registry_srv.get();
 }
 
 }  // namespace audit_log_filter

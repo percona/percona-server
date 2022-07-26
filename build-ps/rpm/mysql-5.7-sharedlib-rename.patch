@@ -537,3 +537,42 @@
    gunit_small)
  
  IF (WITH_CS_PROTOBUF)
+
+--- router/src/router/tests/CMakeLists.txt	2022-07-26 08:37:14.834824576 +0000
++++ router/src/router/tests/CMakeLists.txt	2022-07-26 08:38:26.484931770 +0000
+@@ -130,7 +130,7 @@
+ ADD_HARNESS_TEST_FILE(test_mysql_session.cc
+   MODULE ${TEST_MODULE}
+   LIB_DEPENDS
+-    test-helpers perconaserverclient
++    test-helpers mysqlclient
+   EXTRA_SOURCES
+     ../src/common/mysql_session.cc
+     ../src/common/log_filter.cc
+@@ -146,7 +146,7 @@
+ ADD_HARNESS_TEST_FILE(test_metadata_check.cc
+   MODULE ${TEST_MODULE}
+   LIB_DEPENDS
+-    test-helpers perconaserverclient
++    test-helpers mysqlclient
+   EXTRA_SOURCES
+     ../src/common/mysql_session.cc
+     ../src/common/log_filter.cc
+@@ -168,7 +168,7 @@
+ ADD_HARNESS_TEST_FILE(test_cluster_metadata.cc
+   MODULE ${TEST_MODULE}
+   LIB_DEPENDS
+-    test-helpers perconaserverclient
++    test-helpers mysqlclient
+   EXTRA_SOURCES
+     ../src/common/mysql_session.cc
+     ../src/common/log_filter.cc
+@@ -190,7 +190,7 @@
+ ADD_HARNESS_TEST_FILE(test_windows_service.cc
+   MODULE ${TEST_MODULE}
+   LIB_DEPENDS
+-    test-helpers perconaserverclient
++    test-helpers mysqlclient
+   EXTRA_SOURCES
+     ../src/windows/main-windows.cc
+     ../src/windows/nt_servc.cc

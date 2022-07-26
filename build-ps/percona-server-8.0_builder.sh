@@ -436,13 +436,14 @@ install_deps() {
         fi
         if [ "x${RHEL}" = "x8" ]; then
             yum -y install centos-release-stream
-            yum -y install git gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-annobin
-            source /opt/rh/gcc-toolset-10/enable
+            yum -y install git gcc-toolset-11-gcc gcc-toolset-11-gcc-c++ gcc-toolset-11-annobin-plugin-gcc
+            source /opt/rh/gcc-toolset-11/enable
         fi
         if [ "x${RHEL}" = "x7" ]; then
-            yum -y install devtoolset-10
+            yum -y install devtoolset-11
+            yum -y install devtoolset-11-annobin-plugin-gcc
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
-            source /opt/rh/devtoolset-10/enable
+            source /opt/rh/devtoolset-11/enable
         fi
 	 if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable
@@ -456,16 +457,15 @@ install_deps() {
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
-            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-gcc-c++ devtoolset-10-binutils devtoolset-10-valgrind devtoolset-10-valgrind-devel devtoolset-10-libatomic-devel
-            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-libasan-devel devtoolset-10-libubsan-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-11-gcc-c++ devtoolset-11-binutils devtoolset-11-valgrind devtoolset-11-valgrind-devel devtoolset-11-libatomic-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-11-libasan-devel devtoolset-11-libubsan-devel
             rm -f /usr/bin/cmake
 	    cp -p /usr/bin/cmake3 /usr/bin/cmake
         fi
         if [ "x$RHEL" = "x8" ]; then
             yum -y install centos-release-stream
-            yum -y install gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils
-            yum -y install gcc-toolset-10-valgrind gcc-toolset-10-valgrind-devel gcc-toolset-10-libatomic-devel
-            yum -y install gcc-toolset-10-libasan-devel gcc-toolset-10-libubsan-devel
+            yum -y install gcc-toolset-11-binutils gcc-toolset-11-valgrind gcc-toolset-11-valgrind-devel gcc-toolset-11-libatomic-devel
+            yum -y install gcc-toolset-11-libasan-devel gcc-toolset-11-libubsan-devel
             yum -y remove centos-release-stream
         fi
     else
@@ -723,7 +723,7 @@ build_rpm(){
         source /opt/rh/devtoolset-8/enable
     fi
     if [ "x${RHEL}" = "x7" ]; then
-        source /opt/rh/devtoolset-10/enable
+        source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
         source /opt/rh/gcc-toolset-10/enable
@@ -738,7 +738,7 @@ build_rpm(){
         sudo ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
     fi
     if [ "x${RHEL}" = "x7" ]; then
-        source /opt/rh/devtoolset-10/enable
+        source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
         source /opt/rh/gcc-toolset-10/enable
@@ -912,7 +912,7 @@ build_tarball(){
           source /opt/rh/devtoolset-8/enable
       fi
       if [ "x${RHEL}" = "x7" ]; then
-          source /opt/rh/devtoolset-10/enable
+          source /opt/rh/devtoolset-11/enable
       fi
       if [ "x${RHEL}" = "x8" ]; then
           source /opt/rh/gcc-toolset-10/enable
@@ -1001,7 +1001,7 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.27-18"
+BRANCH="release-8.0.29-21"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -1009,13 +1009,13 @@ REPO="https://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=27
-MYSQL_VERSION_EXTRA=-18
-PRODUCT_FULL=Percona-Server-8.0.27
+MYSQL_VERSION_PATCH=29
+MYSQL_VERSION_EXTRA=-21
+PRODUCT_FULL=Percona-Server-8.0.29
 BOOST_PACKAGE_NAME=boost_1_77_0
 BUILD_TOKUDB_TOKUBACKUP=0
-PERCONAFT_BRANCH=Percona-Server-8.0.27-18
-TOKUBACKUP_BRANCH=Percona-Server-8.0.27-18
+PERCONAFT_BRANCH=Percona-Server-8.0.29-21
+TOKUBACKUP_BRANCH=Percona-Server-8.0.29-21
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

@@ -28,7 +28,7 @@ namespace binary_log::transaction::compression {
 std::string type_to_string(type t) {
   switch (t) {
     using binary_log::transaction::compression::type;
-    case ZSTD:
+    case ALGORITHM_ZSTD:
       return "ZSTD";
     case NONE:
       return "NONE";

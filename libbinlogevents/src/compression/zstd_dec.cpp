@@ -45,7 +45,7 @@ Zstd_dec::~Zstd_dec() {
   if (m_ctx != nullptr) ZSTD_freeDStream(m_ctx);
 }
 
-type Zstd_dec::compression_type_code() { return ZSTD; }
+type Zstd_dec::compression_type_code() { return ALGORITHM_ZSTD; }
 
 bool Zstd_dec::open() {
   size_t ret{0};

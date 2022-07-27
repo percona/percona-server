@@ -63,7 +63,7 @@ Zstd_comp::~Zstd_comp() {
   m_buffer_cursor = m_buffer;
 }
 
-type Zstd_comp::compression_type_code() { return ZSTD; }
+type Zstd_comp::compression_type_code() { return ALGORITHM_ZSTD; }
 
 bool Zstd_comp::open() {
   size_t ret{0};

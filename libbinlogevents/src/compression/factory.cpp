@@ -35,7 +35,7 @@ namespace compression {
 std::unique_ptr<Compressor> Factory::build_compressor(type t) {
   std::unique_ptr<Compressor> res{nullptr};
   switch (t) {
-    case ZSTD:
+    case ALGORITHM_ZSTD:
       res = std::make_unique<Zstd_comp>();
       break;
     case NONE:
@@ -50,7 +50,7 @@ std::unique_ptr<Compressor> Factory::build_compressor(type t) {
 std::unique_ptr<Decompressor> Factory::build_decompressor(type t) {
   std::unique_ptr<Decompressor> res{nullptr};
   switch (t) {
-    case ZSTD:
+    case ALGORITHM_ZSTD:
       res = std::make_unique<Zstd_dec>();
       break;
     case NONE:

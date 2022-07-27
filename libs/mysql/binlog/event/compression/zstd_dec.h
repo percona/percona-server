@@ -40,7 +40,7 @@ class Zstd_dec : public Decompressor {
   using typename Decompressor::Grow_constraint_t;
   using typename Decompressor::Size_t;
   using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
-  static constexpr type type_code = ZSTD;
+  static constexpr type type_code = ALGORITHM_ZSTD;
 
   Zstd_dec(const Memory_resource_t &memory_resource = Memory_resource_t());
   ~Zstd_dec() override;

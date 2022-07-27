@@ -37,7 +37,7 @@ GR_decompress::GR_decompress(
     default: {
       m_compressor_name.assign("Zstandard");
       mysql::binlog::event::compression::type compression_type_aux =
-          mysql::binlog::event::compression::ZSTD;
+          mysql::binlog::event::compression::ALGORITHM_ZSTD;
       auto decomp =
           mysql::binlog::event::compression::Factory::build_decompressor(
               compression_type_aux);

@@ -33,7 +33,7 @@ namespace mysql::binlog::event::compression {
 std::unique_ptr<Compressor> Factory::build_compressor(
     type t, const Memory_resource_t &memory_resource) {
   switch (t) {
-    case ZSTD:
+    case ALGORITHM_ZSTD:
       return std::make_unique<Zstd_comp>(memory_resource);
     case NONE:
       return std::make_unique<None_comp>();
@@ -46,7 +46,7 @@ std::unique_ptr<Compressor> Factory::build_compressor(
 std::unique_ptr<Decompressor> Factory::build_decompressor(
     type t, const Memory_resource_t &memory_resource) {
   switch (t) {
-    case ZSTD:
+    case ALGORITHM_ZSTD:
       return std::make_unique<Zstd_dec>(memory_resource);
     case NONE:
       return std::make_unique<None_dec>();

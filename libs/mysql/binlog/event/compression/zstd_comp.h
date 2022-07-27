@@ -44,7 +44,7 @@ class Zstd_comp : public Compressor {
   using typename Compressor::Size_t;
   using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
   using Compression_level_t = int;
-  static constexpr type type_code = ZSTD;
+  static constexpr type type_code = ALGORITHM_ZSTD;
 
   /// The default compression level for this compressor.
   static constexpr Compression_level_t default_compression_level = 3;

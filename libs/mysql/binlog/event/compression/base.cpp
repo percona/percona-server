@@ -29,7 +29,7 @@ namespace mysql::binlog::event::compression {
 std::string type_to_string(type t) {
   switch (t) {
     using mysql::binlog::event::compression::type;
-    case ZSTD:
+    case ALGORITHM_ZSTD:
       return "ZSTD";
     case NONE:
       return "NONE";

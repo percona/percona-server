@@ -37,7 +37,7 @@ GR_compress::GR_compress(enum_compression_type compression_type)
     default: {
       m_compressor_name.assign("Zstandard");
       mysql::binlog::event::compression::type compression_type_aux =
-          mysql::binlog::event::compression::ZSTD;
+          mysql::binlog::event::compression::ALGORITHM_ZSTD;
       auto comp = mysql::binlog::event::compression::Factory::build_compressor(
           compression_type_aux);
       if (comp != nullptr) {

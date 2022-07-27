@@ -291,7 +291,7 @@ into MyRocks system tables.
 
 .. _rocksdb_system_rows_read:
 
-.. rubric:: ``ocksdb_system_rows_read``
+.. rubric:: ``rocksdb_system_rows_read``
 
 This variable shows the number of rows that were read
 from MyRocks system tables.

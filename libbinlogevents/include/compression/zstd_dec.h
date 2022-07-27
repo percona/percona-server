@@ -38,7 +38,7 @@ class Zstd_dec : public Decompressor {
   using typename Decompressor::Char_t;
   using typename Decompressor::Grow_constraint_t;
   using typename Decompressor::Size_t;
-  static constexpr type type_code = ZSTD;
+  static constexpr type type_code = ALGORITHM_ZSTD;
 
   Zstd_dec();
   ~Zstd_dec() override;

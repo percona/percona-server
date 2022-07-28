@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 -- Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 --
+||||||| c94ce787737
+-- Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+-- 
+=======
+-- Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+-- 
+>>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
 -- as published by the Free Software Foundation.

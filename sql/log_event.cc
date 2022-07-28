@@ -1,7 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2021, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
+||||||| c94ce787737
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+>>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6942,7 +6948,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       !is_relay_log_event() &&
       !in_group)
   {
-    if (!is_mts_db_partitioned(rli) && server_id != ::server_id)
+    if (!is_mts_db_partitioned(rli) && (server_id != ::server_id || rli->replicate_same_server_id))
     {
       // force the coordinator to start a new binlog segment.
       static_cast<Mts_submode_logical_clock*>

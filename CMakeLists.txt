@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -356,6 +356,116 @@ OPTION(WITH_AUTHENTICATION_LDAP
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
 MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
+<<<<<<< HEAD
+||||||| c94ce787737
+
+include(CheckCSourceCompiles)
+include(CheckCXXSourceCompiles)
+# We need some extra FAIL_REGEX patterns
+# Note that CHECK_C_SOURCE_COMPILES is a misnomer, it will also link.
+MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
+  SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
+  CHECK_C_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "argument unused during compilation"
+    FAIL_REGEX "unsupported .*option"
+    FAIL_REGEX "unknown .*option"
+    FAIL_REGEX "unrecognized .*option"
+    FAIL_REGEX "ignoring unknown option"
+    FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
+    )
+  SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
+ENDMACRO()
+
+MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
+  SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
+  CHECK_CXX_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "argument unused during compilation"
+    FAIL_REGEX "unsupported .*option"
+    FAIL_REGEX "unknown .*option"
+    FAIL_REGEX "unrecognized .*option"
+    FAIL_REGEX "ignoring unknown option"
+    FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
+    )
+  SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
+ENDMACRO()
+
+=======
+
+include(CheckCSourceCompiles)
+include(CheckCXXSourceCompiles)
+# We need some extra FAIL_REGEX patterns
+# Note that CHECK_C_SOURCE_COMPILES is a misnomer, it will also link.
+MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
+  SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
+  CHECK_C_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "argument unused during compilation"
+    FAIL_REGEX "unsupported .*option"
+    FAIL_REGEX "unknown .*option"
+    FAIL_REGEX "unrecognized .*option"
+    FAIL_REGEX "ignoring unknown option"
+    FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
+    )
+  SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
+ENDMACRO()
+
+MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
+  SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
+  CHECK_CXX_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "argument unused during compilation"
+    FAIL_REGEX "unsupported .*option"
+    FAIL_REGEX "unknown .*option"
+    FAIL_REGEX "unrecognized .*option"
+    FAIL_REGEX "ignoring unknown option"
+    FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
+    )
+  SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
+ENDMACRO()
+
+# Check whether a specific warning option is supported.
+# Intended use is primarily to silence warnings from third-party code.
+# If *our* code has warnings with gcc[56789] or clang[345678] the
+# code should be fixed, rather than silencing the compiler warnings.
+#
+# Returns the corresponding "-Wno-<option>" if supported, 0 otherwise.
+# WARNING_OPTION should be as found in clang/gcc documentation.
+# Note: Sun Studio accepts/ignores anything starting with "-W".
+#       Visual Studio has a few /W options, but are totally different.
+# Hence we check for gcc/clang only.
+# No return value for functions in cmake, so we use an output argument.
+FUNCTION(MY_CHECK_CXX_COMPILER_WARNING WARNING_OPTION RETURN_VALUE)
+  # Strip off possible leading -Wno- or -W
+  STRING(REGEX REPLACE "^-Wno-" "" WARNING_OPTION ${WARNING_OPTION})
+  STRING(REGEX REPLACE "^-W" "" WARNING_OPTION ${WARNING_OPTION})
+  # Use HAVE_CXX_W_warning_option as cache variable.
+  STRING(REPLACE "-" "_" VAR_NAME ${WARNING_OPTION})
+  STRING(REPLACE "=" "_" VAR_NAME ${VAR_NAME})
+  STRING(REPLACE "c++" "cpp" VAR_NAME ${VAR_NAME})
+  SET(VAR_NAME "HAVE_CXX_W_${VAR_NAME}")
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+    MY_CHECK_CXX_COMPILER_FLAG("-W${WARNING_OPTION}" ${VAR_NAME})
+  ELSE()
+    SET(${VAR_NAME} 0 CACHE INTERNAL "-W${WARNING_OPTION} not supported")
+  ENDIF()
+  IF(${VAR_NAME})
+    SET(${RETURN_VALUE} "-Wno-${WARNING_OPTION}" PARENT_SCOPE)
+  ELSE()
+    SET(${RETURN_VALUE} 0 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+>>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^
 MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
@@ -585,6 +695,15 @@ ADD_DEFINITIONS(-D__STDC_WANT_LIB_EXT1__=1)
 # Run platform tests
 INCLUDE(configure.cmake)
 
+IF(APPLE)
+  # Homebrew default location is
+  IF(APPLE_ARM)
+    SET(HOMEBREW_HOME "/opt/homebrew/opt")
+  ELSE()
+    SET(HOMEBREW_HOME "/usr/local/opt")
+  ENDIF()
+ENDIF()
+
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 ADD_DEFINITIONS(-DLZ4_DISABLE_DEPRECATE_WARNINGS) # C++14 deprecation warnings in LZ4.
@@ -594,13 +713,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
-MYSQL_CHECK_ZLIB_WITH_COMPRESS()
-IF(BUILD_BUNDLED_ZLIB)
-  INCLUDE_DIRECTORIES(SYSTEM
-    ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-    ${CMAKE_CURRENT_BINARY_DIR}/zlib
-    )
-ENDIF()
+MYSQL_CHECK_ZLIB()
 # Add openssl.
 MYSQL_CHECK_SSL()
 # Add system/bundled editline.
@@ -833,7 +946,10 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     README
     LICENSE
     DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
-  INSTALL(FILES ${CMAKE_BINARY_DIR}/Docs/INFO_SRC ${CMAKE_BINARY_DIR}/Docs/INFO_BIN DESTINATION ${INSTALL_DOCDIR})
+  INSTALL(FILES
+    ${CMAKE_BINARY_DIR}/Docs/INFO_SRC
+    ${CMAKE_BINARY_DIR}/Docs/INFO_BIN
+    DESTINATION ${INSTALL_DOCDIR} COMPONENT Info)
 
   # MYSQL_DOCS_LOCATON is used in "make dist", points to the documentation directory
   SET(MYSQL_DOCS_LOCATION "" CACHE PATH "Location from where documentation is copied")

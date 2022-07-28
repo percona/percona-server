@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,6 +173,12 @@ bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 #endif /*HAVE_REPLICATION*/
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 
+<<<<<<< HEAD
 bool lock_binlog_for_backup(THD *thd);
 
+||||||| c94ce787737
+=======
+bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+
+>>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^
 #endif /* SQL_PARSE_INCLUDED */

@@ -1,7 +1,15 @@
 /***********************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, 2016, Percona Inc.
+||||||| c94ce787737
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
+=======
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
+>>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -6147,7 +6155,7 @@ os_file_write_page(
 	if ((ulint) n_bytes != n && !os_has_said_disk_full) {
 
 		ib::error()
-			<< "Write to file " << name << "failed at offset "
+			<< "Write to file " << name << " failed at offset "
 			<< offset << ", " << n
 			<< " bytes should have been written,"
 			" only " << n_bytes << " were written."

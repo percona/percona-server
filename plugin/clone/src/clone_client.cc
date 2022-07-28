@@ -27,9 +27,9 @@ Clone Plugin: Client implementation
 */
 #include <inttypes.h>
 
+#include "plugin/clone/include/clone.h"
 #include "plugin/clone/include/clone_client.h"
 #include "plugin/clone/include/clone_os.h"
-#include "plugin/clone/include/clone.h"
 
 #include "my_byteorder.h"
 #include "my_systime.h"  // my_sleep()

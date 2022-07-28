@@ -29,11 +29,11 @@ Clone Plugin: Plugin interface
 #include <mysql/plugin.h>
 #include <mysql/plugin_clone.h>
 
+#include "include/sql_string.h"
 #include "plugin/clone/include/clone_client.h"
 #include "plugin/clone/include/clone_local.h"
 #include "plugin/clone/include/clone_server.h"
 #include "plugin/clone/include/clone_status.h"
-#include "include/sql_string.h"
 #include "sql/sql_error.h"
 
 #include <algorithm>
@@ -538,8 +538,9 @@ static bool plugin_is_ignorable(std::string &plugin_name) {
 }
 
 static int clone_exclude_plugins_match_validate(MYSQL_THD thd,
-                                          SYS_VAR *var [[maybe_unused]],
-                                          void *save, st_mysql_value *value) {
+                                                SYS_VAR *var [[maybe_unused]],
+                                                void *save,
+                                                st_mysql_value *value) {
   const char *input = val_strmake(thd, value);
   std::stringstream exclude_list(input);
 

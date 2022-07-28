@@ -78,14 +78,10 @@
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-<<<<<<< HEAD
-#define MAX_CONNECTIONS 100000
-
-||||||| c94ce787737
-=======
 #include "sql_show_processlist.h" // pfs_processlist_enabled
 
->>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^
+#define MAX_CONNECTIONS 100000
+
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
 static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,

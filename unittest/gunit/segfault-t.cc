@@ -68,27 +68,13 @@ TEST_F(FatalSignalDeathTest, Segfault)
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
-<<<<<<< HEAD
   MY_EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
-||||||| c94ce787737
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
-#elif defined(HAVE_ASAN)
-  /* gcc 4.8.1 with '-fsanitize=address -O1' */
-  /* Newer versions of ASAN give other error message, disable it */
-  // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
-=======
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
-#elif defined(HAVE_ASAN)
-  /* gcc 4.8.1 with '-fsanitize=address -O1' */
-  /* Newer versions of ASAN give other error message, disable it */
-  // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
 #elif defined(__APPLE__) && defined(__aarch64__) && defined(NDEBUG)
   // Disable also in non-debug mode on MacOS 11 arm, with -O1 or above, we get
   // Result: died but not with expected error.
   // Expected: contains regular expression ".* UTC - mysqld got signal .*"
   // Actual msg:
   // We do get: "Trace/BPT trap: 5" but not as part of the matcher input in
->>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^
 #else
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.

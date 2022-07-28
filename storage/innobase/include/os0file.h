@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, 2017, Percona Inc.
-||||||| c94ce787737
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^
+Copyright (c) 2009, 2017, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are

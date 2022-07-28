@@ -81,29 +81,21 @@ binlog_format	MIXED
 DEALLOCATE PREPARE stmt1;
 '#------------------ STATEMENT Test 4 -----------------------#'
 '# set initial variable value, make prepared statement
-SET SESSION myisam_sort_buffer_size=500000, myisam_repair_threads=1;
+SET SESSION myisam_sort_buffer_size=500000;
 ''
 '# Pre-STATEMENT variable value'
 SHOW SESSION VARIABLES LIKE 'myisam_sort_buffer_size';
 Variable_name	Value
 myisam_sort_buffer_size	500000
-SHOW SESSION VARIABLES LIKE 'myisam_repair_threads';
-Variable_name	Value
-myisam_repair_threads	1
 ''
-SET STATEMENT myisam_sort_buffer_size=800000,
-myisam_repair_threads=2 FOR OPTIMIZE TABLE t1;
+SET STATEMENT myisam_sort_buffer_size=800000 FOR OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	Warning	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 test.t1	optimize	status	OK
 ''
 '# Post-STATEMENT variable value'
 SHOW SESSION VARIABLES LIKE 'myisam_sort_buffer_size';
 Variable_name	Value
 myisam_sort_buffer_size	500000
-SHOW SESSION VARIABLES LIKE 'myisam_repair_threads';
-Variable_name	Value
-myisam_repair_threads	1
 ''
 '#------------------ STATEMENT Test 5 -----------------------#'
 '# Initialize variables to known setting'
@@ -163,7 +155,6 @@ max_join_size	2222220000000
 '#------------------Test 8-----------------------#'
 '# Initialize test variables'
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size = 200000,
 max_join_size=2222220000000,
 keep_files_on_create=ON;
@@ -192,20 +183,6 @@ SHOW SESSION VARIABLES LIKE 'keep_files_on_create';
 Variable_name	Value
 keep_files_on_create	ON
 ''
-'# INT/LONG    '
-SHOW SESSION VARIABLES LIKE 'myisam_repair_threads';
-Variable_name	Value
-myisam_repair_threads	1
-SET STATEMENT myisam_repair_threads=2
-FOR SHOW SESSION VARIABLES LIKE 'myisam_repair_threads';
-Variable_name	Value
-myisam_repair_threads	2
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
-SHOW SESSION VARIABLES LIKE 'myisam_repair_threads';
-Variable_name	Value
-myisam_repair_threads	1
-''
 '# ULONGLONG     '
 SHOW SESSION VARIABLES LIKE 'max_join_size';
 Variable_name	Value
@@ -221,7 +198,6 @@ max_join_size	2222220000000
 '#------------------Test 9-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -230,13 +206,12 @@ max_join_size=2222220000000;
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 CREATE FUNCTION myProc (cost DECIMAL(10,2))
@@ -250,7 +225,6 @@ END|
 ''
 '# During Execution values
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
@@ -258,43 +232,35 @@ max_join_size=4444440000000 FOR
 SELECT myProc(123.45);
 myProc(123.45)
 6.17
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT No 1 variable value Pre-STATEMENT for No 2'
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
 DROP FUNCTION myProc;
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT No 2 variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 '#------------------Test 10-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -302,17 +268,15 @@ max_join_size=2222220000000;
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
@@ -322,17 +286,15 @@ FROM 'SELECT * FROM t1';
 ''
 'Test No 1 Post Value & Test 2 Pre values'
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
@@ -344,20 +306,18 @@ v1	v2
 ''
 '# Post-STATEMENT No 2
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 DEALLOCATE PREPARE stmt2;
 ''
 '#------------------Test 11-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -366,17 +326,15 @@ max_join_size=2222220000000;
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
@@ -385,17 +343,15 @@ PREPARE stmt1 FROM
 ''
 'Test No 1 Post Value & Test 2 Pre values'
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
@@ -406,19 +362,17 @@ v1	v2
 ''
 '# Post-STATEMENT No 2
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 '#------------------Test 12-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -427,70 +381,59 @@ max_join_size=2222220000000;
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
 CREATE PROCEDURE p1() BEGIN
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
 END|
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 'Test No 1 Post Value & Test 2 Pre values'
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
 CALL p1();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-400000	2	200000	ROW	0	4444440000000
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+400000	200000	ROW	0	4444440000000
 ''
 '# Post-STATEMENT No 2
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 '#------------------Test 13-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -499,7 +442,6 @@ max_join_size=2222220000000;
 ''
 CREATE PROCEDURE p2() BEGIN
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=3,
 sort_buffer_size=300000,
 binlog_format=mixed,
 keep_files_on_create=OFF,
@@ -509,43 +451,36 @@ END|
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
 CALL p2();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-400000	3	300000	MIXED	0	3333330000000
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+400000	300000	MIXED	0	3333330000000
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 '#------------------Test 14-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -554,13 +489,11 @@ max_join_size=2222220000000;
 ''
 CREATE PROCEDURE p3() BEGIN
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
 SET STATEMENT myisam_sort_buffer_size=320000,
-myisam_repair_threads=2,
 sort_buffer_size=220022,
 binlog_format=row,
 keep_files_on_create=ON,
@@ -570,40 +503,33 @@ END|
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
 CALL p3();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-400000	2	200000	ROW	0	4444440000000
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-400000	3	300000	MIXED	0	3333330000000
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+400000	200000	ROW	0	4444440000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+400000	300000	MIXED	0	3333330000000
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 ''
@@ -611,7 +537,6 @@ SELECT @@myisam_sort_buffer_size,
 '#------------------Test 15-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -620,43 +545,36 @@ max_join_size=2222220000000;
 ''
 CREATE PROCEDURE p4() BEGIN
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
 SET STATEMENT myisam_sort_buffer_size=320000,
-myisam_repair_threads=2,
 sort_buffer_size=220022,
 binlog_format=row,
 keep_files_on_create=ON,
 max_join_size=2222220000000 FOR
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
 SET STATEMENT myisam_sort_buffer_size=320000,
-myisam_repair_threads=2,
 sort_buffer_size=220022,
 binlog_format=row,
 keep_files_on_create=ON,
 max_join_size=2222220000000 FOR
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
 SET STATEMENT myisam_sort_buffer_size=320000,
-myisam_repair_threads=2,
 sort_buffer_size=220022,
 binlog_format=row,
 keep_files_on_create=ON,
 max_join_size=2222220000000 FOR
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
@@ -665,43 +583,37 @@ END|
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
 CALL p4();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-400000	2	200000	ROW	0	4444440000000
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-320000	2	220022	ROW	1	2222220000000
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-320000	2	220022	ROW	1	2222220000000
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-320000	2	220022	ROW	1	2222220000000
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+400000	200000	ROW	0	4444440000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+320000	220022	ROW	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+320000	220022	ROW	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+320000	220022	ROW	1	2222220000000
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 '#------------------Test 16-----------------------#'
@@ -728,7 +640,6 @@ ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DI
 '#------------------Test 17-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -736,47 +647,39 @@ max_join_size=2222220000000;
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=320000,
-myisam_repair_threads=2,
 sort_buffer_size=220022,
 binlog_format=row,
 keep_files_on_create=ON,
 max_join_size=2222220000000
 FOR SET SESSION
 myisam_sort_buffer_size=260000,
-myisam_repair_threads=3,
 sort_buffer_size=230013,
 binlog_format=row,
 keep_files_on_create=ON,
 max_join_size=2323230000000;
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 '#------------------Test 18-----------------------#'
 '# set initial variable values
 SET SESSION myisam_sort_buffer_size=500000,
-myisam_repair_threads=1,
 sort_buffer_size=100000,
 binlog_format=mixed,
 keep_files_on_create=ON,
@@ -784,31 +687,27 @@ max_join_size=2222220000000;
 ''
 '# Pre-STATEMENT variable value
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 CREATE PROCEDURE p5() BEGIN
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
 SET SESSION
 myisam_sort_buffer_size=260000,
-myisam_repair_threads=3,
 sort_buffer_size=230013,
 binlog_format=row,
 keep_files_on_create=ON,
 max_join_size=2323230000000;
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
@@ -817,28 +716,24 @@ END|
 ''
 ''
 SET STATEMENT myisam_sort_buffer_size=400000,
-myisam_repair_threads=2,
 sort_buffer_size=200000,
 binlog_format=row,
 keep_files_on_create=OFF,
 max_join_size=4444440000000 FOR
 CALL p5();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-400000	2	200000	ROW	0	4444440000000
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-260000	3	230013	ROW	1	2323230000000
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+400000	200000	ROW	0	4444440000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+260000	230013	ROW	1	2323230000000
 ''
 '# Post-STATEMENT
 SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
 @@sort_buffer_size,
 @@binlog_format,
 @@keep_files_on_create,
 @@max_join_size;
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
-500000	1	100000	MIXED	1	2222220000000
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@binlog_format	@@keep_files_on_create	@@max_join_size
+500000	100000	MIXED	1	2222220000000
 ''
 ''
 '#------------------Test 19-----------------------#'
@@ -896,7 +791,7 @@ SET SESSION lock_wait_timeout = @old_lock_wait_timeout;
 Test for bug 1387951: SET STATEMENT ... FOR <statement> crashes server
 if <statement> is RW in a RO transaction
 SET SESSION transaction_read_only = TRUE;
-SET STATEMENT myisam_repair_threads=0 FOR OPTIMIZE TABLE t0;
+SET STATEMENT myisam_sort_buffer_size=800000 FOR OPTIMIZE TABLE t0;
 ERROR 25006: Cannot execute statement in a READ ONLY transaction.
 SET SESSION transaction_read_only = FALSE;
 Test for bug 1412423: SET STATEMENT ... FOR <statement> crashes server
@@ -927,7 +822,7 @@ INSERT INTO t3 (ref_key) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 set @row_id := 0;
 INSERT INTO t3 (ref_key) SELECT @row_id := @row_id + 11 as ref_key
 FROM t3 a1, t3 a2, t3 a3;
-SET STATEMENT myisam_repair_threads=1 FOR
+SET STATEMENT myisam_sort_buffer_size=800000 FOR
 SELECT count(1) FROM t3 s
 JOIN (SELECT row_key, ref_key AS ref_key FROM t3 t
 WHERE t.row_key IN (SELECT row_key FROM t3)) AS r;

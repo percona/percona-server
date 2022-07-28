@@ -1927,7 +1927,6 @@
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
 }
-<<<<<<< HEAD
 # The issue with GNU libc version 2.17 when linux hosts doesn't have IPv6 configured.
 # This is because libc points the cache (that is freed on exit) to a static variable
 # if there is no ipv6 address, which later results in freeing an invalid pointer.
@@ -2009,9 +2008,6 @@
    fun:tls_get_addr_tail
    fun:__tls_get_addr
 }
-||||||| c94ce787737
-=======
-
 {
   AWS_SDK_1_9_s2n_init
     Memcheck:Leak
@@ -2038,4 +2034,3 @@
     fun:_ZL12keyring_initPv
     ...
 }
->>>>>>> e081d4dc0f6f9ffc0e430a2417011edafaff7ca2^

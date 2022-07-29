@@ -11,7 +11,7 @@ and from the :doc:`Percona Software Repositories </installation>`.
 
 This release is based on `MySQL 5.7.23
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-23.html>`_
-and includes all the bug fixes in it. |Percona Server| 5.7.23-23 is
+and includes all the bug fixes in it. **Percona Server for MySQL** 5.7.23-23 is
 now the current GA (Generally Available) release in the 5.7 series.
 
 All software developed by Percona is open-source and free.

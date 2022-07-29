@@ -1,39 +1,38 @@
 .. rn:: 5.7.18-16
 
 ==========================
-|Percona Server| 5.7.18-16
+**Percona Server for MySQL** 5.7.18-16
 ==========================
 
-Percona is glad to announce the GA (Generally Available) release of |Percona
-Server| 5.7.18-16 on July 28, 2017 (Downloads are available `here
+Percona is glad to announce the GA (Generally Available) release of **Percona Server for MySQL** 5.7.18-16 on July 28, 2017 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.18-16/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.18
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-18.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.18-16 is the current GA release
-in the |Percona Server| 5.7 series. All of Percona's software is open-source
+all the bug fixes in it, **Percona Server for MySQL** 5.7.18-16 is the current GA release
+in the **Percona Server for MySQL** 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.18-16
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-16>`_
 
 Please note that RHEL 5, CentOS 5 and Ubuntu versions 12.04 and older are not
-supported in future releases of |Percona Server| and no further packages are
+supported in future releases of **Percona Server for MySQL** and no further packages are
 added for these distributions.
 
 New Feature
 ===========
 
-|Percona Server| is now available on Debian 9 (stretch). The support only
+**Percona Server for MySQL** is now available on Debian 9 (stretch). The support only
 covers the ``amd64`` architecture.
 
-|Percona Server| can now be built with support of OpenSSL 1.1.
+**Percona Server for MySQL** can now be built with support of OpenSSL 1.1.
 
-MyRocks storage engine has been merged into |Percona Server|.
+MyRocks storage engine has been merged into **Percona Server for MySQL**.
 
 TokuDB enables to kill a query that is awaiting an FT locktree lock.
 
-TokuDB enables using the ``MySQL DEBUG_SYNC`` facility within |Percona FT|.
+TokuDB enables using the ``MySQL DEBUG_SYNC`` facility within **Percona Fractal Tree**.
 
 Bugs Fixed
 ==========
@@ -46,13 +45,13 @@ affect transactional throughput for some applications that used a small number
 of concurrent transactions.  These races manifested as transactions
 unnecessarily waiting for an available lock. Bug fixed :tdbbug:`3`.
 
-|Percona FT| could assert when opening a dictionary with no useful information
+**Percona Fractal Tree** could assert when opening a dictionary with no useful information
 to error log. Bug fixed :tdbbug:`23`.
 
-|Percona FT| could assert for various reasons deserializing nodes with no
+**Percona Fractal Tree** could assert for various reasons deserializing nodes with no
 useful error output. Bug fixed :tdbbug:`24`.
 
-It was not possible to build |Percona Server| on Debian 9 (stretch) due to
+It was not possible to build **Percona Server for MySQL** on Debian 9 (stretch) due to
 issues with OpenSSL 1.1. Bug fixed :bug:`1702903` (upstream :mysqlbug:`83814`).
 
 Packaging was using the ``dpkg --verify`` command which is not available on
@@ -66,7 +65,7 @@ crash after one of the clients set the global option ``userstat`` and flushed
 the client statistics (``FLUSH CLIENT_STATISTICS``) and then both clients were
 closed. Bug fixed :bug:`1661488`.
 
-|Percona FT| did not pass cmake flags on to snappy cmake. Bug fixed
+**Percona Fractal Tree** did not pass cmake flags on to snappy cmake. Bug fixed
 :tdbbug:`41`.  The progress status for partitioned TokuDB table ALTERs was
 misleading. Bug fixed :tdbbug:`42`.
 
@@ -75,7 +74,7 @@ using SSL (``--ssl-verify-server-cert`` or
 ``--ssl-mode=VERIFY_IDENTITY`` option), wildcard and :abbr:`SAN
 (Subject Alternative Name)` enabled SSL certificates were ignored. See
 also :ref:`compatibility-matrix`.  Note that the
-``--ssl-verify-server-cert`` option is deprecated in |Percona Server|
+``--ssl-verify-server-cert`` option is deprecated in **Percona Server for MySQL**
 5.7. Bug fixed :bug:`1673656` (upstream :mysqlbug:`68052`).
 
 Killing a stored procedure execution could result in an assert failure on a

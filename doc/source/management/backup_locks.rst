@@ -4,7 +4,7 @@
  Backup Locks
 ==============
 
-|Percona Server| has implemented this feature to be a lightweight alternative to ``FLUSH TABLES WITH READ LOCK`` for both physical and logical backups. Three new statements are now available: ``LOCK TABLES FOR BACKUP``, ``LOCK BINLOG FOR BACKUP`` and ``UNLOCK BINLOG``.
+**Percona Server for MySQL** has implemented this feature to be a lightweight alternative to ``FLUSH TABLES WITH READ LOCK`` for both physical and logical backups. Three new statements are now available: ``LOCK TABLES FOR BACKUP``, ``LOCK BINLOG FOR BACKUP`` and ``UNLOCK BINLOG``.
 
 ``LOCK TABLES FOR BACKUP``
 ---------------------------
@@ -28,12 +28,12 @@ If an "unsafe" statement is executed in the same connection that is holding a ``
 
 .. _backup-safe_binlog_information:
 
-``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to InnoDB. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in InnoDB are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable |Percona XtraBackup| to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
+``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to InnoDB. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in InnoDB are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable **Percona XtraBackup** to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
 
 ``UNLOCK BINLOG``
 ------------------
 
-``UNLOCK BINLOG`` releases the ``LOCK BINLOG FOR BACKUP`` lock, if acquired by the current connection. The intended use case for |Percona XtraBackup| is: :: 
+``UNLOCK BINLOG`` releases the ``LOCK BINLOG FOR BACKUP`` lock, if acquired by the current connection. The intended use case for **Percona XtraBackup** is: :: 
 
   LOCK TABLES FOR BACKUP
   ... copy .frm, MyISAM, CSV, etc. ...
@@ -77,13 +77,13 @@ Option :option:`lock-for-backup` is mutually exclusive with :option:`lock-all-ta
 
 If the backup locks feature is not supported by the target server, but :option:`lock-for-backup` is specified on the command line, ``mysqldump`` aborts with an error.
 
-|Percona XtraBackup| provides the `--backup-locks <https://www.percona.com/doc/percona-xtrabackup/2.4/innobackupex/innobackupex_option_reference.html#cmdoption-innobackupex-backup-locks>`_ option. If you disable this option, ``Flush Table with Read Lock`` is used on the backup stage.
+**Percona XtraBackup** provides the `--backup-locks <https://www.percona.com/doc/percona-xtrabackup/2.4/innobackupex/innobackupex_option_reference.html#cmdoption-innobackupex-backup-locks>`_ option. If you disable this option, ``Flush Table with Read Lock`` is used on the backup stage.
 
 Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`
-        Feature ported from |Percona Server| 5.6
+        Feature ported from **Percona Server for MySQL** 5.6
 
 System Variables
 ================

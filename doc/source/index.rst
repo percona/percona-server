@@ -6,7 +6,7 @@
 .. _dochome:
 
 ============================================
- |Percona Server| |version| - Documentation
+ **Percona Server for MySQL** |version| - Documentation
 ============================================
 
 

@@ -1,29 +1,28 @@
 .. rn:: 5.7.14-7
 
 ===========================
- |Percona Server| 5.7.14-7
+ **Percona Server for MySQL** 5.7.14-7
 ===========================
 
-Percona is glad to announce the GA (Generally Available) release of |Percona
-Server| 5.7.14-7 on August 23rd, 2016 (Downloads are available `here
+Percona is glad to announce the GA (Generally Available) release of **Percona Server for MySQL** 5.7.14-7 on August 23rd, 2016 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.14-7/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.13
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-14.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.14-7 is the current GA release in
-the |Percona Server| 5.7 series. All of Percona's software is open-source and
+all the bug fixes in it, **Percona Server for MySQL** 5.7.14-7 is the current GA release in
+the **Percona Server for MySQL** 5.7 series. All of Percona's software is open-source and
 free, all the details of the release can be found in the `5.7.14-7 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.14-7>`_
 
 New Features
 ============
 
- |Percona Server| :ref:`audit_log_plugin` now supports filtering by :ref:`user
+ **Percona Server for MySQL** :ref:`audit_log_plugin` now supports filtering by :ref:`user
  <filtering_by_user>`, :ref:`database <filtering_by_database>`, and
  :ref:`sql_command <filtering_by_sql_command_type>`.
 
- |Percona Server| now supports `tree map file block allocation strategy
+ **Percona Server for MySQL** now supports `tree map file block allocation strategy
  <https://www.percona.com/blog/2016/08/17/improve-tokudbperconaft-fragmented-data-file-performance/>`_
  for TokuDB.
 

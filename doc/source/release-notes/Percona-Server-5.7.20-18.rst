@@ -22,7 +22,7 @@ Details of this release can be found in the `5.7.20-18 milestone on Launchpad
 New Features
 ============
 
-* |Percona Server| packages are now available for *Ubuntu 17.10 (Artful)*.
+* **Percona Server for MySQL** packages are now available for *Ubuntu 17.10 (Artful)*.
 
 * As part of :ref:`innodb_fts_improvements` a new
   :variable:`innodb_ft_ignore_stopwords` variable has been implemented which
@@ -30,22 +30,22 @@ New Features
   when building/updating an FTS index. This feature is also fixing bug
   :bug:`1679135` (upstream :mysqlbug:`84420`).
 
-* |Percona Server| has implemented :ref:`innodb_fragmentation_count`.
+* **Percona Server for MySQL** has implemented :ref:`innodb_fragmentation_count`.
 
-* |Percona Server| has implemented support for :ref:`aio_page_requests`.
+* **Percona Server for MySQL** has implemented support for :ref:`aio_page_requests`.
   This feature was ported from a *Facebook MySQL* patch.
 
-* |Percona Server| has implemented TokuDB :ref:`integration
+* **Percona Server for MySQL** has implemented TokuDB :ref:`integration
   <tokudb_performance_schema>` with ``PERFORMANCE_SCHEMA``.
 
-* As part of :ref:`data_at_rest_encryption`, |Percona Server| has implemented
+* As part of :ref:`data_at_rest_encryption`, **Percona Server for MySQL** has implemented
   support for `innodb_general_tablespace_encryption` and
   :ref:`keyring_vault_plugin`. This feature is considered **BETA** quality.
 
 Bugs Fixed
 ==========
 
-* |Percona Server| 5.7 docker images did not include TokuDB. Bugs fixed
+* **Percona Server for MySQL** 5.7 docker images did not include TokuDB. Bugs fixed
   :bug:`1682419` and :bug:`1699241`.
 
 * If an I/O syscall returned an error during the server shutdown with

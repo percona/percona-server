@@ -15,7 +15,7 @@ Sequence number can be used to easily check if all the required bitmap files are
 
 Old bitmap files may be safely removed after a corresponding incremental backup is taken. For that there are server :ref:`changed_page_tracking_statements`. Removing the bitmap files from the filesystem directly is safe too, as long as care is taken not to delete data for not-yet-backuped LSN range.
 
-This feature will be used for implementing faster incremental backups that use this information to avoid full data scans in |Percona XtraBackup|.
+This feature will be used for implementing faster incremental backups that use this information to avoid full data scans in **Percona XtraBackup**.
 
 .. _changed_page_tracking_statements:
 
@@ -55,7 +55,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`
-        Feature ported from |Percona Server| 5.6
+        Feature ported from **Percona Server for MySQL** 5.6
 
 System Variables
 ================

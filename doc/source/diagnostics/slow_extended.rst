@@ -13,7 +13,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`:
-     * Feature ported from |Percona Server| 5.6.
+     * Feature ported from **Percona Server for MySQL** 5.6.
 
 System Variables
 ================
@@ -91,7 +91,7 @@ Decision "log or no" calculated in following manner:
 
 This allows flexible setup logging behavior.
 
-For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In |Percona Server| information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
+For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In **Percona Server for MySQL** information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
  
   Log_slow_rate_type: query  Log_slow_rate_limit: 10
 
@@ -109,7 +109,7 @@ If ``TRUE``, statements executed by stored procedures are logged to the slow if 
 
 .. _improved_sp_reporting:
 
-|Percona Server| implemented improvements for logging of stored procedures to the slow query log:
+**Percona Server for MySQL** implemented improvements for logging of stored procedures to the slow query log:
  * Each query from a stored procedure is now logged to the slow query log individually
  * ``CALL`` itself isn't logged to the slow query log anymore as this would be counting twice for the same query which would lead to incorrect results
  * Queries that were called inside of stored procedures are annotated in the slow query log with the stored procedure name in which they run.

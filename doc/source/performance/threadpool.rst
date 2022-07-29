@@ -57,7 +57,7 @@ The default thread pool behavior is to always put events from already started tr
 
 With the value of ``0``, all connections are always put into the common queue, i.e. no priority scheduling is used as in the original implementation in MariaDB. The higher is the value, the more chances each transaction gets to enter the high priority queue and commit before it is put in the common queue.
 
-In some cases it is required to prioritize all statements for a specific connection regardless of whether they are executed as a part of a multi-statement transaction or in the autocommit mode. Or vice versa, some connections may require using the low priority queue for all statements unconditionally. To implement this new :variable:`thread_pool_high_prio_mode` variable has been introduced in |Percona Server|. 
+In some cases it is required to prioritize all statements for a specific connection regardless of whether they are executed as a part of a multi-statement transaction or in the autocommit mode. Or vice versa, some connections may require using the low priority queue for all statements unconditionally. To implement this new :variable:`thread_pool_high_prio_mode` variable has been introduced in **Percona Server for MySQL**. 
 
 .. _low_priority_queue_throttling:
 
@@ -96,7 +96,7 @@ Version Specific Information
 ============================
 
  * :rn:`5.7.10-1`
-    ``Thread Pool`` feature ported from |Percona Server| 5.6.
+    ``Thread Pool`` feature ported from **Percona Server for MySQL** 5.6.
     
 .. _tuning:
 
@@ -248,7 +248,7 @@ being used to prevent a long-running query from monopolizing the pool.
      :vartype: Numeric
      :default: 0
 
-This variable can be used to specify an additional port that |Percona Server|
+This variable can be used to specify an additional port that **Percona Server for MySQL**
 will listen on. This can be used in case no new connections can be established
 due to all worker threads being busy or being locked when ``pool-of-threads``
 feature is enabled. To connect to the extra port the following command can be

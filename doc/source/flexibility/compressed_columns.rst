@@ -4,7 +4,7 @@
 Compressed columns with dictionaries
 ====================================
 
-In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
+In :rn:`5.7.17-11` **Percona Server for MySQL** has been extended with a new per-column
 compression feature. It is a data type modifier, independent from user-level SQL
 and InnoDB data compression, that causes the data stored in the column to be
 compressed on writing to storage and decompressed on reading. For all other
@@ -251,7 +251,7 @@ following fragment (regardless of the values of
 Downgrade scenario
 ==================
 
-If it is necessary to perform |Percona Server| downgrade from a version
+If it is necessary to perform **Percona Server for MySQL** downgrade from a version
 :rn:`5.7.17-11` (or newer) to a version older than :rn:`5.7.17-11` and if
 user databases have one or more table with compressed columns, there are two
 options to do this safely:
@@ -268,7 +268,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.17-11`
-    Feature implemented in |Percona Server| 5.7
+    Feature implemented in **Percona Server for MySQL** 5.7
 
 System Variables
 ================
@@ -303,7 +303,7 @@ stored in raw (uncompressed) form.
 
 Please also notice that because of the nature of some data, its compressed
 representation can be longer than the original value. In this case it does not
-make sense to store such values in compressed form as |Percona Server| would
+make sense to store such values in compressed form as **Percona Server for MySQL** would
 have to waste both memory space and CPU resources for unnecessary
 decompression. Therefore, even if the length of such non-compressible values
 exceeds :variable:`innodb_compressed_columns_threshold`, they will be stored in

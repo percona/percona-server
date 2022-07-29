@@ -9,7 +9,7 @@ Extended ``mysqldump``
 Backup Locks support
 ====================
 
-In |Percona Server| :rn:`5.7.10-1` ``mysqldump`` has been extended with a
+In **Percona Server for MySQL** :rn:`5.7.10-1` ``mysqldump`` has been extended with a
 new option, :option:`lock-for-backup` (disabled by default). When used together
 with the :option:`--single-transaction` option, the option makes ``mysqldump``
 issue ``LOCK TABLES FOR BACKUP`` before starting the dump operation to prevent
@@ -22,7 +22,7 @@ More information can be found on the :ref:`backup_locks` feature documentation.
 Compressed Columns support
 ==========================
 
-In |Percona Server| :rn:`5.7.17-11` :command:`mysqldump` has been extended to
+In **Percona Server for MySQL** :rn:`5.7.17-11` :command:`mysqldump` has been extended to
 support :ref:`compressed_columns` feature. More information about the new
 options can be found on the :ref:`compressed_columns` feature page.
 

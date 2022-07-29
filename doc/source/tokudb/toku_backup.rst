@@ -4,7 +4,7 @@
 Percona TokuBackup
 ==================
 
-Percona TokuBackup is an open-source hot backup utility for MySQL servers running the TokuDB storage engine (including |Percona Server| and MariaDB). It does not lock your database during backup. The TokuBackup library intercepts system calls that write files and duplicates the writes to the backup directory.
+Percona TokuBackup is an open-source hot backup utility for MySQL servers running the TokuDB storage engine (including **Percona Server for MySQL** and MariaDB). It does not lock your database during backup. The TokuBackup library intercepts system calls that write files and duplicates the writes to the backup directory.
 
 .. note:: This feature is currently considered *Experimental*
 
@@ -14,9 +14,9 @@ Percona TokuBackup is an open-source hot backup utility for MySQL servers runnin
 Installing From Binaries
 ------------------------
 
-TokuBackup is included with |Percona Server| :rn:`5.7.10-1` and later versions. Installation can be performed with the ``ps-admin`` script.
+TokuBackup is included with **Percona Server for MySQL** :rn:`5.7.10-1` and later versions. Installation can be performed with the ``ps-admin`` script.
 
-To install |Percona TokuBackup|:
+To install *Percona TokuBackup*:
 
 1. Run ``ps-admin --enable-tokubackup`` to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
 
@@ -67,7 +67,7 @@ To install |Percona TokuBackup|:
 Making a Backup
 ---------------
 
-To run |Percona TokuBackup|, the backup destination directory must exist, be writable and owned by the same user under which MySQL server is running (usually ``mysql``) and empty. Once this directory is created, the backup can be run using the following command:
+To run *Percona TokuBackup*, the backup destination directory must exist, be writable and owned by the same user under which MySQL server is running (usually ``mysql``) and empty. Once this directory is created, the backup can be run using the following command:
 
 .. code-block:: mysql
 
@@ -80,7 +80,7 @@ If you get any error on this step (e.g. caused by some misconfiguration), the `R
 Restoring From Backup
 ---------------------
 
-|Percona TokuBackup| does not have any functionality for restoring a backup. You can use :command:`rsync` or :command:`cp` to restore the files. You should check that the restored files have the correct ownership and permissions.
+*Percona TokuBackup* does not have any functionality for restoring a backup. You can use :command:`rsync` or :command:`cp` to restore the files. You should check that the restored files have the correct ownership and permissions.
 
 .. note:: Make sure that the datadir is empty and that MySQL server is shut down before restoring from backup. You can't restore to a datadir of a running mysqld instance (except when importing a partial backup).
 
@@ -129,7 +129,7 @@ For example, to exclude all :file:`lost+found` directories from backup, use the 
 
   mysql> SET tokudb_backup_exclude='/lost\\+found($|/)';
 
-.. note:: In |Percona Server| :rn:`5.7.10-3` to address bug :backupbug:`125`, server ``pid`` file is excluded by default. If you're providing your own additions to the exclusions and have the ``pid`` file in the default location, you will need to add the mysqld_safe.pid entry.
+.. note:: In **Percona Server for MySQL** :rn:`5.7.10-3` to address bug :backupbug:`125`, server ``pid`` file is excluded by default. If you're providing your own additions to the exclusions and have the ``pid`` file in the default location, you will need to add the mysqld_safe.pid entry.
 
 Throttling Backup Rate
 **********************
@@ -160,7 +160,7 @@ The default is ``null``, backups have no restricted locations. This read-only va
 Reporting Errors
 ****************
 
-|Percona TokuBackup| uses two variables to capture errors. They are :variable:`tokudb_backup_last_error` and :variable:`tokudb_backup_last_error_string`. When TokuBackup encounters an error, these will report on the error number and the error string respectively. For example, the following output shows these parameters following an attempted backup to a directory that was not empty:
+*Percona TokuBackup* uses two variables to capture errors. They are :variable:`tokudb_backup_last_error` and :variable:`tokudb_backup_last_error_string`. When TokuBackup encounters an error, these will report on the error number and the error string respectively. For example, the following output shows these parameters following an attempted backup to a directory that was not empty:
 
 .. code-block:: mysql
 

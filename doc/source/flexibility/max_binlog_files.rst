@@ -4,7 +4,7 @@
  Restricting the number of binlog files
 ========================================
 
-Maximum number of binlog files can now be restricted in |Percona Server| with
+Maximum number of binlog files can now be restricted in **Percona Server for MySQL** with
 :variable:`max_binlog_files`. When variable :variable:`max_binlog_files` is set
 to non-zero value, the server will remove the oldest binlog file(s) whenever
 their number exceeds the value of the variable.
@@ -38,7 +38,7 @@ Version Specific Information
 ============================
 
   * 5.7.10-1:
-    Variable :variable:`max_binlog_files` ported from |Percona Server| 5.6.
+    Variable :variable:`max_binlog_files` ported from **Percona Server for MySQL** 5.6.
   * 5.7.23-23:
     Variable :variable:`max_binlog_files` is deprecated and replaced with :variable:`binlog_space_limit`.
 

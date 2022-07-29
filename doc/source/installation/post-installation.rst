@@ -4,7 +4,7 @@
 Post-Installation
 ===============================================================================
 
-After you have installed |Percona Server|, you may need to do the following:
+After you have installed **Percona Server for MySQL**, you may need to do the following:
 
 .. tabularcolumns:: |p{5cm}|p{5cm}|
 
@@ -225,7 +225,7 @@ The example assumes you are running the command with the ``root`` account. You m
 Excluding Buffer Pool Pages from Core files
 --------------------------------------------
 
-Implemented in |Percona Server| 5.7.33-36, you can use the `innodb_buffer_pool_in__core_file <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_buffer_pool_in_core_file>`_ to reduce the size of the core file. 
+Implemented in **Percona Server for MySQL** 5.7.33-36, you can use the `innodb_buffer_pool_in__core_file <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_buffer_pool_in_core_file>`_ to reduce the size of the core file. 
 
 Buffer pools can produce large core files because the buffer pool is located in main memory. If the main memory is dumped to a core file, the buffer pool increases the size of the dump. 
 

@@ -1,33 +1,32 @@
 .. rn:: 5.7.10-1
 
 =========================
-|Percona Server| 5.7.10-1
+**Percona Server for MySQL** 5.7.10-1
 =========================
 
-Percona is glad to announce the first Release Candidate release of |Percona
-Server| 5.7.10-1 on December 14th, 2015 (Downloads are available `here
+Percona is glad to announce the first Release Candidate release of **Percona Server for MySQL** 5.7.10-1 on December 14th, 2015 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-1rc1/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.10
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-10.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.10-1 is the current Release
-Candidate release in the |Percona Server| 5.7 series. All of Percona's
+all the bug fixes in it, **Percona Server for MySQL** 5.7.10-1 is the current Release
+Candidate release in the **Percona Server for MySQL** 5.7 series. All of Percona's
 software is open-source and free, all the details of the release can be found
 in the `5.7.10-1 milestone at Launchpad
 <https://launchpad.net/percona-server/+milestone/5.7.10-1rc1>`_
 
-This release contains all the bug fixes from latest |Percona Server| 5.6
-release (currently |Percona Server| `5.6.27-76.0
+This release contains all the bug fixes from latest **Percona Server for MySQL** 5.6
+release (currently **Percona Server for MySQL** `5.6.27-76.0
 <http://www.percona.com/doc/percona-server/5.6/release-notes/Percona-Server-5.6.27-76.0.html>`_).
 
 New Features
 ============
 
- |Percona Server| 5.7.10-1 is not available on *RHEL* 5 family of Linux
+ **Percona Server for MySQL** 5.7.10-1 is not available on *RHEL* 5 family of Linux
  distributions and *Debian* 6 (squeeze).
 
- Complete list of changes between |Percona Server| 5.6 and 5.7 can be seen in
+ Complete list of changes between **Percona Server for MySQL** 5.6 and 5.7 can be seen in
  :ref:`changed_in_57`.
 
 Known issues
@@ -42,10 +41,10 @@ Known issues
  Variables :variable:`innodb_show_verbose_locks` and
  :variable:`innodb_show_locks_held` are not working correctly.
 
- In |Percona Server| 5.7 `super_read_only
+ In **Percona Server for MySQL** 5.7 `super_read_only
  <https://www.percona.com/doc/percona-server/5.6/management/super_read_only.html>`_
  feature has been replaced with upstream implementation. There are currently
- two known issues compared to |Percona Server| 5.6 implementation:
+ two known issues compared to **Percona Server for MySQL** 5.6 implementation:
 
   * Bug :mysqlbug:`78963`, :variable:`super_read_only` aborts ``STOP SLAVE`` if
     variable :variable:`relay_log_info_repository` is set to ``TABLE`` which

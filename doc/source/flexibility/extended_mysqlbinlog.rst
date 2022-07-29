@@ -4,7 +4,7 @@
 Extended ``mysqlbinlog``
 ========================
 
-|Percona Server| has implemented protocol compression support for the
+**Percona Server for MySQL** has implemented protocol compression support for the
 :command:`mysqlbinlog` command. 
 
 You can request protocol compression when connecting to a remote server to
@@ -24,4 +24,4 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6
+    Feature ported from **Percona Server for MySQL** 5.6

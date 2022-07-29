@@ -776,7 +776,7 @@ submitted to the default LOW priority thread pool in RocksDB.
 Default is ``1``.
 Allowed range of values is from ``-1`` to ``64``.
 Maximum depends on the :variable:`rocksdb_max_background_compactions`
-variable. This variable has been replaced in |Percona Server| :rn:`5.7.20-18`
+variable. This variable has been replaced in **Percona Server for MySQL** :rn:`5.7.20-18`
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
 
@@ -1130,7 +1130,7 @@ Allowed range is up to ``2000000`` (two million).
 
 When enabled this variable allows/encourages threads that are using
 two-phase commit to ``prepare`` in parallel. Variable has been
-deprecated in the |Percona Server| 5.7.21-20, as it has been
+deprecated in the **Percona Server for MySQL** 5.7.21-20, as it has been
 renamed in upstream to :variable:`rocksdb_two_write_queues`.
 
 .. variable:: rocksdb_create_checkpoint
@@ -1825,10 +1825,10 @@ hold any lock on row access. This variable is not effective on replica.
 
 Sets DBOptions:: max_background_compactions for RocksDB.
 Default value is ``-1``. Allowed range is up to ``64``.
-This variable has been replaced in |Percona Server| :rn:`5.7.20-18`
+This variable has been replaced in **Percona Server for MySQL** :rn:`5.7.20-18`
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
-This variable has been re-implemented in |Percona Server| 5.7.31-34.
+This variable has been re-implemented in **Percona Server for MySQL** 5.7.31-34.
 
 .. variable:: rocksdb_max_background_flushes
 
@@ -1843,10 +1843,10 @@ This variable has been re-implemented in |Percona Server| 5.7.31-34.
 
 Sets DBOptions:: max_background_flushes for RocksDB.
 Default value is ``-1``. Allowed range is up to ``64``.
-This variable has been replaced in |Percona Server| :rn:`5.7.20-18`
+This variable has been replaced in **Percona Server for MySQL** :rn:`5.7.20-18`
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
-This variable has been re-implemented in |Percona Server| 5.7.31-34.
+This variable has been re-implemented in **Percona Server for MySQL** 5.7.31-34.
 
 .. variable:: rocksdb_max_background_jobs
 
@@ -1857,7 +1857,7 @@ This variable has been re-implemented in |Percona Server| 5.7.31-34.
   :vartype: Numeric
   :default: ``2``
 
-This variable has been introduced in |Percona Server| :rn:`5.7.20-18`
+This variable has been introduced in **Percona Server for MySQL** :rn:`5.7.20-18`
 to replace :variable:`rocksdb_base_background_compactions`,
 :variable:`rocksdb_max_background_compactions`, and
 :variable:`rocksdb_max_background_flushes` variables. This variable specifies
@@ -2235,7 +2235,7 @@ that should use read-free replication on the replica
 (that is, replication without row lookups).
 Empty by default.
 
-This variable is disabled in |Percona Server| 5.7.30-33. We recommend
+This variable is disabled in **Percona Server for MySQL** 5.7.30-33. We recommend
 that you use ``rocksdb_read_free_rpl`` instead of this variable.
 
 .. variable:: rocksdb_records_in_range

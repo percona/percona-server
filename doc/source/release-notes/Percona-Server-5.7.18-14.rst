@@ -1,18 +1,17 @@
 .. rn:: 5.7.18-14
 
 ==========================
-|Percona Server| 5.7.18-14
+**Percona Server for MySQL** 5.7.18-14
 ==========================
 
-Percona is glad to announce the GA (Generally Available) release of |Percona
-Server| 5.7.18-14 on May 12, 2017 (Downloads are available `here
+Percona is glad to announce the GA (Generally Available) release of **Percona Server for MySQL** 5.7.18-14 on May 12, 2017 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.18-14/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.18
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-18.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.18-14 is the current GA release
-in the |Percona Server| 5.7 series. All of Percona's software is open-source
+all the bug fixes in it, **Percona Server for MySQL** 5.7.18-14 is the current GA release
+in the **Percona Server for MySQL** 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.18-14
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-14>`_
@@ -20,13 +19,13 @@ Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-14>`_
 New Features
 ============
 
- |Percona Server| 5.7 packages are now available for Ubuntu 17.04 (*Zesty
+ **Percona Server for MySQL** 5.7 packages are now available for Ubuntu 17.04 (*Zesty
  Zapus*).
 
- |Percona Server| now supports :ref:`prefix_index_queries_optimization`. This
+ **Percona Server for MySQL** now supports :ref:`prefix_index_queries_optimization`. This
  feature was ported from a Facebook MySQL patch.
 
- |Percona Server| has implemented support for :ref:`gap_locks_detection` for
+ **Percona Server for MySQL** has implemented support for :ref:`gap_locks_detection` for
  transactional storage engines, like *MyRocks*, that do not support gap locks.
  This feature was ported from a Facebook MySQL patch.
 
@@ -50,7 +49,7 @@ Bugs Fixed
  Fixed a memory leak that happened in case of failure to create
  a multi-threaded slave worker thread. Bug fixed :bug:`1675716`.
 
- In-Place upgrade from |Percona Server| 5.6 to 5.7 by using standalone packages
+ In-Place upgrade from **Percona Server for MySQL** 5.6 to 5.7 by using standalone packages
  would fail if :file:`/var/lib/mysql` wasn't defined as the
  :variable:`datadir`. Bug fixed :bug:`1687276`.
 

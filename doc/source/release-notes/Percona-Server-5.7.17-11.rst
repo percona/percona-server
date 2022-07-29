@@ -1,18 +1,17 @@
 .. rn:: 5.7.17-11
 
 ==========================
-|Percona Server| 5.7.17-11
+**Percona Server for MySQL** 5.7.17-11
 ==========================
 
-Percona is glad to announce the GA (Generally Available) release of |Percona
-Server| 5.7.17-11 on February 3rd, 2017 (Downloads are available `here
+Percona is glad to announce the GA (Generally Available) release of **Percona Server for MySQL** 5.7.17-11 on February 3rd, 2017 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.17-11/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.17
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-17.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.17-11 is the current GA release
-in the |Percona Server| 5.7 series. All of Percona's software is open-source
+all the bug fixes in it, **Percona Server for MySQL** 5.7.17-11 is the current GA release
+in the **Percona Server for MySQL** 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.17-11
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.17-11>`_
@@ -20,7 +19,7 @@ Launchpad <https://launchpad.net/percona-server/+milestone/5.7.17-11>`_
 New Features
 ============
 
- |Percona Server| has implemented support for per-column ``VARCHAR/BLOB``
+ **Percona Server for MySQL** has implemented support for per-column ``VARCHAR/BLOB``
  :ref:`compression <compressed_columns>` for the XtraDB storage engine. This
  also features compression dictionary support, to improve compression ratio for
  relatively short individual rows, such as JSON data.
@@ -71,7 +70,7 @@ Bugs Fixed
  potentially incomplete bitmap data past the needed LSN range. Bug fixed
  :bug:`1625466`.
 
- |Percona Server| ``cmake`` compiler would always attempt to build *RocksDB*
+ **Percona Server for MySQL** ``cmake`` compiler would always attempt to build *RocksDB*
  even if ``-DWITHOUT_ROCKSDB=1`` argument was specified. Bug fixed
  :bug:`1638455`.
 

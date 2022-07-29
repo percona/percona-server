@@ -4,7 +4,7 @@
  Per-query variable statement
 ==============================
 
-|Percona Server| has implemented per-query variable statement support. This feature provides the ability to set variable values only for a certain query, after execution of which the previous values will be restored. Per-query variable values can be set up with the following command:
+**Percona Server for MySQL** has implemented per-query variable statement support. This feature provides the ability to set variable values only for a certain query, after execution of which the previous values will be restored. Per-query variable values can be set up with the following command:
 
 .. code-block:: mysql
 
@@ -35,7 +35,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6 
+    Feature ported from **Percona Server for MySQL** 5.6 
 
 Other Reading
 =============

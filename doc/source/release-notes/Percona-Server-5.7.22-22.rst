@@ -7,7 +7,7 @@ Percona Server 5.7.22-22
 Percona is glad to announce the release of Percona Server 5.7.22-22
 on May 31, 2018. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.22-22/>`_ and from the :doc:`Percona Software Repositories </installation>`.
 
-This release is based on `MySQL 5.7.22 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-22.html>`_ and includes all the bug fixes in it. |Percona Server| 5.7.22-22 is now the current GA
+This release is based on `MySQL 5.7.22 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-22.html>`_ and includes all the bug fixes in it. **Percona Server for MySQL** 5.7.22-22 is now the current GA
 (Generally Available) release in the 5.7 series.
 
 All software developed by Percona is open-source and free.
@@ -16,7 +16,7 @@ New Features
 ============
 
 * A new ``--encrypt-tmp-files`` option turns on encryption for the temporary
-  files which  |Percona Server| may create on disk for filesort, binary log
+  files which  **Percona Server for MySQL** may create on disk for filesort, binary log
   transactional caches and Group Replication caches.
 
 Bugs Fixed
@@ -27,7 +27,7 @@ Bugs Fixed
   its nature a counter and allowing only an increase, could return to its
   previous value. Bug fixed :psbug:`3951` (upstream :mysqlbug:`90351`).
 
-* NUMA support was improved in |Percona Server|, reverting upstream
+* NUMA support was improved in **Percona Server for MySQL**, reverting upstream
   implementation back to the original one, due to upstream variant
   being less effective in memory allocation. Now
   `innodb_numa_interleave
@@ -47,12 +47,12 @@ Bugs Fixed
   Bugs fixed :psbug:`3936`, :psbug:`3940`, and :psbug:`3943`.
 
 * Fixes were introduced to remove GCC 8 compilation warnings for the
-  |Percona Server| build. Bug fixed :psbug:`3950`.
+  **Percona Server for MySQL** build. Bug fixed :psbug:`3950`.
 
 * An InnoDB Memcached Plugin code clean-up was backported from MySQL 8.0. Bug
   fixed :psbug:`4506`.
 
-* |Percona Server| could not be built with ``-DWITH_LZ4=system`` option on
+* **Percona Server for MySQL** could not be built with ``-DWITH_LZ4=system`` option on
   Ubuntu 14.04 (Trusty) because of too old LZ4 packages. Bug fixed
   :psbug:`3842`.
 

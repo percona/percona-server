@@ -4,7 +4,7 @@
 TokuDB Background ANALYZE TABLE
 ===============================
 
-|Percona Server| has an option to automatically analyze tables in the background based on a measured change in data. This has been done by implementing the background job manager that can perform operations on a background thread. 
+**Percona Server for MySQL** has an option to automatically analyze tables in the background based on a measured change in data. This has been done by implementing the background job manager that can perform operations on a background thread. 
 
 Background Jobs
 ===============
@@ -129,7 +129,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`:
-    Feature ported from |Percona Server| 5.6
+    Feature ported from **Percona Server for MySQL** 5.6
 
   * :rn:`5.7.11-4`:
     :variable:`tokudb_analyze_in_background` is now set to ``ON`` by default and :variable:`tokudb_auto_analyze` is set to ``30`` 

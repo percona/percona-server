@@ -49,7 +49,7 @@ Bugs Fixed
   :variable:`thread_pool_stall_limit` variable values bigger than 2 seconds.
   Bug fixed :psbug:`1095`.
 
-* A memory leak took place in |Percona Server| when performance schema is used
+* A memory leak took place in **Percona Server for MySQL** when performance schema is used
   in conjunction with thread pooling. Bug fixed :psbug:`1096`.
 
 * A code clean-up was done to fix compilation with clang, both general warnings
@@ -60,11 +60,11 @@ Bugs Fixed
   compilation option, which makes QRT to be linked statically. Bug fixed
   :psbug:`3841`.
 
-* |Percona Server| returned empty result for ``SELECT`` query if number of
+* **Percona Server for MySQL** returned empty result for ``SELECT`` query if number of
   connections exceeded 65535. Bug fixed :psbug:`314` (upstream
   :mysqlbug:`89313`).
 
-* A clean-up in |Percona Server| binlog-related code was made to avoid
+* A clean-up in **Percona Server for MySQL** binlog-related code was made to avoid
   uninitialized memory comparison. Bug fixed :psbug:`3925` (upstream
   :mysqlbug:`90238`).
 
@@ -74,7 +74,7 @@ Bugs Fixed
 
 * A fix of the mysqld startup script failed to detect jemalloc library
   location for preloading, thus not starting on systemd based machines,
-  introduced in |Percona Server| :rn:`5.7.21-20`, was improved to take into
+  introduced in **Percona Server for MySQL** :rn:`5.7.21-20`, was improved to take into
   account previously created configuration file. Bug fixed :psbug:`3850`.
 
 * The possibility of a truncated bitmap file name was fixed in InnoDB logging
@@ -106,7 +106,7 @@ TokuDB Changes
   :tdbbug:`148`.
 
 * A set of compilation fixes was introduced to make TokuDB successfully
-  build in MySQL / |Percona Server| 8.0. Bugs fixed :tdbbug:`84`,
+  build in MySQL / **Percona Server for MySQL** 8.0. Bugs fixed :tdbbug:`84`,
   :tdbbug:`85`, :tdbbug:`114`, :tdbbug:`115`, :tdbbug:`118`, :tdbbug:`128`,
   :tdbbug:`139`, :tdbbug:`141`, and :tdbbug:`172`.
 

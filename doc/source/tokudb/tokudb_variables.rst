@@ -836,7 +836,7 @@ within their corresponding database directory within the
 :variable:`tokudb_data_dir` or system source/glossary.rst`datadir`. Existing table files
 will not be automatically relocated to their corresponding database directory.
 If you rename a table, while this variable is enabled, the mapping in the
-|Percona FT| directory file will be updated and the files will be renamed on
+**Percona Fractal Tree** directory file will be updated and the files will be renamed on
 disk to reflect the new table name. For more information check
 :ref:`tokudb_files_and_file_types` and :ref:`tokudb_file_management`.
 
@@ -1244,7 +1244,7 @@ nodes per second are optimized. The default ``0`` imposes no limit.
 .. note::
 
   The :variable:`tokudb_pk_insert_mode` session variable has been removed in
-  |Percona Server| :rn:`5.7.12-5` and the behavior is now that of the former
+  **Percona Server for MySQL** :rn:`5.7.12-5` and the behavior is now that of the former
   :variable:`tokudb_pk_insert_mode` set to ``1``. The optimization will be used
   where safe and not used where not safe.
 

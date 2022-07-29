@@ -1,18 +1,17 @@
 .. rn:: 5.7.10-2
 
 =========================
-|Percona Server| 5.7.10-2
+**Percona Server for MySQL** 5.7.10-2
 =========================
 
-Percona is glad to announce the second Release Candidate release of |Percona
-Server| 5.7.10-2 on February 5th, 2016 (Downloads are available `here
+Percona is glad to announce the second Release Candidate release of **Percona Server for MySQL** 5.7.10-2 on February 5th, 2016 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-2rc2/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.10
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-10.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.10-2 is the current Release
-Candidate release in the |Percona Server| 5.7 series. All of Percona's
+all the bug fixes in it, **Percona Server for MySQL** 5.7.10-2 is the current Release
+Candidate release in the **Percona Server for MySQL** 5.7 series. All of Percona's
 software is open-source and free, all the details of the release can be found
 in the `5.7.10-2 milestone at Launchpad
 <https://launchpad.net/percona-server/+milestone/5.7.10-2rc2>`_
@@ -20,7 +19,7 @@ in the `5.7.10-2 milestone at Launchpad
 New Features
 ============
 
- Complete list of changes between |Percona Server| 5.6 and 5.7 can be seen in
+ Complete list of changes between **Percona Server for MySQL** 5.6 and 5.7 can be seen in
  :ref:`changed_in_57`.
 
  5.7 binlog group commit algorithm is now supported in TokuDB as well.
@@ -34,10 +33,10 @@ New Features
 Known Issues
 ============
 
- In |Percona Server| 5.7 `super_read_only
+ In **Percona Server for MySQL** 5.7 `super_read_only
  <https://www.percona.com/doc/percona-server/5.6/management/super_read_only.html>`_
  feature has been replaced with upstream implementation. There are currently
- two known issues compared to |Percona Server| 5.6 implementation:
+ two known issues compared to **Percona Server for MySQL** 5.6 implementation:
 
    * Bug :mysqlbug:`78963`, :variable:`super_read_only` aborts ``STOP SLAVE``
      if variable :variable:`relay_log_info_repository` is set to ``TABLE``
@@ -56,13 +55,13 @@ Bugs Fixed
  Clustering secondary index could not be created on a partitioned TokuDB
  table. Bug fixed :bug:`1527730` (:tokubug:`720`).
 
- :ref:`toku_backup` was failing to compile with |Percona Server| 5.7. Bug fixed
+ :ref:`toku_backup` was failing to compile with **Percona Server for MySQL** 5.7. Bug fixed
  :backupbug:`123`.
 
  Granting privileges to a user authenticating with :ref:`pam_plugin` could lead
  to a server crash. Bug fixed :bug:`1521474`.
 
- TokuDB status variables were missing from |Percona Server| :rn:`5.7.10-1`.
+ TokuDB status variables were missing from **Percona Server for MySQL** :rn:`5.7.10-1`.
  Bug fixed :bug:`1527364` (:tokubug:`923`).
 
  Attempting to rotate the audit log file would result in audit log file name
@@ -74,7 +73,7 @@ Bugs Fixed
  assertion. Bug fixed :bug:`1529555`.
 
  TokuDB would not be upgraded on *Debian*/*Ubuntu* distributions while
- performing an upgrade from |Percona Server| 5.6 to |Percona Server| 5.7 even
+ performing an upgrade from **Percona Server for MySQL** 5.6 to **Percona Server for MySQL** 5.7 even
  if explicitly requested. Bug fixed :bug:`1533580`.
 
  Server would assert when both TokuDB and InnoDB tables were used within
@@ -90,8 +89,8 @@ Bugs Fixed
  ``SET STATEMENT ... FOR ...`` statements. Bug fixed :bug:`1534874`.
 
  Service name on *CentOS* 6 has been renamed from ``mysqld`` back to ``mysql``.
- This change requires manual service restart after being upgraded from |Percona
- Server| :rn:`5.7.10-1`. Bug fixed :bug:`1542332`.
+ This change requires manual service restart after being upgraded from 
+**Percona Server for MySQL** :rn:`5.7.10-1`. Bug fixed :bug:`1542332`.
 
  Setting the :variable:`innodb_sched_priority_purge` (available only in debug
  builds) while purge threads were stopped would cause a server crash. Bug fixed
@@ -111,7 +110,7 @@ Bugs Fixed
  will not fit into a signed 32-bit integer. Bug fixed :bug:`1527160` (upstream
  :mysqlbug:`79703`).
 
- |Percona Server| 5.7 couldn't be restarted after TokuDB has been installed
+ **Percona Server for MySQL** 5.7 couldn't be restarted after TokuDB has been installed
  with ``ps_tokudb_admin`` script. Bug fixed :bug:`1527535`.
 
  Fixed memory leak when :variable:`utility_user` is enabled. Bug fixed

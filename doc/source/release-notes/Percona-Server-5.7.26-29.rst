@@ -1,17 +1,17 @@
 .. rn:: 5.7.26-29
 
 ==========================
-|Percona Server| 5.7.26-29
+**Percona Server for MySQL** 5.7.26-29
 ==========================
 
-Percona is glad to announce the release of |Percona Server| 5.7.26-29 on
+Percona is glad to announce the release of **Percona Server for MySQL** 5.7.26-29 on
 May 27, 2019. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.26-29/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
 This release is based on `MySQL 5.7.26
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-26.html>`_
-and includes all the bug fixes in it. |Percona Server| 5.7.26-29 is
+and includes all the bug fixes in it. **Percona Server for MySQL** 5.7.26-29 is
 now the current GA (Generally Available) release in the 5.7 series.
 
 New Features

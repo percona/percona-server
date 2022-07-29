@@ -34,7 +34,7 @@ Clustering Secondary Indexes
 
 One of the keys to exploiting TokuDB's strength in indexing is to make use of clustering secondary indexes.
 
-TokuDB allows a secondary key to be defined as a clustering key. This means that all of the columns in the table are clustered with the secondary key. |Percona Server| parser and query optimizer support Multiple Clustering Keys when TokuDB engine is used. This means that the query optimizer will avoid primary clustered index reads and replace them by secondary clustered index reads in certain scenarios.
+TokuDB allows a secondary key to be defined as a clustering key. This means that all of the columns in the table are clustered with the secondary key. **Percona Server for MySQL** parser and query optimizer support Multiple Clustering Keys when TokuDB engine is used. This means that the query optimizer will avoid primary clustered index reads and replace them by secondary clustered index reads in certain scenarios.
 
 The parser has been extended to support following syntax:
 

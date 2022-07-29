@@ -21,7 +21,7 @@ item that contains ``a`` or ``i`` will be ignored. Another word that can't be
 searched is ``east``, this one will find no matches because ``a`` is on the
 FTS stopword list.
 
-To resolve this issue, in |Percona Server| :rn:`5.7.20-18` a new
+To resolve this issue, in **Percona Server for MySQL** :rn:`5.7.20-18` a new
 :variable:`innodb_ft_ignore_stopwords` variable has been implemented
 which controls whether InnoDB Full-Text Search should ignore stopword list.
 
@@ -62,7 +62,7 @@ Punctuation Marks in Full-Text Search
 By default, full text search is unable to find words with various punctuation
 characters in boolean search mode, although those characters are
 indexed with ngram parser. A new variable :variable:`ft_query_extra_word_chars`
-was introduced in |Percona Server| :rn:`5.7.21-20` to solve this issue.
+was introduced in **Percona Server for MySQL** :rn:`5.7.21-20` to solve this issue.
 
 When it's enabled, all the non-whitespace symbols are considered to be
 word symbols by FTS query parser, except for the boolean search syntax

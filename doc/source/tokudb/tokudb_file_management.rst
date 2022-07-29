@@ -4,7 +4,7 @@
 TokuDB file management
 ======================
 
-As mentioned in the :ref:`tokudb_files_and_file_types` |Percona FT| is
+As mentioned in the :ref:`tokudb_files_and_file_types` **Percona Fractal Tree** is
 extremely pedantic about validating its data set. If a file goes missing or
 can't be accessed, or seems to contain some nonsensical data, it will
 assert, abort or fail to start. It does this not to annoy you, but to try to
@@ -21,7 +21,7 @@ to :ref:`group data files together <improved_directory_layout_functionality>`
 within a directory that represents a single database. This feature is enabled
 by default.
 
-In |Percona Server| :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
+In **Percona Server for MySQL** :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
 has been implemented that can be used to edit the contents of the
 TokuDB/PerconaFT directory map.
 
@@ -132,17 +132,17 @@ Improved table renaming functionality
 -------------------------------------
 
 When you rename a TokuDB table via SQL, the data files on disk keep their
-original names and only the mapping in the |Percona FT| directory file is
+original names and only the mapping in the **Percona Fractal Tree** directory file is
 changed to map the new dictionary name to the original internal file names.
 This makes it difficult to quickly match database/table/index names to their
 actual files on disk, requiring you to use the
 :table:`INFORMATION_SCHEMA.TOKUDB_FILE_MAP` table to cross reference.
 
-Beginning with |Percona Server| :rn:`5.7.15-9` a new server option was
+Beginning with **Percona Server for MySQL** :rn:`5.7.15-9` a new server option was
 introduced called :variable:`tokudb_dir_per_db` to address this issue.
 
 When :variable:`tokudb_dir_per_db` is enabled (``ON`` by default), this is no
-longer the case. When you rename a table, the mapping in the |Percona FT|
+longer the case. When you rename a table, the mapping in the **Percona Fractal Tree**
 directory file will be updated and the files will be renamed on disk to reflect
 the new table name.
 
@@ -152,9 +152,9 @@ Improved directory layout functionality
 ---------------------------------------
 
 Many users have had issues with managing the huge volume of individual files
-that TokuDB and |Percona FT| use.
+that TokuDB and **Percona Fractal Tree** use.
 
-Beginning with |Percona Server| :rn:`5.7.15-9` a new server option was
+Beginning with **Percona Server for MySQL** :rn:`5.7.15-9` a new server option was
 introduced called :variable:`tokudb_dir_per_db` to address this issue.
 
 When :variable:`tokudb_dir_per_db` variable is enabled (``ON`` by default),
@@ -204,7 +204,7 @@ Editing TokuDB directory map with :variable:`tokudb_dir_cmd`
 
   This feature is currently considered *Experimental*.
 
-In |Percona Server| :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
+In **Percona Server for MySQL** :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
 has been implemented that can be used to edit the TokuDB directory map.
 **WARNING:** Use this variable only if you know what you're doing otherwise
 it **WILL** lead to data loss.

@@ -1,18 +1,17 @@
 .. rn:: 5.7.17-12
 
 ==========================
-|Percona Server| 5.7.17-12
+**Percona Server for MySQL** 5.7.17-12
 ==========================
 
-Percona is glad to announce the GA (Generally Available) release of |Percona
-Server| 5.7.17-12 on March 24th, 2017 (Downloads are available `here
+Percona is glad to announce the GA (Generally Available) release of **Percona Server for MySQL** 5.7.17-12 on March 24th, 2017 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.17-12/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.17
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-17.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.17-12 is the current GA release
-in the |Percona Server| 5.7 series. All of Percona's software is open-source
+all the bug fixes in it, **Percona Server for MySQL** 5.7.17-12 is the current GA release
+in the **Percona Server for MySQL** 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.17-12
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.17-12>`_
@@ -20,7 +19,7 @@ Launchpad <https://launchpad.net/percona-server/+milestone/5.7.17-12>`_
 New Features
 ============
 
- |Percona Server| has implemented new :command:`mysqldump`
+ **Percona Server for MySQL** has implemented new :command:`mysqldump`
  :option:`--order-by-primary-desc` option. This feature tells ``mysqldump``
  to take the backup by descending primary key order (``PRIMARY KEY DESC``)
  which can be useful if storage engine is using reverse order column family

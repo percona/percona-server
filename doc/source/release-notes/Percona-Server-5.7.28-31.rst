@@ -1,20 +1,20 @@
 .. rn:: 5.7.28-31:
 
 ===============================================================================
-|Percona Server| 5.7.28-31
+**Percona Server for MySQL** 5.7.28-31
 ===============================================================================
 
-Percona is glad to announce the release of |Percona Server| 5.7.28-31 on November 13, 2019. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.28-31/>`_
+Percona is glad to announce the release of **Percona Server for MySQL** 5.7.28-31 on November 13, 2019. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.28-31/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
-This release is based on `MySQL 5.7.28 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-28.html>`_ and includes all the bug fixes in it. |Percona Server| 5.7.28-31 is now the current GA
+This release is based on `MySQL 5.7.28 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-28.html>`_ and includes all the bug fixes in it. **Percona Server for MySQL** 5.7.28-31 is now the current GA
 (Generally Available) release in the 5.7 series.
 
 All software developed by Percona is open-source and free.
 
 .. note::
 
-   If you're currently using |Percona Server| 5.7, Percona recommends upgrading to this version of 5.7 prior to upgrading to |Percona Server| 8.0.
+   If you're currently using **Percona Server for MySQL** 5.7, Percona recommends upgrading to this version of 5.7 prior to upgrading to **Percona Server for MySQL** 8.0.
 
 Bugs Fixed
 ===============================================================================

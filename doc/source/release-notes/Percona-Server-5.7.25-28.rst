@@ -1,22 +1,22 @@
 .. rn:: 5.7.25-28
 
 ================================================================================
-|Percona Server| 5.7.25-28
+**Percona Server for MySQL** 5.7.25-28
 ================================================================================
 
-Percona is glad to announce the release of |Percona Server| 5.7.25-28 on
+Percona is glad to announce the release of **Percona Server for MySQL** 5.7.25-28 on
 February 18, 2019. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.25-28/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 	
 This release is based on `MySQL 5.7.25
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-25.html>`_ and includes
-all the bug fixes in it. |Percona Server| 5.7.25-28 is now the current GA
+all the bug fixes in it. **Percona Server for MySQL** 5.7.25-28 is now the current GA
 (Generally Available) release in the 5.7 series.
 	
 All software developed by Percona is open-source and free.
 
-In this release, |Percona Server| introduces the variable
+In this release, **Percona Server for MySQL** introduces the variable
 :variable:`binlog_skip_flush_commands`. This variable controls whether
 or not ``FLUSH`` commands are written to the binary log. Setting this
 variable to **ON** can help avoid problems in replication. For more
@@ -24,8 +24,8 @@ information, see :ref:`percona-server.binary-log.flush.writing`.
 
 .. note:: 
 
-   If you're currently using |Percona Server| 5.7, Percona recommends upgrading
-   to this version of 5.7 prior to upgrading to |Percona Server| 8.0.
+   If you're currently using **Percona Server for MySQL** 5.7, Percona recommends upgrading
+   to this version of 5.7 prior to upgrading to **Percona Server for MySQL** 8.0.
 
 Bugs Fixed
 ================================================================================

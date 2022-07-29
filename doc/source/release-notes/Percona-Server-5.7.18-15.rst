@@ -1,18 +1,17 @@
 .. rn:: 5.7.18-15
 
 ==========================
-|Percona Server| 5.7.18-15
+**Percona Server for MySQL** 5.7.18-15
 ==========================
 
-Percona is glad to announce the GA (Generally Available) release of |Percona
-Server| 5.7.18-15 on May 26, 2017 (Downloads are available `here
+Percona is glad to announce the GA (Generally Available) release of **Percona Server for MySQL** 5.7.18-15 on May 26, 2017 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.18-15/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.18
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-18.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.18-15 is the current GA release
-in the |Percona Server| 5.7 series. All of Percona's software is open-source
+all the bug fixes in it, **Percona Server for MySQL** 5.7.18-15 is the current GA release
+in the **Percona Server for MySQL** 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.18-15
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-15>`_

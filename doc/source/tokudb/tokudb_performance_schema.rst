@@ -4,7 +4,7 @@
 TokuDB Performance Schema Integration
 =======================================
 
-In |Percona Server| :rn:`5.7.20-18` has implemented TokuDB integration
+In **Percona Server for MySQL** :rn:`5.7.20-18` has implemented TokuDB integration
 with `Performance Schema
 <https://dev.mysql.com/doc/refman/5.7/en/innodb-performance-schema.html>`_
 

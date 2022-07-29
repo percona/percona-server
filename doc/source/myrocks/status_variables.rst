@@ -595,7 +595,7 @@ This variable shows the total number of single delete keys written by MyRocks.
 
 .. variable:: rocksdb_number_stat_computes
 
-This variable was removed in |Percona Server| :rn:`5.7.23-23`.
+This variable was removed in **Percona Server for MySQL** :rn:`5.7.23-23`.
 
 .. variable:: rocksdb_number_superversion_acquires
 
@@ -609,7 +609,7 @@ database.
 
 .. variable:: rocksdb_rate_limit_delay_millis
 
-This variable was removed in |Percona Server| :rn:`5.7.23-23`.
+This variable was removed in **Percona Server for MySQL** :rn:`5.7.23-23`.
 
 .. variable:: rocksdb_row_lock_deadlocks
 

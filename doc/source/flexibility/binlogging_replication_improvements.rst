@@ -4,7 +4,7 @@
 Binlogging and replication improvements
 =======================================
 
-Due to continuous development, |Percona Server| incorporated a number of
+Due to continuous development, **Percona Server for MySQL** incorporated a number of
 improvements related to replication and binary logs handling. This resulted in
 replication specifics, which distinguishes it from MySQL.
 
@@ -18,7 +18,7 @@ As soon as some statement involving a temporary table was met when using the
 MIXED binlog format, MySQL was switching to the row-based logging of all
 statements till the end of the session or until all temporary tables used in
 this session were dropped. It is inconvenient in the case of long lasting
-connections, including replication-related ones. |Percona Server| fixes the
+connections, including replication-related ones. **Percona Server for MySQL** fixes the
 situation by switching between statement-based and row-based logging as
 necessary.
 
@@ -26,12 +26,12 @@ Version Specific Information
 -----------------------------
 
   * :rn:`5.7.10-1`
-    Fix ported from |Percona Server| 5.6
+    Fix ported from **Percona Server for MySQL** 5.6
 
 Details:
 --------
 
-The *mixed* binary logging format supported by |Percona Server| means that
+The *mixed* binary logging format supported by **Percona Server for MySQL** means that
 server runs in statement-based logging by default, but switches to row-based
 logging when replication would be unpredictable - in the case of a
 nondeterministic SQL statement that may cause data divergence if reproduced on
@@ -63,7 +63,7 @@ Summary of the fix:
 
 MySQL logs DROP statements for all temporary tables irrelative of the logging
 mode under which these tables were created. This produces binlog writes and
-errand GTIDs on replicas with row and mixed logging. |Percona Server| fixes this
+errand GTIDs on replicas with row and mixed logging. **Percona Server for MySQL** fixes this
 by tracking the binlog format at temporary table create time and using it to
 decide whether a DROP should be logged or not.
 
@@ -71,7 +71,7 @@ Version Specific Information
 -----------------------------
 
   * :rn:`5.7.17-11`
-    Fix ported from |Percona Server| 5.6
+    Fix ported from **Percona Server for MySQL** 5.6
 
 Details:
 ----------
@@ -84,7 +84,7 @@ unconditionally logs ``DROP`` statements for all temporary tables. These
 ``DROP`` statements receive ``IF EXISTS`` addition, which is intended to make
 them harmless.
 
-|Percona Server| have fixed this with the bug fixes :psbug:`964`, upstream
+**Percona Server for MySQL** have fixed this with the bug fixes :psbug:`964`, upstream
 :mysqlbug:`83003`, and upstream :mysqlbug:`85258`. Moreover, after all the
 binlogging fixes discussed so far nothing involving temporary tables is logged
 to binary log in row or mixed format, and so there is no need to consider
@@ -103,7 +103,7 @@ Summary of the fix:
 MySQL considers all ``UPDATE/DELETE/INSERT ... SELECT`` statements with
 ``LIMIT`` clause to be unsafe, no matter wether they are really producing
 non-deterministic result or not, and switches from statement-based logging
-to row-based one. |Percona Server| is more accurate, it acknowledges such
+to row-based one. **Percona Server for MySQL** is more accurate, it acknowledges such
 instructions as safe when they include ``ORDER BY PK`` or ``WHERE``
 condition. This fix has been ported from the upstream bug report
 :mysqlbug:`42415` (:psbug:`44`).
@@ -112,7 +112,7 @@ Version Specific Information
 -----------------------------
 
   * :rn:`5.7.10.1`
-    Fix ported from |Percona Server| 5.6
+    Fix ported from **Percona Server for MySQL** 5.6
 
 Performance improvement on relay log position update
 ====================================================
@@ -129,7 +129,7 @@ Version Specific Information
 -----------------------------
 
   * :rn:`5.7.18-14`
-    Fix implemented in |Percona Server| 5.7
+    Fix implemented in **Percona Server for MySQL** 5.7
 
 Details
 --------
@@ -155,7 +155,7 @@ Version Specific Information
 -----------------------------
 
   * :rn:`5.7.20-19`
-    Fix implemented in |Percona Server| 5.7
+    Fix implemented in **Percona Server for MySQL** 5.7
 
 Details
 --------
@@ -168,7 +168,7 @@ Heartbeats sent to the replica to skip GTID events which it had already executed
 previously, were evaluated as relay log rotation events and reacted with
 ``mysql.slave_master_info`` table sync. This inaccuracy could produce huge (up
 to 5 times on some setups) increase in write load on the replica, before this
-problem was fixed in |Percona Server|. Bug fixed :psbug:`1812` (upstream
+problem was fixed in **Percona Server for MySQL**. Bug fixed :psbug:`1812` (upstream
 :mysqlbug:`85158`).
 
 

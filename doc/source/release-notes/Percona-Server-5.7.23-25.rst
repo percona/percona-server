@@ -27,4 +27,4 @@ documentation
 <https://www.percona.com/doc/percona-server/5.7/release-notes/Percona-Server-5.7.23-25.html>`_.
 Report bugs in the `Jira bug tracker <https://jira.percona.com/projects/PS>`_.
   
-.. |release| replace:: 5.7.23-25
+

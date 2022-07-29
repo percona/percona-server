@@ -11,7 +11,7 @@ Version Specific Information
 
   * :rn:`5.7.10-1`
 
-    * Feature ported from |Percona Server| 5.6
+    * Feature ported from **Percona Server for MySQL** 5.6
 
 System Variables
 ================
@@ -54,7 +54,7 @@ global `innodb_use_flush_log_at_trx_commit` value.
 
 .. variable:: innodb_flush_method
 
-   :Version Info: - :rn:`5.7.10-3` - Ported from |Percona Server| 5.6
+   :Version Info: - :rn:`5.7.10-3` - Ported from **Percona Server for MySQL** 5.6
    :cli: Yes
    :conf: Yes
    :scope: Global
@@ -82,7 +82,7 @@ The following values are allowed:
   * ``ALL_O_DIRECT``: 
     use O_DIRECT to open data files, log files, and parallel doublewrite files
     and use ``fsync()`` to flush the data files but not the log files or 
-    parallel doublewrite files. This option is recommended when |InnoDB| log files are big (more than 8GB), 
+    parallel doublewrite files. This option is recommended when *InnoDB* log files are big (more than 8GB), 
     otherwise, there may be performance degradation. **Note**: When using this option on *ext4* filesystem 
     variable :variable:`innodb_log_block_size` 
     should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.

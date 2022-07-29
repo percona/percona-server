@@ -1,10 +1,10 @@
 .. _development:
 
 ================================================================================
-Development of |Percona Server|
+Development of **Percona Server for MySQL**
 ================================================================================
 
-|Percona Server| is an open source project to produce a distribution
+**Percona Server for MySQL** is an open source project to produce a distribution
 of the MySQL Server with improved performance, scalability and
 diagnostics.
 
@@ -31,8 +31,8 @@ XtraBackup and 2.4.15, 2.4.16 and 2.4.17 are releases in this series.
 
 Code is proposed for merging in the form of pull requests on GitHub.
 
-For |Percona Server|, we have several Git branches on which development occurs:
-5.5, 5.6, 5.7, and 8.0. As |Percona Server| is not a traditional project, instead
+For **Percona Server for MySQL**, we have several Git branches on which development occurs:
+5.5, 5.6, 5.7, and 8.0. As **Percona Server for MySQL** is not a traditional project, instead
 of being a set of patches against an existing product, these branches are not
 related. In other words, we do not merge from one release branch to another. To
 have your changes in several branches, you must propose branches to each release
@@ -42,8 +42,8 @@ Making a Change to a Project
 --------------------------------------------------------------------------------
 
 In this case, we are going to use ``percona-xtrabackup`` as an example. The
-workflow is similar for |Percona Server|, but the patch will need to be modified
-in all release branches of |Percona Server|.
+workflow is similar for **Percona Server for MySQL**, but the patch will need to be modified
+in all release branches of **Percona Server for MySQL**.
 
 * ``git branch https://github.com/percona/percona-xtrabackup/featureX`` (where 'featureX' is a
   sensible name for the task at hand)
@@ -59,8 +59,8 @@ should be two branches run through the param build and two merge proposals (one
 for the stable release and one with the changes merged to trunk). This prevents
 somebody else having to guess how to merge your changes.
 
-|Percona Server|
+**Percona Server for MySQL**
 --------------------------------------------------------------------------------
 
-The same process for |Percona Server|, but we have several different branches
+The same process for **Percona Server for MySQL**, but we have several different branches
 (and merge requests).

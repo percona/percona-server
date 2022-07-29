@@ -4,7 +4,7 @@
 Prefix Index Queries Optimization
 =================================
 
-|Percona Server| has ported Prefix Index Queries Optimization feature from
+**Percona Server for MySQL** has ported Prefix Index Queries Optimization feature from
 Facebook patch for MySQL.
 
 Prior to this InnoDB would always fetch the clustered index for all prefix

@@ -1,5 +1,5 @@
 ==================================
-|Percona Server| 5.7 Release notes
+**Percona Server for MySQL** 5.7 Release notes
 ==================================
 
 .. toctree::

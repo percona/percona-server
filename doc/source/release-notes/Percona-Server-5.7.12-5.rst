@@ -1,18 +1,17 @@
 .. rn:: 5.7.12-5
 
 ===========================
- |Percona Server| 5.7.12-5
+ **Percona Server for MySQL** 5.7.12-5
 ===========================
 
-Percona is glad to announce the GA (Generally Available) release of |Percona
-Server| 5.7.12-5 on June 6th, 2016 (Downloads are available `here
+Percona is glad to announce the GA (Generally Available) release of **Percona Server for MySQL** 5.7.12-5 on June 6th, 2016 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.12-5/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.12
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-12.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.12-5 is the current GA release in
-the |Percona Server| 5.7 series. All of Percona's software is open-source and
+all the bug fixes in it, **Percona Server for MySQL** 5.7.12-5 is the current GA release in
+the **Percona Server for MySQL** 5.7 series. All of Percona's software is open-source and
 free, all the details of the release can be found in the `5.7.12-5 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.12-5>`_
 
@@ -41,7 +40,7 @@ Bugs Fixed
  :variable:`expand_fast_index_creation` was enabled could lead to server
  assertion. Bug fixed :bug:`1554622`.
 
- |Percona Server| was missing the :variable:`innodb_numa_interleave` server
+ **Percona Server for MySQL** was missing the :variable:`innodb_numa_interleave` server
  variable. Bug fixed :bug:`1561091` (upstream :mysqlbug:`80288`).
 
  Running ``SHOW STATUS`` in parallel to online buffer pool resizing could lead
@@ -53,7 +52,7 @@ Bugs Fixed
  Fixed heap allocator/deallocator mismatch in
  :ref:`scalability_metrics_plugin`. Bug fixed :bug:`1581051`.
 
- |Percona Server| is now built with system ``zlib`` library instead of the
+ **Percona Server for MySQL** is now built with system ``zlib`` library instead of the
  older bundled one. Bug fixed :bug:`1108016`.
 
  ``CMake`` would fail if TokuDB tests passed. Bug fixed :bug:`1521566`.
@@ -72,7 +71,7 @@ Bugs Fixed
  Parallel doublewrite memory was not freed with
  :variable:`innodb_fast_shutdown` was set to ``2``. Bug fixed :bug:`1578139`.
 
- Server will now show more descriptive error message when |Percona Server|
+ Server will now show more descriptive error message when **Percona Server for MySQL**
  fails with ``errno == 22 "Invalid argument"``, if
  :variable:`innodb_flush_method` was set to ``ALL_O_DIRECT``. Bug fixed
  :bug:`1578604`.
@@ -90,7 +89,7 @@ Bugs Fixed
 
  Upgrade logic for figuring if TokuDB upgrade can be performed from the
  version on disk to the current version was broken due to regression introduced
- when fixing :ftbug:`684` in |Percona Server| :rn:`5.7.11-4`. Bug fixed
+ when fixing :ftbug:`684` in **Percona Server for MySQL** :rn:`5.7.11-4`. Bug fixed
  :ftbug:`717`.
 
  Fixed ``jemalloc`` version parsing error. Bug fixed :tokubug:`528`.

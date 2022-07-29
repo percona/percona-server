@@ -19,7 +19,7 @@ New Features
 ============
 
 * A new string variable :variable:`version_suffix` allows to change suffix
-  for the |Percona Server| version string returned by the read-only
+  for the **Percona Server for MySQL** version string returned by the read-only
   :variable:`version` variable. Also :variable:`version_comment` is converted
   from a global read-only to a global read-write variable.
 
@@ -30,7 +30,7 @@ Bugs Fixed
 ==========
 
 * mysqld startup script was unable to detect jemalloc library location for
-  preloading, and that prevented starting |Percona Server| on systemd based
+  preloading, and that prevented starting **Percona Server for MySQL** on systemd based
   machines. Bugs fixed :psbug:`3784` and :psbug:`3791`.
 
 * There was a problem with fulltext search, which could find a word with
@@ -38,18 +38,18 @@ Bugs Fixed
   Bugs fixed :psbug:`258`, :psbug:`2501` (upstream :mysqlbug:`86164`).
 
 * Build errors were present on FreeBSD (caused by fixing the bug
-  :psbug:`255` in |Percona Server| :rn:`5.6.38-83.0`) and on MacOS (caused
-  by fixing the bug :psbug:`264` in |Percona Server| :rn:`5.7.20-19`). Bugs
+  :psbug:`255` in **Percona Server for MySQL** :rn:`5.6.38-83.0`) and on MacOS (caused
+  by fixing the bug :psbug:`264` in **Percona Server for MySQL** :rn:`5.7.20-19`). Bugs
   fixed :psbug:`2284` and :psbug:`2286`.
 
 * A bunch of fixes was introduced to remove GCC 7 compilation warnings for
-  the |Percona Server| build. Bugs fixed :psbug:`3780` (upstream
+  the **Percona Server for MySQL** build. Bugs fixed :psbug:`3780` (upstream
   :mysqlbug:`89420`, :mysqlbug:`89421`, and :mysqlbug:`89422`).
 
 * CMake error took place at compilation with bundled zlib. Bug fixed
   :psbug:`302`.
 
-* A GCC 7 warning fix introduced regression in |Percona Server| that led to
+* A GCC 7 warning fix introduced regression in **Percona Server for MySQL** that led to
   a wrong SQL query built to access the remote server when Federated storage
   engine was used. Bug fixed :psbug:`1134`.
 
@@ -80,7 +80,7 @@ CVE-2018-2696, CVE-2018-2703, CVE-2017-3737.
 MyRocks Changes
 ===============
 
-* A new behavior makes |Percona Server| fail to restart on detected data
+* A new behavior makes **Percona Server for MySQL** fail to restart on detected data
   corruption; :variable:`rocksdb_allow_to_start_after_corruption` variable can
   be passed to ``mysqld`` as a command line parameter to switch off this
   restart failure.

@@ -6,16 +6,16 @@
 
 .. note::
   
-  This feature has been deprecated in |Percona Server| :rn:`5.7.16-10`. Users
+  This feature has been deprecated in **Percona Server for MySQL** :rn:`5.7.16-10`. Users
   who have installed this plugin but are not using its capability are advised
   to uninstall the plugin due to known crashing bugs.
 
-|Percona Server| has implemented extra scalability metrics. These metrics allow using Little's Law, queuing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
+**Percona Server for MySQL** has implemented extra scalability metrics. These metrics allow using Little's Law, queuing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
 
 Installation
 ============
 
-Scalability Metrics plugin is shipped with |Percona Server|, but it is not installed by default. To enable the plugin you must run the following command: 
+Scalability Metrics plugin is shipped with **Percona Server for MySQL**, but it is not installed by default. To enable the plugin you must run the following command: 
 
 .. code-block:: mysql
 
@@ -90,7 +90,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6
+    Feature ported from **Percona Server for MySQL** 5.6
 
   * :rn:`5.7.16-10`
     Feature has been deprecated.

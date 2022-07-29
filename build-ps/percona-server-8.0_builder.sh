@@ -340,6 +340,24 @@ get_system(){
     return
 }
 
+apply_workaround_bug_304121(){
+    cat > /tmp/bugzilla_bug_304121.patch <<- EOF
+--- /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:38.582288603 +0000
++++ /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:17.089255640 +0000
+@@ -309,7 +309,7 @@
+
+   echo "extracting debug info from \$f"
+   id=\$(/usr/lib/rpm/debugedit -b "\$RPM_BUILD_DIR" -d /usr/src/debug \\
+-			      -i -l "\$SOURCEFILE" "\$f") || exit
++			      -i -l "\$SOURCEFILE" "\$f") || true
+   if [ \$nlinks -gt 1 ]; then
+     eval linkedid_\$inum=\\\$id
+   fi
+EOF
+    patch -ruN -d /usr/lib/rpm < /tmp/bugzilla_bug_304121.patch
+    return
+}
+
 install_deps() {
     if [ $INSTALL = 0 ]
     then
@@ -360,6 +378,7 @@ install_deps() {
         add_percona_yum_repo
         yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
         percona-release enable tools testing
+        percona-release enable tools experimental
         yum -y install epel-release
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd zstd-devel
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
@@ -392,6 +411,7 @@ install_deps() {
             source /opt/rh/gcc-toolset-11/enable
         fi
         if [ "x${RHEL}" = "x7" ]; then
+            apply_workaround_bug_304121
             yum -y install devtoolset-11
             yum -y install devtoolset-11-annobin-plugin-gcc
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain

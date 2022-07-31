@@ -133,8 +133,6 @@ std::chrono::seconds get_srv_fatal_semaphore_wait_threshold() {
 in microseconds, in order to reduce the lagging of the purge thread. */
 ulint srv_dml_needed_delay = 0;
 
-bool srv_scrub_log;
-
 const char *srv_main_thread_op_info = "";
 
 /* Server parameters which are read from the initfile */
@@ -1967,8 +1965,6 @@ void srv_export_innodb_status(void) {
 
   thd_get_fragmentation_stats(current_thd,
                               &export_vars.innodb_fragmentation_stats);
-
-  export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
 
   export_vars.innodb_redo_key_version = srv_redo_log_key_version;
 

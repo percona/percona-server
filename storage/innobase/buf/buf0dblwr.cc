@@ -1087,11 +1087,6 @@ void Double_write::check_block(const buf_block_t *block) noexcept {
 
       /* TODO: validate also non-index pages */
       return;
-
-    case FIL_PAGE_TYPE_ALLOCATED:
-      /* Empty pages could be flushed by encryption threads
-      and scrubbing */
-      return;
   }
 
   croak(block);

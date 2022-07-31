@@ -55,7 +55,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "btr0btr.h"
 #include "btr0cur.h"
-#include "btr0scrub.h"
 #include "buf0buf.h"
 #include "buf0dump.h"
 #include "current_thd.h"
@@ -208,7 +207,6 @@ mysql_pfs_key_t srv_log_tracking_thread_key;
 mysql_pfs_key_t srv_worker_thread_key;
 mysql_pfs_key_t trx_recovery_rollback_thread_key;
 mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
-mysql_pfs_key_t log_scrub_thread_key;
 mysql_pfs_key_t parallel_rseg_init_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
@@ -541,8 +539,6 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   we do the fsyncs now unconditionally and repeat the required
   flush just before the rename. */
   fil_flush_file_redo();
-
-  log_ensure_scrubbing_thread();
 
   return (DB_SUCCESS);
 }
@@ -1910,10 +1906,6 @@ void srv_shutdown_exit_threads() {
       if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
         /* Wakeup purge threads. */
         srv_purge_wakeup();
-      }
-
-      if (log_scrub_thread_active) {
-        os_event_set(log_scrub_event);
       }
 
       if (srv_threads.m_crypt_threads_n) {
@@ -3530,7 +3522,6 @@ void srv_start_threads(bool bootstrap) {
   fts_optimize_init();
 
   fil_system_acquire();
-  btr_scrub_init();
   fil_crypt_threads_init();
   fil_system_release();
 
@@ -3738,7 +3729,6 @@ void srv_pre_dd_shutdown() {
 
   if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
     fil_crypt_threads_cleanup();
-    btr_scrub_cleanup();
   }
 
   switch (trx_purge_state()) {
@@ -3890,11 +3880,6 @@ static lsn_t srv_shutdown_log() {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_FLUSH_PHASE);
   ut_a(!buf_flush_page_cleaner_is_active());
   ut_a(buf_pool_check_no_pending_io() == 0);
-
-  if (log_scrub_thread_active) {
-    ut_ad(!srv_read_only_mode);
-    os_event_set(log_scrub_event);
-  }
 
   if (srv_fast_shutdown == 2) {
     if (!srv_read_only_mode) {
@@ -4163,9 +4148,6 @@ void srv_shutdown() {
   log_online_shutdown();
   ddl_log_close();
   log_sys_close();
-  if (!srv_read_only_mode && srv_scrub_log) {
-    os_event_destroy(log_scrub_event);
-  }
   recv_sys_free();
   recv_sys_close();
   trx_sys_close();
@@ -4238,12 +4220,3 @@ void srv_fatal_error() {
 }
 
 /* @} */
-
-void log_ensure_scrubbing_thread(void) {
-  log_scrub_thread_active = srv_scrub_log;
-  if (log_scrub_thread_active) {
-    log_scrub_event = os_event_create();
-    auto thread = os_thread_create(log_scrub_thread_key, 0, log_scrub_thread);
-    thread.start();
-  }
-}

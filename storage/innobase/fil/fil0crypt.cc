@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "system_key.h"
 #ifndef UNIV_INNOCHECKSUM
 #include <my_crypt.h>
-#include "btr0scrub.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "fil0crypt.h"
@@ -109,11 +108,6 @@ static bool fil_crypt_start_converting = false;
 uint srv_n_fil_crypt_iops = 100;  // 10ms per iop
 static uint srv_alloc_time = 3;   // allocate iops for 3s at a time
 static uint n_fil_crypt_iops_allocated = 0;
-
-extern uint srv_background_scrub_data_interval;
-extern uint srv_background_scrub_data_check_interval;
-extern bool srv_background_scrub_data_uncompressed;
-extern bool srv_background_scrub_data_compressed;
 
 extern bool mysqld_server_started;
 
@@ -1808,8 +1802,6 @@ struct rotate_thread_t {
   uintmax_t sum_waited_us; /*!< wait time during this slot */
 
   fil_crypt_stat_t crypt_stat;  // statistics
-  btr_scrub_t scrub_data; /*< thread local data used by btr_scrub-functions
-                              when iterating pages of tablespace */
 
   THD *thd;  // We need THD object to be able to update
              // tablespace's DD encryption flag
@@ -1978,18 +1970,7 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
               // pages to rotate
     }
 
-    crypt_data->rotate_state.scrubbing.is_active =
-        btr_scrub_start_space(space->id, &state->scrub_data, space_compressed);
-    time_t diff =
-        time(0) - crypt_data->rotate_state.scrubbing.last_scrub_completed;
-    btr_scrub_start_space(space->id, &state->scrub_data, space_compressed);
-
-    bool need_scrubbing = (srv_background_scrub_data_uncompressed ||
-                           srv_background_scrub_data_compressed) &&
-                          crypt_data->rotate_state.scrubbing.is_active &&
-                          diff >= 0 &&
-                          ulint(diff) >= srv_background_scrub_data_interval;
-    if (need_key_rotation == false && need_scrubbing == false) {
+    if (need_key_rotation == false) {
       break;
     }
 
@@ -2577,32 +2558,6 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
 }
 
 /***********************************************************************
-Get block and allocation status
- note: innodb locks fil_space_latch and then block when allocating page
-but locks block and then fil_space_latch when freeing page.
- @param[in,out]          state           Rotation state
-@param[in]              offset          Page offset
-@param[in,out]          mtr             Minitransaction
-@param[out]             allocation_status Allocation status
-@param[out]             sleeptime_ms    Sleep time
-@return block or NULL
-*/
-static buf_block_t *btr_scrub_get_block_and_allocation_status(
-    rotate_thread_t *state, fseg_header_t *seg, ulint offset, mtr_t *mtr,
-    btr_scrub_page_allocation_status_t *allocation_status,
-    ulint *sleeptime_ms) {
-  mtr_t local_mtr;
-  buf_block_t *block = NULL;
-  mtr_start(&local_mtr);
-  mtr_commit(&local_mtr);
-  block = fil_crypt_get_page_throttle(state, offset, mtr, sleeptime_ms);
-  *allocation_status = block->page.state == BUF_BLOCK_NOT_USED
-                           ? BTR_SCRUB_PAGE_FREE
-                           : BTR_SCRUB_PAGE_ALLOCATED;
-  return block;
-}
-
-/***********************************************************************
 Rotate one page
 @param[in,out]		key_state		Key state
 @param[in,out]		state			Rotation state */
@@ -2639,8 +2594,6 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
                                       // will rotate those pages again after
                                       // restart - when encryption threads
                                       // discover that there is work to do.
-
-  int needs_scrubbing = BTR_SCRUB_SKIP_PAGE;
 
   if (buf_block_t *block =
           fil_crypt_get_page_throttle(state, offset, &mtr, &sleeptime_ms)) {
@@ -2706,8 +2659,6 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
           state->min_key_version_found = kv;
         }
       }
-      needs_scrubbing = btr_page_needs_scrubbing(
-          &state->scrub_data, block, BTR_SCRUB_PAGE_ALLOCATION_UNKNOWN);
     }
 
     mtr.commit();
@@ -2718,50 +2669,6 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
     ut_ad(mtr.get_memo()->size() == 0);
     ut_ad(mtr.get_log()->size() == 0);
     mtr.commit();
-  }
-
-  if (needs_scrubbing == BTR_SCRUB_PAGE) {
-    mtr.start();
-    btr_scrub_page_allocation_status_t allocated =
-        BTR_SCRUB_PAGE_ALLOCATION_UNKNOWN;
-    buf_block_t *block = btr_scrub_get_block_and_allocation_status(
-        state, NULL, offset, &mtr, &allocated, &sleeptime_ms);
-    if (block) {
-      // mtr.set_named_space(space);
-      /* get required table/index and index-locks */
-      needs_scrubbing =
-          btr_scrub_recheck_page(&state->scrub_data, block, allocated, &mtr);
-      if (needs_scrubbing == BTR_SCRUB_PAGE) {
-        /* we need to refetch it once more now that we have
-         * index locked */
-        block = btr_scrub_get_block_and_allocation_status(
-            state, NULL, offset, &mtr, &allocated, &sleeptime_ms);
-        needs_scrubbing =
-            btr_scrub_page(&state->scrub_data, block, allocated, &mtr);
-      }
-      /* NOTE: mtr is committed inside btr_scrub_recheck_page()
-       * and/or btr_scrub_page. This is to make sure that
-       * locks & pages are latched in corrected order,
-       * the mtr is in some circumstances restarted.
-       * (mtr_commit() + mtr_start())
-       */
-    }
-  }
-  if (needs_scrubbing != BTR_SCRUB_PAGE) {
-    /* if page didn't need scrubbing it might be that cleanups
-       are needed. do those outside of any mtr to prevent deadlocks.
-       the information what kinds of cleanups that are needed are
-       encoded inside the needs_scrubbing, but this is opaque to
-       this function (except the value BTR_SCRUB_PAGE) */
-    btr_scrub_skip_page(&state->scrub_data, needs_scrubbing);
-  }
-  if (needs_scrubbing == BTR_SCRUB_TURNED_OFF) {
-    /* if we just detected that scrubbing was turned off
-     * update global state to reflect this */
-    ut_ad(crypt_data);
-    mutex_enter(&crypt_data->mutex);
-    crypt_data->rotate_state.scrubbing.is_active = false;
-    mutex_exit(&crypt_data->mutex);
   }
 
   if (sleeptime_ms) {
@@ -3474,21 +3381,7 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
         if (strcmp(state->space->name, "test/t1") == 0 &&
             number_of_t1_pages_rotated >= 100) should_flush = true;);
 
-    /* inform scrubbing */
-    crypt_data->rotate_state.scrubbing.is_active = false;
-
     mutex_exit(&crypt_data->mutex);
-
-    if (state->scrub_data.scrubbing) {
-      btr_scrub_complete_space(&state->scrub_data);
-      if (should_flush) {
-        // only last thread updates last_scrub_completed
-        ut_ad(crypt_data);
-        mutex_enter(&crypt_data->mutex);
-        crypt_data->rotate_state.scrubbing.last_scrub_completed = time(0);
-        mutex_exit(&crypt_data->mutex);
-      }
-    }
 
     if (should_flush) {
       if (fil_crypt_flush_space(state) == DB_SUCCESS) {
@@ -3599,13 +3492,6 @@ void fil_crypt_thread() {
         break;
       }
 
-      time_t waited = time(0) - wait_start;
-      if (waited >= 0 &&
-          ulint(waited) >= srv_background_scrub_data_check_interval &&
-          (srv_background_scrub_data_uncompressed ||
-           srv_background_scrub_data_compressed)) {
-        break;
-      }
     }
 
     recheck = false;
@@ -3824,9 +3710,6 @@ void fil_space_crypt_close_tablespace(const fil_space_t *space) {
 
   while (cnt > 0 || flushing) {
     mutex_exit(&crypt_data->mutex);
-    /* release dict mutex so that scrub threads can release their
-     * table references */
-    // dict_mutex_exit_for_mysql();
 
     /* wakeup throttle (all) sleepers */
     os_event_set(fil_crypt_throttle_sleep_event);
@@ -3896,40 +3779,6 @@ void fil_space_crypt_get_status(const fil_space_t *space,
       status->current_key_version =
           fil_crypt_get_latest_key_version(crypt_data);
     }
-  }
-}
-
-/*********************************************************************
- Get scrub status for a space (used by information_schema)
-
- @param[in]     space           Tablespace
- @param[out]    status          Scrub status */
-
-void fil_space_get_scrub_status(const fil_space_t *space,
-                                struct fil_space_scrub_status_t *status) {
-  memset(status, 0, sizeof(*status));
-
-  fil_space_crypt_t *crypt_data = space->crypt_data;
-
-  status->space = space->id;
-
-  if (crypt_data != NULL) {
-    status->compressed = FSP_FLAGS_GET_ZIP_SSIZE(space->flags) > 0;
-    mutex_enter(&crypt_data->mutex);
-    status->last_scrub_completed =
-        crypt_data->rotate_state.scrubbing.last_scrub_completed;
-    if (crypt_data->rotate_state.active_threads > 0 &&
-        crypt_data->rotate_state.scrubbing.is_active) {
-      status->scrubbing = true;
-      status->current_scrub_started = crypt_data->rotate_state.start_time;
-      status->current_scrub_active_threads =
-          crypt_data->rotate_state.active_threads;
-      status->current_scrub_page_number = crypt_data->rotate_state.next_offset;
-      status->current_scrub_max_page_number =
-          crypt_data->rotate_state.max_offset;
-    }
-
-    mutex_exit(&crypt_data->mutex);
   }
 }
 

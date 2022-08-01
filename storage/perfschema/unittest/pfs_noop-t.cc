@@ -107,6 +107,9 @@ void test_noop()
   PSI_server->set_thread_db(NULL, 0);
   PSI_server->set_thread_command(1);
   PSI_server->set_thread_start_time(1);
+  PSI_server->set_thread_start_time_usec(1000000);
+  PSI_server->set_thread_rows_sent(0);
+  PSI_server->set_thread_rows_examined(0);
   PSI_server->set_thread_state(NULL);
   PSI_server->set_thread_info(NULL, 0);
   PSI_server->set_thread(NULL);

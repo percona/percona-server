@@ -249,6 +249,7 @@ extern "C" void *event_scheduler_thread(void *arg)
      thd->security_context()->host_or_ip().length);
   PSI_THREAD_CALL(set_thread_command)(thd->get_command());
   PSI_THREAD_CALL(set_thread_start_time)(thd->query_start());
+  PSI_THREAD_CALL(set_thread_start_time_usec)(thd->query_start_usec());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
   res= post_init_event_thread(thd);
@@ -306,6 +307,7 @@ extern "C" void *event_worker_thread(void *arg)
      thd->security_context()->host_or_ip().length);
   PSI_THREAD_CALL(set_thread_command)(thd->get_command());
   PSI_THREAD_CALL(set_thread_start_time)(thd->query_start());
+  PSI_THREAD_CALL(set_thread_start_time_usec)(thd->query_start_usec());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
   Event_worker_thread worker_thread;

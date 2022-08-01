@@ -3,7 +3,7 @@
 --source include/not_embedded.inc
 
 call mtr.add_suppression("Optional native table 'performance_schema'.'processlist' has the wrong structure or is missing.");
-call mtr.add_suppression("Column count of performance_schema.processlist is wrong. Expected 8, found 2. The table is probably corrupted");
+call mtr.add_suppression("Column count of performance_schema.processlist is wrong. Expected 11, found 2. The table is probably corrupted");
 
 --echo ##
 --echo ## Verify fresh 5.7 instance
@@ -48,10 +48,10 @@ SHOW CREATE TABLE performance_schema.processlist;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
@@ -59,7 +59,7 @@ SET GLOBAL performance_schema_show_processlist = 'ON';
 --error ER_NO_SUCH_TABLE
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 --error ER_NO_SUCH_TABLE
@@ -77,17 +77,17 @@ SET GLOBAL performance_schema_show_processlist = 'OFF';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 --error ER_BAD_FIELD_ERROR
@@ -112,17 +112,17 @@ SET GLOBAL performance_schema_show_processlist = 'OFF';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 --error ER_BAD_FIELD_ERROR
@@ -141,7 +141,11 @@ CREATE TABLE performance_schema.processlist (
   `COMMAND` varchar(16) DEFAULT NULL,
   `TIME` bigint(20) DEFAULT NULL,
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` bigint(20) unsigned NOT NULL,
+  `ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `ROWS_EXAMINED` bigint(20) unsigned NOT NULL
+
 );
 
 SHOW CREATE TABLE performance_schema.processlist;
@@ -150,17 +154,17 @@ SET GLOBAL performance_schema_show_processlist = 'OFF';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 # Works and returns no data, innodb table is empty.
@@ -185,17 +189,17 @@ SET GLOBAL performance_schema_show_processlist = 'OFF';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 # Works and returns no data, innodb table is empty.
@@ -215,17 +219,17 @@ SET GLOBAL performance_schema_show_processlist = 'OFF';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 # Works and returns no data, innodb table is empty.
@@ -250,17 +254,17 @@ SET GLOBAL performance_schema_show_processlist = 'OFF';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
 
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 # Works and returns no data, innodb table is empty.
@@ -279,31 +283,35 @@ CREATE TABLE performance_schema.processlist (
   `COMMAND` varchar(16) DEFAULT NULL,
   `TIME` bigint(20) DEFAULT NULL,
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` bigint(20) unsigned NOT NULL,
+  `ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `ROWS_EXAMINED` bigint(20) unsigned NOT NULL
+
 ) ENGINE = 'PERFORMANCE_SCHEMA';
 
 SHOW CREATE TABLE performance_schema.processlist;
 
 SET GLOBAL performance_schema_show_processlist = 'OFF';
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 --exec echo "wait" > $restart_file
@@ -323,24 +331,24 @@ SHOW CREATE TABLE performance_schema.processlist;
 
 SET GLOBAL performance_schema_show_processlist = 'OFF';
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 SET GLOBAL performance_schema_show_processlist = 'ON';
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM performance_schema.processlist;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
---replace_column 3 [HOST:PORT] 6 [TIME]
+--replace_column 3 [HOST:PORT] 6 [TIME] 9 [TIME_MS] 10 [ROWS_SENT] 11 [ROWS_EXAMINED]
 SHOW PROCESSLIST;
 
 # Cleanup

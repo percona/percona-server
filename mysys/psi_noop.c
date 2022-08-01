@@ -259,6 +259,21 @@ static void set_thread_start_time_noop(time_t start_time NNN)
   return;
 }
 
+static void set_thread_start_time_usec_noop(ulonglong start_time_usec NNN)
+{
+  return;
+}
+
+static void set_thread_rows_sent_noop(ulonglong rows_sent NNN)
+{
+  return;
+}
+
+static void set_thread_rows_examined_noop(ulonglong rows_sent NNN)
+{
+  return;
+}
+
 static void set_thread_state_noop(const char* state NNN)
 {
   return;
@@ -945,6 +960,9 @@ static PSI PSI_noop=
   set_thread_command_noop,
   set_connection_type_noop,
   set_thread_start_time_noop,
+  set_thread_start_time_usec_noop,
+  set_thread_rows_sent_noop,
+  set_thread_rows_examined_noop,
   set_thread_state_noop,
   set_thread_info_noop,
   set_thread_noop,

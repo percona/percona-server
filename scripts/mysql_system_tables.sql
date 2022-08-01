@@ -1124,7 +1124,10 @@ SET @cmd="CREATE TABLE performance_schema.processlist("
   "COMMAND VARCHAR(16),"
   "TIME BIGINT,"
   "STATE VARCHAR(64),"
-  "INFO LONGTEXT"
+  "INFO LONGTEXT,"
+  "TIME_MS BIGINT(20) unsigned not null,"
+  "ROWS_SENT BIGINT(20) unsigned not null,"
+  "ROWS_EXAMINED BIGINT(20) unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

@@ -991,6 +991,7 @@ Command	Sleep
 Time MASKED
 State	
 Info	
+Time_ms MASKED
 Rows_sent	1
 Rows_examined	0
 ---- 2. ----
@@ -1002,6 +1003,7 @@ Command	Query
 Time MASKED
 State	starting
 Info	SHOW PROCESSLIST
+Time_ms MASKED
 Rows_sent	0
 Rows_examined	0
 ========================
@@ -1022,6 +1024,7 @@ Command	Sleep
 Time MASKED
 State	
 Info	
+Time_ms MASKED
 Rows_sent	1
 Rows_examined	0
 ---- 2. ----
@@ -1033,6 +1036,7 @@ Command	Query
 Time MASKED
 State	starting
 Info	SHOW PROCESSLIST
+Time_ms MASKED
 Rows_sent	0
 Rows_examined	0
 ========================

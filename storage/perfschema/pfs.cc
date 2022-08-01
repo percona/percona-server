@@ -2518,6 +2518,43 @@ void pfs_set_thread_start_time_v1(time_t start_time)
   }
 }
 
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_start_time_usec.
+*/
+void pfs_set_thread_start_time_usec_v1(ulonglong start_time_usec) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (likely(pfs != NULL)) {
+    pfs->m_start_time_usec = start_time_usec;
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_rows_sent.
+*/
+void pfs_set_thread_rows_sent_v1(ulonglong rows_sent) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (likely(pfs != NULL)) {
+    pfs->m_rows_sent = rows_sent;
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_rows_examined.
+*/
+void pfs_set_thread_rows_examined_v1(ulonglong rows_examined) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (likely(pfs != NULL)) {
+    pfs->m_rows_examined = rows_examined;
+  }
+}
+
 /**
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread_state.
@@ -7044,6 +7081,9 @@ PSI_v1 PFS_v1=
   pfs_set_thread_command_v1,
   pfs_set_connection_type_v1,
   pfs_set_thread_start_time_v1,
+  pfs_set_thread_start_time_usec_v1,
+  pfs_set_thread_rows_sent_v1,
+  pfs_set_thread_rows_examined_v1,
   pfs_set_thread_state_v1,
   pfs_set_thread_info_v1,
   pfs_set_thread_v1,

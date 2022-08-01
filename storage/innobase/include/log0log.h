@@ -54,8 +54,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0types.h"
 #include "my_compiler.h"
 
-extern uint srv_redo_log_key_version;
-
 /** Prefix for name of log file, e.g. "ib_logfile" */
 constexpr const char *const ib_logfile_basename = "ib_logfile";
 
@@ -867,39 +865,18 @@ information if it exist.
 @return true if success */
 bool log_read_encryption();
 
-enum redo_log_encrypt_enum {
-  REDO_LOG_ENCRYPT_OFF = 0,
-  REDO_LOG_ENCRYPT_ON = 1,
-  REDO_LOG_ENCRYPT_MK = 2,
-  REDO_LOG_ENCRYPT_RK = 3,
-};
-
-extern redo_log_encrypt_enum existing_redo_encryption_mode;
-
-const char *log_encrypt_name(redo_log_encrypt_enum val);
-
-void log_rotate_default_key();
-
 /** Write the encryption info into the log file header(the 3rd block).
 It just need to flush the file header block with current master key.
 @param[in]      key     encryption key
 @param[in]      iv      encryption iv
-@param[in]      redo_log_encrypt    encryption type
-@param[in]      version             key's version (used for KEYRING
-                                    encryption)
 @return true if success. */
-bool log_write_encryption(byte *key, byte *iv,
-                          redo_log_encrypt_enum redo_log_encrypt,
-                          uint version = 0);
+bool log_write_encryption(byte *key, byte *iv);
 
 /** Rotate the redo log encryption
 It will re-encrypt the redo log encryption metadata and write it to
 redo log file header.
 @return true if success. */
 bool log_rotate_encryption();
-
-/* Checks if there is a new redo key when using keyring encryption. */
-void log_check_new_key_version();
 
 /** Computes lsn up to which sync flush should be done or returns 0
 if there is no need to execute sync flush now.

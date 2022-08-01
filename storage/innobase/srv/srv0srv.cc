@@ -255,7 +255,7 @@ static os_event_t srv_master_thread_disabled_event;
 char *srv_log_group_home_dir = nullptr;
 
 /** Enable or disable Encrypt of REDO tablespace. */
-ulong srv_redo_log_encrypt = 0;
+bool srv_redo_log_encrypt = false;
 
 ulong srv_n_log_files = SRV_N_LOG_FILES_MAX;
 
@@ -1966,8 +1966,6 @@ void srv_export_innodb_status(void) {
   thd_get_fragmentation_stats(current_thd,
                               &export_vars.innodb_fragmentation_stats);
 
-  export_vars.innodb_redo_key_version = srv_redo_log_key_version;
-
   if (!srv_read_only_mode) {
     export_vars.innodb_encryption_rotation_pages_read_from_cache =
         crypt_stat.pages_read_from_cache;
@@ -2880,41 +2878,11 @@ void undo_rotate_default_master_key() {
   undo::spaces->s_unlock();
 }
 
-bool srv_enable_redo_encryption(THD *thd) {
-  switch (srv_redo_log_encrypt) {
-    case REDO_LOG_ENCRYPT_ON:
-    case REDO_LOG_ENCRYPT_MK:
-      return srv_enable_redo_encryption_mk(thd);
-    case REDO_LOG_ENCRYPT_RK:
-      return srv_enable_redo_encryption_rk(thd);
-  }
-
-  return false;
-}
-
-bool srv_enable_redo_encryption_mk(THD *thd) {
-  switch (existing_redo_encryption_mode) {
-    case REDO_LOG_ENCRYPT_RK:
-      if (thd != nullptr) {
-        ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "master_key");
-        ib_senderrf(
-            thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-            log_encrypt_name(existing_redo_encryption_mode), "master_key");
-      } else {
-        ib::fatal(UT_LOCATION_HERE, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "master_key");
-      }
-      return true;
-    case REDO_LOG_ENCRYPT_OFF:
-    case REDO_LOG_ENCRYPT_MK:
-    case REDO_LOG_ENCRYPT_ON:
-      break;
-  }
-
+/* Enable REDO tablespace encryption */
+bool srv_enable_redo_encryption() {
+  /* Start to encrypt the redo log block from now on. */
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
+
   /* While enabling encryption, make sure not to overwrite the tablespace key.
    */
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
@@ -2927,141 +2895,27 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
     return true;
   }
 
+  dberr_t err;
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
 
-  Encryption::random_value(iv);
   Encryption::random_value(key);
+  Encryption::random_value(iv);
 
-  if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_MK)) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1243);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
-    }
+  if (!log_write_encryption(key, iv)) {
+    ib::error(ER_IB_MSG_1243);
     return true;
   }
 
   fsp_flags_set_encryption(space->flags);
-  const dberr_t err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+  err = fil_set_encryption(space->id, Encryption::AES, key, iv);
   if (err != DB_SUCCESS) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
+    ib::warn(ER_IB_MSG_1244);
     return true;
   }
 
+  /* Announce encryption is successfully enabled for the redo log. */
   ib::info(ER_IB_MSG_1245);
-
-  return false;
-}
-
-bool srv_enable_redo_encryption_rk(THD *thd) {
-  switch (existing_redo_encryption_mode) {
-    case REDO_LOG_ENCRYPT_ON:
-    case REDO_LOG_ENCRYPT_MK:
-      if (thd != nullptr) {
-        ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "keyring_key");
-        ib_senderrf(
-            thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-            log_encrypt_name(existing_redo_encryption_mode), "keyring_key");
-      } else {
-        ib::fatal(UT_LOCATION_HERE, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "keyring_key");
-      }
-      return true;
-    case REDO_LOG_ENCRYPT_OFF:
-    case REDO_LOG_ENCRYPT_RK:
-      break;
-  }
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    return false;
-  }
-
-  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
-                        dict_sys_t::s_log_space_first_id, false);
-  if (notifier.failed()) {
-    return true;
-  }
-
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
-  uint version;
-
-  Encryption::random_value(iv);
-
-  // load latest key & write version
-
-  redo_log_key *mkey =
-      strlen(server_uuid) > 0
-          ? redo_log_key_mgr.load_latest_key(thd, true)
-          : redo_log_key_mgr.fetch_or_generate_default_key(thd);
-  if (mkey == nullptr) {
-    return true;
-  }
-
-  // if server_uuid is not available we should be using default percona_redo
-  // key, which does not have version - i.e. has version 0
-  // (REDO_LOG_ENCRYPT_NO_VERSION)
-  ut_ad(strlen(server_uuid) > 0 ||
-        mkey->version == REDO_LOG_ENCRYPT_NO_VERSION);
-
-  version = mkey->version;
-  srv_redo_log_key_version = version;
-  memcpy(key, mkey->key, Encryption::KEY_LEN);
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Fetched redo key: %s.\n", key);
-#endif
-
-  if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_RK, version)) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1243);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
-    }
-    return true;
-  }
-
-  space->encryption_redo_key = mkey;
-  space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-  space->encryption_key_version = version;
-  space->encryption_redo_key_uuid.reset(
-      new (std::nothrow) char[Encryption::SERVER_UUID_LEN + 1]);
-  if (space->encryption_redo_key_uuid.get() == nullptr) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
-  }
-
-  memcpy(space->encryption_redo_key_uuid.get(), server_uuid,
-         Encryption::SERVER_UUID_LEN + 1);
-  dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, key, iv);
-
-  if (err != DB_SUCCESS) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
-    return true;
-  }
-
-  ib::info(ER_IB_MSG_1245);
-
   return false;
 }
 
@@ -3247,8 +3101,6 @@ static void srv_master_main_loop(srv_slot_t *slot) {
 
     /* Purge any deleted tablespace pages. */
     fil_purge();
-
-    log_check_new_key_version();
   }
 }
 

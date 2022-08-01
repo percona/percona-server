@@ -350,62 +350,6 @@ struct redo_log_key final {
   bool present;
 };
 
-/** Handles the fetching/generation/storing/etc of keyring redo log keys.
-
-This class is *NOT* thread safe, as thread safety is not required.
-Data is only accessed/modified on the following points:
-* When the redo space is created, at startup
-* During redo log recovery, at startup
-* When the server UUID is generated, at startup
-* When the user requests a new key version, checked periodically in the
-   master thread
-
-As these can't happen in parallel, no lock is used. */
-class redo_log_keys final {
- public:
-  /** Loads the latest redo log key from the keyring.
-  @param[in]	generate If true, a key is generated if an existing key can't
-  be loaded. */
-  MY_NODISCARD
-  redo_log_key *load_latest_key(THD *thd, bool generate);
-  MY_NODISCARD
-  redo_log_key *load_key_version(THD *thd, const char *uuid, uint version);
-
-  MY_NODISCARD
-  redo_log_key *generate_and_store_new_key(THD *thd);
-
-  /** Fetch if exists default percona_redo key, in case it does not
-  exist - generate it in keyring. Should be used when server_uuid is not
-  yet available
-  @param[in] thd - connection thread
-  @return percona_redo default key */
-  MY_NODISCARD
-  redo_log_key *fetch_or_generate_default_key(THD *thd);
-
- private:
-  /**
-  Get KEYRING encryption redo key name
-  @param[in] - uuid key's UUID
-  @param[in] - key_version key's version
-  @return KEYRING encryption redo key name */
-  std::string get_key_name(const char *uuid, uint key_version);
-  /**
-  Get KEYRING encryption redo key name
-  @param[in] uuid - key's UUID
-  @return KEYRING encryption redo key name */
-  std::string get_key_name(const char *uuid);
-  /**
-  Get KEYRING encryption redo key name
-  @param[in,out]  oss - output string stream
-  @param[in] uuid - key's UUID */
-  void get_key_name(std::ostringstream &oss, const char *uuid);
-
-  using key_map = std::map<ulint, redo_log_key>;
-  key_map m_keys;
-};
-
-extern redo_log_keys redo_log_key_mgr;
-
 /**
 Exclude tablespace from encryption threads rotation. This is "permament"
 exclusion, i.e. ENCRYPTION of a tablespace was explicitly set to 'N'.

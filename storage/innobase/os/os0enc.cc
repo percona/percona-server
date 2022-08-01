@@ -1125,6 +1125,7 @@ bool Encryption::is_encrypted_log(const byte *block) noexcept {
 bool Encryption::encrypt_log_block(const IORequest &, byte *src_ptr,
                                    byte *dst_ptr) noexcept {
   ulint len = 0;
+  ulint data_len;
   ulint main_len;
   ulint remain_len;
   byte remain_buf[MY_AES_BLOCK_SIZE * 2];
@@ -1143,10 +1144,7 @@ bool Encryption::encrypt_log_block(const IORequest &, byte *src_ptr,
 #endif /* UNIV_ENCRYPT_DEBUG */
 
   /* This is data size which need to encrypt. */
-  const ulint unencrypted_trailer_size =
-      (m_type == KEYRING) ? LOG_BLOCK_TRL_SIZE : 0;
-  const ulint data_len =
-      OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE - unencrypted_trailer_size;
+  data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
   main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
   remain_len = data_len - main_len;
 
@@ -1159,7 +1157,6 @@ bool Encryption::encrypt_log_block(const IORequest &, byte *src_ptr,
     case NONE:
       ut_error;
 
-    case KEYRING:
     case AES: {
       ut_ad(m_klen == KEY_LEN);
 
@@ -1208,14 +1205,6 @@ bool Encryption::encrypt_log_block(const IORequest &, byte *src_ptr,
       ut_error;
   }
 
-  /* Set the encrypted flag. */
-  log_block_set_encrypt_bit(dst_ptr, true);
-
-  if (m_type == KEYRING) {
-    const ulint crc = log_block_calc_checksum_crc32(dst_ptr);
-    log_block_set_checksum(dst_ptr, crc + m_key_version);
-  }
-
 #ifdef UNIV_ENCRYPT_DEBUG
   {
     std::ostringstream os{};
@@ -1242,12 +1231,15 @@ bool Encryption::encrypt_log_block(const IORequest &, byte *src_ptr,
 
       msg.seekp(0);
       ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-      ib::fatal(UT_LOCATION_HERE) << msg.str();
+      ib::fatal() << msg.str();
     }
     ut::free(buf2);
     ut::free(check_buf);
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
+
+  /* Set the encrypted flag. */
+  log_block_set_encrypt_bit(dst_ptr, true);
 
   return (true);
 }
@@ -1273,6 +1265,30 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
     src_ptr += OS_FILE_LOG_BLOCK_SIZE;
     dst_ptr += OS_FILE_LOG_BLOCK_SIZE;
   }
+
+#ifdef UNIV_ENCRYPT_DEBUG
+  {
+    byte *check_buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
+
+    memcpy(check_buf, dst, src_len);
+
+    dberr_t err = decrypt_log(type, check_buf, src_len, buf2, src_len);
+    if (err != DB_SUCCESS || memcmp(src, check_buf, src_len) != 0) {
+      std::ostringstream msg{};
+      ut_print_buf_hex(msg, src, src_len);
+      ib::error() << msg.str();
+
+      msg.seekp(0);
+      ut_print_buf_hex(msg, check_buf, src_len);
+      ib::fatal() << msg.str();
+    }
+    ut::free(buf2);
+    ut::free(check_buf);
+  }
+#endif /* UNIV_ENCRYPT_DEBUG */
 
   return (dst);
 }
@@ -1532,38 +1548,19 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
 dberr_t Encryption::decrypt_log_block(const IORequest &, byte *src,
                                       byte *dst) noexcept {
+  ulint data_len;
   ulint main_len;
   ulint remain_len;
   byte remain_buf[MY_AES_BLOCK_SIZE * 2];
   byte *ptr = src;
 
   /* This is data size which need to encrypt. */
-  const ulint unencrypted_trailer_size =
-      (m_type == KEYRING) ? LOG_BLOCK_TRL_SIZE : 0;
-  const ulint data_len =
-      OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE - unencrypted_trailer_size;
-
+  data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
   main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
   remain_len = data_len - main_len;
 
   ptr += LOG_BLOCK_HDR_SIZE;
   switch (m_type) {
-    case KEYRING: {
-      const ulint block_crc = log_block_calc_checksum_crc32(src);
-      const ulint written_crc = log_block_get_checksum(src);
-
-      const ulint enc_key_version = written_crc - block_crc;
-
-      if (m_key_version != enc_key_version &&
-          enc_key_version != REDO_LOG_ENCRYPT_NO_VERSION) {
-        redo_log_key *mkey = redo_log_key_mgr.load_key_version(
-            nullptr, m_key_id_uuid, enc_key_version);
-        m_key_version = mkey->version;
-        m_key = reinterpret_cast<unsigned char *>(mkey->key);
-      }
-    }
-    [[fallthrough]];
-
     case AES: {
       lint elen;
 
@@ -1631,11 +1628,6 @@ dberr_t Encryption::decrypt_log_block(const IORequest &, byte *src,
   /* Reset the encrypted flag. */
   log_block_set_encrypt_bit(ptr, false);
 
-  if (m_type == KEYRING) {
-    const ulint crc = log_block_calc_checksum_crc32(ptr);
-    log_block_set_checksum(ptr, crc);
-  }
-
   return (DB_SUCCESS);
 }
 
@@ -1656,7 +1648,7 @@ dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
     block = nullptr;
   }
 
-  /* Decrypt the log blocks one by one. */
+  /* Encrypt the log blocks one by one. */
   while (ptr != src + src_len) {
 #ifdef UNIV_ENCRYPT_DEBUG
     {

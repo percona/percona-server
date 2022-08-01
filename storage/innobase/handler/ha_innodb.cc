@@ -568,12 +568,6 @@ static TYPELIB sys_tablespace_encrypt_typelib = {
     array_elements(sys_tablespace_encrypt_names) - 1,
     "sys_tablespace_encrypt_typelib", sys_tablespace_encrypt_names, nullptr};
 
-static const char *redo_log_encrypt_names[] = {"OFF", "ON", "MASTER_KEY",
-                                               "KEYRING_KEY", NullS};
-static TYPELIB redo_log_encrypt_typelib = {
-    array_elements(redo_log_encrypt_names) - 1, "redo_log_encrypt_typelib",
-    redo_log_encrypt_names, nullptr};
-
 #ifndef UNIV_HOTBACKUP
 /* The following counter is used to convey information to InnoDB
 about server activity: in case of normal DML ops it is not
@@ -4447,7 +4441,7 @@ static void innobase_post_recover() {
       srv_redo_log_encrypt = false;
     } else {
       /* Enable encryption for REDO log */
-      if (srv_enable_redo_encryption(nullptr)) {
+      if (srv_enable_redo_encryption()) {
         srv_redo_log_encrypt = false;
         ut_d(ut_error);
       }
@@ -4782,21 +4776,6 @@ bool innobase_fix_tablespaces_empty_uuid() {
   srv_is_uuid_ready = true;
 #endif /* UNIV_DEBUG */
 
-  if (Encryption::get_master_key_id() == 0) {
-    /* We have to call srv_enable_redo_encryption during every startup, to
-       report errors generated in this function correctly. Without this call
-       here, some illegal configurations, such as enabling encryption without a
-       keyring are silently accepted, and result in errors later during the
-       server run. These functions are also called later, when the master key is
-       correctly set up, later in this function.
-     */
-    if (srv_enable_redo_encryption(nullptr)) {
-      srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-    } else {
-      log_rotate_default_key();
-    }
-  }
-
   /* If we are in read only mode, we cannot do rotation but it
   is OK */
   if (srv_read_only_mode) {
@@ -4832,12 +4811,6 @@ bool innobase_fix_tablespaces_empty_uuid() {
   if (master_key == nullptr) {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
     return (true);
-  }
-
-  if (srv_enable_redo_encryption(nullptr)) {
-    srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-  } else {
-    log_rotate_default_key();
   }
 
   /** Check if sys, temp need rotation to fix the empty uuid */
@@ -22616,7 +22589,7 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   mutex_enter(&undo::ddl_mutex);
 
   /* Enable encryption for UNDO tablespaces */
-  bool ret = srv_enable_undo_encryption(thd);
+  bool ret = srv_enable_undo_encryption(nullptr);
 
   if (!ret) {
     /* At this point, all UNDO tablespaces have been encrypted. */
@@ -22627,80 +22600,48 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   return (0);
 }
 
-static bool update_innodb_redo_log_encrypt(THD *thd, uint target);
-
 /** Validate the value of innodb_redo_log_encrypt global variable. This function
 is registered as a callback with MySQL.
-@param[in]      thd       thread handle
-@param[in]      var       pointer to system variable
-@param[in]      save      possibly updated variable value
-@param[in]      value     current variable value
+@param[in]	thd       thread handle
+@param[in]	var       pointer to system variable
+@param[in]	save      possibly updated variable value
+@param[in]	value     current variable value
 @return error code */
 static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
                                             struct st_mysql_value *value) {
-  const char *redo_log_encrypt_input;
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  int len = sizeof(buff);
-  redo_log_encrypt_input = value->val_str(value, buff, &len);
-
-  bool legit_value = false;
-  uint use = 0;
-  for (; use < array_elements(redo_log_encrypt_names) - 1; use++) {
-    if (innobase_strcasecmp(redo_log_encrypt_input,
-                            redo_log_encrypt_names[use]) == 0) {
-      legit_value = true;
-      break;
-    }
+  /* Call the default check function first. */
+  auto error = check_func_bool(thd, var, save, value);
+  if (error != 0) {
+    return (error);
   }
-
-  if (innobase_strcasecmp(redo_log_encrypt_input, "0") == 0) {
-    use = REDO_LOG_ENCRYPT_OFF;
-    legit_value = true;
-  }
-
-  if (innobase_strcasecmp(redo_log_encrypt_input, "false") == 0) {
-    use = REDO_LOG_ENCRYPT_OFF;
-    legit_value = true;
-  }
-
-  if (innobase_strcasecmp(redo_log_encrypt_input, "1") == 0) {
-    use = REDO_LOG_ENCRYPT_ON;
-    legit_value = true;
-  }
-
-  if (innobase_strcasecmp(redo_log_encrypt_input, "true") == 0) {
-    use = REDO_LOG_ENCRYPT_ON;
-    legit_value = true;
-  }
-
-  if (!legit_value) return 1;
+  bool target = *static_cast<bool *>(save);
 
   /* Set the default output to current value for all error cases. */
-  *static_cast<ulong *>(save) = srv_redo_log_encrypt;
+  *static_cast<bool *>(save) = srv_redo_log_encrypt;
 
-  if (srv_redo_log_encrypt == use) {
+  if (srv_redo_log_encrypt == target) {
     /* No change */
     return (0);
   }
 
   /* If encryption is to be disabled. This will just make sure I/O doesn't
   write REDO encrypted from now on. */
-  if (use == REDO_LOG_ENCRYPT_OFF) {
-    *static_cast<ulong *>(save) = REDO_LOG_ENCRYPT_OFF;
+  if (target == false) {
+    *static_cast<bool *>(save) = false;
     return (0);
   }
 
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1242);
-    return (ER_IB_MSG_1242);
+    return (0);
   }
 
   /* Enable encryption for REDO tablespaces */
-  bool ret = update_innodb_redo_log_encrypt(thd, use);
+  bool ret = srv_enable_redo_encryption();
 
   if (!ret) {
     /* At this point, REDO log is set to be encrypted. */
-    *static_cast<ulong *>(save) = use;
+    *static_cast<bool *>(save) = true;
   }
   return (0);
 }
@@ -23619,59 +23560,6 @@ static void innodb_temp_tablespace_encryption_update(THD *thd, SYS_VAR *var,
   } else {
     *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
   }
-}
-
-/** Enable or disable encryption of redo logs
-@param[in]	thd	thread handle
-@param[in]	target new mode
-@return	true if error */
-static bool update_innodb_redo_log_encrypt(THD *thd, uint target) {
-  if (srv_redo_log_encrypt == target) {
-    /* No change */
-    return false;
-  }
-
-  if (target == REDO_LOG_ENCRYPT_OFF) {
-    return false;
-  }
-
-  if (existing_redo_encryption_mode != REDO_LOG_ENCRYPT_OFF &&
-      existing_redo_encryption_mode != target &&
-      !(existing_redo_encryption_mode == REDO_LOG_ENCRYPT_MK &&
-        target == REDO_LOG_ENCRYPT_ON)) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-              log_encrypt_name(existing_redo_encryption_mode),
-              log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
-    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                log_encrypt_name(existing_redo_encryption_mode),
-                log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
-    return true;
-  }
-
-  if (srv_read_only_mode) {
-    ib::error(ER_IB_MSG_1242);
-    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1242);
-    return true;
-  }
-
-  ut_ad(strlen(server_uuid) > 0);
-
-  if (!Encryption::check_keyring()) {
-    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_KEYRING);
-    ib::error(ER_REDO_ENCRYPTION_KEYRING);
-    return true;
-  }
-
-  if (target == REDO_LOG_ENCRYPT_MK || target == REDO_LOG_ENCRYPT_ON) {
-    return srv_enable_redo_encryption_mk(thd);
-  }
-
-  if (target == REDO_LOG_ENCRYPT_RK) {
-    return srv_enable_redo_encryption_rk(thd);
-  }
-
-  ut_ad(0);
-  return true;
 }
 
 static SHOW_VAR innodb_status_variables_export[] = {
@@ -24936,12 +24824,10 @@ static MYSQL_SYSVAR_STR(
     /*validate_func*/ meb::validate_redo_log_archive_dirs,
     /*update_func*/ nullptr, /*default*/ nullptr);
 
-static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
-                         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
-                         "Enable or disable Encryption of REDO tablespace."
-                         "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
-                         validate_innodb_redo_log_encrypt, nullptr,
-                         REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
+                         PLUGIN_VAR_OPCMDARG,
+                         "Enable or disable Encryption of REDO tablespace.",
+                         validate_innodb_redo_log_encrypt, nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(
     print_ddl_logs, srv_print_ddl_logs, PLUGIN_VAR_OPCMDARG,

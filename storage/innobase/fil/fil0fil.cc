@@ -3382,7 +3382,6 @@ void Fil_shard::space_free_low(fil_space_t *&space) {
   rw_lock_free(&space->latch);
 
   fil_space_destroy_crypt_data(&space->crypt_data);
-  space->encryption_redo_key_uuid.reset(nullptr);
 
   ut::free(space->name);
   ut::free(space);
@@ -8291,15 +8290,10 @@ inline void fil_io_set_keyring_encryption(IORequest &req_type,
 }
 
 static void fil_io_set_mk_encryption(IORequest &req_type, fil_space_t *space) {
-  unsigned char *key =
-      space->encryption_redo_key != nullptr
-          ? reinterpret_cast<unsigned char *>(space->encryption_redo_key->key)
-          : space->encryption_key;
-  uint version = space->encryption_redo_key != nullptr
-                     ? space->encryption_redo_key->version
-                     : space->encryption_key_version;
+  unsigned char *key = space->encryption_key;
+  uint version = space->encryption_key_version;
   req_type.encryption_key(key, 32, space->encryption_iv, version, 0, nullptr,
-                          space->encryption_redo_key_uuid.get(), nullptr);
+                          nullptr, nullptr);
 
   req_type.encryption_rotation(Encryption_rotation::NO_ROTATION);
 }

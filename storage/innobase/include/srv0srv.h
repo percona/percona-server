@@ -505,7 +505,7 @@ extern const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT;
 extern char *srv_log_group_home_dir;
 
 /** Enable or Disable Encrypt of REDO tablespace. */
-extern ulong srv_redo_log_encrypt;
+extern bool srv_redo_log_encrypt;
 
 /* Maximum number of redo files of a cloned DB. */
 constexpr uint32_t SRV_N_LOG_FILES_CLONE_MAX = 1000;
@@ -1256,19 +1256,12 @@ void undo_spaces_init();
 called once during thread de-initialization. */
 void undo_spaces_deinit();
 
-/** Enables master key redo encryption.
- * Doesn't depend on the srv_redo_log_encrypt variable, used by
- * SET innodb_redo_log_encrypt = MK. */
-bool srv_enable_redo_encryption_mk(THD *thd);
-
-/** Enables master key redo encryption.
- * Doesn't depend on the srv_redo_log_encrypt variable, used by
- * SET innodb_redo_log_encrypt = RK. */
-bool srv_enable_redo_encryption_rk(THD *thd);
-
-/** Enables REDO log encryption based on srv_redo_log_encrypt.
+/** Enable REDO log encryption.
+@param[in] is_boot	true if it is called during server start up. In this
+                        case, default master key will be used which will be
+                        rotated later with actual master key from keyring.
 @return false for success, true otherwise. */
-bool srv_enable_redo_encryption(THD *thd);
+bool srv_enable_redo_encryption();
 
 /** Set redo log variable for performance schema global status.
 @param[in]      enable  true => redo log enabled, false => redo log disabled */

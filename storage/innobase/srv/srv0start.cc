@@ -438,42 +438,18 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
       return (DB_ERROR);
     }
 
-    Encryption::Type alg = srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK
-                               ? Encryption::KEYRING
-                               : Encryption::AES;
-
+    // TODO: ??
     log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
 
-    ut_ad(strlen(server_uuid) != 0);
-    redo_log_key *mkey =
-        redo_log_key_mgr.fetch_or_generate_default_key(nullptr);
-
-    if (mkey == nullptr) {
-      ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
-      return (DB_ERROR);
-    }
-
-    // default percona_redo should be of version 0, which is invalid - thus no
-    // version
-    ut_ad(mkey->version == REDO_LOG_ENCRYPT_NO_VERSION);
-
     fsp_flags_set_encryption(log_space->flags);
-    err = fil_set_encryption(log_space->id, alg,
-                             reinterpret_cast<byte *>(mkey->key), nullptr);
+    err = fil_set_encryption(log_space->id, Encryption::AES, nullptr, nullptr);
+    ut_ad(err == DB_SUCCESS);
+
     if (err != DB_SUCCESS) {
       ib::error(ER_REDO_ENCRYPTION_FAILED);
 
       return (DB_ERROR);
     }
-    log_space->encryption_redo_key = mkey;
-    // We always store here REDO_LOG_ENCRYPT_NO_VERSION. For keyring encryption
-    // this is indication that default percona_redo key was used and should
-    // be rotated.
-    log_space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
-    // we do not have server_uuid yet
-    ut_ad(log_space->encryption_redo_key_uuid == nullptr);
-
-    ut_ad(err == DB_SUCCESS);
   }
 
   const ulonglong file_pages = srv_log_file_size / UNIV_PAGE_SIZE;
@@ -521,10 +497,8 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   /* Write encryption information into the first log file header
   if redo log is set with encryption. */
   if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags) &&
-      !log_write_encryption(log_space->encryption_key,
-                            log_space->encryption_iv,
-                            static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt),
-                            log_space->encryption_key_version)) {
+      !log_write_encryption(log_space->encryption_key, log_space->encryption_iv
+                            )) {
     return (DB_ERROR);
   }
 

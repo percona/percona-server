@@ -55,10 +55,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0rkinfo.h"
 #include "keyring_encryption_key_info.h"
 
-#define REDO_LOG_ENCRYPT_NO_VERSION 0
-
-struct redo_log_key;
-
 /** Structure containing encryption specification */
 struct fil_space_crypt_t;
 
@@ -551,12 +547,6 @@ struct fil_space_t {
   byte encryption_iv[Encryption::KEY_LEN];
 
   ulint encryption_key_version;
-
-  /** Only used for redo log encryption: the currently active key handle */
-  redo_log_key *encryption_redo_key;
-
-  /** Only used for redo log encryption: the redo encryption's key uuid */
-  std::unique_ptr<char[]> encryption_redo_key_uuid;
 
   /** Encryption is in progress */
   Encryption::Progress encryption_op_in_progress{Encryption::Progress::NONE};

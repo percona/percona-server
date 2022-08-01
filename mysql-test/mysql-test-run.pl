@@ -379,12 +379,8 @@ our $exe_mysql_migrate_keyring;
 our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
 our $exe_mysqltest;
-<<<<<<< HEAD
 our $exe_mysql_zenfs;
-||||||| 8d8c986e571
-=======
 our $exe_openssl;
->>>>>>> mysql-8.0.30
 our $glob_mysql_test_dir;
 our $mysql_version_extra;
 our $mysql_version_id;
@@ -3380,12 +3376,8 @@ sub environment_setup {
     client_arguments_no_grp_suffix("mysql_config_editor");
   $ENV{'MYSQL_SECURE_INSTALLATION'} =
     "$path_client_bindir/mysql_secure_installation";
-<<<<<<< HEAD
   $ENV{'MYSQL_ZENFS'} = $exe_mysql_zenfs;
-||||||| 8d8c986e571
-=======
   $ENV{'OPENSSL_EXECUTABLE'} = $exe_openssl;
->>>>>>> mysql-8.0.30
 
   my $exe_mysqld = find_mysqld($basedir);
   $ENV{'MYSQLD'} = $exe_mysqld;

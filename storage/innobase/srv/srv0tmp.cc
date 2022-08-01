@@ -202,20 +202,6 @@ void Tablespace::decrypt() {
 }
 
 void Tablespace::rotate_encryption_key() {
-  if (!is_encrypted()) {
-    return;
-  }
-
-  acquire();
-
-  fil_space_t *space = fil_space_get(m_space_id);
-
-  bool success = encryption_rotate_low(space);
-  if (!success) {
-    ib::warn(ER_XB_MSG_6, space->name);
-  }
-
-  release();
 }
 
 uint32_t Tablespace::file_id() const {

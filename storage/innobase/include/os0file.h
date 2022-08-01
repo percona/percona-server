@@ -1095,48 +1095,23 @@ The wrapper functions have the prefix of "innodb_". */
 #define os_file_close_pfs(file) pfs_os_file_close_func(file, UT_LOCATION_HERE)
 
 #define os_file_close_no_error_handling_pfs(file) \
-  pfs_os_file_close_no_error_handling_func(file, __FILE__, __LINE__)
+  pfs_os_file_close_no_error_handling_func(file, UT_LOCATION_HERE)
 
 #define os_aio(type, mode, name, file, buf, offset, n, read_only, message1,    \
                message2, space_id, trx, should_buffer)                         \
   pfs_os_aio_func(type, mode, name, file, buf, offset, n, read_only, message1, \
-<<<<<<< HEAD
-                  message2, space_id, trx, should_buffer, __FILE__, __LINE__)
-||||||| 8d8c986e571
-                  message2, __FILE__, __LINE__)
-=======
-                  message2, UT_LOCATION_HERE)
->>>>>>> mysql-8.0.30
+                  message2, space_id, trx, should_buffer, UT_LOCATION_HERE)
 
-<<<<<<< HEAD
 #define os_file_read_pfs(type, file_name, file, buf, offset, n)         \
   pfs_os_file_read_func(type, file_name, file, buf, offset, n, nullptr, \
-                        __FILE__, __LINE__)
-||||||| 8d8c986e571
-#define os_file_read_pfs(type, file_name, file, buf, offset, n)          \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, __FILE__, \
-                        __LINE__)
-=======
-#define os_file_read_pfs(type, file_name, file, buf, offset, n) \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, UT_LOCATION_HERE)
->>>>>>> mysql-8.0.30
+                        UT_LOCATION_HERE)
 
-<<<<<<< HEAD
 #define os_file_read_trx_pfs(file, buf, offset, n, trx) \
-  pfs_os_file_read_func(file, buf, offset, n, trx, __FILE__, __LINE__)
+  pfs_os_file_read_func(file, buf, offset, n, trx, UT_LOCATION_HERE)
 
 #define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit)    \
-  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, __FILE__, \
-                                   __LINE__, exit)
-||||||| 8d8c986e571
-#define os_file_read_first_page_pfs(type, file_name, file, buf, n)          \
-  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, __FILE__, \
-                                   __LINE__)
-=======
-#define os_file_read_first_page_pfs(type, file_name, file, buf, n) \
-  pfs_os_file_read_first_page_func(type, file_name, file, buf, n,  \
-                                   UT_LOCATION_HERE)
->>>>>>> mysql-8.0.30
+  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, UT_LOCATION_HERE, \
+                                   exit)
 
 #define os_file_copy_pfs(src, src_offset, dest, dest_offset, size) \
   pfs_os_file_copy_func(src, src_offset, dest, dest_offset, size,  \
@@ -1171,7 +1146,7 @@ The wrapper functions have the prefix of "innodb_". */
   pfs_os_file_delete_if_exists_func(key, name, exist, UT_LOCATION_HERE)
 
 #define os_file_set_eof_at_pfs(file, new_len) \
-  pfs_os_file_set_eof_at_func(file, new_len, __FILE__, __LINE__)
+  pfs_os_file_set_eof_at_func(file, new_len, UT_LOCATION_HERE)
 
 /** NOTE! Please use the corresponding macro os_file_create_simple(),
 not directly this function!
@@ -1254,7 +1229,7 @@ Closes a file handle.
 @param[in]	src_line	line where the func invoked
 @return true if success */
 static inline bool pfs_os_file_close_no_error_handling_func(
-    pfs_os_file_t file, const char *src_file, ulint src_line);
+    pfs_os_file_t file, ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
@@ -1268,22 +1243,10 @@ os_file_read() which requests a synchronous read operation.
 @param[in]      n               number of bytes to read
 @param[in]      src_location    location where func invoked
 @return DB_SUCCESS if request was successful */
-<<<<<<< HEAD
 static inline dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
                               pfs_os_file_t file, void *buf, os_offset_t offset,
-                              ulint n, trx_t *trx, const char *src_file,
-                              uint src_line);
-||||||| 8d8c986e571
-static inline dberr_t pfs_os_file_read_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    os_offset_t offset, ulint n, const char *src_file, uint src_line);
-=======
-static inline dberr_t pfs_os_file_read_func(IORequest &type,
-                                            const char *file_name,
-                                            pfs_os_file_t file, void *buf,
-                                            os_offset_t offset, ulint n,
+                              ulint n, trx_t *trx, 
                                             ut::Location src_location);
->>>>>>> mysql-8.0.30
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1295,31 +1258,13 @@ of page 0 of IBD file
 @param[in]      file            Open file handle
 @param[out]     buf             buffer where to read
 @param[in]      n               number of bytes to read
-<<<<<<< HEAD
-@param[in]      src_file        file name where func invoked
-@param[in]      src_line        line where the func invoked
-@param[in]      exit_on_err     if true then exit on error
-||||||| 8d8c986e571
-@param[in]      src_file        file name where func invoked
-@param[in]      src_line        line where the func invoked
-=======
 @param[in]      src_location    location where func invoked
->>>>>>> mysql-8.0.30
+@param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS if request was successful */
-<<<<<<< HEAD
 static inline dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
                                          pfs_os_file_t file, void *buf, ulint n,
-                                         const char *src_file, uint src_line,
+                                         ut::Location src_location,
                                          bool exit_on_err);
-||||||| 8d8c986e571
-static inline dberr_t pfs_os_file_read_first_page_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    ulint n, const char *src_file, uint src_line);
-=======
-static inline dberr_t pfs_os_file_read_first_page_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    ulint n, ut::Location src_location);
->>>>>>> mysql-8.0.30
 
 /** copy data from one file to another file. Data is read/written
 at current file offset.
@@ -1393,41 +1338,19 @@ must not cross a file boundary; in AIO this must be a block size multiple
 @param[in,out]  m2              message for the AIO handler (can be used to
                                 identify a completed AIO operation); ignored
                                 if mode is OS_AIO_SYNC
-<<<<<<< HEAD
 @param[in]      should_buffer   Whether to buffer an aio request.
                                 AIO read ahead uses this. If you plan to
                                 use this parameter, make sure you remember to
                                 call os_aio_dispatch_read_array_submit()
                                 when you're ready to commit all your
                                 requests.
-@param[in]      src_file        file name where func invoked
-@param[in]      src_line        line where the func invoked
-||||||| 8d8c986e571
-@param[in]      src_file        file name where func invoked
-@param[in]      src_line        line where the func invoked
-=======
 @param[in]      location    location where func invoked
->>>>>>> mysql-8.0.30
 @return DB_SUCCESS if request was queued successfully, false if fail */
-<<<<<<< HEAD
 static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode, const char *name,
                         pfs_os_file_t file, void *buf, os_offset_t offset,
                         ulint n, bool read_only, fil_node_t *m1, void *m2,
                         space_id_t space_id, trx_t *trx, bool should_buffer,
-                        const char *src_file, uint src_line);
-||||||| 8d8c986e571
-static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
-                                      const char *name, pfs_os_file_t file,
-                                      void *buf, os_offset_t offset, ulint n,
-                                      bool read_only, fil_node_t *m1, void *m2,
-                                      const char *src_file, uint src_line);
-=======
-static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
-                                      const char *name, pfs_os_file_t file,
-                                      void *buf, os_offset_t offset, ulint n,
-                                      bool read_only, fil_node_t *m1, void *m2,
                                       ut::Location location);
->>>>>>> mysql-8.0.30
 
 /** NOTE! Please use the corresponding macro os_file_write(), not directly
 this function!
@@ -1531,8 +1454,7 @@ Truncates a file at the specified position.
 @return true if success */
 static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file,
                                                uint64_t new_len,
-                                               const char *src_file,
-                                               ulint src_line);
+                                               ut::Location src_location);
 
 #else /* UNIV_PFS_IO */
 

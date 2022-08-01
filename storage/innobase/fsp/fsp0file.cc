@@ -542,32 +542,16 @@ Datafile::ValidateOutput Datafile::validate_for_recovery(space_id_t space_id) {
         return (output);
       }
 
-<<<<<<< HEAD
       output.error = restore_from_doublewrite(0);
+
       if (output.error != DB_SUCCESS) {
         return (output);
-||||||| 8d8c986e571
-      err = restore_from_doublewrite(0);
-      if (err != DB_SUCCESS) {
-        return (err);
-=======
-      err = restore_from_doublewrite(0);
-
-      if (err != DB_SUCCESS) {
-        return (err);
->>>>>>> mysql-8.0.30
       }
 
       /* Free the previously read first page and then re-validate. */
       free_first_page();
-<<<<<<< HEAD
-      output = validate_first_page(space_id, nullptr, false);
-||||||| 8d8c986e571
-      err = validate_first_page(space_id, nullptr, false);
-=======
 
-      err = validate_first_page(space_id, nullptr, false);
->>>>>>> mysql-8.0.30
+      output = validate_first_page(space_id, nullptr, false);
   }
 
   if (output.error == DB_SUCCESS ||

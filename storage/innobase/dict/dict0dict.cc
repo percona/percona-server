@@ -1853,23 +1853,18 @@ void dict_table_change_id_in_cache(
 
   /* Remove the table from the hash table of id's */
   HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
-<<<<<<< HEAD
-              ut_fold_ull(table->id), table);
+              ut::hash_uint64(table->id), table);
 
-  uint id_fold = ut_fold_ull(new_id);
+
+  // MERGETODO  uint id_fold = ut_fold_ull(new_id);
   /* Look for a table with the same id: error if such exists */
-  {
+  /*{
     dict_table_t *table2;
     HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold, dict_table_t *,
                 table2, ut_ad(table2->cached), table2->id == new_id);
     ut_a(table2 == nullptr);
-  }
+  }*/
 
-||||||| 8d8c986e571
-              ut_fold_ull(table->id), table);
-=======
-              ut::hash_uint64(table->id), table);
->>>>>>> mysql-8.0.30
   table->id = new_id;
 
   /* Add the table back to the hash table */
@@ -4422,7 +4417,7 @@ void dict_set_merge_threshold_all_debug(uint merge_threshold_all) {
 void dict_table_set_corrupt_by_space(space_id_t space_id,
                                      bool need_mutex) noexcept {
   ut_a(space_id != 0);
-  ut_a(space_id < dict_sys_t::s_log_space_first_id);
+  ut_a(space_id < dict_sys_t::s_log_space_id);
 
   if (need_mutex) mutex_enter(&(dict_sys->mutex));
 

@@ -749,8 +749,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     have saved state at the beginning of execution, and passed in a
     pointer to that state in THD's copy_status_var_ptr.
   */
-<<<<<<< HEAD
-  if (!query_start) {
+  if (!thd->copy_status_var_ptr) {
     if (my_b_printf(
             &log_file,
             "# Schema: %s  Last_errno: %lu  Killed: %u\n"
@@ -768,23 +767,6 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                 : 0,
             (ulong)(thd->status_var.bytes_sent - thd->bytes_sent_old)) ==
         (uint)-1)
-||||||| 8d8c986e571
-  if (!query_start) {
-    if (my_b_printf(&log_file,
-                    "# Query_time: %s  Lock_time: %s"
-                    " Rows_sent: %lu  Rows_examined: %lu\n",
-                    query_time_buff, lock_time_buff,
-                    (ulong)thd->get_sent_row_count(),
-                    (ulong)thd->get_examined_row_count()) == (uint)-1)
-=======
-  if (!thd->copy_status_var_ptr) {
-    if (my_b_printf(&log_file,
-                    "# Query_time: %s  Lock_time: %s"
-                    " Rows_sent: %lu  Rows_examined: %lu\n",
-                    query_time_buff, lock_time_buff,
-                    (ulong)thd->get_sent_row_count(),
-                    (ulong)thd->get_examined_row_count()) == (uint)-1)
->>>>>>> mysql-8.0.30
       goto err; /* purecov: inspected */
   } else {
     char start_time_buff[iso8601_size];
@@ -850,20 +832,12 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
             (ulong)(thd->status_var.created_tmp_disk_tables -
                     thd->copy_status_var_ptr->created_tmp_disk_tables),
             (ulong)(thd->status_var.created_tmp_tables -
-<<<<<<< HEAD
-                    query_start->created_tmp_tables),
+                    thd->copy_status_var_ptr->created_tmp_tables),
             start_time_buff, end_time_buff,
             (thd->db().str ? thd->db().str : ""),
             ((thd->get_row_count_func() > 0)
                  ? (ulonglong)thd->get_row_count_func()
                  : 0)) == (uint)-1)
-||||||| 8d8c986e571
-                    query_start->created_tmp_tables),
-            start_time_buff, end_time_buff) == (uint)-1)
-=======
-                    thd->copy_status_var_ptr->created_tmp_tables),
-            start_time_buff, end_time_buff) == (uint)-1)
->>>>>>> mysql-8.0.30
       goto err; /* purecov: inspected */
   }
 
@@ -1461,23 +1435,10 @@ void Query_logger::cleanup() {
 }
 
 bool Query_logger::slow_log_write(THD *thd, const char *query,
-<<<<<<< HEAD
                                   size_t query_length,
-                                  struct System_status_var *query_start_status,
                                   bool aggregate, ulonglong lock_usec,
                                   ulonglong exec_usec) {
   assert(thd->enable_slow_log);
-||||||| 8d8c986e571
-                                  size_t query_length,
-                                  struct System_status_var *query_start_status,
-                                  bool aggregate, ulonglong lock_usec,
-                                  ulonglong exec_usec) {
-  assert(thd->enable_slow_log && opt_slow_log);
-=======
-                                  size_t query_length, bool aggregate,
-                                  ulonglong lock_usec, ulonglong exec_usec) {
-  assert(thd->enable_slow_log && opt_slow_log);
->>>>>>> mysql-8.0.30
 
   if (!(*slow_log_handler_list)) return false;
 
@@ -1854,24 +1815,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
     Do not log administrative statements unless the appropriate option is
     set.
   */
-<<<<<<< HEAD
   if (!thd->enable_slow_log || !opt_slow_log) return false;
-||||||| 8d8c986e571
-  if (thd->enable_slow_log && opt_slow_log) {
-    bool warn_no_index =
-        ((thd->server_status &
-          (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-         opt_log_queries_not_using_indexes &&
-         !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
-    bool log_this_query =
-        ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index) &&
-        (thd->get_examined_row_count() >=
-         thd->variables.min_examined_row_limit);
-    bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
-=======
-  if (thd->enable_slow_log && opt_slow_log) {
-    bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
->>>>>>> mysql-8.0.30
 
   /* Collect query exec time as the first step. */
   ulonglong query_exec_time = get_query_exec_time(thd);
@@ -1942,15 +1886,6 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
   bool warn_failed_query =
       thd->is_error() && thd->variables.log_query_errors.check_error_set(
                              thd->get_stmt_da()->mysql_errno());
-  bool warn_no_index =
-      ((thd->server_status &
-        (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-       opt_log_queries_not_using_indexes &&
-       !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
-  bool log_this_query =
-      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index ||
-       warn_failed_query) &&
-      (thd->get_examined_row_count() >= thd->variables.min_examined_row_limit);
   bool suppress_logging =
       log_throttle_qni.log(thd, warn_no_index && warn_failed_query);
 
@@ -1965,14 +1900,8 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
 
   @param thd                 thread handle
 */
-<<<<<<< HEAD
-void log_slow_do(THD *thd, struct System_status_var *query_start_status) {
-  thd_proc_info(thd, "logging slow query");
-||||||| 8d8c986e571
-void log_slow_do(THD *thd, struct System_status_var *query_start_status) {
-=======
 void log_slow_do(THD *thd) {
->>>>>>> mysql-8.0.30
+  thd_proc_info(thd, "logging slow query");
   THD_STAGE_INFO(thd, stage_logging_slow_query);
 
   if (thd->rewritten_query().length())

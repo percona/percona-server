@@ -18,13 +18,10 @@ source_downloads
 
 # Configuration files for Visual Studio Code
 .vscode/
-<<<<<<< HEAD
 
 /GPATH
 /GRTAGS
 /GTAGS
-||||||| 8d8c986e571
-=======
 
 build/
 datatool/
@@ -34,4 +31,3 @@ heatwaveml.*
 automl.egg-info/
 _userconf.sh
 scalability_jobs_*
->>>>>>> mysql-8.0.30

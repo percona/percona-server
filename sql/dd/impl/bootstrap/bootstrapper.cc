@@ -1169,19 +1169,11 @@ void store_predefined_tablespace_metadata(THD *thd) {
       space_file->set_se_private_data(file->get_se_private_data());
     }
 
-<<<<<<< HEAD
     // If predefined tablespace is not encrypted assign
     // encryption=n to it.
     if (!tablespace->options().exists("encryption")) {
       tablespace->options().set("encryption", "N");
     }
-||||||| 8d8c986e571
-    // All the predefined tablespace are unencrypted (atleast for now).
-    tablespace->options().set("encryption", "N");
-=======
-    // All the predefined tablespace are unencrypted (at least for now).
-    tablespace->options().set("encryption", "N");
->>>>>>> mysql-8.0.30
 
     /*
       Here, we just want to populate the core registry in the storage

@@ -320,6 +320,8 @@ enum latch_level_t {
 
   SYNC_TRX_I_S_RWLOCK,
 
+  SYNC_RECV_WRITER,
+
   /** Level is varying. Only used with buffer pool page locks, which
   do not have a fixed level, but instead have their level set after
   the page is locked; see e.g.  ibuf_bitmap_get_map_page(). */
@@ -379,12 +381,8 @@ enum latch_id_t {
   LATCH_ID_LOG_WRITE_NOTIFIER,
   LATCH_ID_LOG_FLUSH_NOTIFIER,
   LATCH_ID_LOG_LIMITS,
-<<<<<<< HEAD
   LATCH_ID_LOG_ONLINE,
-||||||| 8d8c986e571
-=======
   LATCH_ID_LOG_FILES,
->>>>>>> mysql-8.0.30
   LATCH_ID_PARSER,
   LATCH_ID_LOG_ARCH,
   LATCH_ID_PAGE_ARCH,
@@ -1140,7 +1138,7 @@ struct dict_sync_check : public sync_check_functor_t {
     if (!m_dict_mutex_allowed ||
         (level != SYNC_DICT && level != SYNC_UNDO_SPACES &&
          level != SYNC_FTS_CACHE && level != SYNC_DICT_OPERATION &&
-         level != SYNC_NO_ORDER_CHECK)) {
+         level != SYNC_RECV_WRITER && level != SYNC_NO_ORDER_CHECK)) {
       m_result = true;
 #ifdef UNIV_NO_ERR_MSGS
       ib::error()

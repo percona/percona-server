@@ -5109,7 +5109,7 @@ rec_loop:
   if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
   wrong_offs:
     if (srv_pass_corrupt_table && index->table->space != 0 &&
-        index->table->space < dict_sys_t::s_log_space_first_id) {
+        index->table->space < dict_sys_t::s_log_space_id) {
       index->table->is_corrupt = true;
       fil_space_set_corrupt(index->table->space);
     }

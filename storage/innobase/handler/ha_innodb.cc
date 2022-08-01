@@ -134,14 +134,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0chkp.h"
 #include "log0encryption.h"
 #include "log0meb.h"
-<<<<<<< HEAD
 #include "log0online.h"
-||||||| 8d8c986e571
-=======
 #include "log0pfs.h"
 #include "log0pre_8_0_30.h"
 #include "log0write.h"
->>>>>>> mysql-8.0.30
 #include "mem0mem.h"
 #include "mtr0mtr.h"
 #include "my_compare.h"
@@ -763,12 +759,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_limits_mutex, 0, 0, PSI_DOCUMENT_ME),
-<<<<<<< HEAD
     PSI_MUTEX_KEY(log_bmp_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
-||||||| 8d8c986e571
-=======
     PSI_MUTEX_KEY(log_files_mutex, 0, 0, PSI_DOCUMENT_ME),
->>>>>>> mysql-8.0.30
     PSI_MUTEX_KEY(log_checkpointer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_closer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -788,6 +780,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(dblwr_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(recv_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(undo_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_sys_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -900,6 +893,8 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(buf_lru_manager_thread, "ib_buf_lru", 0, 0,
                    PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(recv_writer_thread, "ib_recv_write", PSI_FLAG_SINGLETON, 0,
+                   PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_error_monitor_thread, "ib_srv_err",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_lock_timeout_thread, "ib_srv_lock_to",
@@ -949,7 +944,6 @@ static PSI_file_info all_innodb_files[] = {
 #endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
 
-<<<<<<< HEAD
 static int default_encryption_key_id_validate(
     /*=================================*/
     THD *thd,     /*!< in: thread handle */
@@ -1034,8 +1028,6 @@ uint innodb_force_index_records_in_range(THD *thd) {
 
 uint innodb_records_in_range(THD *thd) { return THDVAR(thd, records_in_range); }
 
-||||||| 8d8c986e571
-=======
 /** Plugin update function to handle validation and then switch the
 innodb_doublewrite mode
 @param[in]  thd thread handle
@@ -1102,7 +1094,6 @@ static void doublewrite_update(THD *thd [[maybe_unused]],
   *static_cast<ulong *>(var_ptr) = *static_cast<const ulong *>(save);
 }
 
->>>>>>> mysql-8.0.30
 /** Set up InnoDB API callback function array */
 /*
 Generates array elements which look like:
@@ -1403,13 +1394,10 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"dblwr_writes", (char *)&export_vars.innodb_dblwr_writes, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
-<<<<<<< HEAD
     {"ibuf_free_list", (char *)&export_vars.innodb_ibuf_free_list, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"ibuf_segment_size", (char *)&export_vars.innodb_ibuf_segment_size,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
-||||||| 8d8c986e571
-=======
     {"redo_log_read_only", (char *)&export_vars.innodb_redo_log_read_only,
      SHOW_BOOL, SHOW_SCOPE_GLOBAL},
     {"redo_log_uuid", (char *)&export_vars.innodb_redo_log_uuid, SHOW_LONGLONG,
@@ -1433,7 +1421,6 @@ static SHOW_VAR innodb_status_variables[] = {
     {"redo_log_resize_status",
      (char *)&export_vars.innodb_redo_log_resize_status, SHOW_CHAR,
      SHOW_SCOPE_GLOBAL},
->>>>>>> mysql-8.0.30
     {"log_waits", (char *)&export_vars.innodb_log_waits, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"log_write_requests", (char *)&export_vars.innodb_log_write_requests,
@@ -1899,37 +1886,7 @@ static void innodb_space_shutdown() {
 static int innodb_shutdown(handlerton *, ha_panic_function) {
   DBUG_TRACE;
 
-  hash_table_free(innobase_open_tables);
-  innobase_open_tables = nullptr;
-
-  for (auto file : innobase_sys_files) {
-    ut::delete_(file);
-  }
-  innobase_sys_files.clear();
-  innobase_sys_files.shrink_to_fit();
-
-  if (mutex_monitor) mutex_free(&master_key_id_mutex);
-  srv_shutdown();
-  innodb_space_shutdown();
-
   if (innodb_inited) {
-<<<<<<< HEAD
-||||||| 8d8c986e571
-    innodb_inited = false;
-    hash_table_free(innobase_open_tables);
-    innobase_open_tables = nullptr;
-
-    for (auto file : innobase_sys_files) {
-      ut::delete_(file);
-    }
-    innobase_sys_files.clear();
-    innobase_sys_files.shrink_to_fit();
-
-    mutex_free(&master_key_id_mutex);
-    srv_shutdown();
-    innodb_space_shutdown();
-
-=======
     log_pfs_delete_tables();
 
     innodb_inited = false;
@@ -1946,7 +1903,6 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
     srv_shutdown();
     innodb_space_shutdown();
 
->>>>>>> mysql-8.0.30
     mysql_mutex_destroy(&innobase_share_mutex);
     mysql_mutex_destroy(&commit_cond_m);
     mysql_cond_destroy(&commit_cond);
@@ -4921,51 +4877,6 @@ bool innobase_fix_default_table_encryption(ulong encryption_option, bool is_serv
   return false;
 }
 
-bool innobase_check_mk_keyring_exclusions(THD *thd, longlong dte_val) {
-  if (dte_val == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING ||
-      dte_val == DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
-    if (lock_keyrings(nullptr) == 0) {
-      my_printf_error(ER_WRONG_ARGUMENTS,
-                      "The default_table_encryption option cannot be changed, "
-                      "keyring plugin is not available",
-                      MYF(0));
-      return true;
-    }
-    if (!Encryption::is_keyring_alive()) {
-      my_printf_error(ER_WRONG_ARGUMENTS,
-                      "The default_table_encryption option cannot be changed, "
-                      "keyring plugin is installed but it seems it was not "
-                      "properly initialized.",
-                      MYF(0));
-      unlock_keyrings(nullptr);
-      return true;
-    }
-  }
-
-  if (dte_val == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING) {
-    if (srv_undo_log_encrypt == true) {
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          "Online encryption to KEYRING cannot be turned ON"
-                          " as Undo log Master Key encryption is turned ON."
-                          " Please disable the Undo log Master key encryption"
-                          " (innodb_undo_log_encrypt) and try again.");
-      return true;
-    }
-    if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-          "Online encryption to KEYRING cannot be turned ON"
-          " as system tablespace is encrypted with Master Key"
-          " encryption. In case you want system tablespace to"
-          " get re-encrypted with KEYRING encryption set"
-          " --innodb-sys_tablespace_encrypt to RE_ENCRYPTING_TO_KEYRING");
-      return true;
-    }
-  }
-
-  return false;
-}
-
 /** Fix the empty UUID of tablespaces like system, temp etc by generating
 a new master key and do key rotation. These tablespaces if encrypted
 during startup, will be encrypted with tablespace key which has empty UUID
@@ -5044,17 +4955,8 @@ bool innobase_fix_tablespaces_empty_uuid() {
   undo::spaces->s_unlock();
 
   /* Rotate log tablespace */
-  bool failure1 = !log_rotate_encryption();
-
-  bool failure2 = !fil_encryption_rotate_global(space_ids);
 
   my_free(master_key);
-
-  /* If rotation failure, return error */
-  if (failure1 || failure2) {
-    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-    return (true);
-  }
 
   return (false);
 }
@@ -5814,24 +5716,12 @@ static int innodb_init(void *p) {
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
   innobase_hton->fill_is_table = innobase_fill_i_s_table;
-<<<<<<< HEAD
-  innobase_hton->flags =
-      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
-      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
-      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
-      HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
-||||||| 8d8c986e571
-  innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
-                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
-                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
-                         HTON_SUPPORTS_TABLE_ENCRYPTION;
-=======
   innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
                          HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
                          HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
                          HTON_SUPPORTS_TABLE_ENCRYPTION |
+                         HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS |
                          HTON_SUPPORTS_GENERATED_INVISIBLE_PK;
->>>>>>> mysql-8.0.30
 
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
@@ -5886,9 +5776,6 @@ static int innodb_init(void *p) {
 
   innobase_hton->fix_default_table_encryption =
       innobase_fix_default_table_encryption;
-
-  innobase_hton->check_mk_keyring_exclusions =
-      innobase_check_mk_keyring_exclusions;
 
   innobase_hton->redo_log_set_state = innobase_redo_set_state;
 
@@ -19793,16 +19680,12 @@ int ha_innobase::end_stmt() {
     row_mysql_prebuilt_free_blob_heap(m_prebuilt);
   }
 
-<<<<<<< HEAD
   if (m_prebuilt->compress_heap) {
     row_mysql_prebuilt_free_compress_heap(m_prebuilt);
   }
 
-||||||| 8d8c986e571
-=======
   m_prebuilt->end_stmt();
 
->>>>>>> mysql-8.0.30
   reset_template();
 
   m_ds_mrr.reset();
@@ -22835,9 +22718,6 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
                           "Undo log cannot be"
                           " encrypted with Master Key encryption"
                           " when online to KEYRING encryption is turned ON.");
-      return 1;
-    } else if (check_mk_and_keyring_encrypt_exclusion_for_undo(true, thd) !=
-               DB_SUCCESS) {
       return 1;
     }
   }
@@ -25912,32 +25792,11 @@ dfield_t *innobase_get_computed_value(
                                0, 0, compress_heap);
     }
 
-<<<<<<< HEAD
-    {
-      innodb_session_dict_mutex_guard_t guard(*thd_to_innodb_session(thd));
-      ret = handler::my_eval_gcolumn_expr_with_open(
-          thd, index->table->vc_templ->db_name.c_str(),
-          index->table->vc_templ->tb_name.c_str(), &column_map,
-          (uchar *)mysql_rec,
-          (col->m_col.is_multi_value() ? &mv_data_ptr : nullptr),
-          (col->m_col.is_multi_value() ? &mv_length : nullptr));
-    }
-  } else {
-||||||| 8d8c986e571
-    ret = handler::my_eval_gcolumn_expr_with_open(
-        thd, index->table->vc_templ->db_name.c_str(),
-        index->table->vc_templ->tb_name.c_str(), &column_map,
-        (uchar *)mysql_rec,
-        (col->m_col.is_multi_value() ? &mv_data_ptr : nullptr),
-        (col->m_col.is_multi_value() ? &mv_length : nullptr));
-  } else {
-=======
     /* open a temporary table handle */
     mysql_table = tblhdl.open(thd, index->table->vc_templ->db_name.c_str(),
                               index->table->vc_templ->tb_name.c_str());
   }
   if (mysql_table) {
->>>>>>> mysql-8.0.30
     ret = handler::my_eval_gcolumn_expr(
         thd, mysql_table, &column_map, (uchar *)mysql_rec,
         (col->m_col.is_multi_value() ? &mv_data_ptr : nullptr),

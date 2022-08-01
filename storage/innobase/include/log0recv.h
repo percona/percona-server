@@ -53,13 +53,6 @@ class MetadataRecover;
 class PersistentTableMetadata;
 struct fil_space_crypt_t;
 
-/** Check the 4-byte checksum to the trailer checksum field of a log
-block.
-@param[in]	log block
-@return whether the checksum matches */
-MY_NODISCARD bool log_block_checksum_is_ok(
-    const byte *block); /*!< in: pointer to a log block */
-
 /** Calculates the new value for lsn when more data is added to the log. */
 lsn_t recv_calc_lsn_on_data_add(
     lsn_t lsn,     /*!< in: old lsn */
@@ -566,11 +559,19 @@ struct recv_sys_t {
   state field in each recv_addr struct */
   ib_mutex_t mutex;
 
+  /** mutex coordinating flushing between recv_writer_thread and
+  the recovery thread. */
+  ib_mutex_t writer_mutex;
+
   /** event to activate page cleaner threads */
   os_event_t flush_start;
 
   /** event to signal that the page cleaner has finished the request */
   os_event_t flush_end;
+
+  /** type of the flush request. BUF_FLUSH_LRU: flush end of LRU,
+  keeping free blocks.  BUF_FLUSH_LIST: flush all of blocks. */
+  buf_flush_t flush_type;
 
 #else  /* !UNIV_HOTBACKUP */
   bool apply_file_operations;

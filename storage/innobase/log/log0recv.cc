@@ -54,19 +54,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-<<<<<<< HEAD
-#include "log0log.h"
 #include "log0online.h"
-||||||| 8d8c986e571
-#include "log0log.h"
-=======
 #include "log0chkp.h"       /* log_next_checkpoint_header */
 #include "log0encryption.h" /* log_encryption_read */
 #include "log0files_io.h"
 #include "log0pre_8_0_30.h"
 #include "log0recv.h"
 #include "log0test.h"
->>>>>>> mysql-8.0.30
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"
@@ -208,20 +202,6 @@ is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
 static lsn_t recv_max_page_lsn;
 
-<<<<<<< HEAD
-||||||| 8d8c986e571
-#ifndef UNIV_HOTBACKUP
-#ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t recv_writer_thread_key;
-#endif /* UNIV_PFS_THREAD */
-
-static bool recv_writer_is_active() {
-  return (srv_thread_is_active(srv_threads.m_recv_writer));
-}
-
-#endif /* !UNIV_HOTBACKUP */
-
-=======
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t recv_writer_thread_key;
@@ -233,22 +213,10 @@ static bool recv_writer_is_active() {
 
 #endif /* !UNIV_HOTBACKUP */
 
->>>>>>> mysql-8.0.30
 /* prototypes */
 
 #ifndef UNIV_HOTBACKUP
 
-<<<<<<< HEAD
-||||||| 8d8c986e571
-/** Reads a specified log segment to a buffer.
-@param[in,out]  log             redo log
-@param[in,out]  buf             buffer where to read
-@param[in]      start_lsn       read area start
-@param[in]      end_lsn         read area end */
-static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
-                              lsn_t end_lsn);
-
-=======
 /** Reads a specified log segment to a buffer.
 @param[in,out]  log             redo log
 @param[in,out]  buf             buffer where to read
@@ -258,7 +226,6 @@ static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
 static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
                                lsn_t end_lsn);
 
->>>>>>> mysql-8.0.30
 /** Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == false. */
 static dberr_t recv_init_crash_recovery();
@@ -436,6 +403,7 @@ void recv_sys_create() {
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*recv_sys)));
 
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
+  mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
   recv_sys->spaces = nullptr;
 }
@@ -534,6 +502,11 @@ void recv_sys_close() {
   call_destructor(&recv_sys->saved_recs);
 
   mutex_free(&recv_sys->mutex);
+
+#ifndef UNIV_HOTBACKUP
+  ut_ad(!recv_writer_is_active());
+#endif /* !UNIV_HOTBACKUP */
+  mutex_free(&recv_sys->writer_mutex);
 
   ut::free(recv_sys);
   recv_sys = nullptr;
@@ -711,19 +684,6 @@ static void recv_sys_empty_hash() {
 block.
 @param[in]      block   pointer to a log block
 @return whether the checksum matches */
-<<<<<<< HEAD
-bool log_block_checksum_is_ok(const byte *block) {
-  return (!srv_log_checksums ||
-          log_block_get_checksum(block) == log_block_calc_checksum(block));
-||||||| 8d8c986e571
-#ifndef UNIV_HOTBACKUP
-static
-#endif /* !UNIV_HOTBACKUP */
-    bool
-    log_block_checksum_is_ok(const byte *block) {
-  return (!srv_log_checksums ||
-          log_block_get_checksum(block) == log_block_calc_checksum(block));
-=======
 #ifndef UNIV_HOTBACKUP
 static
 #endif /* !UNIV_HOTBACKUP */
@@ -731,7 +691,6 @@ static
     log_block_checksum_is_ok(const byte *block) {
   return !srv_log_checksums ||
          log_block_get_checksum(block) == log_block_calc_checksum(block);
->>>>>>> mysql-8.0.30
 }
 
 /** Get the page map for a tablespace. It will create one if one isn't found.
@@ -829,6 +788,59 @@ void MetadataRecover::store() {
 
   mutex_exit(&dict_persist->mutex);
 }
+
+/** recv_writer thread tasked with flushing dirty pages from the buffer
+pools. */
+static void recv_writer_thread() {
+  ut_ad(!srv_read_only_mode);
+
+  /* The code flow is as follows:
+  Step 1: In recv_recovery_from_checkpoint_start().
+  Step 2: This recv_writer thread is started.
+  Step 3: In recv_recovery_from_checkpoint_finish().
+  Step 4: Wait for recv_writer thread to complete.
+  Step 5: Assert that recv_writer thread is not active anymore.
+
+  It is possible that the thread that is started in step 2,
+  becomes active only after step 4 and hence the assert in
+  step 5 fails.  So mark this thread active only if necessary. */
+  mutex_enter(&recv_sys->writer_mutex);
+
+  if (!recv_recovery_on) {
+    mutex_exit(&recv_sys->writer_mutex);
+    return;
+  }
+  mutex_exit(&recv_sys->writer_mutex);
+
+  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+    ut_a(srv_shutdown_state_matches([](auto state) {
+      return state == SRV_SHUTDOWN_NONE || state == SRV_SHUTDOWN_EXIT_THREADS;
+    }));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    mutex_enter(&recv_sys->writer_mutex);
+
+    if (!recv_recovery_on) {
+      mutex_exit(&recv_sys->writer_mutex);
+      break;
+    }
+
+    if (log_test != nullptr) {
+      mutex_exit(&recv_sys->writer_mutex);
+      continue;
+    }
+
+    /* Flush pages from end of LRU if required */
+    os_event_reset(recv_sys->flush_end);
+    recv_sys->flush_type = BUF_FLUSH_LRU;
+    os_event_set(recv_sys->flush_start);
+    os_event_wait(recv_sys->flush_end);
+
+    mutex_exit(&recv_sys->writer_mutex);
+  }
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Frees the recovery system. */
@@ -1215,7 +1227,7 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
 dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   for (;;) {
     mutex_enter(&recv_sys->mutex);
-    bool abort = recv_sys->found_corrupt_log;
+    // MERGETODO bool abort = recv_sys->found_corrupt_log;
 
     if (!recv_sys->apply_batch_on) {
       break;
@@ -1223,7 +1235,7 @@ dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
     mutex_exit(&recv_sys->mutex);
 
-    if (abort) return;
+    // MERGETODO if (abort) return;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
@@ -1313,7 +1325,7 @@ dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
     mutex_exit(&recv_sys->mutex);
 
     if (abort) {
-      return;
+      // MERGETODO return;
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -3722,41 +3734,12 @@ bool meb_scan_log_recs(
 }
 
 #ifndef UNIV_HOTBACKUP
-<<<<<<< HEAD
-/** Reads a specified log segment to a buffer.
-@param[in,out]  log             redo log
-@param[in,out]  buf             buffer where to read
-@param[in]      start_lsn       read area start
-@param[in]      end_lsn         read area end
-@param[in]      online          whether the read is for the changed page
-                                tracking */
-void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
-                       bool online) {
-  if (!online) log_background_threads_inactive_validate();
-||||||| 8d8c986e571
-/** Reads a specified log segment to a buffer.
-@param[in,out]  log             redo log
-@param[in,out]  buf             buffer where to read
-@param[in]      start_lsn       read area start
-@param[in]      end_lsn         read area end */
-static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
-                              lsn_t end_lsn) {
-  log_background_threads_inactive_validate();
-=======
 static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
                                const lsn_t end_lsn) {
   log_background_threads_inactive_validate();
->>>>>>> mysql-8.0.30
 
   ut_a(start_lsn < end_lsn);
 
-<<<<<<< HEAD
-    if (online) log_writer_mutex_enter(log);
-    source_offset = log_files_real_offset_for_lsn(log, start_lsn);
-    if (online) log_writer_mutex_exit(log);
-||||||| 8d8c986e571
-    source_offset = log_files_real_offset_for_lsn(log, start_lsn);
-=======
   auto file = log.m_files.find(start_lsn);
 
   if (file == log.m_files.end()) {
@@ -3771,7 +3754,6 @@ static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
     os_offset_t source_offset;
 
     source_offset = file->offset(start_lsn);
->>>>>>> mysql-8.0.30
 
     ut_a(end_lsn - start_lsn <= ULINT_MAX);
 
@@ -3879,17 +3861,11 @@ static dberr_t recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
     const lsn_t end_lsn =
         recv_read_log_seg(log, log.buf, start_lsn, start_lsn + RECV_SCAN_SIZE);
 
-<<<<<<< HEAD
-    recv_read_log_seg(log, log.buf, start_lsn, end_lsn, false);
-||||||| 8d8c986e571
-    recv_read_log_seg(log, log.buf, start_lsn, end_lsn);
-=======
     if (end_lsn == start_lsn) {
       /* This could happen if we crashed just after completing file,
       and before next file has been successfully created. */
       break;
     }
->>>>>>> mysql-8.0.30
 
     dberr_t err;
 
@@ -3918,21 +3894,6 @@ static dberr_t recv_init_crash_recovery() {
   ib::info(ER_IB_MSG_726);
   ib::info(ER_IB_MSG_727);
 
-<<<<<<< HEAD
-  recv_sys->dblwr->recover();
-||||||| 8d8c986e571
-  recv_sys->dblwr->recover();
-
-  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    /* Spawn the background thread to flush dirty pages
-    from the buffer pools. */
-
-    srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, 0, recv_writer_thread);
-
-    srv_threads.m_recv_writer.start();
-  }
-=======
   dberr_t err = recv_sys->dblwr->recover();
 
   if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
@@ -3946,7 +3907,6 @@ static dberr_t recv_init_crash_recovery() {
   }
 
   return err;
->>>>>>> mysql-8.0.30
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3964,15 +3924,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     ut_a(log.sn == 0);
     ut_a(srv_read_only_mode);
 
-<<<<<<< HEAD
-    srv_init_log_online();
-
-    return (DB_SUCCESS);
-||||||| 8d8c986e571
-    return (DB_SUCCESS);
-=======
     return DB_SUCCESS;
->>>>>>> mysql-8.0.30
   }
 
   recv_recovery_on = true;
@@ -4062,68 +4014,6 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
   ut_ad(recv_sys->n_addrs == 0);
 
-<<<<<<< HEAD
-  lsn_t contiguous_lsn;
-
-  contiguous_lsn = checkpoint_lsn;
-
-  switch (log.format) {
-    case LOG_HEADER_FORMAT_CURRENT:
-    case LOG_HEADER_FORMAT_8_0_19:
-      break;
-
-    case LOG_HEADER_FORMAT_5_7_9:
-    case LOG_HEADER_FORMAT_8_0_1:
-    case LOG_HEADER_FORMAT_8_0_3:
-
-      ib::info(ER_IB_MSG_732, ulong{log.format});
-
-      /* Check if the redo log from an older known redo log
-      version is from a clean shutdown. */
-      return (recv_log_recover_pre_8_0_4(log, checkpoint_no, checkpoint_lsn));
-
-    default:
-      ib::error(ER_IB_MSG_733, ulong{log.format},
-                ulong{LOG_HEADER_FORMAT_CURRENT});
-
-      recv_sys->found_corrupt_log = true;
-      ut_d(ut_error);
-      ut_o(return (DB_ERROR));
-  }
-
-||||||| 8d8c986e571
-  lsn_t contiguous_lsn;
-
-  contiguous_lsn = checkpoint_lsn;
-
-  switch (log.format) {
-    case LOG_HEADER_FORMAT_CURRENT:
-    case LOG_HEADER_FORMAT_8_0_19:
-      break;
-
-    case LOG_HEADER_FORMAT_5_7_9:
-    case LOG_HEADER_FORMAT_8_0_1:
-    case LOG_HEADER_FORMAT_8_0_3:
-
-      ib::info(ER_IB_MSG_732, ulong{log.format});
-
-      /* Check if the redo log from an older known redo log
-      version is from a clean shutdown. */
-      err = recv_log_recover_pre_8_0_4(log, checkpoint_no, checkpoint_lsn);
-
-      return (err);
-
-    default:
-      ib::error(ER_IB_MSG_733, ulong{log.format},
-                ulong{LOG_HEADER_FORMAT_CURRENT});
-
-      recv_sys->found_corrupt_log = true;
-      ut_d(ut_error);
-      ut_o(return (DB_ERROR));
-  }
-
-=======
->>>>>>> mysql-8.0.30
   /* NOTE: we always do a 'recovery' at startup, but only if
   there is something wrong we will print a message to the
   user about recovery: */
@@ -4211,14 +4101,8 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   ut_a(start_lsn < end_lsn);
   ut_a(start_lsn % log.buf_size + OS_FILE_LOG_BLOCK_SIZE <= log.buf_size);
 
-<<<<<<< HEAD
-  recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn, false);
-||||||| 8d8c986e571
-  recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn);
-=======
   const lsn_t recv_read_log_seg_ended_at_lsn =
       recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn);
->>>>>>> mysql-8.0.30
 
   ut_a(recv_read_log_seg_ended_at_lsn == end_lsn);
 
@@ -4266,24 +4150,10 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     return err;
   }
 
-<<<<<<< HEAD
-  srv_init_log_online();
-
-  /* Copy the checkpoint info to the log; remember that we have
-  incremented checkpoint_no by one, and the info will not be written
-  over the max checkpoint info, thus making the preservation of max
-  checkpoint info on disk certain */
-||||||| 8d8c986e571
-  /* Copy the checkpoint info to the log; remember that we have
-  incremented checkpoint_no by one, and the info will not be written
-  over the max checkpoint info, thus making the preservation of max
-  checkpoint info on disk certain */
-=======
   /* Make the preservation of max checkpoint info on disk certain by writing
   the checkpoint also to the other checkpoint header. After that both headers
   will have the same checkpoint_lsn. This is an extra protection in case next
   checkpoint write will become corrupted because of crash during the write. */
->>>>>>> mysql-8.0.30
 
   if (!srv_read_only_mode) {
     log.next_checkpoint_header_no =
@@ -4307,6 +4177,12 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 }
 
 MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
+  /* Make sure that the recv_writer thread is done. This is
+  required because it grabs various mutexes and we want to
+  ensure that when we enable sync_order_checks there is no
+  mutex currently held by any thread. */
+  mutex_enter(&recv_sys->writer_mutex);
+
   /* Restore state. */
   if (recv_sys->is_meb_db) dblwr::g_mode = recv_sys->dblwr_state;
 
@@ -4316,24 +4192,6 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   /* Now wait for currently in progress batches to finish. */
   buf_flush_wait_LRU_batch_end();
 
-<<<<<<< HEAD
-||||||| 8d8c986e571
-  mutex_exit(&recv_sys->writer_mutex);
-
-  ulint count = 0;
-
-  while (recv_writer_is_active()) {
-    ++count;
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (count >= 600) {
-      ib::info(ER_IB_MSG_738);
-      count = 0;
-    }
-  }
-
-=======
   mutex_exit(&recv_sys->writer_mutex);
 
   uint32_t count = 0;
@@ -4349,7 +4207,6 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
     }
   }
 
->>>>>>> mysql-8.0.30
   MetadataRecover *metadata;
 
   if (!aborting) {

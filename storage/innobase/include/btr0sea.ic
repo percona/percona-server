@@ -161,31 +161,12 @@ static inline size_t btr_get_search_slot(const space_index_t index_id,
 static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index) {
   ut_ad(index != nullptr);
 
-<<<<<<< HEAD
-  return (btr_search_latches[static_cast<ulint>(index->id) % btr_ahi_parts]);
-||||||| 8d8c986e571
-  ulint ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
-                                   static_cast<ulint>(index->space));
-
-  return (btr_search_latches[ifold % btr_ahi_parts]);
-=======
   return btr_search_latches[btr_get_search_slot(index->id, index->space)];
->>>>>>> mysql-8.0.30
 }
 
 static inline hash_table_t *btr_get_search_table(const dict_index_t *index) {
   ut_ad(index != nullptr);
 
-<<<<<<< HEAD
-  return (btr_search_sys
-              ->hash_tables[static_cast<ulint>(index->id) % btr_ahi_parts]);
-||||||| 8d8c986e571
-  ulint ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
-                                   static_cast<ulint>(index->space));
-
-  return (btr_search_sys->hash_tables[ifold % btr_ahi_parts]);
-=======
   return btr_search_sys
       ->hash_tables[btr_get_search_slot(index->id, index->space)];
->>>>>>> mysql-8.0.30
 }

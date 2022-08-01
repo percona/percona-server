@@ -146,15 +146,9 @@ double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
   //  The costs can be calculated only if the table is materialized.
   if (table->pos_in_table_list->is_derived_unfinished_materialization()) {
     return worst_seeks;
-<<<<<<< HEAD
-  } else if (table->covering_keys.is_set(keyno) ||
-             (table->file->index_flags(keyno, 0, 0) & HA_CLUSTERED_INDEX)) {
-||||||| 8d8c986e571
-  } else if (table->covering_keys.is_set(keyno)) {
-=======
   }
-  if (table->covering_keys.is_set(keyno)) {
->>>>>>> mysql-8.0.30
+  if (table->covering_keys.is_set(keyno) ||
+             (table->file->index_flags(keyno, 0, 0) & HA_CLUSTERED_INDEX)) {
     // We can use only index tree
     const Cost_estimate index_read_cost =
         table->file->index_scan_cost(keyno, 1, num_rows);

@@ -65,14 +65,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #ifndef UNIV_HOTBACKUP
 #include "lock0lock.h"
-<<<<<<< HEAD
 #include "log0online.h"
-||||||| 8d8c986e571
-=======
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "log0encryption.h"
->>>>>>> mysql-8.0.30
 #include "log0recv.h"
 #include "log0write.h"
 #include "mem0mem.h"
@@ -1728,16 +1724,10 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_data_pending_writes = os_n_pending_writes;
 
   export_vars.innodb_data_pending_fsyncs =
-<<<<<<< HEAD
-      fil_n_pending_log_flushes + fil_n_pending_tablespace_flushes;
+      log_pending_flushes() + fil_n_pending_tablespace_flushes;
   export_vars.innodb_adaptive_hash_hash_searches = btr_cur_n_sea;
   export_vars.innodb_adaptive_hash_non_hash_searches = btr_cur_n_non_sea;
   export_vars.innodb_background_log_sync = srv_log_writes_and_flush;
-||||||| 8d8c986e571
-      fil_n_pending_log_flushes + fil_n_pending_tablespace_flushes;
-=======
-      log_pending_flushes() + fil_n_pending_tablespace_flushes;
->>>>>>> mysql-8.0.30
 
   export_vars.innodb_data_fsyncs = os_n_fsyncs;
 
@@ -1801,7 +1791,7 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_checkpoint_age =
       (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
 
-  export_vars.innodb_checkpoint_max_age = log_get_free_check_capacity(*log_sys);
+  // MERGETODO export_vars.innodb_checkpoint_max_age = log_free_check_capacity(*log_sys);
   ibuf_export_ibuf_status(&export_vars.innodb_ibuf_free_list,
                           &export_vars.innodb_ibuf_segment_size);
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);
@@ -2834,6 +2824,8 @@ dberr_t srv_temp_encryption_update(bool enable) {
 }
 
 void undo_rotate_default_master_key() {
+  return; // MERGETODO
+
   fil_space_t *space;
 
   if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
@@ -2855,10 +2847,6 @@ void undo_rotate_default_master_key() {
     ut_ad(fsp_is_undo_tablespace(undo_space->id()));
 
     space = fil_space_get(undo_space->id());
-
-    if (space == nullptr || space->encryption_type != Encryption::AES) {
-      continue;
-    }
 
     byte encrypt_info[Encryption::INFO_SIZE];
     mtr_t mtr;

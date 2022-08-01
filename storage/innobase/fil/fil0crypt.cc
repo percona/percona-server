@@ -1487,7 +1487,6 @@ bool fil_crypt_exclude_tablespace_from_rotation_temporarily(
   // crypt_data already existed.
   fil_space_crypt_t *crypt_data = space->crypt_data;
   // take a lock on crypt_data to block rotation from starting
-  IB_mutex_guard crypt_data_mutex_guard(&crypt_data->mutex);
 
   // if there are any encryption threads "running" on this tablespace we cannot
   // exclude it from rotation.
@@ -1527,7 +1526,6 @@ bool fil_crypt_exclude_tablespace_from_rotation_permanently(
 
   // crypt_data already existed.
   fil_space_crypt_t *crypt_data = space->crypt_data;
-  IB_mutex_guard crypt_data_mutex_guard(&crypt_data->mutex);
 
   if (crypt_data->encryption == FIL_ENCRYPTION_OFF) {
     // nothing to do
@@ -1679,19 +1677,6 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
   crypt_data->rotate_state.starting = true;
   crypt_data->rotate_state.active_threads = 1;
 
-  if (space->encryption_type == Encryption::AES) {  // We are re-encrypting
-                                                    // space from MK encryption
-                                                    // to RK encryption
-    // TODO: assert that space->encryption_key is all zeroes here
-    crypt_data->encryption_rotation =
-        Encryption_rotation::MASTER_KEY_TO_KEYRING;
-    crypt_data->set_tablespace_key(space->encryption_key);
-    crypt_data->set_iv(
-        space->encryption_iv);  // using the same iv for reading MK encrypted
-                                // pages and encrypting KEYRING encrypted
-                                // pages
-  }
-
   if (crypt_data->key_found == false ||
       crypt_data->load_keys_to_local_cache() == false) {
     // This should not happen, we have locked the keyring before encryption
@@ -1711,9 +1696,6 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
   crypt_data = fil_space_set_crypt_data(space, crypt_data);
   mutex_exit(&crypt_data->mutex);
 
-  space->encryption_type = Encryption::KEYRING;  // This works like this - if
-                                                 // Encryption::KEYRING is set -
-                                                 // it means that
   fil_crypt_start_converting = true;
   mutex_exit(&fil_crypt_threads_mutex);
 
@@ -1928,8 +1910,6 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
       return false;
     }
   }
-
-  const bool space_compressed = space->compression_type != Compression::NONE;
 
   do {
     /* prevent threads from starting to rotate space */
@@ -3203,7 +3183,6 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
   }
 
   ulint number_of_pages_flushed_now = 0;
-  log_free_check();
   const auto start = std::chrono::steady_clock::now();
 
   crypt_data->rotate_state.flush_observer->flush();
@@ -3470,8 +3449,6 @@ void fil_crypt_thread() {
 
   while (!thr.should_shutdown()) {
     key_state_t new_state;
-    time_t wait_start = time(0);
-
     while (!thr.should_shutdown()) {
       /* wait for key state changes
        * i.e either new key version of change or

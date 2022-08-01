@@ -1298,24 +1298,9 @@ class binlog_cache_mngr {
 
   binlog_stmt_cache_data stmt_cache;
   binlog_trx_cache_data trx_cache;
-<<<<<<< HEAD
 
   LOG_INFO binlog_info;
   std::string snapshot_gtid_executed;
-
-  /*
-    The bool flag is for preventing do_binlog_xa_commit_rollback()
-    execution twice which can happen for "external" xa commit/rollback.
-  */
-  bool has_logged_xid;
-||||||| 8d8c986e571
-  /*
-    The bool flag is for preventing do_binlog_xa_commit_rollback()
-    execution twice which can happen for "external" xa commit/rollback.
-  */
-  bool has_logged_xid;
-=======
->>>>>>> mysql-8.0.30
 
  private:
   binlog_cache_mngr &operator=(const binlog_cache_mngr &info);
@@ -1545,13 +1530,9 @@ static int binlog_init(void *p) {
   binlog_hton->commit = binlog_commit;
   binlog_hton->rollback = binlog_rollback;
   binlog_hton->prepare = binlog_prepare;
-<<<<<<< HEAD
   binlog_hton->start_consistent_snapshot = binlog_start_consistent_snapshot;
   binlog_hton->clone_consistent_snapshot = binlog_clone_consistent_snapshot;
-||||||| 8d8c986e571
-=======
   binlog_hton->set_prepared_in_tc = binlog_set_prepared_in_tc;
->>>>>>> mysql-8.0.30
   binlog_hton->recover = binlog_dummy_recover;
   binlog_hton->flags = HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
   return 0;
@@ -2414,6 +2395,16 @@ static int binlog_prepare(handlerton *, THD *thd, bool all) {
 
 static int binlog_set_prepared_in_tc(handlerton *, THD *) { return 0; }
 
+/**
+   Logging XA commit/rollback of a prepared transaction in the case
+   it was disconnected and resumed (recovered), or executed by a slave applier.
+
+   @param thd         THD handle
+   @param xid         a pointer to XID object
+   @param commit      when @c true XA-COMMIT is logged, otherwise XA-ROLLBACK
+
+   @return error code, 0 success
+*/
 int MYSQL_BIN_LOG::write_xa_to_cache(THD *thd) {
   assert(thd->lex->sql_command == SQLCOM_XA_COMMIT ||
          thd->lex->sql_command == SQLCOM_XA_ROLLBACK);
@@ -2432,13 +2423,14 @@ int MYSQL_BIN_LOG::write_xa_to_cache(THD *thd) {
   assert(!xid_to_write->is_null() ||
          !(thd->variables.option_bits & OPTION_BIN_LOG));
 
-<<<<<<< HEAD
-  char buf[XID::ser_buf_size];
-  char query[(sizeof("XA ROLLBACK")) + 1 + sizeof(buf)];
-  int qlen = sprintf(query, "XA %s %s", commit ? "COMMIT" : "ROLLBACK",
-                     xid->serialize(buf));
-  Query_log_event qinfo(thd, query, qlen, false, true, true, 0, false);
-  return mysql_bin_log.write_event(&qinfo);
+  std::ostringstream oss;
+  oss << "XA "
+      << (thd->lex->sql_command == SQLCOM_XA_COMMIT ? "COMMIT" : "ROLLBACK")
+      << " " << *xid_to_write << std::flush;
+  auto query = oss.str();
+  Query_log_event qinfo(thd, query.data(), query.length(), false, true, true, 0,
+                        false);
+  return this->write_event(&qinfo);
 }
 
 static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd) {
@@ -2498,125 +2490,6 @@ static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
   trans_register_ha(thd, true, hton, nullptr);
 
   DBUG_RETURN(err);
-}
-
-/**
-   Logging XA commit/rollback of a prepared transaction in the case
-   it was disconnected and resumed (recovered), or executed by a slave applier.
-
-   @param thd         THD handle
-   @param xid         a pointer to XID object
-   @param commit      when @c true XA-COMMIT is logged, otherwise XA-ROLLBACK
-
-   @return error code, 0 success
-*/
-
-inline xa_status_code binlog_xa_commit_or_rollback(THD *thd, XID *xid,
-                                                   bool commit) {
-  int error = 0;
-
-#ifndef NDEBUG
-  {
-    binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
-    assert(!cache_mngr || !cache_mngr->has_logged_xid);
-  }
-#endif
-  if (!(error = do_binlog_xa_commit_rollback(thd, xid, commit))) {
-    /*
-      Error can't be propagated naturally via result.
-      A grand-caller has to access to it through thd's da.
-      todo:
-      Bug #20488921 ERROR PROPAGATION DOES FULLY WORK IN XA
-      stands in the way of implementing a failure simulation
-      for XA PREPARE/COMMIT/ROLLBACK.
-    */
-    binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
-
-    if (cache_mngr) cache_mngr->has_logged_xid = true;
-    if (commit)
-      error = mysql_bin_log.commit(thd, true);
-    else
-      error = mysql_bin_log.rollback(thd, true);
-    if (cache_mngr) cache_mngr->has_logged_xid = false;
-  }
-
-  return error == TC_LOG::RESULT_SUCCESS ? XA_OK : XAER_RMERR;
-}
-
-static xa_status_code binlog_xa_commit(handlerton *, XID *xid) {
-  return binlog_xa_commit_or_rollback(current_thd, xid, true);
-}
-
-static xa_status_code binlog_xa_rollback(handlerton *, XID *xid) {
-  return binlog_xa_commit_or_rollback(current_thd, xid, false);
-||||||| 8d8c986e571
-  char buf[XID::ser_buf_size];
-  char query[(sizeof("XA ROLLBACK")) + 1 + sizeof(buf)];
-  int qlen = sprintf(query, "XA %s %s", commit ? "COMMIT" : "ROLLBACK",
-                     xid->serialize(buf));
-  Query_log_event qinfo(thd, query, qlen, false, true, true, 0, false);
-  return mysql_bin_log.write_event(&qinfo);
-}
-
-/**
-   Logging XA commit/rollback of a prepared transaction in the case
-   it was disconnected and resumed (recovered), or executed by a slave applier.
-
-   @param thd         THD handle
-   @param xid         a pointer to XID object
-   @param commit      when @c true XA-COMMIT is logged, otherwise XA-ROLLBACK
-
-   @return error code, 0 success
-*/
-
-inline xa_status_code binlog_xa_commit_or_rollback(THD *thd, XID *xid,
-                                                   bool commit) {
-  int error = 0;
-
-#ifndef NDEBUG
-  {
-    binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
-    assert(!cache_mngr || !cache_mngr->has_logged_xid);
-  }
-#endif
-  if (!(error = do_binlog_xa_commit_rollback(thd, xid, commit))) {
-    /*
-      Error can't be propagated naturally via result.
-      A grand-caller has to access to it through thd's da.
-      todo:
-      Bug #20488921 ERROR PROPAGATION DOES FULLY WORK IN XA
-      stands in the way of implementing a failure simulation
-      for XA PREPARE/COMMIT/ROLLBACK.
-    */
-    binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
-
-    if (cache_mngr) cache_mngr->has_logged_xid = true;
-    if (commit)
-      error = mysql_bin_log.commit(thd, true);
-    else
-      error = mysql_bin_log.rollback(thd, true);
-    if (cache_mngr) cache_mngr->has_logged_xid = false;
-  }
-
-  return error == TC_LOG::RESULT_SUCCESS ? XA_OK : XAER_RMERR;
-}
-
-static xa_status_code binlog_xa_commit(handlerton *, XID *xid) {
-  return binlog_xa_commit_or_rollback(current_thd, xid, true);
-}
-
-static xa_status_code binlog_xa_rollback(handlerton *, XID *xid) {
-  return binlog_xa_commit_or_rollback(current_thd, xid, false);
-=======
-  std::ostringstream oss;
-  oss << "XA "
-      << (thd->lex->sql_command == SQLCOM_XA_COMMIT ? "COMMIT" : "ROLLBACK")
-      << " " << *xid_to_write << std::flush;
-  auto query = oss.str();
-  Query_log_event qinfo(thd, query.data(), query.length(), false, true, true, 0,
-                        false);
-  return this->write_event(&qinfo);
->>>>>>> mysql-8.0.30
 }
 
 /**
@@ -2770,7 +2643,6 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     if ((error = this->write_xa_to_cache(thd)) != 0) goto end;
 
     cache_mngr = thd_get_cache_mngr(thd);
-<<<<<<< HEAD
   } else if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT) {
     /*
       Reset binlog_snapshot_% variables for the current connection so that the
@@ -2782,15 +2654,8 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
       cache_mngr->drop_consistent_snapshot();
       mysql_mutex_unlock(&thd->LOCK_thd_data);
     }
-    if ((error = ha_rollback_low(thd, all))) goto end;
-  }
-||||||| 8d8c986e571
-  } else if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
-    if ((error = ha_rollback_low(thd, all))) goto end;
-=======
-  } else if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
     if ((error = trx_coordinator::rollback_in_engines(thd, all))) goto end;
->>>>>>> mysql-8.0.30
+  }
 
   /*
     If there is no cache manager, or if there is nothing in the
@@ -8441,26 +8306,6 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all) {
   DBUG_TRACE;
 
   assert(opt_bin_log);
-<<<<<<< HEAD
-  /*
-    The applier thread explicitly overrides the value of sql_log_bin
-    with the value of log_replica_updates.
-    We may also end up here in some cases if we have a transaction with two
-    active transactional storage engines, such as is the case if this is a
-    replication applier and log_replica_updates=0.
-  */
-  assert((thd->slave_thread ? opt_log_replica_updates
-                            : thd->variables.sql_log_bin) ||
-         total_ha_2pc > 1);
-||||||| 8d8c986e571
-  /*
-    The applier thread explicitly overrides the value of sql_log_bin
-    with the value of log_replica_updates.
-  */
-  assert(thd->slave_thread ? opt_log_replica_updates
-                           : thd->variables.sql_log_bin);
-=======
->>>>>>> mysql-8.0.30
 
   /*
     Set HA_IGNORE_DURABILITY to not flush the prepared record of the
@@ -8770,7 +8615,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       (void)RUN_HOOK(transaction, after_commit, (thd, all));
     }
   } else if (!skip_commit) {
-<<<<<<< HEAD
     /*
       We only set engine binlog position in ordered_commit path flush phase
       and not all transactions go through them (such as table copy in DDL).
@@ -8779,14 +8623,11 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       engine binlog pos. In order to avoid that and accidentally overwrite
       binlog position with previous location, we reset it here.
     */
-    thd->set_trans_pos(nullptr, 0);
-    if (ha_commit_low(thd, all)) return RESULT_INCONSISTENT;
-||||||| 8d8c986e571
-    if (ha_commit_low(thd, all)) return RESULT_INCONSISTENT;
-=======
+  // MERGETODO? what is this??
+    //thd->set_trans_pos(nullptr, 0);
+    //if (ha_commit_low(thd, all)) return RESULT_INCONSISTENT;
     if (trx_coordinator::commit_in_engines(thd, all))
       return RESULT_INCONSISTENT;
->>>>>>> mysql-8.0.30
   }
 
   return RESULT_SUCCESS;
@@ -9169,58 +9010,6 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
     m_dependency_tracker.update_max_committed(thd);
     mysql_mutex_unlock(&LOCK_replica_trans_dep_tracker);
   }
-<<<<<<< HEAD
-  if (thd->get_transaction()->m_flags.commit_low) {
-    const bool all = thd->get_transaction()->m_flags.real_commit;
-    /*
-      Now flush error and sync erros are ignored and we are continuing and
-      committing. And at this time, commit_error cannot be COMMIT_ERROR.
-    */
-    assert(thd->commit_error != THD::CE_COMMIT_ERROR);
-
-    /*
-      Acquire a shared lock to block commits if an X lock has been acquired by
-      LOCK TABLES FOR BACKUP or START TRANSACTION WITH CONSISTENT SNAPSHOT. We
-      only reach this code if binlog_order_commits=0.
-    */
-    assert(opt_binlog_order_commits == 0);
-
-    slock();
-
-    /*
-      storage engine commit
-    */
-    if (ha_commit_low(thd, all, false))
-      thd->commit_error = THD::CE_COMMIT_ERROR;
-
-    sunlock();
-    /*
-      Decrement the prepared XID counter after storage engine commit
-    */
-    if (thd->get_transaction()->m_flags.xid_written) dec_prep_xids(thd);
-    /*
-      If commit succeeded, we call the after_commit hook
-||||||| 8d8c986e571
-  if (thd->get_transaction()->m_flags.commit_low) {
-    const bool all = thd->get_transaction()->m_flags.real_commit;
-    /*
-      Now flush error and sync erros are ignored and we are continuing and
-      committing. And at this time, commit_error cannot be COMMIT_ERROR.
-    */
-    assert(thd->commit_error != THD::CE_COMMIT_ERROR);
-    /*
-      storage engine commit
-    */
-    if (ha_commit_low(thd, all, false))
-      thd->commit_error = THD::CE_COMMIT_ERROR;
-    /*
-      Decrement the prepared XID counter after storage engine commit
-    */
-    if (thd->get_transaction()->m_flags.xid_written) dec_prep_xids(thd);
-    /*
-      If commit succeeded, we call the after_commit hook
-=======
->>>>>>> mysql-8.0.30
 
   auto all = thd->get_transaction()->m_flags.real_commit;
   auto committed_low = thd->get_transaction()->m_flags.commit_low;
@@ -9650,168 +9439,6 @@ commit_stage:
   return thd->commit_error == THD::CE_COMMIT_ERROR;
 }
 
-<<<<<<< HEAD
-/**
-  MYSQLD server recovers from last crashed binlog.
-
-  @param[in] binlog_file_reader Binlog_file_reader of the crashed binlog.
-  @param[out] valid_pos The position of the last valid transaction or
-                        event(non-transaction) of the crashed binlog.
-                        valid_pos must be non-NULL.
-
-  After a crash, storage engines may contain transactions that are
-  prepared but not committed (in theory any engine, in practice
-  InnoDB).  This function uses the binary log as the source of truth
-  to determine which of these transactions should be committed and
-  which should be rolled back.
-
-  The function collects the XIDs of all transactions that are
-  completely written to the binary log into a hash, and passes this
-  hash to the storage engines through the ha_recover function in the
-  handler interface.  This tells the storage engines to commit all
-  prepared transactions that are in the set, and to roll back all
-  prepared transactions that are not in the set.
-
-  To compute the hash, this function iterates over the last binary log
-  only (i.e. it assumes that 'log' is the last binary log).  It
-  instantiates each event.  For XID-events (i.e. commit to InnoDB), it
-  extracts the xid from the event and stores it in the hash.
-
-  It is enough to iterate over only the last binary log because when
-  the binary log is rotated we force engines to commit (and we fsync
-  the old binary log).
-
-  @retval false Success
-  @retval true Out of memory, or storage engine returns error.
-*/
-static bool binlog_recover(Binlog_file_reader *binlog_file_reader,
-                           my_off_t *valid_pos) {
-  bool res = false;
-  binlog::tools::Iterator it(binlog_file_reader);
-  it.set_copy_event_buffer();
-
-  /*
-    The flag is used for handling the case that a transaction
-    is partially written to the binlog.
-  */
-  bool in_transaction = false;
-  int memory_page_size = my_getpagesize();
-  {
-    MEM_ROOT mem_root(key_memory_binlog_recover_exec, memory_page_size);
-    mem_root_unordered_set<my_xid> xids(&mem_root);
-
-    /*
-      now process events in the queue. Queue is dynamically changed
-      everytime we process an event. This may be a bit suboptimal
-      since it adds an indirection, but it helps to generalize the
-      usage of the transaction payload event (which unfolds into
-      several events into the queue when it is processed).
-    */
-    for (Log_event *ev = it.begin(); !res && (ev != it.end()); ev = it.next()) {
-      switch (ev->get_type_code()) {
-        // may be begin, middle or end of a transaction
-        case binary_log::QUERY_EVENT: {
-          // starts a transaction
-          if (!strcmp(((Query_log_event *)ev)->query, "BEGIN"))
-            in_transaction = true;
-
-          // ends a transaction
-          if (!strcmp(((Query_log_event *)ev)->query, "COMMIT")) {
-            assert(in_transaction == true);
-            in_transaction = false;
-          }
-          // starts and ends a transaction
-          if (is_atomic_ddl_event(ev)) {
-            assert(in_transaction == false);
-            auto qev = dynamic_cast<Query_log_event *>(ev);
-            assert(qev != nullptr);
-            res = (qev == nullptr || !xids.insert(qev->ddl_xid).second);
-          }
-          break;
-        }
-        // ends a transaction
-        case binary_log::XID_EVENT: {
-          assert(in_transaction == true);
-          in_transaction = false;
-          Xid_log_event *xev = dynamic_cast<Xid_log_event *>(ev);
-          assert(xev != nullptr);
-          res = (xev == nullptr || !xids.insert(xev->xid).second);
-          break;
-        }
-        default: {
-          break;
-        }
-      }
-
-      /*
-        Recorded valid position for the crashed binlog file
-        which did not contain incorrect events. The following
-        positions increase the variable valid_pos:
-
-        1 -
-          ...
-          <---> HERE IS VALID <--->
-          GTID
-          BEGIN
-          ...
-          COMMIT
-          ...
-
-        2 -
-          ...
-          <---> HERE IS VALID <--->
-          GTID
-          DDL/UTILITY
-          ...
-
-        In other words, the following positions do not increase
-        the variable valid_pos:
-
-        1 -
-          GTID
-          <---> HERE IS VALID <--->
-          ...
-
-        2 -
-          GTID
-          BEGIN
-          <---> HERE IS VALID <--->
-          ...
-      */
-      if (!in_transaction && !is_gtid_event(ev))
-        *valid_pos = binlog_file_reader->position();
-
-      delete ev;
-      ev = nullptr;
-      res = it.has_error();
-    }
-
-    /*
-      Call ha_recover if and only if there is a registered engine that
-      does 2PC, otherwise in DBUG builds calling ha_recover directly
-      will result in an assert. (Production builds would be safe since
-      ha_recover returns right away if total_ha_2pc <= opt_log_bin.)
-     */
-    res = res || (total_ha_2pc > 1 && ha_recover(&xids));
-  }
-
-  if (res) LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_FAILED);
-  return res;
-}
-
-/*
-  Copy out the non-directory part of binlog position filename for the
-  `binlog_snapshot_file' status variable, same way as it is done for
-  SHOW MASTER STATUS.
-*/
-static void set_binlog_snapshot_file(const char *src) {
-  mysql_mutex_assert_owner(&LOCK_status);
-
-  int dir_len = dirname_length(src);
-  strmake(binlog_snapshot_file, src + dir_len,
-          sizeof(binlog_snapshot_file) - 1);
-}
-
 /** Copy the current binlog coordinates to the variables used for the
 not-in-consistent-snapshot case of SHOW STATUS */
 void MYSQL_BIN_LOG::publish_coordinates_for_global_status(void) const {
@@ -9861,159 +9488,23 @@ void MYSQL_BIN_LOG::xunlock(void) {
   mysql_mutex_unlock(&LOCK_log);
 }
 
-||||||| 8d8c986e571
-/**
-  MYSQLD server recovers from last crashed binlog.
-
-  @param[in] binlog_file_reader Binlog_file_reader of the crashed binlog.
-  @param[out] valid_pos The position of the last valid transaction or
-                        event(non-transaction) of the crashed binlog.
-                        valid_pos must be non-NULL.
-
-  After a crash, storage engines may contain transactions that are
-  prepared but not committed (in theory any engine, in practice
-  InnoDB).  This function uses the binary log as the source of truth
-  to determine which of these transactions should be committed and
-  which should be rolled back.
-
-  The function collects the XIDs of all transactions that are
-  completely written to the binary log into a hash, and passes this
-  hash to the storage engines through the ha_recover function in the
-  handler interface.  This tells the storage engines to commit all
-  prepared transactions that are in the set, and to roll back all
-  prepared transactions that are not in the set.
-
-  To compute the hash, this function iterates over the last binary log
-  only (i.e. it assumes that 'log' is the last binary log).  It
-  instantiates each event.  For XID-events (i.e. commit to InnoDB), it
-  extracts the xid from the event and stores it in the hash.
-
-  It is enough to iterate over only the last binary log because when
-  the binary log is rotated we force engines to commit (and we fsync
-  the old binary log).
-
-  @retval false Success
-  @retval true Out of memory, or storage engine returns error.
+/*
+  Copy out the non-directory part of binlog position filename for the
+  `binlog_snapshot_file' status variable, same way as it is done for
+  SHOW MASTER STATUS.
 */
-static bool binlog_recover(Binlog_file_reader *binlog_file_reader,
-                           my_off_t *valid_pos) {
-  bool res = false;
-  binlog::tools::Iterator it(binlog_file_reader);
-  it.set_copy_event_buffer();
+static void set_binlog_snapshot_file(const char *src) {
+  mysql_mutex_assert_owner(&LOCK_status);
 
-  /*
-    The flag is used for handling the case that a transaction
-    is partially written to the binlog.
-  */
-  bool in_transaction = false;
-  int memory_page_size = my_getpagesize();
-  {
-    MEM_ROOT mem_root(key_memory_binlog_recover_exec, memory_page_size);
-    mem_root_unordered_set<my_xid> xids(&mem_root);
-
-    /*
-      now process events in the queue. Queue is dynamically changed
-      everytime we process an event. This may be a bit suboptimal
-      since it adds an indirection, but it helps to generalize the
-      usage of the transaction payload event (which unfolds into
-      several events into the queue when it is processed).
-    */
-    for (Log_event *ev = it.begin(); !res && (ev != it.end()); ev = it.next()) {
-      switch (ev->get_type_code()) {
-        // may be begin, middle or end of a transaction
-        case binary_log::QUERY_EVENT: {
-          // starts a transaction
-          if (!strcmp(((Query_log_event *)ev)->query, "BEGIN"))
-            in_transaction = true;
-
-          // ends a transaction
-          if (!strcmp(((Query_log_event *)ev)->query, "COMMIT")) {
-            assert(in_transaction == true);
-            in_transaction = false;
-          }
-          // starts and ends a transaction
-          if (is_atomic_ddl_event(ev)) {
-            assert(in_transaction == false);
-            auto qev = dynamic_cast<Query_log_event *>(ev);
-            assert(qev != nullptr);
-            res = (qev == nullptr || !xids.insert(qev->ddl_xid).second);
-          }
-          break;
-        }
-        // ends a transaction
-        case binary_log::XID_EVENT: {
-          assert(in_transaction == true);
-          in_transaction = false;
-          Xid_log_event *xev = dynamic_cast<Xid_log_event *>(ev);
-          assert(xev != nullptr);
-          res = (xev == nullptr || !xids.insert(xev->xid).second);
-          break;
-        }
-        default: {
-          break;
-        }
-      }
-
-      /*
-        Recorded valid position for the crashed binlog file
-        which did not contain incorrect events. The following
-        positions increase the variable valid_pos:
-
-        1 -
-          ...
-          <---> HERE IS VALID <--->
-          GTID
-          BEGIN
-          ...
-          COMMIT
-          ...
-
-        2 -
-          ...
-          <---> HERE IS VALID <--->
-          GTID
-          DDL/UTILITY
-          ...
-
-        In other words, the following positions do not increase
-        the variable valid_pos:
-
-        1 -
-          GTID
-          <---> HERE IS VALID <--->
-          ...
-
-        2 -
-          GTID
-          BEGIN
-          <---> HERE IS VALID <--->
-          ...
-      */
-      if (!in_transaction && !is_gtid_event(ev))
-        *valid_pos = binlog_file_reader->position();
-
-      delete ev;
-      ev = nullptr;
-      res = it.has_error();
-    }
-
-    /*
-      Call ha_recover if and only if there is a registered engine that
-      does 2PC, otherwise in DBUG builds calling ha_recover directly
-      will result in an assert. (Production builds would be safe since
-      ha_recover returns right away if total_ha_2pc <= opt_log_bin.)
-     */
-    res = res || (total_ha_2pc > 1 && ha_recover(&xids));
-  }
-
-  if (res) LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_FAILED);
-  return res;
+  int dir_len = dirname_length(src);
+  strmake(binlog_snapshot_file, src + dir_len,
+          sizeof(binlog_snapshot_file) - 1);
 }
 
-=======
->>>>>>> mysql-8.0.30
+
+
 void MYSQL_BIN_LOG::report_missing_purged_gtids(
-    const Gtid_set *slave_executed_gtid_set, std::string &errmsg) {
+  const Gtid_set *slave_executed_gtid_set, std::string &errmsg) {
   DBUG_TRACE;
   THD *thd = current_thd;
   Gtid_set gtid_missing(gtid_state->get_lost_gtids()->get_sid_map());
@@ -12473,7 +11964,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
   return 0;
 }
 
-<<<<<<< HEAD
 static const binlog_cache_mngr *get_cache_mngr(THD *thd) {
   const binlog_cache_mngr *cache_mngr =
       (thd && opt_bin_log)
@@ -12529,8 +12019,6 @@ static SHOW_VAR binlog_status_vars_top[] = {
      (char *)&show_binlog_snapshot_gtid_executed, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
-||||||| 8d8c986e571
-=======
 namespace {
 void finish_transaction_in_engines(THD *thd, bool all, bool run_after_commit) {
   if (thd->get_transaction()->m_flags.commit_low) {
@@ -12543,7 +12031,6 @@ void finish_transaction_in_engines(THD *thd, bool all, bool run_after_commit) {
 }
 }  // namespace
 
->>>>>>> mysql-8.0.30
 struct st_mysql_storage_engine binlog_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
 

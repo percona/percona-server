@@ -979,12 +979,13 @@ bool fsp_enable_encryption(fil_space_t *space) {
   byte encrypt_info[Encryption::INFO_SIZE];
 
   memset(encrypt_info, 0, Encryption::INFO_SIZE);
-
+/* MERGETODO
   if (!Encryption::fill_encryption_info(space->encryption_key,
                                         space->encryption_iv, encrypt_info,
                                         true)) {
     return (false);
   }
+  */
 
   mtr_t mtr;
   mtr_start(&mtr);

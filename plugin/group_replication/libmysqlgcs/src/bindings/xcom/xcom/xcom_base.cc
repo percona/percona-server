@@ -1064,29 +1064,6 @@ static void set_proposer_startpoint() {
 
 /* Task functions */
 
-<<<<<<< HEAD
-static xcom_state_change_cb xcom_run_cb = 0;
-static xcom_state_change_cb xcom_terminate_cb = 0;
-static xcom_state_change_cb xcom_comms_cb = 0;
-static xcom_state_change_cb xcom_exit_cb = 0;
-static xcom_state_change_cb xcom_expel_cb = 0;
-static xcom_input_try_pop_cb xcom_try_pop_from_input_cb = NULL;
-static xcom_recovery_cb recovery_begin_cb [[maybe_unused]] = NULL;
-static xcom_recovery_cb recovery_restart_cb [[maybe_unused]] = NULL;
-static xcom_recovery_cb recovery_init_cb [[maybe_unused]] = NULL;
-static xcom_recovery_cb recovery_end_cb [[maybe_unused]] = NULL;
-||||||| 8d8c986e571
-static xcom_state_change_cb xcom_run_cb = 0;
-static xcom_state_change_cb xcom_terminate_cb = 0;
-static xcom_state_change_cb xcom_comms_cb = 0;
-static xcom_state_change_cb xcom_exit_cb = 0;
-static xcom_state_change_cb xcom_expel_cb = 0;
-static xcom_input_try_pop_cb xcom_try_pop_from_input_cb = NULL;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_begin_cb = NULL;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_restart_cb = NULL;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_init_cb = NULL;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_end_cb = NULL;
-=======
 static xcom_state_change_cb xcom_run_cb = nullptr;
 static xcom_state_change_cb xcom_terminate_cb = nullptr;
 static xcom_state_change_cb xcom_comms_cb = nullptr;
@@ -1097,7 +1074,6 @@ static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_begin_cb = nullptr;
 static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_restart_cb = nullptr;
 static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_init_cb = nullptr;
 static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_end_cb = nullptr;
->>>>>>> mysql-8.0.30
 
 void set_xcom_run_cb(xcom_state_change_cb x) { xcom_run_cb = x; }
 void set_xcom_exit_cb(xcom_state_change_cb x) { xcom_exit_cb = x; }
@@ -4153,16 +4129,8 @@ struct fp_name {
   { f, #f }
 
 /* List of fp, name pairs */
-<<<<<<< HEAD
-[[maybe_unused]] static struct fp_name oblist[] = {
-    NAME(x_fetch), NAME(x_execute), NAME(x_terminate), {0, 0}};
-||||||| 8d8c986e571
-static struct fp_name MY_ATTRIBUTE((unused)) oblist[] = {
-    NAME(x_fetch), NAME(x_execute), NAME(x_terminate), {0, 0}};
-=======
 static struct fp_name MY_ATTRIBUTE((unused)) oblist[] = {
     NAME(x_fetch), NAME(x_execute), NAME(x_terminate), {nullptr, nullptr}};
->>>>>>> mysql-8.0.30
 #undef NAME
 
 #if TASK_DBUG_ON

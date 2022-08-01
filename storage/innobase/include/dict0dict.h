@@ -49,12 +49,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 #include "row0types.h"
 #include "sql/dd/object_id.h"
-<<<<<<< HEAD
 #include "sql/dd/types/init_mode.h"  // dict_init_mode_t
-||||||| 8d8c986e571
-=======
 #include "srv0mon.h" /* for dict0dict.ic */
->>>>>>> mysql-8.0.30
 #include "sync0rw.h"
 #include "trx0types.h"
 #include "univ.i"

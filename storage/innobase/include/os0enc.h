@@ -58,7 +58,6 @@ int read_key(const char *key_id, unsigned char **key, size_t *key_length,
 class IORequest;
 struct Encryption_key;
 
-<<<<<<< HEAD
 enum class Encryption_rotation : std::uint8_t {
   NO_ROTATION,
   /** For Master Key encrypted pages use the tablespace key to read.
@@ -72,12 +71,9 @@ enum class Encryption_rotation : std::uint8_t {
   DECRYPTING
 };
 
-||||||| 8d8c986e571
-=======
 // Forward declaration.
 struct Encryption_metadata;
 
->>>>>>> mysql-8.0.30
 /** Encryption algorithm. */
 class Encryption {
  public:
@@ -352,7 +348,6 @@ class Encryption {
   @param[in,out]  value Encryption value */
   static void random_value(byte *value) noexcept;
 
-<<<<<<< HEAD
   /** Create tablespace key
   @param[in,out]	tablespace_key	tablespace key - null if failure
   @param[in]		key_id		tablespace key id
@@ -360,8 +355,6 @@ class Encryption {
   static void create_tablespace_key(byte **tablespace_key, uint key_id,
                                     const char *uuid);
 
-||||||| 8d8c986e571
-=======
   /** Copy the given encryption metadata to the given Encryption_metadata
   object, if both key != nullptr and iv != nullptr. Generate randomly the
   new metadata, if both key == nullptr and iv == nullptr, and store it to
@@ -374,7 +367,6 @@ class Encryption {
   static void set_or_generate(Type type, byte *key, byte *iv,
                               Encryption_metadata &metadata);
 
->>>>>>> mysql-8.0.30
   /** Create new master key for key rotation.
   @param[in,out]  master_key  master key */
   static void create_master_key(byte **master_key) noexcept;

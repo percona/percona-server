@@ -42,13 +42,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0ddl.h"
 #include "handler0alter.h"
 #include "lob0lob.h"
-<<<<<<< HEAD
 #include "my_crypt.h"
 #include "my_rnd.h"
-||||||| 8d8c986e571
-=======
 #include "log0chkp.h"
->>>>>>> mysql-8.0.30
 #include "que0que.h"
 #include "row0ext.h"
 #include "row0ins.h"

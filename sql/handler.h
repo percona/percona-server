@@ -2913,7 +2913,6 @@ struct TABLE_STATS {
 constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
     1 << 17};
 
-<<<<<<< HEAD
 /**
    Set if the storage engine supports 'online' backups. This means that there
    exists a way to create a consistent copy of its tables without blocking
@@ -2932,13 +2931,10 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
 */
 #define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 20)
 
-||||||| 8d8c986e571
-=======
 /** Engine supports Generated invisible primary key. */
 constexpr const decltype(
     handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 18};
 
->>>>>>> mysql-8.0.30
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }

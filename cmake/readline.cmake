@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
 # Copyright (c) 2009, 2019, Oracle and/or its affiliates.
-||||||| 8d8c986e571
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
-=======
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.30
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -310,16 +304,7 @@ MACRO (MYSQL_CHECK_EDITLINE)
     ELSEIF(WITH_EDITLINE STREQUAL "system")
       FIND_SYSTEM_EDITLINE()
       IF(NOT EDITLINE_FOUND)
-<<<<<<< HEAD
-        MESSAGE(FATAL_ERROR "Cannot find system editline libraries.")
-      ELSE()
-        SET(MY_READLINE_INCLUDE_DIR ${EDITLINE_INCLUDE_DIR})
-        SET(MY_READLINE_LIBRARY ${EDITLINE_LIBRARY})
-||||||| 8d8c986e571
-        MESSAGE(FATAL_ERROR "Cannot find system editline libraries.") 
-=======
         RESET_EDITLINE_VARIABLES()
->>>>>>> mysql-8.0.30
       ENDIF()
     ELSE()
       MESSAGE(FATAL_ERROR "WITH_EDITLINE must be bundled or system")

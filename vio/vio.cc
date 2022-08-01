@@ -560,16 +560,9 @@ void vio_delete(Vio *vio) { internal_vio_delete(vio); }
   components below it when application finish
 
 */
-<<<<<<< HEAD
-void vio_end(void) {
-  vio_ssl_end();
+void vio_end() { vio_ssl_end(); 
   vio_proxy_cleanup();
 }
-||||||| 8d8c986e571
-void vio_end(void) { vio_ssl_end(); }
-=======
-void vio_end() { vio_ssl_end(); }
->>>>>>> mysql-8.0.30
 
 struct vio_string {
   const char *m_str;

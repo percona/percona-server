@@ -967,7 +967,6 @@ void SetUpTablesForDelete(THD *thd, JOIN *join) {
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
 }
 
-<<<<<<< HEAD
 /**
   Test that the two strings are equal, accoding to the lower_case_table_names
   setting.
@@ -1020,22 +1019,7 @@ static bool has_cascade_dependency(THD *thd, TABLE_LIST &table,
   return false;
 }
 
-/// Performs some extra checks if the sql_safe_updates option is enabled, and
-/// raises an error (and returns true) if the statement is likely to delete a
-/// large number of rows. Specifically, it raises an error if there is a full
-/// table scan or full index scan of one of the tables deleted from, and there
-/// is no LIMIT clause.
-static bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
-||||||| 8d8c986e571
-/// Performs some extra checks if the sql_safe_updates option is enabled, and
-/// raises an error (and returns true) if the statement is likely to delete a
-/// large number of rows. Specifically, it raises an error if there is a full
-/// table scan or full index scan of one of the tables deleted from, and there
-/// is no LIMIT clause.
-static bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
-=======
 bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
->>>>>>> mysql-8.0.30
   if (!Overlaps(thd->variables.option_bits, OPTION_SAFE_UPDATES)) {
     return false;
   }

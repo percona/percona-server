@@ -615,43 +615,10 @@ void *thd_memdup(MYSQL_THD thd, const void *str, size_t size) {
   Interface for MySQL Server, plugins and storage engines to report
   when they are going to sleep/stall.
 
-<<<<<<< HEAD
-  SYNOPSIS
-  thd_wait_begin()
-  thd                     Thread object
-                          Can be NULL, in this case current THD is used.
-  wait_type               Type of wait
-                          1 -- short wait (e.g. for mutex)
-                          2 -- medium wait (e.g. for disk io)
-                          3 -- large wait (e.g. for locked row/table)
-  NOTES
-    This is used by the threadpool to have better knowledge of which
-    threads that currently are actively running on CPUs. When a thread
-    reports that it's going to sleep/stall, the threadpool scheduler is
-    free to start another thread in the pool most likely. The expected wait
-    time is simply an indication of how long the wait is expected to
-    become, the real wait time could be very different.
-||||||| 8d8c986e571
-  SYNOPSIS
-  thd_wait_begin()
-  thd                     Thread object
-  wait_type               Type of wait
-                          1 -- short wait (e.g. for mutex)
-                          2 -- medium wait (e.g. for disk io)
-                          3 -- large wait (e.g. for locked row/table)
-  NOTES
-    This is used by the threadpool to have better knowledge of which
-    threads that currently are actively running on CPUs. When a thread
-    reports that it's going to sleep/stall, the threadpool scheduler is
-    free to start another thread in the pool most likely. The expected wait
-    time is simply an indication of how long the wait is expected to
-    become, the real wait time could be very different.
-=======
   This is currently only implemented by by the threadpool and used to have
   better knowledge of which threads that currently are actively running on CPUs.
   When not running with TP this makes a call, possibly through a service,
   to an empty function.
->>>>>>> mysql-8.0.30
 
   thd_wait_end MUST be called immediately after waking up again.
 

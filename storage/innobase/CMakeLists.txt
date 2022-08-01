@@ -184,13 +184,9 @@ SET(INNOBASE_SOURCES
   log/log0files_io.cc
   log/log0log.cc
   log/log0meb.cc
-<<<<<<< HEAD
   log/log0online.cc
-||||||| 8d8c986e571
-=======
   log/log0pfs.cc
   log/log0pre_8_0_30.cc
->>>>>>> mysql-8.0.30
   log/log0recv.cc
   log/log0test.cc
   log/log0write.cc

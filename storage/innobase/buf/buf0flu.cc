@@ -2056,17 +2056,9 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type,
   mutex_exit(&buf_pool->flush_state_mutex);
 
   if (!srv_read_only_mode) {
-<<<<<<< HEAD
-    if (dblwr::enabled) {
+    if (dblwr::is_enabled()) {
       if (flushed_page_count != 0)
         dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
-||||||| 8d8c986e571
-    if (dblwr::enabled) {
-      dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
-=======
-    if (dblwr::is_enabled()) {
-      dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
->>>>>>> mysql-8.0.30
     } else {
       buf_flush_sync_datafiles();
     }
@@ -2563,22 +2555,12 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   lsn_age_factor = (age * 100.0) / limit_for_dirty_page_age;
 
   ut_ad(srv_max_io_capacity >= srv_io_capacity);
-<<<<<<< HEAD
   switch (
       static_cast<srv_cleaner_lsn_age_factor_t>(srv_cleaner_lsn_age_factor)) {
     case SRV_CLEANER_LSN_AGE_FACTOR_LEGACY:
       return (
           static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
-                              (lsn_age_factor * sqrt((double)lsn_age_factor))) /
-||||||| 8d8c986e571
-
-  return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
-                              (lsn_age_factor * sqrt((double)lsn_age_factor))) /
-=======
-
-  return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
                               (lsn_age_factor * sqrt(lsn_age_factor))) /
->>>>>>> mysql-8.0.30
                              7.5));
     case SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT:
       return (static_cast<ulint>(
@@ -3498,16 +3480,10 @@ static void buf_flush_page_coordinator_thread() {
   and the purge threads may be working as well. We start flushing
   the buffer pool but can't be sure that no new pages are being
   dirtied until we enter SRV_SHUTDOWN_FLUSH_PHASE phase which is
-<<<<<<< HEAD
-  the last phase (mean while we visit SRV_SHUTDOWN_MASTER_STOP).
+  the last phase (meanwhile we visit SRV_SHUTDOWN_MASTER_STOP).
   Because the LRU manager thread is also flushing at SRV_SHUTDOWN_CLEANUP
   but not SRV_SHUTDOWN_FLUSH_PHASE, we only leave the
   SRV_SHUTDOWN_CLEANUP loop when the LRU manager quits.
-||||||| 8d8c986e571
-  the last phase (mean while we visit SRV_SHUTDOWN_MASTER_STOP).
-=======
-  the last phase (meanwhile we visit SRV_SHUTDOWN_MASTER_STOP).
->>>>>>> mysql-8.0.30
 
   Note, that if we are handling fatal error, we set the state
   directly to EXIT_THREADS in which case we also might exit the loop

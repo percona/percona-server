@@ -115,13 +115,7 @@ set @@persist_only.proxy_protocol_networks='*';
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-<<<<<<< HEAD
-100
-||||||| 8d8c986e571
-96
-=======
-94
->>>>>>> mysql-8.0.30
+98
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.
@@ -143,12 +137,6 @@ innodb_api_enable_mdl	OFF
 innodb_autoinc_lock_mode	1
 innodb_buffer_pool_chunk_size	134217728
 innodb_buffer_pool_instances	1
-<<<<<<< HEAD
-innodb_doublewrite	ON
-||||||| 8d8c986e571
-innodb_doublewrite	1
-=======
->>>>>>> mysql-8.0.30
 innodb_force_recovery	0
 innodb_ft_cache_size	16777216
 innodb_ft_max_token_size	84
@@ -160,14 +148,8 @@ innodb_open_files	100
 innodb_page_cleaners	1
 innodb_purge_threads	4
 innodb_read_io_threads	4
-<<<<<<< HEAD
-innodb_rollback_on_timeout	OFF
-||||||| 8d8c986e571
-innodb_rollback_on_timeout	0
-=======
 innodb_redo_log_capacity	100663296
-innodb_rollback_on_timeout	0
->>>>>>> mysql-8.0.30
+innodb_rollback_on_timeout	OFF
 innodb_sort_buffer_size	1048576
 innodb_sync_array_size	1
 innodb_use_native_aio	ON

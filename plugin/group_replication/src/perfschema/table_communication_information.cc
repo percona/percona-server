@@ -202,19 +202,9 @@ static PSI_table_handle *open_table(PSI_pos **pos [[maybe_unused]]) {
   return dummy;
 }
 
-<<<<<<< HEAD
-static void close_table(PSI_table_handle *handle [[maybe_unused]]) {
-  for (auto &it : s_preferred_leaders) delete it;
-  s_preferred_leaders.clear();
-||||||| 8d8c986e571
-static void close_table(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
-  for (auto &it : s_preferred_leaders) delete it;
-  s_preferred_leaders.clear();
-=======
 static void close_table(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
   for (auto &it : get_preferred_leaders()) delete it;
   get_preferred_leaders().clear();
->>>>>>> mysql-8.0.30
 
   for (auto &it : get_actual_leaders()) delete it;
   get_actual_leaders().clear();

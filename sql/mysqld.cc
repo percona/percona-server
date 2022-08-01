@@ -6973,7 +6973,6 @@ static int init_server_components() {
              "default_tmp_storage_engine", default_tmp_storage_engine);
   }
 
-<<<<<<< HEAD
   /*
     Validate any enforced storage engine
   */
@@ -7012,10 +7011,7 @@ static int init_server_components() {
     }
   }
 
-||||||| 8d8c986e571
-=======
   DBUG_EXECUTE_IF("total_ha_2pc_equals_2", total_ha_2pc = 2;);
->>>>>>> mysql-8.0.30
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log)) {
     if (opt_bin_log)
       tc_log = &mysql_bin_log;
@@ -9926,7 +9922,6 @@ bool validate_libcoredumper_path(char *libcoredumper_path) {
   (void)dirname_part(libcoredumper_dir, libcoredumper_path,
                      &libcoredumper_dir_length);
 
-<<<<<<< HEAD
   if (!libcoredumper_dir_length) {
     sql_print_error("Error processing --coredumper path: %s",
                     libcoredumper_path);
@@ -9965,14 +9960,7 @@ bool validate_libcoredumper_path(char *libcoredumper_path) {
   }
   return true;
 }
-/*
-  Variables shown by SHOW STATUS in alphabetical order
-*/
-||||||| 8d8c986e571
-/*
-  Variables shown by SHOW STATUS in alphabetical order
-*/
-=======
+
 static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
 #if OPENSSL_VERSION_NUMBER <= 0x10100000L
   strncpy(buff, SSLeay_version(SSLEAY_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
@@ -9984,8 +9972,10 @@ static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
   var->value = buff;
   return 0;
 }
->>>>>>> mysql-8.0.30
 
+/*
+  Variables shown by SHOW STATUS in alphabetical order
+*/
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,

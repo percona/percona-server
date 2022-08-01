@@ -7,8 +7,6 @@
 
 --disable_query_log
 call mtr.add_suppression('Error in Log_event::read_log_event()');
-call mtr.add_suppression("Undo log can't be encrypted if the keyring is not loaded.");
-call mtr.add_suppression("Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -46,13 +44,7 @@ DROP TABLE tne_1;
 --source include/shutdown_mysqld.inc
 
 # Grep for message in server error log
-<<<<<<< HEAD
-let SEARCH_PATTERN=Redo log cannot be encrypted if the keyring is not loaded.;
-||||||| 8d8c986e571
-let SEARCH_PATTERN=Can\'t set redo log tablespace to be encrypted;
-=======
 let SEARCH_PATTERN=Can\'t set redo log files to be encrypted;
->>>>>>> mysql-8.0.30
 --source include/search_pattern.inc
 
 # Create path for ibdata* & undo* files both DBs

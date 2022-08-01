@@ -106,64 +106,6 @@ static MYSQL_SYSVAR_SET(
     "DEFAULT, BACKUP, FORCE, QUICK, or OFF",
     nullptr, nullptr, 0, &myisam_recover_typelib);
 
-<<<<<<< HEAD
-static void emit_repair_threads_warning(THD *thd, ulong val) {
-  if (val == 1) return;
-
-  if (thd)
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING,
-        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-        ER_THD_NONCONST(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-        "@@myisam_repair_threads");
-  else
-    LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-           "@@myisam_repair_threads");
-}
-
-static void repair_threads_update(THD *thd, SYS_VAR *, void *tgt,
-                                  const void *save) {
-  emit_repair_threads_warning(thd, (ulong) * (long *)const_cast<void *>(save));
-  *static_cast<long *>(tgt) = *static_cast<const long *>(save);
-}
-
-static MYSQL_THDVAR_ULONG(
-    repair_threads, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
-    "DEPRECATED. If larger than 1, when repairing a MyISAM table all indexes "
-    "will be created in parallel, with one thread per index. The value of 1 "
-    "disables parallel repair",
-    nullptr, repair_threads_update, 1, 1, ULONG_MAX, 1);
-
-||||||| 8d8c986e571
-static void emit_repair_threads_warning(THD *thd, ulong val) {
-  if (val == 1) return;
-
-  if (thd)
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING,
-        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-        ER_THD_NONCONST(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-        "@@myisam_repair_threads");
-  else
-    LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-           "@@myisam_repair_threads");
-}
-
-static void repair_threads_update(THD *thd, SYS_VAR *, void *tgt,
-                                  const void *save) {
-  emit_repair_threads_warning(thd, (ulong) * (long *)const_cast<void *>(save));
-  *static_cast<long *>(tgt) = *static_cast<const long *>(save);
-}
-
-static MYSQL_THDVAR_ULONG(
-    repair_threads, PLUGIN_VAR_RQCMDARG,
-    "DEPRECATED. If larger than 1, when repairing a MyISAM table all indexes "
-    "will be created in parallel, with one thread per index. The value of 1 "
-    "disables parallel repair",
-    nullptr, repair_threads_update, 1, 1, ULONG_MAX, 1);
-
-=======
->>>>>>> mysql-8.0.30
 static MYSQL_THDVAR_ULONGLONG(
     sort_buffer_size, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "The buffer that is allocated when sorting the index when doing "
@@ -2129,23 +2071,8 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item *idx_cond_arg) {
   return nullptr;
 }
 
-<<<<<<< HEAD
 bool get_global_encrypt_tmp_files() { return encrypt_tmp_files; }
 
-static SYS_VAR *myisam_sysvars[] = {
-    MYSQL_SYSVAR(block_size),         MYSQL_SYSVAR(data_pointer_size),
-    MYSQL_SYSVAR(max_sort_file_size), MYSQL_SYSVAR(recover_options),
-    MYSQL_SYSVAR(repair_threads),     MYSQL_SYSVAR(sort_buffer_size),
-    MYSQL_SYSVAR(use_mmap),           MYSQL_SYSVAR(mmap_size),
-    MYSQL_SYSVAR(stats_method),       nullptr};
-||||||| 8d8c986e571
-static SYS_VAR *myisam_sysvars[] = {
-    MYSQL_SYSVAR(block_size),         MYSQL_SYSVAR(data_pointer_size),
-    MYSQL_SYSVAR(max_sort_file_size), MYSQL_SYSVAR(recover_options),
-    MYSQL_SYSVAR(repair_threads),     MYSQL_SYSVAR(sort_buffer_size),
-    MYSQL_SYSVAR(use_mmap),           MYSQL_SYSVAR(mmap_size),
-    MYSQL_SYSVAR(stats_method),       nullptr};
-=======
 static SYS_VAR *myisam_sysvars[] = {MYSQL_SYSVAR(block_size),
                                     MYSQL_SYSVAR(data_pointer_size),
                                     MYSQL_SYSVAR(max_sort_file_size),
@@ -2155,7 +2082,6 @@ static SYS_VAR *myisam_sysvars[] = {MYSQL_SYSVAR(block_size),
                                     MYSQL_SYSVAR(mmap_size),
                                     MYSQL_SYSVAR(stats_method),
                                     nullptr};
->>>>>>> mysql-8.0.30
 
 struct st_mysql_storage_engine myisam_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};

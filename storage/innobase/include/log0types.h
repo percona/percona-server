@@ -520,13 +520,6 @@ struct Log_file {
     return m_start_lsn <= lsn && lsn < m_end_lsn;
   }
 
-<<<<<<< HEAD
-  /** Log tracking, if enabled, has advanced to this LSN */
-  atomic_lsn_t tracked_lsn;
-  /** @} */
-||||||| 8d8c986e571
-  /** @} */
-=======
   /** Provides offset for the given LSN (from the beginning of the log file).
   @param[in]  lsn   lsn to locate (must exist in the file)
   @return offset from the beginning of the file for the given lsn */
@@ -535,7 +528,6 @@ struct Log_file {
     ut_a(contains(lsn) || lsn == m_end_lsn);
     return offset(lsn, m_start_lsn);
   }
->>>>>>> mysql-8.0.30
 
   /** Provides offset for the given LSN and log file with the given start_lsn
   (offset from the beginning of the log file).

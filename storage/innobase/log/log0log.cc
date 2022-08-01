@@ -49,45 +49,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 12/9/1995 Heikki Tuuri
  *******************************************************/
 
-<<<<<<< HEAD
-#include "log0types.h"
-
-/** Pointer to the log checksum calculation function. */
-log_checksum_func_t log_checksum_algorithm_ptr;
-
-/* Next log block number to do dummy record filling if no log records written
- * for a while */
-static ulint next_lbn_to_pad = 0;
-
-||||||| 8d8c986e571
-#include "log0types.h"
-
-/** Pointer to the log checksum calculation function. */
-log_checksum_func_t log_checksum_algorithm_ptr;
-
-=======
->>>>>>> mysql-8.0.30
 #ifndef UNIV_HOTBACKUP
 
 /* time, difftime */
 #include <time.h>
-<<<<<<< HEAD
-#include "dict0boot.h"
-#include "ha_prototypes.h"
-#include "log0meb.h"
-#include "mtr0mtr.h"
-#include "os0thread-create.h"
 #include "srv0start.h"
-#include "trx0sys.h"
-||||||| 8d8c986e571
-#include "dict0boot.h"
-#include "ha_prototypes.h"
-#include "log0meb.h"
-#include "mtr0mtr.h"
-#include "os0thread-create.h"
-#include "trx0sys.h"
-=======
->>>>>>> mysql-8.0.30
 
 /* fprintf */
 #include <cstdio>
@@ -789,16 +755,8 @@ dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
   return err;
 }
 
-<<<<<<< HEAD
-void log_sys_close() {
-  if (!log_sys_object) return;
-||||||| 8d8c986e571
-void log_sys_close() {
-  ut_a(log_sys != nullptr);
-=======
 static void log_sys_free() {
   ut_a(log_sys != nullptr);
->>>>>>> mysql-8.0.30
 
   log_t &log = *log_sys;
 
@@ -1124,15 +1082,11 @@ void log_print(const log_t &log, FILE *file) {
   lsn_t max_assigned_lsn;
   lsn_t current_lsn;
   lsn_t oldest_lsn;
-<<<<<<< HEAD
   lsn_t max_checkpoint_age;
-||||||| 8d8c986e571
-=======
   uint64_t file_min_id;
   uint64_t file_max_id;
 
   log_files_mutex_enter(log);
->>>>>>> mysql-8.0.30
 
   last_checkpoint_lsn = log.last_checkpoint_lsn.load();
   dirty_pages_added_up_to_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
@@ -1146,7 +1100,7 @@ void log_print(const log_t &log, FILE *file) {
 
   log_limits_mutex_enter(log);
   oldest_lsn = log.available_for_checkpoint_lsn;
-  max_checkpoint_age = log_get_free_check_capacity(log);
+  max_checkpoint_age = log_free_check_capacity(log);
   log_limits_mutex_exit(log);
 
   log_files_mutex_exit(log);
@@ -1176,24 +1130,23 @@ void log_print(const log_t &log, FILE *file) {
           last_checkpoint_lsn, file_min_id, file_max_id);
 
   fprintf(file,
-          "Checkpoint age target        " LSN_PF
-          "\n"
           "Modified age no less than    " LSN_PF
           "\n"
           "Checkpoint age               " LSN_PF
           "\n"
           "Max checkpoint age           " LSN_PF "\n",
-          log_sys->max_checkpoint_age_async,
           current_lsn - buf_pool_get_oldest_modification_lwm(),
           current_lsn - log_sys->last_checkpoint_lsn, max_checkpoint_age);
 
-  fprintf(file,
+  // MERGETODO
+  /*fprintf(file,
           "Number of logs               " UINT32PF
           "\n"
           "Log size                     " LSN_PF
           "\n"
           "Log total size               " LSN_PF "\n",
           log.n_files, log.file_size, log.files_real_capacity);
+          */
 
   time_t current_time = time(nullptr);
 
@@ -1206,17 +1159,6 @@ void log_print(const log_t &log, FILE *file) {
   fprintf(
       file, UINT64PF " log i/o's done, %.2f log i/o's/second\n", log.n_log_ios,
       static_cast<double>(log.n_log_ios - log.n_log_ios_old) / time_elapsed);
-
-  if (srv_track_changed_pages) {
-    /* The maximum tracked LSN age is equal to the maximum
-    checkpoint age */
-    fprintf(file,
-            "Log tracking enabled\n"
-            "Log tracked up to            " LSN_PF
-            "\n"
-            "Max tracked LSN age          " LSN_PF "\n",
-            log_sys->tracked_lsn.load(), max_checkpoint_age);
-  }
 
   log.n_log_ios_old = log.n_log_ios;
   log.last_printout_time = current_time;

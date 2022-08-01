@@ -1,5 +1,0 @@
-# Testing table with row_format=compressed
-let $t1_table_type=COMPRESSION="zlib";
-let $is_t1_compressed=1;
-let $is_mk_encrypted=0;
---source innodb_encryption_aborted_rotation.inc

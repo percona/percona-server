@@ -192,7 +192,6 @@ log_max_modified_age_sync	disabled
 log_waits	disabled
 log_write_requests	disabled
 log_writes	disabled
-log_lsn_tracked	disabled
 log_flush_total_time	disabled
 log_flush_max_time	disabled
 log_flush_avg_time	disabled

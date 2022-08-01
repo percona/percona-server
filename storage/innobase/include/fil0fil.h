@@ -565,23 +565,12 @@ struct fil_space_t {
   /** Copy the encryption info from this object to the provided
   Encryption object.
   @param[in]    en   Encryption object to which info is copied. */
-<<<<<<< HEAD
-  void get_encryption_info(Encryption &en) noexcept;
-||||||| 8d8c986e571
-  void get_encryption_info(Encryption &en) noexcept {
-    en.set_type(encryption_type);
-    en.set_key(encryption_key);
-    en.set_key_length(encryption_klen);
-    en.set_initial_vector(encryption_iv);
-  }
-=======
   void get_encryption_info(Encryption &en) noexcept {
     en.set_type(m_encryption_metadata.m_type);
     en.set_key(m_encryption_metadata.m_key);
     en.set_key_length(m_encryption_metadata.m_key_len);
     en.set_initial_vector(m_encryption_metadata.m_iv);
   }
->>>>>>> mysql-8.0.30
 
  public:
   /** Get the file node corresponding to the given page number of the

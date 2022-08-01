@@ -175,33 +175,7 @@ static bool log_test_general_init() {
   minimal_chassis_init(&srv_registry, nullptr);
   fil_init(max_n_open_files);
 
-<<<<<<< HEAD
-  log_space = fil_space_create(
-      "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-      fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG, nullptr);
-
-  if (log_space == nullptr) {
-    std::cerr << "Cannot initialize log_space" << std::endl;
-    return (false);
-  }
-
-  ut_ad(fil_validate());
-  return (true);
-||||||| 8d8c986e571
-  log_space = fil_space_create(
-      "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-      fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG);
-
-  if (log_space == nullptr) {
-    std::cerr << "Cannot initialize log_space" << std::endl;
-    return (false);
-  }
-
-  ut_ad(fil_validate());
-  return (true);
-=======
   return true;
->>>>>>> mysql-8.0.30
 }
 
 static bool log_test_init() {
@@ -513,19 +487,7 @@ static void log_test_general_close() {
 
   os_event_global_destroy();
 
-<<<<<<< HEAD
-  srv_shutdown_state.store(SRV_SHUTDOWN_NONE);
-
-  free(srv_log_group_home_dir);
-  srv_log_group_home_dir = nullptr;
-||||||| 8d8c986e571
   srv_shutdown_state = SRV_SHUTDOWN_NONE;
-
-  free(srv_log_group_home_dir);
-  srv_log_group_home_dir = nullptr;
-=======
-  srv_shutdown_state = SRV_SHUTDOWN_NONE;
->>>>>>> mysql-8.0.30
 }
 
 static void log_test_close() {

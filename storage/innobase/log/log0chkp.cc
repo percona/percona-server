@@ -71,12 +71,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* recv_recovery_is_on() */
 #include "log0recv.h"
-<<<<<<< HEAD
-#include "mem0mem.h"
+
 #include "mysqld.h"
-||||||| 8d8c986e571
-#include "mem0mem.h"
-=======
 
 /* log_t::X */
 #include "log0sys.h"
@@ -100,7 +96,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "os0event.h"
 
 /* MONITOR_INC, ... */
->>>>>>> mysql-8.0.30
 #include "srv0mon.h"
 
 /* srv_read_only_mode */
@@ -331,320 +326,6 @@ void log_set_dict_max_allowed_checkpoint_lsn(log_t &log, lsn_t max_lsn) {
   log_limits_mutex_exit(log);
 }
 
-<<<<<<< HEAD
-void log_files_header_flush(log_t &log, uint32_t nth_file, lsn_t start_lsn) {
-  ut_ad(log_writer_mutex_own(log));
-
-  MONITOR_INC(MONITOR_LOG_NEXT_FILE);
-
-  ut_a(nth_file < log.n_files);
-
-  byte *buf = log.file_header_bufs[nth_file];
-
-  log_files_header_fill(buf, start_lsn, LOG_HEADER_CREATOR_CURRENT,
-                        log.m_disable, log.m_crash_unsafe);
-
-  /* Save start LSN for first file. */
-  if (nth_file == 0) {
-    log.m_first_file_lsn = start_lsn;
-  }
-
-  DBUG_PRINT("ib_log", ("write " LSN_PF " file " ULINTPF " header", start_lsn,
-                        ulint(nth_file)));
-
-  const auto dest_offset = nth_file * uint64_t{log.file_size};
-
-  const auto page_no =
-      static_cast<page_no_t>(dest_offset / univ_page_size.physical());
-
-  auto err = fil_redo_io(
-      IORequestLogWrite, page_id_t{log.files_space_id, page_no}, univ_page_size,
-      static_cast<ulint>(dest_offset % univ_page_size.physical()),
-      OS_FILE_LOG_BLOCK_SIZE, buf);
-
-  ut_a(err == DB_SUCCESS);
-}
-
-void log_files_header_read(log_t &log, uint32_t header) {
-  ut_a(srv_is_being_started);
-  ut_a(!log_checkpointer_is_active());
-
-  const auto page_no =
-      static_cast<page_no_t>(header / univ_page_size.physical());
-
-  auto err = fil_redo_io(IORequestLogRead,
-                         page_id_t{log.files_space_id, page_no}, univ_page_size,
-                         static_cast<ulint>(header % univ_page_size.physical()),
-                         OS_FILE_LOG_BLOCK_SIZE, log.checkpoint_buf);
-
-  ut_a(err == DB_SUCCESS);
-}
-
-void log_persist_enable(log_t &log) {
-  log_writer_mutex_enter(log);
-
-  log.m_disable = false;
-  log.m_crash_unsafe = false;
-
-  ut_ad(!srv_read_only_mode);
-  log_files_header_flush(log, 0, log.m_first_file_lsn);
-
-  log_writer_mutex_exit(log);
-  log_fsync();
-}
-
-void log_persist_disable(log_t &log) {
-  log_writer_mutex_enter(log);
-
-  log.m_disable = true;
-
-  /* If server is restarted in read only mode, we should
-  skip writing to redo header. */
-  if (!srv_read_only_mode) {
-    log.m_crash_unsafe = true;
-    log_files_header_flush(log, 0, log.m_first_file_lsn);
-  }
-
-  log_writer_mutex_exit(log);
-  log_fsync();
-}
-
-void log_persist_crash_safe(log_t &log) {
-  if (srv_read_only_mode) {
-    ut_ad(!log.m_crash_unsafe);
-    return;
-  }
-
-  log_writer_mutex_enter(log);
-
-  ut_ad(log.m_disable);
-  log.m_crash_unsafe = false;
-
-  log_files_header_flush(log, 0, log.m_first_file_lsn);
-
-  log_writer_mutex_exit(log);
-  log_fsync();
-}
-
-#endif /* UNIV_HOTBACKUP */
-#ifdef UNIV_HOTBACKUP
-
-#ifdef UNIV_DEBUG
-
-/** Print a log file header.
-@param[in]     block   pointer to the log buffer */
-void meb_log_print_file_hdr(byte *block) {
-  ib::info(ER_IB_MSG_1232) << "Log file header:"
-                           << " format "
-                           << mach_read_from_4(block + LOG_HEADER_FORMAT)
-                           << " pad1 "
-                           << mach_read_from_4(block + LOG_HEADER_PAD1)
-                           << " start_lsn "
-                           << mach_read_from_8(block + LOG_HEADER_START_LSN)
-                           << " creator '" << block + LOG_HEADER_CREATOR << "'"
-                           << " checksum " << log_block_get_checksum(block);
-}
-
-#endif /* UNIV_DEBUG */
-
-#endif /* UNIV_HOTBACKUP */
-
-#ifndef UNIV_HOTBACKUP
-
-void log_files_downgrade(log_t &log, uint32_t log_format) {
-  ut_ad(srv_shutdown_state.load() >= SRV_SHUTDOWN_LAST_PHASE);
-  ut_a(!log_checkpointer_is_active());
-
-  const uint32_t nth_file = 0;
-
-  byte *const buf = log.file_header_bufs[nth_file];
-
-  const lsn_t dest_offset = nth_file * log.file_size;
-
-  const page_no_t page_no =
-      static_cast<page_no_t>(dest_offset / univ_page_size.physical());
-
-  /* Write old version */
-  mach_write_to_4(buf + LOG_HEADER_FORMAT, log_format);
-
-  log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
-
-  auto err = fil_redo_io(
-      IORequestLogWrite, page_id_t{log.files_space_id, page_no}, univ_page_size,
-      static_cast<ulint>(dest_offset % univ_page_size.physical()),
-      OS_FILE_LOG_BLOCK_SIZE, buf);
-
-  ut_a(err == DB_SUCCESS);
-}
-
-/** @} */
-
-/**************************************************/ /**
-
- @name Making checkpoints
-
- *******************************************************/
-
-/** @{ */
-
-||||||| 8d8c986e571
-void log_files_header_flush(log_t &log, uint32_t nth_file, lsn_t start_lsn) {
-  ut_ad(log_writer_mutex_own(log));
-
-  MONITOR_INC(MONITOR_LOG_NEXT_FILE);
-
-  ut_a(nth_file < log.n_files);
-
-  byte *buf = log.file_header_bufs[nth_file];
-
-  log_files_header_fill(buf, start_lsn, LOG_HEADER_CREATOR_CURRENT,
-                        log.m_disable, log.m_crash_unsafe);
-
-  /* Save start LSN for first file. */
-  if (nth_file == 0) {
-    log.m_first_file_lsn = start_lsn;
-  }
-
-  DBUG_PRINT("ib_log", ("write " LSN_PF " file " ULINTPF " header", start_lsn,
-                        ulint(nth_file)));
-
-  const auto dest_offset = nth_file * uint64_t{log.file_size};
-
-  const auto page_no =
-      static_cast<page_no_t>(dest_offset / univ_page_size.physical());
-
-  auto err = fil_redo_io(
-      IORequestLogWrite, page_id_t{log.files_space_id, page_no}, univ_page_size,
-      static_cast<ulint>(dest_offset % univ_page_size.physical()),
-      OS_FILE_LOG_BLOCK_SIZE, buf);
-
-  ut_a(err == DB_SUCCESS);
-}
-
-void log_files_header_read(log_t &log, uint32_t header) {
-  ut_a(srv_is_being_started);
-  ut_a(!log_checkpointer_is_active());
-
-  const auto page_no =
-      static_cast<page_no_t>(header / univ_page_size.physical());
-
-  auto err = fil_redo_io(IORequestLogRead,
-                         page_id_t{log.files_space_id, page_no}, univ_page_size,
-                         static_cast<ulint>(header % univ_page_size.physical()),
-                         OS_FILE_LOG_BLOCK_SIZE, log.checkpoint_buf);
-
-  ut_a(err == DB_SUCCESS);
-}
-
-void log_persist_enable(log_t &log) {
-  log_writer_mutex_enter(log);
-
-  log.m_disable = false;
-  log.m_crash_unsafe = false;
-
-  ut_ad(!srv_read_only_mode);
-  log_files_header_flush(log, 0, log.m_first_file_lsn);
-
-  log_writer_mutex_exit(log);
-  log_fsync();
-}
-
-void log_persist_disable(log_t &log) {
-  log_writer_mutex_enter(log);
-
-  log.m_disable = true;
-
-  /* If server is restarted in read only mode, we should
-  skip writing to redo header. */
-  if (!srv_read_only_mode) {
-    log.m_crash_unsafe = true;
-    log_files_header_flush(log, 0, log.m_first_file_lsn);
-  }
-
-  log_writer_mutex_exit(log);
-  log_fsync();
-}
-
-void log_persist_crash_safe(log_t &log) {
-  if (srv_read_only_mode) {
-    ut_ad(!log.m_crash_unsafe);
-    return;
-  }
-
-  log_writer_mutex_enter(log);
-
-  ut_ad(log.m_disable);
-  log.m_crash_unsafe = false;
-
-  log_files_header_flush(log, 0, log.m_first_file_lsn);
-
-  log_writer_mutex_exit(log);
-  log_fsync();
-}
-
-#endif /* UNIV_HOTBACKUP */
-#ifdef UNIV_HOTBACKUP
-
-#ifdef UNIV_DEBUG
-
-/** Print a log file header.
-@param[in]     block   pointer to the log buffer */
-void meb_log_print_file_hdr(byte *block) {
-  ib::info(ER_IB_MSG_1232) << "Log file header:"
-                           << " format "
-                           << mach_read_from_4(block + LOG_HEADER_FORMAT)
-                           << " pad1 "
-                           << mach_read_from_4(block + LOG_HEADER_PAD1)
-                           << " start_lsn "
-                           << mach_read_from_8(block + LOG_HEADER_START_LSN)
-                           << " creator '" << block + LOG_HEADER_CREATOR << "'"
-                           << " checksum " << log_block_get_checksum(block);
-}
-
-#endif /* UNIV_DEBUG */
-
-#endif /* UNIV_HOTBACKUP */
-
-#ifndef UNIV_HOTBACKUP
-
-void log_files_downgrade(log_t &log) {
-  ut_ad(srv_shutdown_state.load() >= SRV_SHUTDOWN_LAST_PHASE);
-  ut_a(!log_checkpointer_is_active());
-
-  const uint32_t nth_file = 0;
-
-  byte *const buf = log.file_header_bufs[nth_file];
-
-  const lsn_t dest_offset = nth_file * log.file_size;
-
-  const page_no_t page_no =
-      static_cast<page_no_t>(dest_offset / univ_page_size.physical());
-
-  /* Write old version */
-  mach_write_to_4(buf + LOG_HEADER_FORMAT, LOG_HEADER_FORMAT_5_7_9);
-
-  log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
-
-  auto err = fil_redo_io(
-      IORequestLogWrite, page_id_t{log.files_space_id, page_no}, univ_page_size,
-      static_cast<ulint>(dest_offset % univ_page_size.physical()),
-      OS_FILE_LOG_BLOCK_SIZE, buf);
-
-  ut_a(err == DB_SUCCESS);
-}
-
-/** @} */
-
-/**************************************************/ /**
-
- @name Making checkpoints
-
- *******************************************************/
-
-/** @{ */
-
-=======
->>>>>>> mysql-8.0.30
 static lsn_t log_determine_checkpoint_lsn(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
   ut_ad(log.m_allow_checkpoints.load());
@@ -840,28 +521,10 @@ static void log_checkpoint(log_t &log) {
   DBUG_EXECUTE_IF("crash_after_checkpoint", DBUG_SUICIDE(););
 }
 
-<<<<<<< HEAD
-void log_create_first_checkpoint(log_t &log, lsn_t lsn) {
-  byte block[OS_FILE_LOG_BLOCK_SIZE];
-  lsn_t block_lsn;
-  page_no_t block_page_no;
-  uint64_t block_offset;
-
-  ut_a(srv_is_being_started || dd_init_failed_during_upgrade);
-||||||| 8d8c986e571
-void log_create_first_checkpoint(log_t &log, lsn_t lsn) {
-  byte block[OS_FILE_LOG_BLOCK_SIZE];
-  lsn_t block_lsn;
-  page_no_t block_page_no;
-  uint64_t block_offset;
-
-  ut_a(srv_is_being_started);
-=======
 dberr_t log_files_write_first_data_block_low(log_t &log,
                                              Log_file_handle &file_handle,
                                              lsn_t checkpoint_lsn,
                                              lsn_t file_start_lsn) {
->>>>>>> mysql-8.0.30
   ut_a(!srv_read_only_mode);
   ut_a(file_handle.is_open());
 
@@ -884,51 +547,10 @@ dberr_t log_files_write_first_data_block_low(log_t &log,
               OS_FILE_LOG_BLOCK_SIZE);
   ut_d(log.first_block_is_correct_for_lsn = checkpoint_lsn);
 
-<<<<<<< HEAD
-  ut_d(log.first_block_is_correct_for_lsn = lsn);
-
-  block_page_no =
-      static_cast<page_no_t>(block_offset / univ_page_size.physical());
-
-  auto err = fil_redo_io(
-      IORequestLogWrite, page_id_t{log.files_space_id, block_page_no},
-      univ_page_size, static_cast<ulint>(block_offset % UNIV_PAGE_SIZE),
-      OS_FILE_LOG_BLOCK_SIZE, block);
-
-  ut_a(err == DB_SUCCESS);
-
-  /* Start writing the checkpoint. */
-  log.last_checkpoint_lsn.store(0);
-  log.next_checkpoint_no.store(0);
-  log_files_write_checkpoint(log, lsn);
-
-  /* Note, that checkpoint was responsible for fsync of all log files. */
-  log.tracked_lsn.store(lsn);
-||||||| 8d8c986e571
-  ut_d(log.first_block_is_correct_for_lsn = lsn);
-
-  block_page_no =
-      static_cast<page_no_t>(block_offset / univ_page_size.physical());
-
-  auto err = fil_redo_io(
-      IORequestLogWrite, page_id_t{log.files_space_id, block_page_no},
-      univ_page_size, static_cast<ulint>(block_offset % UNIV_PAGE_SIZE),
-      OS_FILE_LOG_BLOCK_SIZE, block);
-
-  ut_a(err == DB_SUCCESS);
-
-  /* Start writing the checkpoint. */
-  log.last_checkpoint_lsn.store(0);
-  log.next_checkpoint_no.store(0);
-  log_files_write_checkpoint(log, lsn);
-
-  /* Note, that checkpoint was responsible for fsync of all log files. */
-=======
   /* Write the first empty log block to the file. */
   const os_offset_t block_offset = Log_file::offset(block_lsn, file_start_lsn);
   return log_data_blocks_write(file_handle, block_offset,
                                OS_FILE_LOG_BLOCK_SIZE, block);
->>>>>>> mysql-8.0.30
 }
 
 static void log_request_checkpoint_low(log_t &log, lsn_t requested_lsn) {
@@ -1606,26 +1228,7 @@ void log_set_dict_persist_margin(log_t &log, sn_t margin) {
   log_limits_mutex_exit(log);
 }
 
-<<<<<<< HEAD
-void log_set_dict_max_allowed_checkpoint_lsn(log_t &log, lsn_t max_lsn) {
-  if (!log_sys) return;
-  log_limits_mutex_enter(log);
-  log.dict_max_allowed_checkpoint_lsn = max_lsn;
-  log_limits_mutex_exit(log);
-}
-
-static lsn_t log_free_check_margin(const log_t &log) {
-||||||| 8d8c986e571
-void log_set_dict_max_allowed_checkpoint_lsn(log_t &log, lsn_t max_lsn) {
-  log_limits_mutex_enter(log);
-  log.dict_max_allowed_checkpoint_lsn = max_lsn;
-  log_limits_mutex_exit(log);
-}
-
-static lsn_t log_free_check_margin(const log_t &log) {
-=======
 lsn_t log_free_check_margin(const log_t &log) {
->>>>>>> mysql-8.0.30
   sn_t margins = log.concurrency_margin.load();
 
   margins += log.dict_persist_margin.load();

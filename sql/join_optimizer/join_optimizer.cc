@@ -47,12 +47,8 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
-<<<<<<< HEAD
 #include "my_compiler.h"
-||||||| 8d8c986e571
-=======
 #include "my_dbug.h"
->>>>>>> mysql-8.0.30
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"

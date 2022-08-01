@@ -928,10 +928,6 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
 
-    {"log_lsn_tracked", "log", "Last LSN tracked for changed pages",
-     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
-     MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_TRACKED},
-
     {"log_flush_total_time", "log", "Total time spent on fsync for log files",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_TOTAL_TIME},
 
@@ -2021,16 +2017,7 @@ void srv_mon_process_existing_counter(
     case MONITOR_OVLD_MAX_AGE_SYNC:
       value = log_sys->m_capacity.adaptive_flush_max_age();
       break;
-<<<<<<< HEAD
 
-    case MONITOR_OVLD_LSN_TRACKED:
-      value = log_sys->tracked_lsn.load();
-      break;
-
-||||||| 8d8c986e571
-
-=======
->>>>>>> mysql-8.0.30
     case MONITOR_OVLD_ADAPTIVE_HASH_SEARCH:
       value = btr_cur_n_sea;
       break;

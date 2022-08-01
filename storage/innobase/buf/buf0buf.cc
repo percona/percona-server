@@ -54,15 +54,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0stats_bg.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
-<<<<<<< HEAD
-#include "log0log.h"
 #include "scope_guard.h"
-||||||| 8d8c986e571
-#include "log0log.h"
-=======
 #include "log0buf.h"
 #include "log0chkp.h"
->>>>>>> mysql-8.0.30
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
@@ -4292,7 +4286,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
 
   ut_a(!block->page.was_stale());
 
-  trx_stats::inc_page_get(m_trx, block->page.id.fold());
+  // MERGETODO  trx_stats::inc_page_get(m_trx, block->page.id.fold());
 
   return (block);
 }
@@ -4466,7 +4460,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
     Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
   }
 
-  trx_stats::inc_page_get(trx, block->page.id.fold());
+  // MERGETODO trx_stats::inc_page_get(trx, block->page.id.fold());
 
   return (true);
 }
@@ -4561,8 +4555,8 @@ bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
 
   Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
 
-  auto *const trx = innobase_get_trx_for_slow_log();
-  trx_stats::inc_page_get(trx, block->page.id.fold());
+  // MERGETODO  auto *const trx = innobase_get_trx_for_slow_log();
+  // MERGETODO trx_stats::inc_page_get(trx, block->page.id.fold());
 
   return (true);
 }
@@ -5712,7 +5706,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
         }
 
         if (srv_pass_corrupt_table && bpage->id.space() != 0 &&
-            bpage->id.space() < dict_sys_t::s_log_space_first_id) {
+            bpage->id.space() < dict_sys_t::s_log_space_id) {
           trx_t *trx;
 
           ib::warn() << "Space " << bpage->id.space()
@@ -6747,39 +6741,6 @@ void buf_must_be_all_freed(void) {
   }
 }
 
-<<<<<<< HEAD
-/** Checks that there currently are no pending i/o-operations for the buffer
-pool.
-@return number of pending i/o */
-ulint buf_pool_check_no_pending_io(void) {
-  ulint i;
-  ulint pending_io = 0;
-
-  if (!buf_pool_ptr) return 0;
-
-  for (i = 0; i < srv_buf_pool_instances; i++) {
-    buf_pool_t *buf_pool;
-
-    buf_pool = buf_pool_from_array(i);
-
-    if (!buf_pool) continue;
-
-    pending_io += buf_pool->n_pend_reads;
-||||||| 8d8c986e571
-/** Checks that there currently are no pending i/o-operations for the buffer
-pool.
-@return number of pending i/o */
-ulint buf_pool_check_no_pending_io(void) {
-  ulint i;
-  ulint pending_io = 0;
-
-  for (i = 0; i < srv_buf_pool_instances; i++) {
-    buf_pool_t *buf_pool;
-
-    buf_pool = buf_pool_from_array(i);
-
-    pending_io += buf_pool->n_pend_reads;
-=======
 size_t buf_pool_pending_io_reads_count() {
   size_t pending_io_reads = 0;
   for (size_t i = 0; i < srv_buf_pool_instances; i++) {
@@ -6787,7 +6748,6 @@ size_t buf_pool_pending_io_reads_count() {
   }
   return pending_io_reads;
 }
->>>>>>> mysql-8.0.30
 
 size_t buf_pool_pending_io_writes_count() {
   size_t pending_io_writes = 0;

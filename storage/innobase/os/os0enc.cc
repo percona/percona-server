@@ -785,25 +785,9 @@ void Encryption::get_master_key(uint32_t *master_key_id,
 #endif /* !UNIV_HOTBACKUP */
 }
 
-<<<<<<< HEAD
-/** Fill the encryption information.
-@param[in]	key		encryption key
-@param[in]	iv		encryption iv
-@param[in,out]	encrypt_info	encryption information
-@param[in]	is_boot		if it's for bootstrap
-@return true if success */
-bool Encryption::fill_encryption_info(const byte *key, const byte *iv,
-                                      byte *encrypt_info,
-                                      bool encrypt_key) noexcept {
-||||||| 8d8c986e571
-bool Encryption::fill_encryption_info(const byte *key, const byte *iv,
-                                      byte *encrypt_info,
-                                      bool encrypt_key) noexcept {
-=======
 bool Encryption::fill_encryption_info(
     const Encryption_metadata &encryption_metadata, bool encrypt_key,
     byte *encrypt_info) noexcept {
->>>>>>> mysql-8.0.30
   byte *master_key = nullptr;
   uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
 
@@ -888,49 +872,12 @@ bool Encryption::fill_encryption_info(
   return (true);
 }
 
-<<<<<<< HEAD
-bool Encryption::fill_encryption_info(uint key_version, byte *iv,
-                                      byte *encrypt_info) {
-  byte *ptr = encrypt_info;
-  ulint crc;
-  memset(encrypt_info, 0, INFO_SIZE);
-  memcpy(ptr, KEY_MAGIC_RK_V2, MAGIC_SIZE);
-  ptr += MAGIC_SIZE;
-  /* Write master key id. */
-  mach_write_to_4(ptr, key_version);
-  ptr += 4;
-  /* Write server uuid. */
-  memcpy(ptr, server_uuid, SERVER_UUID_LEN);
-  ptr += SERVER_UUID_LEN;
-  /* Write tablespace iv. */
-  memcpy(ptr, iv, KEY_LEN);
-  ptr += KEY_LEN;
-  /* Write checksum bytes. */
-  crc = ut_crc32(encrypt_info, KEY_LEN);
-  mach_write_to_4(ptr, crc);
-#ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Encrypting log with key version: %u\n", key_version);
-#endif
-  return true;
-}
-
-byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
-                                           uint32_t *m_key_id, char *srv_uuid,
-                                           byte **master_key) noexcept {
-  byte *ptr = encrypt_info;
-||||||| 8d8c986e571
-byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
-                                           uint32_t *m_key_id, char *srv_uuid,
-                                           byte **master_key) noexcept {
-  byte *ptr = encrypt_info;
-=======
 const byte *Encryption::get_master_key_from_info(const byte *encrypt_info,
                                                  Version version,
                                                  uint32_t *m_key_id,
                                                  char *srv_uuid,
                                                  byte **master_key) noexcept {
   const byte *ptr = encrypt_info;
->>>>>>> mysql-8.0.30
   *m_key_id = 0;
 
   /* Get master key id. */
@@ -1006,15 +953,6 @@ const byte *Encryption::get_master_key_from_info(const byte *encrypt_info,
   return (ptr);
 }
 
-<<<<<<< HEAD
-/** Decoding the encryption info from the first page of a tablespace.
-@param[in,out]	space_id		space_id
-@param[in,out]	e_key		e_key
-@param[in]	encryption_info	encryption info
-@param[in]	decrypt_key	decrypt_key
-@return true if success */
-||||||| 8d8c986e571
-=======
 bool Encryption::is_encrypted_with_version(
     const byte *encryption_info, const char *version_magic_bytes) noexcept {
   return std::memcmp(encryption_info, version_magic_bytes,
@@ -1044,7 +982,6 @@ bool Encryption::decode_encryption_info(Encryption_metadata &e_metadata,
   return false;
 }
 
->>>>>>> mysql-8.0.30
 bool Encryption::decode_encryption_info(space_id_t space_id,
                                         Encryption_key &e_key,
                                         const byte *encryption_info,

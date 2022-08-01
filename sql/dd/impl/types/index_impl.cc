@@ -63,14 +63,8 @@ class Sdi_wcontext;
 class Table;
 
 static const std::set<String_type> default_valid_option_keys = {
-<<<<<<< HEAD
-    "block_size", "flags", "parser_name", "clustering_key"};
-||||||| 8d8c986e571
-    "block_size", "flags", "parser_name"};
-=======
-    "block_size", "flags", "parser_name",
-    "gipk" /* generated implicit primary key */};
->>>>>>> mysql-8.0.30
+    "block_size", "flags", "parser_name","gipk" /* generated implicit primary key */,
+    "clustering_key"};
 
 ///////////////////////////////////////////////////////////////////////////
 // Index_impl implementation.

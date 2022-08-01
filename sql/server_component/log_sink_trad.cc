@@ -344,35 +344,6 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
         output_buffer->type = LOG_ITEM_RET_BUFFER;
       }
 
-<<<<<<< HEAD
-      /*
-        Prevent duplicates in incremental flush of buffered log events.
-        If start-up is very slow, we'll let error-log event buffering
-        "time out": we'll print the events so far to the traditional
-        error log (and only to that log, as external log-writers cannot
-        be loaded until later, when InnoDB, upon which the component
-        framework depends, has been initialized). Then, we'll go back
-        to buffering. Eventually, we'll either time-out and flush again,
-        or start-up completes, and we can do a proper flush of the
-        buffered error-events.
-        At that point, any loaded log-writers will be called for the
-        first time, whereas this here traditional writer may have been
-        called upon multiple times to give incremental updates.
-        Therefore, we must prevent duplicates in this, and only in this
-        writer. Ready? (Who lives in a time-out under the C? Buffered
-        events, in trad sink!)
-      */
-      if (out_types & LOG_ITEM_LOG_BUFFERED) {
-        // abort if we've already printed this (to trad log only!)
-        if (microtime <= log_sink_trad_last) {
-          out_fields = LOG_SERVICE_NOTHING_DONE;
-          goto done;
-        }
-
-        // otherwise remember micro-time of last buffered event we've printed
-        log_sink_trad_last = microtime;
-      }
-
       bool log_to_buffered_error_log = false;
       bool log_only_to_buffered_error_log = false;
 
@@ -386,38 +357,6 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
       if (log_to_buffered_error_log) {
         buffered_error_log.log(buff_line, len);
       }
-
-||||||| 8d8c986e571
-      /*
-        Prevent duplicates in incremental flush of buffered log events.
-        If start-up is very slow, we'll let error-log event buffering
-        "time out": we'll print the events so far to the traditional
-        error log (and only to that log, as external log-writers cannot
-        be loaded until later, when InnoDB, upon which the component
-        framework depends, has been initialized). Then, we'll go back
-        to buffering. Eventually, we'll either time-out and flush again,
-        or start-up completes, and we can do a proper flush of the
-        buffered error-events.
-        At that point, any loaded log-writers will be called for the
-        first time, whereas this here traditional writer may have been
-        called upon multiple times to give incremental updates.
-        Therefore, we must prevent duplicates in this, and only in this
-        writer. Ready? (Who lives in a time-out under the C? Buffered
-        events, in trad sink!)
-      */
-      if (out_types & LOG_ITEM_LOG_BUFFERED) {
-        // abort if we've already printed this (to trad log only!)
-        if (microtime <= log_sink_trad_last) {
-          out_fields = LOG_SERVICE_NOTHING_DONE;
-          goto done;
-        }
-
-        // otherwise remember micro-time of last buffered event we've printed
-        log_sink_trad_last = microtime;
-      }
-
-=======
->>>>>>> mysql-8.0.30
       // write log-event to log-file
       if (!log_only_to_buffered_error_log || !buffered_error_log.is_enabled())
         log_write_errstream(buff_line, len);

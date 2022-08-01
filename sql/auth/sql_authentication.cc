@@ -4714,17 +4714,11 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   int pkt_len;
   String scramble_response_packet;
   int cipher_length = 0;
-<<<<<<< HEAD
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1] = "";
-||||||| 8d8c986e571
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
-=======
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   EVP_PKEY *private_key = nullptr;
   EVP_PKEY *public_key = nullptr;
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
->>>>>>> mysql-8.0.30
   RSA *private_key = nullptr;
   RSA *public_key = nullptr;
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */

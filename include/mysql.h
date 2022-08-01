@@ -410,16 +410,8 @@ void STDCALL mysql_server_end(void);
 
 /*
   mysql_server_init/end need to be called when using libmysqld or
-<<<<<<< HEAD
-  libperconaserverclient (exactly, mysql_server_init() is called by
-  mysql_init() so you don't need to call it explicitely; but you need to call
-||||||| 8d8c986e571
-  libmysqlclient (exactly, mysql_server_init() is called by mysql_init() so
-  you don't need to call it explicitely; but you need to call
-=======
-  libmysqlclient (exactly, mysql_server_init() is called by mysql_init() so
+  libperconaserverclient (exactly, mysql_server_init() is called by mysql_init() so
   you don't need to call it explicitly; but you need to call
->>>>>>> mysql-8.0.30
   mysql_server_end() to free memory). The names are a bit misleading
   (mysql_SERVER* to be used when using libmysqlCLIENT). So we add more general
   names which suit well whether you're using libmysqld or

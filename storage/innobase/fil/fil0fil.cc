@@ -1666,20 +1666,7 @@ class Fil_system {
   [[nodiscard]] Fil_shard *shard_by_id(space_id_t space_id,
                                        uint *index = nullptr) const {
 #ifndef UNIV_HOTBACKUP
-<<<<<<< HEAD
-    if (space_id == dict_sys_t::s_log_space_first_id) {
-      if (index) *index = REDO_SHARD;
-      return m_shards[REDO_SHARD];
-
-    } else if (fsp_is_undo_tablespace(space_id)) {
-||||||| 8d8c986e571
-    if (space_id == dict_sys_t::s_log_space_first_id) {
-      return m_shards[REDO_SHARD];
-
-    } else if (fsp_is_undo_tablespace(space_id)) {
-=======
     if (fsp_is_undo_tablespace(space_id)) {
->>>>>>> mysql-8.0.30
       const size_t limit = space_id % UNDO_SHARDS;
 
       if (index) *index = UNDO_SHARDS_START + limit;
@@ -2756,22 +2743,10 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
 
   ut::aligned_free(page);
 
-<<<<<<< HEAD
-  /* For Master Key encrypted tablespace, we need to check the
-  encrytion key and iv(initial vector) is read. */
-  if (FSP_FLAGS_GET_ENCRYPTION(flags) && !recv_recovery_is_on() &&
-      !space->crypt_data && space->encryption_type != Encryption::AES) {
-||||||| 8d8c986e571
-  /* For encrypted tablespace, we need to check the
-  encryption key and iv(initial vector) is read. */
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags) && !recv_recovery_is_on() &&
-      space->encryption_type != Encryption::AES) {
-=======
   /* For encrypted tablespace, we need to check the
   encryption key and iv(initial vector) is read. */
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags) && !recv_recovery_is_on() &&
       space->m_encryption_metadata.m_type != Encryption::AES) {
->>>>>>> mysql-8.0.30
     ib::error(ER_IB_MSG_273, file->name);
 
     return DB_ERROR;
@@ -3456,15 +3431,7 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
 
   space->magic_n = FIL_SPACE_MAGIC_N;
 
-<<<<<<< HEAD
-  space->crypt_data = crypt_data;
-
-  space->encryption_type = Encryption::NONE;
-||||||| 8d8c986e571
-  space->encryption_type = Encryption::NONE;
-=======
   space->m_encryption_metadata.m_type = Encryption::NONE;
->>>>>>> mysql-8.0.30
   space->encryption_op_in_progress = Encryption::Progress::NONE;
 
   rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
@@ -4105,125 +4072,6 @@ void fil_close_all_files() {
   fil_system->close_all_files();
 }
 
-<<<<<<< HEAD
-/** Close log files.
-@param[in]      free_all        If set then free all instances */
-void Fil_shard::close_log_files(bool free_all) {
-  mutex_acquire();
-
-  auto end = m_spaces.end();
-
-  for (auto it = m_spaces.begin(); it != end; /* No op */) {
-    auto space = it->second;
-
-    if (space->purpose != FIL_TYPE_LOG) {
-      ++it;
-      continue;
-    }
-
-    if (space->id == dict_sys_t::s_log_space_first_id) {
-      ut_a(fil_space_t::s_redo_space == space);
-
-      fil_space_t::s_redo_space = nullptr;
-    }
-
-    for (auto &file : space->files) {
-      if (file.is_open) {
-        close_file(&file);
-      }
-    }
-
-    if (free_all) {
-      space_detach(space);
-      space_free_low(space);
-      ut_a(space == nullptr);
-
-      it = m_spaces.erase(it);
-
-    } else {
-      ++it;
-    }
-  }
-
-  mutex_release();
-}
-
-/** Close all log files in all shards.
-@param[in]      free_all        If set then free all instances */
-void Fil_system::close_all_log_files(bool free_all) {
-  Fil_system::wait_for_changed_page_tracker();
-  for (auto shard : m_shards) {
-    shard->close_log_files(free_all);
-  }
-}
-
-/** Closes the redo log files. There must not be any pending i/o's or not
-flushed modifications in the files.
-@param[in]      free_all        Whether to free the instances. */
-void fil_close_log_files(bool free_all) {
-  fil_system->close_all_log_files(free_all);
-}
-
-||||||| 8d8c986e571
-/** Close log files.
-@param[in]      free_all        If set then free all instances */
-void Fil_shard::close_log_files(bool free_all) {
-  mutex_acquire();
-
-  auto end = m_spaces.end();
-
-  for (auto it = m_spaces.begin(); it != end; /* No op */) {
-    auto space = it->second;
-
-    if (space->purpose != FIL_TYPE_LOG) {
-      ++it;
-      continue;
-    }
-
-    if (space->id == dict_sys_t::s_log_space_first_id) {
-      ut_a(fil_space_t::s_redo_space == space);
-
-      fil_space_t::s_redo_space = nullptr;
-    }
-
-    for (auto &file : space->files) {
-      if (file.is_open) {
-        close_file(&file);
-      }
-    }
-
-    if (free_all) {
-      space_detach(space);
-      space_free_low(space);
-      ut_a(space == nullptr);
-
-      it = m_spaces.erase(it);
-
-    } else {
-      ++it;
-    }
-  }
-
-  mutex_release();
-}
-
-/** Close all log files in all shards.
-@param[in]      free_all        If set then free all instances */
-void Fil_system::close_all_log_files(bool free_all) {
-  for (auto shard : m_shards) {
-    shard->close_log_files(free_all);
-  }
-}
-
-/** Closes the redo log files. There must not be any pending i/o's or not
-flushed modifications in the files.
-@param[in]      free_all        Whether to free the instances. */
-void fil_close_log_files(bool free_all) {
-  fil_system->close_all_log_files(free_all);
-}
-
-=======
->>>>>>> mysql-8.0.30
 /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
 returning the nodes via callback function cbk.
 @param[in]      f               Callback
@@ -6245,17 +6093,6 @@ static dberr_t fil_create_tablespace(
     return DB_ERROR;
   }
 
-  // Create crypt data if the tablespace is either encrypted or user has
-  // requested it to remain unencrypted. */
-  if (mode == FIL_ENCRYPTION_ON || mode == FIL_ENCRYPTION_OFF ||
-      (srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING ||
-       keyring_encryption_key_id.was_encryption_key_id_set)) {
-    crypt_data = fil_space_create_crypt_data(mode, keyring_encryption_key_id.id,
-                                             server_uuid);
-
-    if (crypt_data->should_encrypt()) crypt_data->load_keys_to_local_cache();
-  }
-
 #ifndef UNIV_HOTBACKUP
   /* Notifier block covers space creation and initialization. */
   Clone_notify notifier(Clone_notify::Type::SPACE_CREATE, space_id, false);
@@ -6272,7 +6109,6 @@ static dberr_t fil_create_tablespace(
   if (space == nullptr) {
     os_file_close(file);
     os_file_delete(innodb_data_file_key, path);
-    fil_space_destroy_crypt_data(&crypt_data);
 
     return DB_ERROR;
   }
@@ -6308,11 +6144,11 @@ static dberr_t fil_create_tablespace(
 
   /* For encryption tablespace, initial encryption information. */
   if (space != nullptr &&
-      (FSP_FLAGS_GET_ENCRYPTION(space->flags) || crypt_data)) {
+      (FSP_FLAGS_GET_ENCRYPTION(space->flags))) {
     err = fil_set_encryption(
         space->id,
-        crypt_data != nullptr ? Encryption::KEYRING : Encryption::AES, nullptr,
-        crypt_data != nullptr ? crypt_data->iv : NULL);
+        Encryption::AES, nullptr,
+        nullptr);
     ut_ad(err == DB_SUCCESS);
   }
 
@@ -8164,122 +8000,12 @@ static void fil_report_invalid_page_access_low(page_no_t block_offset,
 #define fil_report_invalid_page_access(b, s, n, o, l, t) \
   fil_report_invalid_page_access_low((b), (s), (n), (o), (l), (t), __LINE__)
 
-static bool set_min_key_version;
-static byte key_min[32];
-
-inline void fil_io_set_keyring_encryption(IORequest &req_type,
-                                          fil_space_t *space,
-                                          const page_id_t &page_id) {
-  ut_ad(space->crypt_data != NULL);
-
-  byte *key = NULL;
-  ulint key_len = 32;  // 32*8=256
-  byte *iv = NULL;
-  byte *tablespace_key = NULL;
-  uint key_version = 0;
-  uint key_id = FIL_DEFAULT_ENCRYPTION_KEY;
-
-  if (space->crypt_data->mutex_lock_needed)
-    mutex_enter(&space->crypt_data->mutex);
-
-  iv = space->crypt_data->iv;
-  key_id = space->crypt_data->key_id;
-
-  if (req_type.is_write()) {
-    if (space->crypt_data->encryption == FIL_ENCRYPTION_ON ||
-        space->crypt_data->encryption_rotation ==
-            Encryption_rotation::ENCRYPTING ||
-        space->crypt_data->encryption_rotation ==
-            Encryption_rotation::MASTER_KEY_TO_KEYRING) {
-      if (space->crypt_data->local_keys_cache.size() == 0)
-        space->crypt_data->load_keys_to_local_cache();
-
-      ut_ad(space->crypt_data
-                ->local_keys_cache[space->crypt_data->max_key_version] !=
-            nullptr);
-
-      key = space->crypt_data
-                ->local_keys_cache[space->crypt_data->max_key_version];
-      key_version = space->crypt_data->max_key_version;
-      key_len = 32;
-    } else {
-      key = NULL;
-      key_len = 0;
-      iv = NULL;
-      key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
-    }
-  }
-
-  if (req_type.is_read()) {
-    if (space->crypt_data->local_keys_cache.size() == 0)
-      space->crypt_data->load_keys_to_local_cache();
-
-    tablespace_key = space->crypt_data->tablespace_key;
-    ut_ad(space->crypt_data->encryption_rotation !=
-              Encryption_rotation::MASTER_KEY_TO_KEYRING ||
-          space->crypt_data->tablespace_key != nullptr);
-    // retrieve key with min_key_version from local cache. In normal situation
-    // this is the key needed for decryption. In rare cases when re-encryption
-    // was aborted - due to server crash or shutdown there can be one more key
-    // version needed to decrypt tablespace - we will find this version in
-    // decrypt and retrieve needed version.
-    if (space->crypt_data->min_key_version !=
-            ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED &&
-        space->crypt_data->encryption != FIL_ENCRYPTION_OFF) {
-      ut_ad(space->crypt_data
-                ->local_keys_cache[space->crypt_data->min_key_version] !=
-            nullptr);
-      key = space->crypt_data
-                ->local_keys_cache[space->crypt_data->min_key_version];
-      memcpy(key_min, key, 32);
-      set_min_key_version = true;
-      char testblock[32];
-      memset(testblock, 0, 32);
-      ut_ad(memcmp(key, testblock, 32) != 0);
-      ut_ad(key != NULL);
-      key_version = key == NULL ? ENCRYPTION_KEY_VERSION_INVALID
-                                : space->crypt_data->min_key_version;
-    } else {
-      key = NULL;
-      key_version = ENCRYPTION_KEY_VERSION_INVALID;
-    }
-  }
-
-  req_type.encryption_key(key, key_len, iv, key_version, key_id, tablespace_key,
-                          space->crypt_data->uuid,
-                          &space->crypt_data->local_keys_cache);
-
-  req_type.encryption_rotation(space->crypt_data->encryption_rotation);
-
-  req_type.encryption_algorithm(Encryption::KEYRING);
-
-  if (space->crypt_data->mutex_lock_needed)
-    mutex_exit(&space->crypt_data->mutex);
-}
-
-static void fil_io_set_mk_encryption(IORequest &req_type, fil_space_t *space) {
-  unsigned char *key = space->encryption_key;
-  uint version = space->encryption_key_version;
-  req_type.encryption_key(key, 32, space->encryption_iv, version, 0, nullptr,
-                          nullptr, nullptr);
-
-  req_type.encryption_rotation(Encryption_rotation::NO_ROTATION);
-}
-
-static bool fil_keyring_skip_encryption(const page_id_t &page_id) {
-  /* Don't encrypt TRX_SYS_SPACE.TRX_SYS_PAGE_NO as it contains the address
-  to dblwr buffer */
-  return page_id.space() == TRX_SYS_SPACE &&
-         page_id.page_no() == TRX_SYS_PAGE_NO;
-}
-
 /** Set encryption information for IORequest.
 @param[in,out]  req_type        IO request
 @param[in]      page_id         page id
 @param[in]      space           table space */
 void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
                            fil_space_t *space) {
-<<<<<<< HEAD
   // TODO: now that dblwr doesn't exist in sys , should we encrypt all pages?
   // Or is there performance impact by encrypting TRX_SYS_PAGE which is
   // modified on every trx commit (binlog position is written)
@@ -8292,10 +8018,7 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
-||||||| 8d8c986e571
-=======
   ut_a(!req_type.is_log());
->>>>>>> mysql-8.0.30
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
   if ((space->encryption_op_in_progress == Encryption::Progress::DECRYPTION &&
@@ -8329,64 +8052,11 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
-<<<<<<< HEAD
-  if (req_type.is_log()) {
-#ifdef UNIV_DEBUG
-    const space_id_t redo_space_id = dict_sys_t::s_log_space_first_id;
-#endif
-    ut_ad(page_id.space() == redo_space_id);
-||||||| 8d8c986e571
-  req_type.encryption_key(space->encryption_key, space->encryption_klen,
-                          space->encryption_iv);
-=======
   req_type.encryption_key(space->m_encryption_metadata.m_key,
                           space->m_encryption_metadata.m_key_len,
                           space->m_encryption_metadata.m_iv);
->>>>>>> mysql-8.0.30
 
-    switch (space->encryption_type) {
-      case Encryption::AES:
-      case Encryption::KEYRING:
-        // Both MK and Keyring key use same style for redo log
-        fil_io_set_mk_encryption(req_type, space);
-        req_type.encryption_algorithm(space->encryption_type);
-        return;
-      case Encryption::NONE:
-        // Already handled above
-      default:
-        ut_a(0);
-    }
-  } else {
-    /* tablespace encryption */
-
-    /* Don't encrypt the page 0 of all tablespaces */
-    if (page_id.page_no() == 0) {
-      req_type.clear_encrypted();
-      return;
-    }
-
-    switch (space->encryption_type) {
-      case Encryption::KEYRING:
-        if (fil_keyring_skip_encryption(page_id)) {
-          req_type.clear_encrypted();
-          return;
-        } else {
-          ut_ad(space->crypt_data != nullptr);
-          fil_io_set_keyring_encryption(req_type, space, page_id);
-          req_type.encryption_algorithm(space->encryption_type);
-          return;
-        }
-
-      case Encryption::AES:
-        fil_io_set_mk_encryption(req_type, space);
-        req_type.encryption_algorithm(space->encryption_type);
-        return;
-      case Encryption::NONE:
-        // Already handled above
-      default:
-        ut_a(0);
-    }
-  }
+  req_type.encryption_algorithm(Encryption::AES);
 }
 
 AIO_mode Fil_shard::get_AIO_mode(const IORequest &, bool sync) {
@@ -9053,26 +8723,6 @@ void Fil_system::flush_file_spaces() {
     shard->flush_file_spaces();
   }
 }
-<<<<<<< HEAD
-/** Flush to disk the writes in file spaces of the given type
-possibly cached by the OS.
-@param[in]      purpose         FIL_TYPE_TABLESPACE or FIL_TYPE_LOG, can be
-ORred. */
-void fil_flush_file_spaces(uint8_t purpose) {
-  if (!fil_system) return;
-
-  fil_system->flush_file_spaces(purpose);
-}
-||||||| 8d8c986e571
-/** Flush to disk the writes in file spaces of the given type
-possibly cached by the OS.
-@param[in]      purpose         FIL_TYPE_TABLESPACE or FIL_TYPE_LOG, can be
-ORred. */
-void fil_flush_file_spaces(uint8_t purpose) {
-  fil_system->flush_file_spaces(purpose);
-}
-=======
->>>>>>> mysql-8.0.30
 
 void fil_flush_file_spaces() { fil_system->flush_file_spaces(); }
 
@@ -9907,48 +9557,7 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
     return DB_NOT_FOUND;
   }
 
-<<<<<<< HEAD
-  if (key == nullptr) {
-    if (algorithm == Encryption::KEYRING) {
-      memset(space->encryption_key, 0, Encryption::KEY_LEN);
-      space->encryption_klen = 0;
-    } else {
-      Encryption::random_value(space->encryption_key);
-      space->encryption_klen = Encryption::KEY_LEN;
-    }
-  } else {
-    memcpy(space->encryption_key, key, Encryption::KEY_LEN);
-    space->encryption_klen = Encryption::KEY_LEN;
-  }
-
-  if (iv == nullptr) {
-    Encryption::random_value(space->encryption_iv);
-  } else {
-    memcpy(space->encryption_iv, iv, Encryption::KEY_LEN);
-  }
-
-  ut_ad(algorithm != Encryption::NONE);
-  space->encryption_type = algorithm;
-||||||| 8d8c986e571
-  if (key == nullptr) {
-    Encryption::random_value(space->encryption_key);
-  } else {
-    memcpy(space->encryption_key, key, Encryption::KEY_LEN);
-  }
-
-  space->encryption_klen = Encryption::KEY_LEN;
-
-  if (iv == nullptr) {
-    Encryption::random_value(space->encryption_iv);
-  } else {
-    memcpy(space->encryption_iv, iv, Encryption::KEY_LEN);
-  }
-
-  ut_ad(algorithm != Encryption::NONE);
-  space->encryption_type = algorithm;
-=======
   Encryption::set_or_generate(algorithm, key, iv, space->m_encryption_metadata);
->>>>>>> mysql-8.0.30
 
   if (space->crypt_data == nullptr) fsp_flags_set_encryption(space->flags);
 
@@ -9984,32 +9593,6 @@ dberr_t fil_temp_update_encryption(fil_space_t *space) {
   ut_ad(err == DB_SUCCESS);
 
   return (err);
-}
-
-/** Rotate the tablespace key by new master key.
-@param[in]	space	tablespace object
-@return true if the re-encrypt suceeds */
-bool encryption_rotate_low(fil_space_t *space) {
-  bool success = true;
-  if (space->encryption_type == Encryption::AES) {
-    mtr_t mtr;
-    mtr_start(&mtr);
-
-    if (fsp_is_system_temporary(space->id)) {
-      mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-    }
-
-    mtr_x_lock_space(space, &mtr);
-
-    byte encrypt_info[Encryption::INFO_SIZE];
-    memset(encrypt_info, 0, Encryption::INFO_SIZE);
-
-    if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
-      success = false;
-    }
-    mtr_commit(&mtr);
-  }
-  return (success);
 }
 
 /** Reset the encryption type for the tablespace
@@ -10049,30 +9632,8 @@ bool Fil_shard::needs_encryption_rotate(fil_space_t *space) {
     return false;
   }
 
-<<<<<<< HEAD
-  /* Skip if space is not master encrypted */
-
-  if (space->encryption_type != Encryption::AES) {
-    return false;
-  }
-
-  /* Skip unencypted tablespaces. Encrypted redo log
-  tablespaces is handled in function log_rotate_encryption.
-  Skip session temporary tablespaces. They are handled separately
-  by ibt::Tablespace_pool::rotate_encryption_keys() */
-  /* Skip unencypted tablespaces. Encrypted redo log
-  tablespaces is handled in function log_rotate_encryption. */
-  if (fsp_is_system_or_temp_tablespace(space->id) ||
-      space->purpose == FIL_TYPE_LOG) {
-||||||| 8d8c986e571
-  /* Skip unencypted tablespaces. Encrypted redo log
-  tablespaces is handled in function log_rotate_encryption. */
-  if (fsp_is_system_or_temp_tablespace(space->id) ||
-      space->purpose == FIL_TYPE_LOG) {
-=======
   /* Skip unencypted tablespaces. */
   if (fsp_is_system_or_temp_tablespace(space->id)) {
->>>>>>> mysql-8.0.30
     return false;
   }
 
@@ -10211,21 +9772,6 @@ size_t fil_encryption_rotate() { return (fil_system->encryption_rotate()); }
 
 void fil_encryption_reencrypt(std::vector<space_id_t> &sid_vector) {
   fil_system->encryption_reencrypt(sid_vector);
-}
-
-bool fil_encryption_rotate_global(const space_id_vec &space_ids) {
-  for (space_id_t space_id : space_ids) {
-    fil_space_t *space = fil_space_acquire(space_id);
-
-    bool success = encryption_rotate_low(space);
-
-    fil_space_release(space);
-
-    if (!success) {
-      return (false);
-    }
-  }
-  return (true);
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -10941,42 +10487,6 @@ dberr_t Fil_system::open_for_recovery(space_id_t space_id) {
              Encryption::Progress::ENCRYPTION) &&
         recv_sys->keys != nullptr) {
       fil_tablespace_encryption_init(space);
-    }
-
-    if (recv_sys->crypt_datas != nullptr &&
-        recv_sys->crypt_datas->count(space_id) > 0) {
-      fil_space_crypt_t *crypt_data = (*recv_sys->crypt_datas)[space_id];
-
-      /* If tablespace is already encrypted and the crypt_data from redo
-      discovered is unencrypted, we shouldn't set crypt_data to tablespace */
-      if (FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
-          crypt_data->type == CRYPT_SCHEME_UNENCRYPTED) {
-        ut::delete_(crypt_data);
-        recv_sys->crypt_datas->erase(space_id);
-        return (true);
-      }
-
-      if (space->crypt_data != nullptr) {
-        fil_space_destroy_crypt_data(&space->crypt_data);
-      }
-
-      space->crypt_data = crypt_data;
-      recv_sys->crypt_datas->erase(space_id);
-
-      /* If tablespace is unencrypted and crypt data is unencrypted (explicit
-      ENCRYPTION='N'), we should just set crypt_data to tablespace and nothing
-      else */
-      if (crypt_data->type == CRYPT_SCHEME_UNENCRYPTED) {
-        return (true);
-      }
-
-      dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, nullptr,
-                                       space->crypt_data->iv);
-
-      if (err != DB_SUCCESS) {
-        ib::error(ER_IB_MSG_343) << "Can't set encryption information"
-                                 << " for tablespace" << space->name << "!";
-      }
     }
 
     if (!recv_sys->dblwr->empty()) {
@@ -12838,61 +12348,6 @@ page_no_t Fil_page_header::get_page_no() const noexcept {
 
 uint16_t Fil_page_header::get_page_type() const noexcept {
   return mach_read_from_2(m_frame + FIL_PAGE_TYPE);
-}
-
-void fil_space_t::get_encryption_info(Encryption &en) noexcept {
-  switch (encryption_type) {
-    case Encryption::NONE:
-      en.set_type(Encryption::NONE);
-      en.set_key(nullptr);
-      en.set_key_length(0);
-      en.set_initial_vector(nullptr);
-
-      en.set_key_versions_cache(nullptr);
-      en.set_key_version(0);
-      en.set_key_id(0);
-      en.set_tablespace_key(nullptr);
-      en.set_key_id_uuid(nullptr);
-      en.set_encryption_rotation(Encryption_rotation::NO_ROTATION);
-      break;
-    case Encryption::AES:
-      ut_ad(encryption_klen != 0);
-
-      en.set_type(Encryption::AES);
-      en.set_key(encryption_key);
-      en.set_key_length(encryption_klen);
-      en.set_initial_vector(encryption_iv);
-
-      en.set_key_versions_cache(nullptr);
-      en.set_key_version(0);
-      en.set_key_id(0);
-      en.set_tablespace_key(nullptr);
-      en.set_key_id_uuid(nullptr);
-      en.set_encryption_rotation(Encryption_rotation::NO_ROTATION);
-      break;
-    case Encryption::KEYRING:
-      ut_ad(crypt_data != nullptr);
-
-      if (crypt_data->local_keys_cache.size() == 0)
-        crypt_data->load_keys_to_local_cache();
-
-      ut_ad(crypt_data->local_keys_cache[crypt_data->max_key_version] !=
-            nullptr);
-
-      en.set_type(Encryption::KEYRING);
-
-      en.set_key(crypt_data->local_keys_cache[crypt_data->max_key_version]);
-      en.set_key_length(Encryption::KEY_LEN);
-      en.set_initial_vector(crypt_data->iv);
-
-      en.set_key_versions_cache(&crypt_data->local_keys_cache);
-      en.set_key_version(crypt_data->max_key_version);
-      en.set_key_id(crypt_data->key_id);
-      en.set_tablespace_key(nullptr);
-      en.set_key_id_uuid(crypt_data->uuid);
-      en.set_encryption_rotation(crypt_data->encryption_rotation);
-      break;
-  }
 }
 
 fil_node_t *fil_space_t::get_file_node(page_no_t *page_no) noexcept {

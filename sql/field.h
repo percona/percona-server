@@ -3813,22 +3813,6 @@ class Field_blob : public Field_longstr {
   */
   void set_keep_old_value(bool old_value_flag) {
     /*
-<<<<<<< HEAD
-||||||| 8d8c986e571
-      We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
-    /*
-=======
-      We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual generated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
-    /*
->>>>>>> mysql-8.0.30
       If set to true, ensure that 'value' is copied to 'old_value' when
       keep_old_value() is called.
     */
@@ -3874,22 +3858,6 @@ class Field_blob : public Field_longstr {
     this field object.
   */
   void keep_old_value() {
-<<<<<<< HEAD
-||||||| 8d8c986e571
-    /*
-      We should only need to keep a copy of the blob value in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
-=======
-    /*
-      We should only need to keep a copy of the blob value in the case
-      where this is a virtual generated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
->>>>>>> mysql-8.0.30
     // Transfer ownership of the current BLOB value to old_value
     if (m_keep_old_value) {
       old_value.takeover(value);

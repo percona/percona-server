@@ -1770,34 +1770,6 @@ dberr_t dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
       fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
       fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
     } else {
-<<<<<<< HEAD
-      if (dd_column_is_dropped(col)) {
-        cols_to_remove.push_back(col);
-      } else {
-        /* Possibly an INSTANT ADD/DROP column with a version */
-        fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
-        fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
-        fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
-        fn(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED]);
-        fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
-      }
-    }
-  }
-
-  if (cols_to_remove.size() > 0) {
-    dd::Abstract_table::Column_collection *col_collection = dd_table.columns();
-    for (auto col : cols_to_remove) {
-      ut_ad(std::find(col_collection->begin(), col_collection->end(), col) !=
-            col_collection->end());
-      col_collection->remove(dynamic_cast<dd::Column_impl *>(col));
-||||||| 8d8c986e571
-      /* Possibly an INSTANT ADD/DROP column with a version */
-      fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
-      fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
-      fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
-      fn(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED]);
-      fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
-=======
       /* Possibly an INSTANT ADD/DROP column with a version */
       if (dd_column_is_dropped(col)) {
         cols_to_drop.push_back(col->name().c_str());
@@ -1808,7 +1780,6 @@ dberr_t dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
       fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
       fn(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED]);
       fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
->>>>>>> mysql-8.0.30
     }
   }
 

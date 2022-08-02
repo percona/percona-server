@@ -66,6 +66,6 @@ System Variables
 
 * If the ``warn`` value is used it will pass corruption of the table as ``corrupt table`` instead of crashing itself. For this to work :ref:`innodb_file_per_table` should be enabled. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion. 
 
-* When the option value is ``salvage``, *XtraDB* allows read access to a corrupted tablespace, but ignores corrupted pages". You must enable :ref:`innodb_file_per_table`. 
+* When the option value is ``salvage``, *XtraDB* allows read access to a corrupted tablespace, but ignores corrupted pages. You must enable :ref:`innodb_file_per_table`. 
 
 

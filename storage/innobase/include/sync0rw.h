@@ -269,14 +269,14 @@ This is used by both s_lock and x_lock operations.
 @param[in]      amount          amount to decrement
 @param[in]      threshold       threshold of judgement
 @return true if decr occurs */
-static inline bool rw_lock_lock_word_decr(rw_lock_t *lock, ulint amount,
-                                          lint threshold);
+static inline bool rw_lock_lock_word_decr(rw_lock_t *lock, int32_t amount,
+                                          int32_t threshold);
 
 /** Increments lock_word the specified amount and returns new value.
 @param[in,out]  lock            rw-lock
 @param[in]      amount          amount to decrement
 @return lock->lock_word after increment */
-static inline lint rw_lock_lock_word_incr(rw_lock_t *lock, ulint amount);
+static inline int32_t rw_lock_lock_word_incr(rw_lock_t *lock, int32_t amount);
 
 /** This function sets the lock->writer_thread and lock->recursive fields. Sets
 lock->recursive field using atomic release after setting lock->writer thread to

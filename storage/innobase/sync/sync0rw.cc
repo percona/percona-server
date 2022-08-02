@@ -256,7 +256,7 @@ void rw_lock_free_func(rw_lock_t *lock) /*!< in/out: rw-lock */
 {
   os_rmb;
   ut_ad(rw_lock_validate(lock));
-  ut_a(lock->lock_word == X_LOCK_DECR);
+  ut_a(lock->lock_word.load(std::memory_order_relaxed) == X_LOCK_DECR);
 
   mutex_enter(&rw_lock_list_mutex);
 
@@ -286,7 +286,8 @@ lock_loop:
 
   /* Spin waiting for the writer field to become free */
   os_rmb;
-  while (i < srv_n_spin_wait_rounds && lock->lock_word <= 0) {
+  while (i < srv_n_spin_wait_rounds &&
+         lock->lock_word.load(std::memory_order_relaxed) <= 0) {
     if (srv_spin_wait_delay) {
       ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
     }
@@ -380,9 +381,9 @@ static inline void rw_lock_x_lock_wait_func(rw_lock_t *lock,
   uint64_t count_os_wait = 0;
 
   os_rmb;
-  ut_ad(lock->lock_word <= threshold);
+  ut_ad(lock->lock_word.load(std::memory_order_relaxed) <= threshold);
 
-  while (lock->lock_word < threshold) {
+  while (lock->lock_word.load(std::memory_order_relaxed) < threshold) {
     if (srv_spin_wait_delay) {
       ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
     }
@@ -402,7 +403,7 @@ static inline void rw_lock_x_lock_wait_func(rw_lock_t *lock,
     i = 0;
 
     /* Check lock_word to ensure wake-up isn't missed.*/
-    if (lock->lock_word < threshold) {
+    if (lock->lock_word.load(std::memory_order_relaxed) < threshold) {
       ++count_os_wait;
 
       /* Add debug info as it is needed to detect possible
@@ -485,13 +486,15 @@ static inline bool rw_lock_x_lock_low(
         rw_lock_x_lock_wait(lock, pass, -X_LOCK_HALF_DECR, file_name, line);
 
       } else {
+        int32_t lock_word = lock->lock_word.load(std::memory_order_relaxed);
+
         /* At least one X lock by this thread already
         exists. Add another. */
-        if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
-          lock->lock_word -= X_LOCK_DECR;
+        if (lock_word == 0 || lock_word == -X_LOCK_HALF_DECR) {
+          lock->lock_word.fetch_sub(X_LOCK_DECR, std::memory_order_relaxed);
         } else {
-          ut_ad(lock->lock_word <= -X_LOCK_DECR);
-          --lock->lock_word;
+          ut_ad(lock_word <= -X_LOCK_DECR);
+          lock->lock_word.fetch_sub(1, std::memory_order_relaxed);
         }
       }
     } else {
@@ -550,10 +553,13 @@ bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location) {
           thread working on this lock and it is safe to
           read and write to the lock_word. */
 
-        ut_ad((lock->lock_word == 0) ||
-              ((lock->lock_word <= -X_LOCK_DECR) &&
-               (lock->lock_word > -(X_LOCK_DECR + X_LOCK_HALF_DECR))));
-        lock->lock_word -= X_LOCK_HALF_DECR;
+#ifdef UNIV_DEBUG
+        int32_t lock_word = lock->lock_word.load(std::memory_order_relaxed);
+#endif
+        ut_ad((lock_word == 0) ||
+              ((lock_word <= -X_LOCK_DECR) &&
+               (lock_word > -(X_LOCK_DECR + X_LOCK_HALF_DECR))));
+        lock->lock_word.fetch_sub(X_LOCK_HALF_DECR, std::memory_order_relaxed);
       }
     } else {
       /* Another thread locked before us */
@@ -598,7 +604,9 @@ lock_loop:
 
     /* Spin waiting for the lock_word to become free */
     os_rmb;
-    while (i < srv_n_spin_wait_rounds && lock->lock_word <= X_LOCK_HALF_DECR) {
+    while (i < srv_n_spin_wait_rounds &&
+           lock->lock_word.load(std::memory_order_relaxed) <=
+               X_LOCK_HALF_DECR) {
       if (srv_spin_wait_delay) {
         ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
       }
@@ -666,7 +674,9 @@ lock_loop:
 
     /* Spin waiting for the lock_word to become free */
     os_rmb;
-    while (i < srv_n_spin_wait_rounds && lock->lock_word <= X_LOCK_HALF_DECR) {
+    while (i < srv_n_spin_wait_rounds &&
+           lock->lock_word.load(std::memory_order_relaxed) <=
+               X_LOCK_HALF_DECR) {
       if (srv_spin_wait_delay) {
         ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
       }
@@ -720,7 +730,7 @@ bool rw_lock_validate(const rw_lock_t *lock) /*!< in: rw-lock */
   int32_t lock_word;
 
   ut_ad(lock);
-  lock_word = lock->lock_word;
+  lock_word = lock->lock_word.load(std::memory_order_relaxed);
 
   ut_ad(lock->magic_n == rw_lock_t::MAGIC_N);
   ut_ad(lock_word > -(2 * X_LOCK_DECR));
@@ -769,13 +779,14 @@ void rw_lock_add_debug_info(rw_lock_t *lock, ulint pass, ulint lock_type,
   rw_lock_debug_mutex_exit();
 
   if (pass == 0 && lock_type != RW_LOCK_X_WAIT) {
+    int32_t lock_word = lock->lock_word.load(std::memory_order_relaxed);
     /* Recursive x while holding SX
     (lock_type == RW_LOCK_X && lock_word == -X_LOCK_HALF_DECR)
     is treated as not-relock (new lock). */
 
-    if ((lock_type == RW_LOCK_X && lock->lock_word < -X_LOCK_HALF_DECR) ||
+    if ((lock_type == RW_LOCK_X && lock_word < -X_LOCK_HALF_DECR) ||
         (lock_type == RW_LOCK_SX &&
-         (lock->lock_word < 0 || lock->sx_recursive == 1))) {
+         (lock_word < 0 || lock->sx_recursive == 1))) {
       sync_check_lock_validate(lock);
       sync_check_lock_granted(lock);
     } else {
@@ -910,7 +921,7 @@ void rw_lock_list_print_info(FILE *file) /*!< in: file where to print */
   for (const rw_lock_t *lock : rw_lock_list) {
     count++;
 
-    if (lock->lock_word != X_LOCK_DECR) {
+    if (lock->lock_word.load(std::memory_order_relaxed) != X_LOCK_DECR) {
       fprintf(file, "RW-LOCK: %p ", (void *)lock);
 
       if (rw_lock_get_waiters(lock)) {

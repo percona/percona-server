@@ -67,7 +67,7 @@ void rw_lock_remove_debug_info(rw_lock_t *lock,  /*!< in: rw-lock */
 static inline bool rw_lock_get_waiters(
     const rw_lock_t *lock) /*!< in: rw-lock */
 {
-  return lock->waiters.load();
+  return lock->waiters.load(std::memory_order_relaxed);
 }
 
 /** Sets lock->waiters to true. It is not an error if lock->waiters is already
@@ -75,8 +75,7 @@ static inline bool rw_lock_get_waiters(
 static inline void rw_lock_set_waiter_flag(
     rw_lock_t *lock) /*!< in/out: rw-lock */
 {
-  bool zero = false;
-  lock->waiters.compare_exchange_strong(zero, true);
+  lock->waiters.store(true, std::memory_order_acquire);
 }
 
 /** Resets lock->waiters to false. It is not an error if lock->waiters is
@@ -84,8 +83,7 @@ static inline void rw_lock_set_waiter_flag(
 static inline void rw_lock_reset_waiter_flag(
     rw_lock_t *lock) /*!< in/out: rw-lock */
 {
-  bool one = true;
-  lock->waiters.compare_exchange_strong(one, false);
+  lock->waiters.store(false, std::memory_order_relaxed);
 }
 
 /** Returns the write-status of the lock - this function made more sense
@@ -94,7 +92,7 @@ static inline void rw_lock_reset_waiter_flag(
 static inline ulint rw_lock_get_writer(
     const rw_lock_t *lock) /*!< in: rw-lock */
 {
-  lint lock_word = lock->lock_word;
+  int32_t lock_word = lock->lock_word.load(std::memory_order_relaxed);
 
   ut_ad(lock_word <= X_LOCK_DECR);
   if (lock_word > X_LOCK_HALF_DECR) {
@@ -121,7 +119,7 @@ static inline ulint rw_lock_get_writer(
 static inline ulint rw_lock_get_reader_count(
     const rw_lock_t *lock) /*!< in: rw-lock */
 {
-  lint lock_word = lock->lock_word;
+  int32_t lock_word = lock->lock_word.load(std::memory_order_relaxed);
   ut_ad(lock_word <= X_LOCK_DECR);
 
   if (lock_word > X_LOCK_HALF_DECR) {
@@ -153,7 +151,7 @@ static inline ulint rw_lock_get_reader_count(
 static inline ulint rw_lock_get_x_lock_count(
     const rw_lock_t *lock) /*!< in: rw-lock */
 {
-  lint lock_copy = lock->lock_word;
+  int32_t lock_copy = lock->lock_word.load(std::memory_order_relaxed);
   ut_ad(lock_copy <= X_LOCK_DECR);
 
   if (lock_copy == 0 || lock_copy == -X_LOCK_HALF_DECR) {
@@ -182,7 +180,7 @@ static inline ulint rw_lock_get_sx_lock_count(
     const rw_lock_t *lock) /*!< in: rw-lock */
 {
 #ifdef UNIV_DEBUG
-  lint lock_copy = lock->lock_word;
+  int32_t lock_copy = lock->lock_word.load(std::memory_order_relaxed);
 
   ut_ad(lock_copy <= X_LOCK_DECR);
 
@@ -200,24 +198,21 @@ static inline ulint rw_lock_get_sx_lock_count(
 #endif /* UNIV_DEBUG */
 }
 
-/** Two different implementations for decrementing the lock_word of a rw_lock:
- one for systems supporting atomic operations, one for others. This does
- does not support recusive x-locks: they should be handled by the caller and
+/** Recursive x-locks are not supported: they should be handled by the caller and
  need not be atomic since they are performed by the current lock holder.
  Returns true if the decrement was made, false if not.
  @return true if decr occurs */
 ALWAYS_INLINE
 bool rw_lock_lock_word_decr(rw_lock_t *lock, /*!< in/out: rw-lock */
-                            ulint amount,    /*!< in: amount to decrement */
-                            lint threshold)  /*!< in: threshold of judgement */
+                            int32_t amount,    /*!< in: amount to decrement */
+                            int32_t threshold)  /*!< in: threshold of judgement */
 {
-  int32_t local_lock_word;
-
-  os_rmb;
-  local_lock_word = lock->lock_word;
+  int32_t local_lock_word = lock->lock_word.load(std::memory_order_relaxed);
   while (local_lock_word > threshold) {
     if (lock->lock_word.compare_exchange_strong(local_lock_word,
-                                                local_lock_word - amount)) {
+                                                local_lock_word - amount,
+                                                std::memory_order_acquire,
+                                                std::memory_order_relaxed)) {
       return (true);
     }
   }
@@ -226,11 +221,11 @@ bool rw_lock_lock_word_decr(rw_lock_t *lock, /*!< in/out: rw-lock */
 
 /** Increments lock_word the specified amount and returns new value.
  @return lock->lock_word after increment */
-static inline lint rw_lock_lock_word_incr(
+static inline int32_t rw_lock_lock_word_incr(
     rw_lock_t *lock, /*!< in/out: rw-lock */
-    ulint amount)    /*!< in: amount of increment */
+    int32_t amount)    /*!< in: amount of increment */
 {
-  return (lock->lock_word.fetch_add(amount) + amount);
+  return (lock->lock_word.fetch_add(amount, std::memory_order_release) + amount);
 }
 
 static inline void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock,
@@ -304,27 +299,27 @@ static inline bool rw_lock_x_lock_func_nowait(rw_lock_t *lock,
                                               ut::Location location) {
   int32_t x_lock_decr = X_LOCK_DECR;
 
-  if (lock->lock_word.compare_exchange_strong(x_lock_decr, 0)) {
+  if (lock->lock_word.compare_exchange_strong(x_lock_decr, 0, std::memory_order_acquire, std::memory_order_relaxed)) {
     rw_lock_set_writer_id_and_recursion_flag(lock, true);
   } else if (lock->recursive.load(std::memory_order_acquire) &&
              lock->writer_thread.load(std::memory_order_relaxed) ==
                  std::this_thread::get_id()) {
-    /* Relock: this lock_word modification is safe since no other
-    threads can modify (lock, unlock, or reserve) lock_word while
-    there is an exclusive writer and this is the writer thread. */
-    if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
+    /* Relock: even though no other thread can modify (lock, unlock
+    or reserve) lock_word while there is an exclusive writer and
+    this is the writer thread, we still want concurrent threads to
+    observe consistent values. */
+    if (x_lock_decr == 0 || x_lock_decr == -X_LOCK_HALF_DECR) {
       /* There are 1 x-locks */
-      lock->lock_word -= X_LOCK_DECR;
-    } else if (lock->lock_word <= -X_LOCK_DECR) {
+      lock->lock_word.fetch_sub(X_LOCK_DECR, std::memory_order_relaxed);
+    } else if (x_lock_decr <= -X_LOCK_DECR) {
       /* There are 2 or more x-locks */
-      lock->lock_word--;
+      lock->lock_word.fetch_sub(1, std::memory_order_relaxed);
+      /* Watch for too many recursive locks */
+      ut_ad(x_lock_decr < 1);
     } else {
       /* Failure */
       return false;
     }
-
-    /* Watch for too many recursive locks */
-    ut_ad(lock->lock_word < 0);
   } else {
     /* Failure */
     return false;
@@ -349,15 +344,18 @@ thread to unlock
 @param[in,out] lock  rw-lock */
 static inline void rw_lock_s_unlock_func(IF_DEBUG(ulint pass, )
                                              rw_lock_t *lock) {
-  ut_ad(lock->lock_word > -X_LOCK_DECR);
-  ut_ad(lock->lock_word != 0);
-  ut_ad(lock->lock_word < X_LOCK_DECR);
+#ifdef UNIV_DEBUG
+  int32_t dbg_lock_word = lock->lock_word.load(std::memory_order_relaxed);
+#endif  
+  ut_ad(dbg_lock_word > -X_LOCK_DECR);
+  ut_ad(dbg_lock_word != 0);
+  ut_ad(dbg_lock_word < X_LOCK_DECR);
   lock->reader_thread.xor_thing(std::this_thread::get_id());
 
   ut_d(rw_lock_remove_debug_info(lock, pass, RW_LOCK_S));
 
   /* Increment lock_word to indicate 1 less reader */
-  lint lock_word = rw_lock_lock_word_incr(lock, 1);
+  int32_t lock_word = rw_lock_lock_word_incr(lock, 1);
   if (lock_word == 0 || lock_word == -X_LOCK_HALF_DECR) {
     /* wait_ex waiter exists. It may not be asleep, but we signal
     anyway. We do not wake other waiters, because they can't
@@ -375,8 +373,9 @@ another thread to unlock
 @param[in,out] lock lock rw-lock */
 static inline void rw_lock_x_unlock_func(IF_DEBUG(ulint pass, )
                                              rw_lock_t *lock) {
-  ut_ad(lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR ||
-        lock->lock_word <= -X_LOCK_DECR);
+  int32_t lock_word = lock->lock_word.load(std::memory_order_relaxed);
+  ut_ad(lock_word == 0 || lock_word == -X_LOCK_HALF_DECR ||
+        lock_word <= -X_LOCK_DECR);
 
   /* lock->recursive == true implies that the lock->writer_thread is the
   current writer. If we are the last of the recursive callers then we must unset
@@ -384,26 +383,28 @@ static inline void rw_lock_x_unlock_func(IF_DEBUG(ulint pass, )
   stale. Otherwise if our thread tried to reacquire the lock it would wrongly
   believe it already has it.
   Note that since we still hold the x-lock we can safely read the lock_word. */
-  if (lock->lock_word == 0) {
+  if (lock_word == 0) {
     /* Last caller in a possible recursive chain. */
     lock->recursive.store(false, std::memory_order_relaxed);
   }
 
   ut_d(rw_lock_remove_debug_info(lock, pass, RW_LOCK_X));
 
-  if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
+  if (lock_word == 0 || lock_word == -X_LOCK_HALF_DECR) {
+    /* Last X-lock owned by this thread, it may still hold SX-locks.
+    ACQ_REL due to...
+    RELEASE: we release rw-lock
+    ACQUIRE: we want waiters to be loaded after lock_word is stored */
     /* There is 1 x-lock */
     /* atomic increment is needed, because it is last */
-    if (rw_lock_lock_word_incr(lock, X_LOCK_DECR) <= 0) {
-      ut_error;
-    }
+    lock->lock_word.fetch_add(X_LOCK_DECR, std::memory_order_acq_rel);
 
     /* This no longer has an X-lock but it may still have
     an SX-lock. So it is now free for S-locks by other threads.
     We need to signal read/write waiters.
     We do not need to signal wait_ex waiters, since they cannot
     exist when there is a writer. */
-    if (lock->waiters) {
+    if (rw_lock_get_waiters(lock)) {
       rw_lock_reset_waiter_flag(lock);
       os_event_set(lock->event);
       sync_array_object_signalled();
@@ -411,11 +412,11 @@ static inline void rw_lock_x_unlock_func(IF_DEBUG(ulint pass, )
   } else if (lock->lock_word == -X_LOCK_DECR ||
              lock->lock_word == -(X_LOCK_DECR + X_LOCK_HALF_DECR)) {
     /* There are 2 x-locks */
-    lock->lock_word += X_LOCK_DECR;
+    lock->lock_word.fetch_add(X_LOCK_DECR, std::memory_order_relaxed);
   } else {
     /* There are more than 2 x-locks. */
     ut_ad(lock->lock_word < -X_LOCK_DECR);
-    lock->lock_word += 1;
+    lock->lock_word.fetch_add(1, std::memory_order_relaxed);
   }
 
   ut_ad(rw_lock_validate(lock));
@@ -435,27 +436,33 @@ static inline void rw_lock_sx_unlock_func(IF_DEBUG(ulint pass, )
   ut_d(rw_lock_remove_debug_info(lock, pass, RW_LOCK_SX));
 
   if (lock->sx_recursive == 0) {
+    int32_t lock_word = lock->lock_word.load(std::memory_order_relaxed);
     /* Last caller in a possible recursive chain. */
-    if (lock->lock_word > 0) {
+    if (lock_word > 0) {
       lock->recursive.store(false, std::memory_order_relaxed);
 
-      if (rw_lock_lock_word_incr(lock, X_LOCK_HALF_DECR) <= X_LOCK_HALF_DECR) {
-        ut_error;
-      }
+      ut_ad(lock_word <= INT_MAX32 - X_LOCK_HALF_DECR);
+
+      /* Last SX-lock owned by this thread, doesn't own X-lock.
+      ACQ_REL due to...
+      RELEASE: we release rw-lock
+      ACQUIRE: we want waiters to be loaded after lock_word is stored */
+      lock->lock_word.fetch_add(X_LOCK_HALF_DECR, std::memory_order_acq_rel);
+
       /* Lock is now free. May have to signal read/write
       waiters. We do not need to signal wait_ex waiters,
       since they cannot exist when there is an sx-lock
       holder. */
-      if (lock->waiters) {
+      if (rw_lock_get_waiters(lock)) {
         rw_lock_reset_waiter_flag(lock);
         os_event_set(lock->event);
         sync_array_object_signalled();
       }
     } else {
       /* still has x-lock */
-      ut_ad(lock->lock_word == -X_LOCK_HALF_DECR ||
-            lock->lock_word <= -(X_LOCK_DECR + X_LOCK_HALF_DECR));
-      lock->lock_word += X_LOCK_HALF_DECR;
+      ut_ad(lock_word == -X_LOCK_HALF_DECR ||
+            lock_word <= -(X_LOCK_DECR + X_LOCK_HALF_DECR));
+      lock->lock_word.fetch_add(X_LOCK_HALF_DECR, std::memory_order_relaxed);
     }
   }
 

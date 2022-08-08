@@ -275,6 +275,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :ref: `rocksdb_enable_tmp_table`
+     - Yes
+     - No
+     - Global
    * - :ref:`rocksdb_enable_write_thread_adaptive_yield`
      - Yes
      - No
@@ -328,6 +332,10 @@ Also, all variables can exist in one or both of the following scopes:
      - No
      - Global
    * - :ref:`rocksdb_info_log_level`
+     - Yes
+     - Yes
+     - Global
+   * - :ref: `rocksdb_instant_ddl`
      - Yes
      - Yes
      - Global
@@ -2213,6 +2221,28 @@ accessing the database.
 Disabled by default.
 If enabled, thread status will be available via ``GetThreadList()``.
 
+.. _rocksdb_enable_tmp_table:
+
+.. rubric:: ``rocksdb_enable_tmp_table``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--rocksdb-enable-tmp-table``
+   * - Dynamic
+     - No
+   * - Scope
+     - Global
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+    
+This variable has been implemented in :ref:`8.0.29-21`. Specifies whether to enable rocksdb tmp tables. Disabled by default.
+
 .. _rocksdb_enable_write_thread_adaptive_yield:
 
 .. rubric:: ``rocksdb_enable_write_thread_adaptive_yield``
@@ -2438,9 +2468,9 @@ but also flushes all L0 files.
    * - Data type
      - Boolean
    * - Default
-     - ``OFF``
+     - ``ON``
 
-Forces MyRocks to immediately flush all memtables out to data files.
+The default value has been changed from ``OFF`` to ``ON`` in :ref:`8.0.29-21`. This variable forces MyRocks to immediately flush all memtables out to data files.
 
 .. warning:: Use with caution!
    Write requests will be blocked until all memtables are flushed.
@@ -2572,6 +2602,28 @@ to the ``mysqld`` log.
 * ``warn_level``
 * ``error_level`` (default)
 * ``fatal_level``: Minimum logging (only fatal error messages logged)
+
+.. _rocksdb_instant_ddl:
+
+.. rubric:: ``rocksdb_instant_ddl``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--rocksdb-instant-ddl``
+   * - Dynamic
+     - Yes
+   * - Scope
+     - Global
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+
+This variable has been implemented in :ref:`8.0.29-21`. Specifies whether to enable instant ddl during alter table. Disabled by default.
 
 .. _rocksdb_is_fd_close_on_exec:
 

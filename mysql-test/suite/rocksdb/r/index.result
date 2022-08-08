@@ -42,7 +42,9 @@ t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC		simple index on a	YES	NULL
 ALTER TABLE t1 DROP KEY a;
 DROP TABLE t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
+set @orig_rocksdb_xlarge_prefix=@@global.rocksdb_xlarge_prefix;
 set @@global.rocksdb_large_prefix=0;
+set @@global.rocksdb_xlarge_prefix=0;
 CREATE TABLE t1 (
 a BLOB(1024),
 KEY (a(767))
@@ -54,6 +56,7 @@ KEY (a(768))
 ) ENGINE=ROCKSDB;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
 set @@global.rocksdb_large_prefix=1;
+set @@global.rocksdb_xlarge_prefix=0;
 CREATE TABLE t1 (
 a BLOB(4096),
 KEY (a(3072))
@@ -65,6 +68,18 @@ KEY (a(3073))
 ) ENGINE=ROCKSDB;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
+set @@global.rocksdb_xlarge_prefix=1;
+CREATE TABLE t1 (
+a BLOB(4096),
+KEY (a(4000))
+) ENGINE=ROCKSDB;
+DROP TABLE t1;
+CREATE TABLE t1 (
+a BLOB(65535),
+KEY (a(49153))
+) ENGINE=ROCKSDB;
+ERROR 42000: Specified key was too long; max key length is 49152 bytes
+set @@global.rocksdb_xlarge_prefix=@orig_rocksdb_xlarge_prefix;
 #
 # Issue #376: MyRocks: ORDER BY optimizer is unable to use the index extension
 #

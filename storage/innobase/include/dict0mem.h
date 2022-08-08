@@ -67,8 +67,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict/mem.h"
 #include "ut0new.h"
 
-#include "sql/sql_const.h" /* MAX_KEY_LENGTH */
-
 #include <algorithm>
 #include <iterator>
 #include <memory> /* std::unique_ptr */
@@ -876,8 +874,8 @@ struct dict_index_t {
   in a clustered index record, if the fields
   before it are known to be of a fixed size,
   0 otherwise */
-#if (1 << MAX_KEY_LENGTH_BITS) < MAX_KEY_LENGTH
-#error(1<<MAX_KEY_LENGTH_BITS) < MAX_KEY_LENGTH
+#if (1 << MAX_KEY_LENGTH_BITS) < INNODB_MAX_KEY_SIZE
+#error(1<<MAX_KEY_LENGTH_BITS) < INNODB_MAX_KEY_SIZE
 #endif
   unsigned n_user_defined_cols : 10;
   /*!< number of columns the user defined to

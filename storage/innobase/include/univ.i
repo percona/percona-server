@@ -377,6 +377,10 @@ database name and table name. In addition, 14 bytes is added for:
 only (NONE | ZLIB | LZ4). */
 #define MAX_COMPRESSION_LEN 4
 
+/** The maximum key size allowed in bytes. InnoDB has historically reported
+3500 bytes as the maximum key length allowed. */
+#define INNODB_MAX_KEY_SIZE 3500
+
 /*
                         UNIVERSAL TYPE DEFINITIONS
                         ==========================

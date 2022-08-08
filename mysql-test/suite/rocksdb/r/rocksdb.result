@@ -969,6 +969,7 @@ rocksdb_instant_ddl	OFF
 rocksdb_is_fd_close_on_exec	ON
 rocksdb_keep_log_file_num	1000
 rocksdb_large_prefix	ON
+rocksdb_xlarge_prefix	OFF
 rocksdb_lock_scanned_rows	OFF
 rocksdb_lock_wait_timeout	1
 rocksdb_log_file_time_to_roll	0
@@ -2477,6 +2478,33 @@ set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
 set @@global.rocksdb_large_prefix=1;
 create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(b(255))) engine=rocksdb;
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
+insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
+select * from t1;
+a	b	c
+1	1abcde	1abcde
+2	2abcde	2abcde
+3	3abcde	3abcde
+explain select * from t1 where b like '1%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	1023	NULL	#	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` like '1%')
+explain select b, a from t1 where b like '1%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	1023	NULL	#	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` like '1%')
+update t1 set b= '12345' where b = '2abcde';
+select * from t1;
+a	b	c
+1	1abcde	1abcde
+2	12345	2abcde
+3	3abcde	3abcde
+drop table t1;
+set @orig_rocksdb_xlarge_prefix=@@global.rocksdb_xlarge_prefix;
+set @@global.rocksdb_xlarge_prefix=1;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(b(4000))) engine=rocksdb;
+set @@global.rocksdb_xlarge_prefix=@orig_rocksdb_xlarge_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
 a	b	c

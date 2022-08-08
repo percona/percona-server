@@ -724,6 +724,7 @@ static bool rocksdb_enable_remove_orphaned_dropped_cfs = true;
 static bool rpl_skip_tx_api_var = false;
 static bool rocksdb_print_snapshot_conflict_queries = false;
 static bool rocksdb_large_prefix = true;
+static bool rocksdb_xlarge_prefix = false;
 static bool rocksdb_allow_to_start_after_corruption = false;
 static ulong rocksdb_write_policy = rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
 char *rocksdb_read_free_rpl_tables;
@@ -2286,6 +2287,13 @@ static MYSQL_SYSVAR_BOOL(
     nullptr, nullptr, true);
 
 static MYSQL_SYSVAR_BOOL(
+    xlarge_prefix, rocksdb_xlarge_prefix, PLUGIN_VAR_RQCMDARG,
+    "Support extra large index prefix length of 49152 bytes. If off, the "
+    "maximum index prefix length is 3072 bytes if large prefix is enabled or "
+    "767 bytes.",
+    nullptr, nullptr, false);
+
+static MYSQL_SYSVAR_BOOL(
     allow_to_start_after_corruption, rocksdb_allow_to_start_after_corruption,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Allow server to start successfully when RocksDB corruption is detected.",
@@ -2542,6 +2550,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(table_stats_background_thread_nice_value),
 
     MYSQL_SYSVAR(large_prefix),
+    MYSQL_SYSVAR(xlarge_prefix),
     MYSQL_SYSVAR(allow_to_start_after_corruption),
     MYSQL_SYSVAR(error_on_suboptimal_collation),
     MYSQL_SYSVAR(no_create_column_family),
@@ -9910,8 +9919,15 @@ bool ha_rocksdb::is_pk(const uint index, const TABLE *const table_arg,
 uint ha_rocksdb::max_supported_key_part_length(
     HA_CREATE_INFO *create_info MY_ATTRIBUTE((__unused__))) const {
   DBUG_ENTER_FUNC();
-  DBUG_RETURN(rocksdb_large_prefix ? MAX_INDEX_COL_LEN_LARGE
-                                   : MAX_INDEX_COL_LEN_SMALL);
+
+  int idx_len = MAX_INDEX_COL_LEN_SMALL;
+  if (rocksdb_xlarge_prefix) {
+    idx_len = MAX_INDEX_COL_LEN_XLARGE;
+  } else if (rocksdb_large_prefix) {
+    idx_len = MAX_INDEX_COL_LEN_LARGE;
+  }
+
+  DBUG_RETURN(idx_len);
 }
 
 const char *ha_rocksdb::get_key_name(const uint index,

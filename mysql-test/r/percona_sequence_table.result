@@ -611,7 +611,7 @@ EXPLAIN
 -> Inner hash join (no condition)
     -> Table scan on tt1  (cost=0.85..2.54 rows=3)
         -> Materialize  (cost=1.15..2.84 rows=3)
-            -> Rows fetched before execution  (cost=0.00 rows=3)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=3)
     -> Hash
         -> Materialize table function
 

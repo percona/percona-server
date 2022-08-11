@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -655,7 +655,7 @@ bool get_I_S_view_definition(const dd::String_type &schema_name,
   Create INFORMATION_SCHEMA system views.
 */
 bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
-  // Force use of utf8 charset.
+  // Force use of utf8mb3 charset.
   const CHARSET_INFO *client_cs = thd->variables.character_set_client;
   const CHARSET_INFO *cs = thd->variables.collation_connection;
   const CHARSET_INFO *m_client_cs, *m_connection_cl;
@@ -700,7 +700,7 @@ bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
                         &m_connection_cl);
     } else {
       // compression dictionaries require mb4. Other views do not...
-      resolve_charset("utf8", system_charset_info, &m_client_cs);
+      resolve_charset("utf8mb3", system_charset_info, &m_client_cs);
       resolve_collation("utf8_general_ci", system_charset_info,
                         &m_connection_cl);
     }

@@ -139,6 +139,8 @@ static void set_thread_rows_examined_noop(ulonglong) { return; }
 
 static void set_thread_info_noop(const char *, uint) { return; }
 
+static void set_thread_secondary_engine_noop(bool) { return; }
+
 static void set_thread_noop(PSI_thread *) { return; }
 
 static void set_thread_peer_port_noop(PSI_thread *, uint) { return; }
@@ -222,6 +224,7 @@ static PSI_thread_service_t psi_thread_noop = {
     set_thread_rows_sent_noop,
     set_thread_rows_examined_noop,
     set_thread_info_noop,
+    set_thread_secondary_engine_noop,
     set_thread_resource_group_noop,
     set_thread_resource_group_by_id_noop,
     set_thread_noop,
@@ -726,6 +729,10 @@ static void set_statement_no_good_index_used_noop(PSI_statement_locker *) {
   return;
 }
 
+static void set_statement_secondary_engine_noop(PSI_statement_locker *, bool) {
+  return;
+}
+
 static void end_statement_noop(PSI_statement_locker *, void *) { return; }
 
 static PSI_prepared_stmt *create_prepared_stmt_noop(void *, uint,
@@ -746,6 +753,10 @@ static void execute_prepared_stmt_noop(PSI_statement_locker *,
 
 static void set_prepared_stmt_text_noop(PSI_prepared_stmt *, const char *,
                                         uint) {
+  return;
+}
+
+static void set_prepared_stmt_secondary_engine_noop(PSI_prepared_stmt *, bool) {
   return;
 }
 
@@ -798,12 +809,14 @@ static PSI_statement_service_t psi_statement_noop = {
     inc_statement_sort_scan_noop,
     set_statement_no_index_used_noop,
     set_statement_no_good_index_used_noop,
+    set_statement_secondary_engine_noop,
     end_statement_noop,
     create_prepared_stmt_noop,
     destroy_prepared_stmt_noop,
     reprepare_prepared_stmt_noop,
     execute_prepared_stmt_noop,
     set_prepared_stmt_text_noop,
+    set_prepared_stmt_secondary_engine_noop,
     digest_start_noop,
     digest_end_noop,
     get_sp_share_noop,

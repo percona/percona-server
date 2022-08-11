@@ -22,6 +22,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <NDBT_ReturnCodes.h>
 #include <NdbEnv.h>
 #include <Bitmask.hpp>

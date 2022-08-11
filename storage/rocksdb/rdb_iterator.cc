@@ -379,7 +379,7 @@ Rdb_iterator_partial::Rdb_iterator_partial(
       m_cur_prefix_key_len(0),
       m_records_it(m_records.end()),
       m_comparator(slice_comparator(m_kd->get_cf()->GetComparator())) {
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 4096, 0);
+  init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 4096);
   auto max_mem = get_partial_index_sort_max_mem(thd);
   if (max_mem) {
     m_mem_root.set_max_capacity(max_mem);

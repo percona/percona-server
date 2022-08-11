@@ -111,7 +111,7 @@ struct log_online_bitmap_file_struct {
   */
   char name[FN_REFLEN + 61];
   pfs_os_file_t file; /*!< Handle to opened file */
-  ib_uint64_t size;   /*!< Size of the file */
+  uint64_t size;      /*!< Size of the file */
   os_offset_t offset; /*!< Offset of the next read,
                                         or count of already-read bytes
                                         */
@@ -143,16 +143,16 @@ struct log_bitmap_iterator_struct {
                                                  */
   log_online_bitmap_file_t in;             /*!< Currently read
                                                file */
-  ib_uint32_t bit_offset;                  /*!< bit offset inside
+  uint32_t bit_offset;                     /*!< bit offset inside
                                              the current bitmap
                                              block */
   lsn_t start_lsn;                         /*!< Start LSN of the
                                              current bitmap block */
   lsn_t end_lsn;                           /*!< End LSN of the
                                              current bitmap block */
-  ib_uint32_t space_id;                    /*!< Current block
+  uint32_t space_id;                       /*!< Current block
                                              space id */
-  ib_uint32_t first_page_id;               /*!< Id of the first
+  uint32_t first_page_id;                  /*!< Id of the first
                                              page in the current
                                              block */
   bool last_page_in_run;                   /*!< "Last page in

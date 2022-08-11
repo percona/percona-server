@@ -463,9 +463,8 @@ class InnocheckReporter : public BlockReporter {
     }
 
     fprintf(m_log_file,
-            "page::%" PRIuMAX
-            "; none checksum: calculated = %lu;"
-            " recorded checksum_field1 = " ULINTPF
+            "page::%" PRIuMAX "; none checksum: calculated = " UINT32PF
+            "; recorded checksum_field1 = " ULINTPF
             " recorded checksum_field2 = " ULINTPF "\n",
             m_page_no, BUF_NO_CHECKSUM_MAGIC, checksum_field1, checksum_field2);
   }
@@ -577,8 +576,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print checksum values on a compressed page.
   @param[in]	calc	the calculated checksum value
   @param[in]	stored	the stored checksum in header. */
-  inline void print_compressed_checksum(ib_uint32_t calc,
-                                        ib_uint32_t stored) const override {
+  inline void print_compressed_checksum(uint32_t calc,
+                                        uint32_t stored) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -607,7 +606,7 @@ class InnocheckReporter : public BlockReporter {
     fprintf(m_log_file,
             "page::%" PRIuMAX
             ": none checksum:"
-            " calculated = %lu; recorded = %u\n",
+            " calculated = " UINT32PF "; recorded = %u\n",
             m_page_no, BUF_NO_CHECKSUM_MAGIC, stored);
   }
 
@@ -697,7 +696,7 @@ match with calculated or page is doublwrite buffer. */
 static bool update_checksum(byte *page, const page_size_t &page_size) {
   size_t physical_page_size = static_cast<size_t>(page_size.physical());
   bool iscompressed = page_size.is_compressed();
-  ib_uint32_t checksum = 0;
+  uint32_t checksum = 0;
   byte stored1[4]; /* get FIL_PAGE_SPACE_OR_CHKSUM field checksum */
   byte stored2[4]; /* get FIL_PAGE_END_LSN_OLD_CHKSUM field checksum */
 
@@ -747,7 +746,7 @@ static bool update_checksum(byte *page, const page_size_t &page_size) {
 
       case SRV_CHECKSUM_ALGORITHM_INNODB:
       case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-        checksum = (ib_uint32_t)buf_calc_page_new_checksum(page);
+        checksum = (uint32_t)buf_calc_page_new_checksum(page);
         break;
 
       case SRV_CHECKSUM_ALGORITHM_NONE:
@@ -769,7 +768,7 @@ static bool update_checksum(byte *page, const page_size_t &page_size) {
 
     if (write_check == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB ||
         write_check == SRV_CHECKSUM_ALGORITHM_INNODB) {
-      checksum = (ib_uint32_t)buf_calc_page_old_checksum(page);
+      checksum = (uint32_t)buf_calc_page_old_checksum(page);
     }
 
     mach_write_to_4(page + physical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM,
@@ -886,8 +885,8 @@ static void parse_page(const byte *page, FILE *file) {
                 cur_page_num, id);
 
         fprintf(file,
-                " page level=" ULINTPF ", No. of records=" ULINTPF
-                ", garbage=" ULINTPF ", %s\n",
+                " page level=" UINT16PF ", No. of records=" UINT16PF
+                ", garbage=" UINT16PF ", %s\n",
                 page_header_get_field(page, PAGE_LEVEL),
                 page_header_get_field(page, PAGE_N_RECS),
                 page_header_get_field(page, PAGE_GARBAGE), str);
@@ -905,8 +904,8 @@ static void parse_page(const byte *page, FILE *file) {
                 cur_page_num, id);
 
         fprintf(file,
-                " page level=" ULINTPF ", No. of records=" ULINTPF
-                ", garbage=" ULINTPF ", %s\n",
+                " page level=" UINT16PF ", No. of records=" UINT16PF
+                ", garbage=" UINT16PF ", %s\n",
                 page_header_get_field(page, PAGE_LEVEL),
                 page_header_get_field(page, PAGE_N_RECS),
                 page_header_get_field(page, PAGE_GARBAGE), str);

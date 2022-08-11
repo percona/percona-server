@@ -17,7 +17,7 @@ from performance_schema.threads
 where PROCESSLIST_ID = connection_id();
 INSTRUMENTED	HISTORY
 YES	YES
-alter table test.t1 add column (b int);
+alter table test.t1 add column (b int), algorithm=instant;
 call dump_one_thread('user1');
 username	event_name	sql_text
 user1	statement/sql/select	select * from test.t1 for update
@@ -35,7 +35,7 @@ user1	stage/sql/freeing items	STATEMENT
 user1	stage/sql/cleaning up	STATEMENT
 call dump_one_thread('user2');
 username	event_name	sql_text
-user2	statement/sql/alter_table	alter table test.t1 add column (b int)
+user2	statement/sql/alter_table	alter table test.t1 add column (b int), algorithm=instant
 username	event_name	nesting_event_type
 user2	stage/sql/Waiting for table metadata lock	STATEMENT
 username	event_name	nesting_event_type

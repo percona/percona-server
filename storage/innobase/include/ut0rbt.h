@@ -46,9 +46,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ulint unsigned long
 #define ut_a(c) assert(c)
 #define ut_error assert(0)
-#define ibool unsigned int
-#define TRUE 1
-#define FALSE 0
 #endif
 
 struct ib_rbt_node_t;
@@ -113,7 +110,9 @@ struct ib_rbt_bound_t {
 
 /* Node size. FIXME: name might clash, but currently it does not, so for easier
 maintenance do not rename it for now. */
-#define SIZEOF_NODE(t) ((sizeof(ib_rbt_node_t) + t->sizeof_value) - 1)
+inline static size_t SIZEOF_NODE(const ib_rbt_t *t) {
+  return sizeof(ib_rbt_node_t) + t->sizeof_value - 1;
+}
 
 /** Free an instance of  a red black tree */
 void rbt_free(ib_rbt_t *tree); /*!< in: rb tree to free */
@@ -128,8 +127,8 @@ ib_rbt_t *rbt_create_arg_cmp(size_t sizeof_value, /*!< in: size in bytes */
                              ib_rbt_arg_compare compare, /*!< in: comparator */
                              void *cmp_arg); /*!< in: compare fn arg */
 /** Delete a node from the red black tree, identified by key */
-ibool rbt_delete(
-    /* in: TRUE on success */
+bool rbt_delete(
+    /* in: true on success */
     ib_rbt_t *tree,   /* in: rb tree */
     const void *key); /* in: key to delete */
 /** Remove a node from the red black tree, NOTE: This function will not delete
@@ -206,7 +205,7 @@ ulint rbt_merge_uniq(ib_rbt_t *dst,        /*!< in: dst rb tree */
 /** Verify the integrity of the RB tree. For debugging. 0 failure else height
  of tree (in count of black nodes).
  @return true if OK false if tree invalid. */
-ibool rbt_validate(const ib_rbt_t *tree); /*!< in: tree to validate */
-#endif                                    /* UNIV_DEBUG || IB_RBT_TESTING */
+bool rbt_validate(const ib_rbt_t *tree); /*!< in: tree to validate */
+#endif                                   /* UNIV_DEBUG || IB_RBT_TESTING */
 
 #endif /* INNOBASE_UT0RBT_H */

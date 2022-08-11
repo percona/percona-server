@@ -29,7 +29,7 @@ select INSTRUMENTED, HISTORY
 
 # Will wait on con1, "Waiting for table metadata lock"
 --send
-alter table test.t1 add column (b int);
+alter table test.t1 add column (b int), algorithm=instant;
 
 --connection default
 

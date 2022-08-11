@@ -31,7 +31,7 @@ CREATE COMPRESSION_DICTIONARY d11(@dict_data11);
 SET @dict_data12 = NULL;
 CREATE COMPRESSION_DICTIONARY d12(@dict_data12);
 CREATE COMPRESSION_DICTIONARY d12(@dict_data12 := 'blah');
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':= 'blah')' at line 1
 SET @long_dictionary_name = REPEAT('d', 64);
 CREATE COMPRESSION_DICTIONARY dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd('abcd');
 CREATE COMPRESSION_DICTIONARY ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd('abcd');

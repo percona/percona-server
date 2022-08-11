@@ -5,6 +5,7 @@
 # Scenario 1:
 # Create a small table, and add all kinds of new columns and verify
 #
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 ALTER TABLE t1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
@@ -24,10 +25,9 @@ count(*) = max(a)
 SELECT c1 FROM t1 WHERE c1 = 1;
 c1
 1
-ALTER TABLE t1 ADD COLUMN c2 INT NOT NULL DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c2 INT NOT NULL DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -44,8 +44,7 @@ c2
 11
 ALTER TABLE t1 ADD COLUMN d1 BIGINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -60,10 +59,9 @@ count(*) = max(a)
 SELECT d1 FROM t1 WHERE d1 = 1;
 d1
 1
-ALTER TABLE t1 ADD COLUMN d2 BIGINT NOT NULL DEFAULT 1234567890;
+ALTER TABLE t1 ADD COLUMN d2 BIGINT NOT NULL DEFAULT 1234567890, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 4
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -80,8 +78,7 @@ d2
 1234
 ALTER TABLE t1 ADD COLUMN e1 SMALLINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 5
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -96,10 +93,9 @@ count(*) = max(a)
 SELECT e1 FROM t1 WHERE e1 = 1;
 e1
 1
-ALTER TABLE t1 ADD COLUMN e2 SMALLINT NOT NULL DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN e2 SMALLINT NOT NULL DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 6
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -116,8 +112,7 @@ e2
 11
 ALTER TABLE t1 ADD COLUMN f1 TINYINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 7
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -132,10 +127,9 @@ count(*) = max(a)
 SELECT f1 FROM t1 WHERE f1 = 1;
 f1
 1
-ALTER TABLE t1 ADD COLUMN f2 TINYINT NOT NULL DEFAULT 123;
+ALTER TABLE t1 ADD COLUMN f2 TINYINT NOT NULL DEFAULT 123, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 8
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -152,8 +146,7 @@ f2
 12
 ALTER TABLE t1 ADD COLUMN g1 MEDIUMINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 9
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -168,10 +161,9 @@ count(*) = max(a)
 SELECT g1 FROM t1 WHERE g1 = 1;
 g1
 1
-ALTER TABLE t1 ADD COLUMN g2 MEDIUMINT NOT NULL DEFAULT 12345;
+ALTER TABLE t1 ADD COLUMN g2 MEDIUMINT NOT NULL DEFAULT 12345, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 10
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -188,8 +180,7 @@ g2
 1234
 ALTER TABLE t1 ADD COLUMN h1 FLOAT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 11
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -204,10 +195,9 @@ count(*) = max(a)
 SELECT h1 FROM t1 WHERE h1 = 1;
 h1
 1
-ALTER TABLE t1 ADD COLUMN h2 FLOAT NOT NULL DEFAULT 12.34;
+ALTER TABLE t1 ADD COLUMN h2 FLOAT NOT NULL DEFAULT 12.34, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 12
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -223,8 +213,7 @@ SELECT h2 FROM t1 WHERE h2 = 1.234;
 h2
 ALTER TABLE t1 ADD COLUMN i1 DECIMAL(5, 2), ADD COLUMN i2 double, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 14
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -246,10 +235,9 @@ i1
 SELECT i2 FROM t1 WHERE i2 = 20.20;
 i2
 20.2
-ALTER TABLE t1 ADD COLUMN j1 DECIMAL(5, 2) NOT NULL DEFAULT 100.00, ADD COLUMN j2 double NOT NULL DEFAULT 1000.5678;
+ALTER TABLE t1 ADD COLUMN j1 DECIMAL(5, 2) NOT NULL DEFAULT 100.00, ADD COLUMN j2 double NOT NULL DEFAULT 1000.5678, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 16
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -273,8 +261,7 @@ j2
 1000.1234
 ALTER TABLE t1 ADD COLUMN k1 BIT(8), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 17
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -289,10 +276,9 @@ count(*) = max(a)
 SELECT hex(k1) FROM t1 WHERE k1 = b'010101';
 hex(k1)
 15
-ALTER TABLE t1 ADD COLUMN k2 BIT(8) NOT NULL DEFAULT b'101010';
+ALTER TABLE t1 ADD COLUMN k2 BIT(8) NOT NULL DEFAULT b'101010', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 18
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -307,10 +293,9 @@ count(*) = max(a)
 SELECT hex(k2) FROM t1 WHERE k2 = b'110011';
 hex(k2)
 33
-ALTER TABLE t1 ADD COLUMN l1 CHAR(50), ADD COLUMN l2 VARCHAR(100), ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN l1 CHAR(50), ADD COLUMN l2 VARCHAR(100), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 20
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -332,10 +317,9 @@ ABCD EFGH
 SELECT l2 FROM t1 WHERE l2 = 'abcdefg hijklmn ';
 l2
 abcdefg hijklmn 
-ALTER TABLE t1 ADD COLUMN m1 CHAR(50) default 'The fox jumps over', ADD COLUMN m2 VARCHAR(50) DEFAULT 'The fox jumps over the lazy dog.';
+ALTER TABLE t1 ADD COLUMN m1 CHAR(50) default 'The fox jumps over', ADD COLUMN m2 VARCHAR(50) DEFAULT 'The fox jumps over the lazy dog.', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 22
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -357,10 +341,9 @@ over the lazy dog
 SELECT m2 FROM t1 WHERE m2 like '%the fox.';
 m2
 The lazy dog jumps over the fox.
-ALTER TABLE t1 ADD COLUMN n1 BINARY(10), ADD COLUMN n2 VARBINARY(10), ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN n1 BINARY(10), ADD COLUMN n2 VARBINARY(10), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 24
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -382,10 +365,9 @@ hex(n1)
 SELECT hex(n2) FROM t1 WHERE n2 = 0x102030405060708090;
 hex(n2)
 102030405060708090
-ALTER TABLE t1 ADD COLUMN o1 BINARY(10) DEFAULT 0x11223344, ADD COLUMN o2 VARBINARY(10) DEFAULT 0x55667788;
+ALTER TABLE t1 ADD COLUMN o1 BINARY(10) DEFAULT 0x11223344, ADD COLUMN o2 VARBINARY(10) DEFAULT 0x55667788, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 26
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -407,10 +389,9 @@ hex(o1)
 SELECT hex(o2) FROM t1 WHERE o2 = 0x88776655;
 hex(o2)
 88776655
-ALTER TABLE t1 ADD COLUMN p1 DATETIME, ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN p1 DATETIME, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 27
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -425,10 +406,9 @@ count(*) = max(a)
 SELECT p1 FROM t1 WHERE p1 = '2017-12-31 00:00:00';
 p1
 2017-12-31 00:00:00
-ALTER TABLE t1 ADD COLUMN p2 DATETIME NOT NULL DEFAULT '2017-12-31 01:02:03';
+ALTER TABLE t1 ADD COLUMN p2 DATETIME NOT NULL DEFAULT '2017-12-31 01:02:03', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 28
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -446,8 +426,7 @@ count(*)
 1
 ALTER TABLE t1 ADD COLUMN q1 ENUM ('value1','value2','value3'), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 29
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -464,8 +443,7 @@ q1
 value1
 ALTER TABLE t1 ADD COLUMN r1 SET ('a','b','c'), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 30
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -482,8 +460,7 @@ r1
 a
 ALTER TABLE t1 ADD COLUMN s1 BLOB, ADD COLUMN s2 TEXT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 32
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -505,10 +482,9 @@ hex(s1)
 SELECT s2 FROM t1 WHERE s2 = 'abcd qwerty';
 s2
 abcd qwerty
-ALTER TABLE t1 ADD COLUMN u1 BLOB NOT NULL, ADD COLUMN u2 TEXT NOT NULL;
+ALTER TABLE t1 ADD COLUMN u1 BLOB NOT NULL, ADD COLUMN u2 TEXT NOT NULL, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 34
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -582,7 +558,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -598,10 +574,9 @@ a	b	c	d
 4	4	0	8
 5	5	0	10
 6	6	20	12
-ALTER TABLE t1 ADD COLUMN e VARCHAR(100) DEFAULT 'ABCD EFGH', ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(e));
+ALTER TABLE t1 ADD COLUMN e VARCHAR(100) DEFAULT 'ABCD EFGH', ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(e)), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -618,10 +593,9 @@ a	b	c	d	e	f
 7	NULL	20	NULL	Hello	5
 8	NULL	20	NULL	World	5
 9	NULL	20	NULL	Hello World	11
-ALTER TABLE t1 ADD COLUMN g VARCHAR(100) GENERATED ALWAYS AS (e), ADD COLUMN h BIGINT DEFAULT 10000, ADD COLUMN i BIGINT GENERATED ALWAYS AS (h * 2 + b);
+ALTER TABLE t1 ADD COLUMN g VARCHAR(100) GENERATED ALWAYS AS (e), ADD COLUMN h BIGINT DEFAULT 10000, ADD COLUMN i BIGINT GENERATED ALWAYS AS (h * 2 + b), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -676,7 +650,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -782,7 +756,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -805,10 +779,9 @@ c
 SELECT count(*) FROM t1;
 count(*)
 16
-ALTER TABLE t1 ADD COLUMN t DATETIME DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE t1 ADD COLUMN t DATETIME DEFAULT CURRENT_TIMESTAMP, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -858,7 +831,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -927,7 +900,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -996,12 +969,14 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 DROP TABLE t1;
+SET SESSION innodb_strict_mode=OFF;
 CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(1000)) ROW_FORMAT=REDUNDANT;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
 INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000), repeat('c', 1));
 SELECT id, length(c1), length(c2), length(c3) FROM t1;
 id	length(c1)	length(c2)	length(c3)
 1	4000	4000	1
-ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
+ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -1030,28 +1005,27 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100 AFTER b;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100 AFTER b, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b;
-Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 2
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
-Expect 0
-0
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 2
+2
 ALTER TABLE t1 ADD COLUMN e INT NOT NULL DEFAULT 100, ADD KEY(e);
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1060,8 +1034,8 @@ Expect 0
 0
 ALTER TABLE t1 ADD COLUMN f INT NOT NULL DEFAULT 100, FORCE;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1070,8 +1044,8 @@ Expect 0
 0
 ALTER TABLE t1 ADD COLUMN g INT NOT NULL DEFAULT 100, ALGORITHM=INPLACE;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1099,8 +1073,8 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c TEXT, FULLT
 INSERT INTO t1 VALUES(0, 1, 'Hello'), (0, 2, 'HELLO'), (0, 3, 'World'), (0, 4, 'Hello world'), (0, 5, 'HELLO WORLD');
 ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1113,7 +1087,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=RE
 CREATE TABLE t2(a INT NOT NULL PRIMARY KEY, b INT, c INT, KEY(c));
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 INSERT INTO t2 VALUES(1, 2, 3), (2, 3, 4), (3, 4, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 3;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 3, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -1156,7 +1130,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT PARTITION BY HASH(a) PARTITIONS 3;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -1206,7 +1180,7 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 3 */
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT) ROW_FORMAT=REDUNDANT PARTITION BY HASH(a) PARTITIONS 2;;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -1214,7 +1188,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 CHANGE COLUMN c c1 INT;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -1228,7 +1202,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -1238,7 +1212,7 @@ test.t1	check	status	OK
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT NOT NULL DEFAULT 5) ROW_FORMAT=REDUNDANT PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20), PARTITION p3 VALUES LESS THAN (30));;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 ERROR HY000: Non matching attribute 'INSTANT COLUMN(s)' between partition and table
-ALTER TABLE t2 ADD COLUMN d INT;
+ALTER TABLE t2 ADD COLUMN d INT, ALGORITHM=INSTANT;
 ALTER TABLE t1 ADD COLUMN d INT, ALGORITHM=INPLACE;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 ERROR HY000: Non matching attribute 'INSTANT COLUMN(s)' between partition and table
@@ -1272,11 +1246,11 @@ ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 DROP TABLE t1, t2;
 #
 # Scenario 11:
-# PRIMARY KEY with more than one column, at least to verify it works with REDUDANT
+# PRIMARY KEY with more than one column, at least to verify it works with REDUNDANT
 #
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b)) ROW_FORMAT=REDUNDANT;;
 INSERT INTO t1 VALUES(0, 1), (1, 2), (2, 3), (3, 4);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -1307,41 +1281,41 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 TEXT) ENGINE = InnoDB PARTITION BY RANGE(col1 * 2) ( PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256) , PARTITION p2 VALUES LESS THAN (384) , PARTITION p3 VALUES LESS THAN MAXVALUE);;
 INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
-ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500), ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500), ADD COLUMN col6 TEXT, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SELECT count(*) AS `Expect 4` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 4
-4
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 ALTER TABLE t1 ALGORITHM INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (64), PARTITION p0_b VALUES LESS THAN (128));
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ALGORITHM DEFAULT, ADD KEY idx4(col4(10));
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ALGORITHM DEFAULT, LOCK EXCLUSIVE, REORGANIZE PARTITION p0_a, p0_b INTO (PARTITION p0 VALUES LESS THAN (128) TABLESPACE innodb_file_per_table);
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ADD KEY idx3(col3);
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1353,7 +1327,7 @@ col1	col2	col3	col4	col5	col6
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT PARTITION BY HASH(a) PARTITIONS 3;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -1362,7 +1336,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 3
-3
+0
 ALTER TABLE t1 ADD PARTITION PARTITIONS 10;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
@@ -1410,7 +1384,7 @@ ALTER TABLE t1 ADD COLUMN nc086 BIGINT NOT NULL FIRST, ALGORITHM=INPLACE, LOCK=D
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-ALTER TABLE t1 ADD COLUMN nc082 TINYTEXT;
+ALTER TABLE t1 ADD COLUMN nc082 TINYTEXT, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1440,8 +1414,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN d1 LINESTRING, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1455,8 +1428,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN e1 POLYGON, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1470,8 +1442,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN f1 MULTIPOINT, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 4
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1485,8 +1456,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN g1 MULTILINESTRING, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 5
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1500,8 +1470,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN h1 MULTIPOLYGON, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 6
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1515,8 +1484,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN i1 GEOMETRYCOLLECTION, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 7
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1530,8 +1498,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN j1 GEOMETRY, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 8
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1624,8 +1591,7 @@ bbbb
 DROP TRIGGER t1_ai;
 ALTER TABLE t2 ADD COLUMN c1 VARCHAR(10) NOT NULL DEFAULT 'cccc', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1772,11 +1738,10 @@ count(*) = max(a)
 SELECT c1 FROM t1 WHERE c1 = 'bbbb';
 c1
 bbbb
-ALTER TABLE t1 DROP COLUMN c1;
-Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+ALTER TABLE t1 DROP COLUMN c1, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1852,9 +1817,8 @@ c1
 bbbb
 ALTER TABLE t1 CHANGE c1 c2 CHAR(10) NOT NULL DEFAULT 'cccc';
 Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1902,8 +1866,7 @@ DROP INDEX id1 ON t1;
 DROP INDEX id2 ON t1;
 ALTER TABLE t1 ADD COLUMN c2 VARCHAR(10) NOT NULL DEFAULT 'cccc', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -1960,8 +1923,7 @@ c1
 cccc
 ALTER TABLE t2 ADD COLUMN c1 VARCHAR(10) NOT NULL DEFAULT 'bbbb', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2011,7 +1973,7 @@ DROP TABLE t2;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d INT GENERATED ALWAYS AS (b + c) VIRTUAL, e INT GENERATED ALWAYS AS (b * c) VIRTUAL) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1(a, b, c) VALUES(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 5, 6);
-ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
+ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -2027,10 +1989,9 @@ a	b	c	h	d	e
 4	4	5	0	9	20
 5	5	6	0	11	30
 6	6	20	40	26	120
-ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i;
+ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 3 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2069,6 +2030,7 @@ DROP TABLE t1;
 # Scenario 1:
 # Create a small table, and add all kinds of new columns and verify
 #
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 ALTER TABLE t1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
@@ -2088,10 +2050,9 @@ count(*) = max(a)
 SELECT c1 FROM t1 WHERE c1 = 1;
 c1
 1
-ALTER TABLE t1 ADD COLUMN c2 INT NOT NULL DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c2 INT NOT NULL DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2108,8 +2069,7 @@ c2
 11
 ALTER TABLE t1 ADD COLUMN d1 BIGINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2124,10 +2084,9 @@ count(*) = max(a)
 SELECT d1 FROM t1 WHERE d1 = 1;
 d1
 1
-ALTER TABLE t1 ADD COLUMN d2 BIGINT NOT NULL DEFAULT 1234567890;
+ALTER TABLE t1 ADD COLUMN d2 BIGINT NOT NULL DEFAULT 1234567890, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 4
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2144,8 +2103,7 @@ d2
 1234
 ALTER TABLE t1 ADD COLUMN e1 SMALLINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 5
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2160,10 +2118,9 @@ count(*) = max(a)
 SELECT e1 FROM t1 WHERE e1 = 1;
 e1
 1
-ALTER TABLE t1 ADD COLUMN e2 SMALLINT NOT NULL DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN e2 SMALLINT NOT NULL DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 6
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2180,8 +2137,7 @@ e2
 11
 ALTER TABLE t1 ADD COLUMN f1 TINYINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 7
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2196,10 +2152,9 @@ count(*) = max(a)
 SELECT f1 FROM t1 WHERE f1 = 1;
 f1
 1
-ALTER TABLE t1 ADD COLUMN f2 TINYINT NOT NULL DEFAULT 123;
+ALTER TABLE t1 ADD COLUMN f2 TINYINT NOT NULL DEFAULT 123, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 8
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2216,8 +2171,7 @@ f2
 12
 ALTER TABLE t1 ADD COLUMN g1 MEDIUMINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 9
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2232,10 +2186,9 @@ count(*) = max(a)
 SELECT g1 FROM t1 WHERE g1 = 1;
 g1
 1
-ALTER TABLE t1 ADD COLUMN g2 MEDIUMINT NOT NULL DEFAULT 12345;
+ALTER TABLE t1 ADD COLUMN g2 MEDIUMINT NOT NULL DEFAULT 12345, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 10
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2252,8 +2205,7 @@ g2
 1234
 ALTER TABLE t1 ADD COLUMN h1 FLOAT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 11
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2268,10 +2220,9 @@ count(*) = max(a)
 SELECT h1 FROM t1 WHERE h1 = 1;
 h1
 1
-ALTER TABLE t1 ADD COLUMN h2 FLOAT NOT NULL DEFAULT 12.34;
+ALTER TABLE t1 ADD COLUMN h2 FLOAT NOT NULL DEFAULT 12.34, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 12
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2287,8 +2238,7 @@ SELECT h2 FROM t1 WHERE h2 = 1.234;
 h2
 ALTER TABLE t1 ADD COLUMN i1 DECIMAL(5, 2), ADD COLUMN i2 double, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 14
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2310,10 +2260,9 @@ i1
 SELECT i2 FROM t1 WHERE i2 = 20.20;
 i2
 20.2
-ALTER TABLE t1 ADD COLUMN j1 DECIMAL(5, 2) NOT NULL DEFAULT 100.00, ADD COLUMN j2 double NOT NULL DEFAULT 1000.5678;
+ALTER TABLE t1 ADD COLUMN j1 DECIMAL(5, 2) NOT NULL DEFAULT 100.00, ADD COLUMN j2 double NOT NULL DEFAULT 1000.5678, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 16
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2337,8 +2286,7 @@ j2
 1000.1234
 ALTER TABLE t1 ADD COLUMN k1 BIT(8), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 17
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2353,10 +2301,9 @@ count(*) = max(a)
 SELECT hex(k1) FROM t1 WHERE k1 = b'010101';
 hex(k1)
 15
-ALTER TABLE t1 ADD COLUMN k2 BIT(8) NOT NULL DEFAULT b'101010';
+ALTER TABLE t1 ADD COLUMN k2 BIT(8) NOT NULL DEFAULT b'101010', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 18
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2371,10 +2318,9 @@ count(*) = max(a)
 SELECT hex(k2) FROM t1 WHERE k2 = b'110011';
 hex(k2)
 33
-ALTER TABLE t1 ADD COLUMN l1 CHAR(50), ADD COLUMN l2 VARCHAR(100), ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN l1 CHAR(50), ADD COLUMN l2 VARCHAR(100), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 20
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2396,10 +2342,9 @@ ABCD EFGH
 SELECT l2 FROM t1 WHERE l2 = 'abcdefg hijklmn ';
 l2
 abcdefg hijklmn 
-ALTER TABLE t1 ADD COLUMN m1 CHAR(50) default 'The fox jumps over', ADD COLUMN m2 VARCHAR(50) DEFAULT 'The fox jumps over the lazy dog.';
+ALTER TABLE t1 ADD COLUMN m1 CHAR(50) default 'The fox jumps over', ADD COLUMN m2 VARCHAR(50) DEFAULT 'The fox jumps over the lazy dog.', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 22
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2421,10 +2366,9 @@ over the lazy dog
 SELECT m2 FROM t1 WHERE m2 like '%the fox.';
 m2
 The lazy dog jumps over the fox.
-ALTER TABLE t1 ADD COLUMN n1 BINARY(10), ADD COLUMN n2 VARBINARY(10), ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN n1 BINARY(10), ADD COLUMN n2 VARBINARY(10), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 24
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2446,10 +2390,9 @@ hex(n1)
 SELECT hex(n2) FROM t1 WHERE n2 = 0x102030405060708090;
 hex(n2)
 102030405060708090
-ALTER TABLE t1 ADD COLUMN o1 BINARY(10) DEFAULT 0x11223344, ADD COLUMN o2 VARBINARY(10) DEFAULT 0x55667788;
+ALTER TABLE t1 ADD COLUMN o1 BINARY(10) DEFAULT 0x11223344, ADD COLUMN o2 VARBINARY(10) DEFAULT 0x55667788, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 26
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2471,10 +2414,9 @@ hex(o1)
 SELECT hex(o2) FROM t1 WHERE o2 = 0x88776655;
 hex(o2)
 88776655
-ALTER TABLE t1 ADD COLUMN p1 DATETIME, ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN p1 DATETIME, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 27
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2489,10 +2431,9 @@ count(*) = max(a)
 SELECT p1 FROM t1 WHERE p1 = '2017-12-31 00:00:00';
 p1
 2017-12-31 00:00:00
-ALTER TABLE t1 ADD COLUMN p2 DATETIME NOT NULL DEFAULT '2017-12-31 01:02:03';
+ALTER TABLE t1 ADD COLUMN p2 DATETIME NOT NULL DEFAULT '2017-12-31 01:02:03', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 28
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2510,8 +2451,7 @@ count(*)
 1
 ALTER TABLE t1 ADD COLUMN q1 ENUM ('value1','value2','value3'), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 29
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2528,8 +2468,7 @@ q1
 value1
 ALTER TABLE t1 ADD COLUMN r1 SET ('a','b','c'), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 30
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2546,8 +2485,7 @@ r1
 a
 ALTER TABLE t1 ADD COLUMN s1 BLOB, ADD COLUMN s2 TEXT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 32
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2569,10 +2507,9 @@ hex(s1)
 SELECT s2 FROM t1 WHERE s2 = 'abcd qwerty';
 s2
 abcd qwerty
-ALTER TABLE t1 ADD COLUMN u1 BLOB NOT NULL, ADD COLUMN u2 TEXT NOT NULL;
+ALTER TABLE t1 ADD COLUMN u1 BLOB NOT NULL, ADD COLUMN u2 TEXT NOT NULL, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 34
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2646,7 +2583,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -2662,10 +2599,9 @@ a	b	c	d
 4	4	0	8
 5	5	0	10
 6	6	20	12
-ALTER TABLE t1 ADD COLUMN e VARCHAR(100) DEFAULT 'ABCD EFGH', ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(e));
+ALTER TABLE t1 ADD COLUMN e VARCHAR(100) DEFAULT 'ABCD EFGH', ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(e)), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2682,10 +2618,9 @@ a	b	c	d	e	f
 7	NULL	20	NULL	Hello	5
 8	NULL	20	NULL	World	5
 9	NULL	20	NULL	Hello World	11
-ALTER TABLE t1 ADD COLUMN g VARCHAR(100) GENERATED ALWAYS AS (e), ADD COLUMN h BIGINT DEFAULT 10000, ADD COLUMN i BIGINT GENERATED ALWAYS AS (h * 2 + b);
+ALTER TABLE t1 ADD COLUMN g VARCHAR(100) GENERATED ALWAYS AS (e), ADD COLUMN h BIGINT DEFAULT 10000, ADD COLUMN i BIGINT GENERATED ALWAYS AS (h * 2 + b), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2740,7 +2675,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -2846,7 +2781,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -2869,10 +2804,9 @@ c
 SELECT count(*) FROM t1;
 count(*)
 16
-ALTER TABLE t1 ADD COLUMN t DATETIME DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE t1 ADD COLUMN t DATETIME DEFAULT CURRENT_TIMESTAMP, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2922,7 +2856,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -2991,7 +2925,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -3060,12 +2994,14 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
+SET SESSION innodb_strict_mode=OFF;
 CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(1000)) ROW_FORMAT=DYNAMIC;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
 INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000), repeat('c', 1));
 SELECT id, length(c1), length(c2), length(c3) FROM t1;
 id	length(c1)	length(c2)	length(c3)
 1	4000	4000	1
-ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
+ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -3094,28 +3030,27 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100 AFTER b;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100 AFTER b, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b;
-Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 2
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
-Expect 0
-0
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 2
+2
 ALTER TABLE t1 ADD COLUMN e INT NOT NULL DEFAULT 100, ADD KEY(e);
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -3124,8 +3059,8 @@ Expect 0
 0
 ALTER TABLE t1 ADD COLUMN f INT NOT NULL DEFAULT 100, FORCE;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -3134,8 +3069,8 @@ Expect 0
 0
 ALTER TABLE t1 ADD COLUMN g INT NOT NULL DEFAULT 100, ALGORITHM=INPLACE;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -3163,8 +3098,8 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c TEXT, FULLT
 INSERT INTO t1 VALUES(0, 1, 'Hello'), (0, 2, 'HELLO'), (0, 3, 'World'), (0, 4, 'Hello world'), (0, 5, 'HELLO WORLD');
 ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -3177,7 +3112,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DY
 CREATE TABLE t2(a INT NOT NULL PRIMARY KEY, b INT, c INT, KEY(c));
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 INSERT INTO t2 VALUES(1, 2, 3), (2, 3, 4), (3, 4, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 3;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 3, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -3220,7 +3155,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC PARTITION BY HASH(a) PARTITIONS 3;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -3270,7 +3205,7 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 3 */
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT) ROW_FORMAT=DYNAMIC PARTITION BY HASH(a) PARTITIONS 2;;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -3278,7 +3213,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 CHANGE COLUMN c c1 INT;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -3292,7 +3227,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -3302,7 +3237,7 @@ test.t1	check	status	OK
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT NOT NULL DEFAULT 5) ROW_FORMAT=DYNAMIC PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20), PARTITION p3 VALUES LESS THAN (30));;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 ERROR HY000: Non matching attribute 'INSTANT COLUMN(s)' between partition and table
-ALTER TABLE t2 ADD COLUMN d INT;
+ALTER TABLE t2 ADD COLUMN d INT, ALGORITHM=INSTANT;
 ALTER TABLE t1 ADD COLUMN d INT, ALGORITHM=INPLACE;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 ERROR HY000: Non matching attribute 'INSTANT COLUMN(s)' between partition and table
@@ -3336,11 +3271,11 @@ ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 DROP TABLE t1, t2;
 #
 # Scenario 11:
-# PRIMARY KEY with more than one column, at least to verify it works with REDUDANT
+# PRIMARY KEY with more than one column, at least to verify it works with REDUNDANT
 #
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b)) ROW_FORMAT=DYNAMIC;;
 INSERT INTO t1 VALUES(0, 1), (1, 2), (2, 3), (3, 4);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -3371,41 +3306,41 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 TEXT) ENGINE = InnoDB PARTITION BY RANGE(col1 * 2) ( PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256) , PARTITION p2 VALUES LESS THAN (384) , PARTITION p3 VALUES LESS THAN MAXVALUE);;
 INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
-ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500), ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500), ADD COLUMN col6 TEXT, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SELECT count(*) AS `Expect 4` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 4
-4
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 ALTER TABLE t1 ALGORITHM INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (64), PARTITION p0_b VALUES LESS THAN (128));
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ALGORITHM DEFAULT, ADD KEY idx4(col4(10));
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ALGORITHM DEFAULT, LOCK EXCLUSIVE, REORGANIZE PARTITION p0_a, p0_b INTO (PARTITION p0 VALUES LESS THAN (128) TABLESPACE innodb_file_per_table);
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ADD KEY idx3(col3);
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -3417,7 +3352,7 @@ col1	col2	col3	col4	col5	col6
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC PARTITION BY HASH(a) PARTITIONS 3;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -3426,7 +3361,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 3
-3
+0
 ALTER TABLE t1 ADD PARTITION PARTITIONS 10;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
@@ -3474,7 +3409,7 @@ ALTER TABLE t1 ADD COLUMN nc086 BIGINT NOT NULL FIRST, ALGORITHM=INPLACE, LOCK=D
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-ALTER TABLE t1 ADD COLUMN nc082 TINYTEXT;
+ALTER TABLE t1 ADD COLUMN nc082 TINYTEXT, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -3504,8 +3439,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN d1 LINESTRING, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -3519,8 +3453,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN e1 POLYGON, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -3534,8 +3467,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN f1 MULTIPOINT, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 4
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -3549,8 +3481,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN g1 MULTILINESTRING, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 5
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -3564,8 +3495,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN h1 MULTIPOLYGON, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 6
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -3579,8 +3509,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN i1 GEOMETRYCOLLECTION, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 7
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -3594,8 +3523,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN j1 GEOMETRY, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 8
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -3688,8 +3616,7 @@ bbbb
 DROP TRIGGER t1_ai;
 ALTER TABLE t2 ADD COLUMN c1 VARCHAR(10) NOT NULL DEFAULT 'cccc', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -3836,11 +3763,10 @@ count(*) = max(a)
 SELECT c1 FROM t1 WHERE c1 = 'bbbb';
 c1
 bbbb
-ALTER TABLE t1 DROP COLUMN c1;
-Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+ALTER TABLE t1 DROP COLUMN c1, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -3916,9 +3842,8 @@ c1
 bbbb
 ALTER TABLE t1 CHANGE c1 c2 CHAR(10) NOT NULL DEFAULT 'cccc';
 Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -3966,8 +3891,7 @@ DROP INDEX id1 ON t1;
 DROP INDEX id2 ON t1;
 ALTER TABLE t1 ADD COLUMN c2 VARCHAR(10) NOT NULL DEFAULT 'cccc', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4024,8 +3948,7 @@ c1
 cccc
 ALTER TABLE t2 ADD COLUMN c1 VARCHAR(10) NOT NULL DEFAULT 'bbbb', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4075,7 +3998,7 @@ DROP TABLE t2;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d INT GENERATED ALWAYS AS (b + c) VIRTUAL, e INT GENERATED ALWAYS AS (b * c) VIRTUAL) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1(a, b, c) VALUES(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 5, 6);
-ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
+ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -4091,10 +4014,9 @@ a	b	c	h	d	e
 4	4	5	0	9	20
 5	5	6	0	11	30
 6	6	20	40	26	120
-ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i;
+ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 3 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4133,6 +4055,7 @@ DROP TABLE t1;
 # Scenario 1:
 # Create a small table, and add all kinds of new columns and verify
 #
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 ALTER TABLE t1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
@@ -4152,10 +4075,9 @@ count(*) = max(a)
 SELECT c1 FROM t1 WHERE c1 = 1;
 c1
 1
-ALTER TABLE t1 ADD COLUMN c2 INT NOT NULL DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c2 INT NOT NULL DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4172,8 +4094,7 @@ c2
 11
 ALTER TABLE t1 ADD COLUMN d1 BIGINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4188,10 +4109,9 @@ count(*) = max(a)
 SELECT d1 FROM t1 WHERE d1 = 1;
 d1
 1
-ALTER TABLE t1 ADD COLUMN d2 BIGINT NOT NULL DEFAULT 1234567890;
+ALTER TABLE t1 ADD COLUMN d2 BIGINT NOT NULL DEFAULT 1234567890, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 4
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4208,8 +4128,7 @@ d2
 1234
 ALTER TABLE t1 ADD COLUMN e1 SMALLINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 5
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4224,10 +4143,9 @@ count(*) = max(a)
 SELECT e1 FROM t1 WHERE e1 = 1;
 e1
 1
-ALTER TABLE t1 ADD COLUMN e2 SMALLINT NOT NULL DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN e2 SMALLINT NOT NULL DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 6
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4244,8 +4162,7 @@ e2
 11
 ALTER TABLE t1 ADD COLUMN f1 TINYINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 7
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4260,10 +4177,9 @@ count(*) = max(a)
 SELECT f1 FROM t1 WHERE f1 = 1;
 f1
 1
-ALTER TABLE t1 ADD COLUMN f2 TINYINT NOT NULL DEFAULT 123;
+ALTER TABLE t1 ADD COLUMN f2 TINYINT NOT NULL DEFAULT 123, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 8
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4280,8 +4196,7 @@ f2
 12
 ALTER TABLE t1 ADD COLUMN g1 MEDIUMINT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 9
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4296,10 +4211,9 @@ count(*) = max(a)
 SELECT g1 FROM t1 WHERE g1 = 1;
 g1
 1
-ALTER TABLE t1 ADD COLUMN g2 MEDIUMINT NOT NULL DEFAULT 12345;
+ALTER TABLE t1 ADD COLUMN g2 MEDIUMINT NOT NULL DEFAULT 12345, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 10
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4316,8 +4230,7 @@ g2
 1234
 ALTER TABLE t1 ADD COLUMN h1 FLOAT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 11
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4332,10 +4245,9 @@ count(*) = max(a)
 SELECT h1 FROM t1 WHERE h1 = 1;
 h1
 1
-ALTER TABLE t1 ADD COLUMN h2 FLOAT NOT NULL DEFAULT 12.34;
+ALTER TABLE t1 ADD COLUMN h2 FLOAT NOT NULL DEFAULT 12.34, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 12
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4351,8 +4263,7 @@ SELECT h2 FROM t1 WHERE h2 = 1.234;
 h2
 ALTER TABLE t1 ADD COLUMN i1 DECIMAL(5, 2), ADD COLUMN i2 double, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 14
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4374,10 +4285,9 @@ i1
 SELECT i2 FROM t1 WHERE i2 = 20.20;
 i2
 20.2
-ALTER TABLE t1 ADD COLUMN j1 DECIMAL(5, 2) NOT NULL DEFAULT 100.00, ADD COLUMN j2 double NOT NULL DEFAULT 1000.5678;
+ALTER TABLE t1 ADD COLUMN j1 DECIMAL(5, 2) NOT NULL DEFAULT 100.00, ADD COLUMN j2 double NOT NULL DEFAULT 1000.5678, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 16
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4401,8 +4311,7 @@ j2
 1000.1234
 ALTER TABLE t1 ADD COLUMN k1 BIT(8), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 17
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4417,10 +4326,9 @@ count(*) = max(a)
 SELECT hex(k1) FROM t1 WHERE k1 = b'010101';
 hex(k1)
 15
-ALTER TABLE t1 ADD COLUMN k2 BIT(8) NOT NULL DEFAULT b'101010';
+ALTER TABLE t1 ADD COLUMN k2 BIT(8) NOT NULL DEFAULT b'101010', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 18
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4435,10 +4343,9 @@ count(*) = max(a)
 SELECT hex(k2) FROM t1 WHERE k2 = b'110011';
 hex(k2)
 33
-ALTER TABLE t1 ADD COLUMN l1 CHAR(50), ADD COLUMN l2 VARCHAR(100), ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN l1 CHAR(50), ADD COLUMN l2 VARCHAR(100), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 20
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4460,10 +4367,9 @@ ABCD EFGH
 SELECT l2 FROM t1 WHERE l2 = 'abcdefg hijklmn ';
 l2
 abcdefg hijklmn 
-ALTER TABLE t1 ADD COLUMN m1 CHAR(50) default 'The fox jumps over', ADD COLUMN m2 VARCHAR(50) DEFAULT 'The fox jumps over the lazy dog.';
+ALTER TABLE t1 ADD COLUMN m1 CHAR(50) default 'The fox jumps over', ADD COLUMN m2 VARCHAR(50) DEFAULT 'The fox jumps over the lazy dog.', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 22
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4485,10 +4391,9 @@ over the lazy dog
 SELECT m2 FROM t1 WHERE m2 like '%the fox.';
 m2
 The lazy dog jumps over the fox.
-ALTER TABLE t1 ADD COLUMN n1 BINARY(10), ADD COLUMN n2 VARBINARY(10), ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN n1 BINARY(10), ADD COLUMN n2 VARBINARY(10), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 24
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4510,10 +4415,9 @@ hex(n1)
 SELECT hex(n2) FROM t1 WHERE n2 = 0x102030405060708090;
 hex(n2)
 102030405060708090
-ALTER TABLE t1 ADD COLUMN o1 BINARY(10) DEFAULT 0x11223344, ADD COLUMN o2 VARBINARY(10) DEFAULT 0x55667788;
+ALTER TABLE t1 ADD COLUMN o1 BINARY(10) DEFAULT 0x11223344, ADD COLUMN o2 VARBINARY(10) DEFAULT 0x55667788, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 26
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4535,10 +4439,9 @@ hex(o1)
 SELECT hex(o2) FROM t1 WHERE o2 = 0x88776655;
 hex(o2)
 88776655
-ALTER TABLE t1 ADD COLUMN p1 DATETIME, ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN p1 DATETIME, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 27
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4553,10 +4456,9 @@ count(*) = max(a)
 SELECT p1 FROM t1 WHERE p1 = '2017-12-31 00:00:00';
 p1
 2017-12-31 00:00:00
-ALTER TABLE t1 ADD COLUMN p2 DATETIME NOT NULL DEFAULT '2017-12-31 01:02:03';
+ALTER TABLE t1 ADD COLUMN p2 DATETIME NOT NULL DEFAULT '2017-12-31 01:02:03', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 28
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4574,8 +4476,7 @@ count(*)
 1
 ALTER TABLE t1 ADD COLUMN q1 ENUM ('value1','value2','value3'), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 29
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4592,8 +4493,7 @@ q1
 value1
 ALTER TABLE t1 ADD COLUMN r1 SET ('a','b','c'), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 30
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4610,8 +4510,7 @@ r1
 a
 ALTER TABLE t1 ADD COLUMN s1 BLOB, ADD COLUMN s2 TEXT, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 32
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4633,10 +4532,9 @@ hex(s1)
 SELECT s2 FROM t1 WHERE s2 = 'abcd qwerty';
 s2
 abcd qwerty
-ALTER TABLE t1 ADD COLUMN u1 BLOB NOT NULL, ADD COLUMN u2 TEXT NOT NULL;
+ALTER TABLE t1 ADD COLUMN u1 BLOB NOT NULL, ADD COLUMN u2 TEXT NOT NULL, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 34
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4710,7 +4608,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -4726,10 +4624,9 @@ a	b	c	d
 4	4	0	8
 5	5	0	10
 6	6	20	12
-ALTER TABLE t1 ADD COLUMN e VARCHAR(100) DEFAULT 'ABCD EFGH', ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(e));
+ALTER TABLE t1 ADD COLUMN e VARCHAR(100) DEFAULT 'ABCD EFGH', ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(e)), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4746,10 +4643,9 @@ a	b	c	d	e	f
 7	NULL	20	NULL	Hello	5
 8	NULL	20	NULL	World	5
 9	NULL	20	NULL	Hello World	11
-ALTER TABLE t1 ADD COLUMN g VARCHAR(100) GENERATED ALWAYS AS (e), ADD COLUMN h BIGINT DEFAULT 10000, ADD COLUMN i BIGINT GENERATED ALWAYS AS (h * 2 + b);
+ALTER TABLE t1 ADD COLUMN g VARCHAR(100) GENERATED ALWAYS AS (e), ADD COLUMN h BIGINT DEFAULT 10000, ADD COLUMN i BIGINT GENERATED ALWAYS AS (h * 2 + b), ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4804,7 +4700,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -4910,7 +4806,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -4933,10 +4829,9 @@ c
 SELECT count(*) FROM t1;
 count(*)
 16
-ALTER TABLE t1 ADD COLUMN t DATETIME DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE t1 ADD COLUMN t DATETIME DEFAULT CURRENT_TIMESTAMP, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -4986,7 +4881,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -5055,7 +4950,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world';
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, ADD COLUMN d INT GENERATED ALWAYS AS ((c * 2 + b)) VIRTUAL, ADD COLUMN e VARCHAR(100) DEFAULT 'Hello world', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
@@ -5124,12 +5019,14 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 DROP TABLE t1;
+SET SESSION innodb_strict_mode=OFF;
 CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(1000)) ROW_FORMAT=COMPACT;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
 INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000), repeat('c', 1));
 SELECT id, length(c1), length(c2), length(c3) FROM t1;
 id	length(c1)	length(c2)	length(c3)
 1	4000	4000	1
-ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
+ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -5158,28 +5055,27 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100 AFTER b;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100 AFTER b, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b;
-Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 2
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
-Expect 0
-0
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 2
+2
 ALTER TABLE t1 ADD COLUMN e INT NOT NULL DEFAULT 100, ADD KEY(e);
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -5188,8 +5084,8 @@ Expect 0
 0
 ALTER TABLE t1 ADD COLUMN f INT NOT NULL DEFAULT 100, FORCE;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -5198,8 +5094,8 @@ Expect 0
 0
 ALTER TABLE t1 ADD COLUMN g INT NOT NULL DEFAULT 100, ALGORITHM=INPLACE;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -5227,8 +5123,8 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c TEXT, FULLT
 INSERT INTO t1 VALUES(0, 1, 'Hello'), (0, 2, 'HELLO'), (0, 3, 'World'), (0, 4, 'Hello world'), (0, 5, 'HELLO WORLD');
 ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b;
 Table ID differed
-count(*) = 1
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -5241,7 +5137,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=CO
 CREATE TABLE t2(a INT NOT NULL PRIMARY KEY, b INT, c INT, KEY(c));
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 INSERT INTO t2 VALUES(1, 2, 3), (2, 3, 4), (3, 4, 5);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 3;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 3, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -5284,7 +5180,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT PARTITION BY HASH(a) PARTITIONS 3;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -5334,7 +5230,7 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 3 */
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT) ROW_FORMAT=COMPACT PARTITION BY HASH(a) PARTITIONS 2;;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -5342,7 +5238,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 CHANGE COLUMN c c1 INT;
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -5356,7 +5252,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -5366,7 +5262,7 @@ test.t1	check	status	OK
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT NOT NULL DEFAULT 5) ROW_FORMAT=COMPACT PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20), PARTITION p3 VALUES LESS THAN (30));;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 ERROR HY000: Non matching attribute 'INSTANT COLUMN(s)' between partition and table
-ALTER TABLE t2 ADD COLUMN d INT;
+ALTER TABLE t2 ADD COLUMN d INT, ALGORITHM=INSTANT;
 ALTER TABLE t1 ADD COLUMN d INT, ALGORITHM=INPLACE;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 ERROR HY000: Non matching attribute 'INSTANT COLUMN(s)' between partition and table
@@ -5400,11 +5296,11 @@ ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 DROP TABLE t1, t2;
 #
 # Scenario 11:
-# PRIMARY KEY with more than one column, at least to verify it works with REDUDANT
+# PRIMARY KEY with more than one column, at least to verify it works with REDUNDANT
 #
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b)) ROW_FORMAT=COMPACT;;
 INSERT INTO t1 VALUES(0, 1), (1, 2), (2, 3), (3, 4);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -5435,41 +5331,41 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 TEXT) ENGINE = InnoDB PARTITION BY RANGE(col1 * 2) ( PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256) , PARTITION p2 VALUES LESS THAN (384) , PARTITION p3 VALUES LESS THAN MAXVALUE);;
 INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
-ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500), ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARCHAR(500), ADD COLUMN col6 TEXT, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SELECT count(*) AS `Expect 4` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 4
-4
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 ALTER TABLE t1 ALGORITHM INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (64), PARTITION p0_b VALUES LESS THAN (128));
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ALGORITHM DEFAULT, ADD KEY idx4(col4(10));
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ALGORITHM DEFAULT, LOCK EXCLUSIVE, REORGANIZE PARTITION p0_a, p0_b INTO (PARTITION p0 VALUES LESS THAN (128) TABLESPACE innodb_file_per_table);
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ADD KEY idx3(col3);
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-Expect 3
-3
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -5481,7 +5377,7 @@ col1	col2	col3	col4	col5	col6
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT PARTITION BY HASH(a) PARTITIONS 3;;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
-ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
+ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -5490,7 +5386,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 3
-3
+0
 ALTER TABLE t1 ADD PARTITION PARTITIONS 10;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 Expect 0
@@ -5538,7 +5434,7 @@ ALTER TABLE t1 ADD COLUMN nc086 BIGINT NOT NULL FIRST, ALGORITHM=INPLACE, LOCK=D
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-ALTER TABLE t1 ADD COLUMN nc082 TINYTEXT;
+ALTER TABLE t1 ADD COLUMN nc082 TINYTEXT, ALGORITHM=INSTANT;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -5568,8 +5464,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN d1 LINESTRING, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -5583,8 +5478,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN e1 POLYGON, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 3
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -5598,8 +5492,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN f1 MULTIPOINT, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 4
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -5613,8 +5506,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN g1 MULTILINESTRING, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 5
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -5628,8 +5520,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN h1 MULTIPOLYGON, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 6
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -5643,8 +5534,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN i1 GEOMETRYCOLLECTION, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 7
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -5658,8 +5548,7 @@ count(*) = max(a)
 1
 ALTER TABLE t1 ADD COLUMN j1 GEOMETRY, ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 8
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -5752,8 +5641,7 @@ bbbb
 DROP TRIGGER t1_ai;
 ALTER TABLE t2 ADD COLUMN c1 VARCHAR(10) NOT NULL DEFAULT 'cccc', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -5900,11 +5788,10 @@ count(*) = max(a)
 SELECT c1 FROM t1 WHERE c1 = 'bbbb';
 c1
 bbbb
-ALTER TABLE t1 DROP COLUMN c1;
-Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+ALTER TABLE t1 DROP COLUMN c1, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -5980,9 +5867,8 @@ c1
 bbbb
 ALTER TABLE t1 CHANGE c1 c2 CHAR(10) NOT NULL DEFAULT 'cccc';
 Table ID differed
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
-0
+count(*) = 0
+1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -6030,8 +5916,7 @@ DROP INDEX id1 ON t1;
 DROP INDEX id2 ON t1;
 ALTER TABLE t1 ADD COLUMN c2 VARCHAR(10) NOT NULL DEFAULT 'cccc', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -6088,8 +5973,7 @@ c1
 cccc
 ALTER TABLE t2 ADD COLUMN c1 VARCHAR(10) NOT NULL DEFAULT 'bbbb', ALGORITHM = INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 1
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -6139,7 +6023,7 @@ DROP TABLE t2;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d INT GENERATED ALWAYS AS (b + c) VIRTUAL, e INT GENERATED ALWAYS AS (b * c) VIRTUAL) ROW_FORMAT=COMPACT;
 INSERT INTO t1(a, b, c) VALUES(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 5, 6);
-ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
+ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -6155,10 +6039,9 @@ a	b	c	h	d	e
 4	4	5	0	9	20
 5	5	6	0	11	30
 6	6	20	40	26	120
-ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i;
+ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i, ALGORITHM=INSTANT;
 Table id did not change
-SELECT 3 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -6198,7 +6081,7 @@ DROP TABLE t1;
 # CRASHES THE SERVER
 #
 CREATE TABLE t1 (a TEXT GENERATED ALWAYS AS (lpad(1, 1, 1)) VIRTUAL);
-ALTER TABLE t1 ADD COLUMN (b INT);
+ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

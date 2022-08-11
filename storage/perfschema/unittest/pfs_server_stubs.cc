@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,8 @@ uint lower_case_table_names = 0;
 CHARSET_INFO *files_charset_info = nullptr;
 CHARSET_INFO *system_charset_info = nullptr;
 
+extern "C" void sql_alloc_error_handler() {}
+
 extern "C" unsigned int thd_get_current_thd_terminology_use_previous() {
   return 0;
 }
@@ -81,3 +83,5 @@ int log_message(int, ...) {
 bool acl_is_utility_user(const char *, const char *, const char *) {
   return false;
 }
+
+void reset_status_by_thd() {}

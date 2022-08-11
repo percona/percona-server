@@ -182,7 +182,7 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
   sync_arr = sync_array_get_and_reserve_cell(
       this,
       type,
-      filename, line, &cell);
+      {filename, line}, &cell);
 
   /* The memory order of the array reservation and
   the change in the waiters field is important: when

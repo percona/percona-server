@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include <list>
 #include <random>  // std::uniform_real_distribution
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "keycache.h"
@@ -169,7 +170,7 @@
           m_psi_locker = PSI_TABLE_CALL(start_table_io_wait)(               \
               &m_psi_locker_state, m_psi, OP, INDEX, __FILE__, __LINE__);   \
           PAYLOAD                                                           \
-          if (!RESULT) m_psi_numrows++;                                     \
+          if (RESULT != HA_ERR_END_OF_FILE) m_psi_numrows++;                \
           m_psi_batch_mode = PSI_BATCH_MODE_STARTED;                        \
           break;                                                            \
         }                                                                   \
@@ -177,7 +178,7 @@
         default: {                                                          \
           assert(m_psi_batch_mode == PSI_BATCH_MODE_STARTED);               \
           PAYLOAD                                                           \
-          if (!RESULT) m_psi_numrows++;                                     \
+          if (RESULT != HA_ERR_END_OF_FILE) m_psi_numrows++;                \
           break;                                                            \
         }                                                                   \
       }                                                                     \
@@ -3083,6 +3084,7 @@ int handler::ha_index_init(uint idx, bool sorted) {
   assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
   assert(inited == NONE);
   if (!(result = index_init(idx, sorted))) inited = INDEX;
+  mrr_have_range = false;
   end_range = nullptr;
   return result;
 }
@@ -3465,6 +3467,13 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
     result = update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields = false;
   }
+  // Filter duplicate records from multi-value index read.
+  // (m_unique != nullptr in case of multi-value index read)
+  // In case of range scan, duplicate records are filtered in
+  // multi_range_read_next()
+  if (!result && !mrr_have_range && m_unique != nullptr && filter_dup_records())
+    result = HA_ERR_KEY_NOT_FOUND;
+
   table->set_row_status_from_handler(result);
 
   if (likely(!result)) {
@@ -3568,6 +3577,13 @@ int handler::ha_index_next(uchar *buf) {
     result = update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields = false;
   }
+  // Filter duplicate records from multi-value index read.
+  // (m_unique != nullptr in case of multi-value index read)
+  // In case of range scan, duplicate records are filtered in
+  // multi_range_read_next()
+  if (!result && !mrr_have_range && m_unique != nullptr && filter_dup_records())
+    result = HA_ERR_KEY_NOT_FOUND;
+
   table->set_row_status_from_handler(result);
   if (likely(!result)) {
     update_index_stats(active_index);
@@ -3661,6 +3677,13 @@ int handler::ha_index_first(uchar *buf) {
     result = update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields = false;
   }
+  // Filter duplicate records from multi-value index read.
+  // (m_unique != nullptr in case of multi-value index read)
+  // In case of range scan, duplicate records are filtered in
+  // multi_range_read_next()
+  if (!result && !mrr_have_range && m_unique != nullptr && filter_dup_records())
+    result = HA_ERR_KEY_NOT_FOUND;
+
   table->set_row_status_from_handler(result);
 
   if (likely(!result)) {
@@ -3732,13 +3755,22 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen) {
 
   // Set status for the need to update generated fields
   m_update_generated_read_fields = table->has_gcol();
-
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
                       { result = index_next_same(buf, key, keylen); })
   if (!result && m_update_generated_read_fields) {
     result = update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields = false;
   }
+  // Filter duplicate records from multi-value index read.
+  // (m_unique != nullptr in case of multi-value index read)
+  // In case of range scan, duplicate records are filtered in
+  // multi_range_read_next()
+
+  if (!result && !mrr_have_range && m_unique != nullptr &&
+      filter_dup_records()) {
+    result = HA_ERR_KEY_NOT_FOUND;
+  }
+
   table->set_row_status_from_handler(result);
 
   if (likely(!result)) {
@@ -5898,7 +5930,7 @@ bool default_rm_tmp_tables(handlerton *hton, THD *, List<LEX_STRING> *files) {
 /**
   Init a key cache if it has not been initied before.
 */
-int ha_init_key_cache(const char *, KEY_CACHE *key_cache) {
+int ha_init_key_cache(std::string_view, KEY_CACHE *key_cache) {
   DBUG_TRACE;
 
   if (!key_cache->key_cache_inited) {
@@ -7067,7 +7099,7 @@ int DsMrr_impl::dsmrr_fill_buffer() {
     property of the wrong handler. MRR sets the handlers' keyread properties
     when initializing the MRR operation, independent of this call).
   */
-  assert(table->key_read == false);
+  bool table_keyread_save = table->key_read;
   table->key_read = true;
 
   rowids_buf_cur = rowids_buf;
@@ -7088,8 +7120,8 @@ int DsMrr_impl::dsmrr_fill_buffer() {
     }
   }
 
-  // Restore key_read since the next read operation will read complete rows
-  table->key_read = false;
+  // Restore key_read since the next read operation might read complete rows
+  table->key_read = table_keyread_save;
 
   if (res && res != HA_ERR_END_OF_FILE) return res;
   dsmrr_eof = (res == HA_ERR_END_OF_FILE);
@@ -7719,9 +7751,9 @@ void handler::set_end_range(const key_range *range,
     end_range = &save_end_range;
     range_key_part = table->key_info[active_index].key_part;
     key_compare_result_on_equal =
-        ((range->flag == HA_READ_BEFORE_KEY)
-             ? 1
-             : (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+        (range->flag == HA_READ_BEFORE_KEY)
+            ? 1
+            : (range->flag == HA_READ_AFTER_KEY ? -1 : 0);
     m_virt_gcol_in_end_range = key_has_vcol(range_key_part, range->length);
   } else
     end_range = nullptr;
@@ -8169,8 +8201,8 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
       try {
         MY_BITMAP save_read_set;
         MY_BITMAP save_write_set;
-        if (bitmap_init(&save_read_set, NULL, table->s->fields) ||
-            bitmap_init(&save_write_set, NULL, table->s->fields)) {
+        if (bitmap_init(&save_read_set, nullptr, table->s->fields) ||
+            bitmap_init(&save_write_set, nullptr, table->s->fields)) {
           my_error(ER_OUT_OF_RESOURCES, MYF(0));
           return HA_ERR_RBR_LOGGING_FAILED;
         }

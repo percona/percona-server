@@ -7,7 +7,7 @@
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -55,10 +55,9 @@ test.t1	check	status	OK
 SELECT * FROM t1;
 a	b	c1
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
+ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -82,7 +81,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -174,7 +173,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -274,7 +273,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -322,10 +321,9 @@ test.t1	check	status	OK
 SELECT * FROM t1;
 a	b	c1
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
+ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -349,7 +347,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -441,7 +439,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -541,7 +539,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -589,10 +587,9 @@ test.t1	check	status	OK
 SELECT * FROM t1;
 a	b	c1
 INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
+ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!', ALGORITHM=INSTANT;
 Table id did not change
-SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
-Instant columns equal
+count(*) = 2
 1
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -616,7 +613,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1
@@ -708,7 +705,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
-ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10, ALGORITHM=INSTANT;
 Table id did not change
 count(*) = 1
 1

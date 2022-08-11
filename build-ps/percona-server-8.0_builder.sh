@@ -388,6 +388,24 @@ get_system(){
     return
 }
 
+apply_workaround_bug_304121(){
+    cat > /tmp/bugzilla_bug_304121.patch <<- EOF
+--- /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:38.582288603 +0000
++++ /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:17.089255640 +0000
+@@ -309,7 +309,7 @@
+
+   echo "extracting debug info from \$f"
+   id=\$(/usr/lib/rpm/debugedit -b "\$RPM_BUILD_DIR" -d /usr/src/debug \\
+-			      -i -l "\$SOURCEFILE" "\$f") || exit
++			      -i -l "\$SOURCEFILE" "\$f") || true
+   if [ \$nlinks -gt 1 ]; then
+     eval linkedid_\$inum=\\\$id
+   fi
+EOF
+    patch -ruN -d /usr/lib/rpm < /tmp/bugzilla_bug_304121.patch
+    return
+}
+
 install_deps() {
     if [ $INSTALL = 0 ]
     then
@@ -408,6 +426,7 @@ install_deps() {
         add_percona_yum_repo
         yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
         percona-release enable tools testing
+        percona-release enable tools experimental
         yum -y install epel-release
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd zstd-devel
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
@@ -436,13 +455,15 @@ install_deps() {
         fi
         if [ "x${RHEL}" = "x8" ]; then
             yum -y install centos-release-stream
-            yum -y install git gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-annobin
-            source /opt/rh/gcc-toolset-10/enable
+            yum -y install git gcc-toolset-11-gcc gcc-toolset-11-gcc-c++ gcc-toolset-11-annobin-plugin-gcc
+            source /opt/rh/gcc-toolset-11/enable
         fi
         if [ "x${RHEL}" = "x7" ]; then
-            yum -y install devtoolset-10
+            apply_workaround_bug_304121
+            yum -y install devtoolset-11
+            yum -y install devtoolset-11-annobin-plugin-gcc
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
-            source /opt/rh/devtoolset-10/enable
+            source /opt/rh/devtoolset-11/enable
         fi
 	 if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable
@@ -456,16 +477,15 @@ install_deps() {
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
-            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-gcc-c++ devtoolset-10-binutils devtoolset-10-valgrind devtoolset-10-valgrind-devel devtoolset-10-libatomic-devel
-            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-libasan-devel devtoolset-10-libubsan-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-11-gcc-c++ devtoolset-11-binutils devtoolset-11-valgrind devtoolset-11-valgrind-devel devtoolset-11-libatomic-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-11-libasan-devel devtoolset-11-libubsan-devel
             rm -f /usr/bin/cmake
 	    cp -p /usr/bin/cmake3 /usr/bin/cmake
         fi
         if [ "x$RHEL" = "x8" ]; then
             yum -y install centos-release-stream
-            yum -y install gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils
-            yum -y install gcc-toolset-10-valgrind gcc-toolset-10-valgrind-devel gcc-toolset-10-libatomic-devel
-            yum -y install gcc-toolset-10-libasan-devel gcc-toolset-10-libubsan-devel
+            yum -y install gcc-toolset-11-binutils gcc-toolset-11-valgrind gcc-toolset-11-valgrind-devel gcc-toolset-11-libatomic-devel
+            yum -y install gcc-toolset-11-libasan-devel gcc-toolset-11-libubsan-devel
             yum -y remove centos-release-stream
         fi
     else
@@ -609,7 +629,7 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.tar.gz
+    wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
     #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
@@ -723,7 +743,7 @@ build_rpm(){
         source /opt/rh/devtoolset-8/enable
     fi
     if [ "x${RHEL}" = "x7" ]; then
-        source /opt/rh/devtoolset-10/enable
+        source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
         source /opt/rh/gcc-toolset-10/enable
@@ -738,7 +758,7 @@ build_rpm(){
         sudo ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
     fi
     if [ "x${RHEL}" = "x7" ]; then
-        source /opt/rh/devtoolset-10/enable
+        source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
         source /opt/rh/gcc-toolset-10/enable
@@ -912,7 +932,7 @@ build_tarball(){
           source /opt/rh/devtoolset-8/enable
       fi
       if [ "x${RHEL}" = "x7" ]; then
-          source /opt/rh/devtoolset-10/enable
+          source /opt/rh/devtoolset-11/enable
       fi
       if [ "x${RHEL}" = "x8" ]; then
           source /opt/rh/gcc-toolset-10/enable
@@ -1001,7 +1021,7 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.27-18"
+BRANCH="release-8.0.29-21"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -1009,13 +1029,13 @@ REPO="https://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=27
-MYSQL_VERSION_EXTRA=-18
-PRODUCT_FULL=Percona-Server-8.0.27
-BOOST_PACKAGE_NAME=boost_1_73_0
+MYSQL_VERSION_PATCH=29
+MYSQL_VERSION_EXTRA=-21
+PRODUCT_FULL=Percona-Server-8.0.29
+BOOST_PACKAGE_NAME=boost_1_77_0
 BUILD_TOKUDB_TOKUBACKUP=0
-PERCONAFT_BRANCH=Percona-Server-8.0.27-18
-TOKUBACKUP_BRANCH=Percona-Server-8.0.27-18
+PERCONAFT_BRANCH=Percona-Server-8.0.29-21
+TOKUBACKUP_BRANCH=Percona-Server-8.0.29-21
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

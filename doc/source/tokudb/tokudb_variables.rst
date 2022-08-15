@@ -1182,8 +1182,6 @@ value ``ULONG``::
 
 .. rubric:: ``tokudb_dir_per_db``
 
-Implemented in :ref:`5.7.15-9`.
-
 .. list-table::
    :header-rows: 1
 
@@ -1202,8 +1200,7 @@ Implemented in :ref:`5.7.15-9`.
    * - Default
      - ON
 
-When this variable is set to ``ON`` all new tables and indices will be placed
-within their corresponding database directory within the
+The variable has been implemented in :ref:`5.7.15-9`. When this variable is set to ``ON`` all new tables and indices will be placed within their corresponding database directory within the
 :ref:`tokudb_data_dir` or system source/glossary.rst`datadir`. Existing table files
 will not be automatically relocated to their corresponding database directory.
 If you rename a table, while this variable is enabled, the mapping in the
@@ -2398,3 +2395,4 @@ This variable controls in how many writes the progress is measured to display
 For slow queries, it can be helpful to set this variable and
 :ref:`tokudb_read_status_frequency` to 1, and then run ``SHOW
 PROCESSLIST`` several times to understand what progress is being made.
+

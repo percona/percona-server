@@ -19,8 +19,6 @@ Status Variables
 
 .. rubric:: ``Innodb_secondary_index_triggered_cluster_reads``
 
-Implemented in :ref:`5.7.18-14`.
-
 .. list-table::
    :header-rows: 1
 
@@ -31,15 +29,12 @@ Implemented in :ref:`5.7.18-14`.
    * - Scope
      - Global
 
-This variable shows the number of times secondary index lookup triggered
-cluster lookup.
+The variable has been implemented in :ref:`5.7.18-14`. This variable shows the number of times secondary index lookup triggered cluster lookup.
 
 .. _Innodb_secondary_index_triggered_cluster_reads_avoided:
 
 .. rubric:: ``Innodb_secondary_index_triggered_cluster_reads_avoided``
 
-Implemented in :ref:`5.7.18-14`.
-
 .. list-table::
    :header-rows: 1
 
@@ -50,5 +45,4 @@ Implemented in :ref:`5.7.18-14`.
    * - Scope
      - Global
 
-This variable shows the number of times prefix optimization avoided
-triggering cluster lookup.
+The variable has been implemented in :ref:`5.7.18-14`. This variable shows the number of times prefix optimization avoided triggering cluster lookup.

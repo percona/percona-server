@@ -68,8 +68,6 @@ global `innodb_use_flush_log_at_trx_commit` value.
 
 .. rubric:: ``innodb_flush_method``
 
-Ported from Percona Server for MySQL 5.6 in :ref:`5.7.10-3`.
-
 .. list-table::
    :header-rows: 1
 
@@ -90,7 +88,7 @@ Ported from Percona Server for MySQL 5.6 in :ref:`5.7.10-3`.
    * - Allowed values
      - ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``ALL_O_DIRECT``
 
-This is an existing MySQL 5.7 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method InnoDB uses to flush its data and log files. (See :ref:`innodb_flush_method` in the MySQL 5.7 `Reference Manual <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
+The variable was ported from Percona Server for MySQL 5.6 in :ref:`5.7.10-3`. This is an existing MySQL 5.7 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method InnoDB uses to flush its data and log files. (See :ref:`innodb_flush_method` in the MySQL 5.7 `Reference Manual <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
 
 The following values are allowed:
 
@@ -138,4 +136,3 @@ The following information has been added to ``SHOW ENGINE INNODB STATUS`` to con
   Checkpoint age      4243362
   0 pending log writes, 0 pending chkp writes
   ...
-

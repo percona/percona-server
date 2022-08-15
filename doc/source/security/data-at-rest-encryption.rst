@@ -482,10 +482,6 @@ with a new master key by running the following ``ALTER INSTANCE`` statement:
 
 .. rubric:: ``innodb_sys_tablespace_encrypt``
 
-Deprecated in :ref:`5.7.32-35`.
-
-Implemented in :ref:`5.7.23-24`.
-
 .. list-table::
    :header-rows: 1
 
@@ -502,7 +498,7 @@ Implemented in :ref:`5.7.23-24`.
    * - Default
      - ``OFF``
 
-Enables the encryption of the InnoDB System tablespace. It is essential that the
+The variable has been implemented in :ref:`5.7.23-24` and deprecated in :ref:`5.7.32-35`. Enables the encryption of the InnoDB System tablespace. It is essential that the
 server is started with the ``--bootstrap`` option.
 
 .. seealso::
@@ -540,10 +536,6 @@ unencrypted.
 
 .. rubric:: ``innodb_parallel_dblwr_encrypt``
 
-Deprecated in :ref:`5.7.32-35`.
-
-Implemented in :ref:`5.7.23-24`.
-
 .. list-table::
    :header-rows: 1
 
@@ -560,7 +552,7 @@ Implemented in :ref:`5.7.23-24`.
    * - Default
      - ``OFF``
 
-Enables the encryption of the parallel doublewrite buffer. For encryption, uses
+The variable has been implemented in :ref:`5.7.23-24` and deprecated in :ref:`5.7.32-35`. Enables the encryption of the parallel doublewrite buffer. For encryption, uses
 the key of the tablespace where the parallel doublewrite buffer is used.
 
 .. _en-undo-tbs:
@@ -586,10 +578,6 @@ System variables
 
 .. rubric:: ``innodb_undo_log_encrypt``
 
-Deprecated in :ref:`5.7.32-35`.
-
-Implemented in :ref:`5.7.23-24`.
-
 .. list-table::
    :header-rows: 1
 
@@ -606,7 +594,7 @@ Implemented in :ref:`5.7.23-24`.
    * - Default
      - ``Off``
 
-Enables the encryption of InnoDB Undo tablespaces. You can enable encryption and
+The variable has been implemented in :ref:`5.7.23-24` and deprecated in :ref:`5.7.32-35`. Enables the encryption of InnoDB Undo tablespaces. You can enable encryption and
 disable encryption while the server is running. 
 
 .. note:: 
@@ -674,10 +662,6 @@ System Variables
 
 .. rubric:: ``innodb_background_scrub_data_compressed``
 
-Deprecated in :ref:`5.7.32-35`.
-
-Implemented in :ref:`5.7.23-24`.
-
 .. list-table::
    :header-rows: 1
 
@@ -694,13 +678,11 @@ Implemented in :ref:`5.7.23-24`.
    * - Default
      - ``OFF``
 
+The variable has been implemented in :ref:`5.7.23-24` and deprecated in :ref:`5.7.32-35`.
+
 .. _innodb_background_scrub_data_uncompressed:
 
 .. rubric:: ``innodb_background_scrub_data_uncompressed``
-
-Deprecated in :ref:`5.7.32-35`.
-
-Implemented in :ref:`5.7.23-24`.
 
 .. list-table::
    :header-rows: 1
@@ -717,6 +699,8 @@ Implemented in :ref:`5.7.23-24`.
      - Boolean
    * - Default
      - ``OFF``
+
+The variable has been implemented in :ref:`5.7.23-24` and deprecated in :ref:`5.7.32-35`.
 
 Variables
 ---------------
@@ -769,8 +753,6 @@ OPTIONS
 
 .. rubric:: ``innodb_encrypt_tables``
 
-Implemented in :ref:`5.7.21-21`.
-
 .. list-table::
    :header-rows: 1
 
@@ -787,13 +769,13 @@ Implemented in :ref:`5.7.21-21`.
    * - Default
      - ``OFF``
 
+The variable has been implemented in :ref:`5.7.21-21`.
+
 :Availability: This variable is **Experimental** quality.
 
 .. _innodb_redo_log_encrypt:
 
 .. rubric:: ``innodb_redo_log_encrypt``
-
-Implemented in :ref:`5.7.23-24`.
 
 .. list-table::
    :header-rows: 1
@@ -811,10 +793,10 @@ Implemented in :ref:`5.7.23-24`.
    * - Default
      - ``OFF``
 
-Enables the encryption of the redo log.
+The variable has been implemented in :ref:`5.7.23-24`. Enables the encryption of the redo log.
 
 .. .. variable:: innodb_key_rotation_interval
-.. 	      
+..        
 ..    :version 5.7.23-24: Implemented
 ..    :cli: ``--innodb-key-rotation_interval``
 ..    :dyn: Yes
@@ -825,15 +807,13 @@ Enables the encryption of the redo log.
 .. This variable stores the time (in seconds) that should pass between key
 .. rotations. It is only used if :variable:`innodb_redo_log_encrypt` is set to
 .. ``KEYRING_KEY``.
-.. 	     
+..       
 
 .. _data-at-rest-encryption.variable.innodb-scrub-log:
 
 .. _innodb_scrub_log:
 
 .. rubric:: ``innodb_scrub_log``
-
-Implemented in :ref:`5.7.23-24`.
 
 .. list-table::
    :header-rows: 1
@@ -851,13 +831,11 @@ Implemented in :ref:`5.7.23-24`.
    * - Default
      - ``OFF``
 
-Specifies if data scrubbing should be automatically applied to the redo log.
+The variable has been implemented in :ref:`5.7.23-24`. Specifies if data scrubbing should be automatically applied to the redo log.
 
 .. _innodb_scrub_log_speed:
 
 .. rubric:: ``innodb_scrub_log_speed``
-
-Implemented in :ref:`5.7.23-24`.
 
 .. list-table::
    :header-rows: 1
@@ -875,4 +853,4 @@ Implemented in :ref:`5.7.23-24`.
    * - Default
      - 
  
-Specifies the velocity of data scrubbing (writing dummy redo log records) in bytes per second.
+The variable has been implemented in :ref:`5.7.23-24`. Specifies the velocity of data scrubbing (writing dummy redo log records) in bytes per second.

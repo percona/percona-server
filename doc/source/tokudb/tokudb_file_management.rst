@@ -258,8 +258,6 @@ System Variables
 
 .. rubric:: ``tokudb_dir_cmd``
 
-Implemented in :ref:`5.7.18-14`.
-
 .. list-table::
    :header-rows: 1
 
@@ -276,7 +274,7 @@ Implemented in :ref:`5.7.18-14`.
    * - Data type
      - String
 
-This variable is used to send commands to edit TokuDB directory map.
+The variable has been implemented in :ref:`5.7.18-14`. This variable is used to send commands to edit TokuDB directory map.
 
 .. warning::
 

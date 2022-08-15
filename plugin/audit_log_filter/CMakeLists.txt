@@ -15,6 +15,8 @@
 
 MYSQL_ADD_PLUGIN(audit_log_filter
                  audit_log_filter.cc
+                 audit_log_reader.cc
+                 audit_log_json_handler.cc
                  audit_record.cc
                  audit_filter.cc
                  audit_rule.cc

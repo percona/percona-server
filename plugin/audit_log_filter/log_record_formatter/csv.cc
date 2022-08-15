@@ -24,4 +24,10 @@ const EscapeRulesContainer &LogRecordFormatterCsv::get_escape_rules()
   return escape_rules;
 }
 
+std::string LogRecordFormatterCsv::make_timestamp(
+    const std::chrono::system_clock::time_point time_point
+    [[maybe_unused]]) const noexcept {
+  return "";
+}
+
 }  // namespace audit_log_filter::log_record_formatter

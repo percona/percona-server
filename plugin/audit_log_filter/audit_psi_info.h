@@ -23,6 +23,7 @@ namespace audit_log_filter {
 extern PSI_memory_key key_memory_audit_log_filter_logger_handle;
 extern PSI_memory_key key_memory_audit_log_filter_handler;
 extern PSI_memory_key key_memory_audit_log_filter_buffer;
+extern PSI_memory_key key_memory_audit_log_filter_read_buffer;
 extern PSI_memory_key key_memory_audit_log_filter_accounts;
 extern PSI_memory_key key_memory_audit_log_filter_databases;
 extern PSI_memory_key key_memory_audit_log_filter_commands;

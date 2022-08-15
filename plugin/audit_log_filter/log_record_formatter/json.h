@@ -167,6 +167,16 @@ class LogRecordFormatter<AuditLogFormatType::Json>
                         std::string_view event_subclass_name,
                         std::string &record_str) noexcept override;
 
+ protected:
+  /**
+   * @brief Get timestamp string representation.
+   *
+   * @param time_point Time point
+   * @return Timestamp string
+   */
+  [[nodiscard]] std::string make_timestamp(
+      std::chrono::system_clock::time_point time_point) const noexcept override;
+
  private:
   /**
    * @brief Get string representation of audit event subclass name.

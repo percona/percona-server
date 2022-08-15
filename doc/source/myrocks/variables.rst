@@ -1436,7 +1436,7 @@ The variable has been implemented in :ref:`5.7.30-33`. Specifies whether to enab
 
 The variable has been implemented in :ref:`5.7.30-33`. Enables the rocksdb iterator upper bounds and lower bounds in read options.
 
-The default value is ``TRUE``.
+Implemented in :ref:`5.7.35-38`. 
 
 .. _rocksdb_enable_native_partition:
 
@@ -3365,8 +3365,7 @@ Allowed range is from ``0`` to ``19``.
    * - Default
      - ``19``
 
-The variable has been implemented in :ref:`5.7.30-33`.
-  
+The variable has been implemented in :ref:`5.7.30-33`. 
 The nice value for index stats.
 The minimum = -20 (THREAD_PRIO_MIN)
 The maximum = 19 (THREAD_PRIO_MAX)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,8 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+#include "sql_show_processlist.h" // pfs_processlist_enabled
 
 #define MAX_CONNECTIONS 100000
 
@@ -182,6 +184,14 @@ static Sys_var_charptr Sys_pfs_instrument(
        IN_FS_CHARSET,
        DEFAULT(""),
        PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_processlist(
+       "performance_schema_show_processlist",
+       "Default startup value to enable SHOW PROCESSLIST "
+       "in the performance schema.",
+       GLOBAL_VAR(pfs_processlist_enabled), CMD_LINE(OPT_ARG), DEFAULT(false),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       NULL, sys_var::PARSE_NORMAL);
 
 static Sys_var_mybool Sys_pfs_consumer_events_stages_current(
        "performance_schema_consumer_events_stages_current",
@@ -5432,7 +5442,7 @@ static Sys_var_charptr Sys_slow_log_path(
        "slow_query_log_file", "Log slow queries to given log file. "
        "Defaults logging to hostname-slow.log. Must be enabled to activate "
        "other slow log options",
-       GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
+       PREALLOCATED GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 

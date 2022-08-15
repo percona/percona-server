@@ -2395,3 +2395,4 @@ This variable controls in how many writes the progress is measured to display
 For slow queries, it can be helpful to set this variable and
 :ref:`tokudb_read_status_frequency` to 1, and then run ``SHOW
 PROCESSLIST`` several times to understand what progress is being made.
+

@@ -4,7 +4,7 @@
 Data Masking
 ==================================================================
 
-This feature was implemented in |Percona Server| version :rn:`5.7.32-35`.
+This feature was implemented in *Percona Server for MySQL* version :ref:`5.7.32-35`.
 
 The Percona Data Masking plugin is a free and Open Source implementation of the
 MySQL's data masking plugin. Data Masking provides a set of functions to hide
@@ -210,7 +210,7 @@ The following functions generate random values for specific requirements:
             +-------------------------------+
             | gen_rnd_us_phone()            |
             +-------------------------------+
-            | 1-555635-5709                 |
+            | 1-555-635-5709                |
             +-------------------------------+
 
     * - gen_rnd_ssn()

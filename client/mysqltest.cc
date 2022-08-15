@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -805,8 +805,9 @@ public:
         DBUG_VOID_RETURN;
       }
 
-      DBUG_PRINT("info", ("Read %lu bytes from file, buf: %s",
-                          (unsigned long)bytes, buf));
+      DBUG_PRINT("info",
+                 ("Read %lu bytes from file, buf: %.*s", (unsigned long)bytes,
+                  static_cast<int>(bytes), buf));
 
       char* show_from= buf + bytes;
       while(show_from > buf && lines > 0 )

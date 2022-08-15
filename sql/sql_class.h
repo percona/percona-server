@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3650,13 +3650,16 @@ public:
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time_usec)(start_utime);
 #endif
   }
   inline void set_current_time()
   {
-    my_micro_time_to_timeval(my_micro_time(), &start_time);
+    start_utime= utime_after_lock= my_micro_time();
+    my_micro_time_to_timeval(start_utime, &start_time);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time_usec)(start_utime);
 #endif
   }
   inline void set_time(const struct timeval *t)
@@ -3665,6 +3668,7 @@ public:
     start_utime= utime_after_lock= my_micro_time();
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time_usec)(start_utime);
 #endif
   }
   void get_time(QUERY_START_TIME_INFO *time_info) const

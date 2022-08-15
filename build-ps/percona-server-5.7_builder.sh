@@ -164,12 +164,12 @@ get_sources(){
             echo "InnoDB version differs from defined in version file"
             exit 1
         fi
-        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
         if [ ${FT_TAG} = 0 ]; then
             echo "There is no TAG for PerconaFT. Please set it and re-run build!"
             exit 1
         fi
-        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        TOKUBACKUP_TAG=$(git ls-remote --tags https://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
         if [ ${TOKUBACKUP_TAG} = 0 ]; then
             echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
             exit 1
@@ -267,6 +267,7 @@ get_sources(){
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
     #
     cd ${PSDIR}
+    source ../../percona-server-5.7.properties
     # set tokudb version - can be seen with show variables like '%version%'
     sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     #
@@ -341,6 +342,7 @@ install_deps() {
             percona-release enable origin release
             yum -y install epel-release
             yum -y install selinux-policy-devel
+	    yum -y install autoconf
             yum -y install git pkg-config numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
             yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
             yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
@@ -359,6 +361,7 @@ install_deps() {
             fi
         else
             yum -y install perl.x86_64
+	    yum -y install libarchive
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
             yum -y install automake autoconf cmake jemalloc jemalloc-devel
             yum -y install libcurl-devel openldap-devel selinux-policy-devel
@@ -848,12 +851,12 @@ REPO="git://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-5.7
 MYSQL_VERSION_MAJOR=5
 MYSQL_VERSION_MINOR=7
-MYSQL_VERSION_PATCH=22
-MYSQL_VERSION_EXTRA=-22
-PRODUCT_FULL=Percona-Server-5.7.32-35
+MYSQL_VERSION_PATCH=37
+MYSQL_VERSION_EXTRA=-40
+PRODUCT_FULL=Percona-Server-5.7.37-40
 BOOST_PACKAGE_NAME=boost_1_59_0
-PERCONAFT_BRANCH=Percona-Server-5.7.32-35
-TOKUBACKUP_BRANCH=Percona-Server-5.7.32-35
+PERCONAFT_BRANCH=Percona-Server-5.7.37-40
+TOKUBACKUP_BRANCH=Percona-Server-5.7.37-40
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 if [ ${YASSL} = 1 ]; then
   TARBALL=1

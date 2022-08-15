@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -797,8 +797,13 @@ retry:
 				<< ib::hex(space->flags) << ")!";
 		}
 
-		unsigned relevant_space_flags = space->flags;
-		unsigned relevant_flags = flags;
+
+		/* Validate the flags but do not compare the data directory
+		flag, in case this tablespace was relocated. */
+		unsigned relevant_space_flags
+			= space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		unsigned relevant_flags
+			= flags & ~FSP_FLAGS_MASK_DATA_DIR;
 
                 // in case of Keyring encryption it can so happen that there will be a crash after all pages of tablespace is rotated
                 // and DD is updated, but page0 of the tablespace has not been yet update. We handle this here.
@@ -889,7 +894,7 @@ retry:
 
 
 		if (node->size == 0) {
-			ulint	extent_size;
+			uint64_t	extent_size;
 
 			extent_size = page_size.physical() * FSP_EXTENT_SIZE;
 
@@ -1692,18 +1697,23 @@ fil_space_get_flags(
 	return(flags);
 }
 
-/** Check if table is mark for truncate.
+/** Check if tablespace exists and is marked for truncation.
 @param[in]	id	space id
+@return true if tablespace is missing.
 @return true if tablespace is marked for truncate. */
 bool
 fil_space_is_being_truncated(
 	ulint id)
 {
-	bool	mark_for_truncate;
+	bool flag = true;
+	fil_space_t* space;
 	mutex_enter(&fil_system->mutex);
-	mark_for_truncate = fil_space_get_by_id(id)->is_being_truncated;
+	space = fil_space_get_space(id);
+	if (space != NULL) {
+		flag = space->is_being_truncated;
+        }
 	mutex_exit(&fil_system->mutex);
-	return(mark_for_truncate);
+	return(flag);
 }
 
 /** Open each fil_node_t of a named fil_space_t if not already open.
@@ -5364,7 +5374,7 @@ retry:
 	}
 
 	page_size_t	pageSize(space->flags);
-	const ulint	page_size = pageSize.physical();
+	const os_offset_t	page_size = pageSize.physical();
 	fil_node_t*	node = UT_LIST_GET_LAST(space->chain);
 
 	if (!node->being_extended) {

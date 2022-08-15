@@ -4,16 +4,16 @@
  Start transaction with consistent snapshot
 ============================================
 
-|Percona Server| has ported *MariaDB* `enhancement <https://mariadb.com/kb/en/enhancements-for-start-transaction-with-consistent/>`_ for ``START TRANSACTION WITH CONSISTENT SNAPSHOTS`` feature to MySQL 5.6 group commit implementation. This enhancement makes binary log positions consistent with InnoDB transaction snapshots.
+*Percona Server for MySQL* has ported *MariaDB* `enhancement <https://mariadb.com/kb/en/enhancements-for-start-transaction-with-consistent/>`_ for ``START TRANSACTION WITH CONSISTENT SNAPSHOTS`` feature to MySQL 5.6 group commit implementation. This enhancement makes binary log positions consistent with InnoDB transaction snapshots.
 
-This feature is quite useful to obtain logical backups with correct positions without running a ``FLUSH TABLES WITH READ LOCK``. Binary log position can be obtained by two newly implemented status variables: :variable:`Binlog_snapshot_file` and :variable:`Binlog_snapshot_position`. After starting a transaction using the ``START TRANSACTION WITH CONSISTENT SNAPSHOT``, these two variables will provide you with the binlog position corresponding to the state of the database of the consistent snapshot so taken, irrespectively of which other transactions have been committed since the snapshot was taken.
+This feature is quite useful to obtain logical backups with correct positions without running a ``FLUSH TABLES WITH READ LOCK``. Binary log position can be obtained by two newly implemented status variables: :ref:`Binlog_snapshot_file` and :ref:`Binlog_snapshot_position`. After starting a transaction using the ``START TRANSACTION WITH CONSISTENT SNAPSHOT``, these two variables will provide you with the binlog position corresponding to the state of the database of the consistent snapshot so taken, irrespectively of which other transactions have been committed since the snapshot was taken.
 
 .. _snapshot_cloning:
 
 Snapshot Cloning
 ================
 
-The |Percona Server| implementation extends the ``START TRANSACTION WITH CONSISTENT SNAPSHOT`` syntax with the optional ``FROM SESSION`` clause:
+The *Percona Server for MySQL* implementation extends the ``START TRANSACTION WITH CONSISTENT SNAPSHOT`` syntax with the optional ``FROM SESSION`` clause:
 
 .. code-block:: mysql
 
@@ -33,28 +33,58 @@ mysqldump
 System Variables
 ================
 
-.. variable:: have_snapshot_cloning
+.. _have_snapshot_cloning:
 
-     :cli: Yes
-     :conf: No
-     :scope: Global
-     :dyn: No
-     :vartype: Boolean
+.. rubric:: ``have_snapshot_cloning``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - No
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - Boolean
 
 This server variable is implemented to help other utilities detect if the server supports the ``FROM SESSION`` extension. When available, the snapshot cloning feature and the syntax extension to ``START TRANSACTION WITH CONSISTENT SNAPSHOT`` are supported by the server, and the variable value is always ``YES``.
 
 Status Variables
 ================
 
-.. variable:: Binlog_snapshot_file
+.. _Binlog_snapshot_file:
 
-     :vartype: String
-     :scope: Global
+.. rubric:: ``Binlog_snapshot_file``
 
-.. variable:: Binlog_snapshot_position
+.. list-table::
+   :header-rows: 1
 
-     :vartype: Numeric
-     :scope: Global
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - String
+
+.. _Binlog_snapshot_position:
+
+.. rubric:: ``Binlog_snapshot_position``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 These status variables are only available when the binary log is enabled globally.
 

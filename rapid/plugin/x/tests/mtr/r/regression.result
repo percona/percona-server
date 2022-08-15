@@ -6,7 +6,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. faile
 # restart
 Bug #21472634
 RUN show processlist;
-Id	User	Host	db	Command		State	Info		
+Id	User	Host	db	Command		State	Info			
 $PROC_1_ID	root	localhost	test	Sleep		null
 $PROC_2_ID	root	localhost	null	Query	null	PLUGIN: show processlist
 0 rows affected

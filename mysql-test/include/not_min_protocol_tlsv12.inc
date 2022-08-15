@@ -13,28 +13,29 @@
   } elsif (-r $openssl_conf) {
     $policy_file = $openssl_conf;
   }
-  my $min_protocol_tlsv1_2 = 0;
+  my $min_protocol_tlsv1 = 0;
   if ($policy_file ne "") {
     open(my $RH, "<", $policy_file) or die "Could not open $policy_file $!";
     while (<$RH>) {
-      if (/^MinProtocol\s=\sTLSv1\.2/) {
-	$min_protocol_tlsv1_2 = 1;
-	last;
+      $_ =~ s/^\s+|\s+$//g;
+      if (/^MinProtocol\s=\sTLSv1$/) {
+        $min_protocol_tlsv1 = 1;
+        last;
       }
     }
     close $RH;
   }
-  if ($min_protocol_tlsv1_2 == 0 && `openssl version -a` =~ /OPENSSL_TLS_SECURITY_LEVEL=2/) {
-    $min_protocol_tlsv1_2 = 1;
+  if (`openssl version -a` =~ /OPENSSL_TLS_SECURITY_LEVEL=2/) {
+    $min_protocol_tlsv1 = 0;
   }
   open (my $WH, ">", "$ENV{MYSQL_TMP_DIR}/crypto_policy.inc") or die "Could not open $ENV{MYSQL_TMP_DIR}/crypto_policy.inc: $!";
-  print $WH "let \$min_protocol_tlsv1_2 = $min_protocol_tlsv1_2;\n";
+  print $WH "let \$min_protocol_tlsv1 = $min_protocol_tlsv1;\n";
   close $WH;
 EOF
 --source $MYSQL_TMP_DIR/crypto_policy.inc
 --remove_file $MYSQL_TMP_DIR/crypto_policy.inc
 
-if ($min_protocol_tlsv1_2)
+if (!$min_protocol_tlsv1)
 {
   --Skip Test requires TLS protocol <= 1.1, while OpenSSL policy sets MinProtocol TLSv1.2
 }

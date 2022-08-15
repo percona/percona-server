@@ -27,7 +27,7 @@ This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 Version Specific Information
 ============================
 
-  * :ref:`5.7.10-1`: Feature ported from *Percona Server for MySQL* 5.6.
+  * :ref:`5.7.10-1`: Feature was ported from *Percona Server for MySQL* 5.6.
 
 
 Other Information
@@ -174,7 +174,7 @@ the redo log if needed due to the checkpoint age; performs change buffer merge
 at full I/O capacity; evicts tables from the dictionary cache if
 needed; and makes a checkpoint.
 
-.. _Innodb_master_thread_active_loops:
+.. _innodb_master_thread_active_loops:
 
 .. rubric:: ``Innodb_master_thread_active_loops``
 

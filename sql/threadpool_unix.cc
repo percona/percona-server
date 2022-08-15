@@ -1717,7 +1717,6 @@ void tp_set_threadpool_size(uint size)
       if(!success)
       {
         sql_print_error("io_poll_create() failed, errno=%d\n", errno);
-        break;
       }
     }  
     mysql_mutex_unlock(&all_groups[i].mutex);

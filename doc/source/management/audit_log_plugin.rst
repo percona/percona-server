@@ -654,8 +654,7 @@ or host contains comma). If this variable is set, then
      - String
 
 The variable has been implemented in :ref:`5.7.14-7`. This variable is used to specify the list of commands for which :ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
-comma separated list of commands. If this variable is set, then
-:ref:`audit_log_include_commands` must be unset, and vice versa.
+comma separated list of commands. If this variable is set, then :ref:`audit_log_include_commands` must be unset, and vice versa.
 
 .. _audit_log_exclude_databases:
 
@@ -701,7 +700,7 @@ comma separated list of commands. If this variable is set, then
    * - Allowed values
      - ``OLD``, ``NEW``, ``CSV``, ``JSON``
 
-This variable is used to specify the audit log format. The audit log plugin supports four log formats: ``OLD``, ``NEW``, ``JSON``, and ``CSV``. ``OLD`` and ``NEW`` formats are based on XML, where the former outputs log record properties as XML attributes and the latter as XML tags. Information logged is the same in all four formats.
+Implemented in :ref:`5.7.14-7`.
 
 .. _audit_log_include_accounts:
 
@@ -972,3 +971,4 @@ Version Specific Information
     :ref:`databases <filtering_by_database>`.
   * :ref:`5.7.26-29`
     :ref:`Audit_log_buffer_size_overflow` variable implemented
+

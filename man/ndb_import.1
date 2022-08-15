@@ -2,12 +2,12 @@
 .\"     Title: ndb_import
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/29/2021
+.\"      Date: 06/07/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "NDB_IMPORT" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_IMPORT" "1" "06/07/2022" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -62,6 +62,10 @@ is the name of the database where the table into which to import the data is fou
 is the name of the CSV file from which to read the data; this must include the path to this file if it is not in the current directory\&. The name of the file must match that of the table; the file\*(Aqs extension, if any, is not taken into consideration\&. Options supported by
 \fBndb_import\fR
 include those for specifying field separators, escapes, and line terminators, and are described later in this section\&.
+.PP
+\fBndb_import\fR
+rejects any empty lines read from the CSV file\&.
+.PP
 \fBndb_import\fR
 must be able to connect to an NDB Cluster management server; for this reason, there must be an unused
 [api]
@@ -3650,7 +3654,7 @@ was added in NDB 7\&.6\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

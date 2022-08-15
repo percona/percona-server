@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,14 @@ Rotate_innodb_master_key::execute()
   if (!hton->rotate_encryption_master_key)
   {
     my_error(ER_MASTER_KEY_ROTATION_NOT_SUPPORTED_BY_SE, MYF(0));
+    return true;
+  }
+
+  // Acquire Percona's LOCK TABLES FOR BACKUP lock
+  if (m_thd->backup_tables_lock.abort_if_acquired() ||
+      m_thd->backup_tables_lock.acquire_protection(
+          m_thd, MDL_TRANSACTION, m_thd->variables.lock_wait_timeout))
+  {
     return true;
   }
 

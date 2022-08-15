@@ -460,9 +460,16 @@ typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 typedef void (*set_thread_command_v1_t)(int command);
 typedef void (*set_connection_type_v1_t)(opaque_vio_type conn_type);
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
+typedef void (*set_thread_start_time_usec_v1_t)(
+    unsigned long long start_time_usec);
+typedef void (*set_thread_rows_sent_v1_t)(unsigned long long rows_sent);
+typedef void (*set_thread_rows_examined_v1_t)(
+    unsigned long long rows_examined);
 typedef void (*set_thread_state_v1_t)(const char* state);
 typedef void (*set_thread_info_v1_t)(const char* info, uint info_len);
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
+typedef void (*set_thread_peer_port_v1_t)(PSI_thread *thread,
+                                          unsigned int port);
 typedef void (*delete_current_thread_v1_t)(void);
 typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
 typedef struct PSI_file_locker* (*get_thread_file_name_locker_v1_t)
@@ -734,6 +741,9 @@ struct PSI_v1
   set_thread_command_v1_t set_thread_command;
   set_connection_type_v1_t set_connection_type;
   set_thread_start_time_v1_t set_thread_start_time;
+  set_thread_start_time_usec_v1_t set_thread_start_time_usec;
+  set_thread_rows_sent_v1_t set_thread_rows_sent;
+  set_thread_rows_examined_v1_t set_thread_rows_examined;
   set_thread_state_v1_t set_thread_state;
   set_thread_info_v1_t set_thread_info;
   set_thread_v1_t set_thread;
@@ -834,6 +844,7 @@ struct PSI_v1
   destroy_metadata_lock_v1_t destroy_metadata_lock;
   start_metadata_wait_v1_t start_metadata_wait;
   end_metadata_wait_v1_t end_metadata_wait;
+  set_thread_peer_port_v1_t set_thread_peer_port;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;

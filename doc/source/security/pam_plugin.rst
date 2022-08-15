@@ -13,7 +13,7 @@ Here are some of the benefits that Percona dialog plugin offers over the default
   * It correctly recognizes whether PAM wants input to be echoed or not, while the default one always echoes the input on the user's console.
   * It can use the password which is passed to MySQL client via "-p" parameter.
   * Dialog client `installation bug <http://bugs.mysql.com/bug.php?id=60745>`_ has been fixed.
-  * This plugin works on MySQL and |Percona Server|.
+  * This plugin works on MySQL and *Percona Server for MySQL*.
 
 Percona offers two versions of this plugin:  
 
@@ -68,7 +68,7 @@ This will create a user ``newuser`` that can connect from ``localhost`` who will
 Supplementary groups support
 ============================
 
-|Percona Server| has implemented PAM plugin support for supplementary groups. Supplementary or secondary groups are extra groups a specific user is member of. For example user ``joe`` might be a member of groups: ``joe`` (his primary group) and secondary groups ``developers`` and ``dba``. A complete list of groups and users belonging to them can be checked with ``cat /etc/group`` command.
+*Percona Server for MySQL* has implemented PAM plugin support for supplementary groups. Supplementary or secondary groups are extra groups a specific user is member of. For example user ``joe`` might be a member of groups: ``joe`` (his primary group) and secondary groups ``developers`` and ``dba``. A complete list of groups and users belonging to them can be checked with ``cat /etc/group`` command.
 
 This feature enables using secondary groups in the mapping part of the authentication string, like "``mysql, developers=joe, dba=mark``". Previously only primary groups could have been specified there. If user is a member of both ``developers`` and ``dba``, PAM plugin will map it to the ``joe`` because ``developers`` matches first. 
 
@@ -88,5 +88,5 @@ and by adding the ``vm.overcommit_memory = 1`` to :file:`/etc/sysctl.conf` to ma
 Version Specific Information
 ============================
 
-  * :rn:`8.0.12-1`
-    Feature ported from |Percona Server| 5.7.
+  * :ref:`8.0.12-1`
+    Feature ported from *Percona Server for MySQL* 5.7.

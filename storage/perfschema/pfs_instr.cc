@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -568,12 +568,17 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
     pfs->m_processlist_info[0]= '\0';
     pfs->m_processlist_info_length= 0;
     pfs->m_connection_type= NO_VIO_TYPE;
+    pfs->m_start_time_usec = 0;
+    pfs->m_rows_sent = 0;
+    pfs->m_rows_examined = 0;
 
     pfs->m_thd= NULL;
     pfs->m_host= NULL;
     pfs->m_user= NULL;
     pfs->m_account= NULL;
     set_thread_account(pfs);
+
+    pfs->m_peer_port = 0;
 
     /*
       For child waits, by default,

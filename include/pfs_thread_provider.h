@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +98,12 @@ void pfs_set_thread_command_v1(int command);
 
 void pfs_set_thread_start_time_v1(time_t start_time);
 
+void pfs_set_thread_start_time_usec_v1(ulonglong start_time_usec);
+
+void pfs_set_thread_rows_sent_v1(ulonglong rows_sent);
+
+void pfs_set_thread_rows_examined_v1(ulonglong rows_examined);
+
 void pfs_set_thread_state_v1(const char* state);
 
 void pfs_set_connection_type_v1(opaque_vio_type conn_type);
@@ -165,6 +171,8 @@ void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc);
 
 int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
                                       const void *from_cs);
+
+void pfs_set_thread_peer_port_v1(PSI_thread *thread, uint port);
 
 C_MODE_END
 

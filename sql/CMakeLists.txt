@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -225,8 +225,10 @@ SET(SQL_SHARED_SOURCES
   sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
+  sql_cmd_show.cc
   sql_show.cc
   sql_show_status.cc
+  sql_show_processlist.cc
   sql_signal.cc
   sql_state.c
   sql_table.cc
@@ -401,6 +403,14 @@ IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
     ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     COMPILE_FLAGS "-Wno-free-nonheap-object")
+ENDIF()
+
+IF(MY_COMPILER_IS_GNU OR
+   MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-unused-label")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)

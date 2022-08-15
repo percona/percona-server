@@ -1,0 +1,8 @@
+#
+# Plugin Data Masking: gen_rnd_us_phone
+#
+CREATE FUNCTION gen_rnd_us_phone RETURNS STRING SONAME 'data_masking.so';
+SELECT gen_rnd_us_phone() LIKE '1-555-%';
+gen_rnd_us_phone() LIKE '1-555-%'
+1
+DROP FUNCTION gen_rnd_us_phone;

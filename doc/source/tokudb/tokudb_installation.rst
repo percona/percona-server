@@ -4,13 +4,13 @@
  TokuDB Installation
 =====================
 
-|Percona Server| is compatible with the separately available TokuDB storage engine package. The TokuDB engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 5.7 releases and does not require any specially adapted version of |Percona Server|.
+*Percona Server for MySQL* is compatible with the separately available TokuDB storage engine package. The TokuDB engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard *Percona Server for MySQL* 5.7 releases and does not require any specially adapted version of *Percona Server for MySQL*.
 
 The TokuDB storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces replica lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing. To learn more about Fractal Tree indexing, you can visit the following `Wikipedia page <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
 
 .. warning:: 
 
-  Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.7/LATEST/>`_ TokuDB engine should be used with |Percona Server| 5.7. A TokuDB engine downloaded from other sources is not compatible. TokuDB file formats are not the same across MySQL variants. Migrating from one variant to any other variant requires a logical data dump and reload.
+  Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.7/LATEST/>`_ TokuDB engine should be used with *Percona Server for MySQL* 5.7. A TokuDB engine downloaded from other sources is not compatible. TokuDB file formats are not the same across MySQL variants. Migrating from one variant to any other variant requires a logical data dump and reload.
 
 Prerequisites 
 =============
@@ -20,7 +20,7 @@ Prerequisites
 
 TokuDB storage engine requires ``libjemalloc`` library 3.3.0 or greater. If the version in the distribution repository is lower than that you can use one from :ref:`Percona Software Repositories <installation>` or download it from somewhere else.
 
-If the ``libjemalloc`` wasn't installed and enabled before it will be automatically installed when installing the TokuDB storage engine package by using the :program:`apt`` or :program:`yum` package manager, but |Percona Server| instance should be restarted for ``libjemalloc`` to be loaded. This way ``libjemalloc`` will be loaded with ``LD_PRELOAD``. You can also enable ``libjemalloc`` by specifying :variable:`malloc-lib` variable in the ``[mysqld_safe]`` section of the :file:`my.cnf` file: :: 
+If the ``libjemalloc`` wasn't installed and enabled before it will be automatically installed when installing the TokuDB storage engine package by using the :program:`apt`` or :program:`yum` package manager, but *Percona Server for MySQL* instance should be restarted for ``libjemalloc`` to be loaded. This way ``libjemalloc`` will be loaded with ``LD_PRELOAD``. You can also enable ``libjemalloc`` by specifying :ref:`malloc-lib` variable in the ``[mysqld_safe]`` section of the :file:`my.cnf` file: :: 
 
   [mysqld_safe]
   malloc-lib= /path/to/jemalloc
@@ -52,9 +52,9 @@ You can disable the transparent huge pages by running the following command as r
 Installation
 ============
 
-TokuDB storage engine for |Percona Server| is currently available in our :ref:`apt <apt_repo>` and :ref:`yum <yum_repo>` repositories.
+TokuDB storage engine for *Percona Server for MySQL* is currently available in our :ref:`apt <apt_repo>` and :ref:`yum <yum_repo>` repositories.
 
-You can install the |Percona Server| with TokuDB engine by using the apt/yum commands:
+You can install the *Percona Server for MySQL* with TokuDB engine by using the apt/yum commands:
 
 .. code-block:: bash
 
@@ -85,7 +85,7 @@ Once the TokuDB server package has been installed following output will be shown
      * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_intro.html for an introduction to TokuDB
 
 
-|Percona Server| has implemented ``ps_tokudb_admin`` script to make the enabling the TokuDB storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the TokuDB storage engine with all the required plugins. You need to run this script as root or with :program:`sudo`. The script should only be used for local installations and should not be used to install TokuDB to a remote server. After you run the script with required parameters:
+*Percona Server for MySQL* has implemented ``ps_tokudb_admin`` script to make the enabling the TokuDB storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the TokuDB storage engine with all the required plugins. You need to run this script as root or with :program:`sudo`. The script should only be used for local installations and should not be used to install TokuDB to a remote server. After you run the script with required parameters:
 
 
 .. code-block:: bash

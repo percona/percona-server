@@ -203,6 +203,16 @@ class LogRecordFormatter<AuditLogFormatType::Csv>
                         std::string &record_str
                         [[maybe_unused]]) noexcept override {}
 
+ protected:
+  /**
+   * @brief Get timestamp string representation.
+   *
+   * @param time_point Time point
+   * @return Timestamp string
+   */
+  [[nodiscard]] std::string make_timestamp(
+      std::chrono::system_clock::time_point time_point) const noexcept override;
+
  private:
   /**
    * @brief Get escape rules.

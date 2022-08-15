@@ -29,6 +29,7 @@ class LogWriterBase;
 class AuditEventFilter;
 class AuditRuleRegistry;
 class AuditUdf;
+class AuditLogReader;
 
 class AuditLogFilter : public AuditBaseMediator {
  public:
@@ -36,7 +37,8 @@ class AuditLogFilter : public AuditBaseMediator {
   AuditLogFilter(comp_registry_srv_container_t comp_registry_srv,
                  std::unique_ptr<AuditRuleRegistry> audit_rules_registry,
                  std::unique_ptr<AuditUdf> audit_udf,
-                 std::unique_ptr<log_writer::LogWriterBase> log_writer);
+                 std::unique_ptr<log_writer::LogWriterBase> log_writer,
+                 std::unique_ptr<AuditLogReader> log_reader);
 
   /**
    * @brief Process audit event.
@@ -63,6 +65,13 @@ class AuditLogFilter : public AuditBaseMediator {
    */
   comp_registry_srv_t *get_comp_registry_srv() noexcept;
 
+  /**
+   * @brief Get log reader instance.
+   *
+   * @return Log reader instance
+   */
+  AuditLogReader *get_log_reader() noexcept;
+
  public:
   /**
    * @brief Handle filters flush request.
@@ -80,6 +89,11 @@ class AuditLogFilter : public AuditBaseMediator {
    * @brief Handle log files prunning request.
    */
   void on_audit_log_prune_requested() noexcept override;
+
+  /**
+   * @brief Handle log rotation event.
+   */
+  void on_audit_log_rotated() noexcept;
 
  private:
   void get_connection_attrs(MYSQL_THD thd, AuditRecordVariant &audit_record);
@@ -102,6 +116,7 @@ class AuditLogFilter : public AuditBaseMediator {
   std::unique_ptr<AuditUdf> m_audit_udf;
   std::unique_ptr<log_writer::LogWriterBase> m_log_writer;
   std::unique_ptr<AuditEventFilter> m_filter;
+  std::unique_ptr<AuditLogReader> m_log_reader;
 };
 
 /**

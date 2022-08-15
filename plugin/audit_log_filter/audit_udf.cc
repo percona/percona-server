@@ -16,20 +16,30 @@
 #include "plugin/audit_log_filter/audit_udf.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
 #include "plugin/audit_log_filter/audit_log_filter.h"
+#include "plugin/audit_log_filter/audit_log_reader.h"
+#include "plugin/audit_log_filter/audit_psi_info.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_user.h"
+#include "plugin/audit_log_filter/log_record_formatter/base.h"
+#include "plugin/audit_log_filter/sys_vars.h"
 
 #include "mysql/plugin.h"
 
+#include "rapidjson/document.h"
+
+#include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
 
 #include <cstring>
 #include <regex>
-#include <utility>
+#include <unordered_set>
 
 namespace audit_log_filter {
 namespace {
+
+const std::unordered_set<std::string> log_read_udf_allowed_args{
+    "start", "timestamp", "id", "max_array_length"};
 
 struct UserNameInfo {
   char username[audit_table::kAuditFieldLengthUsername + 1];
@@ -606,10 +616,134 @@ void AuditUdf::audit_log_filter_flush_udf_deinit(UDF_INIT *) {}
 
 // audit_log_read([arg])
 bool AuditUdf::audit_log_read_udf_init(AuditUdf *udf [[maybe_unused]],
-                                       UDF_INIT *initid,
-                                       UDF_ARGS *udf_args [[maybe_unused]],
-                                       char *message
-                                       [[maybe_unused]]) noexcept {
+                                       UDF_INIT *initid, UDF_ARGS *udf_args,
+                                       char *message) noexcept {
+  if (SysVars::get_format_type() != AuditLogFormatType::Json) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Not supported for log formats other than JSON");
+    return true;
+  }
+
+  if (udf_args->arg_count > 1) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Wrong argument list: audit_log_read([arg])");
+    return true;
+  }
+
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", udf->get_comp_registry_srv());
+
+  MYSQL_THD thd;
+
+  if (thd_reader_srv->get(&thd)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, "Internal error");
+    return true;
+  }
+
+  const auto *reader_context = SysVars::get_log_reader_context(thd);
+
+  if (udf_args->arg_count == 1) {
+    if (udf_args->arg_type[0] != STRING_RESULT) {
+      std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                    "Wrong argument type: audit_log_read(string)");
+      return true;
+    }
+
+    // argument ether JSON null or JSON hash
+    rapidjson::Document json_doc;
+    json_doc.Parse(udf_args->args[0]);
+
+    if (json_doc.HasParseError()) {
+      std::snprintf(message, MYSQL_ERRMSG_SIZE, "Bad JSON format");
+      return true;
+    }
+
+    if (!json_doc.IsNull()) {
+      for (const auto &member : json_doc.GetObject()) {
+        const auto *member_name = member.name.GetString();
+        if (log_read_udf_allowed_args.count(member_name) == 0) {
+          std::snprintf(message, MYSQL_ERRMSG_SIZE, "Wrong JSON argument: %s",
+                        member_name);
+          return true;
+        }
+      }
+    }
+
+    auto reader_args = std::make_unique<AuditLogReaderArgs>();
+
+    if (reader_args == nullptr) {
+      return true;
+    }
+
+    if (json_doc.IsObject()) {
+      bool has_start_tag = json_doc.HasMember("start") &&
+                           json_doc["start"].IsObject() &&
+                           json_doc["start"].HasMember("timestamp");
+      bool has_timestamp_tag = json_doc.HasMember("timestamp");
+      bool has_id_tag = json_doc.HasMember("id");
+
+      /*
+       * Starting position for reads defined ether by "start" tag or by a
+       * bookmark consisting of a combination of "timestamp" and "id".
+       * Only one of this two ways may be used at the same time.
+       */
+      if ((has_timestamp_tag != has_id_tag) ||
+          (has_start_tag && has_timestamp_tag) ||
+          (reader_context != nullptr && (has_start_tag || has_timestamp_tag))) {
+        std::snprintf(message, MYSQL_ERRMSG_SIZE, "Wrong argument format");
+        return true;
+      }
+
+      if (has_start_tag) {
+        if (!json_doc["start"]["timestamp"].IsString()) {
+          std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                        "Wrong JSON argument: start timestamp is not a string");
+          return true;
+        }
+
+        reader_args->timestamp = json_doc["start"]["timestamp"].GetString();
+        reader_args->id = 0;
+      } else if (has_timestamp_tag) {
+        if (!json_doc["timestamp"].IsString() || !json_doc["id"].IsUint64()) {
+          std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                        "Wrong JSON argument: bad bookmark format");
+          return true;
+        }
+
+        reader_args->timestamp = json_doc["timestamp"].GetString();
+        reader_args->id = json_doc["id"].GetUint();
+      }
+
+      if ((has_start_tag || has_timestamp_tag) &&
+          reader_args->timestamp.empty()) {
+        std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                      "Wrong JSON argument: bad timestamp format");
+        return true;
+      }
+
+      if (json_doc.HasMember("max_array_length")) {
+        if (json_doc["max_array_length"].IsUint()) {
+          reader_args->max_array_length =
+              json_doc["max_array_length"].GetUint();
+        } else {
+          std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                        "Wrong JSON argument: bad max_array_length format");
+          return true;
+        }
+      }
+    } else if (json_doc.IsNull()) {
+      reader_args->close_read_sequence = true;
+    } else {
+      std::snprintf(message, MYSQL_ERRMSG_SIZE, "Wrong argument format");
+      return true;
+    }
+
+    initid->ptr = reinterpret_cast<char *>(reader_args.release());
+  } else if (reader_context == nullptr) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, "Wrong argument format");
+    return true;
+  }
+
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -622,24 +756,110 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
                                    char *result, unsigned long *length,
                                    unsigned char *is_null,
                                    unsigned char *error) noexcept {
-  std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
+  /*
+   * SELECT audit_log_read(audit_log_read_bookmark());
+   * SELECT audit_log_read();
+   * SELECT audit_log_read('null');
+   *
+   * audit_log_read() leads to error if:
+   * - read sequence has not yet been initialized
+   * - no more events left to be read, there was a null in prev result
+   * - most recent read sequence has been closed
+   */
 
-  *length = std::strlen(result);
   *is_null = 0;
   *error = 0;
 
-  return result;
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", udf->get_comp_registry_srv());
+
+  MYSQL_THD thd;
+
+  if (thd_reader_srv->get(&thd)) {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: Internal error");
+    *length = std::strlen(result);
+    return result;
+  }
+
+  auto *log_reader = get_audit_log_filter_instance()->get_log_reader();
+  auto reader_args = std::unique_ptr<AuditLogReaderArgs>(
+      reinterpret_cast<AuditLogReaderArgs *>(initid->ptr));
+  initid->ptr = nullptr;
+  auto *reader_context = SysVars::get_log_reader_context(thd);
+
+  if (reader_args != nullptr) {
+    if (reader_args->close_read_sequence) {
+      if (reader_context != nullptr) {
+        log_reader->close_reader_session(reader_context);
+        SysVars::set_log_reader_context(thd, nullptr);
+      }
+
+      std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
+      *length = std::strlen(result);
+      return result;
+    }
+
+    bool is_new_session_request = !reader_args->timestamp.empty();
+
+    if ((reader_context == nullptr && !is_new_session_request) ||
+        (reader_context != nullptr && is_new_session_request)) {
+      std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: Wrong arguments list");
+      *length = std::strlen(result);
+      return result;
+    }
+
+    if (is_new_session_request) {
+      reader_context = AuditLogReader::init_reader_session(reader_args.get());
+
+      if (reader_context == nullptr) {
+        std::snprintf(result, MYSQL_ERRMSG_SIZE,
+                      "ERROR: Could not initialize reader session");
+        *length = std::strlen(result);
+        return result;
+      }
+
+      SysVars::set_log_reader_context(thd, reader_context);
+    }
+  }
+
+  auto read_buf_size = SysVars::get_read_buffer_size(thd);
+  initid->ptr = static_cast<char *>(my_malloc(
+      key_memory_audit_log_filter_read_buffer, read_buf_size, MY_ZEROFILL));
+
+  if (!log_reader->read(reader_args.get(), reader_context, initid->ptr,
+                        read_buf_size)) {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: Could not read log");
+    *length = std::strlen(result);
+    return result;
+  }
+
+  *length = std::strlen(initid->ptr);
+  return initid->ptr;
 }
 
-void AuditUdf::audit_log_read_udf_deinit(UDF_INIT *) {}
+void AuditUdf::audit_log_read_udf_deinit(UDF_INIT *initid) {
+  if (initid != nullptr && initid->ptr != nullptr) {
+    my_free(initid->ptr);
+  }
+}
 
 // audit_log_read_bookmark()
 bool AuditUdf::audit_log_read_bookmark_udf_init(AuditUdf *udf [[maybe_unused]],
                                                 UDF_INIT *initid,
-                                                UDF_ARGS *udf_args
-                                                [[maybe_unused]],
-                                                char *message
-                                                [[maybe_unused]]) noexcept {
+                                                UDF_ARGS *udf_args,
+                                                char *message) noexcept {
+  if (SysVars::get_format_type() != AuditLogFormatType::Json) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Not supported for log formats other than JSON");
+    return true;
+  }
+
+  if (udf_args->arg_count != 0) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Wrong argument list: audit_log_read_bookmark()");
+    return true;
+  }
+
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -652,7 +872,10 @@ char *AuditUdf::audit_log_read_bookmark_udf(AuditUdf *udf [[maybe_unused]],
                                             char *result, unsigned long *length,
                                             unsigned char *is_null,
                                             unsigned char *error) noexcept {
-  std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
+  auto bookmark = SysVars::get_log_bookmark();
+
+  std::snprintf(result, MYSQL_ERRMSG_SIZE, R"({"timestamp": "%s", "id": %lu})",
+                bookmark.timestamp.c_str(), bookmark.id);
 
   *length = std::strlen(result);
   *is_null = 0;

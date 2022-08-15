@@ -21,6 +21,7 @@
 #include <atomic>
 #include <chrono>
 #include <map>
+#include <sstream>
 #include <string>
 #include <string_view>
 
@@ -196,19 +197,6 @@ class LogRecordFormatterBase {
   [[nodiscard]] virtual std::string get_record_separator() const noexcept = 0;
 
   /**
-   * @brief Init record sequence number.
-   *
-   * Set initial value to record sequence number. Initialized to current
-   * audit filter log file size during plugin initialization. Incremented by 1
-   * for each logged record.
-   *
-   * @param [in] initial_record_id Initial record sequence number
-   */
-  void init_record_id(uint64_t initial_record_id) noexcept {
-    m_record_id.store(initial_record_id, std::memory_order_relaxed);
-  }
-
-  /**
    * @brief Insert audit event class and subclass names into record printed to
    *        log. Needed for testing.
    *
@@ -227,8 +215,8 @@ class LogRecordFormatterBase {
    * @param time_point Time point
    * @return Timestamp string
    */
-  static std::string make_timestamp(
-      std::chrono::system_clock::time_point time_point) noexcept;
+  [[nodiscard]] virtual std::string make_timestamp(
+      std::chrono::system_clock::time_point time_point) const noexcept = 0;
 
   /**
    * @brief Get record ID string representation.
@@ -424,19 +412,6 @@ class LogRecordFormatterBase {
    * @return Escape rules
    */
   virtual const EscapeRulesContainer &get_escape_rules() const noexcept = 0;
-
-  /**
-   * @brief Get record ID for next log record.
-   *
-   * @return Record ID
-   */
-  uint64_t get_next_record_id() const noexcept {
-    return m_record_id.fetch_add(1, std::memory_order_relaxed);
-  }
-
- private:
-  // Sequence number to be used for next received audit record
-  mutable std::atomic<uint64_t> m_record_id{0};
 };
 
 class LogRecordFormatterBaseXml : public LogRecordFormatterBase {
@@ -461,6 +436,16 @@ class LogRecordFormatterBaseXml : public LogRecordFormatterBase {
    * @return Event resords separator string
    */
   [[nodiscard]] std::string get_record_separator() const noexcept override;
+
+ protected:
+  /**
+   * @brief Get timestamp string representation.
+   *
+   * @param time_point Time point
+   * @return Timestamp string
+   */
+  [[nodiscard]] std::string make_timestamp(
+      std::chrono::system_clock::time_point time_point) const noexcept override;
 
  private:
   /**

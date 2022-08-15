@@ -15,6 +15,7 @@
 
 #include "plugin/audit_log_filter/log_writer/file_handle.h"
 #include "plugin/audit_log_filter/audit_psi_info.h"
+#include "plugin/audit_log_filter/sys_vars.h"
 
 #include <mysql/psi/mysql_mutex.h>
 
@@ -172,8 +173,13 @@ std::error_code FileHandle::rotate(const std::string &working_dir_name,
   auto current_file_path = std::filesystem::path{working_dir_name} /
                            std::filesystem::path{file_name};
 
-  const std::time_t t =
+  std::time_t t =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+  DBUG_EXECUTE_IF("audit_log_filter_debug_timestamp", {
+    t = std::chrono::system_clock::to_time_t(SysVars::get_debug_time_point());
+  });
+
   std::stringstream new_file_name;
   new_file_name << current_file_path.filename().replace_extension().c_str()
                 << "."

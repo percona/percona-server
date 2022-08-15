@@ -25,11 +25,17 @@
 
 namespace audit_log_filter {
 
+struct AuditLogReaderContext;
 class SysVars;
 
 using log_record_formatter::AuditLogFormatType;
 using log_writer::AuditLogHandlerType;
 using log_writer_strategy::AuditLogStrategyType;
+
+struct LogBookmark {
+  uint64_t id;
+  std::string timestamp;
+};
 
 class SysVars {
  public:
@@ -89,6 +95,14 @@ class SysVars {
    * @return Size of memory buffer used for logging in bytes
    */
   [[nodiscard]] static ulonglong get_buffer_size() noexcept;
+
+  /**
+   * @brief Get log reader buffer size.
+   *
+   * @param thd Connection specific THD instance
+   * @return Log reader buffer size in bytes
+   */
+  [[nodiscard]] static ulong get_read_buffer_size(MYSQL_THD thd) noexcept;
 
   /**
    * @brief Get the maximum size of the audit filter log file in bytes.
@@ -217,6 +231,63 @@ class SysVars {
    * @param size Size to add to current value in bytes
    */
   static void update_total_log_size(uint64_t size) noexcept;
+
+  /**
+   * @brief Update bookmark to latest event written to log.
+   *
+   * @param id ID of an audit event
+   * @param timestamp timestamp of an audit event
+   */
+  static void update_log_bookmark(uint64_t id,
+                                  const std::string &timestamp) noexcept;
+
+  /**
+   * @brief Get bookmark for the latest audit event written to a log.
+   *
+   * @return Audit event bookmark
+   */
+  static LogBookmark get_log_bookmark() noexcept;
+
+  /**
+   * @brief Get log reader related context object specific for a session.
+   *
+   * @param thd Connection specific THD instance
+   * @return Log reader context
+   */
+  static AuditLogReaderContext *get_log_reader_context(MYSQL_THD thd) noexcept;
+
+  /**
+   * @brief Set log reader related context object specific for a session.
+   *
+   * @param thd Connection specific THD instance
+   * @param context Log reader context
+   */
+  static void set_log_reader_context(MYSQL_THD thd,
+                                     AuditLogReaderContext *context) noexcept;
+
+  /**
+   * @brief Get time point from predefined sequence, used for testing.
+   * @return Time point
+   */
+  static std::chrono::system_clock::time_point get_debug_time_point() noexcept;
+
+  /**
+   * @brief Get numeric record ID for next log record.
+   *
+   * @return Record ID
+   */
+  static uint64_t get_next_record_id() noexcept;
+
+  /**
+   * @brief Init record ID sequence number.
+   *
+   * Set initial value to record sequence number. Initialized to current
+   * audit filter log file size during plugin initialization. Incremented by 1
+   * for each logged record.
+   *
+   * @param [in] initial_record_id Initial record sequence number
+   */
+  static void init_record_id(uint64_t initial_record_id) noexcept;
 };
 
 }  // namespace audit_log_filter

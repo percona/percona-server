@@ -20,6 +20,7 @@ namespace audit_log_filter {
 PSI_memory_key key_memory_audit_log_filter_logger_handle;
 PSI_memory_key key_memory_audit_log_filter_handler;
 PSI_memory_key key_memory_audit_log_filter_buffer;
+PSI_memory_key key_memory_audit_log_filter_read_buffer;
 PSI_memory_key key_memory_audit_log_filter_accounts;
 PSI_memory_key key_memory_audit_log_filter_databases;
 PSI_memory_key key_memory_audit_log_filter_commands;
@@ -31,6 +32,8 @@ PSI_memory_key key_memory_audit_log_filter_commands;
     {&key_memory_audit_log_filter_handler, "audit_log_filter_handler",
      PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
     {&key_memory_audit_log_filter_buffer, "audit_log_filter_buffer",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_audit_log_filter_read_buffer, "audit_log_filter_read_buffer",
      PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
     {&key_memory_audit_log_filter_accounts, "audit_log_filter_accounts",
      PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},

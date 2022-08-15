@@ -15,6 +15,8 @@
 
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
 
+#include "plugin/audit_log_filter/sys_vars.h"
+
 #include <iomanip>
 #include <iostream>
 
@@ -98,23 +100,13 @@ const std::string_view kAuditNameUnknown{"unknown"};
 std::string LogRecordFormatterBase::make_record_id(
     const std::chrono::system_clock::time_point time_point) const noexcept {
   std::stringstream id;
-  id << get_next_record_id() << "_" << make_timestamp(time_point);
+  id << SysVars::get_next_record_id() << "_" << make_timestamp(time_point);
 
   return id.str();
 }
 
 uint64_t LogRecordFormatterBase::make_record_id() const noexcept {
-  return get_next_record_id();
-}
-
-std::string LogRecordFormatterBase::make_timestamp(
-    const std::chrono::system_clock::time_point time_point) noexcept {
-  const std::time_t t = std::chrono::system_clock::to_time_t(time_point);
-
-  std::stringstream timestamp;
-  timestamp << std::put_time(std::localtime(&t), "%FT%T");
-
-  return timestamp.str();
+  return SysVars::get_next_record_id();
 }
 
 std::string LogRecordFormatterBase::make_escaped_string(
@@ -677,6 +669,15 @@ const EscapeRulesContainer &LogRecordFormatterBaseXml::get_escape_rules()
       {'<', "&lt;"}, {'>', "&gt;"},   {'&', "&amp;"},  {'"', "&quot;"}};
 
   return escape_rules;
+}
+
+std::string LogRecordFormatterBaseXml::make_timestamp(
+    const std::chrono::system_clock::time_point time_point) const noexcept {
+  std::time_t t = std::chrono::system_clock::to_time_t(time_point);
+  std::stringstream timestamp;
+  timestamp << std::put_time(std::localtime(&t), "%FT%T");
+
+  return timestamp.str();
 }
 
 }  // namespace audit_log_filter::log_record_formatter

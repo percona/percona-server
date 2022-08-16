@@ -10,8 +10,8 @@ the disk is not same as the index ordering of the records on the pages. As a
 consequence this means that some pages take a lot more space and that queries
 which require a full table scan can take a long time to finish.
 
-To provide more information about the InnoDB page fragmentation |Percona
-Server| now provides the following counters as status variables: 
+To provide more information about the InnoDB page fragmentation **Percona
+Server for MySQL** now provides the following counters as status variables: 
 :variable:`Innodb_scan_pages_contiguous`,
 :variable:`Innodb_scan_pages_disjointed`, :variable:`Innodb_scan_data_size`,
 :variable:`Innodb_scan_deleted_recs_size`, and

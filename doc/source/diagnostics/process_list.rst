@@ -11,7 +11,7 @@ Version Specific Information
 
   * :rn:`5.7.10-1`:
 
-    * Feature ported from |Percona Server| 5.6
+    * Feature ported from **Percona Server for MySQL** 5.6
 
 INFORMATION_SCHEMA Tables
 =========================

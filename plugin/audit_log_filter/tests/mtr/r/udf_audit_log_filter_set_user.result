@@ -64,8 +64,8 @@ audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "
 OK
 SELECT * FROM mysql.audit_log_filter;
 filter_id	name	filter
-0	log_all	{"filter": {"log": true}}
-1	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 #
@@ -75,8 +75,8 @@ audit_log_filter_set_user('%', 'log_all')
 OK
 SELECT * FROM mysql.audit_log_filter;
 filter_id	name	filter
-0	log_all	{"filter": {"log": true}}
-1	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 %	%	log_all
@@ -87,8 +87,8 @@ audit_log_filter_set_user('root@localhost', 'log_all')
 OK
 SELECT * FROM mysql.audit_log_filter;
 filter_id	name	filter
-0	log_all	{"filter": {"log": true}}
-1	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 %	%	log_all
@@ -100,8 +100,8 @@ audit_log_filter_set_user('root@localhost', 'log_table_access')
 OK
 SELECT * FROM mysql.audit_log_filter;
 filter_id	name	filter
-0	log_all	{"filter": {"log": true}}
-1	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 %	%	log_all
@@ -114,8 +114,8 @@ audit_log_filter_set_user('root@localhost', 'log_all')
 ERROR: Failed to set 'log_all' filtering rule for user 'root@localhost'
 SELECT * FROM mysql.audit_log_filter;
 filter_id	name	filter
-0	log_all	{"filter": {"log": true}}
-1	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 %	%	log_all

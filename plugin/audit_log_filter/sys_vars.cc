@@ -244,8 +244,7 @@ MYSQL_SYSVAR_ULONGLONG(buffer_size, log_write_buffer_size,
  * The audit_log_filter.rotate_on_size variable specifies the maximum size
  * of the audit log file. Upon reaching this size, the audit log will be
  * rotated. For this variable to take effect, set the audit_log_filter.handler
- * variable to FILE and the audit_log_filter.rotations variable to a value
- * greater than zero.
+ * variable to FILE.
  */
 MYSQL_SYSVAR_ULONGLONG(
     rotate_on_size, log_rotate_on_size, PLUGIN_VAR_RQCMDARG,

@@ -18,19 +18,31 @@ Connections that do not use the proxy server are not allowed from the proxy-dedi
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-    Feature ported from |Percona Server| 5.6
+  * :ref:`5.7.10-1`:
+    Feature ported from *Percona Server for MySQL* 5.6
 
 System Variables
 ================
 
-.. variable:: proxy_protocol_networks
+.. _proxy_protocol_networks:
 
-  :cli: Yes
-  :conf: Yes
-  :scope: Global
-  :dyn: No
-  :default: ``(empty string)``
+.. rubric:: ``proxy_protocol_networks``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Default
+     - ``(empty string)``
 
 This variable is a global-only, read-only variable. The available values are:
 
@@ -41,6 +53,14 @@ This variable is a global-only, read-only variable. The available values are:
 * An ``*`` (asterisk) allows the proxy headers from any account. This setting is not recommended because this setting may compromise security.
 
 To prevent source host spoofing, the setting of this variable must be as restrictive as possible to include only trusted proxy hosts.
+
+.. note::
+
+    If the `proxy_protocol_networks` is set to a value that is not ``*``, you
+    must add ``bind_address`` with the MySQL server IP in my.cnf.
+
+    If you set the proxy_protocol_networks to an IPv4-mapped address, the
+    variable works without ``bind_address``.
 
 Related Reading
 ===============

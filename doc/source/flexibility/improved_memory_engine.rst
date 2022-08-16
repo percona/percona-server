@@ -1,12 +1,12 @@
 .. _improved_memory_engine:
 
 ====================================
- ``Improved MEMORY`` Storage Engine
+ Improved MEMORY Storage Engine
 ====================================
 
 As of ``MySQL`` 5.5.15, a *Fixed Row Format* (``FRF``) is still being used in the ``MEMORY`` storage engine. The fixed row format imposes restrictions on the type of columns as it assigns on advance a limited amount of memory per row. This renders a ``VARCHAR`` field in a ``CHAR`` field in practice and makes impossible to have a ``TEXT`` or ``BLOB`` field with that engine implementation.
 
-To overcome this limitation, the *Improved MEMORY Storage Engine* is introduced in this release for supporting **true** ``VARCHAR``, ``VARBINARY``, ``TEXT`` and ``BLOB`` fields in ``MEMORY`` tables.
+To overcome this limitation, the *Improved MEMORY Storage Engine* is introduced in this release for supporting *true* ``VARCHAR``, ``VARBINARY``, ``TEXT`` and ``BLOB`` fields in ``MEMORY`` tables.
 
 This implementation is based on the *Dynamic Row Format* (``DFR``) introduced by the `mysql-heap-dynamic-rows <http://code.google.com/p/mysql-heap-dynamic-rows/>`_ patch.
 
@@ -71,9 +71,9 @@ Setting Row Format
 
 Taking the restrictions into account, the *Improved MEMORY Storage Engine* will choose ``DRF`` over ``FRF`` at the moment of creating the table according to following criteria:
 
-  * There is an implicit request of the user in the column types **OR**
+  * There is an implicit request of the user in the column types *OR*
 
-  * There is an explicit request of the user **AND** the overhead incurred by ``DFR`` is beneficial.
+  * There is an explicit request of the user *AND* the overhead incurred by ``DFR`` is beneficial.
 
 Implicit Request
 ----------------
@@ -107,7 +107,7 @@ Despite its name, the ``KEY_BLOCK_SIZE`` option refers to a block size used to s
 
 After ``DRF`` is requested explicitly and there are no ``BLOB`` or ``TEXT`` columns in the table definition, the *Improved MEMORY Engine* will check if using the dynamic format provides any space saving benefits as compared to the fixed one:
 
-  * if the fixed row length is less than the dynamic block size (plus the dynamic row overhead - platform dependent) **OR**
+  * if the fixed row length is less than the dynamic block size (plus the dynamic row overhead - platform dependent) *OR*
 
   * there isn't any variable-length columns in the table or ``VARCHAR`` fields are declared with length 31 or less,
 

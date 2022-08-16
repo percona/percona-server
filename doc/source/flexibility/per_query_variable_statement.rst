@@ -4,7 +4,7 @@
  Per-query variable statement
 ==============================
 
-|Percona Server| has implemented per-query variable statement support. This feature provides the ability to set variable values only for a certain query, after execution of which the previous values will be restored. Per-query variable values can be set up with the following command:
+*Percona Server for MySQL* has implemented per-query variable statement support. This feature provides the ability to set variable values only for a certain query, after execution of which the previous values will be restored. Per-query variable values can be set up with the following command:
 
 .. code-block:: mysql
 
@@ -13,7 +13,7 @@
 Examples
 ========
 
-If we want to increase the :variable:`sort_buffer_size` value just for one specific sort query we can do it like this: 
+If we want to increase the :ref:`sort_buffer_size` value just for one specific sort query we can do it like this: 
 
 .. code-block:: mysql
 
@@ -34,8 +34,7 @@ We can provide more than one variable we want to set up:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6 
+  * :ref:`5.7.10-1`: Feature ported from *Percona Server for MySQL* 5.6 
 
 Other Reading
 =============

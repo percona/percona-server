@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,6 +107,9 @@ void test_noop()
   PSI_server->set_thread_db(NULL, 0);
   PSI_server->set_thread_command(1);
   PSI_server->set_thread_start_time(1);
+  PSI_server->set_thread_start_time_usec(1000000);
+  PSI_server->set_thread_rows_sent(0);
+  PSI_server->set_thread_rows_examined(0);
   PSI_server->set_thread_state(NULL);
   PSI_server->set_thread_info(NULL, 0);
   PSI_server->set_thread(NULL);
@@ -227,6 +230,8 @@ void test_noop()
   PSI_server->inc_transaction_savepoints(NULL, 1);
 
   PSI_server->set_thread_THD(NULL, NULL);
+
+  PSI_server->set_thread_peer_port(NULL, 0);
 
   ok(true, "all noop api called");
 }

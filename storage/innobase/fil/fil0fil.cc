@@ -797,8 +797,13 @@ retry:
 				<< ib::hex(space->flags) << ")!";
 		}
 
-		unsigned relevant_space_flags = space->flags;
-		unsigned relevant_flags = flags;
+
+		/* Validate the flags but do not compare the data directory
+		flag, in case this tablespace was relocated. */
+		unsigned relevant_space_flags
+			= space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		unsigned relevant_flags
+			= flags & ~FSP_FLAGS_MASK_DATA_DIR;
 
                 // in case of Keyring encryption it can so happen that there will be a crash after all pages of tablespace is rotated
                 // and DD is updated, but page0 of the tablespace has not been yet update. We handle this here.
@@ -889,7 +894,7 @@ retry:
 
 
 		if (node->size == 0) {
-			ulint	extent_size;
+			uint64_t	extent_size;
 
 			extent_size = page_size.physical() * FSP_EXTENT_SIZE;
 
@@ -5369,7 +5374,7 @@ retry:
 	}
 
 	page_size_t	pageSize(space->flags);
-	const ulint	page_size = pageSize.physical();
+	const os_offset_t	page_size = pageSize.physical();
 	fil_node_t*	node = UT_LIST_GET_LAST(space->chain);
 
 	if (!node->being_extended) {

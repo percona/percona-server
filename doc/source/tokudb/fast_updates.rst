@@ -24,8 +24,8 @@ update messages.
 
 This feature is available for ``UPDATE`` and ``INSERT`` statements, and can be
 turned ON/OFF separately for them with use of two variables. Variable
-:variable:`tokudb_enable_fast_update` variable toggles fast updates for the
-``UPDATE``, and  :variable:`tokudb_enable_fast_upsert` does the same  for
+:ref:`tokudb_enable_fast_update` variable toggles fast updates for the
+``UPDATE``, and  :ref:`tokudb_enable_fast_upsert` does the same  for
 ``INSERT``.
 
 Limitations

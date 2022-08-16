@@ -29,6 +29,7 @@ After the Change: ::
 Version-Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-    Feature ported from **Percona Server for MySQL** 5.6
+  * :ref:`5.7.10-1`:
+    Feature ported from *Percona Server for MySQL* 5.6
+
 

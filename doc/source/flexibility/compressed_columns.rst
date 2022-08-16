@@ -4,7 +4,7 @@
 Compressed columns with dictionaries
 ====================================
 
-In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
+In :ref:`5.7.17-11` *Percona Server for MySQL* has been extended with a new per-column
 compression feature. It is a data type modifier, independent from user-level SQL
 and InnoDB data compression, that causes the data stored in the column to be
 compressed on writing to storage and decompressed on reading. For all other
@@ -71,8 +71,8 @@ To decompress a column, specify a value other than ``COMPRESSED`` to
 compression/decompression request in an ``ALTER TABLE``, it is forced to the
 ``COPY`` algorithm.
 
-Two new variables: :variable:`innodb_compressed_columns_zip_level` and
-:variable:`innodb_compressed_columns_threshold` have been implemented.
+Two new variables: :ref:`innodb_compressed_columns_zip_level` and
+:ref:`innodb_compressed_columns_threshold` have been implemented.
 
 Compression dictionary support
 ==============================
@@ -163,20 +163,40 @@ INFORMATION_SCHEMA Tables
 
 This feature implemented two new ``INFORMATION_SCHEMA`` tables.
 
-.. table:: INFORMATION_SCHEMA.XTRADB_ZIP_DICT
+.. _XTRADB_ZIP_DICT:
 
-  :column BIGINT(21)_UNSIGNED id: dictionary ID
-  :column VARCHAR(64) name: dictionary name
-  :column BLOB zip_dict: compression dictionary string
+.. rubric:: ``INFORMATION_SCHEMA.XTRADB_ZIP_DICT``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'BIGINT(21)_UNSIGNED id'
+        - 'dictionary ID'
+      * - 'VARCHAR(64) name'
+        - 'dictionary name'
+      * - 'BLOB zip_dict'
+        - 'compression dictionary string'
 
 This table provides a view over the internal compression dictionary table.
 ``SUPER`` privilege is required to query it.
 
-.. table:: INFORMATION_SCHEMA.XTRADB_ZIP_DICT_COLS
+.. _XTRADB_ZIP_DICT_COLS:
 
-  :column BIGINT(21)_UNSIGNED table_id: table ID from ``INFORMATION_SCHEMA.INNODB_SYS_TABLES``
-  :column BIGINT(21)_UNSIGNED column_pos: column position (starts from ``0`` as in ``INFORMATION_SCHEMA.INNODB_SYS_COLUMNS``)
-  :column BIGINT(21)_UNSIGNED dict_id: dictionary ID
+.. rubric:: ``INFORMATION_SCHEMA.XTRADB_ZIP_DICT_COLS``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'BIGINT(21)_UNSIGNED table_id'
+        - 'table ID from ``INFORMATION_SCHEMA.INNODB_SYS_TABLES``'
+      * - 'BIGINT(21)_UNSIGNED column_pos'
+        - 'column position (starts from ``0`` as in ``INFORMATION_SCHEMA.INNODB_SYS_COLUMNS``)'
+      * - 'BIGINT(21)_UNSIGNED dict_id'
+        - 'dictionary ID'
 
 This table provides a view over the internal table that stores the mapping
 between the compression dictionaries and the columns using them. ``SUPER``
@@ -251,8 +271,8 @@ following fragment (regardless of the values of
 Downgrade scenario
 ==================
 
-If it is necessary to perform |Percona Server| downgrade from a version
-:rn:`5.7.17-11` (or newer) to a version older than :rn:`5.7.17-11` and if
+If it is necessary to perform *Percona Server for MySQL* downgrade from a version
+:ref:`5.7.17-11` (or newer) to a version older than :ref:`5.7.17-11` and if
 user databases have one or more table with compressed columns, there are two
 options to do this safely:
 
@@ -267,46 +287,73 @@ options to do this safely:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.17-11`
-    Feature implemented in |Percona Server| 5.7
+  * :ref:`5.7.17-11`: Feature implemented in *Percona Server for MySQL* 5.7
 
 System Variables
 ================
 
-.. variable:: innodb_compressed_columns_zip_level
+.. _innodb_compressed_columns_zip_level:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :vartype: Numeric
-   :default: 6
-   :range: ``0``-``9``
+.. rubric:: ``innodb_compressed_columns_zip_level``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 6
+   * - Range
+     - ``0``-``9``
 
 This variable is used to specify the compression level used for compressed
 columns. Specifying ``0`` will use no compression, ``1`` the fastest and ``9``
 the best compression. Default value is ``6``.
 
-.. variable:: innodb_compressed_columns_threshold
+.. _innodb_compressed_columns_threshold:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :vartype: Numeric
-   :default: 96
-   :range: ``1`` - ``2^64-1`` (or ``2^32-1`` for 32-bit release)
+.. rubric:: ``innodb_compressed_columns_threshold``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 96
+   * - Range
+     - ``1`` - ``2^64-1`` (or ``2^32-1`` for 32-bit release)
 
 By default a value being inserted will be compressed if its length exceeds
-:variable:`innodb_compressed_columns_threshold` bytes. Otherwise, it will be
+:ref:`innodb_compressed_columns_threshold` bytes. Otherwise, it will be
 stored in raw (uncompressed) form.
 
 Please also notice that because of the nature of some data, its compressed
 representation can be longer than the original value. In this case it does not
-make sense to store such values in compressed form as |Percona Server| would
+make sense to store such values in compressed form as *Percona Server for MySQL* would
 have to waste both memory space and CPU resources for unnecessary
 decompression. Therefore, even if the length of such non-compressible values
-exceeds :variable:`innodb_compressed_columns_threshold`, they will be stored in
+exceeds :ref:`innodb_compressed_columns_threshold`, they will be stored in
 an uncompressed form (however, an attempt to compress them will still be made).
 
 This parameter can be tuned in order to skip unnecessary attempts of data

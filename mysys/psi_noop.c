@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -259,6 +259,21 @@ static void set_thread_start_time_noop(time_t start_time NNN)
   return;
 }
 
+static void set_thread_start_time_usec_noop(ulonglong start_time_usec NNN)
+{
+  return;
+}
+
+static void set_thread_rows_sent_noop(ulonglong rows_sent NNN)
+{
+  return;
+}
+
+static void set_thread_rows_examined_noop(ulonglong rows_sent NNN)
+{
+  return;
+}
+
 static void set_thread_state_noop(const char* state NNN)
 {
   return;
@@ -270,6 +285,11 @@ static void set_thread_info_noop(const char* info NNN, uint info_len NNN)
 }
 
 static void set_thread_noop(PSI_thread* thread NNN)
+{
+  return;
+}
+
+static void set_thread_peer_port_noop(PSI_thread * thread NNN, uint port NNN)
 {
   return;
 }
@@ -940,6 +960,9 @@ static PSI PSI_noop=
   set_thread_command_noop,
   set_connection_type_noop,
   set_thread_start_time_noop,
+  set_thread_start_time_usec_noop,
+  set_thread_rows_sent_noop,
+  set_thread_rows_examined_noop,
   set_thread_state_noop,
   set_thread_info_noop,
   set_thread_noop,
@@ -1038,7 +1061,9 @@ static PSI PSI_noop=
   set_metadata_lock_status_noop,
   destroy_metadata_lock_noop,
   start_metadata_wait_noop,
-  end_metadata_wait_noop
+  end_metadata_wait_noop,
+
+  set_thread_peer_port_noop
 };
 
 /**

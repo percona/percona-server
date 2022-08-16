@@ -17,7 +17,7 @@ Known Issues
 
 For more information about auto-increment and replication, see the MySQL Reference Manual: `AUTO_INCREMENT handling in InnoDB <http://dev.mysql.com/doc/refman/5.7/en/innodb-auto-increment-handling.html>`_.
 
-In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with no secondary indexes or tables where secondary indexes are subsets of the primary, the session variable :variable:`tokudb_pk_insert_mode` controls whether row based replication will work.
+In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with no secondary indexes or tables where secondary indexes are subsets of the primary, the session variable :ref:`tokudb_pk_insert_mode` controls whether row based replication will work.
 
 **Uninformative error message**: The ``LOAD DATA INFILE`` command can sometimes produce ``ERROR 1030 (HY000): Got error 1 from storage engine``. The message should say that the error is caused by insufficient disk space for the temporary files created by the loader.
 
@@ -44,11 +44,11 @@ entropy (it looks random), or your secondary keys are declared unique and have
 a lot of entropy, then disabling unique checks can provide a significant
 performance boost.
 
-If :variable:`unique_checks` is disabled when the primary key is not unique,
+If :ref:`unique_checks` is disabled when the primary key is not unique,
 secondary indexes may become corrupted. In this case, the indexes should be
 dropped and rebuilt. This behavior differs from that of InnoDB, in which
 uniqueness is always checked on the primary key, and setting
-:variable:`unique_checks` to off turns off uniqueness checking on secondary
+:ref:`unique_checks` to off turns off uniqueness checking on secondary
 indexes only. Turning off uniqueness checking on the primary key can provide
 large performance boosts, but it should only be done when the primary key is
 known to be unique.
@@ -70,7 +70,7 @@ Lock visualization in TokuDB exposes the state of the lock tree with tables in t
 The ``TOKUDB_TRX`` table
 ************************
 
-The :table:`TOKUDB_TRX` table in the ``INFORMATION_SCHEMA`` maps TokuDB transaction identifiers to MySQL client identifiers. This mapping allows one to associate a TokuDB transaction with a MySQL client operation.
+The :ref:`TOKUDB_TRX` table in the ``INFORMATION_SCHEMA`` maps TokuDB transaction identifiers to MySQL client identifiers. This mapping allows one to associate a TokuDB transaction with a MySQL client operation.
 
 The following query returns the MySQL clients that have a live TokuDB transaction:
 
@@ -83,7 +83,7 @@ The following query returns the MySQL clients that have a live TokuDB transactio
 The ``TOKUDB_LOCKS`` table
 **************************
 
-The :table:`tokudb_locks` table in the information schema contains the set of locks granted to TokuDB transactions.
+The :ref:`tokudb_locks` table in the information schema contains the set of locks granted to TokuDB transactions.
 
 The following query returns all of the locks granted to some TokuDB transaction:
 
@@ -102,7 +102,7 @@ The following query returns the locks granted to some MySQL client:
 The ``TOKUDB_LOCK_WAITS`` table
 *******************************
 
-The :table:`tokudb_lock_waits` table in the information schema contains the set of lock requests that are not granted due to a lock conflict with some other transaction.
+The :ref:`tokudb_lock_waits` table in the information schema contains the set of lock requests that are not granted due to a lock conflict with some other transaction.
 
 The following query returns the locks that are waiting to be granted due to a lock conflict with some other transaction:
 
@@ -110,16 +110,16 @@ The following query returns the locks that are waiting to be granted due to a lo
 
  SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCK_WAITS;
 
-The :variable:`tokudb_lock_timeout_debug` session variable
+The :ref:`tokudb_lock_timeout_debug` session variable
 **********************************************************
 
-The :variable:`tokudb_lock_timeout_debug` session variable controls how lock timeouts and lock deadlocks seen by the database client are reported.
+The :ref:`tokudb_lock_timeout_debug` session variable controls how lock timeouts and lock deadlocks seen by the database client are reported.
 
 The following values are available:
 
 :0: No lock timeouts or lock deadlocks are reported.
 
-:1: A JSON document that describes the lock conflict is stored in the :variable:`tokudb_last_lock_timeout` session variable
+:1: A JSON document that describes the lock conflict is stored in the :ref:`tokudb_last_lock_timeout` session variable
 
 :2: A JSON document that describes the lock conflict is printed to the MySQL error log.
 
@@ -128,17 +128,17 @@ The following values are available:
   * A line containing the blocked thread id and blocked SQL
   * A line containing the blocking thread id and the blocking SQL.
 
-:3: A JSON document that describes the lock conflict is stored in the :variable:`tokudb_last_lock_timeout` session variable and is printed to the MySQL error log.
+:3: A JSON document that describes the lock conflict is stored in the :ref:`tokudb_last_lock_timeout` session variable and is printed to the MySQL error log.
 
   *Supported since 7.5.5*: In addition to the JSON document describing the lock conflict, the following lines are printed to the MySQL error log:
 
   * A line containing the blocked thread id and blocked SQL
   * A line containing the blocking thread id and the blocking SQL.
 
-The :variable:`tokudb_last_lock_timeout` session variable
+The :ref:`tokudb_last_lock_timeout` session variable
 *********************************************************
 
-The :variable:`tokudb_last_lock_timeout` session variable contains a JSON document that describes the last lock conflict seen by the current MySQL client. It gets set when a blocked lock request times out or a lock deadlock is detected. The :variable:`tokudb_lock_timeout_debug` session variable should have bit ``0`` set (decimal ``1``).
+The :ref:`tokudb_last_lock_timeout` session variable contains a JSON document that describes the last lock conflict seen by the current MySQL client. It gets set when a blocked lock request times out or a lock deadlock is detected. The :ref:`tokudb_lock_timeout_debug` session variable should have bit ``0`` set (decimal ``1``).
 
 Example
 *******
@@ -153,7 +153,7 @@ Suppose that we create a table with a single column that is the primary key.
  ‘id‘ int(11) NOT NULL,
  PRIMARY KEY (‘id‘)) ENGINE=TokuDB DEFAULT CHARSET=latin1
 
-Suppose that we have 2 MySQL clients with ID's 1 and 2 respectively. Suppose that MySQL client 1 inserts some values into ``table``. TokuDB transaction 51 is created for the insert statement. Since autocommit is disabled, transaction 51 is still live after the insert statement completes, and we can query the :table:`tokudb_locks` table in information schema to see the locks that are held by the transaction.
+Suppose that we have 2 MySQL clients with ID's 1 and 2 respectively. Suppose that MySQL client 1 inserts some values into ``table``. TokuDB transaction 51 is created for the insert statement. Since autocommit is disabled, transaction 51 is still live after the insert statement completes, and we can query the :ref:`tokudb_locks` table in information schema to see the locks that are held by the transaction.
 
 .. code-block:: mysql
 
@@ -1284,7 +1284,7 @@ The following is a reference of table status statements:
 
 ``filesystem: ENOSPC redzone state``:
  The state of how much disk space exists with respect to the red zone value.
- Redzone is space greater than :variable:`tokudb_fs_reserve_percent` and less
+ Redzone is space greater than :ref:`tokudb_fs_reserve_percent` and less
  than full disk.
 
  Valid values are:

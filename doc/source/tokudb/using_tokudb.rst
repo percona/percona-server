@@ -34,7 +34,7 @@ Clustering Secondary Indexes
 
 One of the keys to exploiting TokuDB's strength in indexing is to make use of clustering secondary indexes.
 
-TokuDB allows a secondary key to be defined as a clustering key. This means that all of the columns in the table are clustered with the secondary key. |Percona Server| parser and query optimizer support Multiple Clustering Keys when TokuDB engine is used. This means that the query optimizer will avoid primary clustered index reads and replace them by secondary clustered index reads in certain scenarios.
+TokuDB allows a secondary key to be defined as a clustering key. This means that all of the columns in the table are clustered with the secondary key. *Percona Server for MySQL* parser and query optimizer support Multiple Clustering Keys when TokuDB engine is used. This means that the query optimizer will avoid primary clustered index reads and replace them by secondary clustered index reads in certain scenarios.
 
 The parser has been extended to support following syntax:
 
@@ -85,9 +85,9 @@ Hot Index Creation
 
 TokuDB enables you to add indexes to an existing table and still perform inserts and queries on that table while the index is being created.
 
-The ``ONLINE`` keyword is not used. Instead, the value of the :variable:`tokudb_create_index_online` client session variable is examined.
+The ``ONLINE`` keyword is not used. Instead, the value of the :ref:`tokudb_create_index_online` client session variable is examined.
 
-Hot index creation is invoked using the ``CREATE INDEX`` command after setting :variable:`tokudb_create_index_online` to ``on`` as follows:
+Hot index creation is invoked using the ``CREATE INDEX`` command after setting :ref:`tokudb_create_index_online` to ``on`` as follows:
 
 .. code-block:: mysql
 
@@ -96,7 +96,7 @@ Hot index creation is invoked using the ``CREATE INDEX`` command after setting :
 
    mysql> CREATE INDEX index ON foo (field_name);
 
-Alternatively, using the ``ALTER TABLE`` command for creating an index will create the index offline (with the table unavailable for inserts or queries), regardless of the value of :variable:`tokudb_create_index_online`. The only way to hot create an index is to use the ``CREATE INDEX`` command.
+Alternatively, using the ``ALTER TABLE`` command for creating an index will create the index offline (with the table unavailable for inserts or queries), regardless of the value of :ref:`tokudb_create_index_online`. The only way to hot create an index is to use the ``CREATE INDEX`` command.
 
 Hot creating an index will be slower than creating the index offline, and progress depends how busy the mysqld server is with other tasks. Progress of the index creation can be seen by using the ``SHOW PROCESSLIST`` command (in another client). Once the index creation completes, the new index will be used in future query plans.
 
@@ -167,9 +167,9 @@ Compression is set on a per-table basis and is controlled by setting row format 
    column_b INT NOT NULL) ENGINE=TokuDB
    ROW_FORMAT=row_format;
 
-If no row format is specified in a ``CREATE TABLE``, the table is compressed using whichever row format is specified in the session variable :variable:`tokudb_row_format`. If no row format is set nor is :variable:`tokudb_row_format`, the zlib compressor is used.
+If no row format is specified in a ``CREATE TABLE``, the table is compressed using whichever row format is specified in the session variable :ref:`tokudb_row_format`. If no row format is set nor is :ref:`tokudb_row_format`, the zlib compressor is used.
 
-:variable:`row_format` and :variable:`tokudb_row_format` variables accept the following values:
+:ref:`row_format` and :ref:`tokudb_row_format` variables accept the following values:
 
 * ``TOKUDB_DEFAULT``: This sets the compression to the default behavior. As of TokuDB 7.1.0, the default behavior is to compress using the zlib library. In the future this behavior may change.
 

@@ -4,14 +4,14 @@
 TokuDB Performance Schema Integration
 =======================================
 
-In |Percona Server| :rn:`5.7.20-18` has implemented TokuDB integration
+In *Percona Server for MySQL* :ref:`5.7.20-18` has implemented TokuDB integration
 with `Performance Schema
 <https://dev.mysql.com/doc/refman/5.7/en/innodb-performance-schema.html>`_
 
 This integration can be used for profiling additional TokuDB operations.
 
 TokuDB instruments available in Performance Schema can be seen in
-:table:`PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS` table:
+:ref:`PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS` table:
 
 .. code-block:: mysql
 
@@ -99,7 +99,7 @@ Performance Schema tables:
  * ``WHERE NAME LIKE '%fti%'``
 
 For example, to get the information about TokuDB related events you can query
-:table:`PERFORMANCE_SCHEMA.events_waits_summary_global_by_event_name` like:
+:ref:`PERFORMANCE_SCHEMA.events_waits_summary_global_by_event_name` like:
 
 .. code-block:: mysql
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
@@ -3494,7 +3494,9 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-	} while (!success || n_flushed > 0);
+	} while (!success || n_flushed > 0 ||
+		 buf_get_n_pending_read_ios() > 0 ||
+		 buf_get_flush_list_len(NULL) > 0);
 
 	/* Some sanity checks */
 	ut_a(srv_get_active_thread_type() == SRV_NONE);

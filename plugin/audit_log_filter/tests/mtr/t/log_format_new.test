@@ -22,5 +22,6 @@ SET GLOBAL audit_log_filter_flush = ON;
 --echo # Cleanup
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
 
 --remove_file $xml_file_path$xml_file_name

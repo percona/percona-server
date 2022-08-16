@@ -43,3 +43,4 @@ SELECT audit_log_filter_set_user('root@localhost', 'log_all');
 --echo # Cleanup
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();

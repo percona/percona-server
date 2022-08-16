@@ -23,7 +23,6 @@ Version Specific Information
 System Variables
 ================
 
-.. variable:: max_slowlog_size
 .. _max_slowlog_size:
 
 .. rubric:: ``max_slowlog_size``
@@ -47,7 +46,6 @@ System Variables
      - 0 (unlimited)
    * - Range
      - 4096 - 1073741824
-
 
 Slow query log will be rotated automatically when its size exceeds this value. The default is ``0``, don't limit the size. When this feature is enabled slow query log file will be renamed to :ref:`slow_query_log_file`.000001. 
 

@@ -31,7 +31,7 @@ options can be found on the :ref:`compressed_columns` feature page.
 Taking backup by descending primary key order
 =============================================
 
-In :ref:`5.7.17-12` new :ref:`--order-by-primary-desc` has been
+In :ref:`5.7.17-12` new :option:`--order-by-primary-desc` has been
 implemented. This feature tells ``mysqldump`` to take the backup by
 descending primary key order (``PRIMARY KEY DESC``) which can be useful if
 storage engine is using reverse order column for a primary key.

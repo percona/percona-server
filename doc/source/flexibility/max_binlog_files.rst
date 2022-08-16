@@ -37,10 +37,8 @@ In order for new value to take effect ``FLUSH LOGS`` needs to be run. After that
 Version Specific Information
 ============================
 
-  * :ref:`5.7.10-1`:
-    Variable :ref:`max_binlog_files` ported from *Percona Server for MySQL* 5.6.
-  * :ref:`5.7.23-23``:
-    Variable :ref:`max_binlog_files` is deprecated and replaced with :ref:`binlog_space_limit`.
+  * :ref:`5.7.10-1`: Variable :ref:`max_binlog_files` ported from *Percona Server for MySQL* 5.6.
+  * :ref:`5.7.23-23`: Variable :ref:`max_binlog_files` is deprecated and replaced with :ref:`binlog_space_limit`.
 
 System Variables
 ================

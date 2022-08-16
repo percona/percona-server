@@ -13,8 +13,7 @@ You should use this option at your own risk because it is very easy to break rep
 Version Specific Information
 ============================
 
-  * :ref:`5.7.10-1`
-    Feature ported from *Percona Server for MySQL* 5.6
+  * :ref:`5.7.10-1`: Feature ported from *Percona Server for MySQL* 5.6
 
 System Variables
 ================
@@ -39,10 +38,11 @@ System Variables
    * - Default
      - 0
 
-When this variable is set to ``0`` (default), it will use the global :ref:`server_id` value. *Note:* this is different from the setting the global :ref:`server_id` to ``0`` which disables replication. Setting this variable to non-zero value will cause binary log events in that session to have it as :ref:`server_id` value. Setting this variable requires ``SUPER`` privileges.
+When this variable is set to ``0`` (default), it will use the global :ref:`server_id` value. **Note:** this is different from the setting the global :ref:`server_id` to ``0`` which disables replication. Setting this variable to non-zero value will cause binary log events in that session to have it as :ref:`server_id` value. Setting this variable requires ``SUPER`` privileges.
 
 Other Reading
 =============
 
  * `MDEV-500 <https://mariadb.atlassian.net/browse/MDEV-500>`_ -  Session variable for server_id 
  * Upstream bug :mysqlbug:`35125` -  allow the ability to set the server_id for a connection for logging to binary log
+   

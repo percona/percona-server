@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/21/2022
+.\"      Date: 06/07/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "03/21/2022" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "06/07/2022" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1617,23 +1617,18 @@ evaluates to
 ON)\&.
 .RE
 .sp
-.if n \{\
+Using this option with the
+\fB\-\-single\-transaction\fR
+option can lead to inconsistencies in the output\&. If
+\fB\-\-set\-gtid\-purged=ON\fR
+is required, it can be used with
+\fB\-\-lock\-all\-tables\fR, but this can prevent parallel queries while
+\fBmysqldump\fR
+is being run\&.
 .sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
 It is not recommended to load a dump file when GTIDs are enabled on the server (gtid_mode=ON), if your dump file includes system tables\&.
 \fBmysqldump\fR
 issues DML instructions for the system tables which use the non\-transactional MyISAM storage engine, and this combination is not permitted when GTIDs are enabled\&. Also be aware that loading a dump file from a server with GTIDs enabled, into another server with GTIDs enabled, causes different transaction identifiers to be generated\&.
-.sp .5v
-.RE
 .RE
 Format Options
 .PP
@@ -2627,6 +2622,13 @@ option and the
 option are mutually exclusive because
 LOCK TABLES
 causes any pending transactions to be committed implicitly\&.
+.sp
+Using
+\fB\-\-single\-transaction\fR
+together with the
+\fB\-\-set\-gtid\-purged\fR
+option is not recommended; doing so can lead to inconsistencies in the output of
+\fBmysqldump\fR\&.
 .sp
 To dump large tables, combine the
 \fB\-\-single\-transaction\fR

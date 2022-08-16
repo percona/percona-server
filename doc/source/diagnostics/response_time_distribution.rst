@@ -74,9 +74,9 @@ This means there were: ::
 Logging the queries in separate ``READ`` and ``WRITE`` tables
 =============================================================
 
-|Percona Server| is now able to log the queries response times into separate ``READ`` and ``WRITE`` ``INFORMATION_SCHEMA`` tables. The two new tables are named :table:`QUERY_RESPONSE_TIME_READ` and :table:`QUERY_RESPONSE_TIME_WRITE` respectively. The decision on whether a query is a ``read`` or a ``write`` is based on the type of the command. Thus, for example, an ``UPDATE ... WHERE <condition>`` is always logged as a ``write`` query even if ``<condition>`` is always false and thus no actual writes happen during its execution.
+*Percona Server for MySQL* is now able to log the queries response times into separate ``READ`` and ``WRITE`` ``INFORMATION_SCHEMA`` tables. The two new tables are named :ref:`QUERY_RESPONSE_TIME_READ` and :ref:`QUERY_RESPONSE_TIME_WRITE` respectively. The decision on whether a query is a ``read`` or a ``write`` is based on the type of the command. Thus, for example, an ``UPDATE ... WHERE <condition>`` is always logged as a ``write`` query even if ``<condition>`` is always false and thus no actual writes happen during its execution.
 
-Following SQL commands will be considered as ``WRITE`` queries and will be logged into the :table:`QUERY_RESPONSE_TIME_WRITE` table: ``CREATE_TABLE``, ``CREATE_INDEX``, ``ALTER_TABLE``, ``TRUNCATE``, ``DROP_TABLE``, ``LOAD``, ``CREATE_DB``, ``DROP_DB``, ``ALTER_DB``, ``RENAME_TABLE``, ``DROP_INDEX``, ``CREATE_VIEW``, ``DROP_VIEW``, ``CREATE_TRIGGER``, ``DROP_TRIGGER``, ``CREATE_EVENT``, ``ALTER_EVENT``, ``DROP_EVENT``, ``UPDATE``, ``UPDATE_MULTI``, ``INSERT``, ``INSERT_SELECT``, ``DELETE``, ``DELETE_MULTI``, ``REPLACE``, ``REPLACE_SELECT``, ``CREATE_USER``, ``RENAME_USER``, ``DROP_USER``, ``ALTER_USER``, ``GRANT``, ``REVOKE``, ``REVOKE_ALL``, ``OPTIMIZE``, ``CREATE_FUNCTION``, ``CREATE_PROCEDURE``, ``CREATE_SPFUNCTION``, ``DROP_PROCEDURE``, ``DROP_FUNCTION``, ``ALTER_PROCEDURE``, ``ALTER_FUNCTION``, ``INSTALL_PLUGIN``, and ``UNINSTALL_PLUGIN``. Commands not listed here are considered as ``READ`` queries and will be logged into the :table:`QUERY_RESPONSE_TIME_READ` table.
+Following SQL commands will be considered as ``WRITE`` queries and will be logged into the :ref:`QUERY_RESPONSE_TIME_WRITE` table: ``CREATE_TABLE``, ``CREATE_INDEX``, ``ALTER_TABLE``, ``TRUNCATE``, ``DROP_TABLE``, ``LOAD``, ``CREATE_DB``, ``DROP_DB``, ``ALTER_DB``, ``RENAME_TABLE``, ``DROP_INDEX``, ``CREATE_VIEW``, ``DROP_VIEW``, ``CREATE_TRIGGER``, ``DROP_TRIGGER``, ``CREATE_EVENT``, ``ALTER_EVENT``, ``DROP_EVENT``, ``UPDATE``, ``UPDATE_MULTI``, ``INSERT``, ``INSERT_SELECT``, ``DELETE``, ``DELETE_MULTI``, ``REPLACE``, ``REPLACE_SELECT``, ``CREATE_USER``, ``RENAME_USER``, ``DROP_USER``, ``ALTER_USER``, ``GRANT``, ``REVOKE``, ``REVOKE_ALL``, ``OPTIMIZE``, ``CREATE_FUNCTION``, ``CREATE_PROCEDURE``, ``CREATE_SPFUNCTION``, ``DROP_PROCEDURE``, ``DROP_FUNCTION``, ``ALTER_PROCEDURE``, ``ALTER_FUNCTION``, ``INSTALL_PLUGIN``, and ``UNINSTALL_PLUGIN``. Commands not listed here are considered as ``READ`` queries and will be logged into the :ref:`QUERY_RESPONSE_TIME_READ` table.
 
 Installing the plugins
 ======================
@@ -93,19 +93,19 @@ This plugin is used for gathering statistics.
 
    mysql> INSTALL PLUGIN QUERY_RESPONSE_TIME SONAME 'query_response_time.so';
 
-This plugin provides the interface (:table:`QUERY_RESPONSE_TIME`) to output gathered statistics.
+This plugin provides the interface (:ref:`QUERY_RESPONSE_TIME`) to output gathered statistics.
 
 .. code-block:: mysql
 
    mysql> INSTALL PLUGIN QUERY_RESPONSE_TIME_READ SONAME 'query_response_time.so';
 
-This plugin provides the interface (:table:`QUERY_RESPONSE_TIME_READ`) to output gathered statistics.
+This plugin provides the interface (:ref:`QUERY_RESPONSE_TIME_READ`) to output gathered statistics.
 
 .. code-block:: mysql
 
    mysql> INSTALL PLUGIN QUERY_RESPONSE_TIME_WRITE SONAME 'query_response_time.so';
 
-This plugin provides the interface (:table:`QUERY_RESPONSE_TIME_WRITE`) to output gathered statistics. 
+This plugin provides the interface (:ref:`QUERY_RESPONSE_TIME_WRITE`) to output gathered statistics. 
 
 You can check if plugins are installed correctly by running:
 
@@ -123,7 +123,7 @@ You can check if plugins are installed correctly by running:
 Usage
 =====
 
-To start collecting query time metrics, :variable:`query_response_time_stats` should be enabled:
+To start collecting query time metrics, :ref:`query_response_time_stats` should be enabled:
 
 .. code-block:: mysql
 
@@ -171,12 +171,12 @@ You can write a complex query like:
   (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
   FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
 
-**Note:** If :variable:`query_response_time_stats` is ON, the execution times for these two ``SELECT`` queries will also be collected.
+**Note:** If :ref:`query_response_time_stats` is ON, the execution times for these two ``SELECT`` queries will also be collected.
 
 FLUSH
 -----
 
-Flushing can be done by setting the :variable:`query_response_time_flush` to ``ON`` (or ``1``): 
+Flushing can be done by setting the :ref:`query_response_time_flush` to ``ON`` (or ``1``): 
 
 .. code-block:: mysql
 
@@ -184,9 +184,9 @@ Flushing can be done by setting the :variable:`query_response_time_flush` to ``O
 
 ``FLUSH`` does two things:
 
-  * Clears the collected times from the :table:`QUERY_RESPONSE_TIME`, :table:`QUERY_RESPONSE_TIME_READ`, and :table:`QUERY_RESPONSE_TIME_WRITE` tables
+  * Clears the collected times from the :ref:`QUERY_RESPONSE_TIME`, :ref:`QUERY_RESPONSE_TIME_READ`, and :ref:`QUERY_RESPONSE_TIME_WRITE` tables
 
-  * Reads the value of :variable:`query_response_time_range_base` and uses it to set the range base for the table
+  * Reads the value of :ref:`query_response_time_range_base` and uses it to set the range base for the table
 
 **Note:** The execution time for the ``FLUSH`` query will also be collected.
 
@@ -203,34 +203,61 @@ Time is collected after query execution completes (before clearing data structur
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-    Feature ported from |Percona Server| 5.6 
+  * :ref:`5.7.10-1`:
+    Feature ported from *Percona Server for MySQL* 5.6 
 
 System Variables
 ================
 
-.. variable:: query_response_time_flush
+.. _query_response_time_flush:
 
-     :cli: Yes
-     :conf: No
-     :scope: Global
-     :dyn: No
-     :vartype: Boolean
-     :default: OFF
-     :range: OFF/ON
+.. rubric:: ``query_response_time_flush``
 
-Setting this variable to ``ON`` will flush the statistics and re-read the :variable:`query_response_time_range_base`.
+.. list-table::
+   :header-rows: 1
 
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - No
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - Boolean
+   * - Default
+     - OFF
+   * - Range
+     - OFF/ON
 
-.. variable::  query_response_time_range_base
+Setting this variable to ``ON`` will flush the statistics and re-read the :ref:`query_response_time_range_base`.
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Numeric
-     :default: 10
-     :range: 2-1000
+.. _query_response_time_range_base:
+
+.. rubric:: ``query_response_time_range_base``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 10
+   * - Range
+     - 2-1000
 
 Sets up the logarithm base for the scale.
 
@@ -240,50 +267,108 @@ Sets up the logarithm base for the scale.
  
    mysql> SET GLOBAL query_response_time_flush=1;
 
-.. variable:: query_response_time_stats
+.. _query_response_time_stats:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Boolean
-     :default: OFF
-     :range: ON/OFF
+.. rubric:: ``query_response_time_stats``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - OFF
+   * - Range
+     - ON/OFF
 
 This global variable enables and disables collection of query times.
 
-.. variable:: query_response_time_session_stats
+.. _query_response_time_session_stats:
 
-     :cli: No
-     :conf: No
-     :scope: Session
-     :dyn: Yes
-     :vartype: Text
-     :default: GLOBAL
-     :range: ON/OFF/GLOBAL
+.. rubric:: ``query_response_time_session_stats``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - No
+   * - Config file
+     - No
+   * - Scope
+     - Session
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Text
+   * - Default
+     - GLOBAL
+   * - Range
+     - ON/OFF/GLOBAL
 
 This variable enables and disables collection of query times on session level, thus
 customizing QRT behavior for individual connections. By default, its value is `GLOBAL`,
-which means that its value is taken from the :variable:`query_response_time_stats` variable.
+which means that its value is taken from the :ref:`query_response_time_stats` variable.
 
 INFORMATION_SCHEMA Tables
 =========================
 
-.. table:: INFORMATION_SCHEMA.QUERY_RESPONSE_TIME
+.. _QUERY_RESPONSE_TIME:
 
-   :column VARCHAR TIME: Interval range in which the query occurred
-   :column INT(11) COUNT: Number of queries with execution times that fell into that interval
-   :column VARCHAR TOTAL: Total execution time of the queries 
+.. rubric:: ``INFORMATION_SCHEMA.QUERY_RESPONSE_TIME``
 
-.. table:: INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ
+.. list-table::
+      :header-rows: 1
 
-   :column VARCHAR TIME: Interval range in which the query occurred
-   :column INT(11) COUNT: Number of queries with execution times that fell into that interval
-   :column VARCHAR TOTAL: Total execution time of the queries 
+      * - Column Name
+        - Description
+      * - 'VARCHAR TIME'
+        - 'Interval range in which the query occurred'
+      * - 'INT(11) COUNT'
+        - 'Number of queries with execution times that fell into that interval'
+      * - 'VARCHAR TOTAL'
+        - 'Total execution time of the queries '
 
-.. table:: INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE
+.. _QUERY_RESPONSE_TIME_READ:
 
-   :column VARCHAR TIME: Interval range in which the query occurred
-   :column INT(11) COUNT: Number of queries with execution times that fell into that interval
-   :column VARCHAR TOTAL: Total execution time of the queries 
+.. rubric:: ``INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'VARCHAR TIME'
+        - 'Interval range in which the query occurred'
+      * - 'INT(11) COUNT'
+        - 'Number of queries with execution times that fell into that interval'
+      * - 'VARCHAR TOTAL'
+        - 'Total execution time of the queries '
+
+.. _QUERY_RESPONSE_TIME_WRITE:
+
+.. rubric:: ``INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'VARCHAR TIME'
+        - 'Interval range in which the query occurred'
+      * - 'INT(11) COUNT'
+        - 'Number of queries with execution times that fell into that interval'
+      * - 'VARCHAR TOTAL'
+        - 'Total execution time of the queries '
 

@@ -127,7 +127,6 @@ Version Specific Information
 
   * :ref:`5.7.18-14`: Fix implemented in *Percona Server for MySQL* 5.7
 
-
 Details
 --------
 
@@ -153,7 +152,6 @@ Version Specific Information
 
   * :ref:`5.7.20-19`: Fix implemented in *Percona Server for MySQL* 5.7
 
-
 Details
 --------
 
@@ -168,29 +166,35 @@ to 5 times on some setups) increase in write load on the replica, before this
 problem was fixed in *Percona Server for MySQL*. Bug fixed :psbug:`1812` (upstream
 :mysqlbug:`85158`).
 
-
 .. _percona-server.binary-log.flush.writing:
 
-Writing ``FLUSH`` Commands to the Binary Log 
+Writing ``FLUSH`` Commands to the Binary Log
 ================================================================================
 
 ``FLUSH`` commands, such as ``FLUSH SLOW LOGS``, are not written to the
-binary log if the system variable :variable:`binlog_skip_flush_commands` is set
-to *ON*.
+
+binary log if the system variable :ref:`binlog_skip_flush_commands` is set
+to **ON**.
 
 In addition, the following changes were implemented in the behavior of
-``read_only`` and super_read_only modes:
+``read_only`` and :ref:`super_read_only` modes:
 
 - When ``read_only`` is set to *ON*, any ``FLUSH ...`` command executed by a
   normal user (without the ``SUPER`` privilege) are not written to the binary
-  log regardless of the value of the binlog_skip_flush_command variable.
-- When super_read_only is set to *ON*, any ``FLUSH ...`` command executed by
+  log regardless of the value of the :ref:`binlog_skip_flush_commands` variable.
+- When :ref:`super_read_only` is set to **ON**, any ``FLUSH ...`` command executed by
   any user (even by those with the ``SUPER`` privilege) are not written to the
-  binary log regardless of the value of the binlog_skip_flush_command variable.
+  binary log regardless of the value of the :ref:`binlog_skip_flush_commands` variable.
 
 An attempt to run a ``FLUSH`` command without either ``SUPER`` or ``RELOAD``
 privileges results in the ``ER_SPECIFIC_ACCESS_DENIED_ERROR`` exception
-regardless of the value of the binlog_skip_flush_command variable.
+regardless of the value of the :ref:`binlog_skip_flush_commands` variable.
+
+.. _binlog_skip_flush_commands:
+
+.. rubric:: ``binlog_skip_flush_commands``
+
+Introduced in :ref:`5.6.43-84.3`.
 
 .. _binlog_skip_flush_commands:
 
@@ -223,8 +227,8 @@ about what else affects the writing of ``FLUSH`` commands to the binary log.
 
    ``FLUSH LOGS``, ``FLUSH BINARY LOGS``, ``FLUSH TABLES WITH READ LOCK``, and
    ``FLUSH TABLES ... FOR EXPORT`` are not written to the binary log no matter
-   what value the binlog_skip_flush_command variable contains. The ``FLUSH`` command is not
-   recorded to the binary log and the value of binlog_skip_flush_command is ignored if the
+   what value the :ref:`binlog_skip_flush_commands` variable contains. The ``FLUSH`` command is not
+   recorded to the binary log and the value of :ref:`binlog_skip_flush_commands` is ignored if the
    ``FLUSH`` command is run with the ``NO_WRITE_TO_BINLOG`` keyword (or its
    alias ``LOCAL``).
 
@@ -243,5 +247,4 @@ Do not use one or more dot characters (.) when defining the values for the follo
 * `log_bin_index <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#option_mysqld_log-bin-index>`__
 
 MySQL and **XtraBackup** handle the value in different ways and this difference causes unpredictable behavior.
-
 

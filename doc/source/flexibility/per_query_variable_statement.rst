@@ -34,8 +34,7 @@ We can provide more than one variable we want to set up:
 Version Specific Information
 ============================
 
-  * :ref:`5.7.10-1`
-    Feature ported from *Percona Server for MySQL* 5.6 
+  * :ref:`5.7.10-1`: Feature ported from *Percona Server for MySQL* 5.6 
 
 Other Reading
 =============

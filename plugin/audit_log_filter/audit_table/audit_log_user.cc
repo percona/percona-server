@@ -196,8 +196,6 @@ TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
 
   while (true) {
     if (scan_srv->next(ta_context->ta_session, ta_context->ta_table)) {
-      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Nothing more to read from %s", get_table_name());
       break;
     }
 
@@ -230,11 +228,6 @@ TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
     string_convert_srv->convert_to_buffer(
         user_filter_name_value.get(), buff_user_filter_name_value,
         sizeof(buff_user_filter_name_value), utf8);
-
-    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                    "%s username: %s, userhost: %s, filtername: %s",
-                    get_table_name(), buff_user_name_value,
-                    buff_user_host_value, buff_user_filter_name_value);
 
     container.insert({{buff_user_name_value, buff_user_host_value},
                       buff_user_filter_name_value});

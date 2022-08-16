@@ -49,9 +49,6 @@ void LogWriterBase::write(AuditRecordVariant record) noexcept {
                                   record_str);
   });
 
-  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                  "Formatted log record %s", record_str.c_str());
-
   write(record_str, true);
 }
 

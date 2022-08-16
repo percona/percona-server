@@ -203,8 +203,6 @@ TableResult AuditLogFilter::load_filters(
 
   while (true) {
     if (scan_srv->next(ta_context->ta_session, ta_context->ta_table)) {
-      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Nothing more to read from %s", get_table_name());
       break;
     }
 
@@ -233,11 +231,6 @@ TableResult AuditLogFilter::load_filters(
     string_convert_srv->convert_to_buffer(
         filter_filter_value.get(), buff_filter_filter_value,
         sizeof(buff_filter_filter_value), utf8);
-
-    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                    "%s filter_id: %lld, name: %s, filter: %s",
-                    get_table_name(), filter_id, buff_filter_name_value,
-                    buff_filter_filter_value);
 
     AuditRule rule{static_cast<uint64_t>(filter_id), buff_filter_name_value,
                    buff_filter_filter_value};

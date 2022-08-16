@@ -65,8 +65,6 @@ bool AuditRuleRegistry::load() noexcept {
 
   if (users_result == audit_table::TableResult::MissingTable &&
       filter_result == audit_table::TableResult::MissingTable) {
-    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "First time plugin load, init audit configuration tables");
     return init_audit_tables();
   }
 

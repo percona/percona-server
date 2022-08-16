@@ -5,6 +5,6 @@
 # for the refresh_thread test - that this include is intended for - is merely
 # to verify that the server is indeed aware of the refresh thread.
 
---replace_column 1 <id> 4 <db> 5 <command> 6 <time> 7 <state> 8 <info>
+--replace_column 1 <id> 4 <db> 5 <command> 6 <time> 7 <state> 8 <info> 9 <time_ms> 10 <rows_sent> 11 <rows_examined>
 --replace_regex /localhost(:[0-9]+)?/<host>/
 SHOW PROCESSLIST;

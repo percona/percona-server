@@ -46,6 +46,8 @@ case "$1" in
                     cp -p /etc/mysql/my.cnf /etc/mysql/my.cnf.old
                     #rm -rf /etc/mysql/my.cnf
                     update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200 || true
+                    update-alternatives --set my.cnf /etc/mysql/percona-server.cnf
+                    update-alternatives --auto my.cnf
                     exit 0
                 else
                     print_message
@@ -58,6 +60,8 @@ case "$1" in
             print_message
             #rm -rf /etc/mysql/my.cnf
             update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200 || true
+            update-alternatives --set my.cnf /etc/mysql/percona-server.cnf
+            update-alternatives --auto my.cnf
         else
             print_message
         fi

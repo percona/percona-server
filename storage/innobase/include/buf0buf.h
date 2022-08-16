@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1483,6 +1483,12 @@ ibool
 buf_pool_watch_occurred(
 	const page_id_t&	page_id)
 MY_ATTRIBUTE((warn_unused_result));
+
+/** Get the current length of the flush list.
+@param[in] buf_pool buffer pool instance or nullptr to all instances
+@return number of pages in flush list */
+ulint
+buf_get_flush_list_len(const buf_pool_t *buf_pool);
 
 /********************************************************************//**
 Get total buffer pool statistics. */

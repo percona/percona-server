@@ -50,15 +50,27 @@ If the option is enabled, the queries are considered identical, so the server wi
 System Variables
 ================
 
-.. variable:: query_cache_strip_comments
+.. _query_cache_strip_comments:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :vartype: Boolean
-   :default: Off
+.. rubric:: ``query_cache_strip_comments``
 
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - Off
 
 Makes the server ignore comments when checking for a query cache hit.
 

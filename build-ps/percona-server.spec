@@ -625,6 +625,8 @@ else
       if [ -L /etc/my.cnf ] && [ "x${real_file}" == "x/etc/percona-server.cnf" ]; then
           rm -rf /etc/my.cnf
           update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
+          update-alternatives --set my.cnf /etc/percona-server.cnf
+          update-alternatives --auto my.cnf
       else
           echo " -------------"
           echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"

@@ -54,7 +54,7 @@ Then install the new server with:
 
   $ apt install percona-server-server-5.7
 
-If you're using Percona Server for MySQL 5.6 with TokuDB you'll need to specify the TokuDB package as well:
+If you're using **Percona Server for MySQL** 5.6 with TokuDB you'll need to specify the TokuDB package as well:
 
 .. code-block:: bash
 
@@ -79,7 +79,7 @@ The installation script will *NOT* run automatically :command:`mysql_upgrade` as
 
   $ service mysql restart
 
-Note that this procedure is the same for upgrading from MySQL 5.6 or 5.7 to Percona Server for MySQL 5.7.
+Note that this procedure is the same for upgrading from MySQL 5.6 or 5.7 to **Percona Server for MySQL** 5.7.
 
 ``RPM``-based distributions
 ---------------------------
@@ -118,7 +118,7 @@ After checking, proceed to remove them without dependencies:
 
 It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if omitted.
 
-Note that this procedure is the same for upgrading from MySQL 5.6 or 5.7 to Percona Server for MySQL 5.7: just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
+Note that this procedure is the same for upgrading from MySQL 5.6 or 5.7 to **Percona Server for MySQL** 5.7: just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
 
 You will have to install the following package:
 
@@ -128,7 +128,7 @@ You will have to install the following package:
 
   $ yum install Percona-Server-server-57 
 
-Percona Server for MySQL 5.6 with TokuDB you'll need to specify the TokuDB package as well when doing the upgrade: 
+If you're using **Percona Server for MySQL** 5.6 with TokuDB you'll need to specify the TokuDB package as well when doing the upgrade: 
 
 .. code-block:: bash
 
@@ -167,7 +167,7 @@ Once this is done, just restart the server as usual:
 
   $ service mysql restart
 
-After the service has been successfully restarted you can use the new Percona Server for MySQL 5.7.
+After the service has been successfully restarted you can use the new **Percona Server for MySQL** 5.7.
 
 Upgrading using Standalone Packages
 ===================================
@@ -195,7 +195,7 @@ Then, download the following packages for your architecture:
 
   * ``libperconaserverclient20``
 
-Following example will download Percona Server for MySQL :ref:`5.7.10-3` release packages for *Debian* 8.0:
+Following example will download **Percona Server for MySQL** :rn:`5.7.10-3` release packages for *Debian* 8.0:
 
 .. code-block:: bash
 
@@ -222,21 +222,21 @@ After you unpack the bundle you should see the following packages:
   percona-server-test-5.7_5.7.10-3-1.jessie_amd64.deb
   percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb
 
-Now you can install Percona Server for MySQL by running:
+Now you can install **Percona Server for MySQL** by running:
 
 .. code-block:: bash
 
   $ sudo dpkg -i *.deb
 
-This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running Percona Server for MySQL installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want TokuDB storage engine).
+This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running **Percona Server for MySQL** installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want TokuDB storage engine).
 
 .. note::
 
-  Percona Server for MySQL 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
+  **Percona Server for MySQL** 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 .. warning::
 
-  When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself. At least the following packages should be installed before installing Percona Server for MySQL 5.7: ``libmecab2``, ``libjemalloc1``, ``zlib1g-dev``, and ``libaio1``.
+  When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself. At least the following packages should be installed before installing **Percona Server for MySQL** 5.7: ``libmecab2``, ``libjemalloc1``, ``zlib1g-dev``, and ``libaio1``.
 
 The installation script will not run automatically :command:`mysql_upgrade`, so you'll need to run it yourself and restart the service afterwards.
 
@@ -268,9 +268,9 @@ After checked that, proceed to remove them without dependencies: ::
 
 It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if ommited.
 
-Note that this procedure is the same for upgrading from MySQL 5.6 to Percona Server for MySQL 5.7, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
+Note that this procedure is the same for upgrading from MySQL 5.6 to **Percona Server for MySQL** 5.7, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
 
-Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download Percona Server for MySQL 5.7.10-3 release packages for *CentOS* 7:
+Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download **Percona Server for MySQL** 5.7.10-3 release packages for *CentOS* 7:
 
 .. code-block:: bash
 
@@ -296,7 +296,7 @@ After you unpack the bundle you should see the following packages:
   Percona-Server-test-57-5.7.10-3.1.el7.x86_64.rpm
   Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm
 
-Now you can install Percona Server for MySQL 5.7 by running:
+Now you can install **Percona Server for MySQL** 5.7 by running:
 
 .. code-block:: bash
 
@@ -304,7 +304,7 @@ Now you can install Percona Server for MySQL 5.7 by running:
   Percona-Server-client-57-5.7.10-3.1.el7.x86_64.rpm \
   Percona-Server-shared-57-5.7.10-3.1.el7.x86_64.rpm
 
-This will install only packages required to run the Percona Server for MySQL 5.7. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by adding the ``Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm`` to the command above. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
+This will install only packages required to run the **Percona Server for MySQL** 5.7. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by adding the ``Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm`` to the command above. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 To install all the packages (for debugging, testing, etc.) you should run:
 

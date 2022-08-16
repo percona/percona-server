@@ -125,3 +125,6 @@ SET SESSION debug="-d,udf_audit_log_user_set_update_filter_failure";
 # Cleanup
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

@@ -22,4 +22,7 @@ Logs age doesn't exceed expected prune_seconds 2
 # Cleanup
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
 SET GLOBAL audit_log_filter_prune_seconds = @old_prune_seconds;

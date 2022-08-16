@@ -33,4 +33,5 @@ if ($events_written != 0) {
 --echo # Cleanup
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
 

@@ -21,5 +21,6 @@ SET GLOBAL audit_log_filter_flush = ON;
 --echo # Cleanup
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
 
 --remove_file $json_file_path$json_file_name

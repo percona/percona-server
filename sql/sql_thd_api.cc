@@ -478,7 +478,21 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     else
       len = min(thd->query().length, max_query_len);
     str.append('\n');
-    str.append(thd->query().str, len);
+
+    /* The above limitation of length can cut the query string character
+       in the middle if it contains multbyte characters.
+       Let's put it through convert_string() method which will detect
+       such a case and produce valid string, truncating spoiled, trailing
+       character. */
+    LEX_STRING truncated_query = {nullptr, 0};
+    if (len < thd->query().length &&
+        !thd->convert_string(&truncated_query, thd->charset(), thd->query().str,
+                             len, thd->charset())) {
+      str.append(truncated_query.str, truncated_query.length);
+    } else {
+      // In case of error or not trimming, fall back to the original behavior
+      str.append(thd->query().str, len);
+    }
   }
 
   mysql_mutex_unlock(&thd->LOCK_thd_query);
@@ -491,7 +505,19 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
   */
   assert(buffer != nullptr);
   length = min(str.length(), length - 1);
-  memcpy(buffer, str.c_ptr_quick(), length);
+
+  /* We are again in the similar situation as above. String is going to be
+     truncated, but we need to avoid cutting in the middle of character. */
+  LEX_STRING truncated_str = {nullptr, 0};
+  if (length < str.length() &&
+      !thd->convert_string(&truncated_str, thd->charset(), str.c_ptr_safe(),
+                           length, thd->charset())) {
+    memcpy(buffer, truncated_str.str, truncated_str.length);
+  } else {
+    // In case of error or not trimming, fall back to the original behavior
+    memcpy(buffer, str.c_ptr_quick(), length);
+  }
+
   /* Make sure that the new string is null terminated */
   buffer[length] = '\0';
   return buffer;

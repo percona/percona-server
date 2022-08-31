@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates.
+||||||| 8d8c986e571
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+>>>>>>> mysql-8.0.30
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +28,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
-  Functions for read record cacheing with myisam
+  Functions for read record caching with myisam
   Used for reading dynamic/compressed records from datafile.
 
   Can fetch data directly from file (outside cache),

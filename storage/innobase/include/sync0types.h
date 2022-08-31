@@ -241,10 +241,11 @@ enum latch_level_t {
   SYNC_RECV,
 
   SYNC_LOG_LIMITS,
+  SYNC_LOG_FLUSHER,
+  SYNC_LOG_FILES,
   SYNC_LOG_WRITER,
   SYNC_LOG_WRITE_NOTIFIER,
   SYNC_LOG_FLUSH_NOTIFIER,
-  SYNC_LOG_FLUSHER,
   SYNC_LOG_CLOSER,
   SYNC_LOG_CHECKPOINTER,
   SYNC_LOG_SN,
@@ -378,7 +379,12 @@ enum latch_id_t {
   LATCH_ID_LOG_WRITE_NOTIFIER,
   LATCH_ID_LOG_FLUSH_NOTIFIER,
   LATCH_ID_LOG_LIMITS,
+<<<<<<< HEAD
   LATCH_ID_LOG_ONLINE,
+||||||| 8d8c986e571
+=======
+  LATCH_ID_LOG_FILES,
+>>>>>>> mysql-8.0.30
   LATCH_ID_PARSER,
   LATCH_ID_LOG_ARCH,
   LATCH_ID_PAGE_ARCH,
@@ -540,6 +546,9 @@ struct OSMutex {
     ut_a(ret == 0);
 #endif /* _WIN32 */
   }
+
+  void lock() { enter(); }
+  void unlock() { exit(); }
 
   /** @return true if locking succeeded */
   bool try_lock() UNIV_NOTHROW {

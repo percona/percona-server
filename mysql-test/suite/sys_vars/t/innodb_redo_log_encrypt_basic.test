@@ -1,8 +1,14 @@
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring is loaded.");
+<<<<<<< HEAD
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log tablespace to be encrypted.");
 call mtr.add_suppression("Redo log cannot be encrypted if the keyring is not loaded.");
 call mtr.add_suppression("Check keyring fail, please check the keyring is loaded.");
+||||||| 8d8c986e571
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log tablespace to be encrypted.");
+=======
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log files to be encrypted.");
+>>>>>>> mysql-8.0.30
 --enable_query_log
 
 SET @start_global_value = @@global.innodb_redo_log_encrypt;

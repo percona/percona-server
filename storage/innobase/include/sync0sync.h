@@ -119,7 +119,12 @@ extern mysql_pfs_key_t log_flusher_mutex_key;
 extern mysql_pfs_key_t log_write_notifier_mutex_key;
 extern mysql_pfs_key_t log_flush_notifier_mutex_key;
 extern mysql_pfs_key_t log_limits_mutex_key;
+<<<<<<< HEAD
 extern mysql_pfs_key_t log_bmp_sys_mutex_key;
+||||||| 8d8c986e571
+=======
+extern mysql_pfs_key_t log_files_mutex_key;
+>>>>>>> mysql-8.0.30
 extern mysql_pfs_key_t log_cmdq_mutex_key;
 extern mysql_pfs_key_t log_sn_lock_key;
 extern mysql_pfs_key_t log_sn_mutex_key;

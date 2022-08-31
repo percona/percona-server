@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/log_resource.h"
+<<<<<<< HEAD
 #include "debug_sync.h"
 #include "sql/json_dom.h"
+||||||| 8d8c986e571
+#include "sql/json_dom.h"
+=======
+#include "sql-common/json_dom.h"
+>>>>>>> mysql-8.0.30
 
 int MY_ATTRIBUTE((visibility("default")))
     Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server() {

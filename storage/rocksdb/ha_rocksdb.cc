@@ -3051,6 +3051,13 @@ class Rdb_transaction {
 
   virtual void rollback() = 0;
 
+  bool can_acquire_snapshot_without_conflicts() {
+    if (my_core::thd_tx_isolation(m_thd) <= ISO_READ_COMMITTED) {
+      return true;
+    }
+    return false;
+  }
+
   void snapshot_created(const rocksdb::Snapshot *const snapshot) {
     assert(snapshot != nullptr);
 
@@ -4307,7 +4314,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
   */
   void start_stmt() override {
     // Set the snapshot to delayed acquisition (SetSnapshotOnNextOperation)
-    acquire_snapshot(false);
+    acquire_snapshot(can_acquire_snapshot_without_conflicts());
   }
 
   /*
@@ -9443,7 +9450,7 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
     m_retrieved_record = std::move(m_dup_key_retrieved_record);
     rc = HA_EXIT_SUCCESS;
   } else {
-    tx->acquire_snapshot(false);
+    tx->acquire_snapshot(tx->can_acquire_snapshot_without_conflicts());
     bool skip_wait =
         m_locked_row_action == THR_NOWAIT || m_locked_row_action == THR_SKIP;
     rc = get_pk_iterator()->get(&key_slice, &m_retrieved_record, m_lock_rows,
@@ -11080,7 +11087,8 @@ int ha_rocksdb::index_init(uint idx, bool sorted) {
   // If m_lock_rows is not RDB_LOCK_NONE then we will be doing a get_for_update
   // when accessing the index, so don't acquire the snapshot right away.
   // Otherwise acquire the snapshot immediately.
-  tx->acquire_snapshot(m_lock_rows == RDB_LOCK_NONE);
+  tx->acquire_snapshot(m_lock_rows == RDB_LOCK_NONE ||
+                       tx->can_acquire_snapshot_without_conflicts());
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }

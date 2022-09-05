@@ -62,7 +62,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
 #. Once you install this package the Percona repositories should be added. You
    can check the repository setup in the
-   :file:`/etc/apt/sources.list.d/percona-release.list` file.
+   :file:`/etc/apt/sources.list.d/percona-original-release.list` file.
 
 #. Enable the repository:
 

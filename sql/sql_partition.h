@@ -154,6 +154,8 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
 
 void create_partition_name(char *out, const char *in1, const char *in2,
                            bool translate);
+void create_subpartition_name(char *out, const char *in1, const char *in2,
+                              const char *in3);
 
 enum enum_partition_keywords {
   PKW_HASH = 0,

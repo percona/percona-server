@@ -37,6 +37,7 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "mysql/psi/mysql_mutex.h" /* mysql_mutex_t */
 
 typedef uint32 my_bitmap_map;
 
@@ -45,6 +46,12 @@ struct MY_BITMAP {
   uint n_bits{0}; /* number of bits occupied by the above */
   my_bitmap_map last_word_mask{0};
   my_bitmap_map *last_word_ptr{nullptr};
+  /*
+     mutex will be acquired for the duration of each bitmap operation if
+     thread_safe flag in bitmap_init was set.  Otherwise, we optimize by not
+     acquiring the mutex
+   */
+  mysql_mutex_t *mutex{nullptr};
 };
 
 extern void create_last_word_mask(MY_BITMAP *map);

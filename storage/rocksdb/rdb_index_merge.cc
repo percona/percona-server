@@ -19,6 +19,8 @@
 
 #include "rdb_utils.h"  // LOG_COMPONENT_TAG for includes below
 
+#include <inttypes.h>  // PRIu64
+
 /* MySQL header files */
 #include "my_systime.h"
 #include "mysql/components/services/log_builtins.h"

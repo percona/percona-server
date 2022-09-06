@@ -550,6 +550,7 @@ exit:
 
   @param old_data  The old record in MySQL Row Format.
   @param new_data  The new record in MySQL Row Format.
+  @param lookup_rows Indicator for TokuDB read free replication.
 
   @return Operation status.
     @retval    0 Success
@@ -642,6 +643,27 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data,
   }
   return error;
 }
+
+/**
+  Delete an existing row in the partitioned table.
+
+  This will delete a row. buf will contain a copy of the row to be deleted.
+  The server will call this right after the current row has been read
+  (from either a previous rnd_xxx() or index_xxx() call).
+  If you keep a pointer to the last row or can access a primary key it will
+  make doing the deletion quite a bit easier.
+  Keep in mind that the server does no guarentee consecutive deletions.
+  ORDER BY clauses can be used.
+
+  buf is either record[0] or record[1]
+
+  @param buf  The record in MySQL Row Format.
+  @param lookup_rows Indicator for TokuDB read free replication.
+
+  @return Operation status.
+    @retval    0 Success
+    @retval != 0 Error code
+*/
 
 int Partition_helper::ph_delete_row(const uchar *buf, bool lookup_rows) {
   int error;

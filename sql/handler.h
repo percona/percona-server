@@ -527,6 +527,11 @@ enum class SelectExecutedIn : bool { kPrimaryEngine, kSecondaryEngine };
   Supports multi-valued index
 */
 #define HA_MULTI_VALUED_KEY_SUPPORT (1LL << 55)
+/**
+  There is no need to evict the table from the table definition cache having run
+  ANALYZE TABLE on it
+*/
+#define HA_ONLINE_ANALYZE (1LL << 56)
 
 /*
   Bits in index_flags(index_number) for what you can do with index.
@@ -684,7 +689,8 @@ enum legacy_db_type {
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_TEMPTABLE,
-  DB_TYPE_FIRST_DYNAMIC = 42,
+  DB_TYPE_ROCKSDB = 42,
+  DB_TYPE_FIRST_DYNAMIC = 43,
   DB_TYPE_DEFAULT = 127  // Must be last
 };
 
@@ -3241,6 +3247,20 @@ inline constexpr const decltype(handlerton::flags)
 /** Whether the secondary engine supports creation of temporary tables. */
 inline constexpr const decltype(handlerton::flags)
     HTON_SECONDARY_SUPPORTS_TEMPORARY_TABLE(1 << 25);
+
+
+/** Start of Percona specific HTON_* defines */
+
+/**
+   Set if the storage engine supports 'online' backups. This means that there
+   exists a way to create a consistent copy of its tables without blocking
+   updates to them. If so, statements that update such tables will not be
+   affected by an active LOCK TABLES FOR BACKUP.
+*/
+#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 31)
+
+/** End of Percona specific HTON_* defines */
+
 
 /* Whether the handlerton is a secondary engine. */
 inline bool hton_is_secondary_engine(const handlerton *hton) {
@@ -5973,12 +5993,6 @@ class handler {
   }
 
  public:
-   virtual int read_range_first(const key_range *start_key,
-                               const key_range *end_key, bool eq_range_arg,
-                               bool sorted);
-  virtual int read_range_next();
-
- public:
   /**
     Query storage engine to see if it supports gap locks on this table.
   */
@@ -5990,6 +6004,17 @@ class handler {
   */
   virtual bool rpl_can_handle_stm_event() const noexcept { return true; }
 
+ protected:
+  static bool is_using_full_key(key_part_map keypart_map,
+                                uint actual_key_parts) noexcept;
+
+ public:
+  virtual int read_range_first(const key_range *start_key,
+                               const key_range *end_key, bool eq_range_arg,
+                               bool sorted);
+  virtual int read_range_next();
+
+ public:
   /**
     Set the end position for a range scan. This is used for checking
     for when to end the range scan and by the ICP code to determine
@@ -7416,7 +7441,7 @@ class handler {
 
   int get_lock_type() const { return m_lock_type; }
 
- public:
+public:
   /* Read-free replication interface */
 
   /**

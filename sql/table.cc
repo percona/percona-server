@@ -309,6 +309,12 @@ char *fn_rext(char *name) {
   return name + strlen(name);
 }
 
+const char *fn_rext(const char *name) {
+  const char *res = strrchr(name, '.');
+  if (res && !strcmp(res, reg_ext)) return res;
+  return name + strlen(name);
+}
+
 TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
                                   const LEX_CSTRING &name) {
   assert(db.str != nullptr);

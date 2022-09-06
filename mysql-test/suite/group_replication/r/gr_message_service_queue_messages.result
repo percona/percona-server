@@ -54,6 +54,7 @@ include/assert.inc [Server2 received view from server1 leaving the group]
 # 10. Remove debug point and release hold of messages
 # Removing debug point 'group_replication_message_service_hold_messages' from @@GLOBAL.debug
 SET DEBUG_SYNC= "now SIGNAL signal.notification_continue";
+SET DEBUG_SYNC= "RESET";
 
 # 11. Assert server2 received both messages transmitted by GR message
 #     delivery

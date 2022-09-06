@@ -56,6 +56,7 @@ WAIT_FOR_EXECUTED_GTID_SET('e70f06d2-eb85-11e5-b3b5-00212844d44e:1')
 # 6. Resume transaction T1, it will be send to the group for
 #    conflict detection and apply.
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC="RESET";
 SET @@GLOBAL.DEBUG= @debug_save;
 [connection server_1]
 [connection server1]

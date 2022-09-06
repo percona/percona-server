@@ -67,6 +67,7 @@ include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMI
 #
 # 9. Clean up.
 [connection server1]
+SET DEBUG_SYNC= "RESET";
 DROP TABLE t1;
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";

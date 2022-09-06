@@ -2565,18 +2565,6 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
 
   ut_a(err == DB_SUCCESS);
 
-  /* Try to read crypt_data from page 0 if it is not yet
-  read. */
-  if (!space->crypt_data) {
-    space->crypt_data =
-        fil_space_read_crypt_data(page_size_t(space->flags), page);
-    if (space->crypt_data &&
-        fil_set_encryption(space->id, Encryption::KEYRING, NULL,
-                           space->crypt_data->iv, false) != DB_SUCCESS) {
-      ut_ad(0);
-    }
-  }
-
   os_file_close(file->handle);
 
   uint32_t flags = fsp_header_get_flags(page);
@@ -6696,12 +6684,10 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
   ut_a(file != nullptr);
 
   /* For encryption tablespace, initial encryption information. */
-  if ((FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
-       df.m_encryption_key != nullptr) ||
-      crypt_data) {
-    dberr_t err = fil_set_encryption(
-        space->id, crypt_data ? Encryption::KEYRING : Encryption::AES,
-        df.m_encryption_key, crypt_data ? crypt_data->iv : df.m_encryption_iv);
+  if (FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
+      df.m_encryption_key != nullptr) {
+    dberr_t err = fil_set_encryption(space->id, Encryption::AES,
+                                     df.m_encryption_key, df.m_encryption_iv);
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_312, space->name);

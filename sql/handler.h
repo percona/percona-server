@@ -521,6 +521,11 @@ enum class SelectExecutedIn : bool { kPrimaryEngine, kSecondaryEngine };
   Supports multi-valued index
 */
 #define HA_MULTI_VALUED_KEY_SUPPORT (1LL << 55)
+/**
+  There is no need to evict the table from the table definition cache having run
+  ANALYZE TABLE on it
+*/
+#define HA_ONLINE_ANALYZE (1LL << 56)
 
 /*
   Bits in index_flags(index_number) for what you can do with index.
@@ -677,7 +682,8 @@ enum legacy_db_type {
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_TEMPTABLE,
-  DB_TYPE_FIRST_DYNAMIC = 42,
+  DB_TYPE_ROCKSDB = 42,
+  DB_TYPE_FIRST_DYNAMIC = 43,
   DB_TYPE_DEFAULT = 127  // Must be last
 };
 
@@ -3103,6 +3109,18 @@ inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_DISTANCE_SCAN{
 inline constexpr const decltype(
     handlerton::flags) HTON_NO_DEFAULT_ENGINE_SUPPORT{1 << 24};
 
+/** Start of Percona specific HTON_* defines */
+
+/**
+   Set if the storage engine supports 'online' backups. This means that there
+   exists a way to create a consistent copy of its tables without blocking
+   updates to them. If so, statements that update such tables will not be
+   affected by an active LOCK TABLES FOR BACKUP.
+*/
+#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 31)
+
+/** End of Percona specific HTON_* defines */
+
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
 
@@ -4856,6 +4874,17 @@ class handler {
   virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init() { cached_table_flags = table_flags(); }
+  /**
+    For MyRocks, secondary initialization that happens after frm is parsed into
+    field information from within open_binary_frm. MyRocks uses this secondary
+    init phase to analyze the key and field definitions to determine if
+    HA_PRIMARY_KEY_IN_READ_INDEX flag is available for the table as it only
+    supports that behavior for certain types of key combinations. The
+    HA_PRIMARY_KEY_IN_READ_INDEX flag is enabled by default till this method
+    invocation and can be disabled here in case it isn't supported.
+    Return values: false success, true failure.
+  */
+  virtual bool init_with_fields() { return false; }
   /* ha_ methods: public wrappers for private virtual API */
 
   /**
@@ -5674,6 +5703,23 @@ class handler {
     return index_read_last(buf, key, key_len);
   }
 
+ public:
+  /**
+    Query storage engine to see if it supports gap locks on this table.
+  */
+  virtual bool has_gap_locks() const noexcept { return false; }
+
+  /**
+    Query storage engine to see if it can support handling specific replication
+    method in its current configuration.
+  */
+  virtual bool rpl_can_handle_stm_event() const noexcept { return true; }
+
+ protected:
+  static bool is_using_full_key(key_part_map keypart_map,
+                                uint actual_key_parts) noexcept;
+
+ public:
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key, bool eq_range_arg,
                                bool sorted);
@@ -7105,6 +7151,25 @@ class handler {
   void set_ha_table(TABLE *table_arg) { table = table_arg; }
 
   int get_lock_type() const { return m_lock_type; }
+
+  /**
+     Determine whether the storage engine asks for row-based replication that
+     may skip the lookup of the old row image.
+
+     @return true if old rows should be read (the default)
+             false if old rows should not be read
+   */
+  virtual bool rpl_lookup_rows() { return true; }
+  /*
+     Storage engine hooks to be called before and after row write, delete, and
+     update events
+  */
+  virtual void rpl_before_write_rows() {}
+  virtual void rpl_after_write_rows() {}
+  virtual void rpl_before_delete_rows() {}
+  virtual void rpl_after_delete_rows() {}
+  virtual void rpl_before_update_rows() {}
+  virtual void rpl_after_update_rows() {}
 
   /**
     Callback function that will be called by my_prepare_gcolumn_template

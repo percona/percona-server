@@ -93,6 +93,20 @@ constexpr bool unlikely(bool expr) { return expr; }
 #define __func__ __FUNCTION__
 #endif
 
+#if defined(__cplusplus) && defined(__cpp_attributes) && \
+    defined(__has_cpp_attribute)
+#if __has_cpp_attribute(nodiscard)
+#define MY_NODISCARD [[nodiscard]]
+#elif __has_cpp_attribute(gnu::warn_unused_result)
+#define MY_NODISCARD [[gnu::warn_unused_result]]
+#endif /* __has_cpp_attribute(gnu::warn_unused_result) */
+#endif /* defined(__cplusplus) && defined(__cpp_attributes) && \
+          defined(__has_cpp_attribute) */
+
+#ifndef MY_NODISCARD
+#define MY_NODISCARD MY_ATTRIBUTE((warn_unused_result))
+#endif /* MY_NODISCARD */
+
 #if defined(_MSC_VER)
 #define ALWAYS_INLINE __forceinline
 #else

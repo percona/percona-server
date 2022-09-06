@@ -4315,6 +4315,7 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size);
 int set_zone(int nr, int min_zone, int max_zone);
 void append_unescaped(String *res, const char *pos, size_t length);
 char *fn_rext(char *name);
+const char *fn_rext(const char *name);
 TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
                                   const LEX_CSTRING &name);
 

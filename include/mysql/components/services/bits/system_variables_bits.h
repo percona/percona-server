@@ -75,6 +75,11 @@
 #define PLUGIN_VAR_PERSIST_AS_READ_ONLY 0x20000
 #define PLUGIN_VAR_INVISIBLE 0x40000 /**< Variable should not be shown */
 #define PLUGIN_VAR_SENSITIVE 0x80000 /**< Sensitive variable */
+/**
+  This flag enables variables to be recognized by SET_VAR() HINT. Should
+  be used only THDVAR() variables, ie variables which have session scope.
+ */
+#define PLUGIN_VAR_HINTUPDATEABLE 0x100000
 /** @} */
 
 /**

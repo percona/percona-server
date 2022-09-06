@@ -1,5 +1,3 @@
-RETURN() # MyRocks is disabled
-
 SET (ROCKSDB_DYNAMIC_PLUGIN 1)
 
 # by default MyRocks is not built
@@ -174,6 +172,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wnon-virtual-dtor)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-shadow-field FILES ha_rocksdb.cc rocksdb/memtable/hash_skiplist_rep.cc)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-nontrivial-memcall FILES rocksdb/port/mmap.cc)
 ENDIF()
 
 # Suppress warnings for clang-9 or older
@@ -224,10 +223,16 @@ ENDIF()
 # Suppress warnings for gcc-12 or newer
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
   IF(HAVE_AVX512F)
-    MESSAGE(STATUS "AVX-512: add -Wno-uninitialized for xxhash.cc (check https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105593)")
-    ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-uninitialized -Wno-maybe-uninitialized FILES rocksdb/util/xxhash.cc ${BUNDLED_LZ4_PATH}/xxhash.c)
+    MESSAGE(STATUS "AVX-512: add -Wno-uninitialized flag (check https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105593)")
+    append_cflags_if_supported(-Wno-maybe-uninitialized -Wno-uninitialized)
   ENDIF()
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/db/blob/blob_file_reader.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-restrict FILES rocksdb/table/iterator.cc rocksdb/table/unique_id.cc)
+ENDIF()
+
+# Suppress warnings for gcc-14 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-declarations FILES rocksdb/db/memtable.cc)
 ENDIF()
 
 # Suppress warnings for gcc ASan build
@@ -294,7 +299,7 @@ IF (WITH_LIBURING)
   ADD_DEFINITIONS(-DROCKSDB_IOURING_PRESENT)
 ENDIF()
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ext::zlib ext::zstd ext::lz4 extra::rapidjson "-ldl")
 IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
   SET(rocksdb_static_libs ${rocksdb_static_libs} "-lrt")
 ENDIF()
@@ -319,8 +324,6 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_cmd.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/utilities/blob_db/blob_dump_tool.cc
-    ${ROCKSDB_LIB_SOURCES}
-    ${ZSTD_SOURCES}
   )
   TARGET_LINK_LIBRARIES(rocksdb_tool rocksdb_sources)
 

@@ -945,6 +945,10 @@ const std::string &Arch_log_consumer::get_name() const {
   return name;
 }
 
+Log_consumer::consumer_type Arch_log_consumer::get_consumer_type() const {
+  return Log_consumer::consumer_type::SERVER;
+}
+
 lsn_t Arch_log_consumer::get_consumed_lsn() const {
   ut_a(arch_log_sys != nullptr);
   ut_a(arch_log_sys->is_active());

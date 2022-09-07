@@ -143,11 +143,6 @@ struct fil_space_rotate_state_t {
                               space */
   bool starting;              /*!< initial write of IV */
   bool flushing;              /*!< space is being flushed at end of rotate */
-  struct {
-    bool is_active;              /*!< is scrubbing active in this space */
-    time_t last_scrub_completed; /*!< when was last scrub
-                                 completed */
-  } scrubbing;
 
   trx_t *trx;
   Flush_observer *flush_observer;
@@ -347,18 +342,6 @@ struct fil_crypt_stat_t {
   ulint estimated_iops;
 };
 
-/** Status info about scrubbing */
-struct fil_space_scrub_status_t {
-  space_id_t space;                    /*!< tablespace id */
-  bool compressed;                     /*!< is space compressed  */
-  time_t last_scrub_completed;         /*!< when was last scrub completed */
-  bool scrubbing;                      /*!< is scrubbing ongoing */
-  time_t current_scrub_started;        /*!< when started current scrubbing */
-  ulint current_scrub_active_threads;  /*!< current scrub active threads */
-  ulint current_scrub_page_number;     /*!< current scrub page no */
-  ulint current_scrub_max_page_number; /*!< current scrub max page no */
-};
-
 struct redo_log_key final {
   uint version;
   char key[Encryption::KEY_LEN];
@@ -366,62 +349,6 @@ struct redo_log_key final {
   ulint write_count;
   bool present;
 };
-
-/** Handles the fetching/generation/storing/etc of keyring redo log keys.
-
-This class is *NOT* thread safe, as thread safety is not required.
-Data is only accessed/modified on the following points:
-* When the redo space is created, at startup
-* During redo log recovery, at startup
-* When the server UUID is generated, at startup
-* When the user requests a new key version, checked periodically in the
-   master thread
-
-As these can't happen in parallel, no lock is used. */
-class redo_log_keys final {
- public:
-  /** Loads the latest redo log key from the keyring.
-  @param[in]	generate If true, a key is generated if an existing key can't
-  be loaded. */
-  MY_NODISCARD
-  redo_log_key *load_latest_key(THD *thd, bool generate);
-  MY_NODISCARD
-  redo_log_key *load_key_version(THD *thd, const char *uuid, uint version);
-
-  MY_NODISCARD
-  redo_log_key *generate_and_store_new_key(THD *thd);
-
-  /** Fetch if exists default percona_redo key, in case it does not
-  exist - generate it in keyring. Should be used when server_uuid is not
-  yet available
-  @param[in] thd - connection thread
-  @return percona_redo default key */
-  MY_NODISCARD
-  redo_log_key *fetch_or_generate_default_key(THD *thd);
-
- private:
-  /**
-  Get KEYRING encryption redo key name
-  @param[in] - uuid key's UUID
-  @param[in] - key_version key's version
-  @return KEYRING encryption redo key name */
-  std::string get_key_name(const char *uuid, uint key_version);
-  /**
-  Get KEYRING encryption redo key name
-  @param[in] uuid - key's UUID
-  @return KEYRING encryption redo key name */
-  std::string get_key_name(const char *uuid);
-  /**
-  Get KEYRING encryption redo key name
-  @param[in,out]  oss - output string stream
-  @param[in] uuid - key's UUID */
-  void get_key_name(std::ostringstream &oss, const char *uuid);
-
-  using key_map = std::map<ulint, redo_log_key>;
-  key_map m_keys;
-};
-
-extern redo_log_keys redo_log_key_mgr;
 
 /**
 Exclude tablespace from encryption threads rotation. This is "permament"
@@ -621,15 +548,6 @@ void fil_space_crypt_get_status(const fil_space_t *space,
 Return crypt statistics
 @param[out]	stat		Crypt statistics */
 void fil_crypt_total_stat(fil_crypt_stat_t *stat);
-
-/**
-Get scrub status for a space (used by information_schema)
-
-@param[in]	space		Tablespace
-@param[out]	status		Scrub status
-return 0 if data found */
-void fil_space_get_scrub_status(const fil_space_t *space,
-                                fil_space_scrub_status_t *status);
 
 /**
 Checks if tablespace is encrypted with KEYRING encryption v1

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -202,20 +202,6 @@ void Tablespace::decrypt() {
 }
 
 void Tablespace::rotate_encryption_key() {
-  if (!is_encrypted()) {
-    return;
-  }
-
-  acquire();
-
-  fil_space_t *space = fil_space_get(m_space_id);
-
-  bool success = encryption_rotate_low(space);
-  if (!success) {
-    ib::warn(ER_XB_MSG_6, space->name);
-  }
-
-  release();
 }
 
 uint32_t Tablespace::file_id() const {

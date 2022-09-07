@@ -3,7 +3,7 @@
 
 --source include/shutdown_mysqld.inc
 
---let NEW_CMD=$MYSQLD $extra_args $KEYRING_PARAMS --datadir=$MYSQLD_DATADIR --innodb_redo_log_encrypt=MASTER_KEY --log-error=$MYSQLD_LOG;
+--let NEW_CMD=$MYSQLD $extra_args $KEYRING_PARAMS --datadir=$MYSQLD_DATADIR --innodb_redo_log_encrypt=ON --log-error=$MYSQLD_LOG;
 --error 1
 --exec $NEW_CMD
 

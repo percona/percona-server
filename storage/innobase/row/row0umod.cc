@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "ha_prototypes.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "mach0data.h"
 #include "que0que.h"
 #include "row0log.h"
@@ -206,7 +206,7 @@ introduced where a call to log_free_check() is bypassed. */
     ut_ad(trx_id_col != ULINT_UNDEFINED);
 
     offsets = rec_get_offsets(btr_cur_get_rec(btr_cur), btr_cur->index, nullptr,
-                              trx_id_col + 1, &heap);
+                              trx_id_col + 1, UT_LOCATION_HERE, &heap);
 
     /* nullptr for index as trx_id_col is physical here */
     trx_id_offset = rec_get_nth_field_offs(nullptr, offsets, trx_id_col, &len);
@@ -335,16 +335,6 @@ introduced where a call to log_free_check() is bypassed. */
         ut_o(break);
     }
   }
-
-  /**
-   * when scrubbing, and records gets cleared,
-   *   the transaction id is not present afterwards.
-   *   this is safe as: since the record is on free-list
-   *   it can be reallocated at any time after this mtr-commits
-   *   which is just below
-   */
-  ut_ad(srv_immediate_scrub_data_uncompressed ||
-        rec_get_trx_id(pcur->get_rec(), index) == node->new_trx_id);
 
   pcur->commit_specify_mtr(&mtr);
 
@@ -735,8 +725,9 @@ try_again:
           sizeof(upd_t) + dtuple_get_n_fields(entry) * sizeof(upd_field_t),
           UT_LOCATION_HERE);
       offsets_heap = nullptr;
-      offsets = rec_get_offsets(btr_cur_get_rec(btr_cur), index, nullptr,
-                                ULINT_UNDEFINED, &offsets_heap);
+      offsets =
+          rec_get_offsets(btr_cur_get_rec(btr_cur), index, nullptr,
+                          ULINT_UNDEFINED, UT_LOCATION_HERE, &offsets_heap);
       update = row_upd_build_sec_rec_difference_binary(
           btr_cur_get_rec(btr_cur), index, offsets, entry, heap);
       if (upd_get_n_fields(update) == 0) {

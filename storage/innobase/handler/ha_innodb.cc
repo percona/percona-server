@@ -96,6 +96,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "clone0clone.h"
 #include "dd/dd.h"
 #include "dd/dictionary.h"
+#include "dd/impl/bootstrap/bootstrap_ctx.h"
 #include "dd/properties.h"
 #include "dd/types/index.h"
 #include "dd/types/object_table.h"
@@ -129,8 +130,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lex_string.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0encryption.h"
 #include "log0meb.h"
 #include "log0online.h"
+#include "log0pfs.h"
+#include "log0pre_8_0_30.h"
+#include "log0write.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
 #include "my_compare.h"
@@ -172,7 +179,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread.h"
 #include "sql/auth/auth_common.h"
 #include "sql/item.h"
-#include "sql/json_dom.h"
 #include "sql_base.h"
 #include "srv0tmp.h"
 #include "trx0rec.h"
@@ -190,10 +196,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #endif /* !UNIV_HOTBACKUP */
 
-#include "json_binary.h"
-#include "json_dom.h"
+#include "log0files_io.h"
 
-#include "log0log.h"
+#include "sql-common/json_binary.h"
+#include "sql-common/json_dom.h"
+
 #include "os0enc.h"
 #include "os0file.h"
 
@@ -233,13 +240,21 @@ static bool intitialize_service_handles() {
     return false;
   }
 
+  /* During initialize, PFS is not ready. */
+  if (!opt_initialize &&
+      !log_pfs_acquire_services(innobase::component_services::reg_srv)) {
+    ib::warn(ER_IB_MSG_LOG_PFS_ACQUIRE_SERVICES_FAILED);
+  }
+
   return true;
 }
 
 /** Deinitialize compoent service handles */
 static void deinitialize_service_handles() {
   DBUG_TRACE;
-
+  if (!opt_initialize) {
+    log_pfs_release_services(reg_srv);
+  }
   innobase::encryption::deinit_keyring_services(reg_srv);
   if (reg_srv != nullptr) {
     mysql_plugin_registry_release(reg_srv);
@@ -294,8 +309,6 @@ static ulong innobase_commit_concurrency = 0;
 /* Boolean @@innodb_buffer_pool_in_core_file. */
 bool srv_buffer_pool_in_core_file = true;
 
-extern thread_local ulint ut_rnd_ulint_counter;
-
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
 static uint innobase_old_blocks_pct;
@@ -327,12 +340,6 @@ bool innobase_stats_on_metadata = true;
 static bool innodb_optimize_fulltext_only = false;
 
 static char *innodb_version_str = (char *)INNODB_VERSION_STR;
-
-extern bool srv_immediate_scrub_data_uncompressed;
-extern bool srv_background_scrub_data_uncompressed;
-extern bool srv_background_scrub_data_compressed;
-extern uint srv_background_scrub_data_interval;
-extern uint srv_background_scrub_data_check_interval;
 
 static Innodb_data_lock_inspector innodb_data_lock_inspector;
 
@@ -535,6 +542,17 @@ static TYPELIB innodb_default_row_format_typelib = {
     "innodb_default_row_format_typelib", innodb_default_row_format_names,
     nullptr};
 
+/** Possible values for system variable "innodb_doublewrite".
+@note: If you change order or add new values, please update dblwr::mode_t. */
+static const char *innodb_doublewrite_names[] = {
+    "OFF", "ON", "DETECT_ONLY", "DETECT_AND_RECOVER", "FALSE", "TRUE", NullS};
+
+/** Used to define an enumerate type of the system variable
+innodb_default_row_format. */
+static TYPELIB innodb_doublewrite_typelib = {
+    array_elements(innodb_doublewrite_names) - 1, "innodb_doublewrite_typelib",
+    innodb_doublewrite_names, nullptr};
+
 #else  /* !UNIV_HOTBACKUP */
 
 /** Returns the name of the checksum algorithm corresponding to the
@@ -573,12 +591,6 @@ static const char *sys_tablespace_encrypt_names[] = {
 static TYPELIB sys_tablespace_encrypt_typelib = {
     array_elements(sys_tablespace_encrypt_names) - 1,
     "sys_tablespace_encrypt_typelib", sys_tablespace_encrypt_names, nullptr};
-
-static const char *redo_log_encrypt_names[] = {"OFF", "ON", "MASTER_KEY",
-                                               "KEYRING_KEY", NullS};
-static TYPELIB redo_log_encrypt_typelib = {
-    array_elements(redo_log_encrypt_names) - 1, "redo_log_encrypt_typelib",
-    redo_log_encrypt_names, nullptr};
 
 #ifndef UNIV_HOTBACKUP
 /* The following counter is used to convey information to InnoDB
@@ -748,6 +760,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_limits_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_bmp_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_files_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_checkpointer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_closer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -767,6 +780,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(dblwr_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(recv_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(undo_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_sys_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -804,7 +818,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(trx_sys_serialisation_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(zip_pad_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(master_key_id_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(scrub_stat_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(sync_array_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(row_drop_list_mutex, 0, 0, PSI_DOCUMENT_ME)};
 #endif /* UNIV_PFS_MUTEX */
@@ -866,6 +879,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_THREAD_KEY(io_write_thread, "ib_io_wr", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(buf_resize_thread, "ib_buf_resize", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(log_files_governor_thread, "ib_log_files_g",
+                   PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_writer_thread, "ib_log_writer", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_checkpointer_thread, "ib_log_checkpt",
@@ -877,6 +892,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_THREAD_KEY(log_flush_notifier_thread, "ib_log_fl_notif",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(buf_lru_manager_thread, "ib_buf_lru", 0, 0,
+                   PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(recv_writer_thread, "ib_recv_write", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_error_monitor_thread, "ib_srv_err",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
@@ -904,7 +921,6 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_ts_alter_encrypt_thread, "ib_ts_encrypt",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
-    PSI_THREAD_KEY(log_scrub_thread, "ib_log_scr", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(parallel_read_thread, "ib_par_rd", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(parallel_rseg_init_thread, "ib_par_rseg", 0, 0,
                    PSI_DOCUMENT_ME),
@@ -1011,6 +1027,72 @@ uint innodb_force_index_records_in_range(THD *thd) {
 }
 
 uint innodb_records_in_range(THD *thd) { return THDVAR(thd, records_in_range); }
+
+/** Plugin update function to handle validation and then switch the
+innodb_doublewrite mode
+@param[in]  thd thread handle
+@param[in]  var pointer to system variable
+@param[in]  var_ptr where the formal string goes
+@param[in]  save  immediate result from check function */
+static void doublewrite_update(THD *thd [[maybe_unused]],
+                               SYS_VAR *var [[maybe_unused]], void *var_ptr,
+                               const void *save) {
+  ulong new_value = *static_cast<const ulong *>(save);
+
+  if (dblwr::Mode::is_enabled_to_disabled(new_value)) {
+    char msg[FN_REFLEN];
+    snprintf(msg, sizeof(msg),
+             "InnoDB: cannot change doublewrite mode to %s if"
+             " doublewrite is enabled. Please shutdown and"
+             " change value to %s",
+             dblwr::Mode::to_string(new_value),
+             dblwr::Mode::to_string(new_value));
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), msg);
+    return;
+  }
+
+  if (dblwr::Mode::is_disabled_to_enabled(new_value)) {
+    char msg[FN_REFLEN];
+    snprintf(msg, sizeof(msg),
+             "InnoDB: cannot change doublewrite mode to %s if"
+             " doublewrite is disabled. Please shutdown and"
+             " change value to %s",
+             dblwr::Mode::to_string(new_value),
+             dblwr::Mode::to_string(new_value));
+
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), msg);
+
+    return;
+  }
+
+  if (dblwr::Mode::is_same(new_value)) {
+    return;
+  }
+
+  /* Handle DETECT_AND_RECOVER to DETECT_ONLY
+  1. Check if DETECT_ONLY setup is already initalized. If not, intialize
+     DETECT_ONLY files and structures.
+  2. Flush the partially filled dblwr buffers. */
+  if (dblwr::Mode::is_reduced_low(new_value)) {
+    dberr_t err = dblwr::enable_reduced();
+    if (err != DB_SUCCESS) {
+      char msg[FN_REFLEN];
+      snprintf(msg, sizeof(msg),
+               "InnoDB: cannot change doublewrite mode to %s."
+               " Please check if doublewrite directory is writable"
+               " Error code: %d",
+               dblwr::Mode::to_string(new_value), err);
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), msg);
+      return;
+    }
+  }
+
+  /* Handle DETECT_ONLY to DETECT_AND_RECOVER.
+  1. Flush partially filled reduced dblwr buffers */
+  dblwr::force_flush_all();
+
+  *static_cast<ulong *>(var_ptr) = *static_cast<const ulong *>(save);
+}
 
 /** Set up InnoDB API callback function array */
 /*
@@ -1316,6 +1398,29 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_SCOPE_GLOBAL},
     {"ibuf_segment_size", (char *)&export_vars.innodb_ibuf_segment_size,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"redo_log_read_only", (char *)&export_vars.innodb_redo_log_read_only,
+     SHOW_BOOL, SHOW_SCOPE_GLOBAL},
+    {"redo_log_uuid", (char *)&export_vars.innodb_redo_log_uuid, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_checkpoint_lsn",
+     (char *)&export_vars.innodb_redo_log_checkpoint_lsn, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_current_lsn", (char *)&export_vars.innodb_redo_log_current_lsn,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"redo_log_flushed_to_disk_lsn",
+     (char *)&export_vars.innodb_redo_log_flushed_to_disk_lsn, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_logical_size", (char *)&export_vars.innodb_redo_log_logical_size,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"redo_log_physical_size",
+     (char *)&export_vars.innodb_redo_log_physical_size, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_capacity_resized",
+     (char *)&export_vars.innodb_redo_log_capacity_resized, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_resize_status",
+     (char *)&export_vars.innodb_redo_log_resize_status, SHOW_CHAR,
+     SHOW_SCOPE_GLOBAL},
     {"log_waits", (char *)&export_vars.innodb_log_waits, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"log_write_requests", (char *)&export_vars.innodb_log_write_requests,
@@ -1445,26 +1550,6 @@ static SHOW_VAR innodb_status_variables[] = {
     {"scan_deleted_recs_size",
      (char *)&export_vars.innodb_fragmentation_stats.scan_deleted_recs_size,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
-    {"scrub_log", (char *)&export_vars.innodb_scrub_log, SHOW_LONGLONG,
-     SHOW_SCOPE_GLOBAL},
-    {"scrub_background_page_reorganizations",
-     (char *)&export_vars.innodb_scrub_page_reorganizations, SHOW_LONG,
-     SHOW_SCOPE_GLOBAL},
-    {"scrub_background_page_splits",
-     (char *)&export_vars.innodb_scrub_page_splits, SHOW_LONG,
-     SHOW_SCOPE_GLOBAL},
-    {"scrub_background_page_split_failures_underflow",
-     (char *)&export_vars.innodb_scrub_page_split_failures_underflow, SHOW_LONG,
-     SHOW_SCOPE_GLOBAL},
-    {"scrub_background_page_split_failures_out_of_filespace",
-     (char *)&export_vars.innodb_scrub_page_split_failures_out_of_filespace,
-     SHOW_LONG, SHOW_SCOPE_GLOBAL},
-    {"scrub_background_page_split_failures_missing_index",
-     (char *)&export_vars.innodb_scrub_page_split_failures_missing_index,
-     SHOW_LONG, SHOW_SCOPE_GLOBAL},
-    {"scrub_background_page_split_failures_unknown",
-     (char *)&export_vars.innodb_scrub_page_split_failures_unknown, SHOW_LONG,
-     SHOW_SCOPE_GLOBAL},
     {"encryption_n_merge_blocks_encrypted",
      (char *)&export_vars.innodb_n_merge_blocks_encrypted, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
@@ -1710,6 +1795,13 @@ static int innobase_xa_recover(
     XA_recover_txn *txn_list, /*!< in/out: prepared transactions */
     uint len,                 /*!< in: number of slots in xid_list */
     MEM_ROOT *mem_root);      /*!< in: memory for table names */
+/** Find prepared transactions that are marked as prepared in TC, for recovery
+purposes.
+@param[in]     hton    InnoDB handlerton
+@param[in,out] xa_list prepared transactions state
+@return 0 if successful or error number */
+static int innobase_xa_recover_prepared_in_tc(handlerton *hton,
+                                              Xa_state_list &xa_list);
 /** This function is used to commit one X/Open XA distributed transaction
  which is in the prepared state
  @return 0 or error number */
@@ -1724,7 +1816,25 @@ static xa_status_code innobase_rollback_by_xid(
     handlerton *hton, /*!< in: InnoDB handlerton */
     XID *xid);        /*!< in: X/Open XA transaction
                       identification */
-/** Checks if the filename name is reserved in InnoDB.
+/** This function is used to write mark an X/Open XA distributed transaction
+as been prepared in the server transaction coordinator
+@param[in]     hton InnoDB handlerton
+@param[in]     thd  handle to the MySQL thread of the user whose XA transaction
+                    should be prepared
+@return 0 or error number */
+static int innobase_set_prepared_in_tc(handlerton *hton, THD *thd);
+/** Mark an X/Open XA distributed transaction
+as been prepared in the server transaction coordinator
+@param[in]     hton InnoDB handlerton
+@param[in]     xid  X/Open XA transaction identification the MySQL thread of the
+                    user whosefo the XA transaction that should be prepared
+@return XA_OK or error number */
+static xa_status_code innobase_set_prepared_in_tc_by_xid(handlerton *hton,
+                                                         XID *xid);
+/** Checks if the file name is reserved in InnoDB. Currently
+redo log file names from the old redo format (ib_logfile*)
+are reserved. There is no need to reserve file names from the
+newer redo formats, because they start with '#'.
 @return true if the name is reserved
 @param[in] hton handlerton of InnoDB
 @param[in] name Name of the database */
@@ -1776,20 +1886,23 @@ static void innodb_space_shutdown() {
 static int innodb_shutdown(handlerton *, ha_panic_function) {
   DBUG_TRACE;
 
-  hash_table_free(innobase_open_tables);
-  innobase_open_tables = nullptr;
-
-  for (auto file : innobase_sys_files) {
-    ut::delete_(file);
-  }
-  innobase_sys_files.clear();
-  innobase_sys_files.shrink_to_fit();
-
-  if (mutex_monitor) mutex_free(&master_key_id_mutex);
-  srv_shutdown();
-  innodb_space_shutdown();
-
   if (innodb_inited) {
+    log_pfs_delete_tables();
+
+    innodb_inited = false;
+    ut::delete_(innobase_open_tables);
+    innobase_open_tables = nullptr;
+
+    for (auto file : innobase_sys_files) {
+      ut::delete_(file);
+    }
+    innobase_sys_files.clear();
+    innobase_sys_files.shrink_to_fit();
+
+    mutex_free(&master_key_id_mutex);
+    srv_shutdown();
+    innodb_space_shutdown();
+
     mysql_mutex_destroy(&innobase_share_mutex);
     mysql_mutex_destroy(&commit_cond_m);
     mysql_cond_destroy(&commit_cond);
@@ -4471,11 +4584,11 @@ static void innobase_post_recover() {
     ut_ad(Encryption::check_keyring());
 
     if (srv_read_only_mode) {
-      ib::error(ER_IB_MSG_1242);
+      ib::error(ER_IB_MSG_LOG_FILES_CANNOT_ENCRYPT_IN_READ_ONLY);
       srv_redo_log_encrypt = false;
     } else {
       /* Enable encryption for REDO log */
-      if (srv_enable_redo_encryption(nullptr)) {
+      if (srv_enable_redo_encryption()) {
         srv_redo_log_encrypt = false;
         ut_d(ut_error);
       }
@@ -4493,6 +4606,14 @@ static void innobase_post_recover() {
   }
 
   srv_start_threads_after_ddl_recovery();
+
+  ut_a(innodb_inited);
+
+  if (!opt_initialize) {
+    if (!log_pfs_create_tables()) {
+      ib::warn(ER_IB_MSG_LOG_PFS_CREATE_TABLES_FAILED);
+    }
+  }
 }
 
 /**
@@ -4680,6 +4801,7 @@ rotation.
 bool innobase_encryption_key_rotation() {
   byte *master_key = nullptr;
   bool ret = false;
+  dberr_t err;
 
   /* Pause here to try other locks while this thread holds the backup locks. */
   DEBUG_SYNC_C("ib_pause_encryption_rotate");
@@ -4725,8 +4847,8 @@ bool innobase_encryption_key_rotation() {
     goto error_exit;
   }
 
-  /* Rotate log tablespace */
-  ret = !log_rotate_encryption();
+  err = log_encryption_on_master_key_changed(*log_sys);
+  ret = (err != DB_SUCCESS);
 
   /* If rotation failure, return error */
   if (ret) {
@@ -4755,51 +4877,6 @@ bool innobase_fix_default_table_encryption(ulong encryption_option, bool is_serv
   return false;
 }
 
-bool innobase_check_mk_keyring_exclusions(THD *thd, longlong dte_val) {
-  if (dte_val == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING ||
-      dte_val == DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
-    if (lock_keyrings(nullptr) == 0) {
-      my_printf_error(ER_WRONG_ARGUMENTS,
-                      "The default_table_encryption option cannot be changed, "
-                      "keyring plugin is not available",
-                      MYF(0));
-      return true;
-    }
-    if (!Encryption::is_keyring_alive()) {
-      my_printf_error(ER_WRONG_ARGUMENTS,
-                      "The default_table_encryption option cannot be changed, "
-                      "keyring plugin is installed but it seems it was not "
-                      "properly initialized.",
-                      MYF(0));
-      unlock_keyrings(nullptr);
-      return true;
-    }
-  }
-
-  if (dte_val == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING) {
-    if (srv_undo_log_encrypt == true) {
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          "Online encryption to KEYRING cannot be turned ON"
-                          " as Undo log Master Key encryption is turned ON."
-                          " Please disable the Undo log Master key encryption"
-                          " (innodb_undo_log_encrypt) and try again.");
-      return true;
-    }
-    if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-          "Online encryption to KEYRING cannot be turned ON"
-          " as system tablespace is encrypted with Master Key"
-          " encryption. In case you want system tablespace to"
-          " get re-encrypted with KEYRING encryption set"
-          " --innodb-sys_tablespace_encrypt to RE_ENCRYPTING_TO_KEYRING");
-      return true;
-    }
-  }
-
-  return false;
-}
-
 /** Fix the empty UUID of tablespaces like system, temp etc by generating
 a new master key and do key rotation. These tablespaces if encrypted
 during startup, will be encrypted with tablespace key which has empty UUID
@@ -4809,21 +4886,6 @@ bool innobase_fix_tablespaces_empty_uuid() {
   /* This API is called only after uuid is ready */
   srv_is_uuid_ready = true;
 #endif /* UNIV_DEBUG */
-
-  if (Encryption::get_master_key_id() == 0) {
-    /* We have to call srv_enable_redo_encryption during every startup, to
-       report errors generated in this function correctly. Without this call
-       here, some illegal configurations, such as enabling encryption without a
-       keyring are silently accepted, and result in errors later during the
-       server run. These functions are also called later, when the master key is
-       correctly set up, later in this function.
-     */
-    if (srv_enable_redo_encryption(nullptr)) {
-      srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-    } else {
-      log_rotate_default_key();
-    }
-  }
 
   /* If we are in read only mode, we cannot do rotation but it
   is OK */
@@ -4862,12 +4924,6 @@ bool innobase_fix_tablespaces_empty_uuid() {
     return (true);
   }
 
-  if (srv_enable_redo_encryption(nullptr)) {
-    srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-  } else {
-    log_rotate_default_key();
-  }
-
   /** Check if sys, temp need rotation to fix the empty uuid */
   space_id_vec space_ids;
 
@@ -4899,17 +4955,8 @@ bool innobase_fix_tablespaces_empty_uuid() {
   undo::spaces->s_unlock();
 
   /* Rotate log tablespace */
-  bool failure1 = !log_rotate_encryption();
-
-  bool failure2 = !fil_encryption_rotate_global(space_ids);
 
   my_free(master_key);
-
-  /* If rotation failure, return error */
-  if (failure1 || failure2) {
-    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-    return (true);
-  }
 
   return (false);
 }
@@ -4955,8 +5002,8 @@ static
 #endif /* !UNIV_HOTBACKUP */
     void
     innodb_log_checksums_func_update(bool check) {
-  log_checksum_algorithm_ptr =
-      check ? log_block_calc_checksum_crc32 : log_block_calc_checksum_none;
+  log_checksum_algorithm_ptr.store(check ? log_block_calc_checksum_crc32
+                                         : log_block_calc_checksum_none);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -5120,15 +5167,63 @@ static void innodb_buffer_pool_size_init() {
   }
 }
 
-/** Initialize and normalize innodb_log_file_size
-and innodb_log_files_in_group. */
-static int innodb_log_file_size_init() {
+template <size_t N>
+static bool innodb_variable_is_set(const char (&var_name)[N]) {
+  enum enum_variable_source source;
+  ut_a(sysvar_source_svc != nullptr);
+  const auto svc_result = sysvar_source_svc->get(var_name, N - 1, &source);
+  ut_a(!svc_result);
+  return source != COMPILED;
+}
+
+static bool innodb_redo_log_capacity_is_set() {
+  return innodb_variable_is_set("innodb_redo_log_capacity");
+}
+
+bool innodb_log_file_size_is_set() {
+  return innodb_variable_is_set("innodb_log_file_size");
+}
+
+bool innodb_log_n_files_is_set() {
+  return innodb_variable_is_set("innodb_log_files_in_group");
+}
+
+/** Initialize srv_redo_log_capacity / srv_redo_log_capacity_used. */
+static void innodb_redo_log_capacity_init() {
   DBUG_TRACE;
 
-  ut_a(srv_log_file_size % UNIV_PAGE_SIZE == 0);
-  ut_a(srv_log_file_size > 0);
+  ut_a(MB % UNIV_PAGE_SIZE == 0);
+  ut_a(srv_redo_log_capacity % MB == 0);
+  ut_a(srv_redo_log_capacity > 0);
 
-  if (srv_dedicated_server && sysvar_source_svc != nullptr) {
+  srv_redo_log_capacity_used = srv_redo_log_capacity;
+
+  if (sysvar_source_svc == nullptr) {
+    return;
+  }
+
+  const bool file_size_set = innodb_log_file_size_is_set();
+
+  const bool n_files_set = innodb_log_n_files_is_set();
+
+  bool capacity_set = innodb_redo_log_capacity_is_set();
+
+  if (capacity_set) {
+    if (file_size_set) {
+      ib::warn(ER_IB_MSG_LOG_PARAMS_FILE_SIZE_UNUSED);
+    }
+    if (n_files_set) {
+      ib::warn(ER_IB_MSG_LOG_PARAMS_N_FILES_UNUSED);
+    }
+  } else {
+    if (file_size_set || n_files_set) {
+      srv_redo_log_capacity_used = srv_log_file_size * srv_log_n_files;
+      capacity_set = true;  // do not change it in dedicated_server mode
+      ib::warn(ER_IB_MSG_LOG_PARAMS_LEGACY_USAGE, srv_redo_log_capacity_used);
+    }
+  }
+
+  if (srv_dedicated_server) {
     double auto_buf_pool_size_in_gb;
     static const char *var_name_buf_pool_size = "innodb_buffer_pool_size";
     enum enum_variable_source source;
@@ -5158,87 +5253,38 @@ static int innodb_log_file_size_init() {
       }
     }
 
-    /* If innodb_dedicated_server == ON and innodb_log_file_size is not set by
-    user. */
-    static const char *var_name_log_file_size = "innodb_log_file_size";
-    if (!sysvar_source_svc->get(
-            var_name_log_file_size,
-            static_cast<unsigned int>(strlen(var_name_log_file_size)),
-            &source)) {
-      if (source == COMPILED) {
-        if (auto_buf_pool_size_in_gb < 1.0) {
-          ;
-        } else if (auto_buf_pool_size_in_gb < 8.0) {
-          srv_log_file_size = 512ULL * MB;
-        } else if (auto_buf_pool_size_in_gb <= 128.0) {
-          srv_log_file_size = 1024ULL * MB;
-        } else {
-          srv_log_file_size = 2048ULL * MB;
-        }
+    if (!capacity_set) {
+      /* We update srv_redo_log_capacity (underlying sysvar variable),
+      because that is what innodb_dedicated_server is expected to do. */
+      if (auto_buf_pool_size_in_gb < 1.0) {
+        ut_ad(srv_redo_log_capacity == 100 * 1024 * 1024);
+      } else if (auto_buf_pool_size_in_gb < 8.0) {
+        srv_redo_log_capacity =
+            static_cast<ulong>(round(auto_buf_pool_size_in_gb)) * 512ULL * MB;
+      } else if (auto_buf_pool_size_in_gb <= 128.0) {
+        srv_redo_log_capacity =
+            static_cast<ulong>(round(auto_buf_pool_size_in_gb * 0.75)) * GB;
       } else {
-        ib::warn(ER_IB_MSG_535)
-            << " Option innodb_dedicated_server is ignored for "
-            << "innodb_log_file_size"
-            << " because innodb_log_file_size=" << srv_log_file_size
-            << " is specified explicitly.";
-      }
-    }
+        constexpr os_offset_t LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER = 128 * GB;
 
-    /* If innodb_dedicated_server == ON and innodb_log_files_in_group is not set
-    by user. */
-    static const char *var_name_log_files = "innodb_log_files_in_group";
-    if (!sysvar_source_svc->get(
-            var_name_log_files,
-            static_cast<unsigned int>(strlen(var_name_log_files)), &source)) {
-      if (source == COMPILED) {
-        if (auto_buf_pool_size_in_gb < 1.0) {
-          ;
-        } else if (auto_buf_pool_size_in_gb < 8.0) {
-          srv_n_log_files = static_cast<ulong>(round(auto_buf_pool_size_in_gb));
-        } else if (auto_buf_pool_size_in_gb <= 128.0) {
-          srv_n_log_files =
-              static_cast<ulong>(round(auto_buf_pool_size_in_gb * 0.75));
-        } else {
-          srv_n_log_files = 64;
-        }
+        static_assert(
+            LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER <= LOG_CAPACITY_MAX,
+            "Redo log capacity, for the dedicated server, is too big.");
 
-        srv_n_log_files = std::max<ulong>(srv_n_log_files, 2);
-      } else {
-        ib::warn(ER_IB_MSG_1271)
-            << " Option innodb_dedicated_server is ignored for "
-            << "innodb_log_files_in_group"
-            << " because innodb_log_files_in_group=" << srv_n_log_files
-            << " is specified explicitly.";
+        srv_redo_log_capacity = LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER;
       }
+      srv_redo_log_capacity_used = srv_redo_log_capacity;
+
+    } else {
+      ut_a(srv_redo_log_capacity_used % MB == 0);
+      ib::warn(ER_IB_MSG_LOG_PARAMS_DEDICATED_SERVER_IGNORED,
+               ulonglong{srv_redo_log_capacity_used / MB});
     }
   }
 
-  if (srv_n_log_files * srv_log_file_size >=
-      512ULL * 1024ULL * 1024ULL * 1024ULL) {
-    /* log_block_convert_lsn_to_no() limits the returned block
-    number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
-    bytes, then we have a limit of 512 GB. If that limit is to
-    be raised, then log_block_convert_lsn_to_no() must be
-    modified. */
-    ib::error(ER_IB_MSG_536) << "Combined size of log files must be < 512 GB";
-
-    return HA_ERR_INITIALIZATION;
-  }
-
-  if (srv_n_log_files * srv_log_file_size / UNIV_PAGE_SIZE >= PAGE_NO_MAX) {
-    /* fil_io() is used for IO to log files and it takes page_id_t
-    as an argument which uses page_no_t. So any page number must
-    be < PAGE_NO_MAX. This means that a redo log file size is
-    limited to PAGE_NO_MAX * UNIV_PAGE_SIZE which is 64 TB with
-    16k page size. */
-    ib::error(ER_IB_MSG_537)
-        << "Combined size of log files must be < "
-        << PAGE_NO_MAX / 1073741824 * UNIV_PAGE_SIZE << " GB";
-
-    return HA_ERR_INITIALIZATION;
-  }
-
-  return 0;
+  ut_a(LOG_CAPACITY_MIN <= srv_redo_log_capacity_used);
+  ut_a(srv_redo_log_capacity_used <= LOG_CAPACITY_MAX);
+  ut_a(srv_redo_log_capacity_used % MB == 0);
 }
 
 /** Initialize, validate and normalize the InnoDB startup parameters.
@@ -5471,7 +5517,7 @@ static int innodb_init_params() {
 
     /* There is no write except to intrinsic table and so turn-off
     doublewrite mechanism completely. */
-    dblwr::enabled = false;
+    dblwr::g_mode = dblwr::Mode::OFF;
   }
 
 #ifdef LINUX_NATIVE_AIO
@@ -5569,10 +5615,7 @@ static int innodb_init_params() {
   innodb_parallel_doublewrite_path_deprecate();
   innodb_parallel_dblwr_encrypt_deprecate();
 
-  int ret = innodb_log_file_size_init();
-  if (ret != 0) {
-    return ret;
-  }
+  innodb_redo_log_capacity_init();
 
   /* Set the original value back to show in help. */
   if (srv_buf_pool_size_org != 0) {
@@ -5642,8 +5685,11 @@ static int innodb_init(void *p) {
   innobase_hton->rollback = innobase_rollback;
   innobase_hton->prepare = innobase_xa_prepare;
   innobase_hton->recover = innobase_xa_recover;
+  innobase_hton->recover_prepared_in_tc = innobase_xa_recover_prepared_in_tc;
   innobase_hton->commit_by_xid = innobase_commit_by_xid;
   innobase_hton->rollback_by_xid = innobase_rollback_by_xid;
+  innobase_hton->set_prepared_in_tc = innobase_set_prepared_in_tc;
+  innobase_hton->set_prepared_in_tc_by_xid = innobase_set_prepared_in_tc_by_xid;
   innobase_hton->create = innobase_create_handler;
   innobase_hton->is_valid_tablespace_name = innobase_is_valid_tablespace_name;
   innobase_hton->alter_tablespace = innobase_alter_tablespace;
@@ -5670,11 +5716,12 @@ static int innodb_init(void *p) {
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
   innobase_hton->fill_is_table = innobase_fill_i_s_table;
-  innobase_hton->flags =
-      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
-      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
-      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
-      HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
+  innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
+                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
+                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
+                         HTON_SUPPORTS_TABLE_ENCRYPTION |
+                         HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS |
+                         HTON_SUPPORTS_GENERATED_INVISIBLE_PK;
 
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
@@ -5729,9 +5776,6 @@ static int innodb_init(void *p) {
 
   innobase_hton->fix_default_table_encryption =
       innobase_fix_default_table_encryption;
-
-  innobase_hton->check_mk_keyring_exclusions =
-      innobase_check_mk_keyring_exclusions;
 
   innobase_hton->redo_log_set_state = innobase_redo_set_state;
 
@@ -6193,7 +6237,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
 
   ibuf_max_size_update(srv_change_buffer_max_size);
 
-  innobase_open_tables = hash_create(200);
+  innobase_open_tables = ut::new_<hash_table_t>(200);
   mysql_mutex_init(innobase_share_mutex_key.m_value, &innobase_share_mutex,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(commit_cond_mutex_key.m_value, &commit_cond_m,
@@ -6933,7 +6977,7 @@ static void innobase_kill_connection(
 
   if (trx != nullptr) {
     /* Cancel a pending lock request if there are any */
-    lock_trx_handle_wait(trx);
+    lock_cancel_if_waiting_and_release({trx});
   }
 }
 
@@ -10251,7 +10295,7 @@ static dberr_t calc_row_difference(
         if (is_multi_value) {
           innobase_get_multi_value(prebuilt->m_mysql_table, i, vfield, nullptr,
                                    static_cast<uint>(old_row - new_row), comp,
-                                   uvect->heap);
+                                   uvect->per_stmt_heap);
         } else {
           buf = innodb_fill_old_vcol_val(prebuilt, vfield, o_len,
                                          old_mysql_row_col, col_pack_len, buf);
@@ -10268,6 +10312,8 @@ static dberr_t calc_row_difference(
       dfield_t old_field, new_field;
 
       ufield = uvect->fields + n_changed;
+
+      const auto old_old_v_val = ufield->old_v_val;
 
       UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
@@ -10292,7 +10338,7 @@ static dberr_t calc_row_difference(
 
         innobase_get_multi_value_and_diff(
             prebuilt->m_mysql_table, i, &old_field, &new_field,
-            static_cast<uint>(old_row - new_row), comp, uvect->heap);
+            static_cast<uint>(old_row - new_row), comp, uvect->per_stmt_heap);
 
         multi_value_calc_by_diff = true;
       }
@@ -10302,7 +10348,7 @@ static dberr_t calc_row_difference(
 
         if (is_multi_value && !multi_value_calc_by_diff) {
           innobase_get_multi_value(prebuilt->m_mysql_table, i, &dfield, nullptr,
-                                   0, comp, uvect->heap);
+                                   0, comp, uvect->per_stmt_heap);
         } else {
           buf = row_mysql_store_col_in_innobase_format(
               &dfield, (byte *)buf, true, new_mysql_row_col, col_pack_len, comp,
@@ -10328,11 +10374,17 @@ static dberr_t calc_row_difference(
       if (is_virtual) {
         dfield_t *vfield = dtuple_get_nth_v_field(uvect->old_vrow, num_v);
         upd_fld_set_virtual_col(ufield);
+        /* Set ufield->field_no to store the position of virtual column. */
         ufield->field_no = num_v;
 
         ut_ad(col->ord_part || online_ord_part);
-        ufield->old_v_val = static_cast<dfield_t *>(
-            mem_heap_alloc(uvect->heap, sizeof *ufield->old_v_val));
+        if (old_old_v_val == nullptr) {
+          ufield->old_v_val = static_cast<dfield_t *>(
+              mem_heap_alloc(uvect->heap, sizeof *ufield->old_v_val));
+        } else {
+          UNIV_MEM_VALID(ufield, sizeof *ufield);
+          ufield->old_v_val->reset();
+        }
 
         if (!field->is_null_in_record(old_row)) {
           if (n_len == UNIV_SQL_NULL) {
@@ -10340,9 +10392,10 @@ static dberr_t calc_row_difference(
           }
 
           if (is_multi_value && !multi_value_calc_by_diff) {
-            innobase_get_multi_value(
-                prebuilt->m_mysql_table, i, &dfield, nullptr,
-                static_cast<uint>(old_row - new_row), comp, uvect->heap);
+            innobase_get_multi_value(prebuilt->m_mysql_table, i, &dfield,
+                                     nullptr,
+                                     static_cast<uint>(old_row - new_row), comp,
+                                     uvect->per_stmt_heap);
           } else {
             buf = row_mysql_store_col_in_innobase_format(
                 &dfield, (byte *)buf, true, old_mysql_row_col, col_pack_len,
@@ -10365,6 +10418,8 @@ static dberr_t calc_row_difference(
         }
         num_v++;
       } else {
+        /* Set ufield->field_no to store the position of column in
+        clustered index. */
         ufield->field_no = dict_col_get_clust_pos(
             &prebuilt->table->cols[i - num_v], clust_index);
 #ifdef UNIV_DEBUG
@@ -10411,7 +10466,7 @@ static dberr_t calc_row_difference(
       if (is_multi_value) {
         innobase_get_multi_value(prebuilt->m_mysql_table, i, vfield, nullptr,
                                  static_cast<uint>(old_row - new_row), comp,
-                                 uvect->heap);
+                                 uvect->per_stmt_heap);
       } else {
         buf = innodb_fill_old_vcol_val(prebuilt, vfield, o_len,
                                        old_mysql_row_col, col_pack_len, buf);
@@ -13958,7 +14013,7 @@ static bool innobase_ddse_dict_init(
   assert(tables && tables->is_empty());
   assert(tablespaces && tablespaces->is_empty());
 
-  if (dblwr::enabled) {
+  if (dblwr::is_enabled()) {
     if (innobase_doublewrite_dir != nullptr && *innobase_doublewrite_dir != 0) {
       dblwr::dir.assign(innobase_doublewrite_dir);
       switch (dblwr::dir.front()) {
@@ -16372,7 +16427,9 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
     }
 
     if (is_instant) {
-      dd_clear_instant_table(*table_def, true);
+      if (dd_clear_instant_table(*table_def, true) != DB_SUCCESS) {
+        error = HA_ERR_GENERIC;
+      }
     }
   }
 
@@ -19096,11 +19153,6 @@ static bool innobase_get_tablespace_statistics(
   fil_type_t purpose = space->purpose;
 
   switch (purpose) {
-    case FIL_TYPE_LOG:
-      /* Do not report REDO LOGs to I_S.FILES */
-      space = nullptr;
-      ut_ad(!fsp_is_undo_tablespace(space_id));
-      return (DD_SUCCESS);
     case FIL_TYPE_TABLESPACE:
       if (fsp_is_undo_tablespace(space_id)) {
         type = "UNDO LOG";
@@ -19631,6 +19683,8 @@ int ha_innobase::end_stmt() {
   if (m_prebuilt->compress_heap) {
     row_mysql_prebuilt_free_compress_heap(m_prebuilt);
   }
+
+  m_prebuilt->end_stmt();
 
   reset_template();
 
@@ -20458,8 +20512,8 @@ static int innodb_show_rwlock_status(handlerton *hton, THD *thd,
     }
 
     buf1len = snprintf(buf1, sizeof buf1, "rwlock: %s:%lu",
-                       innobase_basename(rw_lock->cfile_name),
-                       static_cast<ulong>(rw_lock->cline));
+                       innobase_basename(rw_lock->clocation.filename),
+                       static_cast<ulong>(rw_lock->clocation.line));
 
     int buf2len;
     char buf2[IO_SIZE];
@@ -20481,8 +20535,8 @@ static int innodb_show_rwlock_status(handlerton *hton, THD *thd,
     char buf1[IO_SIZE];
 
     buf1len = snprintf(buf1, sizeof buf1, "sum rwlock: %s:%lu",
-                       innobase_basename(block_rwlock->cfile_name),
-                       static_cast<ulong>(block_rwlock->cline));
+                       innobase_basename(block_rwlock->clocation.filename),
+                       static_cast<ulong>(block_rwlock->clocation.line));
 
     int buf2len;
     char buf2[IO_SIZE];
@@ -20555,10 +20609,10 @@ static INNOBASE_SHARE *get_share(const char *table_name) {
 
   mysql_mutex_lock(&innobase_share_mutex);
 
-  ulint fold = ut_fold_string(table_name);
+  const auto hash_value = ut::hash_string(table_name);
 
-  HASH_SEARCH(table_name_hash, innobase_open_tables, fold, INNOBASE_SHARE *,
-              share, ut_ad(share->use_count > 0),
+  HASH_SEARCH(table_name_hash, innobase_open_tables, hash_value,
+              INNOBASE_SHARE *, share, ut_ad(share->use_count > 0),
               !strcmp(share->table_name, table_name));
 
   if (share == nullptr) {
@@ -20574,8 +20628,8 @@ static INNOBASE_SHARE *get_share(const char *table_name) {
     share->table_name =
         reinterpret_cast<char *>(memcpy(share + 1, table_name, length + 1));
 
-    HASH_INSERT(INNOBASE_SHARE, table_name_hash, innobase_open_tables, fold,
-                share);
+    HASH_INSERT(INNOBASE_SHARE, table_name_hash, innobase_open_tables,
+                hash_value, share);
 
     /* Index translation table initialization */
     share->idx_trans_tbl.index_mapping = nullptr;
@@ -20602,10 +20656,10 @@ static void free_share(
 
 #ifdef UNIV_DEBUG
   INNOBASE_SHARE *share2;
-  ulint fold = ut_fold_string(share->table_name);
+  const auto hash_value = ut::hash_string(share->table_name);
 
-  HASH_SEARCH(table_name_hash, innobase_open_tables, fold, INNOBASE_SHARE *,
-              share2, ut_ad(share->use_count > 0),
+  HASH_SEARCH(table_name_hash, innobase_open_tables, hash_value,
+              INNOBASE_SHARE *, share2, ut_ad(share->use_count > 0),
               !strcmp(share->table_name, share2->table_name));
 
   ut_a(share2 == share);
@@ -20614,10 +20668,10 @@ static void free_share(
   --share->use_count;
 
   if (share->use_count == 0) {
-    ulint fold = ut_fold_string(share->table_name);
+    const auto hash_value = ut::hash_string(share->table_name);
 
-    HASH_DELETE(INNOBASE_SHARE, table_name_hash, innobase_open_tables, fold,
-                share);
+    HASH_DELETE(INNOBASE_SHARE, table_name_hash, innobase_open_tables,
+                hash_value, share);
 
     /* Free any memory from index translation table */
     ut::free(share->idx_trans_tbl.index_mapping);
@@ -21311,6 +21365,13 @@ static int innobase_xa_recover(
   return (trx_recover_for_mysql(txn_list, len, mem_root));
 }
 
+static int innobase_xa_recover_prepared_in_tc(handlerton *hton,
+                                              Xa_state_list &xa_list) {
+  assert(hton == innodb_hton_ptr);
+
+  return (trx_recover_tc_for_mysql(xa_list));
+}
+
 /** This function is used to commit one X/Open XA distributed transaction
  which is in the prepared state
  @return 0 or error number */
@@ -21359,6 +21420,52 @@ static xa_status_code innobase_rollback_by_xid(
     trx_free_for_background(trx);
 
     return (ret != 0 ? XAER_RMERR : XA_OK);
+  } else {
+    return (XAER_NOTA);
+  }
+}
+
+static int innobase_set_prepared_in_tc(handlerton *hton, THD *thd) {
+  assert(hton == innodb_hton_ptr);
+  assert(thd != nullptr);
+
+  trx_t *trx = check_trx_exists(thd);
+  assert(trx != nullptr);
+
+  thd_get_xid(thd, (MYSQL_XID *)trx->xid);
+
+  innobase_srv_conc_force_exit_innodb(trx);
+
+  ut_ad(trx_is_registered_for_2pc(trx) || thd == nullptr);
+
+  dberr_t err = trx_set_prepared_in_tc_for_mysql(trx);
+  ut_ad(err != DB_FORCED_ABORT);
+
+  return convert_error_code_to_mysql(err, 0, thd);
+}
+
+static xa_status_code innobase_set_prepared_in_tc_by_xid(handlerton *hton,
+                                                         XID *xid) {
+  assert(hton == innodb_hton_ptr);
+  assert(xid != nullptr);
+
+  trx_t *trx = trx_get_trx_by_xid(xid);
+
+  if (trx != nullptr) {
+    /* Side effect of retrieving the transaction is XID being set to null */
+    *trx->xid = *xid;
+
+    if (trx_is_prepared_in_tc(trx)) {
+      return XA_OK;
+    }
+
+    innobase_srv_conc_force_exit_innodb(trx);
+
+    dberr_t err = trx_set_prepared_in_tc_for_mysql(trx);
+
+    ut_ad(err != DB_FORCED_ABORT);
+
+    return (err != DB_SUCCESS ? XAER_RMERR : XA_OK);
   } else {
     return (XAER_NOTA);
   }
@@ -22612,9 +22719,6 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
                           " encrypted with Master Key encryption"
                           " when online to KEYRING encryption is turned ON.");
       return 1;
-    } else if (check_mk_and_keyring_encrypt_exclusion_for_undo(true, thd) !=
-               DB_SUCCESS) {
-      return 1;
     }
   }
 
@@ -22644,7 +22748,7 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   mutex_enter(&undo::ddl_mutex);
 
   /* Enable encryption for UNDO tablespaces */
-  bool ret = srv_enable_undo_encryption(thd);
+  bool ret = srv_enable_undo_encryption(nullptr);
 
   if (!ret) {
     /* At this point, all UNDO tablespaces have been encrypted. */
@@ -22655,80 +22759,48 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   return (0);
 }
 
-static bool update_innodb_redo_log_encrypt(THD *thd, uint target);
-
 /** Validate the value of innodb_redo_log_encrypt global variable. This function
 is registered as a callback with MySQL.
-@param[in]      thd       thread handle
-@param[in]      var       pointer to system variable
-@param[in]      save      possibly updated variable value
-@param[in]      value     current variable value
+@param[in]	thd       thread handle
+@param[in]	var       pointer to system variable
+@param[in]	save      possibly updated variable value
+@param[in]	value     current variable value
 @return error code */
 static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
                                             struct st_mysql_value *value) {
-  const char *redo_log_encrypt_input;
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  int len = sizeof(buff);
-  redo_log_encrypt_input = value->val_str(value, buff, &len);
-
-  bool legit_value = false;
-  uint use = 0;
-  for (; use < array_elements(redo_log_encrypt_names) - 1; use++) {
-    if (innobase_strcasecmp(redo_log_encrypt_input,
-                            redo_log_encrypt_names[use]) == 0) {
-      legit_value = true;
-      break;
-    }
+  /* Call the default check function first. */
+  auto error = check_func_bool(thd, var, save, value);
+  if (error != 0) {
+    return (error);
   }
-
-  if (innobase_strcasecmp(redo_log_encrypt_input, "0") == 0) {
-    use = REDO_LOG_ENCRYPT_OFF;
-    legit_value = true;
-  }
-
-  if (innobase_strcasecmp(redo_log_encrypt_input, "false") == 0) {
-    use = REDO_LOG_ENCRYPT_OFF;
-    legit_value = true;
-  }
-
-  if (innobase_strcasecmp(redo_log_encrypt_input, "1") == 0) {
-    use = REDO_LOG_ENCRYPT_ON;
-    legit_value = true;
-  }
-
-  if (innobase_strcasecmp(redo_log_encrypt_input, "true") == 0) {
-    use = REDO_LOG_ENCRYPT_ON;
-    legit_value = true;
-  }
-
-  if (!legit_value) return 1;
+  bool target = *static_cast<bool *>(save);
 
   /* Set the default output to current value for all error cases. */
-  *static_cast<ulong *>(save) = srv_redo_log_encrypt;
+  *static_cast<bool *>(save) = srv_redo_log_encrypt;
 
-  if (srv_redo_log_encrypt == use) {
+  if (srv_redo_log_encrypt == target) {
     /* No change */
     return (0);
   }
 
   /* If encryption is to be disabled. This will just make sure I/O doesn't
   write REDO encrypted from now on. */
-  if (use == REDO_LOG_ENCRYPT_OFF) {
-    *static_cast<ulong *>(save) = REDO_LOG_ENCRYPT_OFF;
+  if (target == false) {
+    *static_cast<bool *>(save) = false;
     return (0);
   }
 
   if (srv_read_only_mode) {
-    ib::error(ER_IB_MSG_1242);
-    return (ER_IB_MSG_1242);
+    ib::error(ER_IB_MSG_LOG_FILES_CANNOT_ENCRYPT_IN_READ_ONLY);
+    return (0);
   }
 
   /* Enable encryption for REDO tablespaces */
-  bool ret = update_innodb_redo_log_encrypt(thd, use);
+  bool ret = srv_enable_redo_encryption();
 
   if (!ret) {
     /* At this point, REDO log is set to be encrypted. */
-    *static_cast<ulong *>(save) = use;
+    *static_cast<bool *>(save) = true;
   }
   return (0);
 }
@@ -23229,9 +23301,9 @@ static void checkpoint_now_set(THD *, SYS_VAR *, void *, const void *save) {
 
 /** Force InnoDB to do fuzzy checkpoint. Fuzzy checkpoint does not
 force InnoDB to flush dirty pages. It only forces to write the new
-checkpoint_lsn to the header of ib_logfile0. This LSN is where the
-recovery starts. You can read more about the fuzzy checkpoints in
-the internet.
+checkpoint_lsn to the header of the log file containing that LSN.
+This LSN is where the recovery starts. You can read more about the
+fuzzy checkpoints in the internet.
 @param[in]  save      immediate result from check function */
 static void checkpoint_fuzzy_now_set(THD *, SYS_VAR *, void *,
                                      const void *save) {
@@ -23439,6 +23511,40 @@ static void innodb_log_writer_threads_update(THD *, SYS_VAR *, void *var_ptr,
   log_control_writer_threads(*log_sys);
 }
 
+/** Update the system variable innodb_redo_log_capacity using the "saved"
+value. This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  save      immediate result from check function */
+static void innodb_redo_log_capacity_update(THD *thd, SYS_VAR *, void *,
+                                            const void *save) {
+  const auto new_value = *static_cast<const ulonglong *>(save);
+
+  ut_a(LOG_CAPACITY_MIN <= new_value);
+  ut_a(new_value <= LOG_CAPACITY_MAX);
+  ut_a(new_value % MB == 0);
+
+  srv_redo_log_capacity = new_value;
+
+  if (new_value == srv_redo_log_capacity_used) {
+    return;
+  }
+
+  srv_redo_log_capacity_used = new_value;
+
+  ib::info(ER_IB_MSG_LOG_FILES_CAPACITY_CHANGED,
+           srv_redo_log_capacity_used / MB);
+
+  log_files_resize_requested(*log_sys);
+
+  if (!log_sys->concurrency_margin_is_safe.load()) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "Current innodb_redo_log_capacity"
+                        " is too small for safety of redo log files."
+                        " Consider increasing it or decreasing"
+                        " innodb_thread_concurrency.");
+  }
+}
+
 /** Update the system variable innodb_thread_concurrency using the "saved"
 value. This function is registered as a callback with MySQL.
 @param[in]      thd       thread handle
@@ -23447,15 +23553,16 @@ static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *, void *,
                                              const void *save) {
   srv_thread_concurrency = *static_cast<const ulong *>(save);
 
-  if (!log_calc_concurrency_margin(*log_sys)) {
+  ib::info(ER_IB_MSG_THREAD_CONCURRENCY_CHANGED, srv_thread_concurrency);
+
+  log_files_thread_concurrency_updated(*log_sys);
+
+  if (!log_sys->concurrency_margin_is_safe.load()) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "Current innodb_thread_concurrency"
-                        " is too big for safety of log files."
-                        " Consider decreasing it or increase"
-                        " number of log files.");
-  } else {
-    ib::info(ER_IB_MSG_1270)
-        << "Set innodb_thread_concurrency to " << srv_thread_concurrency;
+                        " is too big for safety of redo log files."
+                        " Consider decreasing it or increasing"
+                        " innodb_redo_log_capacity.");
   }
 }
 
@@ -23647,59 +23754,6 @@ static void innodb_temp_tablespace_encryption_update(THD *thd, SYS_VAR *var,
   } else {
     *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
   }
-}
-
-/** Enable or disable encryption of redo logs
-@param[in]	thd	thread handle
-@param[in]	target new mode
-@return	true if error */
-static bool update_innodb_redo_log_encrypt(THD *thd, uint target) {
-  if (srv_redo_log_encrypt == target) {
-    /* No change */
-    return false;
-  }
-
-  if (target == REDO_LOG_ENCRYPT_OFF) {
-    return false;
-  }
-
-  if (existing_redo_encryption_mode != REDO_LOG_ENCRYPT_OFF &&
-      existing_redo_encryption_mode != target &&
-      !(existing_redo_encryption_mode == REDO_LOG_ENCRYPT_MK &&
-        target == REDO_LOG_ENCRYPT_ON)) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-              log_encrypt_name(existing_redo_encryption_mode),
-              log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
-    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                log_encrypt_name(existing_redo_encryption_mode),
-                log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
-    return true;
-  }
-
-  if (srv_read_only_mode) {
-    ib::error(ER_IB_MSG_1242);
-    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1242);
-    return true;
-  }
-
-  ut_ad(strlen(server_uuid) > 0);
-
-  if (!Encryption::check_keyring()) {
-    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_KEYRING);
-    ib::error(ER_REDO_ENCRYPTION_KEYRING);
-    return true;
-  }
-
-  if (target == REDO_LOG_ENCRYPT_MK || target == REDO_LOG_ENCRYPT_ON) {
-    return srv_enable_redo_encryption_mk(thd);
-  }
-
-  if (target == REDO_LOG_ENCRYPT_RK) {
-    return srv_enable_redo_encryption_rk(thd);
-  }
-
-  ut_ad(0);
-  return true;
 }
 
 static SHOW_VAR innodb_status_variables_export[] = {
@@ -24036,7 +24090,7 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment,
 static MYSQL_SYSVAR_BOOL(
     dedicated_server, srv_dedicated_server,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST | PLUGIN_VAR_READONLY,
-    "Automatically scale innodb_buffer_pool_size and innodb_log_file_size "
+    "Automatically scale innodb_buffer_pool_size and innodb_redo_log_capacity "
     "based on system memory. Also set innodb_flush_method=O_DIRECT_NO_FSYNC, "
     "if supported",
     nullptr, nullptr, false);
@@ -24143,11 +24197,11 @@ static MYSQL_SYSVAR_BOOL(use_fdatasync, srv_use_fdatasync, PLUGIN_VAR_NOCMDARG,
                          nullptr, nullptr, false);
 
 // clang-format off
-static MYSQL_SYSVAR_BOOL(
-    doublewrite, dblwr::enabled, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+static MYSQL_SYSVAR_ENUM(
+    doublewrite, dblwr::g_mode, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
     "Enable InnoDB doublewrite buffer (enabled by default)."
     " Disable with --skip-innodb-doublewrite.",
-    nullptr, nullptr, true);
+    nullptr, doublewrite_update, dblwr::Mode::ON, &innodb_doublewrite_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     extend_and_initialize, tbsp_extend_and_initialize, PLUGIN_VAR_NOCMDARG,
@@ -24410,19 +24464,23 @@ static MYSQL_SYSVAR_ULONG(
     nullptr, innodb_log_buffer_size_update, INNODB_LOG_BUFFER_SIZE_DEFAULT,
     INNODB_LOG_BUFFER_SIZE_MIN, INNODB_LOG_BUFFER_SIZE_MAX, 1024);
 
-static MYSQL_SYSVAR_ULONGLONG(log_file_size, srv_log_file_size,
-                              PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                              "Size of each log file (in bytes).", nullptr,
-                              nullptr, 48 * 1024 * 1024L, 4 * 1024 * 1024L,
-                              ULLONG_MAX, 1024 * 1024L);
+static MYSQL_SYSVAR_ULONGLONG(
+    log_file_size, srv_log_file_size, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Size of each log file before upgrading to 8.0.30. Deprecated.", nullptr,
+    nullptr, 48 * 1024 * 1024L, 4 * 1024 * 1024L, ULLONG_MAX, 1024 * 1024L);
 
 static MYSQL_SYSVAR_ULONG(
-    log_files_in_group, srv_n_log_files,
+    log_files_in_group, srv_log_n_files,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of log files (when multiplied by innodb_log_file_size gives total "
-    "size"
-    " of log files). InnoDB writes to files in a circular fashion.",
-    nullptr, nullptr, 2, 2, SRV_N_LOG_FILES_MAX, 0);
+    "Number of log files before upgrading to 8.0.30. Deprecated.", nullptr,
+    nullptr, 2, 2, 100, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(
+    redo_log_capacity, srv_redo_log_capacity,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,
+    "Limitation for total size of redo log files on disk (expressed in bytes).",
+    nullptr, innodb_redo_log_capacity_update, 100 * 1024 * 1024,
+    LOG_CAPACITY_MIN, LOG_CAPACITY_MAX, MB);
 
 #ifdef UNIV_DEBUG_DEDICATED
 static MYSQL_SYSVAR_ULONG(
@@ -24539,11 +24597,13 @@ static MYSQL_SYSVAR_ULONG(
     " for new data to write without sleeping.",
     NULL, NULL, INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
+extern ulong srv_log_writer_timeout;
 static MYSQL_SYSVAR_ULONG(
     log_writer_timeout, srv_log_writer_timeout, PLUGIN_VAR_RQCMDARG,
     "Initial timeout used to wait on event in log writer thread (microseconds)",
     NULL, NULL, INNODB_LOG_WRITER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
 
+extern ulong srv_log_checkpoint_every;
 static MYSQL_SYSVAR_ULONG(
     log_checkpoint_every, srv_log_checkpoint_every, PLUGIN_VAR_RQCMDARG,
     "Checkpoints are executed at least every that many milliseconds.", NULL,
@@ -24703,22 +24763,6 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
                           FSP_IMPLICIT_UNDO_TABLESPACES, /* Default seting */
                           FSP_MIN_UNDO_TABLESPACES,      /* Minimum value */
                           FSP_MAX_UNDO_TABLESPACES, 0);  /* Maximum value */
-
-static MYSQL_SYSVAR_BOOL(immediate_scrub_data_uncompressed,
-                         srv_immediate_scrub_data_uncompressed, 0,
-                         "Enable scrubbing of data", NULL, NULL, false);
-
-static MYSQL_SYSVAR_BOOL(
-    scrub_log, srv_scrub_log, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Enable background redo log (ib_logfile0, ib_logfile1...) scrubbing", 0, 0,
-    0);
-
-static MYSQL_SYSVAR_ULONGLONG(
-    scrub_log_speed, innodb_scrub_log_speed, PLUGIN_VAR_OPCMDARG,
-    "Background redo log scrubbing speed in bytes/sec", NULL, NULL,
-    256,       /* 256 bytes/sec, corresponds to 2000 ms scrub_log_interval */
-    1,         /* min */
-    50000, 0); /* 50Kbyte/sec, corresponds to 10 ms scrub_log_interval */
 
 static MYSQL_SYSVAR_ULONGLONG(
     max_undo_log_size, srv_max_undo_tablespace_size, PLUGIN_VAR_OPCMDARG,
@@ -24980,12 +25024,10 @@ static MYSQL_SYSVAR_STR(
     /*validate_func*/ meb::validate_redo_log_archive_dirs,
     /*update_func*/ nullptr, /*default*/ nullptr);
 
-static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
-                         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
-                         "Enable or disable Encryption of REDO tablespace."
-                         "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
-                         validate_innodb_redo_log_encrypt, nullptr,
-                         REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
+                         PLUGIN_VAR_OPCMDARG,
+                         "Enable or disable Encryption of REDO tablespace.",
+                         validate_innodb_redo_log_encrypt, nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(
     print_ddl_logs, srv_print_ddl_logs, PLUGIN_VAR_OPCMDARG,
@@ -25165,33 +25207,6 @@ static MYSQL_SYSVAR_UINT(encryption_rotation_iops, srv_n_fil_crypt_iops,
                          innodb_encryption_rotation_iops_update,
                          srv_n_fil_crypt_iops, 0, UINT_MAX32, 0);
 
-static MYSQL_SYSVAR_BOOL(background_scrub_data_uncompressed,
-                         srv_background_scrub_data_uncompressed, 0,
-                         "Enable scrubbing of uncompressed data by "
-                         "background threads (same as encryption_threads)",
-                         NULL, NULL, false);
-
-static MYSQL_SYSVAR_BOOL(background_scrub_data_compressed,
-                         srv_background_scrub_data_compressed, 0,
-                         "Enable scrubbing of compressed data by "
-                         "background threads (same as encryption_threads)",
-                         NULL, NULL, false);
-
-static MYSQL_SYSVAR_UINT(background_scrub_data_check_interval,
-                         srv_background_scrub_data_check_interval, 0,
-                         "check if spaces needs scrubbing every "
-                         "innodb_background_scrub_data_check_interval "
-                         "seconds",
-                         NULL, NULL, srv_background_scrub_data_check_interval,
-                         1, UINT_MAX32, 0);
-
-static MYSQL_SYSVAR_UINT(background_scrub_data_interval,
-                         srv_background_scrub_data_interval, 0,
-                         "scrub spaces that were last scrubbed longer than "
-                         " innodb_background_scrub_data_interval seconds ago",
-                         NULL, NULL, srv_background_scrub_data_interval, 1,
-                         UINT_MAX32, 0);
-
 static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(api_trx_level),
     MYSQL_SYSVAR(api_bk_commit_interval),
@@ -25262,6 +25277,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_buffer_size),
     MYSQL_SYSVAR(log_file_size),
     MYSQL_SYSVAR(log_files_in_group),
+    MYSQL_SYSVAR(redo_log_capacity),
 #ifdef UNIV_DEBUG_DEDICATED
     MYSQL_SYSVAR(debug_sys_mem_size),
 #endif /* UNIV_DEBUG_DEDICATED */
@@ -25441,13 +25457,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(encryption_rotate_key_age),
     MYSQL_SYSVAR(encryption_rotation_iops),
     MYSQL_SYSVAR(default_encryption_key_id),
-    MYSQL_SYSVAR(immediate_scrub_data_uncompressed),
-    MYSQL_SYSVAR(background_scrub_data_uncompressed),
-    MYSQL_SYSVAR(background_scrub_data_compressed),
-    MYSQL_SYSVAR(background_scrub_data_interval),
-    MYSQL_SYSVAR(background_scrub_data_check_interval),
-    MYSQL_SYSVAR(scrub_log),
-    MYSQL_SYSVAR(scrub_log_speed),
     MYSQL_SYSVAR(records_in_range),
     MYSQL_SYSVAR(force_index_records_in_range),
     nullptr};
@@ -25480,7 +25489,6 @@ mysql_declare_plugin(innobase){
     i_s_innodb_tablestats, i_s_innodb_indexes, i_s_innodb_tablespaces,
     i_s_innodb_columns, i_s_innodb_virtual, i_s_innodb_cached_indexes,
     i_s_innodb_session_temp_tablespaces, i_s_innodb_tablespaces_encryption,
-    i_s_innodb_tablespaces_scrubbing,
     i_s_innodb_changed_pages
 
     mysql_declare_plugin_end;
@@ -25763,6 +25771,8 @@ dfield_t *innobase_get_computed_value(
   /* Specify the column the server should evaluate */
   bitmap_set_bit(&column_map, col->m_col.ind);
 
+  Temp_table_handle tblhdl;
+
   if (mysql_table == nullptr) {
     if (vctempl->type == DATA_BLOB) {
       ulint max_len;
@@ -25782,20 +25792,17 @@ dfield_t *innobase_get_computed_value(
                                0, 0, compress_heap);
     }
 
-    {
-      innodb_session_dict_mutex_guard_t guard(*thd_to_innodb_session(thd));
-      ret = handler::my_eval_gcolumn_expr_with_open(
-          thd, index->table->vc_templ->db_name.c_str(),
-          index->table->vc_templ->tb_name.c_str(), &column_map,
-          (uchar *)mysql_rec,
-          (col->m_col.is_multi_value() ? &mv_data_ptr : nullptr),
-          (col->m_col.is_multi_value() ? &mv_length : nullptr));
-    }
-  } else {
+    /* open a temporary table handle */
+    mysql_table = tblhdl.open(thd, index->table->vc_templ->db_name.c_str(),
+                              index->table->vc_templ->tb_name.c_str());
+  }
+  if (mysql_table) {
     ret = handler::my_eval_gcolumn_expr(
         thd, mysql_table, &column_map, (uchar *)mysql_rec,
         (col->m_col.is_multi_value() ? &mv_data_ptr : nullptr),
         (col->m_col.is_multi_value() ? &mv_length : nullptr));
+  } else {
+    return nullptr;
   }
 
   if (ret != 0) {
@@ -26274,7 +26281,7 @@ static bool innodb_check_fk_column_compat(
 
 static bool innobase_check_reserved_file_name(handlerton *, const char *name) {
   CHARSET_INFO *ci = system_charset_info;
-  size_t logname_size = strlen(ib_logfile_basename);
+  size_t logname_size = strlen(log_pre_8_0_30::FILE_BASE_NAME);
 
   /* Name is smaller than reserved name */
   if (strlen(name) < logname_size) {
@@ -26282,7 +26289,10 @@ static bool innobase_check_reserved_file_name(handlerton *, const char *name) {
   }
   /* Do case insensitive comparison for name. */
   for (uint i = 0; i < logname_size; i++) {
-    if (my_tolower(ci, name[i]) != ib_logfile_basename[i]) {
+    ut_ad(!my_isalpha(ci, log_pre_8_0_30::FILE_BASE_NAME[i]) ||
+          my_islower(ci, log_pre_8_0_30::FILE_BASE_NAME[i]));
+
+    if (my_tolower(ci, name[i]) != log_pre_8_0_30::FILE_BASE_NAME[i]) {
       return (false);
     }
   }

@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "system_key.h"
 #ifndef UNIV_INNOCHECKSUM
 #include <my_crypt.h>
-#include "btr0scrub.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "fil0crypt.h"
@@ -109,11 +108,6 @@ static bool fil_crypt_start_converting = false;
 uint srv_n_fil_crypt_iops = 100;  // 10ms per iop
 static uint srv_alloc_time = 3;   // allocate iops for 3s at a time
 static uint n_fil_crypt_iops_allocated = 0;
-
-extern uint srv_background_scrub_data_interval;
-extern uint srv_background_scrub_data_check_interval;
-extern bool srv_background_scrub_data_uncompressed;
-extern bool srv_background_scrub_data_compressed;
 
 extern bool mysqld_server_started;
 
@@ -1493,7 +1487,6 @@ bool fil_crypt_exclude_tablespace_from_rotation_temporarily(
   // crypt_data already existed.
   fil_space_crypt_t *crypt_data = space->crypt_data;
   // take a lock on crypt_data to block rotation from starting
-  IB_mutex_guard crypt_data_mutex_guard(&crypt_data->mutex);
 
   // if there are any encryption threads "running" on this tablespace we cannot
   // exclude it from rotation.
@@ -1533,7 +1526,6 @@ bool fil_crypt_exclude_tablespace_from_rotation_permanently(
 
   // crypt_data already existed.
   fil_space_crypt_t *crypt_data = space->crypt_data;
-  IB_mutex_guard crypt_data_mutex_guard(&crypt_data->mutex);
 
   if (crypt_data->encryption == FIL_ENCRYPTION_OFF) {
     // nothing to do
@@ -1685,19 +1677,6 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
   crypt_data->rotate_state.starting = true;
   crypt_data->rotate_state.active_threads = 1;
 
-  if (space->encryption_type == Encryption::AES) {  // We are re-encrypting
-                                                    // space from MK encryption
-                                                    // to RK encryption
-    // TODO: assert that space->encryption_key is all zeroes here
-    crypt_data->encryption_rotation =
-        Encryption_rotation::MASTER_KEY_TO_KEYRING;
-    crypt_data->set_tablespace_key(space->encryption_key);
-    crypt_data->set_iv(
-        space->encryption_iv);  // using the same iv for reading MK encrypted
-                                // pages and encrypting KEYRING encrypted
-                                // pages
-  }
-
   if (crypt_data->key_found == false ||
       crypt_data->load_keys_to_local_cache() == false) {
     // This should not happen, we have locked the keyring before encryption
@@ -1717,9 +1696,6 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
   crypt_data = fil_space_set_crypt_data(space, crypt_data);
   mutex_exit(&crypt_data->mutex);
 
-  space->encryption_type = Encryption::KEYRING;  // This works like this - if
-                                                 // Encryption::KEYRING is set -
-                                                 // it means that
   fil_crypt_start_converting = true;
   mutex_exit(&fil_crypt_threads_mutex);
 
@@ -1808,8 +1784,6 @@ struct rotate_thread_t {
   uintmax_t sum_waited_us; /*!< wait time during this slot */
 
   fil_crypt_stat_t crypt_stat;  // statistics
-  btr_scrub_t scrub_data; /*< thread local data used by btr_scrub-functions
-                              when iterating pages of tablespace */
 
   THD *thd;  // We need THD object to be able to update
              // tablespace's DD encryption flag
@@ -1937,8 +1911,6 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
     }
   }
 
-  const bool space_compressed = space->compression_type != Compression::NONE;
-
   do {
     /* prevent threads from starting to rotate space */
     if (crypt_data->rotate_state.starting) {
@@ -1978,18 +1950,7 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
               // pages to rotate
     }
 
-    crypt_data->rotate_state.scrubbing.is_active =
-        btr_scrub_start_space(space->id, &state->scrub_data, space_compressed);
-    time_t diff =
-        time(0) - crypt_data->rotate_state.scrubbing.last_scrub_completed;
-    btr_scrub_start_space(space->id, &state->scrub_data, space_compressed);
-
-    bool need_scrubbing = (srv_background_scrub_data_uncompressed ||
-                           srv_background_scrub_data_compressed) &&
-                          crypt_data->rotate_state.scrubbing.is_active &&
-                          diff >= 0 &&
-                          ulint(diff) >= srv_background_scrub_data_interval;
-    if (need_key_rotation == false && need_scrubbing == false) {
+    if (need_key_rotation == false) {
       break;
     }
 
@@ -2577,32 +2538,6 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
 }
 
 /***********************************************************************
-Get block and allocation status
- note: innodb locks fil_space_latch and then block when allocating page
-but locks block and then fil_space_latch when freeing page.
- @param[in,out]          state           Rotation state
-@param[in]              offset          Page offset
-@param[in,out]          mtr             Minitransaction
-@param[out]             allocation_status Allocation status
-@param[out]             sleeptime_ms    Sleep time
-@return block or NULL
-*/
-static buf_block_t *btr_scrub_get_block_and_allocation_status(
-    rotate_thread_t *state, fseg_header_t *seg, ulint offset, mtr_t *mtr,
-    btr_scrub_page_allocation_status_t *allocation_status,
-    ulint *sleeptime_ms) {
-  mtr_t local_mtr;
-  buf_block_t *block = NULL;
-  mtr_start(&local_mtr);
-  mtr_commit(&local_mtr);
-  block = fil_crypt_get_page_throttle(state, offset, mtr, sleeptime_ms);
-  *allocation_status = block->page.state == BUF_BLOCK_NOT_USED
-                           ? BTR_SCRUB_PAGE_FREE
-                           : BTR_SCRUB_PAGE_ALLOCATED;
-  return block;
-}
-
-/***********************************************************************
 Rotate one page
 @param[in,out]		key_state		Key state
 @param[in,out]		state			Rotation state */
@@ -2639,8 +2574,6 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
                                       // will rotate those pages again after
                                       // restart - when encryption threads
                                       // discover that there is work to do.
-
-  int needs_scrubbing = BTR_SCRUB_SKIP_PAGE;
 
   if (buf_block_t *block =
           fil_crypt_get_page_throttle(state, offset, &mtr, &sleeptime_ms)) {
@@ -2706,8 +2639,6 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
           state->min_key_version_found = kv;
         }
       }
-      needs_scrubbing = btr_page_needs_scrubbing(
-          &state->scrub_data, block, BTR_SCRUB_PAGE_ALLOCATION_UNKNOWN);
     }
 
     mtr.commit();
@@ -2718,50 +2649,6 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
     ut_ad(mtr.get_memo()->size() == 0);
     ut_ad(mtr.get_log()->size() == 0);
     mtr.commit();
-  }
-
-  if (needs_scrubbing == BTR_SCRUB_PAGE) {
-    mtr.start();
-    btr_scrub_page_allocation_status_t allocated =
-        BTR_SCRUB_PAGE_ALLOCATION_UNKNOWN;
-    buf_block_t *block = btr_scrub_get_block_and_allocation_status(
-        state, NULL, offset, &mtr, &allocated, &sleeptime_ms);
-    if (block) {
-      // mtr.set_named_space(space);
-      /* get required table/index and index-locks */
-      needs_scrubbing =
-          btr_scrub_recheck_page(&state->scrub_data, block, allocated, &mtr);
-      if (needs_scrubbing == BTR_SCRUB_PAGE) {
-        /* we need to refetch it once more now that we have
-         * index locked */
-        block = btr_scrub_get_block_and_allocation_status(
-            state, NULL, offset, &mtr, &allocated, &sleeptime_ms);
-        needs_scrubbing =
-            btr_scrub_page(&state->scrub_data, block, allocated, &mtr);
-      }
-      /* NOTE: mtr is committed inside btr_scrub_recheck_page()
-       * and/or btr_scrub_page. This is to make sure that
-       * locks & pages are latched in corrected order,
-       * the mtr is in some circumstances restarted.
-       * (mtr_commit() + mtr_start())
-       */
-    }
-  }
-  if (needs_scrubbing != BTR_SCRUB_PAGE) {
-    /* if page didn't need scrubbing it might be that cleanups
-       are needed. do those outside of any mtr to prevent deadlocks.
-       the information what kinds of cleanups that are needed are
-       encoded inside the needs_scrubbing, but this is opaque to
-       this function (except the value BTR_SCRUB_PAGE) */
-    btr_scrub_skip_page(&state->scrub_data, needs_scrubbing);
-  }
-  if (needs_scrubbing == BTR_SCRUB_TURNED_OFF) {
-    /* if we just detected that scrubbing was turned off
-     * update global state to reflect this */
-    ut_ad(crypt_data);
-    mutex_enter(&crypt_data->mutex);
-    crypt_data->rotate_state.scrubbing.is_active = false;
-    mutex_exit(&crypt_data->mutex);
   }
 
   if (sleeptime_ms) {
@@ -3296,7 +3183,6 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
   }
 
   ulint number_of_pages_flushed_now = 0;
-  log_free_check();
   const auto start = std::chrono::steady_clock::now();
 
   crypt_data->rotate_state.flush_observer->flush();
@@ -3474,21 +3360,7 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
         if (strcmp(state->space->name, "test/t1") == 0 &&
             number_of_t1_pages_rotated >= 100) should_flush = true;);
 
-    /* inform scrubbing */
-    crypt_data->rotate_state.scrubbing.is_active = false;
-
     mutex_exit(&crypt_data->mutex);
-
-    if (state->scrub_data.scrubbing) {
-      btr_scrub_complete_space(&state->scrub_data);
-      if (should_flush) {
-        // only last thread updates last_scrub_completed
-        ut_ad(crypt_data);
-        mutex_enter(&crypt_data->mutex);
-        crypt_data->rotate_state.scrubbing.last_scrub_completed = time(0);
-        mutex_exit(&crypt_data->mutex);
-      }
-    }
 
     if (should_flush) {
       if (fil_crypt_flush_space(state) == DB_SUCCESS) {
@@ -3577,8 +3449,6 @@ void fil_crypt_thread() {
 
   while (!thr.should_shutdown()) {
     key_state_t new_state;
-    time_t wait_start = time(0);
-
     while (!thr.should_shutdown()) {
       /* wait for key state changes
        * i.e either new key version of change or
@@ -3599,13 +3469,6 @@ void fil_crypt_thread() {
         break;
       }
 
-      time_t waited = time(0) - wait_start;
-      if (waited >= 0 &&
-          ulint(waited) >= srv_background_scrub_data_check_interval &&
-          (srv_background_scrub_data_uncompressed ||
-           srv_background_scrub_data_compressed)) {
-        break;
-      }
     }
 
     recheck = false;
@@ -3824,9 +3687,6 @@ void fil_space_crypt_close_tablespace(const fil_space_t *space) {
 
   while (cnt > 0 || flushing) {
     mutex_exit(&crypt_data->mutex);
-    /* release dict mutex so that scrub threads can release their
-     * table references */
-    // dict_mutex_exit_for_mysql();
 
     /* wakeup throttle (all) sleepers */
     os_event_set(fil_crypt_throttle_sleep_event);
@@ -3896,40 +3756,6 @@ void fil_space_crypt_get_status(const fil_space_t *space,
       status->current_key_version =
           fil_crypt_get_latest_key_version(crypt_data);
     }
-  }
-}
-
-/*********************************************************************
- Get scrub status for a space (used by information_schema)
-
- @param[in]     space           Tablespace
- @param[out]    status          Scrub status */
-
-void fil_space_get_scrub_status(const fil_space_t *space,
-                                struct fil_space_scrub_status_t *status) {
-  memset(status, 0, sizeof(*status));
-
-  fil_space_crypt_t *crypt_data = space->crypt_data;
-
-  status->space = space->id;
-
-  if (crypt_data != NULL) {
-    status->compressed = FSP_FLAGS_GET_ZIP_SSIZE(space->flags) > 0;
-    mutex_enter(&crypt_data->mutex);
-    status->last_scrub_completed =
-        crypt_data->rotate_state.scrubbing.last_scrub_completed;
-    if (crypt_data->rotate_state.active_threads > 0 &&
-        crypt_data->rotate_state.scrubbing.is_active) {
-      status->scrubbing = true;
-      status->current_scrub_started = crypt_data->rotate_state.start_time;
-      status->current_scrub_active_threads =
-          crypt_data->rotate_state.active_threads;
-      status->current_scrub_page_number = crypt_data->rotate_state.next_offset;
-      status->current_scrub_max_page_number =
-          crypt_data->rotate_state.max_offset;
-    }
-
-    mutex_exit(&crypt_data->mutex);
   }
 }
 
@@ -4031,228 +3857,3 @@ bool fil_space_verify_crypt_checksum(byte *page, ulint page_size,
 
   return (encrypted);
 }
-
-redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
-  size_t klen = 0;
-  char *key_type = nullptr;
-  byte *rkey = nullptr;
-
-  std::string key_name = get_key_name(server_uuid);
-
-  if (innobase::encryption::read_key(key_name.c_str(), &rkey, &klen,
-                                     &key_type) != 1 ||
-      rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
-    /* There is no key yet, we'll try to generate one */
-    my_free(rkey);
-    return generate ? generate_and_store_new_key(thd) : nullptr;
-  }
-
-  uint version = 0;
-  byte *rkey2 = nullptr;
-  size_t klen2 = 0;
-  const bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
-                    reinterpret_cast<uchar *>(NullS));
-  if (err) {
-    my_free(rkey);
-    my_free(rkey2);
-    my_free(key_type);
-    return nullptr;
-  }
-
-  ut_ad(klen2 == Encryption::KEY_LEN);
-
-  auto it = m_keys.find(version);
-
-  if (it != m_keys.end() && it->second.present) {
-    ut_ad(memcmp(it->second.key, rkey2, Encryption::KEY_LEN) == 0);
-    my_free(rkey);
-    my_free(rkey2);
-    my_free(key_type);
-    return &it->second;
-  }
-
-  redo_log_key *rk = &m_keys[version];
-  rk->version = version;
-  rk->present = true;
-  memcpy(rk->key, rkey2, Encryption::KEY_LEN);
-
-  my_free(rkey);
-  my_free(rkey2);
-  my_free(key_type);
-
-  return rk;
-}
-
-redo_log_key *redo_log_keys::load_key_version(THD *thd, const char *uuid,
-                                              uint version) {
-  auto it = m_keys.find(version);
-
-  if (it != m_keys.end() && it->second.present) {
-    return &it->second;
-  }
-
-  size_t klen = 0;
-  char *key_type = nullptr;
-  byte *rkey = nullptr;
-
-  std::string redo_key_with_ver{get_key_name(
-      version != REDO_LOG_ENCRYPT_NO_VERSION ? uuid : "", version)};
-  if (innobase::encryption::read_key(redo_key_with_ver.c_str(), &rkey, &klen,
-                                     &key_type) != 1 ||
-      rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
-    my_free(rkey);
-    my_free(key_type);
-    ib::error(ER_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION, version);
-    if (thd) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN,
-                  ER_DA_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION, version);
-    }
-    return nullptr;
-  }
-
-  ut_ad(klen == Encryption::KEY_LEN);
-
-  redo_log_key *rk = &m_keys[version];
-  rk->version = version;
-  rk->present = true;
-  memcpy(rk->key, rkey, Encryption::KEY_LEN);
-
-  my_free(rkey);
-  my_free(key_type);
-
-  return rk;
-}
-
-std::string redo_log_keys::get_key_name(const char *uuid, uint key_version) {
-  std::ostringstream oss;
-  get_key_name(oss, uuid);
-  oss << ":" << key_version;
-  return oss.str();
-}
-
-std::string redo_log_keys::get_key_name(const char *uuid) {
-  std::ostringstream oss;
-  get_key_name(oss, uuid);
-  return oss.str();
-}
-
-void redo_log_keys::get_key_name(std::ostringstream &oss, const char *uuid) {
-  oss << PERCONA_REDO_KEY_NAME;
-  if (strlen(uuid) > 0) oss << '-' << uuid;
-}
-
-redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
-  std::string key_name = get_key_name(server_uuid);
-
-  if (!innobase::encryption::generate_key(key_name.c_str(), "AES",
-                                          Encryption::KEY_LEN)) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
-    if (thd) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN,
-                  ER_DA_REDO_ENCRYPTION_CANT_GENERATE_KEY);
-    }
-    return nullptr;
-  }
-
-  char *redo_key_type = nullptr;
-  byte *rkey = nullptr;
-  size_t klen = 0;
-
-  if (innobase::encryption::read_key(key_name.c_str(), &rkey, &klen,
-                                     &redo_key_type) != 1) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
-    if (thd) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_FETCH_KEY);
-    }
-    my_free(redo_key_type);
-    my_free(rkey);
-    return nullptr;
-  }
-
-  ut_ad(rkey != nullptr);
-  byte *rkey2 = nullptr;
-  size_t klen2 = 0;
-  uint version = 0;
-
-  bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
-              reinterpret_cast<uchar *>(NullS));
-
-  ut_ad(klen2 == Encryption::KEY_LEN);
-
-  if (err) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_PARSE_KEY, rkey);
-    if (thd != nullptr) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_PARSE_KEY,
-                  rkey);
-    }
-    my_free(redo_key_type);
-    my_free(rkey);
-    return nullptr;
-  }
-
-  redo_log_key *rk = &m_keys[version];
-  rk->version = version;
-  memcpy(rk->key, rkey2, Encryption::KEY_LEN);
-  rk->present = true;
-
-  my_free(redo_key_type);
-  my_free(rkey);
-  my_free(rkey2);
-
-  return rk;
-}
-
-redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
-  ut_ad(m_keys.empty());
-  std::string default_key_name{get_key_name("", 0)};
-  ut_ad(strlen(server_uuid) != 0);
-  ut_ad(default_key_name.length() == strlen("percona_redo:0") &&
-        memcmp(default_key_name.c_str(), "percona_redo:0",
-               default_key_name.length()) == 0);
-
-  char *default_redo_key_type = nullptr;
-  byte *default_rkey = nullptr;
-  size_t default_klen = 0;
-
-  auto ret =
-      innobase::encryption::read_key(default_key_name.c_str(), &default_rkey,
-                                     &default_klen, &default_redo_key_type);
-
-  if (ret == -1) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
-    if (thd != nullptr) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN,
-                  ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
-    }
-    my_free(default_redo_key_type);
-    my_free(default_rkey);
-    return nullptr;
-  }
-
-  if (default_rkey != nullptr) {
-    redo_log_key *rk = &m_keys[0];
-    rk->version = 0;
-    memcpy(rk->key, default_rkey, Encryption::KEY_LEN);
-    rk->present = true;
-    my_free(default_redo_key_type);
-    my_free(default_rkey);
-    return rk;
-  }
-
-  // we use store instead of generate because we want to store system key
-  // with illegal version - percona_redo:0.
-  Encryption::random_value(reinterpret_cast<byte *>(&m_keys[0].key));
-
-  if (!innobase::encryption::store_key(default_key_name.c_str(),
-                                       reinterpret_cast<byte *>(m_keys[0].key),
-                                       Encryption::KEY_LEN, "AES")) {
-    return nullptr;
-  }
-
-  redo_log_key *rk = &m_keys[0];
-  rk->version = 0;
-  rk->present = true;
-  return rk;
-}
-
-redo_log_keys redo_log_key_mgr;

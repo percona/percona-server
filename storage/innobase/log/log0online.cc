@@ -185,37 +185,13 @@ void log_read_buffer::read(lsn_t read_start, lsn_t read_end) noexcept {
   ut_ad(get_current_lsn() >= read_start || get_current_lsn() == 0);
   current_size = read_end - read_start;
   ut_ad(current_size <= capacity);
-  recv_read_log_seg(*log_sys, &buffer[0], read_start, read_end, true);
+  //recv_read_log_seg(*log_sys, &buffer[0], read_start, read_end, true);
   current_lsn = start_lsn = read_start;
   current_ptr = buffer.cbegin();
 }
 
 bool log_read_buffer::is_current_block_valid() const noexcept {
-  ut_ad(mutex_own(&log_bmp_sys_mutex));
-  ut_ad(invariants());
-  ut_ad(cend() - ccurrent() >= OS_FILE_LOG_BLOCK_SIZE);
-  const auto checksum_is_ok = log_block_checksum_is_ok(ccurrent());
-
-  if (!checksum_is_ok) {
-    // We are reading empty log blocks in some cases (such as
-    // tracking log on server startup with log resizing). Such
-    // blocks are benign, silently accept them.
-    static const byte zero_block[OS_FILE_LOG_BLOCK_SIZE] = {0};
-    if (!memcmp(ccurrent(), zero_block, OS_FILE_LOG_BLOCK_SIZE)) {
-      return true;
-    }
-
-    const auto no = log_block_get_hdr_no(ccurrent());
-    const auto expected_no = log_block_convert_lsn_to_no(current_lsn);
-    ib::fatal(UT_LOCATION_HERE) << "Log block checksum mismatch: LSN " << current_lsn
-                << ", expected " << log_block_get_checksum(ccurrent()) << ", "
-                << "calculated checksum " << log_block_calc_checksum(ccurrent())
-                << ", "
-                << "stored log block n:o " << no << ", "
-                << "expected log block n:o " << expected_no;
-  }
-
-  return checksum_is_ok;
+  return true; // MERGETODO
 }
 
 /** The redo log parse buffer */
@@ -464,7 +440,6 @@ struct log_bitmap_struct {
     ut_ad(end_lsn == 0);
     ut_ad(start_lsn_ >= MIN_TRACKED_LSN);
     start_lsn = start_lsn_;
-    log_sys->tracked_lsn.store(start_lsn_);
     end_lsn = start_lsn;
   }
 };
@@ -722,25 +697,9 @@ capacity.
 
 @return true if the missing interval can be tracked or if there's no missing
 data.  */
-MY_NODISCARD static bool log_online_can_track_missing(
-    lsn_t last_tracked_lsn,   /*!<in: last tracked LSN */
-    lsn_t tracking_start_lsn) /*!<in:	current LSN */
-    noexcept {
-  /* last_tracked_lsn might be < MIN_TRACKED_LSN in the case of empty bitmap
-file, handle this too. */
-  last_tracked_lsn = std::max(last_tracked_lsn, MIN_TRACKED_LSN);
-
-  if ((last_tracked_lsn > tracking_start_lsn) &&
-      (last_tracked_lsn % OS_FILE_LOG_BLOCK_SIZE > LOG_BLOCK_HDR_SIZE)) {
-    ib::fatal(UT_LOCATION_HERE) << "Last tracked LSN " << last_tracked_lsn
-                << " is ahead of tracking start LSN " << tracking_start_lsn
-                << ".  This can be caused "
-                   "by mismatched bitmap files.";
-  }
-
-  return (last_tracked_lsn == tracking_start_lsn) ||
-         (log_get_lsn(*log_sys) - last_tracked_lsn <=
-          log_sys->lsn_real_capacity);
+MY_NODISCARD static bool log_online_can_track_missing(){
+    // mergetodo
+    return false;
 }
 
 /** Diagnose a gap in tracked LSN range on server startup due to crash or
@@ -760,7 +719,7 @@ static void log_online_track_missing_on_startup(
              << tracking_start_lsn << '.';
 
   /* See if we can fully recover the missing interval */
-  if (log_online_can_track_missing(last_tracked_lsn, tracking_start_lsn)) {
+  if (log_online_can_track_missing()) {
     ib::info() << "Reading the log to advance the last tracked LSN.";
 
     log_bmp_sys->start_at(std::max(last_tracked_lsn, MIN_TRACKED_LSN));
@@ -988,7 +947,7 @@ void log_online_read_init(void) {
 
     /* Start a new file.  Choose the LSN value in its name based on
     if we can retrack any missing data. */
-    if (log_online_can_track_missing(last_tracked_lsn, tracking_start_lsn)) {
+    if (log_online_can_track_missing()) {
       file_start_lsn = last_tracked_lsn;
     } else {
       file_start_lsn = tracking_start_lsn;
@@ -1344,10 +1303,6 @@ bool log_online_follow_redo_log_one_pass(void) {
 
   ut_ad(!log_bmp_sys->out.file.is_closed());
 
-  /* Grab the LSN of the last checkpoint, we will parse up to it */
-  /* Parse up to the LSN of the last checkpoint */
-  log_bmp_sys->follow_up_to(log_get_checkpoint_lsn(*log_sys));
-
   if (log_bmp_sys->end_lsn == log_bmp_sys->start_lsn) {
     mutex_exit(&log_bmp_sys_mutex);
     return true;
@@ -1361,7 +1316,6 @@ bool log_online_follow_redo_log_one_pass(void) {
   if (result) {
     result = log_online_write_bitmap();
     log_bmp_sys->start_lsn = log_bmp_sys->end_lsn;
-    log_sys->tracked_lsn.store(log_bmp_sys->parse_buf.get_current_lsn());
   }
 
   mutex_exit(&log_bmp_sys_mutex);
@@ -1376,15 +1330,9 @@ is tracked.
 bool log_online_follow_redo_log(void) {
   ut_ad(!srv_read_only_mode);
 
-  const auto last_checkpoint_lsn = log_get_checkpoint_lsn(*log_sys);
   bool result = true;
 
   DEBUG_SYNC_C("log_online_follow_redo_log");
-
-  while (result && srv_track_changed_pages &&
-         last_checkpoint_lsn > log_sys->tracked_lsn.load()) {
-    result = log_online_follow_redo_log_one_pass();
-  }
 
   return result;
 }

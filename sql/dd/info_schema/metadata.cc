@@ -701,7 +701,7 @@ bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
     } else {
       // compression dictionaries require mb4. Other views do not...
       resolve_charset("utf8mb3", system_charset_info, &m_client_cs);
-      resolve_collation("utf8_general_ci", system_charset_info,
+      resolve_collation("utf8mb3_general_ci", system_charset_info,
                         &m_connection_cl);
     }
 

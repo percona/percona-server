@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "hash0hash.h"
 #include "ibuf0ibuf.h"
 #include "log0recv.h"
+#include "log0write.h"
 #include "my_dbug.h"
 #include "os0event.h"
 #include "os0file.h"
@@ -1355,7 +1356,7 @@ static void buf_LRU_handle_lack_of_free_blocks(
            " of your operating system may help. Look at the"
            " number of fsyncs in diagnostic info below."
            " Pending flushes (fsync) log: "
-        << fil_n_pending_log_flushes
+        // << log_pending_flushes // MERGETODO
         << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
         << os_n_file_reads << " OS file reads, " << os_n_file_writes
         << " OS file writes, " << os_n_fsyncs
@@ -1508,7 +1509,7 @@ loop:
           (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
            srv_shutdown_state.load() != SRV_SHUTDOWN_CLEANUP));
   }
-  if (buf_pool->init_flush[BUF_FLUSH_LRU] && dblwr::enabled) {
+  if (buf_pool->init_flush[BUF_FLUSH_LRU] && dblwr::is_enabled()) {
     /* If there is an LRU flush happening in the background then we
     wait for it to end instead of trying a single page flush. If,
     however, we are not using doublewrite buffer then it is better to
@@ -1546,8 +1547,30 @@ loop:
     goto loop;
   }
 
-  buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time, flush_failures,
-                                     &started_monitor);
+  if (n_iterations > 20 && srv_buf_pool_old_size == srv_buf_pool_size) {
+    ib::warn(ER_IB_MSG_134)
+        << "Difficult to find free blocks in the buffer pool"
+           " ("
+        << n_iterations << " search iterations)! " << flush_failures
+        << " failed attempts to"
+           " flush a page! Consider increasing the buffer pool"
+           " size. It is also possible that in your Unix version"
+           " fsync is very slow, or completely frozen inside"
+           " the OS kernel. Then upgrading to a newer version"
+           " of your operating system may help. Look at the"
+           " number of fsyncs in diagnostic info below."
+           " Pending flushes (fsync) log: "
+        << log_pending_flushes()
+        << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
+        << os_n_file_reads << " OS file reads, " << os_n_file_writes
+        << " OS file writes, " << os_n_fsyncs
+        << " OS fsyncs. Starting InnoDB Monitor to print"
+           " further diagnostics to the standard output.";
+    if (!started_monitor) {
+      started_monitor = true;
+      srv_innodb_needs_monitoring++;
+    }
+  }
 
   /* If we have scanned the whole LRU and still are unable to
   find a free block then we should sleep here to let the
@@ -2037,7 +2060,7 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
     ut_ad(b->in_page_hash);
     ut_ad(b->in_LRU_list);
 
-    HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, b->id.fold(), b);
+    HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, b->id.hash(), b);
 
     /* Insert b where bpage was in the LRU list. */
     if (prev_b != nullptr) {
@@ -2380,7 +2403,7 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
   ut_ad(bpage->in_page_hash);
   ut_d(bpage->in_page_hash = false);
 
-  HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, bpage->id.fold(), bpage);
+  HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, bpage->id.hash(), bpage);
 
   switch (buf_page_get_state(bpage)) {
     case BUF_BLOCK_ZIP_PAGE:

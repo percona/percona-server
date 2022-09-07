@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 #include "sql/log_resource.h"
 #include "debug_sync.h"
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 
 int MY_ATTRIBUTE((visibility("default")))
     Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server() {

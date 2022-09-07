@@ -50,7 +50,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "buf0checksum.h"
 #include "fil0fil.h"
-#include "log0types.h"
 #include "mysql/psi/mysql_stage.h"
 #include "univ.i"
 
@@ -175,9 +174,6 @@ struct srv_stats_t {
   /* Number of row log blocks decrypted */
   ulint_ctr_64_t n_rowlog_blocks_decrypted;
 
-  /** Number of log scrub operations */
-  ulint_ctr_64_t n_log_scrubs;
-
   /** Number of times page 0 is read from tablespace */
   ulint_ctr_64_t page0_read;
 
@@ -202,6 +198,9 @@ struct Srv_threads {
 
   /** Error monitor thread. */
   IB_thread m_error_monitor;
+
+  /** Redo files governor thread. */
+  IB_thread m_log_files_governor;
 
   /** Redo checkpointer thread. */
   IB_thread m_log_checkpointer;
@@ -508,31 +507,31 @@ extern const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT;
 extern char *srv_log_group_home_dir;
 
 /** Enable or Disable Encrypt of REDO tablespace. */
-extern ulong srv_redo_log_encrypt;
+extern bool srv_redo_log_encrypt;
 
 /* Maximum number of redo files of a cloned DB. */
-constexpr uint32_t SRV_N_LOG_FILES_CLONE_MAX = 1000;
+constexpr size_t SRV_N_LOG_FILES_CLONE_MAX = 1000;
 
-/** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
-constexpr uint32_t SRV_N_LOG_FILES_MAX = 100;
-extern ulong srv_n_log_files;
+/** Value of innodb_log_files_in_group. This is deprecated. */
+extern ulong srv_log_n_files;
+
+/** Value of innodb_log_file_size. Expressed in bytes. This is deprecated. */
+extern ulonglong srv_log_file_size;
+
+/** Value of innodb_redo_log_capacity. Expressed in bytes. Might be set
+during startup automatically when started in "dedicated server mode". */
+extern ulonglong srv_redo_log_capacity;
+
+/** Assumed value of innodb_redo_log_capacity's - value which is used.
+Expressed in bytes. Might be set during startup automatically when
+started in "dedicated server mode". Might also be set during startup
+when old sysvar (innodb_log_file_size or innodb_log_files_in_group)
+are configured and the new sysvar (innodb_redo_log_capacity) is not. */
+extern ulonglong srv_redo_log_capacity_used;
 
 #ifdef UNIV_DEBUG_DEDICATED
 extern ulong srv_debug_system_mem_size;
 #endif /* UNIV_DEBUG_DEDICATED */
-
-/** At startup, this is the current redo log file size.
-During startup, if this is different from srv_log_file_size_requested
-(innodb_log_file_size), the redo log will be rebuilt and this size
-will be initialized to srv_log_file_size_requested.
-When upgrading from a previous redo log format, this will be set to 0,
-and writing to the redo log is not allowed.
-
-During startup, this is in bytes, and later converted to pages. */
-extern ulonglong srv_log_file_size;
-
-/** The value of the startup parameter innodb_log_file_size. */
-extern ulonglong srv_log_file_size_requested;
 
 /** Space for log buffer, expressed in bytes. Note, that log buffer
 will use only the largest power of two, which is not greater than
@@ -830,9 +829,6 @@ extern ulong srv_n_free_tickets_to_enter;
 extern ulong srv_spin_wait_delay;
 extern bool srv_priority_boost;
 
-/* TRUE if enable log scrubbing */
-extern bool srv_scrub_log;
-
 extern ulint srv_truncated_status_writes;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -952,12 +948,14 @@ extern mysql_pfs_key_t io_log_thread_key;
 extern mysql_pfs_key_t io_read_thread_key;
 extern mysql_pfs_key_t io_write_thread_key;
 extern mysql_pfs_key_t log_writer_thread_key;
+extern mysql_pfs_key_t log_files_governor_thread_key;
 extern mysql_pfs_key_t log_checkpointer_thread_key;
 extern mysql_pfs_key_t log_flusher_thread_key;
 extern mysql_pfs_key_t log_write_notifier_thread_key;
 extern mysql_pfs_key_t log_flush_notifier_thread_key;
 extern mysql_pfs_key_t page_flush_coordinator_thread_key;
 extern mysql_pfs_key_t page_flush_thread_key;
+extern mysql_pfs_key_t recv_writer_thread_key;
 extern mysql_pfs_key_t srv_error_monitor_thread_key;
 extern mysql_pfs_key_t srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t srv_master_thread_key;
@@ -969,7 +967,6 @@ extern mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 extern mysql_pfs_key_t parallel_read_thread_key;
 extern mysql_pfs_key_t parallel_rseg_init_thread_key;
 extern mysql_pfs_key_t srv_log_tracking_thread_key;
-extern mysql_pfs_key_t log_scrub_thread_key;
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1263,19 +1260,12 @@ void undo_spaces_init();
 called once during thread de-initialization. */
 void undo_spaces_deinit();
 
-/** Enables master key redo encryption.
- * Doesn't depend on the srv_redo_log_encrypt variable, used by
- * SET innodb_redo_log_encrypt = MK. */
-bool srv_enable_redo_encryption_mk(THD *thd);
-
-/** Enables master key redo encryption.
- * Doesn't depend on the srv_redo_log_encrypt variable, used by
- * SET innodb_redo_log_encrypt = RK. */
-bool srv_enable_redo_encryption_rk(THD *thd);
-
-/** Enables REDO log encryption based on srv_redo_log_encrypt.
+/** Enable REDO log encryption.
+@param[in] is_boot	true if it is called during server start up. In this
+                        case, default master key will be used which will be
+                        rotated later with actual master key from keyring.
 @return false for success, true otherwise. */
-bool srv_enable_redo_encryption(THD *thd);
+bool srv_enable_redo_encryption();
 
 /** Set redo log variable for performance schema global status.
 @param[in]      enable  true => redo log enabled, false => redo log disabled */
@@ -1344,14 +1334,25 @@ struct export_var_t {
   ulint innodb_buffer_pool_read_ahead_evicted; /*!< srv_read_ahead evicted*/
   ulint innodb_dblwr_pages_written;            /*!< srv_dblwr_pages_written */
   ulint innodb_dblwr_writes;                   /*!< srv_dblwr_writes */
-  ulint innodb_log_waits;                      /*!< srv_log_waits */
-  ulint innodb_log_write_requests;             /*!< srv_log_write_requests */
-  ulint innodb_log_writes;                     /*!< srv_log_writes */
-  lsn_t innodb_os_log_written;                 /*!< srv_os_log_written */
-  ulint innodb_os_log_fsyncs;                  /*!< fil_n_log_flushes */
-  ulint innodb_os_log_pending_writes;          /*!< srv_os_log_pending_writes */
-  ulint innodb_os_log_pending_fsyncs;          /*!< fil_n_pending_log_flushes */
-  ulint innodb_page_size;                      /*!< UNIV_PAGE_SIZE */
+  char innodb_redo_log_resize_status[512];     /*!< Redo log resize status */
+  bool innodb_redo_log_read_only;              /*!< Is redo log read-only ? */
+  ulonglong innodb_redo_log_uuid;              /*!< Redo log UUID */
+  ulonglong innodb_redo_log_checkpoint_lsn;    /*!< Redo log checkpoint LSN */
+  ulonglong innodb_redo_log_current_lsn;       /*!< Redo log current LSN */
+  ulonglong
+      innodb_redo_log_flushed_to_disk_lsn; /*!< Redo log flushed to disk LSN */
+  ulonglong innodb_redo_log_logical_size;  /*!< Redo log logical size */
+  ulonglong innodb_redo_log_physical_size; /*!< Redo log physical size */
+  ulonglong innodb_redo_log_capacity_resized; /*!< Redo log capacity after
+                                              the last finished redo resize */
+  ulint innodb_log_waits;                     /*!< srv_log_waits */
+  ulint innodb_log_write_requests;            /*!< srv_log_write_requests */
+  ulint innodb_log_writes;                    /*!< srv_log_writes */
+  lsn_t innodb_os_log_written;                /*!< srv_os_log_written */
+  ulint innodb_os_log_fsyncs;                 /*!< log_total_flushes() */
+  ulint innodb_os_log_pending_writes;         /*!< srv_os_log_pending_writes */
+  ulint innodb_os_log_pending_fsyncs;         /*!< log_pending_flushes() */
+  ulint innodb_page_size;                     /*!< UNIV_PAGE_SIZE */
   ulint innodb_pages_created;          /*!< buf_pool->stat.n_pages_created */
   ulint innodb_pages_read;             /*!< buf_pool->stat.n_pages_read */
   ulint innodb_pages_written;          /*!< buf_pool->stat.n_pages_written */
@@ -1428,13 +1429,6 @@ struct export_var_t {
   fragmentation_stats_t innodb_fragmentation_stats; /*!< Fragmentation
                                            statistics */
 
-  int64_t innodb_scrub_log;
-  ulint innodb_scrub_page_reorganizations;
-  ulint innodb_scrub_page_splits;
-  ulint innodb_scrub_page_split_failures_underflow;
-  ulint innodb_scrub_page_split_failures_out_of_filespace;
-  ulint innodb_scrub_page_split_failures_missing_index;
-  ulint innodb_scrub_page_split_failures_unknown;
   int64_t innodb_pages_encrypted; /*!< Number of pages
                                   encrypted */
   int64_t innodb_pages_decrypted; /*!< Number of pages

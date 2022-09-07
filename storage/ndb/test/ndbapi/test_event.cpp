@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -3447,11 +3447,29 @@ int runTryGetEvent(NDBT_Context *ctx, NDBT_Step *step) {
 
   while (iterations--) {
     g_err << "Attempting to get the event, expect "
+<<<<<<< HEAD
           << ((odd ? "success" : "failure")) << endl;
     const NdbDictionary::Event *ev = myDict->getEvent(eventName);
 
     if (odd) {
       if (ev == NULL) {
+||||||| 8d8c986e571
+          << ((odd?"success":"failure")) << endl;
+    const NdbDictionary::Event* ev = myDict->getEvent(eventName);
+    
+    if (odd)
+    {
+      if (ev == NULL)
+      {
+=======
+          << ((odd?"success":"failure")) << endl;
+    NdbDictionary::Event_ptr ev(myDict->getEvent(eventName));
+    
+    if (odd)
+    {
+      if (ev == NULL)
+      {
+>>>>>>> mysql-8.0.30
         g_err << "Failed to get event on odd cycle with error "
               << myDict->getNdbError().code << " "
               << myDict->getNdbError().message << endl;

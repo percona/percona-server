@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,6 @@ SET(INNOBASE_SOURCES
   btr/btr0cur.cc
   btr/btr0pcur.cc
   btr/btr0sea.cc
-  btr/btr0scrub.cc
   buf/buf0block_hint.cc
   buf/buf0buddy.cc
   buf/buf0buf.cc
@@ -175,10 +174,19 @@ SET(INNOBASE_SOURCES
   lock/lock0wait.cc
   log/log0buf.cc
   log/log0chkp.cc
+  log/log0consumer.cc
   log/log0ddl.cc
+  log/log0encryption.cc
+  log/log0files_capacity.cc
+  log/log0files_dict.cc
+  log/log0files_finder.cc
+  log/log0files_governor.cc
+  log/log0files_io.cc
   log/log0log.cc
   log/log0meb.cc
   log/log0online.cc
+  log/log0pfs.cc
+  log/log0pre_8_0_30.cc
   log/log0recv.cc
   log/log0test.cc
   log/log0write.cc
@@ -240,6 +248,7 @@ SET(INNOBASE_SOURCES
   usr/usr0sess.cc
   ut/ut0dbg.cc
   ut/ut0list.cc
+  ut/ut0math.cc
   ut/ut0mem.cc
   ut/ut0new.cc
   ut/ut0rbt.cc

@@ -3276,7 +3276,7 @@ static bool dict_load_table_id_on_index_id(space_index_t index_id,
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Index>();
   mem_heap_t *heap = mem_heap_create(1000, UT_LOCATION_HERE);
   ulint *offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
-                                   ULINT_UNDEFINED, &heap);
+                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   static const int DD_FIELD_OFFSET = 2;
 

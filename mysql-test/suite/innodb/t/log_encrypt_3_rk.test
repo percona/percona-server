@@ -1,3 +1,0 @@
---let $redo_log_encrypt_mode=KEYRING_KEY
---let $KEYRING_PARAMS=$KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/my_key_log3 --innodb_redo_log_encrypt=$redo_log_encrypt_mode $KEYRING_PLUGIN_OPT
---source include/log_encrypt_3.inc

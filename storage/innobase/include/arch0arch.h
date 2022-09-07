@@ -1304,6 +1304,8 @@ using Arch_Grp_List_Iter = Arch_Grp_List::iterator;
 
 class Arch_log_consumer : public Log_consumer {
  public:
+  Log_consumer::consumer_type get_consumer_type() const override;
+
   const std::string &get_name() const override;
 
   lsn_t get_consumed_lsn() const override;

@@ -53,6 +53,11 @@ class Log_consumer {
   and it is critical to consume up to the request_lsn. The caller has to hold
   log.files_mutex and log.limits_mutex. */
   virtual void consumption_requested(lsn_t request_lsn) = 0;
+
+  enum class consumer_type { SERVER, USER };
+
+  /** @return Type of this consumer. */
+  virtual consumer_type get_consumer_type() const = 0;
 };
 
 class Log_user_consumer : public Log_consumer {
@@ -71,6 +76,8 @@ class Log_user_consumer : public Log_consumer {
 
   void consumption_requested(lsn_t request_lsn) override;
 
+  Log_consumer::consumer_type get_consumer_type() const override;
+
  private:
   /** Name of this consumer (saved value from ctor). */
   const std::string m_name;
@@ -83,6 +90,8 @@ class Log_user_consumer : public Log_consumer {
 class Log_checkpoint_consumer : public Log_consumer {
  public:
   explicit Log_checkpoint_consumer(log_t &log);
+
+  Log_consumer::consumer_type get_consumer_type() const override;
 
   const std::string &get_name() const override;
 

@@ -233,6 +233,12 @@ class SysVars {
   static void update_total_log_size(uint64_t size) noexcept;
 
   /**
+   * @brief Increment counter for the number of times data is written to log
+   *        synchronously bypassing write buffer in asynchronous mode.
+   */
+  static void inc_direct_writes() noexcept;
+
+  /**
    * @brief Update bookmark to latest event written to log.
    *
    * @param id ID of an audit event
@@ -265,11 +271,13 @@ class SysVars {
   static void set_log_reader_context(MYSQL_THD thd,
                                      AuditLogReaderContext *context) noexcept;
 
+#ifndef NDEBUG
   /**
    * @brief Get time point from predefined sequence, used for testing.
    * @return Time point
    */
   static std::chrono::system_clock::time_point get_debug_time_point() noexcept;
+#endif
 
   /**
    * @brief Get numeric record ID for next log record.

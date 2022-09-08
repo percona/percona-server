@@ -1,0 +1,315 @@
+CREATE TABLE t1 (id INT);
+#
+# Check mysql_audit_print_service_double_data_source service
+SELECT audit_log_filter_set_filter('query_stats_double', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": [
+{ "name": "query_time",     "type": "double" },
+{ "name": "bytes_sent",     "type": "double" },
+{ "name": "bytes_received", "type": "double" },
+{ "name": "rows_sent",      "type": "double" },
+{ "name": "rows_examined",  "type": "double" }
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_stats_double', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": [
+{ "name": "query_time",     "type": "double" },
+{ "name": "bytes_se
+OK
+SELECT audit_log_filter_set_user('%', 'query_stats_double');
+audit_log_filter_set_user('%', 'query_stats_double')
+OK
+INSERT INTO t1 VALUES (1);
+Tag "query_statistics" Ok
+Tag "query_time" Ok
+Tag "bytes_sent" Ok
+Tag "bytes_received" Ok
+Tag "rows_sent" Ok
+Tag "rows_examined" Ok
+#
+# Check mysql_audit_print_service_longlong_data_source service
+SELECT audit_log_filter_set_filter('query_stats_longlong', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": [
+{ "name": "query_time",     "type": "longlong" },
+{ "name": "bytes_sent",     "type": "longlong" },
+{ "name": "bytes_received", "type": "longlong" },
+{ "name": "rows_sent",      "type": "longlong" },
+{ "name": "rows_examined",  "type": "longlong" }
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_stats_longlong', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": [
+{ "name": "query_time",     "type": "longlong" },
+{ "name": "byte
+OK
+SELECT audit_log_filter_set_user('%', 'query_stats_longlong');
+audit_log_filter_set_user('%', 'query_stats_longlong')
+OK
+INSERT INTO t1 VALUES (2);
+Tag "query_statistics" Ok
+Tag "query_time" Ok
+Tag "bytes_sent" Ok
+Tag "bytes_received" Ok
+Tag "rows_sent" Ok
+Tag "rows_examined" Ok
+#
+# Wrong format, missing "tag" or invalid type
+SELECT audit_log_filter_set_filter('query_stats_no_tag', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"element": [
+{ "name": "query_time",     "type": "longlong" }
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_stats_no_tag', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"element": [
+{ "name": "query_time",     "type": "longlong" }
+]
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('query_stats_bad_tag', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": 4,
+"element": [
+{ "name": "query_time",     "type": "longlong" }
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_stats_bad_tag', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": 4,
+"element": [
+{ "name": "query_time",     "type": "longlong" }
+]
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+#
+# Wrong format, missing "element" or invalid format
+SELECT audit_log_filter_set_filter('query_stats_no_element', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics"
+          }
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_stats_no_element', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics"
+          }
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('query_stats_element_not_arr', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": {
+"name": "query_time",
+"type": "longlong"
+            }
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_stats_element_not_arr', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": {
+"name": "query_time",
+"type": "longlong"
+            }
+}
+}
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('query_stats_element_empty', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": []
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_stats_element_empty', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": []
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('query_stats_element_bad_args', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": [
+"query_time", "longlong"
+            ]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_stats_element_bad_args', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"print": {
+"service": {
+"tag": "query_statistics",
+"element": [
+"query_time", "longlong"
+            ]
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+#
+# Cleanup
+DROP TABLE t1;
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

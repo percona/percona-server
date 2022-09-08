@@ -29,7 +29,7 @@ Variable_name	Value
 Audit_log_filter_events_lost	3
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter_event_max_drop_size';
 Variable_name	Value
-Audit_log_filter_event_max_drop_size	4448
+Audit_log_filter_event_max_drop_size	4407
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;

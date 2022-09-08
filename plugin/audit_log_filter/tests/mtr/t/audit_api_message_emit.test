@@ -1,0 +1,39 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "message",
+      "event": {
+        "name": "user",
+        "log": true
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_message', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_message');
+
+--source clean_current_audit_log.inc
+
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+SELECT audit_api_message_emit_udf('component_text', 'producer_text', 'message_text', 'key', 'value') AS 'Message';
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+
+--let $search_tag=<EVENT_CLASS_NAME>message</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();

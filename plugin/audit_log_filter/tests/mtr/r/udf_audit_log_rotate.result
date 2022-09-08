@@ -1,0 +1,16 @@
+SELECT audit_log_rotate();
+audit_log_rotate()
+OK
+#
+# Check wrong argument number
+SELECT audit_log_rotate("");
+ERROR HY000: Can't initialize function 'audit_log_rotate'; Wrong argument list: audit_log_rotate()
+#
+# AUDIT_ADMIN privilege required
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'%';
+SELECT audit_log_rotate();
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+#
+# Cleanup
+DROP USER user1;

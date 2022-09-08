@@ -10,7 +10,6 @@
 --disable_query_log
 
 # AuditRecordGeneral,
-# AuditRecordParse,
 # AuditRecordTableAccess,
 # AuditRecordCommand,
 # AuditRecordQuery,

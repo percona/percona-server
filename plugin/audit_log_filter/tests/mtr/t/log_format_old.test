@@ -4,24 +4,16 @@ call mtr.add_suppression("Failed to shutdown components infrastructure.");
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
 
---let $log_path = `SELECT @@global.datadir`
---let $log_base_name = `SELECT @@global.audit_log_filter_file`
-
 --source generate_audit_events.inc
 
 # rotate log manually for it to properly close and have closing tags added
---move_file $log_path$log_base_name $log_path$log_base_name.1
-SET GLOBAL audit_log_filter_flush = ON;
+SELECT audit_log_rotate();
 
---let $xml_file_path = $log_path
---let $xml_file_name = $log_base_name.1
-
---source validate_xml_file.inc
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--source validate_xml_logs.inc
 
 --echo #
 --echo # Cleanup
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
 SELECT audit_log_filter_flush();
-
---remove_file $xml_file_path$xml_file_name

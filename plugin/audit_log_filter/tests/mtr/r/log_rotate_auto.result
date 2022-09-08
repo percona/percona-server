@@ -5,8 +5,7 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_all');
 audit_log_filter_set_user('%', 'log_all')
 OK
-Rotation Ok
-# restart
+Rotated files Ok
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;

@@ -16,7 +16,6 @@
 #ifndef AUDIT_LOG_FILTER_AUDIT_UDF_H_INCLUDED
 #define AUDIT_LOG_FILTER_AUDIT_UDF_H_INCLUDED
 
-#include "plugin/audit_log_filter/audit_base_component.h"
 #include "plugin/audit_log_filter/component_registry_service.h"
 
 #include <mysql/udf_registration_types.h>
@@ -36,7 +35,7 @@ struct UdfFuncInfo {
   void (*deinit_func)(UDF_INIT *);
 };
 
-class AuditUdf : public AuditBaseComponent {
+class AuditUdf {
  public:
   AuditUdf() = delete;
   explicit AuditUdf(comp_registry_srv_t *comp_registry_srv);
@@ -52,6 +51,11 @@ class AuditUdf : public AuditBaseComponent {
    * @return true in case UDFs are initialized successfully, false otherwise
    */
   bool init(UdfFuncInfo *begin, UdfFuncInfo *end);
+
+  /**
+   * @brief De-initialise audit log filter UDFs.
+   */
+  void deinit() noexcept;
 
   /**
    * @brief Init function for audit_log_filter_set_filter UDF.
@@ -328,6 +332,45 @@ class AuditUdf : public AuditBaseComponent {
    * @param initid Pointer to UDF_INIT argument
    */
   static void audit_log_read_bookmark_udf_deinit(UDF_INIT *initid);
+
+  /**
+   * @brief Init function for audit_log_rotate UDF.
+   *
+   * @param udf Pointer to UDFs handler instance
+   * @param initid Pointer to UDF_INIT argument
+   * @param udf_args Pointer to the UDF arguments struct
+   * @param message Error message in case of error
+   * @retval false Success
+   * @retval true  Failure. Error in the message argument
+   */
+  static bool audit_log_rotate_udf_init(AuditUdf *udf, UDF_INIT *initid,
+                                        UDF_ARGS *udf_args,
+                                        char *message) noexcept;
+
+  /**
+   * @brief Main function for audit_log_rotate UDF.
+   *
+   * @param udf Pointer to UDFs handler instance
+   * @param initid Pointer to UDF_INIT argument
+   * @param udf_args Pointer to the UDF arguments struct
+   * @param result UDFs result buffer
+   * @param length Result length
+   * @param is_null Indicates a return value of NULL in the UDF
+   * @param error Indicates if there was an error
+   * @return Pointer to the result buffer
+   */
+  static char *audit_log_rotate_udf(AuditUdf *udf, UDF_INIT *initid,
+                                    UDF_ARGS *udf_args, char *result,
+                                    unsigned long *length,
+                                    unsigned char *is_null,
+                                    unsigned char *error) noexcept;
+
+  /**
+   * @brief De-init function for audit_log_rotate UDF.
+   *
+   * @param initid Pointer to UDF_INIT argument
+   */
+  static void audit_log_rotate_udf_deinit(UDF_INIT *initid);
 
   /**
    * @brief Get pointer to a component registry service.

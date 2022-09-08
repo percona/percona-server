@@ -32,7 +32,7 @@ struct AuditLogReaderContext;
 class AuditJsonHandler
     : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, AuditJsonHandler> {
  public:
-  AuditJsonHandler(AuditLogReaderArgs *reader_args,
+  AuditJsonHandler(const AuditLogReaderArgs &reader_args,
                    AuditLogReaderContext *reader_context, char *out_buff,
                    ulong out_buff_size);
 
@@ -58,7 +58,7 @@ class AuditJsonHandler
   void write_out_buff(const char *str, std::size_t str_length);
 
  private:
-  AuditLogReaderArgs *m_reader_args;
+  const AuditLogReaderArgs &m_reader_args;
   AuditLogReaderContext *m_reader_context;
 
   rapidjson::Document m_json_value;

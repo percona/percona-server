@@ -23,10 +23,9 @@ EventFieldConditionOr::EventFieldConditionOr(
 
 bool EventFieldConditionOr::check_applies(
     const AuditRecordFieldsList &fields) const noexcept {
-  return std::any_of(m_conditions.cbegin(), m_conditions.cend(),
-                     [this, &fields](const auto &cond) {
-                       return cond->check_applies(fields);
-                     });
+  return std::any_of(
+      m_conditions.cbegin(), m_conditions.cend(),
+      [&fields](const auto &cond) { return cond->check_applies(fields); });
 }
 
 }  // namespace audit_log_filter::event_field_condition

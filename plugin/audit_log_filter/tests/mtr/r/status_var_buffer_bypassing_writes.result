@@ -1,0 +1,19 @@
+SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
+audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_general');
+audit_log_filter_set_user('%', 'log_general')
+OK
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_direct_writes';
+Variable_name	Value
+Audit_log_filter_direct_writes	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_direct_writes';
+Variable_name	Value
+Audit_log_filter_direct_writes	3
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

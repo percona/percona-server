@@ -13,19 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef AUDIT_LOG_FILTER_BASE_MEDIATOR_H_INCLUDED
-#define AUDIT_LOG_FILTER_BASE_MEDIATOR_H_INCLUDED
+#include "plugin/audit_log_filter/event_field_action/base.h"
 
-namespace audit_log_filter {
+namespace audit_log_filter::event_field_action {
 
-class AuditBaseMediator {
- public:
-  virtual ~AuditBaseMediator() = default;
-  virtual bool on_audit_rule_flush_requested() noexcept = 0;
-  virtual void on_audit_log_flush_requested() noexcept = 0;
-  virtual void on_audit_log_prune_requested() noexcept = 0;
-};
+EventActionType get_event_action_type(const char *event_tag_name) {
+  static std::map<std::string, EventActionType> tag_to_type_map{
+      {"log", EventActionType::Log},
+      {"block", EventActionType::Block},
+      {"field", EventActionType::ReplaceField},
+      {"filter", EventActionType::ReplaceFilter},
+      {"query_attributes", EventActionType::PrintQueryAttrs},
+      {"service", EventActionType::PrintServiceComp}};
 
-}  // namespace audit_log_filter
+  const auto it = tag_to_type_map.find(event_tag_name);
+  return it != tag_to_type_map.cend() ? it->second : EventActionType::Unknown;
+}
 
-#endif  // AUDIT_LOG_FILTER_BASE_MEDIATOR_H_INCLUDED
+}  // namespace audit_log_filter::event_field_action

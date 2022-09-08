@@ -6,8 +6,6 @@ SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
 SELECT audit_log_filter_remove_user('%');
 
-SET GLOBAL audit_log_filter_flush = ON;
-
 --let $expected_current_log_size = query_get_value(SHOW GLOBAL STATUS LIKE 'Audit_log_filter_current_size', Value, 1)
 --let $expected_total_log_size = query_get_value(SHOW GLOBAL STATUS LIKE 'Audit_log_filter_total_size', Value, 1)
 --source check_current_total_logs_size.inc
@@ -22,8 +20,6 @@ if ($expected_current_log_size != $expected_total_log_size) {
 SELECT audit_log_filter_set_user('%', 'log_all');
 --source generate_audit_events.inc
 SELECT audit_log_filter_remove_user('%');
-
-SET GLOBAL audit_log_filter_flush = ON;
 
 --let $expected_current_log_size = query_get_value(SHOW GLOBAL STATUS LIKE 'Audit_log_filter_current_size', Value, 1)
 --let $expected_total_log_size = query_get_value(SHOW GLOBAL STATUS LIKE 'Audit_log_filter_total_size', Value, 1)

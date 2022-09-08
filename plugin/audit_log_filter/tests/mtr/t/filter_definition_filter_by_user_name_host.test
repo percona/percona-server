@@ -2,9 +2,7 @@
 --let $log_file_name = `SELECT @@global.audit_log_filter_file`
 --let $file_full_path = $log_file_path$log_file_name
 
-# Clean current log
---remove_file $log_file_path$log_file_name
-SET GLOBAL audit_log_filter_flush = ON;
+--source clean_current_audit_log.inc
 
 --echo #
 --echo # Create filter used for testing

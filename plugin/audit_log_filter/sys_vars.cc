@@ -29,6 +29,7 @@
 
 #include <syslog.h>
 #include <atomic>
+#include <iomanip>
 
 namespace audit_log_filter {
 namespace {
@@ -47,6 +48,7 @@ std::atomic<uint64_t> write_waits{0};
 std::atomic<uint64_t> event_max_drop_size{0};
 std::atomic<uint64_t> current_log_size{0};
 std::atomic<uint64_t> total_log_size{0};
+std::atomic<uint64_t> direct_writes{0};
 
 int show_events_total(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
@@ -112,6 +114,14 @@ int show_total_log_size(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+int show_direct_writes(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = direct_writes.load(std::memory_order_relaxed);
+  return 0;
+}
+
 SHOW_VAR status_vars[] = {
     {"Audit_log_filter_events", reinterpret_cast<char *>(&show_events_total),
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
@@ -134,6 +144,9 @@ SHOW_VAR status_vars[] = {
     {"Audit_log_filter_total_size",
      reinterpret_cast<char *>(&show_total_log_size), SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter_direct_writes",
+     reinterpret_cast<char *>(&show_direct_writes), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
 /*
@@ -147,9 +160,10 @@ ulong log_strategy_type =
     static_cast<ulong>(AuditLogStrategyType::Asynchronous);
 ulonglong log_write_buffer_size = 1048576UL;
 ulonglong log_rotate_on_size = 0;
+constexpr ulonglong default_log_rotate_on_size = 1024 * 1024 * 1024;
 ulonglong log_max_size = 0;
+constexpr ulonglong default_log_max_size = 1024 * 1024 * 1024;
 ulonglong log_prune_seconds = 0;
-bool log_flush_requested = false;
 bool log_disabled = false;
 char *log_syslog_ident = nullptr;
 const char default_log_syslog_ident[] = "percona-audit-event-filter";
@@ -242,18 +256,19 @@ MYSQL_SYSVAR_ULONGLONG(buffer_size, log_write_buffer_size,
 
 /*
  * The audit_log_filter.rotate_on_size variable specifies the maximum size
- * of the audit log file. Upon reaching this size, the audit log will be
- * rotated. For this variable to take effect, set the audit_log_filter.handler
- * variable to FILE.
+ * of the audit log file in bytes. Upon reaching this size, the audit log will
+ * be rotated. For this variable to take effect, set the
+ * audit_log_filter.handler variable to FILE.
  */
 MYSQL_SYSVAR_ULONGLONG(
     rotate_on_size, log_rotate_on_size, PLUGIN_VAR_RQCMDARG,
-    "Maximum size of the log to start the rotation, if FILE handler is used.",
-    nullptr, nullptr, 0UL, 0UL, ULLONG_MAX, 4096UL);
+    "Maximum size of the log to start the rotation in bytes, if FILE handler "
+    "is used.",
+    nullptr, nullptr, default_log_rotate_on_size, 0UL, ULLONG_MAX, 4096UL);
 
 /*
  * A value greater than 0 enables size-based pruning. The value is the
- * combined size above which audit log files become subject to pruning.
+ * combined size in bytes above which audit log files become subject to pruning.
  */
 void max_size_update_func(MYSQL_THD thd, SYS_VAR *, void *val_ptr,
                           const void *save) {
@@ -274,7 +289,8 @@ MYSQL_SYSVAR_ULONGLONG(
     max_size, log_max_size, PLUGIN_VAR_OPCMDARG,
     "The maximum combined size of log files in bytes after which log "
     "files become subject to pruning.",
-    nullptr, max_size_update_func, 0UL, 0UL, ULLONG_MAX, 4096UL);
+    nullptr, max_size_update_func, default_log_max_size, 0UL, ULLONG_MAX,
+    4096UL);
 
 /*
  * A value greater than 0 enables age-based pruning. The value is the number
@@ -300,22 +316,6 @@ MYSQL_SYSVAR_ULONGLONG(
     "The maximum log file age in seconds after which log file "
     "become subject to pruning.",
     nullptr, prune_seconds_update_func, 0UL, 0UL, ULLONG_MAX, 0UL);
-
-/*
- * When this variable is set to ON log file will be closed and reopened.
- * This can be used for manual log rotation.
- */
-void flush_update_func(MYSQL_THD, SYS_VAR *, void *, const void *save) {
-  const auto *val = static_cast<const bool *>(save);
-
-  if (*val && SysVars::get_rotate_on_size() == 0) {
-    get_audit_log_filter_instance()->on_audit_log_flush_requested();
-  }
-}
-
-MYSQL_SYSVAR_BOOL(flush, log_flush_requested, PLUGIN_VAR_NOCMDARG,
-                  "Close and reopen log file when set to ON.", nullptr,
-                  flush_update_func, false);
 
 /*
  * The audit_log_filter.syslog_ident variable is used to specify the ident
@@ -463,7 +463,6 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(rotate_on_size),
                        MYSQL_SYSVAR(max_size),
                        MYSQL_SYSVAR(prune_seconds),
-                       MYSQL_SYSVAR(flush),
                        MYSQL_SYSVAR(syslog_ident),
                        MYSQL_SYSVAR(syslog_facility),
                        MYSQL_SYSVAR(syslog_priority),
@@ -548,7 +547,8 @@ void SysVars::update_log_bookmark(uint64_t id,
 LogBookmark SysVars::get_log_bookmark() noexcept { return log_bookmark; }
 
 AuditLogReaderContext *SysVars::get_log_reader_context(MYSQL_THD thd) noexcept {
-  return (AuditLogReaderContext *)THDVAR(thd, log_reader_context);
+  return reinterpret_cast<AuditLogReaderContext *>(
+      THDVAR(thd, log_reader_context));
 }
 
 void SysVars::set_log_reader_context(MYSQL_THD thd,
@@ -607,6 +607,11 @@ void SysVars::update_total_log_size(uint64_t size) noexcept {
   total_log_size.fetch_add(size, std::memory_order_relaxed);
 }
 
+void SysVars::inc_direct_writes() noexcept {
+  direct_writes.fetch_add(1, std::memory_order_relaxed);
+}
+
+#ifndef NDEBUG
 std::chrono::system_clock::time_point SysVars::get_debug_time_point() noexcept {
   static auto debug_time_point = get_initial_debug_time_point();
 
@@ -620,6 +625,7 @@ std::chrono::system_clock::time_point SysVars::get_debug_time_point() noexcept {
   debug_time_point += std::chrono::minutes{1};
   return debug_time_point;
 }
+#endif
 
 uint64_t SysVars::get_next_record_id() noexcept {
   return record_id.fetch_add(1, std::memory_order_relaxed);

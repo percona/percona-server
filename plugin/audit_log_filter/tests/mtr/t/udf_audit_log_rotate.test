@@ -1,0 +1,21 @@
+SELECT audit_log_rotate();
+
+--echo #
+--echo # Check wrong argument number
+--error 1123
+SELECT audit_log_rotate("");
+
+--echo #
+--echo # AUDIT_ADMIN privilege required
+
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'%';
+
+connect(conn1, localhost, user1, 111, test);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_rotate();
+--connection default
+
+--echo #
+--echo # Cleanup
+DROP USER user1;

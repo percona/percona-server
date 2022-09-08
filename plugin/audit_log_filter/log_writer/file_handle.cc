@@ -21,6 +21,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <iomanip>
 #include <regex>
 #include <string>
 
@@ -61,6 +62,10 @@ bool FileHandle::open_file(std::filesystem::path file_path) noexcept {
 }
 
 bool FileHandle::close_file() noexcept {
+  if (!m_file.is_open() && m_path.empty()) {
+    return true;
+  }
+
   m_file.close();
   m_path.clear();
 
@@ -95,7 +100,8 @@ void FileHandle::write_buffer(const std::string &record) noexcept {
 
 uint64_t FileHandle::get_file_size() const noexcept {
   assert(m_file.is_open());
-  return std::filesystem::file_size(m_path);
+  return std::filesystem::exists(m_path) ? std::filesystem::file_size(m_path)
+                                         : 0;
 }
 
 uint64_t FileHandle::get_total_log_size(const std::string &working_dir_name,
@@ -172,6 +178,10 @@ std::error_code FileHandle::rotate(const std::string &working_dir_name,
                                    const std::string &file_name) noexcept {
   auto current_file_path = std::filesystem::path{working_dir_name} /
                            std::filesystem::path{file_name};
+
+  if (!std::filesystem::exists(current_file_path)) {
+    return std::error_code{};
+  }
 
   std::time_t t =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());

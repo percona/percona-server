@@ -1,6 +1,8 @@
+SET @old_max_size = @@global.audit_log_filter_max_size;
+SET GLOBAL audit_log_filter_max_size=DEFAULT;
 SELECT @@global.audit_log_filter_max_size;
 @@global.audit_log_filter_max_size
-0
+1073741824
 SET GLOBAL audit_log_filter_max_size=0;
 SELECT @@global.audit_log_filter_max_size;
 @@global.audit_log_filter_max_size
@@ -38,3 +40,4 @@ ERROR 42000: Incorrect argument type to variable 'audit_log_filter_max_size'
 SELECT @@global.audit_log_filter_max_size;
 @@global.audit_log_filter_max_size
 0
+SET GLOBAL audit_log_filter_max_size = @old_max_size;

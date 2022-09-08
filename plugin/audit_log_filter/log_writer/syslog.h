@@ -32,14 +32,14 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
    *
    * @return true in case of success, false otherwise
    */
-  bool open() noexcept override { return true; }
+  bool open() noexcept override;
 
   /**
    * @brief Close log writer.
    *
    * @return true in case of success, false otherwise
    */
-  bool close() noexcept override { return true; }
+  bool close() noexcept override;
 
   /**
    * @brief Write audit record to log.
@@ -48,13 +48,7 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
    * @param print_separator Add lor record separator before a record
    *                        if set to true
    */
-  void write(const std::string &record [[maybe_unused]],
-             bool print_separator [[maybe_unused]]) noexcept override {}
-
-  /**
-   * @brief Close and reopen current log file. Used for manual log rotation.
-   */
-  void flush() noexcept override {}
+  void write(const std::string &record, bool print_separator) noexcept override;
 
   /**
    * @brief Prune outdated log files.

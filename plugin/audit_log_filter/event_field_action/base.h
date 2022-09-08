@@ -36,9 +36,13 @@ enum class EventActionType {
   Block,
   ReplaceField,
   ReplaceFilter,
+  PrintQueryAttrs,
+  PrintServiceComp,
   // This item must be last in the list
   Unknown
 };
+
+EventActionType get_event_action_type(const char *event_tag_name);
 
 class EventFieldActionBase {
  public:
@@ -59,9 +63,9 @@ class EventFieldActionBase {
    * @param audit_rule Effective audit rule
    * @return true in case action applied successfully, false otherwise
    */
-  [[nodiscard]] virtual bool apply(const AuditRecordFieldsList &fields,
-                                   AuditRecordVariant &audit_record,
-                                   AuditRule *audit_rule) const noexcept = 0;
+  virtual bool apply(const AuditRecordFieldsList &fields,
+                     AuditRecordVariant &audit_record,
+                     AuditRule *audit_rule) const noexcept = 0;
 };
 
 }  // namespace event_field_action

@@ -28,7 +28,7 @@ extern PSI_memory_key key_memory_audit_log_filter_accounts;
 extern PSI_memory_key key_memory_audit_log_filter_databases;
 extern PSI_memory_key key_memory_audit_log_filter_commands;
 
-static const constexpr auto AUDIT_LOG_FILTER_PSI_CATEGORY = "audit_log_filter";
+static const constexpr auto AUDIT_LOG_FILTER_PSI_CATEGORY = "audit_filter";
 
 }  // namespace audit_log_filter
 

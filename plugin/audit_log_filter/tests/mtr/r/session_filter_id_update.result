@@ -4,10 +4,10 @@ SELECT @@global.audit_log_filter_filter_id;
 SELECT @@session.audit_log_filter_filter_id;
 @@session.audit_log_filter_filter_id
 0
-CREATE USER 'user1'@'%' IDENTIFIED BY '111';
-GRANT ALL PRIVILEGES ON *.* to 'user1'@'%';
-CREATE USER 'user2'@'%' IDENTIFIED BY '222';
-GRANT ALL PRIVILEGES ON *.* to 'user2'@'%';
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '111';
+GRANT ALL PRIVILEGES ON *.* to 'user1'@'localhost';
+CREATE USER 'user2'@'localhost' IDENTIFIED BY '222';
+GRANT ALL PRIVILEGES ON *.* to 'user2'@'localhost';
 SELECT audit_log_filter_set_filter('user1_1', '{"filter": {}}');
 audit_log_filter_set_filter('user1_1', '{"filter": {}}')
 OK
@@ -46,7 +46,7 @@ SELECT @@session.audit_log_filter_filter_id;
 4
 #
 # Cleanup
-DROP USER user1, user2;
+DROP USER 'user1'@'localhost', 'user2'@'localhost';
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
 SELECT audit_log_filter_flush();

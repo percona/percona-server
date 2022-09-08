@@ -1,4 +1,9 @@
 
+SET @old_rotate_on_size = @@global.audit_log_filter_rotate_on_size;
+
+SET GLOBAL audit_log_filter_rotate_on_size=DEFAULT;
+SELECT @@global.audit_log_filter_rotate_on_size;
+
 SET GLOBAL audit_log_filter_rotate_on_size=0;
 SELECT @@global.audit_log_filter_rotate_on_size;
 
@@ -23,3 +28,4 @@ SELECT @@global.audit_log_filter_rotate_on_size;
 SET GLOBAL audit_log_filter_rotate_on_size='';
 SELECT @@global.audit_log_filter_rotate_on_size;
 
+SET GLOBAL audit_log_filter_rotate_on_size = @old_rotate_on_size;

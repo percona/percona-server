@@ -9,11 +9,11 @@ SELECT @@global.audit_log_filter_prune_seconds;
 SET GLOBAL audit_log_filter_max_size=0;
 SET GLOBAL audit_log_filter_max_size=4096;
 Warnings:
-Warning	7033	Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored
+Warning	7034	Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored
 SET GLOBAL audit_log_filter_prune_seconds=0;
 SET GLOBAL audit_log_filter_prune_seconds=1000;
 Warnings:
-Warning	7033	Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored
+Warning	7034	Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored
 SELECT @@global.audit_log_filter_max_size;
 @@global.audit_log_filter_max_size
 4096

@@ -137,7 +137,7 @@ bool AuditLogReader::init() noexcept {
   return true;
 }
 
-bool AuditLogReader::read(AuditLogReaderArgs *reader_args,
+bool AuditLogReader::read(const AuditLogReaderArgs &reader_args,
                           AuditLogReaderContext *reader_context, char *out_buff,
                           ulong out_buff_size) noexcept {
   auto log_file_handle = get_log_file_handle(reader_context);
@@ -166,10 +166,10 @@ bool AuditLogReader::read(AuditLogReaderArgs *reader_args,
 }
 
 AuditLogReaderContext *AuditLogReader::init_reader_session(
-    AuditLogReaderArgs *reader_args) noexcept {
+    const AuditLogReaderArgs &reader_args) noexcept {
   auto *reader_context = new AuditLogReaderContext{};
-  reader_context->next_event_bookmark.timestamp = reader_args->timestamp;
-  reader_context->next_event_bookmark.id = reader_args->id;
+  reader_context->next_event_bookmark.timestamp = reader_args.timestamp;
+  reader_context->next_event_bookmark.id = reader_args.id;
 
   return reader_context;
 }

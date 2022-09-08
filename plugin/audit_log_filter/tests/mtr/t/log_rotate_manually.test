@@ -1,43 +1,21 @@
 
-SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
-
---let $audit_filter_log_path = `SELECT @@global.datadir`
---let $log_name = `SELECT @@global.audit_log_filter_file`
-
 SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
 SELECT audit_log_filter_set_user('%', 'log_general');
 
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 
---move_file $audit_filter_log_path$log_name $audit_filter_log_path$log_name.1
-SET GLOBAL audit_log_filter_flush = ON;
+SELECT audit_log_rotate();
 
 --source generate_audit_events.inc
 
---move_file $audit_filter_log_path$log_name.1 $audit_filter_log_path$log_name.2
---move_file $audit_filter_log_path$log_name $audit_filter_log_path$log_name.1
-SET GLOBAL audit_log_filter_flush = ON;
+SELECT audit_log_rotate();
 
---let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>
-
---let $audit_filter_log_name = $log_name.1
---source check_all_events_with_tag.inc
---let $audit_filter_log_name = $log_name.2
---source check_all_events_with_tag.inc
-
---let $xml_file_path = $audit_filter_log_path
---let $xml_file_name = $log_name.1
---source validate_xml_file.inc
---let $xml_file_name = $log_name.2
---source validate_xml_file.inc
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--source validate_xml_logs.inc
 
 --echo #
 --echo # Cleanup
-SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
-
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
 SELECT audit_log_filter_flush();
-
---remove_file $audit_filter_log_path$log_name.1
---remove_file $audit_filter_log_path$log_name.2

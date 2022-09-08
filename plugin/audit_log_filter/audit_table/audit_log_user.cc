@@ -165,7 +165,7 @@ TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
   auto ta_context = open_table();
 
   if (ta_context == nullptr) {
-    return TableResult::Fail;
+    return TableResult::MissingTable;
   }
 
   my_service<SERVICE_TYPE(mysql_charset)> charset_srv("mysql_charset",

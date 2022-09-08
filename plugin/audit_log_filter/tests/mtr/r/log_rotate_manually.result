@@ -1,17 +1,18 @@
-SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
 SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
 audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}')
 OK
 SELECT audit_log_filter_set_user('%', 'log_general');
 audit_log_filter_set_user('%', 'log_general')
 OK
-SET GLOBAL audit_log_filter_flush = ON;
-SET GLOBAL audit_log_filter_flush = ON;
-Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
-Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
+SELECT audit_log_rotate();
+audit_log_rotate()
+OK
+SELECT audit_log_rotate();
+audit_log_rotate()
+OK
+Rotated files Ok
 #
 # Cleanup
-SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
 SELECT audit_log_filter_flush();

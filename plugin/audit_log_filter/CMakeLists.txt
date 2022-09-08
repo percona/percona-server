@@ -20,6 +20,7 @@ MYSQL_ADD_PLUGIN(audit_log_filter
                  audit_record.cc
                  audit_filter.cc
                  audit_rule.cc
+                 audit_rule_parser.cc
                  audit_rule_registry.cc
                  audit_psi_info.cc
                  audit_udf.cc
@@ -52,10 +53,13 @@ MYSQL_ADD_PLUGIN(audit_log_filter
                  event_field_condition/variable.cc
                  event_field_condition/function.cc
                  event_field_condition/bool.cc
+                 event_field_action/base.cc
                  event_field_action/log.cc
                  event_field_action/block.cc
                  event_field_action/replace_field.cc
                  event_field_action/replace_filter.cc
+                 event_field_action/print_query_attrs.cc
+                 event_field_action/print_service_comp.cc
                  event_filter_function.cc
                  event_filter_function/base.cc
                  event_filter_function/string_find.cc
@@ -65,5 +69,12 @@ MYSQL_ADD_PLUGIN(audit_log_filter
 IF(UNIX)
   IF(INSTALL_MYSQLTESTDIR)
     INSTALL(DIRECTORY tests/mtr/ DESTINATION ${INSTALL_MYSQLTESTDIR}/suite/audit_log_filter COMPONENT Test)
+  ENDIF()
+
+  IF(INSTALL_MYSQLSHAREDIR)
+    INSTALL(FILES "audit_log_filter_linux_install.sql"
+            DESTINATION ${INSTALL_MYSQLSHAREDIR}
+            COMPONENT Server
+            PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
   ENDIF()
 ENDIF()

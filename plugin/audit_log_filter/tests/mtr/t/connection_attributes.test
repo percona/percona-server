@@ -17,6 +17,7 @@ SELECT audit_log_filter_set_user('%', 'log_connect');
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 --let $audit_filter_log_format = json
 
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 
 --let $search_tag="connection_attributes":

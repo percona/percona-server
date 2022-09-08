@@ -9,7 +9,6 @@
 --echo # Create all simple filters
 SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
 SELECT audit_log_filter_set_filter('log_connection', '{"filter": {"class": {"name": "connection"}}}');
-SELECT audit_log_filter_set_filter('log_parse', '{"filter": {"class": {"name": "parse"}}}');
 SELECT audit_log_filter_set_filter('log_authorization', '{"filter": {"class": {"name": "authorization"}}}');
 SELECT audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}');
 SELECT audit_log_filter_set_filter('log_global_variable', '{"filter": {"class": {"name": "global_variable"}}}');
@@ -38,13 +37,6 @@ SELECT audit_log_filter_set_user('%', 'log_general');
 SELECT audit_log_filter_set_user('%', 'log_connection');
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME>
---source check_all_events_with_tag.inc
-
---echo #
---echo # Log 'parse' events only
-SELECT audit_log_filter_set_user('%', 'log_parse');
---source generate_audit_events.inc
---let $search_tag=<EVENT_CLASS_NAME>parse</EVENT_CLASS_NAME>
 --source check_all_events_with_tag.inc
 
 --echo #

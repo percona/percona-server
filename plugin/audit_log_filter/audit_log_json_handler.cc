@@ -18,7 +18,7 @@
 
 namespace audit_log_filter {
 
-AuditJsonHandler::AuditJsonHandler(AuditLogReaderArgs *reader_args,
+AuditJsonHandler::AuditJsonHandler(const AuditLogReaderArgs &reader_args,
                                    AuditLogReaderContext *reader_context,
                                    char *out_buff, ulong out_buff_size)
     : m_reader_args{reader_args},
@@ -113,8 +113,8 @@ bool AuditJsonHandler::EndObject(rapidjson::SizeType memberCount
     const auto event_length = m_event_str.str().length();
 
     if ((m_used_buff_size + event_length >= m_out_buff_size) ||
-        (m_reader_args->max_array_length != 0 &&
-         m_printed_events_count == m_reader_args->max_array_length)) {
+        (m_reader_args.max_array_length != 0 &&
+         m_printed_events_count == m_reader_args.max_array_length)) {
       m_reader_context->next_event_bookmark = m_current_event_bookmark;
       return false;
     }

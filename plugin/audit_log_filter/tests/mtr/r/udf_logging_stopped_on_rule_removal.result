@@ -1,0 +1,18 @@
+SELECT audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }');
+audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+Tag <AUDIT_RECORD> Ok
+SELECT audit_log_filter_remove_filter('log_all');
+audit_log_filter_remove_filter('log_all')
+OK
+No tag <AUDIT_RECORD> Ok
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

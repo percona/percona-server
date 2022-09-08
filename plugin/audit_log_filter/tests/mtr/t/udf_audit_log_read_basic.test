@@ -1,47 +1,58 @@
 --echo #
 --echo # Check wrong argument number
---error 1123
+--error ER_CANT_INITIALIZE_UDF
 SELECT audit_log_read('arg1', 'arg2');
 
 --echo #
 --echo # Wrong argument type
---error 1123
+--error ER_CANT_INITIALIZE_UDF
 SELECT audit_log_read(1);
 
 --echo #
 --echo # Wrong JSON argument format
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('');
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{some string}');
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{ "some_arg": 0 }');
 
 --echo #
 --echo # Find records by a start timestamp
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{"start": {"timestamp": 0}}');
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{"start": {"timestamp": ""}}');
 SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}}');
 SELECT audit_log_read('null');
 
 --echo #
 --echo # Find records by a bookmark
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{ "timestamp": 0, "id": 0 }');
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": "" }');
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{ "timestamp": "", "id": 0 }');
 SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0 }');
 SELECT audit_log_read('null');
 
 --echo #
 --echo # Check max_array_length parameter
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": "" }');
---error 1123
+--error ER_UDF_ERROR
 SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": -10 }');
 SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": 10 }');
+SELECT audit_log_read('null');
+
+--echo #
+--echo # Pass bookmark directly from audit_log_read_bookmark() UDF or via variable
+--replace_column 1 RESULT
+SELECT audit_log_read(audit_log_read_bookmark());
+SELECT audit_log_read('null');
+
+SET @bookmark := audit_log_read_bookmark();
+--replace_column 1 RESULT
+SELECT audit_log_read(@bookmark);
 SELECT audit_log_read('null');

@@ -10,36 +10,8 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --source generate_audit_events.inc
 --source generate_audit_events.inc
 
---let xml_file_path = `SELECT @@global.datadir`
-
-# There is no closing XML tag in current log file while the server is working
---source include/shutdown_mysqld.inc
-
-perl;
-  eval "use XML::Parser; 1" or exit 0;
-  my $p = new XML::Parser;
-  my $logs_counter = 0;
-
-  opendir(my $dh, $ENV{'xml_file_path'}) || die "Can't opendir $ENV{'xml_file_path'}: $!";
-
-  while (readdir $dh) {
-    if ($_ =~ /test_audit_filter/) {
-      $logs_counter += 1;
-      $p->parsefile("$ENV{'xml_file_path'}$_");
-    }
-  }
-
-  closedir $dh;
-
-  if ($logs_counter > 1) {
-    print "Rotation Ok\n";
-  }
-  else {
-    print "Rotation doesn't work, logs_counter: $logs_counter\n";
-  }
-EOF
-
---source include/start_mysqld.inc
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--source validate_xml_logs.inc
 
 --echo #
 --echo # Cleanup

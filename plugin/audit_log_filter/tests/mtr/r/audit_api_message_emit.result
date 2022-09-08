@@ -1,0 +1,41 @@
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SELECT audit_log_filter_set_filter('log_message', '{
+"filter": {
+"class": {
+"name": "message",
+"event": {
+"name": "user",
+"log": true
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_message', '{
+"filter": {
+"class": {
+"name": "message",
+"event": {
+"name": "user",
+"log": true
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_message');
+audit_log_filter_set_user('%', 'log_message')
+OK
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+SELECT audit_api_message_emit_udf('component_text', 'producer_text', 'message_text', 'key', 'value') AS 'Message';
+Message
+OK
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+Tag <EVENT_CLASS_NAME>message</EVENT_CLASS_NAME> Ok
+#
+# Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

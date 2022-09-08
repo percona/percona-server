@@ -1,3 +1,8 @@
+SET @old_rotate_on_size = @@global.audit_log_filter_rotate_on_size;
+SET GLOBAL audit_log_filter_rotate_on_size=DEFAULT;
+SELECT @@global.audit_log_filter_rotate_on_size;
+@@global.audit_log_filter_rotate_on_size
+1073741824
 SET GLOBAL audit_log_filter_rotate_on_size=0;
 SELECT @@global.audit_log_filter_rotate_on_size;
 @@global.audit_log_filter_rotate_on_size
@@ -35,3 +40,4 @@ ERROR 42000: Incorrect argument type to variable 'audit_log_filter_rotate_on_siz
 SELECT @@global.audit_log_filter_rotate_on_size;
 @@global.audit_log_filter_rotate_on_size
 0
+SET GLOBAL audit_log_filter_rotate_on_size = @old_rotate_on_size;

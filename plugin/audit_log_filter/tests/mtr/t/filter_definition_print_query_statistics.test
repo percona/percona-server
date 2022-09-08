@@ -1,0 +1,237 @@
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
+
+CREATE TABLE t1 (id INT);
+
+--echo #
+--echo # Check mysql_audit_print_service_double_data_source service
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": {
+          "service": {
+            "tag": "query_statistics",
+            "element": [
+              { "name": "query_time",     "type": "double" },
+              { "name": "bytes_sent",     "type": "double" },
+              { "name": "bytes_received", "type": "double" },
+              { "name": "rows_sent",      "type": "double" },
+              { "name": "rows_examined",  "type": "double" }
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('query_stats_double', '$filter');
+SELECT audit_log_filter_set_user('%', 'query_stats_double');
+
+--source clean_current_audit_log.inc
+
+INSERT INTO t1 VALUES (1);
+
+--let $audit_filter_log_format=json
+--let $search_tag="query_statistics"
+--source check_all_events_with_tag.inc
+--let $search_tag="query_time"
+--source check_all_events_with_tag.inc
+--let $search_tag="bytes_sent"
+--source check_all_events_with_tag.inc
+--let $search_tag="bytes_received"
+--source check_all_events_with_tag.inc
+--let $search_tag="rows_sent"
+--source check_all_events_with_tag.inc
+--let $search_tag="rows_examined"
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Check mysql_audit_print_service_longlong_data_source service
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": {
+          "service": {
+            "tag": "query_statistics",
+            "element": [
+              { "name": "query_time",     "type": "longlong" },
+              { "name": "bytes_sent",     "type": "longlong" },
+              { "name": "bytes_received", "type": "longlong" },
+              { "name": "rows_sent",      "type": "longlong" },
+              { "name": "rows_examined",  "type": "longlong" }
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('query_stats_longlong', '$filter');
+SELECT audit_log_filter_set_user('%', 'query_stats_longlong');
+
+--source clean_current_audit_log.inc
+
+INSERT INTO t1 VALUES (2);
+
+--let $audit_filter_log_format=json
+--let $search_tag="query_statistics"
+--source check_all_events_with_tag.inc
+--let $search_tag="query_time"
+--source check_all_events_with_tag.inc
+--let $search_tag="bytes_sent"
+--source check_all_events_with_tag.inc
+--let $search_tag="bytes_received"
+--source check_all_events_with_tag.inc
+--let $search_tag="rows_sent"
+--source check_all_events_with_tag.inc
+--let $search_tag="rows_examined"
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Wrong format, missing "tag" or invalid type
+--disable_query_log
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'query_stats_no_tag' format");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'query_stats_bad_tag' format");
+--enable_query_log
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": {
+          "service": {
+            "element": [
+              { "name": "query_time",     "type": "longlong" }
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('query_stats_no_tag', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": {
+          "service": {
+            "tag": 4,
+            "element": [
+              { "name": "query_time",     "type": "longlong" }
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('query_stats_bad_tag', '$filter');
+
+--echo #
+--echo # Wrong format, missing "element" or invalid format
+--disable_query_log
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'query_stats_no_element' format");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'query_stats_element_empty' format");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'query_stats_element_not_arr' format");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'query_stats_element_bad_args' format");
+--enable_query_log
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": {
+          "service": {
+            "tag": "query_statistics"
+          }
+        }
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('query_stats_no_element', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": {
+          "service": {
+            "tag": "query_statistics",
+            "element": {
+              "name": "query_time",
+              "type": "longlong"
+            }
+          }
+        }
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('query_stats_element_not_arr', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": {
+          "service": {
+            "tag": "query_statistics",
+            "element": []
+          }
+        }
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('query_stats_element_empty', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": {
+          "service": {
+            "tag": "query_statistics",
+            "element": [
+              "query_time", "longlong"
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('query_stats_element_bad_args', '$filter');
+
+--echo #
+--echo # Cleanup
+DROP TABLE t1;
+
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();

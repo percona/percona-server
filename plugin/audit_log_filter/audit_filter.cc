@@ -21,14 +21,6 @@ namespace audit_log_filter {
 
 AuditAction AuditEventFilter::apply(AuditRule *rule,
                                     AuditRecordVariant &audit_record) noexcept {
-  if (!rule->check_parse_state()) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Filtering rule '%s' has wrong format, "
-                    "skipping audit event",
-                    rule->get_rule_name().c_str());
-    return AuditAction::Skip;
-  }
-
   auto event_class_name = std::visit(
       [](const auto &rec) { return rec.event_class_name; }, audit_record);
   auto event_subclass_name = std::visit(
@@ -54,9 +46,19 @@ AuditAction AuditEventFilter::apply(AuditRule *rule,
       EventActionType::ReplaceField, event_class_name, event_subclass_name);
   const auto *replace_filter_action = rule->get_action(
       EventActionType::ReplaceFilter, event_class_name, event_subclass_name);
+  const auto *print_query_attrs_action = rule->get_action(
+      EventActionType::PrintQueryAttrs, event_class_name, event_subclass_name);
+  const auto *print_service_comp_action = rule->get_action(
+      EventActionType::PrintServiceComp, event_class_name, event_subclass_name);
 
   if (replace_field_action != nullptr) {
     replace_field_action->apply(event_fields, audit_record, rule);
+  }
+  if (print_query_attrs_action != nullptr) {
+    print_query_attrs_action->apply(event_fields, audit_record, rule);
+  }
+  if (print_service_comp_action != nullptr) {
+    print_service_comp_action->apply(event_fields, audit_record, rule);
   }
 
   const auto *log_action = rule->get_action(

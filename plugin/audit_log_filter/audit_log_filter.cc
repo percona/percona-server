@@ -26,6 +26,7 @@
 #include "plugin/audit_log_filter/sys_vars.h"
 
 #include <mysql/components/services/mysql_connection_attributes_iterator.h>
+#include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/security_context.h>
 
 #include "mysql/plugin.h"
@@ -43,18 +44,14 @@
 #define PLUGIN_EXPORT extern "C"
 #endif
 
+// Needed by mysql/components/services/log_builtins.h
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 namespace audit_log_filter {
 namespace {
-AuditLogFilter *audit_log_filter = nullptr;
 
-void my_plugin_perror() noexcept {
-  char errbuf[MYSYS_STRERROR_SIZE];
-  my_strerror(errbuf, sizeof(errbuf), errno);
-  LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Error: %s", errbuf);
-}
+AuditLogFilter *audit_log_filter = nullptr;
 
 }  // namespace
 
@@ -101,6 +98,7 @@ DECLARE_AUDIT_UDF(audit_log_filter_remove_user)
 DECLARE_AUDIT_UDF(audit_log_filter_flush)
 DECLARE_AUDIT_UDF(audit_log_read)
 DECLARE_AUDIT_UDF(audit_log_read_bookmark)
+DECLARE_AUDIT_UDF(audit_log_rotate)
 
 #define DECLARE_AUDIT_UDF_INFO(NAME) \
   UdfFuncInfo { #NAME, &NAME##_udf, &NAME##_udf_init, &NAME##_udf_deinit }
@@ -112,7 +110,8 @@ static std::array udfs_list{
     DECLARE_AUDIT_UDF_INFO(audit_log_filter_remove_user),
     DECLARE_AUDIT_UDF_INFO(audit_log_filter_flush),
     DECLARE_AUDIT_UDF_INFO(audit_log_read),
-    DECLARE_AUDIT_UDF_INFO(audit_log_read_bookmark)};
+    DECLARE_AUDIT_UDF_INFO(audit_log_read_bookmark),
+    DECLARE_AUDIT_UDF_INFO(audit_log_rotate)};
 
 /**
  * @brief Initialize the plugin at server start or plugin installation.
@@ -180,8 +179,10 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   }
 
   if (!log_writer->open()) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot open log writer");
-    my_plugin_perror();
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_strerror(errbuf, sizeof(errbuf), errno);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot open log writer, error: %s", errbuf);
     return 1;
   }
 
@@ -194,8 +195,10 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   }
 
   if (!log_reader->init()) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot open log reader");
-    my_plugin_perror();
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_strerror(errbuf, sizeof(errbuf), errno);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot open log reader, error: %s", errbuf);
     return 1;
   }
 
@@ -205,6 +208,8 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
 
   if (SysVars::get_log_disabled()) {
     LogPluginErr(WARNING_LEVEL, ER_WARN_AUDIT_LOG_FILTER_DISABLED);
+  } else {
+    audit_log_filter->send_audit_start_event();
   }
 
   return 0;
@@ -218,12 +223,15 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
  *         code otherwise
  */
 int audit_log_filter_deinit(void *arg [[maybe_unused]]) {
-  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-               "Uninstalled Audit Event Filter");
-
   if (audit_log_filter == nullptr) {
     return 0;
   }
+
+  audit_log_filter->send_audit_stop_event();
+  audit_log_filter->deinit();
+
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+               "Uninstalled Audit Event Filter");
 
   delete audit_log_filter;
   audit_log_filter = nullptr;
@@ -255,14 +263,18 @@ AuditLogFilter::AuditLogFilter(
       m_audit_rules_registry{std::move(audit_rules_registry)},
       m_audit_udf{std::move(audit_udf)},
       m_log_writer{std::move(log_writer)},
-      m_filter{std::make_unique<AuditEventFilter>()},
-      m_log_reader{std::move(log_reader)} {
-  m_audit_udf->set_mediator(this);
+      m_log_reader{std::move(log_reader)},
+      m_is_active{true} {}
+
+void AuditLogFilter::deinit() noexcept {
+  m_is_active = false;
+  m_audit_udf->deinit();
+  m_log_writer->close();
 }
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
                                  const void *event) {
-  if (SysVars::get_log_disabled()) {
+  if (SysVars::get_log_disabled() || !m_is_active) {
     return 0;
   }
 
@@ -303,12 +315,8 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     return 0;
   }
 
-  auto ev_name = std::visit(
-      [](const auto &rec) -> std::string_view { return rec.event_class_name; },
-      audit_record);
-
   // Apply filtering rule
-  AuditAction filter_result = m_filter->apply(filter_rule, audit_record);
+  AuditAction filter_result = AuditEventFilter::apply(filter_rule, audit_record);
 
   if (filter_result == AuditAction::Skip) {
     SysVars::inc_events_filtered();
@@ -316,6 +324,9 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   }
 
   if (filter_result == AuditAction::Block) {
+    auto ev_name = std::visit(
+        [](const auto &rec) -> std::string_view { return rec.event_class_name; },
+        audit_record);
     LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Blocked audit event '%s' with class %i", ev_name.data(),
                     event_class);
@@ -332,7 +343,53 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   return 0;
 }
 
+void AuditLogFilter::send_audit_start_event() noexcept {
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", m_comp_registry_srv.get());
+
+  MYSQL_THD thd;
+
+  if (thd_reader_srv->get(&thd)) {
+    return;
+  }
+
+  if (thd == nullptr) {
+    return;
+  }
+
+  auto event = audit_filter_event_internal_audit{
+      audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT,
+      thd->server_id};
+  m_log_writer->write(get_audit_record(
+      audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT, &event));
+}
+
+void AuditLogFilter::send_audit_stop_event() noexcept {
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", m_comp_registry_srv.get());
+
+  MYSQL_THD thd;
+
+  if (thd_reader_srv->get(&thd)) {
+    return;
+  }
+
+  if (thd == nullptr) {
+    return;
+  }
+
+  auto event = audit_filter_event_internal_noaudit{
+      audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT,
+      thd->server_id};
+  m_log_writer->write(get_audit_record(
+      audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT, &event));
+}
+
 bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
+  if (!m_is_active) {
+    return false;
+  }
+
   const bool is_flushed = m_audit_rules_registry->load();
 
   DBUG_EXECUTE_IF("audit_log_filter_rotate_after_audit_rules_flush",
@@ -341,15 +398,23 @@ bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
   return is_flushed;
 }
 
-void AuditLogFilter::on_audit_log_flush_requested() noexcept {
-  m_log_writer->flush();
-}
-
 void AuditLogFilter::on_audit_log_prune_requested() noexcept {
-  m_log_writer->prune();
+  if (m_is_active) {
+    m_log_writer->prune();
+  }
 }
 
-void AuditLogFilter::on_audit_log_rotated() noexcept { m_log_reader->init(); }
+void AuditLogFilter::on_audit_log_rotate_requested() noexcept {
+  if (m_is_active) {
+    m_log_writer->rotate();
+  }
+}
+
+void AuditLogFilter::on_audit_log_rotated() noexcept {
+  if (m_is_active) {
+    m_log_reader->init();
+  }
+}
 
 void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
                                           AuditRecordVariant &audit_record) {
@@ -373,11 +438,14 @@ void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
       std::visit([](auto &rec) -> ExtendedInfo & { return rec.extended_info; },
                  audit_record);
 
+  info.attrs["connection_attributes"] = {};
+
   while (!attrs_service->get(thd, &iterator, &attr_name.str, &attr_name.length,
                              &attr_value.str, &attr_value.length,
                              &charset_string)) {
-    info.attrs.emplace(std::string{attr_name.str, attr_name.length},
-                       std::string{attr_value.str, attr_value.length});
+    info.attrs["connection_attributes"].emplace_back(
+        std::string{attr_name.str, attr_name.length},
+        std::string{attr_value.str, attr_value.length});
   }
 
   attrs_service->deinit(iterator);
@@ -429,6 +497,8 @@ bool AuditLogFilter::get_connection_user(
   return true;
 }
 
+AuditUdf *AuditLogFilter::get_udf() noexcept { return m_audit_udf.get(); }
+
 comp_registry_srv_t *AuditLogFilter::get_comp_registry_srv() noexcept {
   return m_comp_registry_srv.get();
 }
@@ -450,8 +520,7 @@ static st_mysql_audit audit_log_descriptor = {
     audit_log_filter::audit_log_notify, /* notify function      */
     {                                   /* class mask           */
      static_cast<unsigned long>(MYSQL_AUDIT_GENERAL_ALL),
-     static_cast<unsigned long>(MYSQL_AUDIT_CONNECTION_ALL),
-     static_cast<unsigned long>(MYSQL_AUDIT_PARSE_ALL), 0,
+     static_cast<unsigned long>(MYSQL_AUDIT_CONNECTION_ALL), 0, 0,
      static_cast<unsigned long>(MYSQL_AUDIT_TABLE_ACCESS_ALL),
      static_cast<unsigned long>(MYSQL_AUDIT_GLOBAL_VARIABLE_ALL),
      static_cast<unsigned long>(MYSQL_AUDIT_SERVER_STARTUP_ALL),

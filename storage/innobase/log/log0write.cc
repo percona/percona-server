@@ -2095,7 +2095,7 @@ static void log_writer_wait_on_consumers(log_t &log, lsn_t next_write_lsn) {
     /* This should not be a checkpointer nor archiver (CONSUMER_TYPE_SERVER), as
     we've used dedicated log_writer_wait_on_checkpoint() and
     log_writer_wait_on_archiver() to wait for them already */
-    ut_ad(consumer_type == Log_consumer::consumer_type::CONSUMER_TYPE_USER);
+    ut_ad(consumer_type == Log_consumer::consumer_type::USER);
     log_writer_mutex_exit(log);
     if (attempt++ % ATTEMPTS_BETWEEN_WARNINGS == 0) {
       ib::log_warn(ER_IB_MSG_LOG_WRITER_WAIT_ON_CONSUMER, name.c_str(),

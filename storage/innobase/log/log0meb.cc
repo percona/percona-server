@@ -1668,7 +1668,7 @@ static std::unique_ptr<Log_user_consumer> log_meb_consumer;
 static innodb_session_t *log_meb_consumer_session;
 
 static bool redo_log_consumer_register(innodb_session_t *session,
-                                       std::string name) {
+                                       std::string const &name) {
   log_t &log = *log_sys;
 
   IB_mutex_guard checkpointer_latch{&(log.checkpointer_mutex),
@@ -2330,7 +2330,7 @@ long long innodb_redo_log_consumer_register(
     return 1;
   }
 
-  if (args->arg_count == 1) {
+  if (args->arg_count >= 1) {
     name.assign(args->args[0]);
   }
 

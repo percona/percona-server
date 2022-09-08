@@ -52,7 +52,7 @@ class Log_consumer {
   the oldest redo log file. */
   virtual void consumption_requested() = 0;
 
-  typedef enum { CONSUMER_TYPE_SERVER, CONSUMER_TYPE_USER } consumer_type;
+  enum class consumer_type { SERVER, USER };
 
   /** @return Type of this consumer. */
   virtual consumer_type get_consumer_type() const = 0;

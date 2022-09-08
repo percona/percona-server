@@ -56,7 +56,7 @@ lsn_t Log_user_consumer::get_consumed_lsn() const { return m_consumed_lsn; }
 void Log_user_consumer::consumption_requested() {}
 
 Log_consumer::consumer_type Log_user_consumer::get_consumer_type() const {
-  return Log_consumer::consumer_type::CONSUMER_TYPE_USER;
+  return Log_consumer::consumer_type::USER;
 }
 
 Log_checkpoint_consumer::Log_checkpoint_consumer(log_t &log) : m_log{log} {}
@@ -75,7 +75,7 @@ void Log_checkpoint_consumer::consumption_requested() {
 }
 
 Log_consumer::consumer_type Log_checkpoint_consumer::get_consumer_type() const {
-  return Log_consumer::consumer_type::CONSUMER_TYPE_SERVER;
+  return Log_consumer::consumer_type::SERVER;
 }
 
 void log_consumer_register(log_t &log, Log_consumer *log_consumer) {

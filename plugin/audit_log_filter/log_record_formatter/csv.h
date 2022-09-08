@@ -48,17 +48,6 @@ class LogRecordFormatter<AuditLogFormatType::Csv>
   }
 
   /**
-   * @brief Apply formatting to AuditRecordParse audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] AuditRecordString apply(const AuditRecordParse &audit_record [
-      [maybe_unused]]) const noexcept override {
-    return "";
-  }
-
-  /**
    * @brief Apply formatting to AuditRecordTableAccess audit record.
    *
    * @param [in] audit_record Audit record
@@ -160,6 +149,30 @@ class LogRecordFormatter<AuditLogFormatType::Csv>
    */
   [[nodiscard]] AuditRecordString apply(const AuditRecordMessage &audit_record [
       [maybe_unused]]) const noexcept override {
+    return "";
+  }
+
+  /**
+   * @brief Apply formatting to AuditRecordStartAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] AuditRecordString apply(
+      const AuditRecordStartAudit &audit_record
+      [[maybe_unused]]) const noexcept override {
+    return "";
+  }
+
+  /**
+   * @brief Apply formatting to AuditRecordStopAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] AuditRecordString apply(
+      const AuditRecordStopAudit &audit_record
+      [[maybe_unused]]) const noexcept override {
     return "";
   }
 

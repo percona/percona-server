@@ -1,4 +1,7 @@
 
+SET @old_max_size = @@global.audit_log_filter_max_size;
+
+SET GLOBAL audit_log_filter_max_size=DEFAULT;
 SELECT @@global.audit_log_filter_max_size;
 
 SET GLOBAL audit_log_filter_max_size=0;
@@ -24,3 +27,5 @@ SELECT @@global.audit_log_filter_max_size;
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL audit_log_filter_max_size='';
 SELECT @@global.audit_log_filter_max_size;
+
+SET GLOBAL audit_log_filter_max_size = @old_max_size;

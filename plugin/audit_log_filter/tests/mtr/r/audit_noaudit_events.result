@@ -1,0 +1,6 @@
+UNINSTALL PLUGIN audit_log_filter;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+INSTALL PLUGIN audit_log_filter SONAME 'audit_log_filter.so';
+DELETE FROM mysql.plugin WHERE name = 'audit_log_filter';
+Tag <NAME>(?:Audit|NoAudit)</NAME> Ok

@@ -1,4 +1,3 @@
-SET GLOBAL audit_log_filter_flush = ON;
 #
 # Create filter used for testing
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');

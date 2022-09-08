@@ -1,0 +1,2 @@
+--audit_log_filter_format=JSON
+--log_slow_extra=ON

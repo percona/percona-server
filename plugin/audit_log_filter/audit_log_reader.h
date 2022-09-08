@@ -42,12 +42,12 @@ class AuditLogReader {
 
   bool init() noexcept;
 
-  bool read(AuditLogReaderArgs *reader_args,
+  bool read(const AuditLogReaderArgs &reader_args,
             AuditLogReaderContext *reader_context, char *out_buff,
             ulong out_buff_size) noexcept;
 
   static AuditLogReaderContext *init_reader_session(
-      AuditLogReaderArgs *reader_args) noexcept;
+      const AuditLogReaderArgs &reader_args) noexcept;
 
   void close_reader_session(AuditLogReaderContext *reader_context) noexcept;
 

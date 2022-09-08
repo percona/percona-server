@@ -56,9 +56,9 @@ class EventFieldActionReplaceField : public EventFieldActionBase {
    * @param audit_rule Effective audit rule
    * @return true in case action applied successfully, false otherwise
    */
-  [[nodiscard]] bool apply(const AuditRecordFieldsList &fields,
-                           AuditRecordVariant &audit_record,
-                           AuditRule *audit_rule) const noexcept override;
+  bool apply(const AuditRecordFieldsList &fields,
+             AuditRecordVariant &audit_record,
+             AuditRule *audit_rule) const noexcept override;
 
  private:
   std::string m_field_name;

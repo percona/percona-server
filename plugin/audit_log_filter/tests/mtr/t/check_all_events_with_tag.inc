@@ -52,12 +52,12 @@ perl;
   while (my $event = read_event($fh, $log_format)) {
     if ($search_neg) {
       if ($event =~ /$search_tag/) {
-        die "Tag '$search_tag' is not expected in event \n'$event_info'\n";
+        die "Tag '$search_tag' is not expected in event \n'$event'\n";
       }
     }
     else {
       if ($event !~ /$search_tag/) {
-        die "Missing '$search_tag' in event \n'$event_info'\n";
+        die "Missing '$search_tag' in event \n'$event'\n";
       }
     }
   }
@@ -83,9 +83,7 @@ perl;
           $result .= $row;
         }
 
-        if ($event_start_found && $event_end_found) {
-          break;
-        }
+        last if ($event_start_found && $event_end_found);
       }
     }
     elsif ($format eq 'json') {
@@ -102,10 +100,8 @@ perl;
           $result .= $row;
         }
 
-        if ($num_opening_tags > 0 && $num_closing_tags > 0 &&
-            $num_opening_tags == $num_closing_tags) {
-          break;
-        }
+        last if ($num_opening_tags > 0 && $num_closing_tags > 0 &&
+                 $num_opening_tags == $num_closing_tags);
       }
     }
     else {

@@ -16,6 +16,8 @@
 #ifndef AUDIT_LOG_FILTER_RECORD_H_INCLUDED
 #define AUDIT_LOG_FILTER_RECORD_H_INCLUDED
 
+#include "plugin/audit_log_filter/audit_event_class_internal.h"
+
 #include "mysql/plugin_audit.h"
 
 #include <map>
@@ -30,7 +32,7 @@ constexpr std::string_view CONNECTION_TYPE_FIELD_NAME = "connection_type";
 
 struct ExtendedInfo {
   std::string digest;
-  std::map<std::string, std::string> attrs;
+  std::map<std::string, std::vector<std::pair<std::string, std::string>>> attrs;
 };
 
 struct AuditRecordGeneral {
@@ -46,14 +48,6 @@ struct AuditRecordConnection {
   std::string_view event_subclass_name;
   mysql_event_class_t event_class;
   const mysql_event_connection *event;
-  ExtendedInfo extended_info;
-};
-
-struct AuditRecordParse {
-  std::string_view event_class_name;
-  std::string_view event_subclass_name;
-  mysql_event_class_t event_class;
-  const mysql_event_parse *event;
   ExtendedInfo extended_info;
 };
 
@@ -129,6 +123,22 @@ struct AuditRecordMessage {
   ExtendedInfo extended_info;
 };
 
+struct AuditRecordStartAudit {
+  std::string_view event_class_name;
+  std::string_view event_subclass_name;
+  audit_filter_event_class_t event_class;
+  const audit_filter_event_internal_audit *event;
+  ExtendedInfo extended_info;
+};
+
+struct AuditRecordStopAudit {
+  std::string_view event_class_name;
+  std::string_view event_subclass_name;
+  audit_filter_event_class_t event_class;
+  const audit_filter_event_internal_noaudit *event;
+  ExtendedInfo extended_info;
+};
+
 struct AuditRecordUnknown {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
@@ -137,13 +147,12 @@ struct AuditRecordUnknown {
   ExtendedInfo extended_info;
 };
 
-using AuditRecordVariant =
-    std::variant<AuditRecordGeneral, AuditRecordConnection, AuditRecordParse,
-                 AuditRecordTableAccess, AuditRecordGlobalVariable,
-                 AuditRecordServerStartup, AuditRecordServerShutdown,
-                 AuditRecordCommand, AuditRecordQuery, AuditRecordStoredProgram,
-                 AuditRecordAuthentication, AuditRecordMessage,
-                 AuditRecordUnknown>;
+using AuditRecordVariant = std::variant<
+    AuditRecordGeneral, AuditRecordConnection, AuditRecordTableAccess,
+    AuditRecordGlobalVariable, AuditRecordServerStartup,
+    AuditRecordServerShutdown, AuditRecordCommand, AuditRecordQuery,
+    AuditRecordStoredProgram, AuditRecordAuthentication, AuditRecordMessage,
+    AuditRecordStartAudit, AuditRecordStopAudit, AuditRecordUnknown>;
 
 /**
  * @brief Get AuditRecordVariant instance representing received audit event.
@@ -154,6 +163,17 @@ using AuditRecordVariant =
  */
 AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
                                     const void *event);
+
+/**
+ * @brief Get AuditRecordVariant instance representing received audit event,
+ *        used for internally generated events.
+ *
+ * @param event_subclass Internal audit event subclass
+ * @param event Internal audit event
+ * @return An instance of AuditRecordVariant representing audit event
+ */
+AuditRecordVariant get_audit_record(
+    audit_filter_event_subclass_t event_subclass, const void *event);
 
 /**
  * @brief Convert connection_type pseudo-constant to numeric value.
@@ -178,14 +198,6 @@ AuditRecordFieldsList get_audit_record_fields(const AuditRecordGeneral &record);
  */
 AuditRecordFieldsList get_audit_record_fields(
     const AuditRecordConnection &record);
-
-/**
- * @brief Get fields list from AuditRecordParse event record.
- *
- * @param record Audit event record
- * @return Fields list, @ref AuditRecordFieldsList
- */
-AuditRecordFieldsList get_audit_record_fields(const AuditRecordParse &record);
 
 /**
  * @brief Get fields list from AuditRecordTableAccess event record.
@@ -264,6 +276,24 @@ AuditRecordFieldsList get_audit_record_fields(
  * @return Fields list, @ref AuditRecordFieldsList
  */
 AuditRecordFieldsList get_audit_record_fields(const AuditRecordMessage &record);
+
+/**
+ * @brief Get fields list from AuditRecordStartAudit event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordStartAudit &record);
+
+/**
+ * @brief Get fields list from AuditRecordStopAudit event record.
+ *
+ * @param record Audit event record
+ * @return Fields list, @ref AuditRecordFieldsList
+ */
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordStopAudit &record);
 
 /**
  * @brief Get fields list from AuditRecordUnknown event record.

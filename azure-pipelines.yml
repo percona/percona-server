@@ -359,6 +359,7 @@ jobs:
           -DWITH_ICU=/usr/local/opt/icu4c
           -DWITH_SSL=/usr/local/opt/openssl@1.1
           -DWITH_FIDO=bundled
+          -DWITH_ZLIB=bundled
         "
       else
         CMAKE_OPT+="
@@ -370,13 +371,13 @@ jobs:
           -DWITH_SSL=system
           -DWITH_LIBEVENT=bundled
           -DWITH_PROTOBUF=bundled
+          -DWITH_ZLIB=bundled
         "
         if [[ "$(Inverted)" != "ON" ]]; then
           CMAKE_OPT+="
             -DWITH_READLINE=system
             -DWITH_ICU=system
             -DWITH_LZ4=bundled
-            -DWITH_ZLIB=system
             -DWITH_NUMA=ON
           "
         else
@@ -384,7 +385,6 @@ jobs:
             -DWITH_EDITLINE=bundled
             -DWITH_ICU=bundled
             -DWITH_LZ4=bundled
-            -DWITH_ZLIB=bundled
             -DWITH_NUMA=OFF
             -DWITH_ARCHIVE_STORAGE_ENGINE=OFF
             -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF

@@ -1,0 +1,40 @@
+
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'log_all');
+
+--source clean_current_audit_log.inc
+
+let $i= 2;
+let $xx= xx;
+while ($i < 3500)
+{
+let $xx= x$xx;
+inc $i;
+}
+--disable_query_log
+--disable_result_log
+while ($i < 8500)
+{
+eval SELECT '$xx';
+let $xx= x$xx;
+inc $i;
+}
+while ($i < 9000)
+{
+eval SELECT '$xx';
+let $xx= xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$xx;
+inc $i;
+}
+--enable_query_log
+--enable_result_log
+
+SELECT audit_log_rotate();
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--source validate_xml_logs.inc
+
+--echo #
+--echo # Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();

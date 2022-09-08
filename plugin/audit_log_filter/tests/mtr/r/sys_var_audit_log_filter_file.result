@@ -8,3 +8,7 @@ call mtr.add_suppression("Failed to shutdown components infrastructure.");
 SELECT @@global.audit_log_filter_file;
 @@global.audit_log_filter_file
 audit_log_filter_file
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Cannot open log writer, error: Permission denied'");
+call mtr.add_suppression("Plugin 'audit_log_filter' init function returned error");
+call mtr.add_suppression("Plugin 'audit_log_filter' registration as a AUDIT failed");
+# restart: --audit-log-filter-file=/audit_log

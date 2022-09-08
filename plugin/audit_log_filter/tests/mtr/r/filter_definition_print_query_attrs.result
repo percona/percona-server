@@ -1,0 +1,331 @@
+CREATE TABLE t1 (id INT);
+#
+# Check query attributes logged for table_access events
+SELECT audit_log_filter_set_filter('query_attrs', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert", "update", "read", "delete"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": [
+{"name": "attr1"},
+{"name": "attr2"}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_attrs', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert", "update", "read", "delete"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": [
+{"name": "attr1"},
+{"name": "a
+OK
+SELECT audit_log_filter_set_user('%', 'query_attrs');
+audit_log_filter_set_user('%', 'query_attrs')
+OK
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+id
+1
+UPDATE t1 SET id = 2 WHERE id = 1;
+DELETE FROM t1;
+Tag "query_attributes".*"attr1": "val1".*"attr2": "val2" Ok
+No tag "skipped_attr": "skipped_val" Ok
+#
+# Check JSON structure correctness
+SELECT audit_log_filter_set_filter('query_attrs_access_general', '{
+"filter": {
+"class": [
+{
+"name": "table_access",
+"event": {
+"name": ["insert", "update", "read", "delete"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": [
+{"name": "attr1"},
+{"name": "attr2"}
+]
+}
+}
+}
+},
+{
+"name": "general",
+"event": {
+"name": ["log", "error", "result", "status"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": [
+{"name": "attr2"}
+]
+}
+}
+}
+}
+]
+}
+}');
+audit_log_filter_set_filter('query_attrs_access_general', '{
+"filter": {
+"class": [
+{
+"name": "table_access",
+"event": {
+"name": ["insert", "update", "read", "delete"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": [
+{"name": "att
+OK
+SELECT audit_log_filter_set_user('%', 'query_attrs_access_general');
+audit_log_filter_set_user('%', 'query_attrs_access_general')
+OK
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+id
+1
+UPDATE t1 SET id = 2 WHERE id = 1;
+DELETE FROM t1;
+SELECT audit_log_rotate();
+audit_log_rotate()
+OK
+Rotated files Ok
+#
+# Wrong format, missing "tag" or invalid format
+SELECT audit_log_filter_set_filter('query_attrs_no_tag', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"element": [
+{"name": "attr1"},
+{"name": "attr2"}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_attrs_no_tag', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"element": [
+{"name": "attr1"},
+{"name": "attr2"}
+]
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('query_attrs_bad_tag', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": 4,
+"element": [
+{"name": "attr1"},
+{"name": "attr2"}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_attrs_bad_tag', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": 4,
+"element": [
+{"name": "attr1"},
+{"name": "attr2"}
+]
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+#
+# Wrong format, missing "element" or invalid format
+SELECT audit_log_filter_set_filter('query_attrs_no_element', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes"
+          }
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_attrs_no_element', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes"
+          }
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('query_attrs_element_not_arr', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": {
+"name": "attr1",
+"name": "attr2"
+            }
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_attrs_element_not_arr', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": {
+"name": "attr1",
+"name": "attr2"
+         
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('query_attrs_element_empty', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": []
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_attrs_element_empty', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": []
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('query_attrs_element_bad_args', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": [
+"attr1", "attr2"
+            ]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('query_attrs_element_bad_args', '{
+"filter": {
+"class": {
+"name": "table_access",
+"event": {
+"name": ["insert"],
+"print": {
+"query_attributes": {
+"tag": "query_attributes",
+"element": [
+"attr1", "attr2"
+            ]
+}
+}
+}
+}
+}
+
+ERROR: Incorrect rule definition
+#
+# Cleanup
+DROP TABLE t1;
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

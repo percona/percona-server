@@ -49,7 +49,10 @@ void LogWriterBase::write(AuditRecordVariant record) noexcept {
                                   record_str);
   });
 
-  write(record_str, true);
+  {
+    std::lock_guard<std::mutex> write_guaard{m_write_mutex};
+    write(record_str, true);
+  }
 }
 
 }  // namespace audit_log_filter::log_writer

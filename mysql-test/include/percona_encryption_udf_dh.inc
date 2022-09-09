@@ -13,7 +13,7 @@ if ($use_openssl_binary)
 {
   --let $parameters_file_path = $MYSQLTEST_VARDIR/tmp/parameters.pem
   --echo ** [DH][$key_length] generating parameters with openssl binary
-  --exec openssl dhparam -out $parameters_file_path $key_length
+  --exec $OPENSSL_EXECUTABLE dhparam -out $parameters_file_path $key_length
   --replace_result $parameters_file_path <PARAMETERS_FILE_PATH>
   eval SET @dh_params = TRIM(TRAILING '\n' FROM LOAD_FILE('$parameters_file_path'));
 }
@@ -28,12 +28,12 @@ if ($use_openssl_binary)
 {
   --let $private_key1_file_path = $MYSQLTEST_VARDIR/tmp/private_key1.pem
   --echo ** [DH][$key_length] generating private/public keys from parameters with openssl binary
-  --exec openssl genpkey -paramfile $parameters_file_path -out $private_key1_file_path
+  --exec $OPENSSL_EXECUTABLE genpkey -paramfile $parameters_file_path -out $private_key1_file_path
   --replace_result $private_key1_file_path <PRIVATE_KEY1_FILE_PATH>
   eval SET @dh_priv1 = TRIM(TRAILING '\n' FROM LOAD_FILE('$private_key1_file_path'));
 
   --let $public_key1_file_path = $MYSQLTEST_VARDIR/tmp/public_key1.pem
-  --exec openssl pkey -in $private_key1_file_path -pubout -out $public_key1_file_path
+  --exec $OPENSSL_EXECUTABLE pkey -in $private_key1_file_path -pubout -out $public_key1_file_path
   --replace_result $public_key1_file_path <PUBLIC_KEY1_FILE_PATH>
   eval SET @dh_pub1 = TRIM(TRAILING '\n' FROM LOAD_FILE('$public_key1_file_path'));
 
@@ -52,12 +52,12 @@ if (!$use_openssl_binary)
 if ($use_openssl_binary)
 {
   --let $private_key2_file_path = $MYSQLTEST_VARDIR/tmp/private_key2.pem
-  --exec openssl genpkey -paramfile $parameters_file_path -out $private_key2_file_path
+  --exec $OPENSSL_EXECUTABLE genpkey -paramfile $parameters_file_path -out $private_key2_file_path
   --replace_result $private_key2_file_path <PRIVATE_KEY2_FILE_PATH>
   eval SET @dh_priv2 = TRIM(TRAILING '\n' FROM LOAD_FILE('$private_key2_file_path'));
 
   --let $public_key2_file_path = $MYSQLTEST_VARDIR/tmp/public_key2.pem
-  --exec openssl pkey -in $private_key2_file_path -pubout -out $public_key2_file_path
+  --exec $OPENSSL_EXECUTABLE pkey -in $private_key2_file_path -pubout -out $public_key2_file_path
   --replace_result $public_key2_file_path <PUBLIC_KEY2_FILE_PATH>
   eval SET @dh_pub2 = TRIM(TRAILING '\n' FROM LOAD_FILE('$public_key2_file_path'));
 

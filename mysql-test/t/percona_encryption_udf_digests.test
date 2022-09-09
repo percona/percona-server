@@ -8,6 +8,7 @@ INSTALL COMPONENT 'file://component_encryption_udf';
 --let $length_increment = 7
 eval SET @random_pattern = REPEAT(MD5(42), $number_of_length_iterations * $length_increment DIV 32 + 1);
 
+--let $include_digests_with_no_ans1_ids = 1
 --source include/percona_encryption_udf_digest_table.inc
 
 --disable_query_log
@@ -16,7 +17,6 @@ while($digest_type_idx <= $number_of_digest_types)
 {
   --let $digest_name = `SELECT digest_name FROM digest_type WHERE id = $digest_type_idx`
   --let $udf_template = HEX(create_digest("$digest_name", @message))
-  --echo **** [$digest_name] checking digest
 
   --let $builtin_template = `SELECT builtin_template FROM digest_type WHERE id = $digest_type_idx`
   --let $current_length_iteration = 0
@@ -24,11 +24,6 @@ while($digest_type_idx <= $number_of_digest_types)
   while($current_length_iteration <= $number_of_length_iterations)
   {
     --let $message_length = `SELECT $current_length_iteration * $length_increment`
-    --echo ****** [$digest_name][message_len=$message_length] checking digest calculation on message
-    if($builtin_template)
-    {
-      --echo ******** [$digest_name][message_len=$message_length] checking if identical to built-in $builtin_template
-    }
     eval SET @message = LEFT(@random_pattern, $message_length);
 
     if($builtin_template)

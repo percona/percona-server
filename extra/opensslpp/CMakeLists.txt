@@ -124,6 +124,8 @@ target_include_directories(
   PRIVATE ${${PROJECT_NAME}_SOURCE_DIR}/include_private
 )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE OPENSSL_SUPPRESS_DEPRECATED)
+
 set_target_properties(
   ${PROJECT_NAME}
   PROPERTIES

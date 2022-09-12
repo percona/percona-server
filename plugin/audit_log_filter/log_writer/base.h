@@ -20,6 +20,7 @@
 #include "plugin/audit_log_filter/log_writer_strategy.h"
 
 #include <memory>
+#include <mutex>
 
 namespace audit_log_filter {
 namespace log_record_formatter {
@@ -113,6 +114,7 @@ class LogWriterBase {
 
  private:
   std::unique_ptr<log_record_formatter::LogRecordFormatterBase> m_formatter;
+  std::mutex m_write_mutex;
 };
 
 template <AuditLogHandlerType HandlerType>

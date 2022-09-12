@@ -43,18 +43,14 @@
 #define PLUGIN_EXPORT extern "C"
 #endif
 
+// Needed by mysql/components/services/log_builtins.h
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 namespace audit_log_filter {
 namespace {
-AuditLogFilter *audit_log_filter = nullptr;
 
-void my_plugin_perror() noexcept {
-  char errbuf[MYSYS_STRERROR_SIZE];
-  my_strerror(errbuf, sizeof(errbuf), errno);
-  LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Error: %s", errbuf);
-}
+AuditLogFilter *audit_log_filter = nullptr;
 
 }  // namespace
 
@@ -180,8 +176,10 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   }
 
   if (!log_writer->open()) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot open log writer");
-    my_plugin_perror();
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_strerror(errbuf, sizeof(errbuf), errno);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot open log writer, error: %s", errbuf);
     return 1;
   }
 
@@ -194,8 +192,10 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   }
 
   if (!log_reader->init()) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot open log reader");
-    my_plugin_perror();
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_strerror(errbuf, sizeof(errbuf), errno);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot open log reader, error: %s", errbuf);
     return 1;
   }
 
@@ -255,10 +255,7 @@ AuditLogFilter::AuditLogFilter(
       m_audit_rules_registry{std::move(audit_rules_registry)},
       m_audit_udf{std::move(audit_udf)},
       m_log_writer{std::move(log_writer)},
-      m_filter{std::make_unique<AuditEventFilter>()},
-      m_log_reader{std::move(log_reader)} {
-  m_audit_udf->set_mediator(this);
-}
+      m_log_reader{std::move(log_reader)} {}
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
                                  const void *event) {
@@ -303,12 +300,8 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     return 0;
   }
 
-  auto ev_name = std::visit(
-      [](const auto &rec) -> std::string_view { return rec.event_class_name; },
-      audit_record);
-
   // Apply filtering rule
-  AuditAction filter_result = m_filter->apply(filter_rule, audit_record);
+  AuditAction filter_result = AuditEventFilter::apply(filter_rule, audit_record);
 
   if (filter_result == AuditAction::Skip) {
     SysVars::inc_events_filtered();
@@ -316,6 +309,9 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   }
 
   if (filter_result == AuditAction::Block) {
+    auto ev_name = std::visit(
+        [](const auto &rec) -> std::string_view { return rec.event_class_name; },
+        audit_record);
     LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Blocked audit event '%s' with class %i", ev_name.data(),
                     event_class);
@@ -428,6 +424,8 @@ bool AuditLogFilter::get_connection_user(
 
   return true;
 }
+
+AuditUdf *AuditLogFilter::get_udf() noexcept { return m_audit_udf.get(); }
 
 comp_registry_srv_t *AuditLogFilter::get_comp_registry_srv() noexcept {
   return m_comp_registry_srv.get();

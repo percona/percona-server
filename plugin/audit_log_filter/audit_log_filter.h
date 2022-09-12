@@ -17,7 +17,6 @@
 #define AUDIT_LOG_FILTER_H_INCLUDED
 
 #include "mysql/plugin_audit.h"
-#include "plugin/audit_log_filter/audit_base_mediator.h"
 #include "plugin/audit_log_filter/audit_record.h"
 #include "plugin/audit_log_filter/component_registry_service.h"
 
@@ -26,12 +25,11 @@ namespace log_writer {
 class LogWriterBase;
 }  // namespace log_writer
 
-class AuditEventFilter;
 class AuditRuleRegistry;
 class AuditUdf;
 class AuditLogReader;
 
-class AuditLogFilter : public AuditBaseMediator {
+class AuditLogFilter {
  public:
   AuditLogFilter() = delete;
   AuditLogFilter(comp_registry_srv_container_t comp_registry_srv,
@@ -56,7 +54,7 @@ class AuditLogFilter : public AuditBaseMediator {
    * @brief Get UDFs handler instance.
    * @return UDF handler instance
    */
-  AuditUdf *get_udf() noexcept { return m_audit_udf.get(); }
+  AuditUdf *get_udf() noexcept;
 
   /**
    * @brief Get components registry handler.
@@ -78,17 +76,17 @@ class AuditLogFilter : public AuditBaseMediator {
    *
    * @return true in case filters reloaded successfully, false otherwise
    */
-  bool on_audit_rule_flush_requested() noexcept override;
+  bool on_audit_rule_flush_requested() noexcept;
 
   /**
    * @brief Handle log file flush request.
    */
-  void on_audit_log_flush_requested() noexcept override;
+  void on_audit_log_flush_requested() noexcept;
 
   /**
    * @brief Handle log files prunning request.
    */
-  void on_audit_log_prune_requested() noexcept override;
+  void on_audit_log_prune_requested() noexcept;
 
   /**
    * @brief Handle log rotation event.
@@ -115,7 +113,6 @@ class AuditLogFilter : public AuditBaseMediator {
   std::unique_ptr<AuditRuleRegistry> m_audit_rules_registry;
   std::unique_ptr<AuditUdf> m_audit_udf;
   std::unique_ptr<log_writer::LogWriterBase> m_log_writer;
-  std::unique_ptr<AuditEventFilter> m_filter;
   std::unique_ptr<AuditLogReader> m_log_reader;
 };
 

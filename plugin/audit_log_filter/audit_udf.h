@@ -16,7 +16,6 @@
 #ifndef AUDIT_LOG_FILTER_AUDIT_UDF_H_INCLUDED
 #define AUDIT_LOG_FILTER_AUDIT_UDF_H_INCLUDED
 
-#include "plugin/audit_log_filter/audit_base_component.h"
 #include "plugin/audit_log_filter/component_registry_service.h"
 
 #include <mysql/udf_registration_types.h>
@@ -36,7 +35,7 @@ struct UdfFuncInfo {
   void (*deinit_func)(UDF_INIT *);
 };
 
-class AuditUdf : public AuditBaseComponent {
+class AuditUdf {
  public:
   AuditUdf() = delete;
   explicit AuditUdf(comp_registry_srv_t *comp_registry_srv);

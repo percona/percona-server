@@ -19,6 +19,8 @@
 
 #include <string.h>
 
+#define OPENSSL_SUPPRESS_DEPRECATED
+
 #include <openssl/aes.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>

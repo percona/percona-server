@@ -4,8 +4,6 @@
 Using the Amazon Key Management Service (AWS KMS)
 ================================================================================
 
-This feature is **technical preview** quality.
-
 **Percona Server for MySQL** 8.0.28-20 adds support for the `Amazon Key
 Management Server (AWS KMS) <https://aws.amazon.com/kms/>`__. Percona Server
 generates the keyring keys. Amazon Web Services (AWS) encrypts the keyring data.
@@ -18,7 +16,6 @@ To use the AWS KMS component, do the following:
 * Have an AWS user account. This account has an access key and a secret key.
 * Create a KMS key ID. The KMS key can then be referenced in the configuration
   either by its ID, alias (the key can have any number of aliases), or ARN.
-
 
 Component installation
 --------------------------------------

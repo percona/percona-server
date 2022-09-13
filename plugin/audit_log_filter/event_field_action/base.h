@@ -59,9 +59,9 @@ class EventFieldActionBase {
    * @param audit_rule Effective audit rule
    * @return true in case action applied successfully, false otherwise
    */
-  [[nodiscard]] virtual bool apply(const AuditRecordFieldsList &fields,
-                                   AuditRecordVariant &audit_record,
-                                   AuditRule *audit_rule) const noexcept = 0;
+  virtual bool apply(const AuditRecordFieldsList &fields,
+                     AuditRecordVariant &audit_record,
+                     AuditRule *audit_rule) const noexcept = 0;
 };
 
 }  // namespace event_field_action

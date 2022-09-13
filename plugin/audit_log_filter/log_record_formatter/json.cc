@@ -18,6 +18,7 @@
 #include "plugin/audit_log_filter/sys_vars.h"
 
 #include <chrono>
+#include <iomanip>
 #include <sstream>
 
 namespace audit_log_filter::log_record_formatter {

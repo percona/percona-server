@@ -4,8 +4,6 @@
 Using the Key Management Interoperability Protocol (KMIP)
 ==========================================================
 
-This feature is **technical preview** quality.
-
 **Percona Server for MySQL** 8.0.27-18 adds support for the `OASIS Key Management Interoperability Protocol (KMIP) <https://docs.oasis-open.org/kmip/kmip-spec/v2.0/os/kmip-spec-v2.0-os.html>`__. This implementation was tested with the `PyKMIP server <https://pykmip.readthedocs.io/en/latest/server.html>`__ and the `HashiCorp Vault Enterprise KMIP Secrets Engine <https://www.vaultproject.io/docs/secrets/kmip>`__.
 
 KMIP enables communication between key management systems and the database server. The protocol can do the following:

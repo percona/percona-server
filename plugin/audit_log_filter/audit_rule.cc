@@ -30,6 +30,7 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
+#include <sstream>
 #include <string>
 
 namespace audit_log_filter {

@@ -29,6 +29,7 @@
 
 #include <syslog.h>
 #include <atomic>
+#include <iomanip>
 
 namespace audit_log_filter {
 namespace {
@@ -607,6 +608,7 @@ void SysVars::update_total_log_size(uint64_t size) noexcept {
   total_log_size.fetch_add(size, std::memory_order_relaxed);
 }
 
+#ifndef NDEBUG
 std::chrono::system_clock::time_point SysVars::get_debug_time_point() noexcept {
   static auto debug_time_point = get_initial_debug_time_point();
 
@@ -620,6 +622,7 @@ std::chrono::system_clock::time_point SysVars::get_debug_time_point() noexcept {
   debug_time_point += std::chrono::minutes{1};
   return debug_time_point;
 }
+#endif
 
 uint64_t SysVars::get_next_record_id() noexcept {
   return record_id.fetch_add(1, std::memory_order_relaxed);

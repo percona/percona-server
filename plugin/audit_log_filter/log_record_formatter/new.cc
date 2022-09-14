@@ -28,7 +28,6 @@ AuditRecordString LogRecordFormatterNew::apply(
       std::chrono::seconds{audit_record.event->general_time}};
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordGeneral</CLASS>\n"
          << "    <NAME>"
          << make_escaped_string(&audit_record.event->general_command)
          << "</NAME>\n"
@@ -68,7 +67,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordConnection</CLASS>\n"
          << "    <NAME>"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "</NAME>\n"
@@ -111,7 +109,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordParse</CLASS>\n"
          << "    <NAME>"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "</NAME>\n"
@@ -139,7 +136,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordTableAccess</CLASS>\n"
          << "    <NAME>"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "</NAME>\n"
@@ -171,7 +167,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordGlobalVariable</CLASS>\n"
          << "    <NAME>"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "</NAME>\n"
@@ -207,7 +202,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   startup_options_str.pop_back();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordServerStartup</CLASS>\n"
          << "    <NAME>" << event_class_to_string(audit_record.event_class)
          << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
@@ -225,7 +219,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordServerShutdown</CLASS>\n"
          << "    <NAME>" << event_class_to_string(audit_record.event_class)
          << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
@@ -245,7 +238,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordCommand</CLASS>\n"
          << "    <NAME>"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "</NAME>\n"
@@ -268,7 +260,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordQuery</CLASS>\n"
          << "    <NAME>"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "</NAME>\n"
@@ -296,7 +287,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordStoredProgram</CLASS>\n"
          << "    <NAME>" << event_class_to_string(audit_record.event_class)
          << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
@@ -327,7 +317,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordAuthentication</CLASS>\n"
          << "    <NAME>"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "</NAME>\n"
@@ -368,7 +357,6 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   result << "  <AUDIT_RECORD>\n"
-         << "    <CLASS>AuditRecordMessage</CLASS>\n"
          << "    <NAME>" << event_class_to_string(audit_record.event_class)
          << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"

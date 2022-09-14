@@ -58,6 +58,7 @@
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
+static PSI_memory_key key_memory_MDL_context_upgrade_shared_locks;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_MDL_wait_LOCK_wait_status;
@@ -83,6 +84,9 @@ static PSI_cond_info all_mdl_conds[] = {{&key_MDL_wait_COND_wait_status,
 
 static PSI_memory_info all_mdl_memory[] = {
     {&key_memory_MDL_context_acquire_locks, "MDL_context::acquire_locks", 0, 0,
+     "Buffer for sorting lock requests."},
+    {&key_memory_MDL_context_upgrade_shared_locks,
+     "MDL_context::upgrade_shared_locks", 0, 0,
      "Buffer for sorting lock requests."}};
 
 /**
@@ -3650,20 +3654,15 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
     any new such locks taken if acquisition fails.
   */
   MDL_ticket *explicit_front = m_ticket_store.front(MDL_EXPLICIT);
-  const size_t req_count = mdl_requests->elements();
-
-  if (req_count == 0) return false;
 
   /* Sort requests according to MDL_key. */
   Prealloced_array<MDL_request *, 16> sort_buf(
       key_memory_MDL_context_acquire_locks);
-  if (sort_buf.reserve(req_count)) return true;
 
-  for (size_t ii = 0; ii < req_count; ++ii) {
-    sort_buf.push_back(it++);
-  }
-
-  std::sort(sort_buf.begin(), sort_buf.end(), MDL_request_cmp());
+  if (filter_and_sort_requests_by_mdl_key(
+          &sort_buf, mdl_requests,
+          nullptr /* No filter, process whole array. */))
+    return true;
 
   size_t num_acquired = 0;
   for (p_req = sort_buf.begin(); p_req != sort_buf.end(); p_req++) {
@@ -3850,6 +3849,42 @@ bool MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
     MDL_ticket::destroy(mdl_new_lock_request.ticket);
   }
 
+  return false;
+}
+
+bool MDL_context::filter_and_sort_requests_by_mdl_key(
+    Prealloced_array<MDL_request *, 16> *sort_buf,
+    MDL_request_list *mdl_requests, bool (*filter_func)(MDL_request *)) {
+  const size_t req_count = mdl_requests->elements();
+  if (req_count == 0) return false;
+  if (sort_buf->reserve(req_count)) return true;
+  MDL_request_list::Iterator it(*mdl_requests);
+  for (size_t ii = 0; ii < req_count; ++ii) {
+    MDL_request *r = it++;
+    if (filter_func == nullptr || filter_func(r)) sort_buf->push_back(r);
+  }
+  std::sort(sort_buf->begin(), sort_buf->end(), MDL_request_cmp());
+  return false;
+}
+
+bool MDL_context::upgrade_shared_locks(MDL_request_list *mdl_requests,
+                                       enum_mdl_type new_type,
+                                       Timeout_type lock_wait_timeout,
+                                       bool (*filter_func)(MDL_request *)) {
+  const size_t req_count = mdl_requests->elements();
+  if (req_count == 0) return false;
+
+  /* Sort requests according to MDL_key. */
+  Prealloced_array<MDL_request *, 16> sort_buf(
+      key_memory_MDL_context_upgrade_shared_locks);
+
+  if (filter_and_sort_requests_by_mdl_key(&sort_buf, mdl_requests, filter_func))
+    return true;
+
+  for (MDL_request *r : sort_buf) {
+    if (upgrade_shared_lock(r->ticket, new_type, lock_wait_timeout))
+      return true;
+  }
   return false;
 }
 

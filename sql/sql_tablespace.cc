@@ -909,15 +909,12 @@ static bool upgrade_lock_for_tables_in_tablespace(
 
   DEBUG_SYNC(thd, "upgrade_lock_for_tables_in_tablespace_kill_point");
 
-  MDL_request_list::Iterator it(*table_mdl_reqs);
-  const size_t req_count = table_mdl_reqs->elements();
-  for (size_t i = 0; i < req_count; ++i) {
-    MDL_request *r = it++;
-    if (r->key.mdl_namespace() == MDL_key::TABLE &&
-        thd->mdl_context.upgrade_shared_lock(r->ticket, MDL_EXCLUSIVE,
-                                             LONG_TIMEOUT))
-      return true;
-  }
+  if (thd->mdl_context.upgrade_shared_locks(
+          table_mdl_reqs, MDL_EXCLUSIVE, LONG_TIMEOUT, [](MDL_request *r) {
+            // Only process MDL_request's for table locks.
+            return r->key.mdl_namespace() == MDL_key::TABLE;
+          }))
+    return true;
 
   return false;
 }

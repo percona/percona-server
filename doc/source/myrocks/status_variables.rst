@@ -331,10 +331,7 @@ This variable shows the number of multi/range row queries.
 
 .. rubric:: ``rocksdb_covered_secondary_key_lookups``
 
-This variable shows the number of lookups via secondary index that were able to
-return all fields requested directly from the secondary index when the
-secondary index contained a field that is only a prefix of the
-``varchar`` column.
+This variable shows the number of lookups via the secondary index that returned all fields requested directly from the secondary index.
 
 .. _rocksdb_additional_compactions_trigger:
 

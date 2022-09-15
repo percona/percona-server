@@ -488,7 +488,7 @@ char *AuditUdf::audit_log_filter_set_user_udf(AuditUdf *udf, UDF_INIT *initid,
 
 void AuditUdf::audit_log_filter_set_user_udf_deinit(UDF_INIT *initid) {
   if (initid != nullptr && initid->ptr != nullptr) {
-    delete initid->ptr;
+    delete reinterpret_cast<UserNameInfo *>(initid->ptr);
   }
 }
 
@@ -571,7 +571,7 @@ char *AuditUdf::audit_log_filter_remove_user_udf(
 
 void AuditUdf::audit_log_filter_remove_user_udf_deinit(UDF_INIT *initid) {
   if (initid != nullptr && initid->ptr != nullptr) {
-    delete initid->ptr;
+    delete reinterpret_cast<UserNameInfo *>(initid->ptr);
   }
 }
 
@@ -792,6 +792,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
       if (reader_context != nullptr) {
         log_reader->close_reader_session(reader_context);
         SysVars::set_log_reader_context(thd, nullptr);
+        delete reader_context;
       }
 
       std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");

@@ -1,0 +1,62 @@
+.. _8.0.30-22:
+
+==============================================================================
+Percona Server for MySQL 8.0.30-22 (2022-09-)
+==============================================================================
+
+`Percona Server for MySQL <https://www.percona.com/software/mysql-database/percona-server>`_ 8.0.30-22
+includes all the features and bug fixes available in the
+`MySQL 8.0.30 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-30.html>`__
+in addition to enterprise-grade features developed by Percona.
+
+*Percona Server for MySQL* is a free, fully compatible, enhanced, and open
+source drop-in replacement for any *MySQL* database. It provides superior
+performance, scalability, and instrumentation.
+
+*Percona Server for MySQL* is trusted by thousands of enterprises to provide
+better performance and concurrency for their most demanding workloads. It
+delivers more value to *MySQL* server users with optimized performance,
+greater performance scalability and availability, enhanced backups, and
+increased visibility. `Commercial support contracts are available
+<https://www.percona.com/services/support/mysql-support>`__.
+
+Release Highlights
+=======================================================================
+
+Improvements and bug fixes introduced by Oracle for *MySQL* 8.0.30 and included in **Percona Server for MySQL** are the following:
+
+* Supports Generated Invisible Primary Keys(GIPK). This feature automatically adds a primary key to InnoDB tables without a primary key. The generated key is always named `my_row_id`. The GIPK feature is not enabled by default. Enable the feature by setting `sql_generate_invisible_primary_key` to ON.
+
+* The InnoDB_doublewrite system has two new settings:
+
+     * `DETECT_ONLY`. This setting allows only metadata to be written to the doublewrite buffer. Database page content is not written to the buffer. Recovery does not use the buffer to fix incomplete page writes. Use this setting only when you need to detect incomplete page writes.
+
+     * `DETECT_AND_RECOVER`. This setting is equivalent to the current ON setting. The doublewrite buffer is enabled. Database page content is written to the buffer and the buffer is accessed to fix incomplete page writes during recovery.
+
+* The `-skip_host_cache` server option is deprecated and will be removed in a future release. Use `SET GLOBAL host_cache_size`= 0 or set `host_cache_size` = 0.
+
+Find the full list of bug fixes and changes in the `MySQL 8.0.30 Release Notes <https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-30.html>`__.
+
+
+Bug fixes
+=========================
+
+* :jirabug:`PS-8204`: A fix for when the `audit_log_format` was set to XML and the logged queries were truncated after a newline character.
+
+* :jirabug:`PS-8246`: Adapted the Encryption UDF MTR test cases to OpenSL 3.0.x. The tests failed because OpenSSL 3.0.x has a different default set of hash functions and PEM reading and writing routines generate different error messages.
+
+* :jirabug:`PS-8351`: The `SHOW ENGINE INNODB STATUS` would output unreadable UTF characters. 
+
+* :jirabug:`PS_8364`: When using Docker, the data directory for ICU regular expressions was missing.
+
+
+Useful links
+========================
+
+- The `Percona Server for MySQL installation instructions <https://www.percona.com/doc/percona-server/LATEST/installation.html>`__
+
+- `Download Percona Server for MySQL 8.0 <https://www.percona.com/downloads/Percona-Server-LATEST/>`__
+
+- The `Percona Server for MySQL GitHub location <https://github.com/percona/percona-server>`__ 
+
+- To contribute to the documentation, review the `Documentation Contribution Guide <https://github.com/percona/percona-server/blob/8.0/doc/source/contributing.md>`__

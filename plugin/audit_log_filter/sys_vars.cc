@@ -549,7 +549,8 @@ void SysVars::update_log_bookmark(uint64_t id,
 LogBookmark SysVars::get_log_bookmark() noexcept { return log_bookmark; }
 
 AuditLogReaderContext *SysVars::get_log_reader_context(MYSQL_THD thd) noexcept {
-  return (AuditLogReaderContext *)THDVAR(thd, log_reader_context);
+  return reinterpret_cast<AuditLogReaderContext *>(
+      THDVAR(thd, log_reader_context));
 }
 
 void SysVars::set_log_reader_context(MYSQL_THD thd,

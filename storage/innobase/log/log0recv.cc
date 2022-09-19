@@ -1227,15 +1227,12 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
 dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   for (;;) {
     mutex_enter(&recv_sys->mutex);
-    // MERGETODO bool abort = recv_sys->found_corrupt_log;
 
     if (!recv_sys->apply_batch_on) {
       break;
     }
 
     mutex_exit(&recv_sys->mutex);
-
-    // MERGETODO if (abort) return;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
@@ -1321,12 +1318,7 @@ dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   /* Wait until all the pages have been processed */
 
   while (recv_sys->n_addrs != 0) {
-    bool abort = recv_sys->found_corrupt_log;
     mutex_exit(&recv_sys->mutex);
-
-    if (abort) {
-      // MERGETODO return;
-    }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 

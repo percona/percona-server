@@ -1856,14 +1856,14 @@ void dict_table_change_id_in_cache(
               ut::hash_uint64(table->id), table);
 
 
-  // MERGETODO  uint id_fold = ut_fold_ull(new_id);
+  uint id_fold = ut::hash_uint64(new_id);
   /* Look for a table with the same id: error if such exists */
-  /*{
+  {
     dict_table_t *table2;
     HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold, dict_table_t *,
                 table2, ut_ad(table2->cached), table2->id == new_id);
     ut_a(table2 == nullptr);
-  }*/
+  }
 
   table->id = new_id;
 

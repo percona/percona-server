@@ -6349,7 +6349,11 @@ TABLE_LIST *Query_block::add_table_to_list(
     // threads since this is expected by the mysql_upgrade utility.
     if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
           dd::get_dictionary()->is_system_view_name(
-              lex->query_tables->db, lex->query_tables->table_name))) {
+              lex->query_tables->db, lex->query_tables->table_name))
+&& !(dd::get_dictionary()->is_system_view_name(
+              lex->query_tables->db, lex->query_tables->table_name)
+ && DBUG_EVALUATE_IF("skip_dd_table_access_check", true, false))
+        ) {
       my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
                ER_THD_NONCONST(thd, dictionary->table_type_error_code(
                                         ptr->db, ptr->table_name)),

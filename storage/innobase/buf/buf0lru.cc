@@ -1356,7 +1356,7 @@ static void buf_LRU_handle_lack_of_free_blocks(
            " of your operating system may help. Look at the"
            " number of fsyncs in diagnostic info below."
            " Pending flushes (fsync) log: "
-        // << log_pending_flushes // MERGETODO
+         << log_pending_flushes()
         << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
         << os_n_file_reads << " OS file reads, " << os_n_file_writes
         << " OS file writes, " << os_n_fsyncs

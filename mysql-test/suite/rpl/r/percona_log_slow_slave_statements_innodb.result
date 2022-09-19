@@ -37,9 +37,9 @@ include/sync_slave_sql_with_master.inc
 [log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*$
-[log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)$
 [log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)$
+[log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*$
 [log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.log_slow_replica_statements-innodb pattern: InnoDB_rec_lock_wait: 0\.0*

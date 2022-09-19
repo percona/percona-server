@@ -149,10 +149,6 @@ bool srv_startup_is_before_trx_rollback_phase = false;
 /** true if srv_start() has been called */
 static bool srv_start_has_been_called = false;
 
-/** Redo log format before upgrade, used to create redo log files of the same
-version on failed upgrades*/
-// MERGETODO static uint32_t log_format_before_upgrade;
-
 /** Bit flags for tracking background thread creation. They are used to
 determine which threads need to be stopped if we need to abort during
 the initialisation step. */
@@ -1597,6 +1593,81 @@ static dberr_t srv_init_abort_low(bool create_new_db,
   return (err);
 }
 
+/** Enable encryption of system tablespace if requested. At
+startup load the encryption information from first datafile
+to tablespace object
+@return DB_SUCCESS on succes, others on failure */
+static dberr_t srv_sys_enable_encryption(bool create_new_db) {
+  fil_space_t *space = fil_space_get(TRX_SYS_SPACE);
+  dberr_t err = DB_SUCCESS;
+
+  // Fail startup if sys space is encrypted with crypt_data v1 or v2.
+  // This should only happen on upgrade.
+  if (srv_sys_space.keyring_encryption_info.page0_has_crypt_data &&
+      srv_sys_space.keyring_encryption_info.type != CRYPT_SCHEME_UNENCRYPTED &&
+      (srv_sys_space.keyring_encryption_info.private_version == 1 ||
+       srv_sys_space.keyring_encryption_info.private_version == 2)) {
+    ib::error(ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
+    return (DB_ERROR);
+  }
+
+  if (create_new_db &&
+      srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
+    fsp_flags_set_encryption(space->flags);
+    srv_sys_space.set_flags(space->flags);
+
+    err = fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
+    ut_ad(err == DB_SUCCESS);
+  } else {
+    const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
+    const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
+
+    if (srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+      if (srv_sys_tablespace_encrypt != SYS_TABLESPACE_ENCRYPT_ON) {
+        return (DB_SUCCESS);
+      }
+
+      ib::error()
+          << "The system tablespace was (or is) encrypted with keyring. "
+             "Since then the system tablespace encryption is governed by "
+             "encryption threads. Use them to encrypt/decrypt system "
+             "tablespace. ";
+      return (DB_ERROR);
+    }
+
+    if (is_encrypted &&
+        srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_OFF) {
+      ib::error() << "The system tablespace is encrypted but"
+                  << " --innodb_sys_tablespace_encrypt is"
+                  << " OFF. Enable the option and start server";
+      return (DB_ERROR);
+    }
+
+    if (!is_encrypted &&
+        srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
+      ib::error() << "The system tablespace is not encrypted but"
+                  << " --innodb_sys_tablespace_encrypt is"
+                  << " ON. This instance was not bootstrapped"
+                  << " with --innodb_sys_tablespace_encrypt=ON."
+                  << " Disable this option and start server";
+      return (DB_ERROR);
+    }
+
+    if (is_encrypted &&
+        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+      fsp_flags_set_encryption(space->flags);
+      srv_sys_space.set_flags(space->flags);
+
+      err = fil_set_encryption(space->id, Encryption::AES,
+                               srv_sys_space.m_files.begin()->m_encryption_key,
+                               srv_sys_space.m_files.begin()->m_encryption_iv);
+      ut_ad(err == DB_SUCCESS);
+    }
+  }
+
+  return (err);
+}
+
 dberr_t srv_start(bool create_new_db) {
   lsn_t flushed_lsn;
 
@@ -1870,8 +1941,6 @@ dberr_t srv_start(bool create_new_db) {
   fsp_init();
   pars_init();
 
-  // MERGETODO log_online_init();
-
   recv_sys_create();
   recv_sys_init();
   trx_sys_create();
@@ -1945,8 +2014,7 @@ dberr_t srv_start(bool create_new_db) {
 
   switch (err) {
     case DB_SUCCESS:
-      // TODO
-      //err = srv_sys_enable_encryption(create_new_db);
+      err = srv_sys_enable_encryption(create_new_db);
       if (err != DB_SUCCESS) return (srv_init_abort(err));
       break;
     case DB_CANNOT_OPEN_FILE:
@@ -1997,8 +2065,6 @@ dberr_t srv_start(bool create_new_db) {
     }
 
     log_start_background_threads(*log_sys);
-
-    //MERGETODOO srv_init_log_online();
 
     err = srv_undo_tablespaces_init(true);
 
@@ -2271,8 +2337,6 @@ dberr_t srv_start(bool create_new_db) {
       log_buffer_flush_to_disk(*log_sys);
     }
 
-    // MERGETODO log_format_before_upgrade = log_sys->m_format;
-
     RECOVERY_CRASH(4);
 
     log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
@@ -2402,8 +2466,6 @@ dberr_t srv_start(bool create_new_db) {
       changes and avoid the need to rewrite the block with flushed_lsn. */
       flushed_lsn = ut_uint64_align_up(flushed_lsn, OS_FILE_LOG_BLOCK_SIZE) +
                     LOG_BLOCK_HDR_SIZE;
-
-      // MERGETODO srv_log_file_size = log_files_size_requested;
 
       err = log_sys_init(true, flushed_lsn, flushed_lsn);
 
@@ -3374,17 +3436,7 @@ void srv_shutdown() {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_FLUSH_PHASE);
 
   /* 2. Write the current lsn to the tablespace header(s). */
-  // MERGETODO lsn_t shutdown_lsn = 0;
   const lsn_t shutdown_lsn = srv_shutdown_log();
-  if (innodb_inited) {
-    //shutdown_lsn = srv_shutdown_log();
-  } else {
-    if (!srv_read_only_mode) {
-      // MERGETODO fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE) | to_int(FIL_TYPE_LOG));
-    }
-
-    //srv_shutdown_set_state(SRV_SHUTDOWN_LAST_PHASE);
-  }
 
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_LAST_PHASE);
 
@@ -3431,7 +3483,6 @@ void srv_shutdown() {
   btr_search_disable(true);
 
   ibuf_close();
-  // MERGETODO log_online_shutdown();
   ddl_log_close();
   log_sys_close();
   recv_sys_free();
@@ -3469,7 +3520,7 @@ void srv_shutdown() {
   /* 6. Free the synchronisation infrastructure. */
   sync_check_close();
 
-  if (innodb_inited) ib::info(ER_IB_MSG_1155, ulonglong{shutdown_lsn});
+  ib::info(ER_IB_MSG_1155, ulonglong{shutdown_lsn});
 
   srv_start_has_been_called = false;
   srv_start_state = SRV_START_STATE_NONE;

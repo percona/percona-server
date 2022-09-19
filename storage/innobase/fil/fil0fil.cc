@@ -8911,8 +8911,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
           encrypted_with_keyring ? iter.m_crypt_data->tablespace_key : nullptr,
           encrypted_with_keyring ? iter.m_crypt_data->uuid : nullptr, nullptr);
 
-      read_request.encryption_algorithm(iter.m_crypt_data ? Encryption::KEYRING
-                                                          : Encryption::AES);
+      read_request.encryption_algorithm(Encryption::AES);
       if (iter.m_crypt_data) {
         read_request.encryption_rotation(
             iter.m_crypt_data->encryption_rotation);

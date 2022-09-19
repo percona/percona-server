@@ -19,10 +19,10 @@ se_private_id
 SET SESSION DEBUG = '+d,skip_dd_table_access_check';
 SELECT se_private_id FROM mysql.tables WHERE name = 'compression_dictionary';
 se_private_id
-34
+2120
 SELECT se_private_id FROM mysql.tables WHERE name = 'compression_dictionary_cols';
 se_private_id
-35
+2121
 CREATE COMPRESSION_DICTIONARY d1('blah');
 CREATE TABLE t2(a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1);
 SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;

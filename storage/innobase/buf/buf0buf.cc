@@ -4286,7 +4286,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
 
   ut_a(!block->page.was_stale());
 
-  // MERGETODO  trx_stats::inc_page_get(m_trx, block->page.id.fold());
+  trx_stats::inc_page_get(m_trx, block->page.id.hash());
 
   return (block);
 }
@@ -4460,7 +4460,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
     Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
   }
 
-  // MERGETODO trx_stats::inc_page_get(trx, block->page.id.fold());
+  trx_stats::inc_page_get(trx, block->page.id.hash());
 
   return (true);
 }
@@ -4555,8 +4555,8 @@ bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
 
   Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
 
-  // MERGETODO  auto *const trx = innobase_get_trx_for_slow_log();
-  // MERGETODO trx_stats::inc_page_get(trx, block->page.id.fold());
+  auto *const trx = innobase_get_trx_for_slow_log();
+  trx_stats::inc_page_get(trx, block->page.id.hash());
 
   return (true);
 }

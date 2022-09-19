@@ -1,0 +1,4 @@
+$KEYRING_PLUGIN_LOAD_EARLY
+--loose-keyring_file_data=$MYSQL_TMP_DIR/keyring
+$KEYRING_PLUGIN_OPT
+--gtid-mode=ON --enforce-gtid-consistency=ON

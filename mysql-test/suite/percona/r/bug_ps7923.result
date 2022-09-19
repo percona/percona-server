@@ -1,0 +1,23 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+CREATE PROCEDURE my_infinite_alter_ts()
+BEGIN
+WHILE TRUE DO
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+ALTER TABLESPACE mysql ENCRYPTION='N';
+END WHILE;
+END//
+CALL my_infinite_alter_ts();
+# Kill and restart:<hidden args>
+DROP PROCEDURE my_infinite_alter_ts;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -7921,24 +7921,13 @@ static Sys_var_uint Sys_immediate_server_version(
     BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_session_admin_or_replication_applier));
 
-static bool check_set_default_table_encryption_exclusions(THD *thd,
+static bool check_set_default_table_encryption_exclusions(THD *,
                                                           set_var *var) {
   longlong val = static_cast<longlong>(var->save_result.ulonglong_value);
 
   if (val == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING ||
       val == DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
-    static const LEX_CSTRING innodb_engine{STRING_WITH_LEN("innodb")};
-
-    bool is_online_enc_disallowed = false;
-
-    plugin_ref plugin;
-    if ((plugin = ha_resolve_by_name(nullptr, &innodb_engine, false))) {
-      handlerton *hton = plugin_data<handlerton *>(plugin);
-      is_online_enc_disallowed = hton->check_mk_keyring_exclusions(thd, val);
-      plugin_unlock(nullptr, plugin);
-    }
-
-    if (is_online_enc_disallowed) return true;
+    return true;
   }
   return false;
 }

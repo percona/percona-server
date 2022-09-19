@@ -8623,9 +8623,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       engine binlog pos. In order to avoid that and accidentally overwrite
       binlog position with previous location, we reset it here.
     */
-  // MERGETODO? what is this??
-    //thd->set_trans_pos(nullptr, 0);
-    //if (ha_commit_low(thd, all)) return RESULT_INCONSISTENT;
+    thd->set_trans_pos(nullptr, 0);
     if (trx_coordinator::commit_in_engines(thd, all))
       return RESULT_INCONSISTENT;
   }

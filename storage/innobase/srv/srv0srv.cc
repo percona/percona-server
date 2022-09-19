@@ -1768,12 +1768,7 @@ void srv_export_innodb_status(void) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
     export_vars.innodb_buffer_pool_pages_old += buf_pool->LRU_old_len;
   }
-  export_vars.innodb_checkpoint_age =
-      (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
 
-  // MERGETODO export_vars.innodb_checkpoint_max_age = log_free_check_capacity(*log_sys);
-  ibuf_export_ibuf_status(&export_vars.innodb_ibuf_free_list,
-                          &export_vars.innodb_ibuf_segment_size);
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);
   export_vars.innodb_lsn_flushed = log_sys->flushed_to_disk_lsn;
   export_vars.innodb_lsn_last_checkpoint = log_sys->last_checkpoint_lsn;
@@ -2780,8 +2775,6 @@ dberr_t srv_temp_encryption_update(bool enable) {
 }
 
 void undo_rotate_default_master_key() {
-  return; // MERGETODO
-
   fil_space_t *space;
 
   if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
@@ -2803,6 +2796,10 @@ void undo_rotate_default_master_key() {
     ut_ad(fsp_is_undo_tablespace(undo_space->id()));
 
     space = fil_space_get(undo_space->id());
+
+    if (space == nullptr || space->m_encryption_metadata.m_type != Encryption::AES) {
+      continue;
+    }
 
     byte encrypt_info[Encryption::INFO_SIZE];
     mtr_t mtr;

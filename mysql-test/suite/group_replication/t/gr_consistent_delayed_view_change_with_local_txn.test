@@ -179,6 +179,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --reap
+SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server_1_1
 --source include/rpl_connection.inc

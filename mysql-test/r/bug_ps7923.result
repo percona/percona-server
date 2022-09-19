@@ -1,0 +1,10 @@
+CREATE PROCEDURE my_infinite_alter_ts()
+BEGIN
+WHILE TRUE DO
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+ALTER TABLESPACE mysql ENCRYPTION='N';
+END WHILE;
+END//
+CALL my_infinite_alter_ts();
+# Kill and restart:<hidden args>
+DROP PROCEDURE my_infinite_alter_ts;

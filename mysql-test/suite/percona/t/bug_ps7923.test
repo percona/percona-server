@@ -1,0 +1,35 @@
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+--connect (con1,localhost,root,,)
+
+--connection default
+
+DELIMITER //;
+
+CREATE PROCEDURE my_infinite_alter_ts()
+BEGIN
+  WHILE TRUE DO
+    ALTER TABLESPACE mysql ENCRYPTION='Y';
+    ALTER TABLESPACE mysql ENCRYPTION='N';
+  END WHILE;
+END//
+
+DELIMITER ;//
+
+--connection con1
+--send CALL my_infinite_alter_ts()
+
+--sleep 5
+
+--connection default
+
+--let $do_not_echo_parameters = 1
+--let $restart_parameters = restart: --gtid-mode=ON --enforce-gtid-consistency=ON
+--source include/kill_and_restart_mysqld.inc
+
+--disconnect con1
+
+DROP PROCEDURE my_infinite_alter_ts;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

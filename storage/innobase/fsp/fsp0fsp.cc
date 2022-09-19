@@ -4979,6 +4979,8 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 void fsp_init_resume_alter_encrypt_tablespace() {
   THD *thd = create_internal_thd();
 
+  thd->set_new_thread_id();
+
   resume_alter_encrypt_tablespace(thd);
 
   destroy_internal_thd(thd);

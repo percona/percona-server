@@ -304,7 +304,7 @@ else()
 
 	add_compile_options(-Wall)
 	add_compile_options(-Wextra)
-	add_compile_options(-Werror)
+	add_compile_options(-Wno-error)
 	add_compile_options(-Wshadow)
 	add_compile_options(-Wcast-qual)
 	add_compile_options(-Wwrite-strings)

@@ -105,24 +105,24 @@
    client_base
    ${SSL_LIBRARIES}
  )
---- include/mysql.h	2018-08-18 03:30:11.721480261 -0400
-+++ include/mysql.h	2018-08-18 03:30:11.727980360 -0400
+--- include/mysql.h	2022-09-13 10:19:20.000000000 +0300
++++ include/mysql.h	2022-09-13 12:40:29.000000000 +0300
 @@ -28,7 +28,7 @@
  /**
    @file include/mysql.h
    This file defines the client API to MySQL and also the ABI of the
 -  dynamically linked libperconaserverclient.
 +  dynamically linked libmysqlclient.
- 
+
    The ABI should never be changed in a released product of MySQL,
    thus you need to take great care when changing the file. In case
-@@ -402,12 +402,12 @@ void STDCALL mysql_server_end(void);
- 
+@@ -410,12 +410,12 @@
+
  /*
    mysql_server_init/end need to be called when using libmysqld or
 -  libperconaserverclient (exactly, mysql_server_init() is called by
 +  libmysqlclient (exactly, mysql_server_init() is called by
-   mysql_init() so you don't need to call it explicitely; but you need to call
+   mysql_init() so you don't need to call it explicitly; but you need to call
    mysql_server_end() to free memory). The names are a bit misleading
    (mysql_SERVER* to be used when using libmysqlCLIENT). So we add more general
    names which suit well whether you're using libmysqld or
@@ -256,7 +256,7 @@
 @@ -302,7 +302,7 @@ ELSE()
  ENDIF()
  
- # Use cmake variables to inspect dependencies for 
+ # Use cmake variables to inspect dependencies for
 -# perconaserverclient library (add -l stuff)
 +# mysqlclient library (add -l stuff)
  SET(CLIENT_LIBS "")

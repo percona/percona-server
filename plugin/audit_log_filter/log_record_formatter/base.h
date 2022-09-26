@@ -16,6 +16,8 @@
 #ifndef AUDIT_LOG_FILTER_LOG_RECORD_FORMATTER_BASE_H_INCLUDED
 #define AUDIT_LOG_FILTER_LOG_RECORD_FORMATTER_BASE_H_INCLUDED
 
+#include "plugin/audit_log_filter/audit_event_class_internal.h"
+
 #include "mysql/plugin_audit.h"
 
 #include <atomic>
@@ -39,6 +41,8 @@ struct AuditRecordQuery;
 struct AuditRecordStoredProgram;
 struct AuditRecordAuthentication;
 struct AuditRecordMessage;
+struct AuditRecordStartAudit;
+struct AuditRecordStopAudit;
 struct AuditRecordUnknown;
 
 namespace log_record_formatter {
@@ -167,12 +171,30 @@ class LogRecordFormatterBase {
       const AuditRecordMessage &audit_record) const noexcept = 0;
 
   /**
+   * @brief Apply formatting to AuditRecordStartAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] virtual AuditRecordString apply(
+      const AuditRecordStartAudit &audit_record) const noexcept = 0;
+
+  /**
+   * @brief Apply formatting to AuditRecordStopAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] virtual AuditRecordString apply(
+      const AuditRecordStopAudit &audit_record) const noexcept = 0;
+
+  /**
    * @brief Apply formatting to AuditRecordUnknown audit record.
    *
    * @param [in] audit_record Audit record
    * @return String representing formatted audit record
    */
-  AuditRecordString apply(
+  [[nodiscard]] AuditRecordString apply(
       const AuditRecordUnknown &audit_record) const noexcept;
 
   /**
@@ -260,6 +282,15 @@ class LogRecordFormatterBase {
    */
   [[nodiscard]] static std::string_view event_class_to_string(
       mysql_event_class_t event_class) noexcept;
+
+  /**
+   * @brief Get string representation of audit event subclass name.
+   *
+   * @param event_subclass Audit event subclass
+   * @return String representation of audit event subclass name
+   */
+  [[nodiscard]] virtual std::string_view event_subclass_to_string(
+      audit_filter_event_subclass_t event_subclass) const noexcept;
 
   /**
    * @brief Get string representation of audit event subclass name.

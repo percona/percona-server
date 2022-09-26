@@ -70,6 +70,16 @@ class AuditLogFilter {
    */
   AuditLogReader *get_log_reader() noexcept;
 
+  /**
+   * @brief Send Audit event to log upon plugin initialization.
+   */
+  void send_audit_start_event() noexcept;
+
+  /**
+   * @brief Send NoAudit event to log upon plugin de-initialization.
+   */
+  void send_audit_stop_event() noexcept;
+
  public:
   /**
    * @brief Handle filters flush request.

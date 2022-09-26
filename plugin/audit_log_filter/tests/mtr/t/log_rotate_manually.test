@@ -7,6 +7,7 @@ SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
 SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
 SELECT audit_log_filter_set_user('%', 'log_general');
 
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 
 --move_file $audit_filter_log_path$log_name $audit_filter_log_path$log_name.1

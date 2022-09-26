@@ -164,6 +164,30 @@ class LogRecordFormatter<AuditLogFormatType::Csv>
   }
 
   /**
+   * @brief Apply formatting to AuditRecordStartAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] AuditRecordString apply(
+      const AuditRecordStartAudit &audit_record
+      [[maybe_unused]]) const noexcept override {
+    return "";
+  }
+
+  /**
+   * @brief Apply formatting to AuditRecordStopAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] AuditRecordString apply(
+      const AuditRecordStopAudit &audit_record
+      [[maybe_unused]]) const noexcept override {
+    return "";
+  }
+
+  /**
    * @brief Get log file header string.
    *
    * @return Log file header string

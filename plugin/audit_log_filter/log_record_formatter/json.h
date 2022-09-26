@@ -135,6 +135,24 @@ class LogRecordFormatter<AuditLogFormatType::Json>
       const AuditRecordMessage &audit_record) const noexcept override;
 
   /**
+   * @brief Apply formatting to AuditRecordStartAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] AuditRecordString apply(
+      const AuditRecordStartAudit &audit_record) const noexcept override;
+
+  /**
+   * @brief Apply formatting to AuditRecordStopAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] AuditRecordString apply(
+      const AuditRecordStopAudit &audit_record) const noexcept override;
+
+  /**
    * @brief Get log file header string.
    *
    * @return Log file header string
@@ -291,6 +309,15 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    */
   [[nodiscard]] std::string_view event_subclass_to_string(
       mysql_event_message_subclass_t event_subclass) const noexcept override;
+
+  /**
+   * @brief Get string representation of audit event subclass name.
+   *
+   * @param event_subclass Audit event subclass
+   * @return String representation of audit event subclass name
+   */
+  [[nodiscard]] std::string_view event_subclass_to_string(
+      audit_filter_event_subclass_t event_subclass) const noexcept override;
 
   /**
    * @brief Get string representation of connection type name.

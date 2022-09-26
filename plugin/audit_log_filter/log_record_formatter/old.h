@@ -133,6 +133,24 @@ class LogRecordFormatter<AuditLogFormatType::Old>
       const AuditRecordMessage &audit_record) const noexcept override;
 
   /**
+   * @brief Apply formatting to AuditRecordStartAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] AuditRecordString apply(
+      const AuditRecordStartAudit &audit_record) const noexcept override;
+
+  /**
+   * @brief Apply formatting to AuditRecordStopAudit audit record.
+   *
+   * @param [in] audit_record Audit record
+   * @return String representing formatted audit record
+   */
+  [[nodiscard]] AuditRecordString apply(
+      const AuditRecordStopAudit &audit_record) const noexcept override;
+
+  /**
    * @brief Insert audit event class and subclass names into record printed to
    *        log. Needed for testing.
    *

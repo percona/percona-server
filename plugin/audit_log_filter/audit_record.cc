@@ -34,6 +34,7 @@ const std::string_view kClassNameQuery{"query"};
 const std::string_view kClassNameStoredProgram{"stored_program"};
 const std::string_view kClassNameAuthentication{"authentication"};
 const std::string_view kClassNameMessage{"message"};
+const std::string_view kClassNameInternal{"internal"};
 
 const std::string_view kSubclassNameGeneralLog{"log"};
 const std::string_view kSubclassNameGeneralError{"error"};
@@ -65,7 +66,9 @@ const std::string_view kSubclassNameConnect{"connect"};
 const std::string_view kSubclassNameDisconnect{"disconnect"};
 const std::string_view kSubclassNameChangeUser{"change_user"};
 const std::string_view kSubclassNamePreAuthenticate{"pre_authenticate"};
-const std::string_view kSubclassNameInternal{"internal"};
+const std::string_view kSubclassNameMessageInternal{"internal"};
+const std::string_view kSubclassNameInternalAudit{"audit"};
+const std::string_view kSubclassNameInternalNoAudit{"noaudit"};
 
 const std::string_view kNameUnknown{"unknown"};
 
@@ -278,7 +281,7 @@ std::string_view event_subclass_to_string(
     mysql_event_message_subclass_t event_subclass) {
   switch (event_subclass) {
     case MYSQL_AUDIT_MESSAGE_INTERNAL:
-      return kSubclassNameInternal;
+      return kSubclassNameMessageInternal;
     case MYSQL_AUDIT_MESSAGE_USER:
       return kSubclassNameUser;
     default:
@@ -450,8 +453,38 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
   assert(false);
 
   return AuditRecordVariant{
-      std::in_place_index<12>,
+      std::in_place_index<14>,
       AuditRecordUnknown{kNameUnknown, kNameUnknown, event_class, event, {}}};
+}
+
+AuditRecordVariant get_audit_record(
+    audit_filter_event_subclass_t event_subclass, const void *event) {
+  switch (event_subclass) {
+    case audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT: {
+      return AuditRecordVariant{
+          std::in_place_index<12>,
+          AuditRecordStartAudit{
+              kClassNameInternal,
+              kSubclassNameInternalAudit,
+              audit_filter_event_class_t::AUDIT_FILTER_INTERNAL_CLASS,
+              static_cast<const audit_filter_event_internal_audit *>(event),
+              {}}};
+    }
+    case audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT: {
+      return AuditRecordVariant{
+          std::in_place_index<13>,
+          AuditRecordStopAudit{
+              kClassNameInternal,
+              kSubclassNameInternalNoAudit,
+              audit_filter_event_class_t::AUDIT_FILTER_INTERNAL_CLASS,
+              static_cast<const audit_filter_event_internal_noaudit *>(event),
+              {}}};
+    }
+    default:
+      break;
+  }
+
+  assert(false);
 }
 
 void update_connection_type_pseudo_to_numeric(std::string &type) {
@@ -646,6 +679,18 @@ AuditRecordFieldsList get_audit_record_fields(
       {"message.str", lexcstring_to_string(&event->message)},
       {"message.length", lexcstring_len_to_string(&event->message)},
   };
+}
+
+AuditRecordFieldsList get_audit_record_fields(
+    const AuditRecordStartAudit &record [[maybe_unused]]) {
+  const auto *event = record.event;
+  return {{"server_id", std::to_string(event->server_id)}};
+}
+
+AuditRecordFieldsList get_audit_record_fields(const AuditRecordStopAudit &record
+                                              [[maybe_unused]]) {
+  const auto *event = record.event;
+  return {{"server_id", std::to_string(event->server_id)}};
 }
 
 AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record

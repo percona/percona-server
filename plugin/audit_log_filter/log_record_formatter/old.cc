@@ -363,6 +363,38 @@ AuditRecordString LogRecordFormatterOld::apply(
   return result.str();
 }
 
+AuditRecordString LogRecordFormatterOld::apply(
+    const AuditRecordStartAudit &audit_record) const noexcept {
+  std::stringstream result;
+  std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+
+  result << "  <AUDIT_RECORD\n"
+         << "    NAME=\""
+         << event_subclass_to_string(audit_record.event->event_subclass)
+         << "\"\n"
+         << "    RECORD_ID=\"" << make_record_id(tp) << "\"\n"
+         << "    TIMESTAMP=\"" << make_timestamp(tp) << "\"\n"
+         << "    SERVER_ID=\"" << audit_record.event->server_id << "\"/>\n";
+
+  return result.str();
+}
+
+AuditRecordString LogRecordFormatterOld::apply(
+    const AuditRecordStopAudit &audit_record) const noexcept {
+  std::stringstream result;
+  std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+
+  result << "  <AUDIT_RECORD\n"
+         << "    NAME=\""
+         << event_subclass_to_string(audit_record.event->event_subclass)
+         << "\"\n"
+         << "    RECORD_ID=\"" << make_record_id(tp) << "\"\n"
+         << "    TIMESTAMP=\"" << make_timestamp(tp) << "\"\n"
+         << "    SERVER_ID=\"" << audit_record.event->server_id << "\"/>\n";
+
+  return result.str();
+}
+
 void LogRecordFormatterOld::apply_debug_info(
     std::string_view event_class_name, std::string_view event_subclass_name,
     std::string &record_str) noexcept {

@@ -82,6 +82,9 @@ const std::string_view kAuditConnectionTypeNamePipe{"named_pipe"};
 const std::string_view kAuditConnectionTypeNameSsl{"ssl"};
 const std::string_view kAuditConnectionTypeNameShared{"shared_memory"};
 
+const std::string_view kAuditEventNameAuditStart{"audit"};
+const std::string_view kAuditEventNameAuditStop{"noaudit"};
+
 }  // namespace
 
 std::string_view LogRecordFormatterJson::event_subclass_to_string(
@@ -261,6 +264,20 @@ std::string_view LogRecordFormatterJson::event_subclass_to_string(
       return kAuditEventNameMessageInternal;
     case MYSQL_AUDIT_MESSAGE_USER:
       return kAuditEventNameMessageUser;
+    default:
+      assert(false);
+  }
+
+  return kAuditNameUnknown;
+}
+
+std::string_view LogRecordFormatterJson::event_subclass_to_string(
+    audit_filter_event_subclass_t event_subclass) const noexcept {
+  switch (event_subclass) {
+    case audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT:
+      return kAuditEventNameAuditStart;
+    case audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT:
+      return kAuditEventNameAuditStop;
     default:
       assert(false);
   }
@@ -763,6 +780,46 @@ AuditRecordString LogRecordFormatterJson::apply(
 
   result << "\n      }\n"
          << "    }\n"
+         << "  }";
+
+  SysVars::update_log_bookmark(rec_id, timestamp);
+
+  return result.str();
+}
+
+AuditRecordString LogRecordFormatterJson::apply(
+    const AuditRecordStartAudit &audit_record) const noexcept {
+  std::stringstream result;
+  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto rec_id = make_record_id();
+
+  result << "  {\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n"
+         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "class": ")"
+         << event_subclass_to_string(audit_record.event->event_subclass)
+         << "\",\n"
+         << R"(    "server_id": )" << audit_record.event->server_id << "\n"
+         << "  }";
+
+  SysVars::update_log_bookmark(rec_id, timestamp);
+
+  return result.str();
+}
+
+AuditRecordString LogRecordFormatterJson::apply(
+    const AuditRecordStopAudit &audit_record) const noexcept {
+  std::stringstream result;
+  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto rec_id = make_record_id();
+
+  result << "  {\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n"
+         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "class": ")"
+         << event_subclass_to_string(audit_record.event->event_subclass)
+         << "\",\n"
+         << R"(    "server_id": )" << audit_record.event->server_id << "\n"
          << "  }";
 
   SysVars::update_log_bookmark(rec_id, timestamp);

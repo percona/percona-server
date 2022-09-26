@@ -26,6 +26,7 @@
 #include "plugin/audit_log_filter/sys_vars.h"
 
 #include <mysql/components/services/mysql_connection_attributes_iterator.h>
+#include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/security_context.h>
 
 #include "mysql/plugin.h"
@@ -205,6 +206,8 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
 
   if (SysVars::get_log_disabled()) {
     LogPluginErr(WARNING_LEVEL, ER_WARN_AUDIT_LOG_FILTER_DISABLED);
+  } else {
+    audit_log_filter->send_audit_start_event();
   }
 
   return 0;
@@ -218,12 +221,14 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
  *         code otherwise
  */
 int audit_log_filter_deinit(void *arg [[maybe_unused]]) {
-  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-               "Uninstalled Audit Event Filter");
-
   if (audit_log_filter == nullptr) {
     return 0;
   }
+
+  audit_log_filter->send_audit_stop_event();
+
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+               "Uninstalled Audit Event Filter");
 
   delete audit_log_filter;
   audit_log_filter = nullptr;
@@ -326,6 +331,48 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   SysVars::inc_events_written();
 
   return 0;
+}
+
+void AuditLogFilter::send_audit_start_event() noexcept {
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", m_comp_registry_srv.get());
+
+  MYSQL_THD thd;
+
+  if (thd_reader_srv->get(&thd)) {
+    return;
+  }
+
+  if (thd == nullptr) {
+    return;
+  }
+
+  auto event = audit_filter_event_internal_audit{
+      audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT,
+      thd->server_id};
+  m_log_writer->write(get_audit_record(
+      audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT, &event));
+}
+
+void AuditLogFilter::send_audit_stop_event() noexcept {
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", m_comp_registry_srv.get());
+
+  MYSQL_THD thd;
+
+  if (thd_reader_srv->get(&thd)) {
+    return;
+  }
+
+  if (thd == nullptr) {
+    return;
+  }
+
+  auto event = audit_filter_event_internal_noaudit{
+      audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT,
+      thd->server_id};
+  m_log_writer->write(get_audit_record(
+      audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT, &event));
 }
 
 bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {

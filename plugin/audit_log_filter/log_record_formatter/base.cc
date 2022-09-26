@@ -93,6 +93,9 @@ const std::string_view kAuditEventNameStoredProgramExecute{"Execute"};
 const std::string_view kAuditEventNameMessageInternal{"Internal"};
 const std::string_view kAuditEventNameMessageUser{"User"};
 
+const std::string_view kAuditEventNameAuditStart{"Audit"};
+const std::string_view kAuditEventNameAuditStop{"NoAudit"};
+
 const std::string_view kAuditNameUnknown{"unknown"};
 
 }  // namespace
@@ -175,6 +178,20 @@ std::string_view LogRecordFormatterBase::event_class_to_string(
       return kAuditEventNameAuthentication;
     case MYSQL_AUDIT_MESSAGE_CLASS:
       return kAuditEventNameMessage;
+    default:
+      assert(false);
+  }
+
+  return kAuditNameUnknown;
+}
+
+std::string_view LogRecordFormatterBase::event_subclass_to_string(
+    audit_filter_event_subclass_t event_subclass) const noexcept {
+  switch (event_subclass) {
+    case audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT:
+      return kAuditEventNameAuditStart;
+    case audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT:
+      return kAuditEventNameAuditStop;
     default:
       assert(false);
   }

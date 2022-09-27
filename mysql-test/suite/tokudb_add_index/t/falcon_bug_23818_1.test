@@ -1,0 +1,28 @@
+--source include/have_tokudb.inc
+#
+# Bug #23818 Falcon: crash with random updates of long varchar columns
+#      First part. Original bug reports loops 100000 times.
+#      Use UCS2 which uses two bytes for every char.
+#
+CREATE TABLE t1 (a int, b varchar(1000) character set ucs2, c varchar(10000)) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
+INSERT INTO t1 VALUES (null,null,null),(1,'',''),(2,'a','a');
+CREATE INDEX i1 ON t1 (b(550));
+
+DELIMITER //;
+CREATE PROCEDURE p1 ()
+BEGIN
+  declare v int default 0;
+  while v < 100 do
+    SET @x = concat('update t1 set a = ', v,', b = repeat(0x', hex(rand()*10000),',rand()*549), c = repeat(0x', hex(rand()*255), ',rand()*9999)');
+    /* select v,@x; */
+    PREPARE stmt1 FROM @x;
+    EXECUTE stmt1;
+    SET v = v + 1;
+    END while;
+  END//
+CALL p1()//
+
+# Final cleanup.
+DELIMITER ;//
+DROP TABLE t1;
+DROP PROCEDURE p1;

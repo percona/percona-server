@@ -1,0 +1,31 @@
+# This tests checks the presence of warnings about inability to use inplace
+# algorithm for partition altering. Each "ALTER TABlE" must return warning.
+# There is no need to run this case for each engine because the code
+# reposponsible for inplace partition altering is common for all engines.
+
+--source include/have_tokudb.inc
+
+CREATE TABLE t1 (
+  id INT
+) ENGINE=TokuDB
+  PARTITION BY RANGE(id) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN (200),
+    PARTITION p2 VALUES LESS THAN (300)
+  );
+INSERT INTO t1 VALUES (40),(60),(140),(160),(240),(260);
+ALTER TABLE t1 ADD PARTITION (PARTITION p3 VALUES LESS THAN (400));
+ALTER TABLE t1 DROP PARTITION p3;
+ALTER TABLE t1 REORGANIZE PARTITION p2 INTO (
+        PARTITION n0 VALUES LESS THAN (350),
+        PARTITION n1 VALUES LESS THAN (400)
+  );
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+    id INT
+) ENGINE=TokuDB
+  PARTITION BY HASH( id )
+  PARTITIONS 3;
+ALTER TABLE t1 COALESCE PARTITION 2;
+DROP TABLE t1;

@@ -1,0 +1,46 @@
+--source include/have_tokudb.inc
+
+# verify that delete from table leaves the table empty
+create table t (a int, b int, primary key (a)) engine=tokudb;
+insert into t values (1,2),(2,4),(3,8);
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+
+optimize table t;
+
+--source include/restart_mysqld.inc
+
+insert into t values (4,9),(10,11),(12,13);
+
+select * from t;
+
+--source include/kill_mysqld.inc
+
+--exec mv $MYSQLD_DATADIR/tokudb.rollback $MYSQLD_DATADIR/rollback.backup
+# Create an empty rollback file that tokudb can't interpret
+--exec echo "" > $MYSQLD_DATADIR/tokudb.rollback
+# Make everything read only - to make sure the server can't write these files
+--exec find $MYSQLD_DATADIR -type f -name "*toku*" | xargs chmod u-w
+
+--let $restart_parameters= restart:--tokudb-force-recovery=6 --read-only --super-read-only
+--source include/start_mysqld.inc
+
+select * from t;
+
+--let $restart_parameters= restart:--tokudb-force-recovery=6 --read-only --super-read-only
+--source include/restart_mysqld.inc
+
+select * from t;
+
+--source include/shutdown_mysqld.inc
+# Restore rollback & RW permissions
+--exec find $MYSQLD_DATADIR -type f -name "*toku*" | xargs chmod u+w
+--exec rm $MYSQLD_DATADIR/tokudb.rollback
+--exec mv $MYSQLD_DATADIR/rollback.backup $MYSQLD_DATADIR/tokudb.rollback
+--let $restart_parameters= 
+--source include/start_mysqld.inc
+
+# Cleanup recovery files
+--exec rm $MYSQLD_DATADIR/tokudb.rollback2
+--exec rm $MYSQLD_DATADIR/tokudb.environment2
+drop table t;

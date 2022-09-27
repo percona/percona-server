@@ -1,0 +1,3071 @@
+DROP TABLE IF EXISTS t,tt;
+SET SESSION DEFAULT_STORAGE_ENGINE="TokuDB";
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=1;
+CREATE TABLE t (a CHAR(0) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(0) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(1) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(0) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(0) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(1) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(1) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(2) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(1) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(2) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(2) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(3) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(2) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(3) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(3) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(4) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(3) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(4) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(4) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(5) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(4) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(5) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(5) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(6) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(5) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(6) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(6) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(7) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(6) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(7) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(7) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(8) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(7) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(8) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(8) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(9) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(8) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(9) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(9) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(9) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(10) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(9) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(9) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(10) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(10) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(11) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(10) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(11) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(11) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(12) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(11) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(12) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(12) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(13) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(12) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(13) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(13) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(13) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(14) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(13) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(13) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(14) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(14) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(14) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(15) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(14) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(14) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(15) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(15) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(16) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(15) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(16) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(16) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(17) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(16) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(17) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(17) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(17) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(18) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(17) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(17) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(18) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(18) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(18) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(19) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(18) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(18) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(19) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(19) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(19) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(20) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(19) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(19) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(20) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(20) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(21) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(20) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(21) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(21) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(21) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(22) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(21) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(21) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(22) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(22) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(22) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(23) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(22) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(22) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(23) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(23) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(23) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(24) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(23) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(23) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(24) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(24) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(25) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(24) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(25) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(25) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(26) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(25) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(26) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(26) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(26) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(27) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(26) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(26) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(27) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(27) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(27) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(28) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(27) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(27) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(28) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(28) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(28) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(29) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(28) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(28) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(29) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(29) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(29) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(30) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(29) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(29) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(30) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(30) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(31) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(30) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(31) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(31) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(32) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(31) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(32) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(32) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(33) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(32) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(33) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(33) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(33) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(34) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(33) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(33) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(34) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(34) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(34) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(35) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(34) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(34) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(35) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(35) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(35) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(36) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(35) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(35) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(36) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(36) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(37) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(36) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(37) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(37) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(38) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(37) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(38) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(38) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(38) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(39) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(38) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(38) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(39) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(39) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(39) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(40) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(39) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(39) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(40) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(40) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(41) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(40) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(41) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(41) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(41) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(42) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(41) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(41) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(42) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(42) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(42) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(43) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(42) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(42) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(43) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(43) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(43) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(44) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(43) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(43) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(44) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(44) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(44) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(45) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(44) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(44) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(45) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(45) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(46) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(45) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(46) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(46) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(46) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(47) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(46) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(46) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(47) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(47) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(47) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(48) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(47) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(47) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(48) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(48) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(48) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(49) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(48) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(48) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(49) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(49) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(49) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(50) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(49) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(49) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(50) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(50) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(51) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(50) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(51) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(51) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(51) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(52) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(51) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(51) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(52) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(52) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(52) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(53) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(52) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(52) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(53) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(53) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(53) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(54) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(53) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(53) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(54) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(54) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(54) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(55) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(54) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(54) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(55) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(55) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(55) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(56) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(55) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(55) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(56) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(56) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(56) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(57) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(56) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(56) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(57) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(57) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(57) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(58) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(57) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(57) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(58) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(58) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(58) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(59) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(58) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(58) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(59) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(59) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(59) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(60) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(59) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(59) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(60) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(60) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(61) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(60) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(61) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(61) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(61) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(62) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(61) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(61) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(62) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(62) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(62) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(63) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(62) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(62) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(63) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(63) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(64) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(63) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(64) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(64) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(65) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(64) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(65) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(65) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(65) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(66) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(65) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(65) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(66) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(66) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(66) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(67) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(66) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(66) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(67) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(67) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(67) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(68) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(67) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(67) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(68) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(68) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(68) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(69) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(68) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(68) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(69) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(69) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(69) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(70) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(69) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(69) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(70) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(70) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(70) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(71) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(70) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(70) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(71) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(71) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(71) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(72) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(71) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(71) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(72) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(72) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(72) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(73) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(72) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(72) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(73) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(73) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(73) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(74) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(73) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(73) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(74) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(74) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(74) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(75) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(74) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(74) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(75) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(75) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(75) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(76) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(75) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(75) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(76) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(76) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(76) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(77) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(76) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(76) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(77) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(77) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(77) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(78) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(77) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(77) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(78) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(78) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(78) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(79) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(78) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(78) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(79) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(79) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(79) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(80) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(79) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(79) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(80) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(80) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(81) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(80) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(81) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(81) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(81) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(82) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(81) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(81) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(82) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(82) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(82) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(83) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(82) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(82) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(83) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(83) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(83) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(84) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(83) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(83) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(84) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(84) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(84) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(85) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(84) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(84) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(85) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(85) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(85) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(86) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(85) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(85) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(86) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(86) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(86) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(87) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(86) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(86) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(87) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(87) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(87) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(88) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(87) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(87) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(88) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(88) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(88) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(89) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(88) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(88) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(89) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(89) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(89) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(90) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(89) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(89) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(90) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(90) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(90) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(91) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(90) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(90) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(91) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(91) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(91) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(92) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(91) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(91) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(92) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(92) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(92) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(93) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(92) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(92) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(93) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(93) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(93) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(94) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(93) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(93) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(94) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(94) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(94) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(95) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(94) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(94) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(95) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(95) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(95) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(96) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(95) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(95) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(96) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(96) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(96) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(97) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(96) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(96) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(97) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(97) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(97) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(98) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(97) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(97) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(98) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(98) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(98) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(99) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(98) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(98) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(99) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(99) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(99) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(100) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(99) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(99) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(100) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(100) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(101) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(100) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(101) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(101) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(101) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(102) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(101) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(101) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(102) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(102) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(102) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(103) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(102) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(102) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(103) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(103) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(103) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(104) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(103) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(103) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(104) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(104) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(104) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(105) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(104) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(104) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(105) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(105) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(105) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(106) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(105) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(105) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(106) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(106) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(106) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(107) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(106) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(106) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(107) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(107) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(107) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(108) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(107) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(107) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(108) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(108) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(108) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(109) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(108) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(108) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(109) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(109) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(109) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(110) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(109) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(109) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(110) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(110) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(110) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(111) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(110) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(110) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(111) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(111) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(111) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(112) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(111) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(111) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(112) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(112) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(112) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(113) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(112) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(112) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(113) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(113) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(113) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(114) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(113) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(113) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(114) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(114) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(114) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(115) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(114) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(114) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(115) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(115) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(115) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(116) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(115) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(115) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(116) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(116) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(116) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(117) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(116) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(116) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(117) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(117) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(117) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(118) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(117) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(117) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(118) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(118) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(118) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(119) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(118) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(118) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(119) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(119) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(119) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(120) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(119) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(119) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(120) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(120) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(121) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(120) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(121) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(121) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(121) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(122) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(121) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(121) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(122) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(122) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(122) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(123) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(122) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(122) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(123) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(123) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(123) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(124) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(123) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(123) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(124) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(124) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(124) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(125) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(124) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(124) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(125) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(125) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(126) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(125) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(126) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(126) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(126) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(127) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(126) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(126) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(127) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(127) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(128) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(127) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(128) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(128) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(129) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(128) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(129) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(129) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(129) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(130) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(129) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(129) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(130) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(130) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(130) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(131) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(130) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(130) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(131) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(131) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(131) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(132) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(131) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(131) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(132) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(132) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(132) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(133) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(132) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(132) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(133) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(133) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(133) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(134) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(133) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(133) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(134) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(134) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(134) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(135) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(134) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(134) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(135) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(135) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(135) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(136) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(135) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(135) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(136) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(136) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(136) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(137) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(136) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(136) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(137) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(137) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(137) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(138) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(137) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(137) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(138) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(138) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(138) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(139) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(138) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(138) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(139) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(139) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(139) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(140) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(139) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(139) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(140) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(140) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(140) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(141) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(140) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(140) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(141) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(141) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(141) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(142) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(141) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(141) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(142) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(142) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(142) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(143) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(142) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(142) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(143) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(143) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(143) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(144) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(143) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(143) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(144) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(144) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(144) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(145) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(144) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(144) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(145) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(145) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(145) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(146) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(145) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(145) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(146) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(146) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(146) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(147) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(146) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(146) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(147) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(147) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(147) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(148) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(147) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(147) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(148) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(148) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(148) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(149) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(148) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(148) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(149) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(149) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(149) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(150) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(149) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(149) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(150) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(150) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(151) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(150) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(151) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(151) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(151) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(152) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(151) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(151) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(152) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(152) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(152) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(153) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(152) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(152) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(153) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(153) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(153) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(154) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(153) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(153) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(154) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(154) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(154) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(155) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(154) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(154) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(155) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(155) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(155) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(156) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(155) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(155) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(156) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(156) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(156) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(157) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(156) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(156) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(157) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(157) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(157) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(158) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(157) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(157) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(158) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(158) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(158) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(159) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(158) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(158) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(159) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(159) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(159) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(160) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(159) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(159) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(160) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(160) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(161) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(160) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(161) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(161) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(161) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(162) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(161) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(161) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(162) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(162) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(162) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(163) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(162) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(162) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(163) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(163) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(163) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(164) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(163) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(163) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(164) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(164) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(164) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(165) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(164) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(164) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(165) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(165) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(165) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(166) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(165) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(165) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(166) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(166) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(166) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(167) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(166) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(166) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(167) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(167) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(167) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(168) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(167) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(167) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(168) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(168) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(168) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(169) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(168) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(168) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(169) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(169) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(169) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(170) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(169) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(169) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(170) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(170) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(170) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(171) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(170) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(170) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(171) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(171) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(171) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(172) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(171) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(171) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(172) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(172) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(172) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(173) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(172) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(172) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(173) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(173) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(173) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(174) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(173) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(173) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(174) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(174) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(174) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(175) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(174) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(174) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(175) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(175) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(175) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(176) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(175) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(175) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(176) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(176) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(176) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(177) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(176) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(176) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(177) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(177) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(177) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(178) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(177) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(177) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(178) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(178) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(178) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(179) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(178) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(178) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(179) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(179) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(179) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(180) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(179) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(179) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(180) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(180) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(181) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(180) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(181) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(181) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(181) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(182) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(181) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(181) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(182) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(182) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(182) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(183) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(182) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(182) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(183) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(183) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(183) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(184) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(183) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(183) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(184) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(184) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(184) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(185) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(184) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(184) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(185) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(185) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(185) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(186) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(185) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(185) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(186) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(186) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(186) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(187) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(186) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(186) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(187) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(187) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(187) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(188) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(187) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(187) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(188) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(188) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(188) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(189) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(188) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(188) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(189) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(189) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(189) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(190) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(189) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(189) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(190) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(190) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(190) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(191) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(190) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(190) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(191) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(191) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(192) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(191) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(192) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(192) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(192) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(193) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(192) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(192) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(193) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(193) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(193) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(194) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(193) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(193) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(194) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(194) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(194) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(195) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(194) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(194) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(195) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(195) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(195) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(196) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(195) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(195) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(196) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(196) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(196) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(197) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(196) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(196) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(197) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(197) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(197) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(198) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(197) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(197) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(198) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(198) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(198) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(199) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(198) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(198) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(199) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(199) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(199) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(200) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(199) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(199) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(200) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(200) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(201) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(200) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(201) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(201) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(201) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(202) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(201) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(201) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(202) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(202) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(202) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(203) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(202) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(202) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(203) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(203) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(203) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(204) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(203) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(203) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(204) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(204) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(204) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(205) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(204) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(204) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(205) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(205) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(205) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(206) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(205) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(205) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(206) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(206) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(206) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(207) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(206) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(206) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(207) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(207) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(207) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(208) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(207) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(207) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(208) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(208) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(208) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(209) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(208) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(208) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(209) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(209) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(209) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(210) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(209) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(209) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(210) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(210) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(210) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(211) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(210) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(210) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(211) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(211) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(211) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(212) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(211) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(211) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(212) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(212) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(212) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(213) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(212) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(212) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(213) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(213) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(213) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(214) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(213) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(213) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(214) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(214) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(214) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(215) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(214) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(214) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(215) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(215) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(215) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(216) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(215) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(215) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(216) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(216) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(216) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(217) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(216) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(216) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(217) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(217) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(217) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(218) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(217) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(217) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(218) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(218) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(218) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(219) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(218) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(218) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(219) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(219) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(219) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(220) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(219) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(219) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(220) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(220) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(220) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(221) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(220) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(220) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(221) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(221) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(221) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(222) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(221) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(221) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(222) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(222) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(222) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(223) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(222) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(222) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(223) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(223) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(223) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(224) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(223) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(223) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(224) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(224) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(224) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(225) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(224) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(224) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(225) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(225) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(225) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(226) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(225) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(225) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(226) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(226) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(226) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(227) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(226) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(226) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(227) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(227) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(227) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(228) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(227) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(227) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(228) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(228) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(228) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(229) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(228) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(228) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(229) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(229) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(229) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(230) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(229) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(229) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(230) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(230) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(230) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(231) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(230) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(230) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(231) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(231) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(231) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(232) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(231) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(231) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(232) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(232) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(232) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(233) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(232) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(232) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(233) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(233) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(233) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(234) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(233) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(233) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(234) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(234) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(234) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(235) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(234) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(234) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(235) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(235) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(235) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(236) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(235) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(235) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(236) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(236) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(236) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(237) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(236) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(236) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(237) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(237) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(237) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(238) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(237) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(237) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(238) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(238) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(238) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(239) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(238) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(238) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(239) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(239) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(239) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(240) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(239) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(239) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(240) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(240) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(240) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(241) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(240) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(240) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(241) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(241) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(241) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(242) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(241) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(241) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(242) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(242) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(242) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(243) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(242) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(242) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(243) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(243) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(243) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(244) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(243) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(243) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(244) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(244) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(244) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(245) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(244) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(244) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(245) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(245) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(245) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(246) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(245) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(245) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(246) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(246) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(246) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(247) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(246) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(246) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(247) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(247) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(247) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(248) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(247) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(247) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(248) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(248) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(248) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(249) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(248) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(248) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(249) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(249) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(249) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(250) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(249) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(249) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(250) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(250) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(251) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(250) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(251) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(251) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(251) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(252) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(251) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(251) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(252) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(252) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(252) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(253) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(252) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(252) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(253) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(253) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(253) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(254) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(253) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(253) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(254) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(254) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(255) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(254) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(255) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);
+ALTER TABLE t CHANGE COLUMN a a CHAR(255) COLLATE utf8mb4_bin;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+ALTER TABLE t CHANGE COLUMN a a CHAR(255) COLLATE utf8mb4_general_ci;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;

@@ -1,0 +1,28 @@
+.. |d11n| replace:: documentation
+
+.. |tip.run-all.root|  replace:: Run the following commands as root or by using the :program:`sudo` command
+.. |tip.run-this.root| replace:: Run this command as root or by using the :program:`sudo` command
+
+.. Products
+
+.. |myrocks| replace:: MyRocks
+.. |ps-last| replace:: Percona Server for MySQL 8.0
+.. |xtradb.product| replace:: Percona XtraDB
+.. |ps| replace:: Percona Server for MySQL
+
+.. Platforms and rel. products
+
+.. |debian| replace:: Debian
+.. |debian-last| replace:: Debian 9.0 (stretch)
+.. |ubuntu| replace:: Ubuntu
+.. |ubuntu-last| replace:: Ubuntu 18.10 (Cosmic Cuttlefish)
+.. |ubuntu-lts| replace::  Ubuntu 18.04 LTS (bionic)
+.. |docker| replace:: Docker
+.. |centos| replace:: CentOS
+.. |rhel| replace:: RHEL
+
+.. |mysql.last-version| replace:: MySQL 8.0
+.. |version.next| replace:: 9.0
+.. |changed-version| replace:: 8.0.15-5
+.. |version.prev| replace:: 5.7
+.. |version.previous| replace:: 5.7

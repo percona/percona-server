@@ -1,0 +1,19 @@
+--source include/have_tokudb.inc
+
+#
+# bug lp:544173, xa crash with two 2pc-capable storage engines without binlog
+#
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2 (b INT PRIMARY KEY) ENGINE=tokudb;
+BEGIN;
+# verify that binlog is off
+--let $assert_text= log_bin must be off
+--let $assert_cond = [SELECT @@log_bin = 0]
+--source include/assert.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+COMMIT;
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TABLE t1, t2;

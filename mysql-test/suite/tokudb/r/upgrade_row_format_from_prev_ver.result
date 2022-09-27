@@ -1,0 +1,100 @@
+#########
+# Begin upgrade testing with mysql_upgrade
+###
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Stop DB server which was created by MTR default
+# Unzip the zip file.
+# Remove copied files
+# restart:<hidden args>
+#########
+# Performing test specific validation
+###
+# Check test table after upgrade
+id.sdi
+t_lzma_main_id.tokudb
+t_lzma_status_id.tokudb
+id.sdi
+t_quicklz_main_id.tokudb
+t_quicklz_status_id.tokudb
+id.sdi
+t_snappy_main_id.tokudb
+t_snappy_status_id.tokudb
+id.sdi
+t_uncompressed_main_id.tokudb
+t_uncompressed_status_id.tokudb
+id.sdi
+t_zlib_main_id.tokudb
+t_zlib_status_id.tokudb
+# uncompressed - compression_method=0
+SHOW CREATE TABLE test.t_uncompressed;
+Table	Create Table
+t_uncompressed	CREATE TABLE `t_uncompressed` (
+  `a` int DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_uncompressed ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=0" found
+# SNAPPY - compression_method=7
+SHOW CREATE TABLE test.t_snappy;
+Table	Create Table
+t_snappy	CREATE TABLE `t_snappy` (
+  `a` int DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_snappy ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=7" found
+# QUICKLZ - compression_method=9
+SHOW CREATE TABLE test.t_quicklz;
+Table	Create Table
+t_quicklz	CREATE TABLE `t_quicklz` (
+  `a` int DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_quicklz ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=9" found
+# LZMA - compression_method=10
+SHOW CREATE TABLE test.t_lzma;
+Table	Create Table
+t_lzma	CREATE TABLE `t_lzma` (
+  `a` int DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_lzma ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=10" found
+# ZLIB (without checksum) - compression_method=11
+SHOW CREATE TABLE test.t_zlib;
+Table	Create Table
+t_zlib	CREATE TABLE `t_zlib` (
+  `a` int DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_zlib ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=11" found
+#########
+# End upgrade testing with mysql_upgrade
+###
+# Stop the server
+# Remove temp datadir
+# Restart the server with default options.
+# restart

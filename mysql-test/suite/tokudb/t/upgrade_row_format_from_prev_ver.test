@@ -1,0 +1,70 @@
+--source include/have_util_unzip.inc
+--source include/have_tokudb.inc
+
+# Zipped data directory was created with default 16K page size
+# Innodb does not recognizes partition table created in linux from windows
+# due to difference in path format.
+--source include/not_windows.inc
+
+--source include/upgrade_from_prev_ver_suppressions.inc
+
+--let $ADDITIONAL_OPTS=
+--let $ARCH_DATA=data_prev_ver_row_format_tokudb
+
+--source include/begin_upgrade_from_prev_ver_mysql_upgrade.inc
+
+--echo # Check test table after upgrade
+
+--source include/table_files_replace_pattern.inc
+--list_files $MYSQLD_DATADIR1/test/
+
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/dump
+
+--echo # uncompressed - compression_method=0
+SHOW CREATE TABLE test.t_uncompressed;
+SELECT * FROM test.t_uncompressed ORDER BY a;
+--let $t_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t_uncompressed-main'`
+--exec $MYSQL_TOKUFTDUMP $MYSQLD_DATADIR1/$t_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=0
+--source include/search_pattern.inc
+
+
+--echo # SNAPPY - compression_method=7
+SHOW CREATE TABLE test.t_snappy;
+SELECT * FROM test.t_snappy ORDER BY a;
+--let $t_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t_snappy-main'`
+--exec $MYSQL_TOKUFTDUMP $MYSQLD_DATADIR1/$t_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=7
+--source include/search_pattern.inc
+
+
+--echo # QUICKLZ - compression_method=9
+SHOW CREATE TABLE test.t_quicklz;
+SELECT * FROM test.t_quicklz ORDER BY a;
+--let $t_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t_quicklz-main'`
+--exec $MYSQL_TOKUFTDUMP $MYSQLD_DATADIR1/$t_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=9
+--source include/search_pattern.inc
+
+
+--echo # LZMA - compression_method=10
+SHOW CREATE TABLE test.t_lzma;
+SELECT * FROM test.t_lzma ORDER BY a;
+--let $t_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t_lzma-main'`
+--exec $MYSQL_TOKUFTDUMP $MYSQLD_DATADIR1/$t_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=10
+--source include/search_pattern.inc
+
+
+--echo # ZLIB (without checksum) - compression_method=11
+SHOW CREATE TABLE test.t_zlib;
+SELECT * FROM test.t_zlib ORDER BY a;
+--let $t_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t_zlib-main'`
+--exec $MYSQL_TOKUFTDUMP $MYSQLD_DATADIR1/$t_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=11
+--source include/search_pattern.inc
+
+--remove_file $SEARCH_FILE
+
+--source include/end_upgrade_from_prev_ver_mysql_upgrade.inc

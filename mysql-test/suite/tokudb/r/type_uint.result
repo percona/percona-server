@@ -1,0 +1,13 @@
+set default_storage_engine='tokudb';
+drop table if exists t1;
+SET SQL_WARNINGS=1;
+create table t1 (this int unsigned);
+insert into t1 values (1);
+insert into t1 values (-1);
+ERROR 22003: Out of range value for column 'this' at row 1
+insert into t1 values ('5000000000');
+ERROR 22003: Out of range value for column 'this' at row 1
+select * from t1;
+this
+1
+drop table t1;

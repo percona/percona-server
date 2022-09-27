@@ -1,0 +1,48 @@
+#########
+# Begin upgrade testing with mysql_upgrade
+###
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Stop DB server which was created by MTR default
+# Unzip the zip file.
+# Remove copied files
+# restart:<hidden args>
+#########
+# Performing test specific validation
+###
+# Check test table after upgrade
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int unsigned NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = TokuDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = TokuDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = TokuDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = TokuDB) */
+SELECT * FROM test.t1 ORDER BY a;
+a
+50
+55
+250
+255
+350
+355
+t1_id.sdi
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+#########
+# End upgrade testing with mysql_upgrade
+###
+# Stop the server
+# Remove temp datadir
+# Restart the server with default options.
+# restart

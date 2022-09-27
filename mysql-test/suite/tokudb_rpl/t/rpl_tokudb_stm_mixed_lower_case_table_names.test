@@ -1,0 +1,18 @@
+# BUG#37656
+#  
+#  For details look into extra/rpl_tests/rpl_lower_case_table_names.test
+# 
+
+-- source include/have_tokudb.inc
+-- source include/not_group_replication_plugin.inc
+-- source include/not_windows.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/master-slave.inc
+
+-- let $assert_text= Gtid Mode is disabled
+-- let $assert_cond= "[SELECT @@GLOBAL.gtid_mode]" = "OFF"
+-- source include/assert.inc
+
+-- let $engine=TokuDB
+-- source extra/rpl_tests/rpl_lower_case_table_names.test
+-- source include/rpl_end.inc

@@ -1,0 +1,5 @@
+--source include/have_tokudb.inc
+
+# TokuDB was explicitly enabled by a configuration option.
+
+SET default_storage_engine='tokudb';

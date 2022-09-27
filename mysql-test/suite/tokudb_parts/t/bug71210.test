@@ -1,0 +1,5 @@
+--source include/have_tokudb.inc
+let $engine= 'TokuDB';
+
+--source suite/parts/inc/bug71210.inc
+

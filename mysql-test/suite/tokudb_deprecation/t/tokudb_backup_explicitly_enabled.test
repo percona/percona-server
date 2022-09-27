@@ -1,0 +1,11 @@
+--source include/have_tokudb_backup.inc
+
+# TokuDB backup was enabled explicitly.
+
+--let $BACKUP_DIR=$MYSQL_TMP_DIR/tokudb_backup_dir/
+--mkdir $BACKUP_DIR
+
+--replace_result $BACKUP_DIR BACKUP_DIR
+--eval SET SESSION tokudb_backup_dir='$BACKUP_DIR'
+
+--force-rmdir $BACKUP_DIR

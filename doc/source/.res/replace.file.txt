@@ -1,0 +1,4 @@
+
+.. |etc.my-cnf| replace:: :file:`/etc/my.cnf`
+.. |etc.my-cnf-backup| replace:: :file:`etc/my.cnf_backup-20181201-1802`
+.. |etc/my.cnf| replace:: :file:`/etc/my.cnf`

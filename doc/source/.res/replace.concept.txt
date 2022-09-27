@@ -1,0 +1,17 @@
+
+.. |cfname| replace:: `cf_name`
+.. |cf-name| replace:: `cf_name`
+
+.. |cf| replace:: column family
+.. |column-family| replace:: column family
+
+.. |sql.alter-table|         replace:: :mysql:`ALTER TABLE`
+.. |sql.comment|             replace:: :mysql:`COMMENT`
+.. |sql.create-table|        replace:: :mysql:`CREATE TABLE`
+.. |sql.load-data-infile|    replace:: :mysql:`LOAD DATA INFILE`
+.. |sql.select-into-outfile| replace:: :mysql:`SELECT ... INTO OUTFILE`
+.. |sql.no-wait| replace:: :mysql:`NO WAIT`
+.. |sql.skip-locked| replace:: :mysql:`SKIP LOCKED`
+.. |sql.upgrade-partitioning| replace:: :mysql:`UPGRADE PARTITIONING`
+.. |mysql-d11n| replace:: MySQL Documentation
+.. |mysql-doc.load-data| replace:: http://dev.mysql.com/doc/refman/8.0/en/load-data.html

@@ -1,0 +1,15 @@
+--source include/have_tokudb_backup.inc
+
+# TokuDB backup plugin wasn't enabled explicitly. Trying to initiate the backup
+# procedure should fail.
+
+call mtr.add_suppression(".*Plugin 'tokudb_backup' init function returned error.$");
+
+--let $BACKUP_DIR=$MYSQL_TMP_DIR/tokudb_backup_dir
+--mkdir $BACKUP_DIR
+
+--replace_result $BACKUP_DIR BACKUP_DIR
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+--eval SET SESSION tokudb_backup_dir='$BACKUP_DIR'
+
+--force-rmdir $BACKUP_DIR

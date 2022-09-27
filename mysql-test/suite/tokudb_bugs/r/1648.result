@@ -1,0 +1,13 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo (a blob, key (a(3)))engine=tokudb;
+insert into foo value ("asfdasdfasdfasdf");
+explain select * from foo where a like 'asf%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	foo	NULL	range	a	a	6	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`foo`.`a` AS `a` from `test`.`foo` where (`test`.`foo`.`a` like 'asf%')
+select * from foo where a like 'asf%';
+a
+asfdasdfasdfasdf
+DROP TABLE foo;

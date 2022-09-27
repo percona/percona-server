@@ -1,0 +1,32 @@
+--source include/have_tokudb.inc
+
+#
+# Create a table and get the underlying main ft file name
+#
+create table t1(id int auto_increment, name varchar(30), other int, primary key(id), key ko(other)) engine=TokuDB;
+--let $ori_file= `select internal_file_name from information_schema.tokudb_file_map where table_schema='test' and table_name='t1' and table_dictionary_name='main'`
+
+#
+# Alter index invisible
+#
+alter table t1 alter index ko invisible;
+show create table t1;
+--let $new_file=`select internal_file_name from information_schema.tokudb_file_map where table_schema='test' and table_name='t1' and table_dictionary_name='main'`
+--let $assert_text= underlying ft file name not changed after alter index invisible
+--let $assert_cond= "$ori_file" = "$new_file"
+--source include/assert.inc
+
+#
+# Alter index visible
+#
+alter table t1 alter index ko visible;
+show create table t1;
+--let $new_file=`select internal_file_name from information_schema.tokudb_file_map where table_schema='test' and table_name='t1' and table_dictionary_name='main'`
+--let $assert_text= underlying ft file name not changed after alter index visible
+--let $assert_cond= "$ori_file" = "$new_file"
+--source include/assert.inc
+
+#
+# cleanup
+#
+drop table t1;

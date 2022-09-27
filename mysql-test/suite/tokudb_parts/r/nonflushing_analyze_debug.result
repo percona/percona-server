@@ -1,0 +1,60 @@
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=TokuDB
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (3),
+PARTITION p1 VALUES LESS THAN (10));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SET DEBUG_SYNC="handler_ha_index_next_end SIGNAL idx_scan_in_progress WAIT_FOR finish_scan";
+SELECT * FROM t1;
+SET DEBUG_SYNC="now WAIT_FOR idx_scan_in_progress";
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+SET DEBUG_SYNC="now SIGNAL finish_scan";
+a
+1
+2
+3
+4
+DROP TABLE t1;
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=TokuDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (A)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (3),
+PARTITION p1 VALUES LESS THAN (10));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SET DEBUG_SYNC="handler_ha_index_next_end SIGNAL idx_scan_in_progress WAIT_FOR finish_scan";
+SELECT * FROM t2;
+SET DEBUG_SYNC="now WAIT_FOR idx_scan_in_progress";
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t2	analyze	warning	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t2;
+a
+2
+1
+4
+3
+SET DEBUG_SYNC="now SIGNAL finish_scan";
+a
+2
+1
+4
+3
+DROP TABLE t2;

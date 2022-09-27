@@ -1,0 +1,16 @@
+drop table if exists t;
+Warnings:
+Note	1051	Unknown table 'test.t'
+create table t (id int, x char(2), primary key (id), unique key (x));
+insert into t values (1,'aa'),(2,'ab');
+select * from t;
+id	x
+1	aa
+2	ab
+alter table t modify x char(1);
+ERROR 01000: Data truncated for column 'x' at row 1
+select * from t;
+id	x
+1	aa
+2	ab
+drop table t;

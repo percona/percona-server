@@ -1,0 +1,10 @@
+--source include/have_tokudb.inc
+
+# Trying to use TokuDB without explicitly enabling it by "tokudb_enabled"
+# option will generate an error.
+
+call mtr.add_suppression(".*Plugin 'TokuDB' init function returned error.$");
+call mtr.add_suppression(".*Plugin 'TokuDB' registration as a STORAGE ENGINE failed.$");
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+SET default_storage_engine='tokudb';

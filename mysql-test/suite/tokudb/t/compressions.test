@@ -1,0 +1,85 @@
+--source include/have_tokudb.inc
+
+# The purpose of this test is to perform about as full of an end-to-end
+# validation that the requested compression algo at the SQL layer is actually
+# applied to the FT data files. The only practical way to check this is to use
+# tokuftdump and look at the data files header value for compression_method.
+# A side effect of this is that the existance of this test will ensure that at
+# no time will the compression method IDs ever change, if they do, this test
+# will fail and users data will be irreparably damaged.
+
+# uncompressed - compression_method=0
+SET SESSION tokudb_row_format=tokudb_uncompressed;
+CREATE TABLE t1 (a INT) ENGINE=TokuDB;
+--let $t1_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t1-main'`
+
+# SNAPPY - compression_method=7
+SET SESSION tokudb_row_format=tokudb_snappy;
+CREATE TABLE t2 (a INT) ENGINE=TokuDB;
+--let $t2_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t2-main'`
+
+# QUICKLZ - compression_method=9
+SET SESSION tokudb_row_format=tokudb_quicklz;
+CREATE TABLE t3 (a INT) ENGINE=TokuDB;
+--let $t3_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t3-main'`
+
+# LZMA - compression_method=10
+SET SESSION tokudb_row_format=tokudb_lzma;
+CREATE TABLE t4 (a INT) ENGINE=TokuDB;
+--let $t4_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t4-main'`
+
+# ZLIB (without checksum) - compression_method=11
+SET SESSION tokudb_row_format=tokudb_zlib;
+CREATE TABLE t5 (a INT) ENGINE=TokuDB;
+--let $t5_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t5-main'`
+
+# ALTERED from uncompressed - compression_method=0 to ZLIB (without checksum) - compression_method=11
+SET SESSION tokudb_row_format=tokudb_uncompressed;
+CREATE TABLE t6 (a INT) ENGINE=TokuDB;
+SET SESSION tokudb_row_format=tokudb_zlib;
+ALTER TABLE t6 ALGORITHM=COPY;
+--let $t6_file = `SELECT internal_file_name FROM information_schema.tokudb_file_map WHERE dictionary_name = './test/t6-main'`
+
+--let $datadir = `SELECT @@global.datadir`
+
+# To ensure we have correct headers written to FT data files and no chance of a
+# race between header rotation and tokuftdump, lets just perform a clean server
+# shutdown before we go rooting around in the FT files.
+--source include/shutdown_mysqld.inc
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/dump
+
+# uncompressed - compression_method=0
+--exec $MYSQL_TOKUFTDUMP $datadir/$t1_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=0
+--source include/search_pattern.inc
+
+# SNAPPY - compression_method=7
+--exec $MYSQL_TOKUFTDUMP $datadir/$t2_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=7
+--source include/search_pattern.inc
+
+# QUICKLZ - compression_method=9
+--exec $MYSQL_TOKUFTDUMP $datadir/$t3_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=9
+--source include/search_pattern.inc
+
+# LZMA - compression_method=10
+--exec $MYSQL_TOKUFTDUMP $datadir/$t4_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=10
+--source include/search_pattern.inc
+
+# ZLIB (without checksum) - compression_method=11
+--exec $MYSQL_TOKUFTDUMP $datadir/$t5_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=11
+--source include/search_pattern.inc
+
+# ALTERED from uncompressed - compression_method=0 to ZLIB (without checksum) - compression_method=11
+--exec $MYSQL_TOKUFTDUMP $datadir/$t6_file > $SEARCH_FILE
+--let SEARCH_PATTERN=compression_method=11
+--source include/search_pattern.inc
+
+--remove_file $SEARCH_FILE
+--source include/start_mysqld.inc
+
+DROP TABLE t1, t2, t3, t4, t5, t6;

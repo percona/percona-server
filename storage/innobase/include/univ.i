@@ -55,6 +55,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_MINOR MYSQL_VERSION_MINOR
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
+#ifndef PERCONA_INNODB_VERSION
+#define PERCONA_INNODB_VERSION 2
+#endif
+
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
 calculated in make_version_string() in sql/sql_show.cc like this:
@@ -63,9 +67,10 @@ because the version is shown with only one dot, we skip the last
 component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_SHORT (INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
-#define INNODB_VERSION_STR        \
-  IB_TO_STR(INNODB_VERSION_MAJOR) \
-  "." IB_TO_STR(INNODB_VERSION_MINOR) "." IB_TO_STR(INNODB_VERSION_BUGFIX)
+#define INNODB_VERSION_STR                           \
+  IB_TO_STR(INNODB_VERSION_MAJOR)                    \
+  "." IB_TO_STR(INNODB_VERSION_MINOR) "." IB_TO_STR( \
+      INNODB_VERSION_BUGFIX) "-" IB_TO_STR(PERCONA_INNODB_VERSION)
 
 #define REFMAN                                  \
   "http://dev.mysql.com/doc/refman/" IB_TO_STR( \

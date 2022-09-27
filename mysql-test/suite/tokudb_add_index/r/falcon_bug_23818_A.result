@@ -1,0 +1,5 @@
+*** Bug #23818_A ***
+CREATE TABLE t1 (a INT, b VARCHAR(768)) ENGINE=TOKUDB;
+INSERT INTO t1 VALUES (0,null),(0,null),(0,null);
+CREATE INDEX i1 ON t1 (b);
+DROP TABLE t1;

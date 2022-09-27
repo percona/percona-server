@@ -1,0 +1,31 @@
+create table t (a int, b int, primary key (a)) engine=tokudb;
+insert into t values (1,2),(2,4),(3,8);
+optimize table t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t	optimize	status	OK
+# restart
+insert into t values (4,9),(10,11),(12,13);
+select * from t;
+a	b
+1	2
+2	4
+3	8
+4	9
+10	11
+12	13
+# Kill the server
+# restart:--tokudb-force-recovery=6 --read-only --super-read-only
+select * from t;
+a	b
+1	2
+2	4
+3	8
+# restart:--tokudb-force-recovery=6 --read-only --super-read-only
+select * from t;
+a	b
+1	2
+2	4
+3	8
+# restart
+drop table t;

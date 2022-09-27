@@ -1,0 +1,1 @@
+--loose-tokudb_auto_analyze=0 --loose-tokudb_analyze_in_background=false --event-scheduler=OFF

@@ -1,0 +1,30 @@
+set default_storage_engine='tokudb';
+drop table if exists tt;
+set session tokudb_auto_analyze = 0;
+set session tokudb_analyze_in_background = 0;
+create table tt (a int, b int, c int, key(b), key(c), primary key(a));
+insert into tt values (1,0,0),(2,0,0),(3,0,1),(4,0,1);
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	4	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+analyze table tt;
+Table	Op	Msg_type	Msg_text
+test.tt	analyze	status	OK
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	4	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+alter table tt drop primary key;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	1	b	1	b	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+flush tables;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	1	b	1	b	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	4	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+drop table tt;

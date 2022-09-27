@@ -1,0 +1,29 @@
+--source include/have_tokudb.inc
+
+# test for under limit
+CALL mtr.add_suppression("tokudb_max_lock_memory must be greater than*");
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/tokudb.max_lock_memory.err
+--let SEARCH_PATTERN=tokudb_max_lock_memory must be greater than
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE --tokudb_max_lock_memory=1
+--source include/restart_mysqld.inc
+--source include/search_pattern.inc
+
+--let assert_text="SELECT @@global.tokudb_max_lock_memory > 1"
+--let assert_cond="[SELECT @@global.tokudb_max_lock_memory > 1]" = 1
+--source include/assert.inc
+
+# test for auto-tune
+--let $restart_parameters=restart:--tokudb_max_lock_memory=0 --log-error-verbosity=3
+--source include/restart_mysqld.inc
+
+--let assert_text="SELECT @@global.tokudb_max_lock_memory > 0"
+--let assert_cond="[SELECT @@global.tokudb_max_lock_memory > 0]" = 1
+--source include/assert.inc
+
+# cleanup
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+--remove_file $SEARCH_FILE

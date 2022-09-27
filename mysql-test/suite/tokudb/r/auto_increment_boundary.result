@@ -1,0 +1,93 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (id tinyint unsigned not null auto_increment, key(id));
+insert into t set id=0xff;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+255
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+insert into t set id=null;
+ERROR 22003: Out of range value for column 'id' at row 1
+show warnings;
+Level	Code	Message
+Error	1264	Out of range value for column 'id' at row 1
+Error	1264	Out of range value for column 't' at row 167
+select * from t;
+id
+255
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+drop table t;
+create table t (id smallint unsigned not null auto_increment, key(id));
+insert into t set id=0xffff;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65535
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+insert into t set id=null;
+ERROR 22003: Out of range value for column 'id' at row 1
+show warnings;
+Level	Code	Message
+Error	1264	Out of range value for column 'id' at row 1
+Error	1264	Out of range value for column 't' at row 167
+select * from t;
+id
+65535
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+drop table t;
+create table t (id int unsigned not null auto_increment, key(id));
+insert into t set id=0xffffffff;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967295
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+insert into t set id=null;
+ERROR 22003: Out of range value for column 'id' at row 1
+show warnings;
+Level	Code	Message
+Error	1264	Out of range value for column 'id' at row 1
+Error	1264	Out of range value for column 't' at row 167
+select * from t;
+id
+4294967295
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+drop table t;
+create table t (id bigint unsigned not null auto_increment, key(id));
+insert into t set id=0xffffffffffffffff;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+18446744073709551615
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+insert into t set id=null;
+ERROR HY000: Failed to read auto-increment value from storage engine
+show warnings;
+Level	Code	Message
+Error	1467	Failed to read auto-increment value from storage engine
+select * from t;
+id
+18446744073709551615
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+drop table t;

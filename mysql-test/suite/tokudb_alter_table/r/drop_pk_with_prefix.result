@@ -1,0 +1,22 @@
+CREATE TABLE `testtable` (
+`id` INT(11) NOT NULL,
+`keyword` VARCHAR(299) DEFAULT NULL,
+PRIMARY KEY (`id`),  
+KEY `keyword` (`keyword`(100))
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+set tokudb_disable_hot_alter=ON;
+ALTER TABLE testtable DROP PRIMARY KEY;
+drop table testtable;
+CREATE TABLE `testtable` (
+`id` INT(11) NOT NULL,
+`keyword` VARCHAR(299) DEFAULT NULL,
+PRIMARY KEY (`id`),  
+KEY `keyword` (`keyword`(100))
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+set tokudb_disable_hot_alter=OFF;
+ALTER TABLE testtable DROP PRIMARY KEY;
+drop table testtable;

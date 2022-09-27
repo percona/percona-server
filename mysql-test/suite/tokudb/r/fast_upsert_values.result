@@ -1,0 +1,31 @@
+set session sql_mode=(select replace(@@sql_mode,'STRICT_TRANS_TABLES',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+set session sql_mode=(select replace(@@sql_mode,'STRICT_ALL_TABLES',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+set tokudb_enable_fast_upsert=1;
+create table t (id int primary key, x int not null) engine = tokudb;
+insert into t values (1,1);
+insert into t values (1,1) on duplicate key update x=x+1;
+select * from t;
+id	x
+1	2
+insert into t values (1,10) on duplicate key update x=values(x)+1;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+select * from t;
+id	x
+1	2
+insert into t values (1,10) on duplicate key update x=x+values(x);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+select * from t;
+id	x
+1	12
+insert into t values (1,100) on duplicate key update x=x+values(x);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+select * from t;
+id	x
+1	112
+drop table t;

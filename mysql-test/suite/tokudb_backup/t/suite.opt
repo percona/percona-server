@@ -1,0 +1,1 @@
+$TOKUDB_OPT $TOKUDB_LOAD $TOKUDB_BACKUP_OPT $TOKUDB_BACKUP_LOAD_ADD --loose-innodb_use_native_aio=off --loose-tokudb-check-jemalloc=0 --loose-tokudb-cache-size=512M --loose-tokudb-block-size=1M --loose-tokudb-enabled=on --loose-tokudb-backup-enabled=on

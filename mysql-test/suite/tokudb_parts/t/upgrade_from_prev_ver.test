@@ -1,0 +1,22 @@
+--source include/have_util_unzip.inc
+--source include/have_tokudb.inc
+
+# Zipped data directory was created with default 16K page size
+# Innodb does not recognizes partition table created in linux from windows
+# due to difference in path format.
+--source include/not_windows.inc
+
+--source include/upgrade_from_prev_ver_suppressions.inc
+
+--let $ADDITIONAL_OPTS=--loose-tokudb-dir-per-db=1
+--let $ARCH_DATA=data_prev_ver_part_tokudb
+
+--source include/begin_upgrade_from_prev_ver_mysql_upgrade.inc
+
+--echo # Check test table after upgrade
+SHOW CREATE TABLE test.t1;
+SELECT * FROM test.t1 ORDER BY a;
+--source include/table_files_replace_pattern.inc
+--list_files $MYSQLD_DATADIR1/test/
+
+--source include/end_upgrade_from_prev_ver_mysql_upgrade.inc

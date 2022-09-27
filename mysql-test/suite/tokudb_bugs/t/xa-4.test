@@ -1,0 +1,55 @@
+-- source include/have_tokudb.inc
+-- source include/have_debug.inc
+# Valgrind would report memory leaks on the intentional crashes
+-- source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+-- source include/not_crashrep.inc
+
+#
+# bug lp:544173, xa crash with two 2pc-capable storage engines without binlog
+#
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2 (b INT PRIMARY KEY) ENGINE=tokudb;
+BEGIN;
+# verify that binlog is off
+--let $assert_text= log_bin must be off
+--let $assert_cond = [SELECT @@log_bin = 0]
+--source include/assert.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+
+SET SESSION debug="d,crash_commit_before";
+
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+COMMIT;
+
+--source include/start_mysqld.inc
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2 (b INT PRIMARY KEY) ENGINE=tokudb;
+BEGIN;
+# verify that binlog is off
+--let $assert_text= log_bin must be off
+--let $assert_cond = [SELECT @@log_bin = 0]
+--source include/assert.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+
+SET SESSION debug="d,crash_commit_after";
+
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+COMMIT;
+
+--source include/start_mysqld.inc
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;

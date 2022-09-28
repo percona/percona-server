@@ -398,7 +398,7 @@ struct MDL_key {
   */
   enum enum_mdl_namespace {
     GLOBAL = 0,
-    BACKUP_LOCK,
+    BACKUP_LOCK, /* Oracle LOCK INSTANCE FOR BACKUP */
     TABLESPACE,
     SCHEMA,
     TABLE,

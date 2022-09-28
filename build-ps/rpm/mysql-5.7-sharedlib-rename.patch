@@ -256,7 +256,7 @@
 @@ -302,7 +302,7 @@ ELSE()
  ENDIF()
  
- # Use cmake variables to inspect dependencies for 
+ # Use cmake variables to inspect dependencies for
 -# perconaserverclient library (add -l stuff)
 +# mysqlclient library (add -l stuff)
  SET(CLIENT_LIBS "")

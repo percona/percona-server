@@ -102,7 +102,6 @@ Database: information_schema
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_CACHED_INDEXES                 |
-| INNODB_CHANGED_PAGES                  |
 | INNODB_CMP                            |
 | INNODB_CMPMEM                         |
 | INNODB_CMPMEM_RESET                   |
@@ -197,7 +196,6 @@ Database: INFORMATION_SCHEMA
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_CACHED_INDEXES                 |
-| INNODB_CHANGED_PAGES                  |
 | INNODB_CMP                            |
 | INNODB_CMPMEM                         |
 | INNODB_CMPMEM_RESET                   |

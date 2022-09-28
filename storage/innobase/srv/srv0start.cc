@@ -68,7 +68,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "log0online.h"
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "log0recv.h"
@@ -201,7 +200,6 @@ mysql_pfs_key_t srv_lock_timeout_thread_key;
 mysql_pfs_key_t srv_master_thread_key;
 mysql_pfs_key_t srv_monitor_thread_key;
 mysql_pfs_key_t srv_purge_thread_key;
-mysql_pfs_key_t srv_log_tracking_thread_key;
 mysql_pfs_key_t srv_worker_thread_key;
 mysql_pfs_key_t trx_recovery_rollback_thread_key;
 mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
@@ -1301,24 +1299,6 @@ static void srv_start_wait_for_purge_to_start() {
   }
 }
 
-/** Initializes the log tracking subsystem and starts its thread.  */
-void srv_init_log_online(void) {
-  if (UNIV_UNLIKELY(srv_force_recovery > 0 || srv_read_only_mode)) {
-    srv_track_changed_pages = false;
-    return;
-  }
-
-  if (srv_track_changed_pages) {
-    log_online_read_init();
-
-    /* Create the thread that follows the redo log to output the
-       changed page bitmap */
-    srv_threads.m_changed_page_tracker = os_thread_create(
-        srv_log_tracking_thread_key, 0, srv_redo_log_follow_thread);
-    srv_threads.m_changed_page_tracker.start();
-  }
-}
-
 /** Create the temporary file tablespace.
 @param[in]      create_new_db   whether we are creating a new database
 @param[in,out]  tmp_space       Shared Temporary SysTablespace
@@ -1488,12 +1468,6 @@ void srv_shutdown_exit_threads() {
 
       if (srv_threads.m_crypt_threads_n) {
         os_event_set(fil_crypt_threads_event);
-      }
-
-      /* Stop srv_redo_log_follow_thread thread */
-      if (srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
-        os_event_reset(srv_redo_log_tracked_event);
-        os_event_set(srv_checkpoint_completed_event);
       }
     }
 
@@ -3179,15 +3153,6 @@ static void srv_shutdown_page_cleaners() {
   ut_ad(buf_pool_pending_io_writes_count() == 0);
 }
 
-static void srv_wake_log_tracker_thread() {
-  /* Wake the log tracking thread which will then immediately quit because of
-  srv_shutdown_state value */
-  if (srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
-    os_event_reset(srv_redo_log_tracked_event);
-    os_event_set(srv_checkpoint_completed_event);
-  }
-}
-
 /** Closes redo log. If this is not fast shutdown, it forces to write a
 checkpoint which should be written for logically empty redo log. Note that we
 forced to flush all dirty pages in the last stages of page cleaners activity
@@ -3221,8 +3186,6 @@ static lsn_t srv_shutdown_log() {
     log_background_threads_inactive_validate();
 
     srv_shutdown_set_state(SRV_SHUTDOWN_LAST_PHASE);
-
-    srv_wake_log_tracker_thread();
 
     return (log_get_lsn(*log_sys));
   }

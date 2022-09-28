@@ -54,7 +54,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "log0online.h"
 #include "log0chkp.h"       /* log_next_checkpoint_header */
 #include "log0encryption.h" /* log_encryption_read */
 #include "log0files_io.h"
@@ -326,7 +325,6 @@ byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
 /** Apply the collected persistent dynamic metadata to in-memory
 table objects */
 void MetadataRecover::apply() {
-  ut_ad(!read_only);
   PersistentTables::iterator iter;
 
   for (iter = m_tables.begin(); iter != m_tables.end(); ++iter) {
@@ -648,7 +646,7 @@ void recv_sys_init() {
   recv_sys->saved_recs.resize(recv_sys_t::MAX_SAVED_MLOG_RECS);
 
   recv_sys->metadata_recover =
-      ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY, false);
+      ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY);
 
   using CryptDatas = recv_sys_t::CryptDatas;
   recv_sys->crypt_datas = ut::new_withkey<CryptDatas>(
@@ -2964,8 +2962,8 @@ void recv_recover_page_func(
 @param[out]     body            start of log record body
 @return length of the record, or 0 if the record was not complete */
 ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                         space_id_t *space_id, page_no_t *page_no,
-                         bool online_log, byte **body) {
+                         space_id_t *space_id, page_no_t *page_no, bool apply,
+                         byte **body) {
   byte *new_ptr;
 
   *body = nullptr;
@@ -3022,9 +3020,8 @@ ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
           mlog_parse_initial_dict_log_record(ptr, end_ptr, type, &id, &version);
 
       if (new_ptr != nullptr) {
-        new_ptr = (online_log ? log_online_metadata_recover
-                              : recv_sys->metadata_recover)
-                      ->parseMetadataLog(id, version, new_ptr, end_ptr);
+        new_ptr = recv_sys->metadata_recover->parseMetadataLog(
+            id, version, new_ptr, end_ptr);
       }
 
       return new_ptr == nullptr ? 0 : new_ptr - ptr;
@@ -3122,8 +3119,8 @@ static bool recv_single_rec(byte *ptr, byte *end_ptr) {
   page_no_t page_no;
   space_id_t space_id;
 
-  ulint len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no,
-                                 false, &body);
+  ulint len =
+      recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, true, &body);
 
   if (recv_sys->found_corrupt_log) {
     recv_report_corrupt_log(ptr, type, space_id, page_no);
@@ -3233,7 +3230,7 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
     space_id_t space_id = 0;
 
     ulint len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no,
-                                   false, &body);
+                                   true, &body);
 
     if (recv_sys->found_corrupt_log) {
       recv_report_corrupt_log(ptr, type, space_id, page_no);

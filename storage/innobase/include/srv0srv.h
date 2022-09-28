@@ -270,9 +270,6 @@ struct Srv_threads {
   /** LRU manager threads. */
   IB_thread *m_lru_managers;
 
-  /** Changed page tracking thread. */
-  IB_thread m_changed_page_tracker;
-
   /** Archiver's log archiver (used by Clone). */
   IB_thread m_log_archiver;
 
@@ -378,14 +375,6 @@ extern bool srv_buffer_pool_load_at_startup;
 /* Whether to disable file system cache if it is defined */
 extern bool srv_disable_sort_file_cache;
 
-/* This event is set on checkpoint completion to wake the redo log parser
-thread */
-extern os_event_t srv_checkpoint_completed_event;
-
-/* This event is set on the online redo log following thread after a successful
-log tracking iteration */
-extern os_event_t srv_redo_log_tracked_event;
-
 /** Enable or disable writing of NULLs while extending a tablespace.
 If this is false, then the server will just allocate the space without
 actually initializing it with NULLs. If the variable is true, the
@@ -490,14 +479,6 @@ enum srv_sys_tablespace_encrypt_enum {
 
 /** Enable this option to encrypt system tablespace at bootstrap. */
 extern ulong srv_sys_tablespace_encrypt;
-
-/** Whether the redo log tracking is currently enabled. Note that it is
-possible for the log tracker thread to be running and the tracking to be
-disabled */
-extern bool srv_track_changed_pages;
-extern ulonglong srv_max_bitmap_file_size;
-
-extern ulonglong srv_max_changed_pages;
 
 
 /** Maximum number of recently truncated undo tablespace IDs for
@@ -966,7 +947,6 @@ extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
 extern mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 extern mysql_pfs_key_t parallel_read_thread_key;
 extern mysql_pfs_key_t parallel_rseg_init_thread_key;
-extern mysql_pfs_key_t srv_log_tracking_thread_key;
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1147,8 +1127,6 @@ static inline void srv_active_wake_master_thread() {
 }
 /** Wakes up the master thread if it is suspended or being suspended. */
 void srv_wake_master_thread(void);
-/** A thread which follows the redo log and outputs the changed page bitmap. */
-void srv_redo_log_follow_thread();
 #ifndef UNIV_HOTBACKUP
 /** Outputs to a file the output of the InnoDB Monitor.
 @param[in]    file      output stream

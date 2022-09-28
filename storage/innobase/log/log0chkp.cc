@@ -506,12 +506,6 @@ static void log_checkpoint(log_t &log) {
     return;
   }
 
-  // Wake the redo log watching thread to parse the log up to this checkpoint.
-  if (srv_track_changed_pages) {
-    os_event_reset(srv_redo_log_tracked_event);
-    os_event_set(srv_checkpoint_completed_event);
-  }
-
   DBUG_PRINT("ib_log",
              ("checkpoint ended at " LSN_PF ", log flushed to " LSN_PF,
               log.last_checkpoint_lsn.load(), log.flushed_to_disk_lsn.load()));

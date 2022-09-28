@@ -134,7 +134,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0chkp.h"
 #include "log0encryption.h"
 #include "log0meb.h"
-#include "log0online.h"
 #include "log0pfs.h"
 #include "log0pre_8_0_30.h"
 #include "log0write.h"
@@ -759,7 +758,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_limits_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(log_bmp_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_files_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_checkpointer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_closer_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -899,8 +897,6 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_lock_timeout_thread, "ib_srv_lock_to",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
-    PSI_THREAD_KEY(srv_log_tracking_thread, "ib_srv_log", 0, 0,
-                   PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_master_thread, "ib_src_main", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_monitor_thread, "ib_srv_mon", PSI_FLAG_SINGLETON, 0,
@@ -1117,19 +1113,6 @@ This function is registered as a callback with MySQL.
 @return 0 for valid stopword table */
 static int innodb_stopword_table_validate(THD *thd, SYS_VAR *var, void *save,
                                           struct st_mysql_value *value);
-
-/** Synchronously read and parse the redo log up to the last checkpoint to
-write the changed page bitmap.
-@retval false to indicate success.  Current implementation cannot fail. */
-static bool innobase_flush_changed_page_bitmaps() noexcept;
-
-/** Delete all the bitmap files for data less than the specified LSN.
-If called with lsn == IB_ULONGLONG_MAX (i.e. set by RESET request),
-restart the bitmap file sequence, otherwise continue it.
-@param[in]	lsn	LSN to purge files up to
-@retval false success
-@retval true failure */
-static bool innobase_purge_changed_page_bitmaps(ulonglong lsn) noexcept;
 
 /** Validate passed-in "value" is a valid directory name.
 This function is registered as a callback with MySQL.
@@ -5726,10 +5709,6 @@ static int innodb_init(void *p) {
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
   innobase_hton->data = &innodb_api_cb;
-  innobase_hton->flush_changed_page_bitmaps =
-      innobase_flush_changed_page_bitmaps;
-  innobase_hton->purge_changed_page_bitmaps =
-      innobase_purge_changed_page_bitmaps;
   innobase_hton->ddse_dict_init = innobase_ddse_dict_init;
 
   innobase_hton->dict_register_dd_table_id = innobase_dict_register_dd_table_id;
@@ -6328,27 +6307,6 @@ static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
                            srv_flush_log_at_trx_commit == 1);
 
   return false;
-}
-
-/** Synchronously read and parse the redo log up to the last checkpoint to
-write the changed page bitmap.
-@retval false to indicate success.  Current implementation cannot fail. */
-static bool innobase_flush_changed_page_bitmaps() noexcept {
-  if (srv_track_changed_pages) {
-    os_event_reset(srv_checkpoint_completed_event);
-    log_online_follow_redo_log();
-  }
-  return false;
-}
-
-/** Delete all the bitmap files for data less than the specified LSN.
-If called with lsn == IB_ULONGLONG_MAX (i.e. set by RESET request),
-restart the bitmap file sequence, otherwise continue it.
-@param[in]	lsn	LSN to purge files up to
-@retval false success
-@retval true failure */
-static bool innobase_purge_changed_page_bitmaps(ulonglong lsn) noexcept {
-  return log_online_purge_changed_page_bitmaps(lsn);
 }
 
 /** Commits a transaction in an InnoDB database. */
@@ -23080,63 +23038,6 @@ static void innodb_sched_priority_master_update(THD *thd, SYS_VAR *var,
 #endif /* defined(UNIV_LINUX) && (defined(UNIV_DEBUG) || \
           defined(UNIV_PERF_DEBUG)) */
 
-#ifdef UNIV_DEBUG
-/** Check if it is a valid value of innodb_track_changed_pages. Changed pages
-tracking is not working correctly without initialization procedure on server
-startup. The function allows to temporary disable tracking, but only if the
-feature was enabled on startup. This function is registered as a callback
-with MySQL.
-@param[in]	thd	thread handle
-@param[in]	var	pointer to system variable
-@param[out]	save	immediate result for update function
-@param[in]	value	incoming bool
-@return 0 for valid innodb_track_changed_pages */
-static int innodb_track_changed_pages_validate(THD *thd, SYS_VAR *var,
-                                               void *save,
-                                               struct st_mysql_value *value) {
-  long long intbuf = 0;
-
-  /* ON, OFF string values are valid as well.
-   * Anyway, this check is enabled only for debug builds
-   * as the variable is dynamic only in debug builds,
-   * so let's handle ON, OFF values like for bool
-   */
-  if (value->value_type(value) == STRING_RESULT) {
-    char buff[STRING_BUFFER_USUAL_SIZE];
-    int length = 0;
-    const char *res;
-    if (!(res = value->val_str(value, buff, &length))) {
-      return 1;
-    } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length,
-                             (const uchar *)"OFF", 3)) {
-      intbuf = 0;
-    } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length,
-                             (const uchar *)"ON", 2)) {
-      intbuf = 1;
-    } else {
-      return 1;
-    }
-  } else {
-    if (value->val_int(value, &intbuf)) {
-      /* The value is NULL. That is invalid. */
-      return 1;
-    }
-  }
-
-  if (srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
-    *reinterpret_cast<ulong *>(save) = static_cast<ulong>(intbuf);
-    return 0;
-  }
-
-  if (intbuf == srv_track_changed_pages) {  // == 0
-    *reinterpret_cast<ulong *>(save) = srv_track_changed_pages;
-    return 0;
-  }
-
-  return 1;
-}
-#endif
-
 /** Callback function for accessing the InnoDB variables from MySQL:
  SHOW VARIABLES. */
 static int show_innodb_vars(THD *, SHOW_VAR *var, char *) {
@@ -23236,7 +23137,6 @@ static bool innodb_purge_run_now = true;
 static bool innodb_purge_stop_now = true;
 static bool innodb_log_checkpoint_now = true;
 static bool innodb_log_checkpoint_fuzzy_now = true;
-static bool innodb_track_redo_log_now = true;
 static bool innodb_log_flush_now = true;
 static bool innodb_buf_flush_list_now = true;
 
@@ -23347,19 +23247,6 @@ static void buf_flush_list_now_set(THD *, SYS_VAR *, void *, const void *save) {
   if (*(bool *)save) {
     buf_flush_sync_all_buf_pools();
   }
-}
-
-/** Force log tracker to track the log synchronously.
-@param[in]	thd	thread handle
-@param[in]	var	pointer to system variable
-@param[in,out]	var_ptr	where the formal string goes
-@param[in]	save	immediate result from check function */
-static void track_redo_log_now_set(THD *thd [[maybe_unused]],
-                                   SYS_VAR *var [[maybe_unused]],
-                                   void *var_ptr [[maybe_unused]],
-                                   const void *save) {
-  if (*static_cast<const bool *>(save) && srv_track_changed_pages)
-    log_online_follow_redo_log();
 }
 
 /** Override current MERGE_THRESHOLD setting for all indexes at dictionary
@@ -23852,11 +23739,6 @@ static MYSQL_SYSVAR_BOOL(checkpoint_disabled, srv_checkpoint_disabled,
 static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
                          PLUGIN_VAR_OPCMDARG, "Force dirty page flush now",
                          nullptr, buf_flush_list_now_set, false);
-
-static MYSQL_SYSVAR_BOOL(track_redo_log_now, innodb_track_redo_log_now,
-                         PLUGIN_VAR_OPCMDARG,
-                         "Force log tracker to catch up with checkpoint now",
-                         nullptr, track_redo_log_now_set, false);
 
 static MYSQL_SYSVAR_UINT(
     merge_threshold_set_all_debug, innodb_merge_threshold_set_all_debug,
@@ -24880,36 +24762,6 @@ static MYSQL_SYSVAR_ENUM(
     " NULLS_UNEQUAL and NULLS_IGNORED",
     nullptr, nullptr, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
 
-static MYSQL_SYSVAR_BOOL(
-    track_changed_pages, srv_track_changed_pages,
-    PLUGIN_VAR_NOCMDARG
-#ifndef UNIV_DEBUG
-        /* Make this variable dynamic for debug builds to
-        provide a testcase sync facility */
-        | PLUGIN_VAR_READONLY
-#endif
-    ,
-    "Track the redo log for changed pages and output a changed page bitmap",
-#ifdef UNIV_DEBUG
-    innodb_track_changed_pages_validate,
-#else
-    nullptr,
-#endif
-    nullptr, false);
-
-static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
-                              PLUGIN_VAR_RQCMDARG,
-                              "The maximum size of changed page bitmap files",
-                              nullptr, nullptr, 100 * 1024 * 1024ULL, 4096ULL,
-                              ~0ULL, 0);
-
-static MYSQL_SYSVAR_ULONGLONG(max_changed_pages, srv_max_changed_pages,
-                              PLUGIN_VAR_RQCMDARG,
-                              "The maximum number of rows for "
-                              "INFORMATION_SCHEMA.INNODB_CHANGED_PAGES table, "
-                              "0 - unlimited",
-                              nullptr, nullptr, 1000000, 0, ~0ULL, 0);
-
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(
     change_buffering_debug, ibuf_debug, PLUGIN_VAR_RQCMDARG,
@@ -25358,9 +25210,6 @@ static SYS_VAR *innobase_system_variables[] = {
 #endif /* HAVE_LIBNUMA */
     MYSQL_SYSVAR(change_buffering),
     MYSQL_SYSVAR(change_buffer_max_size),
-    MYSQL_SYSVAR(track_changed_pages),
-    MYSQL_SYSVAR(max_bitmap_file_size),
-    MYSQL_SYSVAR(max_changed_pages),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
     MYSQL_SYSVAR(change_buffering_debug),
     MYSQL_SYSVAR(disable_background_merge),
@@ -25388,7 +25237,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_checkpoint_fuzzy_now),
     MYSQL_SYSVAR(checkpoint_disabled),
     MYSQL_SYSVAR(buf_flush_list_now),
-    MYSQL_SYSVAR(track_redo_log_now),
     MYSQL_SYSVAR(merge_threshold_set_all_debug),
     MYSQL_SYSVAR(semaphore_wait_timeout_debug),
 #endif /* UNIV_DEBUG */
@@ -25488,8 +25336,8 @@ mysql_declare_plugin(innobase){
     i_s_innodb_ft_index_cache, i_s_innodb_ft_index_table, i_s_innodb_tables,
     i_s_innodb_tablestats, i_s_innodb_indexes, i_s_innodb_tablespaces,
     i_s_innodb_columns, i_s_innodb_virtual, i_s_innodb_cached_indexes,
-    i_s_innodb_session_temp_tablespaces, i_s_innodb_tablespaces_encryption,
-    i_s_innodb_changed_pages
+    i_s_innodb_session_temp_tablespaces,
+    i_s_innodb_tablespaces_encryption
 
     mysql_declare_plugin_end;
 

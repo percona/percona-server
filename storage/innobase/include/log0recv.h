@@ -53,13 +53,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 class MetadataRecover;
 class PersistentTableMetadata;
 
-/** Check the 4-byte checksum to the trailer checksum field of a log
-block.
-@param[in]	log block
-@return whether the checksum matches */
-MY_NODISCARD bool log_block_checksum_is_ok(
-    const byte *block); /*!< in: pointer to a log block */
-
 /** Calculates the new value for lsn when more data is added to the log. */
 lsn_t recv_calc_lsn_on_data_add(
     lsn_t lsn,     /*!< in: old lsn */

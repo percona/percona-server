@@ -180,7 +180,9 @@ AuditRecordString LogRecordFormatterOld::apply(
   std::stringstream startup_options;
 
   for (unsigned int i = 0; i < audit_record.event->argc; ++i) {
-    startup_options << audit_record.event->argv[i] << " ";
+    if (audit_record.event->argv[i] != nullptr) {
+      startup_options << audit_record.event->argv[i] << " ";
+    }
   }
 
   std::string startup_options_str = startup_options.str();

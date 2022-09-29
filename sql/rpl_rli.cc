@@ -1313,6 +1313,12 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
 
   assert(info_thd == thd);
   /*
+    It's required to close thread tables before rollback, because some
+    rollback operations, like replay_remove_cache_log, require closed tables.
+  */
+  m_table_map.clear_tables();
+  slave_close_thread_tables(thd);
+  /*
     1) Instances of Table_map_log_event, if ::do_apply_event() was called on
     them, may have opened tables, which we cannot be sure have been closed
     (because maybe the Rows_log_event have not been found or will not be,
@@ -1344,8 +1350,6 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
       assert(!debug_sync_set_action(info_thd, STRING_WITH_LEN(action)));
     };);
   }
-  m_table_map.clear_tables();
-  slave_close_thread_tables(thd);
   if (error) {
     /*
       trans_rollback above does not rollback XA transactions.

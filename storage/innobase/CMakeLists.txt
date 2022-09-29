@@ -184,7 +184,6 @@ SET(INNOBASE_SOURCES
   log/log0files_io.cc
   log/log0log.cc
   log/log0meb.cc
-  log/log0online.cc
   log/log0pfs.cc
   log/log0pre_8_0_30.cc
   log/log0recv.cc

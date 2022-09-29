@@ -1577,10 +1577,6 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   const dd::Tablespace *old_ts_def,
                                   dd::Tablespace *new_ts_def);
 
-using flush_changed_page_bitmaps_t = bool (*)(void);
-
-using purge_changed_page_bitmaps_t = bool (*)(ulonglong lsn);
-
 /**
   SE interface for getting tablespace extension.
   @return Extension of tablespace datafile name.
@@ -2662,8 +2658,6 @@ struct handlerton {
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   get_tablespace_filename_ext_t get_tablespace_filename_ext;
-  flush_changed_page_bitmaps_t flush_changed_page_bitmaps;
-  purge_changed_page_bitmaps_t purge_changed_page_bitmaps;
   upgrade_tablespace_t upgrade_tablespace;
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
@@ -7521,9 +7515,6 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit = true);
  */
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
-
-bool ha_flush_changed_page_bitmaps();
-bool ha_purge_changed_page_bitmaps(ulonglong lsn);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);

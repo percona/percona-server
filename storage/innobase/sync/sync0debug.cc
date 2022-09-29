@@ -1280,8 +1280,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(IBUF_PESSIMISTIC_INSERT, SYNC_IBUF_PESS_INSERT_MUTEX,
                   ibuf_pessimistic_insert_mutex_key);
 
-  LATCH_ADD_MUTEX(LOG_ONLINE, SYNC_LOG_ONLINE, log_bmp_sys_mutex_key);
-
   LATCH_ADD_MUTEX(LOG_CHECKPOINTER, SYNC_LOG_CHECKPOINTER,
                   log_checkpointer_mutex_key);
 

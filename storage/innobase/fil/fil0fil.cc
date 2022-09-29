@@ -1845,9 +1845,6 @@ class Fil_system {
   Fil_system &operator=(const Fil_system &) = delete;
 
   friend class Fil_shard;
-
-  /** Wait for redo log tracker to catch up, if enabled */
-  static void wait_for_changed_page_tracker() noexcept;
 };
 
 /** The tablespace memory cache. This variable is nullptr before the module is
@@ -3935,16 +3932,6 @@ void Fil_shard::validate_space_reference_count(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
-/** Wait for redo log tracker to catch up, if enabled */
-void Fil_system::wait_for_changed_page_tracker() noexcept {
-  // Must check both flags as it's possible for this to be called during
-  // server startup with srv_track_changed_pages == true but
-  // srv_thread_is_active(srv_threads.m_changed_page_tracker) == false
-  if (srv_track_changed_pages &&
-      srv_thread_is_active(srv_threads.m_changed_page_tracker))
-    os_event_wait(srv_redo_log_tracked_event);
-}
-
 void Fil_shard::close_all_files() {
   ut_ad(mutex_owned());
 
@@ -4017,8 +4004,6 @@ void Fil_shard::close_all_files() {
 
 /** Close all open files. */
 void Fil_system::close_all_files() {
-  Fil_system::wait_for_changed_page_tracker();
-
 #ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   bool should_validate_space_reference_count = srv_fast_shutdown == 0;

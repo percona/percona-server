@@ -7904,34 +7904,6 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat) {
   return result;
 }
 
-static bool flush_changed_page_bitmaps_handlerton(THD *, plugin_ref plugin,
-                                                  void *) {
-  handlerton *hton = plugin_data<handlerton *>(plugin);
-
-  if (hton->flush_changed_page_bitmaps == nullptr) return false;
-
-  return hton->flush_changed_page_bitmaps();
-}
-
-bool ha_flush_changed_page_bitmaps() {
-  return plugin_foreach(nullptr, flush_changed_page_bitmaps_handlerton,
-                        MYSQL_STORAGE_ENGINE_PLUGIN, nullptr);
-}
-
-static bool purge_changed_page_bitmaps_handlerton(THD *, plugin_ref plugin,
-                                                  void *lsn) {
-  handlerton *hton = plugin_data<handlerton *>(plugin);
-
-  if (hton->purge_changed_page_bitmaps == nullptr) return false;
-
-  return hton->purge_changed_page_bitmaps(*(ulonglong *)lsn);
-}
-
-bool ha_purge_changed_page_bitmaps(ulonglong lsn) {
-  return plugin_foreach(nullptr, purge_changed_page_bitmaps_handlerton,
-                        MYSQL_STORAGE_ENGINE_PLUGIN, &lsn);
-}
-
 /*
   Function to check if the conditions for row-based binlogging is
   correct for the table.

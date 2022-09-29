@@ -75,12 +75,12 @@ void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
 @param[in]	end_ptr		end of the buffer
 @param[out]	space_id	tablespace identifier
 @param[out]	page_no		page number
-@param[in]	online_log	true if we process online DDL log
+@param[in]	apply		whether to apply the record
 @param[out]	body		start of log record body
 @return length of the record, or 0 if the record was not complete */
 ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                         space_id_t *space_id, page_no_t *page_no,
-                         bool online_log, byte **body);
+                         space_id_t *space_id, page_no_t *page_no, bool apply,
+                         byte **body);
 
 #ifdef UNIV_HOTBACKUP
 
@@ -365,11 +365,8 @@ class MetadataRecover {
       ut::allocator<std::pair<const table_id_t, PersistentTableMetadata *>>>;
 
  public:
-  /** Default constructor
-  @param[in]    read_only_      if set, the instance will only parse the log
-                                without applying any changes */
-  explicit MetadataRecover(bool read_only_) UNIV_NOTHROW
-      : read_only(read_only_) {}
+  /** Default constructor */
+  MetadataRecover() UNIV_NOTHROW = default;
 
   /** Destructor */
   ~MetadataRecover();
@@ -406,9 +403,6 @@ class MetadataRecover {
  private:
   /** Map used to store and merge persistent dynamic metadata */
   PersistentTables m_tables;
-  /** Flag indicating whether this is a redo log tracking (read-only) or a
-  regular recovery instance */
-  const bool read_only;
 };
 
 /** Recovery system data structure */

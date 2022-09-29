@@ -755,6 +755,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(dblwr_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(recv_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(undo_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_sys_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),

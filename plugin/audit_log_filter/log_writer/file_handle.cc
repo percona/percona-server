@@ -96,7 +96,8 @@ void FileHandle::write_buffer(const std::string &record) noexcept {
 
 uint64_t FileHandle::get_file_size() const noexcept {
   assert(m_file.is_open());
-  return std::filesystem::file_size(m_path);
+  return std::filesystem::exists(m_path) ? std::filesystem::file_size(m_path)
+                                         : 0;
 }
 
 uint64_t FileHandle::get_total_log_size(const std::string &working_dir_name,

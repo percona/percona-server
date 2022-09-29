@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* time, difftime */
 #include <time.h>
+#include "srv0start.h"
 
 /* fprintf */
 #include <cstdio>

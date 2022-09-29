@@ -73,6 +73,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* recv_recovery_is_on() */
 #include "log0recv.h"
 
+#include "mysqld.h"
+
 /* log_t::X */
 #include "log0sys.h"
 

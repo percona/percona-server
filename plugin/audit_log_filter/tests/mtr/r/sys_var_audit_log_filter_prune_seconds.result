@@ -1,3 +1,7 @@
+SET @old_prune_seconds = @@global.audit_log_filter_prune_seconds;
+SET @old_max_size = @@global.audit_log_filter_max_size;
+SET GLOBAL audit_log_filter_max_size=0;
+SET GLOBAL audit_log_filter_prune_seconds=DEFAULT;
 SELECT @@global.audit_log_filter_prune_seconds;
 @@global.audit_log_filter_prune_seconds
 0
@@ -30,3 +34,5 @@ ERROR 42000: Incorrect argument type to variable 'audit_log_filter_prune_seconds
 SELECT @@global.audit_log_filter_prune_seconds;
 @@global.audit_log_filter_prune_seconds
 0
+SET GLOBAL audit_log_filter_prune_seconds = @old_prune_seconds;
+SET GLOBAL audit_log_filter_max_size = @old_max_size;

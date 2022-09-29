@@ -148,7 +148,9 @@ ulong log_strategy_type =
     static_cast<ulong>(AuditLogStrategyType::Asynchronous);
 ulonglong log_write_buffer_size = 1048576UL;
 ulonglong log_rotate_on_size = 0;
+constexpr ulonglong default_log_rotate_on_size = 1024 * 1024 * 1024;
 ulonglong log_max_size = 0;
+constexpr ulonglong default_log_max_size = 1024 * 1024 * 1024;
 ulonglong log_prune_seconds = 0;
 bool log_flush_requested = false;
 bool log_disabled = false;
@@ -243,18 +245,19 @@ MYSQL_SYSVAR_ULONGLONG(buffer_size, log_write_buffer_size,
 
 /*
  * The audit_log_filter.rotate_on_size variable specifies the maximum size
- * of the audit log file. Upon reaching this size, the audit log will be
- * rotated. For this variable to take effect, set the audit_log_filter.handler
- * variable to FILE.
+ * of the audit log file in bytes. Upon reaching this size, the audit log will
+ * be rotated. For this variable to take effect, set the
+ * audit_log_filter.handler variable to FILE.
  */
 MYSQL_SYSVAR_ULONGLONG(
     rotate_on_size, log_rotate_on_size, PLUGIN_VAR_RQCMDARG,
-    "Maximum size of the log to start the rotation, if FILE handler is used.",
-    nullptr, nullptr, 0UL, 0UL, ULLONG_MAX, 4096UL);
+    "Maximum size of the log to start the rotation in bytes, if FILE handler "
+    "is used.",
+    nullptr, nullptr, default_log_rotate_on_size, 0UL, ULLONG_MAX, 4096UL);
 
 /*
  * A value greater than 0 enables size-based pruning. The value is the
- * combined size above which audit log files become subject to pruning.
+ * combined size in bytes above which audit log files become subject to pruning.
  */
 void max_size_update_func(MYSQL_THD thd, SYS_VAR *, void *val_ptr,
                           const void *save) {
@@ -275,7 +278,8 @@ MYSQL_SYSVAR_ULONGLONG(
     max_size, log_max_size, PLUGIN_VAR_OPCMDARG,
     "The maximum combined size of log files in bytes after which log "
     "files become subject to pruning.",
-    nullptr, max_size_update_func, 0UL, 0UL, ULLONG_MAX, 4096UL);
+    nullptr, max_size_update_func, default_log_max_size, 0UL, ULLONG_MAX,
+    4096UL);
 
 /*
  * A value greater than 0 enables age-based pruning. The value is the number
@@ -306,12 +310,8 @@ MYSQL_SYSVAR_ULONGLONG(
  * When this variable is set to ON log file will be closed and reopened.
  * This can be used for manual log rotation.
  */
-void flush_update_func(MYSQL_THD, SYS_VAR *, void *, const void *save) {
-  const auto *val = static_cast<const bool *>(save);
-
-  if (*val && SysVars::get_rotate_on_size() == 0) {
-    get_audit_log_filter_instance()->on_audit_log_flush_requested();
-  }
+void flush_update_func(MYSQL_THD, SYS_VAR *, void *, const void *) {
+  get_audit_log_filter_instance()->on_audit_log_flush_requested();
 }
 
 MYSQL_SYSVAR_BOOL(flush, log_flush_requested, PLUGIN_VAR_NOCMDARG,

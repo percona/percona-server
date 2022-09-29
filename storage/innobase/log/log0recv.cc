@@ -208,6 +208,11 @@ static lsn_t recv_max_page_lsn;
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t recv_writer_thread_key;
 #endif /* UNIV_PFS_THREAD */
+
+static bool recv_writer_is_active() {
+  return srv_thread_is_active(srv_threads.m_recv_writer);
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -340,6 +345,7 @@ void recv_sys_create() {
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*recv_sys)));
   ut_a(recv_sys->last_block_first_mtr_boundary == 0);
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
+  mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
   recv_sys->spaces = nullptr;
 }
@@ -437,6 +443,11 @@ void recv_sys_close() {
   call_destructor(&recv_sys->saved_recs);
 
   mutex_free(&recv_sys->mutex);
+
+#ifndef UNIV_HOTBACKUP
+  ut_ad(!recv_writer_is_active());
+#endif /* !UNIV_HOTBACKUP */
+  mutex_free(&recv_sys->writer_mutex);
 
   ut::free(recv_sys);
   recv_sys = nullptr;
@@ -606,7 +617,11 @@ static void recv_sys_empty_hash() {
 block.
 @param[in]      block   pointer to a log block
 @return whether the checksum matches */
-bool log_block_checksum_is_ok(const byte *block) {
+#ifndef UNIV_HOTBACKUP
+static
+#endif /* !UNIV_HOTBACKUP */
+    bool
+    log_block_checksum_is_ok(const byte *block) {
   return !srv_log_checksums ||
          log_block_get_checksum(block) == log_block_calc_checksum(block);
 }
@@ -4059,6 +4074,19 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
 
   mutex_exit(&recv_sys->writer_mutex);
+
+  uint32_t count = 0;
+
+  while (recv_writer_is_active()) {
+    ++count;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    if (count >= 600) {
+      ib::info(ER_IB_MSG_738);
+      count = 0;
+    }
+  }
 
   MetadataRecover *metadata{};
 

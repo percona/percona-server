@@ -357,6 +357,7 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
       if (log_to_buffered_error_log) {
         buffered_error_log.log(buff_line, len);
       }
+
       // write log-event to log-file
       if (!log_only_to_buffered_error_log || !buffered_error_log.is_enabled())
         log_write_errstream(buff_line, len);

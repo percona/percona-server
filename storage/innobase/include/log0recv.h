@@ -59,16 +59,6 @@ lsn_t recv_calc_lsn_on_data_add(
     uint64_t len); /*!< in: this many bytes of data is
                       added, log block headers not included */
 
-/** Reads a specified log segment to a buffer.
-@param[in,out]	log		redo log
-@param[in,out]	buf		buffer where to read
-@param[in]	start_lsn	read area start
-@param[in]	end_lsn		read area end
-@param[in]	online		whether the read is for the changed page
-                                tracking */
-void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
-                       bool online);
-
 /** Tries to parse a single log record.
 @param[out]	type		log record type
 @param[in]	ptr		pointer to a buffer

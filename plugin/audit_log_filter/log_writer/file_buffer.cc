@@ -106,10 +106,10 @@ void FileBuffer::write(const char *buf, size_t len) noexcept {
       pause();
       m_write_func(buf, len);
       resume();
+    } else {
+      SysVars::inc_events_lost();
+      SysVars::update_event_max_drop_size(len);
     }
-
-    SysVars::inc_events_lost();
-    SysVars::update_event_max_drop_size(len);
 
     return;
   }

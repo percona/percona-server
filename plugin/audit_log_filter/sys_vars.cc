@@ -48,6 +48,7 @@ std::atomic<uint64_t> write_waits{0};
 std::atomic<uint64_t> event_max_drop_size{0};
 std::atomic<uint64_t> current_log_size{0};
 std::atomic<uint64_t> total_log_size{0};
+std::atomic<uint64_t> buffer_bypassing_writes{0};
 
 int show_events_total(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
@@ -113,6 +114,14 @@ int show_total_log_size(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+int show_buffer_bypassing_writes(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = buffer_bypassing_writes.load(std::memory_order_relaxed);
+  return 0;
+}
+
 SHOW_VAR status_vars[] = {
     {"Audit_log_filter_events", reinterpret_cast<char *>(&show_events_total),
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
@@ -134,6 +143,9 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Audit_log_filter_total_size",
      reinterpret_cast<char *>(&show_total_log_size), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter_buffer_bypassing_writes",
+     reinterpret_cast<char *>(&show_buffer_bypassing_writes), SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
@@ -607,6 +619,10 @@ void SysVars::set_total_log_size(uint64_t size) noexcept {
 
 void SysVars::update_total_log_size(uint64_t size) noexcept {
   total_log_size.fetch_add(size, std::memory_order_relaxed);
+}
+
+void SysVars::inc_buffer_bypassing_writes() noexcept {
+  buffer_bypassing_writes.fetch_add(1, std::memory_order_relaxed);
 }
 
 #ifndef NDEBUG

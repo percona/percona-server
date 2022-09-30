@@ -106,6 +106,8 @@ void FileBuffer::write(const char *buf, size_t len) noexcept {
       pause();
       m_write_func(buf, len);
       resume();
+
+      SysVars::inc_buffer_bypassing_writes();
     } else {
       SysVars::inc_events_lost();
       SysVars::update_event_max_drop_size(len);

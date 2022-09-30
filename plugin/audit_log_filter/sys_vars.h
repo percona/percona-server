@@ -233,6 +233,12 @@ class SysVars {
   static void update_total_log_size(uint64_t size) noexcept;
 
   /**
+   * @brief Increment counter for the number of times data is written to log
+   *        synchronously bypassing write buffer in asynchronous mode.
+   */
+  static void inc_buffer_bypassing_writes() noexcept;
+
+  /**
    * @brief Update bookmark to latest event written to log.
    *
    * @param id ID of an audit event

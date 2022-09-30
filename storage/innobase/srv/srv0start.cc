@@ -3467,5 +3467,3 @@ void srv_fatal_error() {
 
   std::_Exit(3);
 }
-
-/* @} */

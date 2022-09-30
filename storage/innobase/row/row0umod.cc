@@ -336,6 +336,8 @@ introduced where a call to log_free_check() is bypassed. */
     }
   }
 
+  ut_ad(rec_get_trx_id(pcur->get_rec(), index) == node->new_trx_id);
+
   pcur->commit_specify_mtr(&mtr);
 
   DEBUG_SYNC_C("ib_undo_mod_before_remove_clust");

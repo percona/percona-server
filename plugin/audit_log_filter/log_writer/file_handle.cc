@@ -175,6 +175,10 @@ std::error_code FileHandle::rotate(const std::string &working_dir_name,
   auto current_file_path = std::filesystem::path{working_dir_name} /
                            std::filesystem::path{file_name};
 
+  if (!std::filesystem::exists(current_file_path)) {
+    return std::error_code{};
+  }
+
   std::time_t t =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 

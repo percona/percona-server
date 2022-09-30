@@ -36,7 +36,18 @@ LogWriter<AuditLogHandlerType::File>::LogWriter(
 
 LogWriter<AuditLogHandlerType::File>::~LogWriter() { do_close_file(); }
 
-bool LogWriterFile::open() noexcept { return do_open_file(); }
+bool LogWriterFile::open() noexcept {
+  auto ec = FileHandle::rotate(mysql_data_home, SysVars::get_file_name());
+
+  if (ec.value() != 0) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to rotate audit filter log: %i, %s", ec.value(),
+                    ec.message().c_str());
+    return false;
+  }
+
+  return do_open_file();
+}
 
 bool LogWriterFile::close() noexcept { return do_close_file(); }
 

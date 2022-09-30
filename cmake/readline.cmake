@@ -1,7 +1,5 @@
 # Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates.
-# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -305,6 +303,9 @@ MACRO (MYSQL_CHECK_EDITLINE)
       FIND_SYSTEM_EDITLINE()
       IF(NOT EDITLINE_FOUND)
         RESET_EDITLINE_VARIABLES()
+      ELSE()
+        SET(MY_READLINE_INCLUDE_DIR ${EDITLINE_INCLUDE_DIR})
+        SET(MY_READLINE_LIBRARY ${EDITLINE_LIBRARY})
       ENDIF()
     ELSE()
       MESSAGE(FATAL_ERROR "WITH_EDITLINE must be bundled or system")

@@ -1109,9 +1109,9 @@ The wrapper functions have the prefix of "innodb_". */
 #define os_file_read_trx_pfs(file, buf, offset, n, trx) \
   pfs_os_file_read_func(file, buf, offset, n, trx, UT_LOCATION_HERE)
 
-#define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit)    \
-  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, UT_LOCATION_HERE, \
-                                   exit)
+#define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit) \
+  pfs_os_file_read_first_page_func(type, file_name, file, buf, n,        \
+                                   UT_LOCATION_HERE, exit)
 
 #define os_file_copy_pfs(src, src_offset, dest, dest_offset, size) \
   pfs_os_file_copy_func(src, src_offset, dest, dest_offset, size,  \
@@ -1224,9 +1224,8 @@ static inline bool pfs_os_file_close_func(pfs_os_file_t file,
 /** NOTE! Use the corresponding macro os_file_close_no_error_handling(), not
 directly this function!
 Closes a file handle.
-@param[in] file		handle to a file
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      file            handle to a file
+@param[in]      src_location    location where func invoked
 @return true if success */
 static inline bool pfs_os_file_close_no_error_handling_func(
     pfs_os_file_t file, ut::Location src_location);
@@ -1243,10 +1242,9 @@ os_file_read() which requests a synchronous read operation.
 @param[in]      n               number of bytes to read
 @param[in]      src_location    location where func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
-                              pfs_os_file_t file, void *buf, os_offset_t offset,
-                              ulint n, trx_t *trx, 
-                                            ut::Location src_location);
+static inline dberr_t pfs_os_file_read_func(
+    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
+    os_offset_t offset, ulint n, trx_t *trx, ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1261,10 +1259,9 @@ of page 0 of IBD file
 @param[in]      src_location    location where func invoked
 @param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
-                                         pfs_os_file_t file, void *buf, ulint n,
-                                         ut::Location src_location,
-                                         bool exit_on_err);
+static inline dberr_t pfs_os_file_read_first_page_func(
+    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
+    ulint n, ut::Location src_location, bool exit_on_err);
 
 /** copy data from one file to another file. Data is read/written
 at current file offset.
@@ -1346,10 +1343,12 @@ must not cross a file boundary; in AIO this must be a block size multiple
                                 requests.
 @param[in]      location    location where func invoked
 @return DB_SUCCESS if request was queued successfully, false if fail */
-static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode, const char *name,
-                        pfs_os_file_t file, void *buf, os_offset_t offset,
-                        ulint n, bool read_only, fil_node_t *m1, void *m2,
-                        space_id_t space_id, trx_t *trx, bool should_buffer,
+static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
+                                      const char *name, pfs_os_file_t file,
+                                      void *buf, os_offset_t offset, ulint n,
+                                      bool read_only, fil_node_t *m1, void *m2,
+                                      space_id_t space_id, trx_t *trx,
+                                      bool should_buffer,
                                       ut::Location location);
 
 /** NOTE! Please use the corresponding macro os_file_write(), not directly
@@ -1447,10 +1446,9 @@ static inline bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key,
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
 function!
 Truncates a file at the specified position.
-@param[in]	file	file to truncate
-@param[in]	new_len	new file length
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      file            file to truncate
+@param[in]      new_len         new file length
+@param[in]      src_location    location where func invoked
 @return true if success */
 static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file,
                                                uint64_t new_len,

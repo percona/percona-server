@@ -1855,7 +1855,6 @@ void dict_table_change_id_in_cache(
   HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
               ut::hash_uint64(table->id), table);
 
-
   // MERGETODO  uint id_fold = ut_fold_ull(new_id);
   /* Look for a table with the same id: error if such exists */
   /*{

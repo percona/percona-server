@@ -551,7 +551,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   for (unsigned int i = 0; i < audit_record.event->argc; ++i) {
     if (audit_record.event->argv[i] != nullptr) {
       result << ((i == 0) ? "" : ",\n") << R"(      ")"
-             << make_escaped_string(audit_record.event->argv[i]);
+             << make_escaped_string(audit_record.event->argv[i]) << "\"";
     }
   }
 

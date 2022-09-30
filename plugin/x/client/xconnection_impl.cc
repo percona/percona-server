@@ -29,10 +29,6 @@
 #include <netinet/in.h>
 #endif  // HAVE_NETINET_IN_H
 #include <openssl/x509v3.h>
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#include <openssl/evp.h>
-#include <openssl/provider.h>
-#endif
 #include <cassert>
 #include <chrono>  // NOLINT(build/c++11)
 #include <future>  // NOLINT(build/c++11)

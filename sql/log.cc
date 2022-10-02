@@ -718,7 +718,6 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   size_t buff_len;
   end = buff;
 
-
   mysql_mutex_lock(&LOCK_log);
   assert(is_open());
 
@@ -1441,9 +1440,7 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
                                   ulonglong exec_usec) {
   assert(thd->enable_slow_log);
 
-
   if (!(*slow_log_handler_list)) return false;
-
 
   /* do not log slow queries from replication threads */
   if (thd->slave_thread && !opt_log_slow_replica_statements) return false;
@@ -1889,11 +1886,9 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
 	  return false;
   }
 
-
   bool suppress_logging =
       log_throttle_qni.log(thd, warn_no_index && warn_failed_query);
 
-  
   if (!suppress_logging && log_this_query) return true;
 
   return false;

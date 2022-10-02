@@ -3411,6 +3411,8 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
 
   space->purpose = purpose;
 
+  space->crypt_data = crypt_data;
+
   ut_a(flags < std::numeric_limits<uint32_t>::max());
   space->flags = (uint32_t)flags;
 

@@ -638,8 +638,10 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
 
     len = dfield_get_len(new_val);
 
+#ifndef NDEBUG
     ulint field_phy_pos =
         index->get_field(upd_field->field_no)->col->get_col_phy_pos();
+#endif
 
     /* Check if multiple fields are updated, they should be different fields
     i.e different physical positions */

@@ -624,16 +624,44 @@ type_conversion_status Item_func::save_possibly_as_json(Field *field,
 {
   if (field->type() == MYSQL_TYPE_JSON)
   {
-    // Store the value in the JSON binary format.
-    Field_json *f= down_cast<Field_json *>(field);
-    Json_wrapper wr;
-    val_json(&wr);
+    if (result_type() == STRING_RESULT)
+    {
+      String *result;
+      const CHARSET_INFO *cs = collation.collation;
+      char buff[MAX_FIELD_WIDTH];  // Alloc buffer for small columns
+      str_value.set_quick(buff, sizeof(buff), cs);
+      result = val_str(&str_value);
+      if (current_thd->is_error())
+      {
+        return TYPE_ERR_BAD_VALUE;
+      }
+      if (null_value)
+      {
+        str_value.set_quick(NULL, 0, cs);
+        return set_field_to_null_with_conversions(field, no_conversions);
+      }
 
-    if (null_value)
-      return set_field_to_null(field);
+      /* NOTE: If null_value == false, "result" must be not NULL.  */
+      field->set_notnull();
+      type_conversion_status error = field->store(
+          result->ptr(), result->length(),
+          field->type() == MYSQL_TYPE_JSON ? result->charset() : cs);
+      str_value.set_quick(NULL, 0, cs);
+      return error;
+    }
+    else
+    {
+      // Store the value in the JSON binary format.
+      Field_json  *f= down_cast<Field_json *>(field);
+      Json_wrapper wr;
+      val_json(&wr);
 
-    field->set_notnull();
-    return f->store_json(&wr);
+      if (null_value)
+        return set_field_to_null(field);
+
+      field->set_notnull();
+      return f->store_json(&wr);
+    }
   }
   else
   {

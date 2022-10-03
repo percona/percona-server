@@ -1,0 +1,5 @@
+$AUTH_LDAP_SASL_OPT $AUTH_LDAP_SASL_LOAD
+--authentication_ldap_sasl_server_host='$MTR_LDAP_HOST'
+--authentication_ldap_sasl_server_port=$MTR_LDAP_PORT
+--authentication_ldap_sasl_fallback_server_host='$MTR_LDAP_FALLBACK_HOST'
+--authentication_ldap_sasl_fallback_server_port=$MTR_LDAP_FALLBACK_PORT

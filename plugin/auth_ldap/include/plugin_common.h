@@ -1,5 +1,6 @@
 #ifndef PLUGIN_COMMON_MPALDAP_H
 /* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
+   Copyright (c) 2022, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +35,8 @@ int auth_ldap_common_authenticate_user(
     MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info, const char *password,
     mysql::plugin::auth_ldap::Pool *pool, const char *user_search_attr,
     const char *group_search_attr, const char *group_search_filter,
-    const char *bind_base_dn, const char *group_role_mapping);
+    const char *bind_base_dn, const char *group_role_mapping,
+    std::string const &sasl_method = "" /*LDAP_SASL_SIMPLE*/);
 
 int auth_ldap_common_generate_auth_string_hash(char *outbuf,
                                                unsigned int *buflen,

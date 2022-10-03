@@ -199,4 +199,5 @@ ha_rocksdb         plugin_output_directory  no  ROCKSDB         rocksdb,rocksdb_
 auth_pam           plugin_output_directory  no  AUTH_PAM
 auth_pam_compat    plugin_output_directory  no  AUTH_PAM_COMPAT
 authentication_ldap_simple          plugin_output_directory  no  AUTH_LDAP             authentication_ldap_simple
+authentication_ldap_sasl          plugin_output_directory  no  AUTH_LDAP_SASL             authentication_ldap_sasl
 keyring_vault      plugin_output_directory  no  KEYRING_VAULT_PLUGIN keyring_vault

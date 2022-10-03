@@ -1,4 +1,5 @@
 /* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
+   Copyright (c) 2022, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +38,7 @@ int auth_ldap_common_authenticate_user(
     const char *password, mysql::plugin::auth_ldap::Pool *pool,
     const char *user_search_attr, const char *group_search_attr,
     const char *group_search_filter, const char *bind_base_dn,
-    const char *group_role_mapping) {
+    const char *group_role_mapping, std::string const &sasl_method) {
   std::stringstream log_stream;
 
   log_srv_dbg("auth_ldap_common_authenticate_user()");
@@ -65,13 +66,53 @@ int auth_ldap_common_authenticate_user(
   std::string roles_mysql;
 
   // Authenticate on ldap
-  if (!impl->bind_and_get_mysql_uid(
-          user_dn, str_or_empty(password),
-          use_authenticated_as ? &user_mysql : nullptr, &roles_mysql)) {
-    log_stream << "LDAP user authentication failed for ["
-               << str_or_empty(info->user_name) << "] as [" << user_dn << "]";
-    log_srv_warn(log_stream.str());
-    return CR_AUTH_USER_CREDENTIALS;
+  if (sasl_method == "" /* LDAP_SASL_SIMPLE */) {
+    if (!impl->bind_and_get_mysql_uid(
+            user_dn, str_or_empty(password),
+            use_authenticated_as ? &user_mysql : nullptr, &roles_mysql)) {
+      log_stream << "LDAP user authentication failed for ["
+                 << str_or_empty(info->user_name) << "] as [" << user_dn << "]";
+      log_srv_warn(log_stream.str());
+      return CR_AUTH_USER_CREDENTIALS;
+    }
+  } else {
+    // The client is calling SASL methods on the client side,
+    // and then sends the SASL library response to us.
+    // It expects us to forward this data to the LDAP library,
+    // and respond with its answer.
+    // This feature in openldap is totally undocumented, our implementation
+    // is based on the openldap sources (how interactive bind is implemented)
+    mysql::plugin::auth_ldap::AuthLDAPImpl::sasl_ctx ctx = {
+        [&]() {
+          // get client data
+          unsigned char *resp = nullptr;
+          auto resp_len = vio->read_packet(vio, &resp);
+          if (resp_len < 0 || resp == nullptr) {
+            log_srv_error("Failed to read SASL packet");
+            return std::string("");
+          }
+
+          std::string cdata(resp, resp + resp_len);
+          return cdata;
+        },  //
+        [&](std::string const &sdata) {
+          // send server response
+          if (vio->write_packet(vio,
+                                static_cast<const unsigned char *>(
+                                    static_cast<const void *>(sdata.c_str())),
+                                sdata.size())) {
+            log_srv_error("Failed to write SASL response");
+          }
+        },  //
+        sasl_method};
+    if (!impl->bind_and_get_mysql_uid(
+            ctx, user_dn, use_authenticated_as ? &user_mysql : nullptr,
+            &roles_mysql)) {
+      log_stream << "SASL LDAP user authentication failed for ["
+                 << str_or_empty(info->user_name) << "] as [" << user_dn << "]";
+      log_srv_warn(log_stream.str());
+      return CR_AUTH_USER_CREDENTIALS;
+    }
   }
 
   if (use_authenticated_as)

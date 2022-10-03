@@ -41,10 +41,17 @@ class Connection {
   Connection(const Connection &) = delete;  // non construction-copyable
   Connection &operator=(const Connection &) = delete;  // non copyable
 
+  enum class status { FAILURE, IN_PROGRESS, SUCCESS };
+
   void configure(const std::string &ldap_host, std::uint16_t ldap_port,
                  const std::string &fallback_host, std::uint16_t fallback_port,
                  bool use_ssl, bool use_tls);
-  bool connect(const std::string &bind_dn, const std::string &bind_pwd);
+  status connect(const std::string &bind_dn, const std::string &bind_auth,
+                 std::string &auth_resp,
+                 const std::string &sasl_mech = "" /* LDAP_SASL_SIMPLE */);
+  status connect_step(const std::string &bind_dn, const std::string &bind_auth,
+                      std::string &auth_resp, const std::string &sasl_mech);
+
   std::size_t get_idx_pool() const;
   bool is_snipped() const;
   bool is_zombie();

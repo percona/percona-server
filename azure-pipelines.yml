@@ -438,6 +438,7 @@ jobs:
           -DWITH_SSL=$OPENSSL_PREFIX
           -DWITH_FIDO=bundled
           -DWITH_ZLIB=bundled
+          -DWITH_PERCONA_AUTHENTICATION_LDAP=OFF
         "
       else
         CMAKE_OPT+="

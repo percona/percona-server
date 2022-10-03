@@ -1,4 +1,5 @@
 /* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
+   Copyright (c) 2022, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,7 +78,8 @@ bool AuthLDAPImpl::bind_internal(const std::string &user_dn,
   auto conn = pool_->borrow_connection(false);
   if (conn == nullptr) return false;
 
-  if (conn->connect(user_dn, password)) {
+  std::string resp;
+  if (conn->connect(user_dn, password, resp) == Connection::status::SUCCESS) {
     log_stream << "User authentication success: [" << user_dn << "]";
     success = true;
   } else {
@@ -94,9 +96,73 @@ bool AuthLDAPImpl::bind_internal(const std::string &user_dn,
   return success;
 }
 
+bool AuthLDAPImpl::bind_internal(sasl_ctx &ctx, std::string const &user_dn,
+                                 Pool::pool_ptr_t *conn_out) {
+  log_srv_dbg("AuthLDAPImpl::bind()");
+  bool success = false;
+  std::ostringstream log_stream;
+
+  auto conn = pool_->borrow_connection(false);
+  if (conn == nullptr) return false;
+
+  bool first = true;
+
+  Connection::status res;
+
+  do {
+    auto cdata = ctx.get_client_data();
+    std::string sdata;
+    if (first) {
+      res = conn->connect(user_dn, cdata, sdata, ctx.sasl_method);
+      first = false;
+    } else {
+      res = conn->connect_step(user_dn, cdata, sdata, ctx.sasl_method);
+    }
+    ctx.send_server_data(sdata);
+    if (res == Connection::status::IN_PROGRESS) {
+      log_srv_dbg("LDAP SASL bind in progress");
+    }
+  } while (res == Connection::status::IN_PROGRESS);
+
+  if (res == Connection::status::SUCCESS) {
+    log_stream << "SASL User authentication success: [" << user_dn << "]";
+    log_srv_dbg(log_stream.str());
+    success = true;
+  } else {
+    log_stream << "SASL User authentication failed: [" << user_dn << "]";
+    log_srv_warn(log_stream.str());
+  }
+
+  if (conn_out == nullptr || !success) {
+    pool_->return_connection(conn);
+  } else {
+    *conn_out = conn;
+  }
+
+  return success;
+}  // namespace auth_ldap
+
 bool AuthLDAPImpl::bind(const std::string &user_dn,
                         const std::string &password) {
   return bind_internal(user_dn, password, nullptr);
+}
+
+bool AuthLDAPImpl::bind_and_get_mysql_uid(sasl_ctx &ctx,
+                                          const std::string &user_dn,
+                                          std::string *user_mysql,
+                                          std::string *roles_mysql) {
+  // If we have a separate bind_root_dn configured, we'll use that
+  // Otherwise we'll try to query roles with the actual user, it should work
+  // in most cases
+  Pool::pool_ptr_t conn;
+  if (!bind_internal(ctx, user_dn, &conn)) {
+    return false;
+  }
+
+  bool ret = get_mysql_uid(user_mysql, roles_mysql, user_dn, &conn);
+  pool_->return_connection(conn);
+
+  return ret;
 }
 
 bool AuthLDAPImpl::bind_and_get_mysql_uid(const std::string &user_dn,
@@ -104,8 +170,8 @@ bool AuthLDAPImpl::bind_and_get_mysql_uid(const std::string &user_dn,
                                           std::string *user_mysql,
                                           std::string *roles_mysql) {
   // If we have a separate bind_root_dn configured, we'll use that
-  // Otherwise we'll try to query roles with the actual user, it should work in
-  // most cases
+  // Otherwise we'll try to query roles with the actual user, it should work
+  // in most cases
   Pool::pool_ptr_t conn;
   if (!bind_internal(user_dn, password, &conn)) {
     return false;

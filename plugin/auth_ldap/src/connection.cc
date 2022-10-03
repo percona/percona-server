@@ -1,3 +1,18 @@
+/* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
+   Copyright (c) 2022, Percona Inc. All Rights Reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 #include "plugin/auth_ldap/include/connection.h"
 
 #include <iostream>
@@ -112,15 +127,18 @@ void Connection::configure(const std::string &ldap_host,
   use_tls_ = use_tls;
 }
 
-bool Connection::connect(const std::string &bind_dn,
-                         const std::string &bind_pwd) {
+Connection::status Connection::connect(const std::string &bind_dn,
+                                       const std::string &bind_auth,
+                                       std::string &auth_resp,
+                                       const std::string &sasl_mech) {
   std::lock_guard<std::mutex> lock(conn_mutex_);
 
   int version = LDAP_VERSION3;
   ldap_set_option(nullptr, LDAP_OPT_PROTOCOL_VERSION, &version);
 
-  if (bind_pwd.empty()) {
-    return false;
+  if (bind_auth.empty() && sasl_mech == "") {
+    log_srv_error("Empty passwords are disabled with simple auth");
+    return status::FAILURE;
   }
 
   if (!(ldap_host_.empty() || bind_dn.empty())) {
@@ -133,7 +151,7 @@ bool Connection::connect(const std::string &bind_dn,
     int err = ldap_initialize(&(ldap_), get_ldap_uri().c_str());
     if (err != LDAP_SUCCESS) {
       log_error("ldap_initialize", err);
-      return false;
+      return status::FAILURE;
     }
 
     // Optional; log warning if the server doesn't support it, but continue
@@ -152,7 +170,7 @@ bool Connection::connect(const std::string &bind_dn,
       err = ldap_start_tls_s(ldap_, nullptr, nullptr);
       if (err != LDAP_SUCCESS) {
         log_error("ldap_start_tls_s", err);
-        return false;
+        return status::FAILURE;
       }
     }
 
@@ -161,24 +179,41 @@ bool Connection::connect(const std::string &bind_dn,
       log_warning("ldap_set_urllist_proc failed", err);
     }
 
-    struct berval *serverCreds;
-    struct berval *userCreds =
-        ber_str2bv(strdup(bind_pwd.c_str()), 0, 0, nullptr);
-
-    err = ldap_sasl_bind_s(ldap_, bind_dn.c_str(), LDAP_SASL_SIMPLE, userCreds,
-                           nullptr, nullptr, &serverCreds);
-
-    ber_bvfree(userCreds);
-
-    if (err != LDAP_SUCCESS) {
-      log_warning("Unsuccesful bind: ldap_sasl_bind_s(" + bind_dn + ")", err);
-      return false;
-    }
-
-    return true;
+    return connect_step(bind_dn, bind_auth, auth_resp, sasl_mech);
   }
 
-  return false;
+  return status::FAILURE;
+}
+
+Connection::status Connection::connect_step(const std::string &bind_dn,
+                                            const std::string &bind_auth,
+                                            std::string &auth_resp,
+                                            const std::string &sasl_mech) {
+  struct berval *serverCreds;
+  struct berval *userCreds =
+      ber_str2bv(strdup(bind_auth.c_str()), 0, 0, nullptr);
+
+  int err = ldap_sasl_bind_s(ldap_, bind_dn.c_str(),
+                             sasl_mech.empty() ? nullptr : sasl_mech.c_str(),
+                             userCreds, nullptr, nullptr, &serverCreds);
+
+  ber_bvfree(userCreds);
+  if (serverCreds && serverCreds->bv_len != 0) {
+    auth_resp = std::string(serverCreds->bv_val,
+                            serverCreds->bv_val + serverCreds->bv_len);
+  }
+  ber_bvfree(serverCreds);
+
+  if (err == LDAP_SASL_BIND_IN_PROGRESS) {
+    log_srv_dbg("SASL bind in progress: ldap_sasl_bind_s(" + bind_dn + ")");
+    return status::IN_PROGRESS;
+  }
+  if (err != LDAP_SUCCESS) {
+    log_warning("Unsuccesful bind: ldap_sasl_bind_s(" + bind_dn + ")", err);
+    return status::FAILURE;
+  }
+
+  return status::SUCCESS;
 }
 
 std::size_t Connection::get_idx_pool() const { return index_; }

@@ -386,6 +386,7 @@ jobs:
           -DWITH_SSL=/usr/local/opt/openssl@1.1
           -DWITH_FIDO=bundled
           -DWITH_ZLIB=bundled
+          -DWITH_PERCONA_AUTHENTICATION_LDAP=OFF
         "
       else
         CMAKE_OPT+="

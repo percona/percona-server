@@ -1845,6 +1845,15 @@ MYSQL_CHECK_SASL_DLLS()
 MYSQL_CHECK_LDAP()
 MYSQL_CHECK_LDAP_DLLS()
 
+# Percona LDAP Simple / LDAP SASL authentication plugins
+# Problem with  MacOS system libraries and complains for compilation error ldap_set_urllist_proc
+IF(APPLE)
+  SET(WITH_PERCONA_AUTHENTICATION_LDAP_DEFAULT OFF)
+ELSE()
+  SET(WITH_PERCONA_AUTHENTICATION_LDAP_DEFAULT ON)
+ENDIF()
+OPTION(WITH_PERCONA_AUTHENTICATION_LDAP "Build with Percona LDAP Simple / LDAP SASL authentication plugins" ${WITH_PERCONA_AUTHENTICATION_LDAP_DEFAULT})
+
 # Add Windows specific jemalloc DLL
 IF(WIN32)
   MYSQL_CHECK_WIN_JEMALLOC()

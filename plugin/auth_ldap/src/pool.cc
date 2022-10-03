@@ -1,3 +1,18 @@
+/* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
+   Copyright (c) 2022, Percona Inc. All Rights Reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 #include "plugin/auth_ldap/include/pool.h"
 
 #include <cmath>
@@ -39,7 +54,8 @@ Pool::Pool(std::size_t pool_initial_size, std::size_t pool_max_size,
         i, ldap_host_, ldap_port_, ldap_fallback_host_, ldap_fallback_port_,
         use_ssl, use_tls);
     if (i < pool_initial_size_) {
-      v_connections_[i]->connect(bind_dn_, bind_pwd_);
+      std::string auth_resp;
+      v_connections_[i]->connect(bind_dn_, bind_pwd_, auth_resp);
     }
   }
 }
@@ -192,12 +208,14 @@ void Pool::reconfigure(std::size_t newpool_initial_size_,
     v_connections_[i]->configure(ldap_host_, ldap_port_, ldap_fallback_host_,
                                  ldap_fallback_port_, use_ssl_, use_tls_);
     if (i < pool_initial_size_) {
-      v_connections_[i]->connect(bind_dn_, bind_pwd_);
+      std::string auth_resp;
+      v_connections_[i]->connect(bind_dn_, bind_pwd_, auth_resp);
     }
   }
 
   for (std::size_t i = 0; i < newpool_initial_size_; i++) {
-    v_connections_[i]->connect(bind_dn_, bind_pwd_);
+    std::string auth_resp;
+    v_connections_[i]->connect(bind_dn_, bind_pwd_, auth_resp);
   }
 }
 
@@ -232,7 +250,9 @@ int Pool::find_first_free() {
 Pool::pool_ptr_t Pool::get_connection(int idx, bool default_connect) {
   // requires holding the lock
   auto conn = v_connections_[idx];
-  if (default_connect && !conn->connect(bind_dn_, bind_pwd_)) {
+  std::string auth_resp;
+  if (default_connect && conn->connect(bind_dn_, bind_pwd_, auth_resp) !=
+                             Connection::status::SUCCESS) {
     log_srv_error("Connection to LDAP backend failed");
     conn = nullptr;
   } else {

@@ -1,0 +1,4 @@
+dn: cn=config
+changetype: modify
+add: olcAuthzRegexp
+olcAuthzRegexp: {0}"uid=(.*),cn=scram-sha-1,cn=auth" "uid=$1,ou=People,dc=example,dc=com"

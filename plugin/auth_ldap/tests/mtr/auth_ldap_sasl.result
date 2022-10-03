@@ -1,0 +1,25 @@
+CREATE ROLE 'test_role';
+CREATE ROLE 'test_role2';
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_sasl';
+PLUGIN_NAME	PLUGIN_STATUS
+authentication_ldap_sasl	ACTIVE
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl';
+Variable_name	Value
+SET GLOBAL authentication_ldap_sasl_bind_base_dn = 'ou=People,dc=example,dc=com';
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl';
+Variable_name	Value
+CREATE USER john3 IDENTIFIED WITH authentication_ldap_sasl BY 'cn=john3,ou=People,dc=example,dc=com';
+CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_sasl BY 'uid=nonexistent';
+SHOW GRANTS FOR 'john3';
+Grants for john3@%
+GRANT USAGE ON *.* TO `john3`@`%`
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl';
+Variable_name	Value
+ERROR HY000: Unknown MySQL error
+DROP USER john3;
+DROP USER nonexistent;
+DROP ROLE test_role;
+DROP ROLE test_role2;
+SET GLOBAL authentication_ldap_sasl_bind_base_dn = '';
+SET GLOBAL authentication_ldap_sasl_log_status = 1;
+SET GLOBAL authentication_ldap_sasl_group_role_mapping = '';

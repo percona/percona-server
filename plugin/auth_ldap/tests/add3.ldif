@@ -1,0 +1,8 @@
+dn: uid=john3,ou=People,dc=example,dc=com
+objectClass: inetOrgPerson
+uid: john3
+sn: Doe
+givenName: John
+cn: John Doe
+displayName: John Doe
+userPassword: secret

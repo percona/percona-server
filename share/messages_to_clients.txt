@@ -9924,6 +9924,9 @@ ER_TOO_MANY_ERROR_CODES
 ER_TOO_BIG_ERROR_CODE
   eng "Provided error code is bigger than maximum allowed %lu"
 
+ER_DYNAMIC_ROLE
+  eng "The role %s is a dynamic role and can't be revoked or dropped. It should be managed by the external authentication plugin instead."
+
 #
 # End of Percona Server 8.0 client messages
 #

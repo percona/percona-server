@@ -46,7 +46,7 @@ bool Connection::connect(const std::string &bind_dn,
                          const std::string &bind_pwd) {
   std::lock_guard<std::mutex> lock(conn_mutex_);
 
-  if(bind_pwd.empty()) {
+  if (bind_pwd.empty()) {
     return false;
   }
 

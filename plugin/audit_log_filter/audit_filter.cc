@@ -21,14 +21,6 @@ namespace audit_log_filter {
 
 AuditAction AuditEventFilter::apply(AuditRule *rule,
                                     AuditRecordVariant &audit_record) noexcept {
-  if (!rule->check_parse_state()) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Filtering rule '%s' has wrong format, "
-                    "skipping audit event",
-                    rule->get_rule_name().c_str());
-    return AuditAction::Skip;
-  }
-
   auto event_class_name = std::visit(
       [](const auto &rec) { return rec.event_class_name; }, audit_record);
   auto event_subclass_name = std::visit(

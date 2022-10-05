@@ -40,6 +40,8 @@ enum class EventActionType {
   Unknown
 };
 
+EventActionType get_event_action_type(const char *event_tag_name);
+
 class EventFieldActionBase {
  public:
   virtual ~EventFieldActionBase() = default;

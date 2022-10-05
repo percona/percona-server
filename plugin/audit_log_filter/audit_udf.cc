@@ -18,6 +18,7 @@
 #include "plugin/audit_log_filter/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_log_reader.h"
 #include "plugin/audit_log_filter/audit_psi_info.h"
+#include "plugin/audit_log_filter/audit_rule_parser.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_user.h"
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
@@ -210,9 +211,9 @@ char *AuditUdf::audit_log_filter_set_filter_udf(
     unsigned char *error) noexcept {
   *is_null = 0;
   *error = 0;
-  AuditRule rule{udf_args->args[0], udf_args->args[1]};
+  AuditRule rule{udf_args->args[0]};
 
-  if (!rule.check_valid() || !rule.check_parse_state()) {
+  if (!AuditRuleParser::parse(udf_args->args[1], rule)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong argument: incorrect rule definition '%s'",
                     udf_args->args[1]);

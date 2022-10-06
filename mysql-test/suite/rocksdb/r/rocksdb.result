@@ -1005,6 +1005,7 @@ rocksdb_no_block_cache	OFF
 rocksdb_no_create_column_family	OFF
 rocksdb_override_cf_options	
 rocksdb_paranoid_checks	ON
+rocksdb_partial_index_blind_delete	ON
 rocksdb_partial_index_sort_max_mem	0
 rocksdb_pause_background_work	ON
 rocksdb_perf_context_level	0

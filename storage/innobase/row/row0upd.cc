@@ -638,8 +638,10 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
 
     len = dfield_get_len(new_val);
 
+#ifndef NDEBUG
     ulint field_phy_pos =
         index->get_field(upd_field->field_no)->col->get_col_phy_pos();
+#endif
 
     /* Check if multiple fields are updated, they should be different fields
     i.e different physical positions */
@@ -649,11 +651,11 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
 
     /* If this is a virtual column, mark it using special
     field_no */
-    ulint field_pos = upd_fld_is_virtual_col(upd_field)
-                          ? REC_MAX_N_FIELDS + field_phy_pos
-                          : field_phy_pos;
+    ulint field_no = upd_fld_is_virtual_col(upd_field)
+                          ? REC_MAX_N_FIELDS + upd_field->field_no
+                          : upd_field->field_no;
 
-    log_ptr += mach_write_compressed(log_ptr, field_pos);
+    log_ptr += mach_write_compressed(log_ptr, field_no);
     log_ptr += mach_write_compressed(log_ptr, len);
 
     if (len != UNIV_SQL_NULL) {

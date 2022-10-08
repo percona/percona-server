@@ -3411,6 +3411,8 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
 
   space->purpose = purpose;
 
+  space->crypt_data = crypt_data;
+
   ut_a(flags < std::numeric_limits<uint32_t>::max());
   space->flags = (uint32_t)flags;
 
@@ -8896,8 +8898,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
           encrypted_with_keyring ? iter.m_crypt_data->tablespace_key : nullptr,
           encrypted_with_keyring ? iter.m_crypt_data->uuid : nullptr, nullptr);
 
-      read_request.encryption_algorithm(iter.m_crypt_data ? Encryption::KEYRING
-                                                          : Encryption::AES);
+      read_request.encryption_algorithm(Encryption::AES);
       if (iter.m_crypt_data) {
         read_request.encryption_rotation(
             iter.m_crypt_data->encryption_rotation);

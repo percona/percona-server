@@ -1138,16 +1138,6 @@ void log_print(const log_t &log, FILE *file) {
           current_lsn - buf_pool_get_oldest_modification_lwm(),
           current_lsn - log_sys->last_checkpoint_lsn, max_checkpoint_age);
 
-  // MERGETODO
-  /*fprintf(file,
-          "Number of logs               " UINT32PF
-          "\n"
-          "Log size                     " LSN_PF
-          "\n"
-          "Log total size               " LSN_PF "\n",
-          log.n_files, log.file_size, log.files_real_capacity);
-          */
-
   time_t current_time = time(nullptr);
 
   double time_elapsed = difftime(current_time, log.last_printout_time);

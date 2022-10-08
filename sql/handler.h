@@ -2927,7 +2927,7 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
 
 /** Engine supports Generated invisible primary key. */
 constexpr const decltype(
-    handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 18};
+    handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 21};
 
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;

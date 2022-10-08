@@ -12746,6 +12746,128 @@ ER_IB_MSG_INNODB_FLUSH_METHOD
 # End of 8.1, 8.2, 8.3, 8.4 error messages intended to be written to the server error log.
 #
 
+#
+# Start of Percona Server 8.0 server error log messages
+#
+start-error-number 48000
+
+ER_RPL_FAILED_TO_RECREATE_CACHE_FOR_INFO_FILE
+  eng "Failed to recreate a cache on info file (file '%s')"
+
+ER_XB_MSG_0
+  eng "%s"
+
+ER_XB_MSG_1
+  eng "%s"
+
+ER_COMPRESSION_DICTIONARY_NO_CREATE
+  eng "Cannot create compression dictionary tables in %s%sread-only mode."
+
+ER_XB_UNUSED_1
+  eng "%s"
+
+ER_XB_UNUSED_2
+  eng "%s"
+
+ER_XB_MSG_4
+  eng "Table %s is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?"
+
+ER_XB_MSG_5
+  eng "Tablespace id %u in file %s is encrypted but keyring or used key_id %u is not available. Can't continue reading table. Please provide the correct keyring."
+
+ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD
+  eng "Waiting for keyring encryption threads to exit"
+
+ER_XB_UNUSED_3
+  eng "%s"
+
+ER_XB_MSG_6
+  eng "Key rotation of encrypted session temporary tablespace %s failed"
+
+ER_XB_UNUSED_4
+  eng "%s"
+
+ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION
+  eng "Upgrade is not possible as there are tables that are KERYING encrypted. KEYRING encryption is still experimental feature in the version you are upgrading from. To upgrade please decrypt the tables encrypted with KEYRING encryption."
+
+ER_REDO_ENCRYPTION_CANT_BE_CHANGED
+  eng "Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is %s, requested %s."
+
+ER_REDO_ENCRYPTION_CANT_GENERATE_KEY
+  eng "Redo log key generation failed."
+
+ER_REDO_ENCRYPTION_FAILED
+  eng "Failed to encrypt redo log tablespace."
+
+ER_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION
+  eng "Failed to load redo key version %u"
+
+ER_REDO_ENCRYPTION_CANT_FETCH_KEY
+  eng "Couldn't fetch newly generated redo key."
+
+ER_REDO_ENCRYPTION_CANT_PARSE_KEY
+  eng "Couldn't parse system key: %s"
+
+ER_REDO_ENCRYPTION_KEYRING
+  eng "Redo log cannot be encrypted if the keyring is not loaded."
+
+ER_UNDO_NO_KEYRING
+  eng "Undo log can't be encrypted if the keyring is not loaded."
+
+ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY
+  eng "Couldn't fetch default percona_redo key. Please check if keyring is operational."
+
+ER_REDO_ENCRYPTION_CANT_UPGRADE_OLD_VERSION
+  eng "Upgrade cannot continue as redo is encrypted with old, experimental version of KEYRING encryption. Please perform slow shutdown and remove old redo log files before upgrading."
+
+ER_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+  eng "Tablespace id %u in file %s is encrypted. Although server managed to find key_id=%u in keyring to decrypt it, some versions of this key, that are needed to decrypt this space, are missing. Maybe you are using an old keyring? Can't continue reading table. Please provide the correct keyring."
+
+ER_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS
+  eng "Tablespace id %u in file %s is encrypted. Although server managed to find all needed versions of key_id=%u in keyring to decrypt it, the provided versions are either incorrect or corrupted. Can't continue reading table. Please provide the correct keyring."
+
+ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY
+  eng "Tablespace id %u is encrypted but keyring or used key_id %u is not available. Can't continue reading table. Please provide the correct keyring."
+
+ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+  eng "Tablespace id %u is encrypted. Although server managed to find key_id=%u in keyring to decrypt it, some versions of this key, that are needed to decrypt this space, are missing. Maybe you are using an old keyring? Can't continue reading table. Please provide the correct keyring."
+
+ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS
+  eng "Tablespace id %u is encrypted. Although server managed to find all needed versions of key_id=%u in keyring to decrypt it, the provided versions are either incorrect or corrupted. Can't continue reading table. Please provide the correct keyring."
+
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB
+  eng "Delaying truncate of undo tablespace %s due to lock tables for backup."
+
+ER_XPLUGIN_SSL_RELOAD_REGISTER_FAILED
+  eng "X plugin failed to register SSL reload callback. ALTER INSTANCE RELOAD TLS will have no effect on the plugin."
+
+ER_KEYRING_COMPONENT_NO_CONFIG
+  eng "Keyring configuration doesn't exists: %s"
+
+ER_KEYRING_COMPONENT_CONFIG_PARSE_FAILED
+  eng "Keyring configuration JSON parse error: %s (%lu)"
+
+ER_PERCONA_UNSUPPORTED_ENGINE 
+  eng "Table '%s.%s' requires the '%s' storage engine, which was removed in Percona Server 8.0.28"
+
+ER_SEC_LOG_PATH_NULL
+  eng "--%s is set to NULL. Dynamic log files can be saved anywhere, possibly overwriting other files."
+
+ER_KEYRING_COMPONENT_KMS_ERROR
+  eng "KMS communication error: %s"
+
+ER_XB_MSG_DOWNGRADING_LOG_FILE
+  eng "Upgrade failed, recreating redo logs with previous version"
+
+ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED
+  eng "Could not add event rule '%s' to --replica-enable-event. %s"
+
+ER_GRP_RPL_FLOW_CONTROL_TIMEOUT
+  eng "Flow control auto evict timeout reached. The server will now leave the group."
+
+# End of Percona Server 8.0 server error log messages
+#
+
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

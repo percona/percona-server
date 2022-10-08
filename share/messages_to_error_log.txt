@@ -12037,7 +12037,9 @@ ER_XB_MSG_DOWNGRADING_LOG_FILE
 ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED
   eng "Could not add event rule '%s' to --replica-enable-event. %s"
 
-#
+ER_GRP_RPL_FLOW_CONTROL_TIMEOUT
+  eng "Flow control auto evict timeout reached. The server will now leave the group."
+
 # End of Percona Server 8.0 server error log messages
 #
 

@@ -29,6 +29,7 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
@@ -750,6 +751,56 @@ Flow_control_module::~Flow_control_module() {
 void Flow_control_module::flow_control_step(
     Pipeline_stats_member_collector *member) {
   if (--seconds_to_skip > 0) return;
+
+  if (get_auto_evict_timeout() > 0) {
+    auto it = m_info.end();
+    if (group_member_mgr != nullptr) {
+      auto ml = group_member_mgr->get_all_members();
+      auto local_uuid = local_member_info->get_uuid();
+      auto it2 = std::find_if(
+          ml->begin(), ml->end(),
+          [local_uuid](auto const &v) { return v->get_uuid() == local_uuid; });
+      if (it2 != ml->end()) {
+        it = m_info.find((*it2)->get_gcs_member_id().get_member_id());
+      }
+      for (Group_member_info *member : *ml) {
+        delete member;
+      }
+      delete ml;
+
+      std::string current_primary_uuid;
+      if (group_member_mgr->get_primary_member_uuid(current_primary_uuid)) {
+        if (current_primary_uuid == local_uuid) {
+          it = m_info.end();  // The primary node should never self-leave
+                              // because of flow control
+        }
+      }
+    }
+
+    if (it != m_info.end() && it->second.is_flow_control_needed()) {
+      m_flow_control_time += get_flow_control_period_var();
+    } else {
+      m_flow_control_time = 0;
+    }
+    if (m_flow_control_time > get_auto_evict_timeout()) {
+      const char *exit_state_action_abort_log_message =
+          "Flow control timeout value reached, leaving Group Replication.";
+      leave_group_on_failure::mask leave_actions;
+      /*
+        Only follow exit_state_action if we were already inside a group. We may
+        happen to come across an applier error during the startup of GR (i.e.
+        during the execution of the START GROUP_REPLICATION command). We must
+        not follow exit_state_action on that situation.
+      */
+      leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION,
+                        gcs_module->belongs_to_group());
+      leave_group_on_failure::leave(leave_actions,
+                                    ER_GRP_RPL_FLOW_CONTROL_TIMEOUT, nullptr,
+                                    exit_state_action_abort_log_message);
+      m_flow_control_time = 0;
+      return;
+    }
+  }
 
   int32 holds = m_holds_in_period.exchange(0);
   Flow_control_mode fcm =

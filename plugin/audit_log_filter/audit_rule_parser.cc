@@ -18,6 +18,7 @@
 
 #include "plugin/audit_log_filter/event_field_action/block.h"
 #include "plugin/audit_log_filter/event_field_action/log.h"
+#include "plugin/audit_log_filter/event_field_action/print_query_attrs.h"
 #include "plugin/audit_log_filter/event_field_action/replace_filter.h"
 #include "plugin/audit_log_filter/event_field_condition/and.h"
 #include "plugin/audit_log_filter/event_field_condition/bool.h"
@@ -968,7 +969,6 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
        * }
        */
       if (!action_json["print"].IsObject() ||
-          action_json["print"].MemberCount() != 1 ||
           !action_json["print"].HasMember("field") ||
           !action_json["print"]["field"].IsObject()) {
         return nullptr;
@@ -1071,6 +1071,65 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
 
       return std::make_shared<EventFieldActionReplaceFilter>(
           std::move(activation_cond), std::move(replacement_rule));
+    }
+    case EventActionType::PrintQueryAttrs: {
+      /*
+       * "print" : {
+       *   "query_attributes": {
+       *     "tag": "query_attributes",
+       *     "element": [
+       *       { "name": "attr1" },
+       *       { "name": "attr2" },
+       *       { "name": "attr3" }
+       *     ]
+       *   }
+       * }
+       */
+      if (!action_json["print"].IsObject() ||
+          !action_json["print"].HasMember("query_attributes") ||
+          !action_json["print"]["query_attributes"].IsObject()) {
+        return nullptr;
+      }
+
+      const auto &query_attrs_json = action_json["print"]["query_attributes"];
+
+      // Check required fields and their type
+      if (!query_attrs_json.HasMember("tag") ||
+          !query_attrs_json.HasMember("element") ||
+          !query_attrs_json["tag"].IsString() ||
+          !query_attrs_json["element"].IsArray()) {
+        return nullptr;
+      }
+
+      std::string tag_name = query_attrs_json["tag"].GetString();
+
+      if (tag_name.empty()) {
+        return nullptr;
+      }
+
+      event_field_action::QueryAttrsList attrs_list;
+
+      for (auto it = query_attrs_json["element"].Begin();
+           it != query_attrs_json["element"].End(); ++it) {
+        if (!it->IsObject()) {
+          return nullptr;
+        }
+
+        auto attr_info = it->GetObject();
+
+        if (!attr_info.HasMember("name") || !attr_info["name"].IsString()) {
+          return nullptr;
+        }
+
+        attrs_list.push_back(attr_info["name"].GetString());
+      }
+
+      if (attrs_list.empty()) {
+        return nullptr;
+      }
+
+      return std::make_shared<EventFieldActionPrintQueryAttrs>(
+          std::move(tag_name), std::move(attrs_list));
     }
     default:
       assert(false);

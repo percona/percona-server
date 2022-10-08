@@ -13,46 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef AUDIT_LOG_FILTER_EVENT_FIELD_ACTION_BASE_H_INCLUDED
-#define AUDIT_LOG_FILTER_EVENT_FIELD_ACTION_BASE_H_INCLUDED
+#ifndef AUDIT_LOG_FILTER_EVENT_FIELD_ACTION_PRINT_QUERY_ATTRS_H_INCLUDED
+#define AUDIT_LOG_FILTER_EVENT_FIELD_ACTION_PRINT_QUERY_ATTRS_H_INCLUDED
 
-#include "plugin/audit_log_filter/audit_record.h"
+#include "plugin/audit_log_filter/event_field_action/base.h"
 
-#include <memory>
-#include <utility>
+#include <string>
+#include <vector>
 
-namespace audit_log_filter {
+namespace audit_log_filter::event_field_action {
 
-class AuditRule;
+using QueryAttrsList = std::vector<std::string>;
 
-namespace event_field_condition {
-class EventFieldConditionBase;
-}
-
-namespace event_field_action {
-
-enum class EventActionType {
-  Log,
-  Block,
-  ReplaceField,
-  ReplaceFilter,
-  PrintQueryAttrs,
-  // This item must be last in the list
-  Unknown
-};
-
-EventActionType get_event_action_type(const char *event_tag_name);
-
-class EventFieldActionBase {
+class EventFieldActionPrintQueryAttrs : public EventFieldActionBase {
  public:
-  virtual ~EventFieldActionBase() = default;
+  EventFieldActionPrintQueryAttrs(std::string tag_name,
+                                  QueryAttrsList attrs_list);
 
   /**
    * @brief Get action type.
    *
    * @return Action type, one of @ref EventActionType
    */
-  [[nodiscard]] virtual EventActionType get_action_type() const noexcept = 0;
+  [[nodiscard]] EventActionType get_action_type() const noexcept override;
 
   /**
    * @brief Apply action to audit event record.
@@ -62,12 +45,15 @@ class EventFieldActionBase {
    * @param audit_rule Effective audit rule
    * @return true in case action applied successfully, false otherwise
    */
-  virtual bool apply(const AuditRecordFieldsList &fields,
-                     AuditRecordVariant &audit_record,
-                     AuditRule *audit_rule) const noexcept = 0;
+  bool apply(const AuditRecordFieldsList &fields,
+             AuditRecordVariant &audit_record,
+             AuditRule *audit_rule) const noexcept override;
+
+ private:
+  std::string m_tag_name;
+  QueryAttrsList m_attrs_list;
 };
 
-}  // namespace event_field_action
-}  // namespace audit_log_filter
+}  // namespace audit_log_filter::event_field_action
 
-#endif  // AUDIT_LOG_FILTER_EVENT_FIELD_ACTION_BASE_H_INCLUDED
+#endif  // AUDIT_LOG_FILTER_EVENT_FIELD_ACTION_PRINT_QUERY_ATTRS_H_INCLUDED

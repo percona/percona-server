@@ -292,6 +292,8 @@ struct plugin_options_variables {
   ulong communication_stack_var;
 
   bool allow_single_leader_var{false};
+
+  uint auto_evict_timeout;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

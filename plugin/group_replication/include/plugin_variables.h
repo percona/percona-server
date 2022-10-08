@@ -288,6 +288,8 @@ struct plugin_options_variables {
   bool preemptive_garbage_collection_var;
 
   uint preemptive_garbage_collection_rows_threshold_var;
+
+  uint auto_evict_timeout;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

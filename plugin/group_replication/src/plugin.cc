@@ -379,6 +379,8 @@ bool get_allow_single_leader() {
     return ov.allow_single_leader_var;
 }
 
+uint get_auto_evict_timeout() { return ov.auto_evict_timeout; }
+
 /**
  * @brief Callback implementation of
  * handle_group_replication_incoming_connection. This is the entry point for
@@ -5321,6 +5323,19 @@ static MYSQL_SYSVAR_UINT(
     0                                                     /* block */
 );
 
+static MYSQL_SYSVAR_UINT(auto_evict_timeout,    /* name */
+                         ov.auto_evict_timeout, /* var */
+                         PLUGIN_VAR_OPCMDARG |
+                             PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+                         "Flow control auto eviction timeout",
+                         nullptr, /* check func */
+                         nullptr, /* update func */
+                         0U,      /* default */
+                         0U,      /* min */
+                         65535U,  /* max */
+                         0        /* block */
+);
+
 static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(group_name),
     MYSQL_SYSVAR(start_on_boot),
@@ -5382,6 +5397,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(paxos_single_leader),
     MYSQL_SYSVAR(preemptive_garbage_collection),
     MYSQL_SYSVAR(preemptive_garbage_collection_rows_threshold),
+    MYSQL_SYSVAR(auto_evict_timeout),
     nullptr,
 };
 

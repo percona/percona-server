@@ -226,6 +226,7 @@ uint get_number_of_autorejoin_tries();
 ulonglong get_rejoin_timeout();
 void declare_plugin_cloning(bool is_running);
 bool get_allow_single_leader();
+uint get_auto_evict_timeout();
 /**
   Encapsulates the logic necessary to attempt a rejoin, i.e. gracefully leave
   the group, terminate GCS infrastructure, terminate auto-rejoin relevant plugin

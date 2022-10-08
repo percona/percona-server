@@ -695,6 +695,11 @@ class Flow_control_module {
   std::atomic<int64> m_quota_size;
 
   /*
+    Seconds spent in flow control
+  */
+  uint64 m_flow_control_time;
+
+  /*
     Counter incremented on every flow control step.
   */
   uint64 m_stamp;

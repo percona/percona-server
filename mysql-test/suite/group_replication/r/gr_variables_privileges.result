@@ -29,6 +29,8 @@ SET GLOBAL group_replication_advertise_recovery_endpoints = @@GLOBAL.group_repli
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_allow_local_lower_version_join = @@GLOBAL.group_replication_allow_local_lower_version_join;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_auto_evict_timeout = @@GLOBAL.group_replication_auto_evict_timeout;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_autorejoin_tries = @@GLOBAL.group_replication_autorejoin_tries;
@@ -165,6 +167,7 @@ SET GLOBAL group_replication_advertise_recovery_endpoints = @@GLOBAL.group_repli
 SET GLOBAL group_replication_allow_local_lower_version_join = @@GLOBAL.group_replication_allow_local_lower_version_join;
 Warnings:
 Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
+SET GLOBAL group_replication_auto_evict_timeout = @@GLOBAL.group_replication_auto_evict_timeout;
 SET GLOBAL group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
 SET GLOBAL group_replication_autorejoin_tries = @@GLOBAL.group_replication_autorejoin_tries;
 SET GLOBAL group_replication_bootstrap_group = @@GLOBAL.group_replication_bootstrap_group;

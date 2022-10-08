@@ -22,7 +22,8 @@ EventActionType get_event_action_type(const char *event_tag_name) {
       {"log", EventActionType::Log},
       {"block", EventActionType::Block},
       {"field", EventActionType::ReplaceField},
-      {"filter", EventActionType::ReplaceFilter}};
+      {"filter", EventActionType::ReplaceFilter},
+      {"query_attributes", EventActionType::PrintQueryAttrs}};
 
   const auto it = tag_to_type_map.find(event_tag_name);
   return it != tag_to_type_map.cend() ? it->second : EventActionType::Unknown;

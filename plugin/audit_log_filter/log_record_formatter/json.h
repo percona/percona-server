@@ -18,6 +18,8 @@
 
 #include "base.h"
 
+#include "plugin/audit_log_filter/audit_record.h"
+
 #include <string_view>
 
 namespace audit_log_filter::log_record_formatter {
@@ -343,7 +345,17 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    *
    * @return Escape rules
    */
-  const EscapeRulesContainer &get_escape_rules() const noexcept override;
+  [[nodiscard]] const EscapeRulesContainer &get_escape_rules()
+      const noexcept override;
+
+  /**
+   * @brief Get JSON string representation of extra attributes
+   *        for audit log record.
+   * @param info Extended record info
+   * @return JSON formatted string
+   */
+  [[nodiscard]] std::string extra_attrs_to_string(
+      const ExtendedInfo &info) const noexcept;
 };
 
 using LogRecordFormatterJson = LogRecordFormatter<AuditLogFormatType::Json>;

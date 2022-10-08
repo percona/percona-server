@@ -32,7 +32,7 @@ constexpr std::string_view CONNECTION_TYPE_FIELD_NAME = "connection_type";
 
 struct ExtendedInfo {
   std::string digest;
-  std::map<std::string, std::string> attrs;
+  std::map<std::string, std::vector<std::pair<std::string, std::string>>> attrs;
 };
 
 struct AuditRecordGeneral {

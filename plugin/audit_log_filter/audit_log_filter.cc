@@ -416,11 +416,14 @@ void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
       std::visit([](auto &rec) -> ExtendedInfo & { return rec.extended_info; },
                  audit_record);
 
+  info.attrs["connection_attributes"] = {};
+
   while (!attrs_service->get(thd, &iterator, &attr_name.str, &attr_name.length,
                              &attr_value.str, &attr_value.length,
                              &charset_string)) {
-    info.attrs.emplace(std::string{attr_name.str, attr_name.length},
-                       std::string{attr_value.str, attr_value.length});
+    info.attrs["connection_attributes"].emplace_back(
+        std::string{attr_name.str, attr_name.length},
+        std::string{attr_value.str, attr_value.length});
   }
 
   attrs_service->deinit(iterator);

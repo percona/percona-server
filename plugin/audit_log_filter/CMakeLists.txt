@@ -58,6 +58,7 @@ MYSQL_ADD_PLUGIN(audit_log_filter
                  event_field_action/block.cc
                  event_field_action/replace_field.cc
                  event_field_action/replace_filter.cc
+                 event_field_action/print_query_attrs.cc
                  event_filter_function.cc
                  event_filter_function/base.cc
                  event_filter_function/string_find.cc

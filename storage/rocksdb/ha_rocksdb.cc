@@ -709,6 +709,7 @@ static uint32_t rocksdb_validate_tables = 1;
         // ROCKSDB_INCLUDE_VALIDATE_TABLES
 static char *rocksdb_datadir = nullptr;
 static char *rocksdb_fs_uri;
+static char *rocksdb_env_uri;
 static uint32_t rocksdb_max_bottom_pri_background_compactions = 0;
 static uint32_t rocksdb_table_stats_sampling_pct =
     RDB_DEFAULT_TBL_STATS_SAMPLE_PCT;
@@ -2204,6 +2205,11 @@ static MYSQL_SYSVAR_STR(fs_uri, rocksdb_fs_uri,
                         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
                         "Custom filesystem URI", nullptr, nullptr, nullptr);
 
+static MYSQL_SYSVAR_STR(env_uri, rocksdb_env_uri,
+                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+                        "RocksDB plugin for different environment", nullptr,
+                        nullptr, nullptr);
+
 static MYSQL_SYSVAR_UINT(
     table_stats_sampling_pct, rocksdb_table_stats_sampling_pct,
     PLUGIN_VAR_RQCMDARG,
@@ -2521,6 +2527,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(datadir),
     MYSQL_SYSVAR(fs_uri),
+    MYSQL_SYSVAR(env_uri),
     MYSQL_SYSVAR(create_checkpoint),
     MYSQL_SYSVAR(create_temporary_checkpoint),
     MYSQL_SYSVAR(disable_file_deletions),
@@ -5889,6 +5896,20 @@ static int rocksdb_init_internal(void *const p) {
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
     rocksdb_db_options->env = GetCompositeEnv(fs);
+
+  } else if (rocksdb_env_uri) {
+    rocksdb::Env *rdbp_env = nullptr;
+    static std::shared_ptr<rocksdb::Env> env_guard;
+    rocksdb::ConfigOptions config_options(*rocksdb_db_options);
+    std::string rocksdb_env_uri_str = std::string(rocksdb_env_uri);
+    s = rocksdb::Env::CreateFromString(config_options, rocksdb_env_uri_str,
+                                       &rdbp_env, &env_guard);
+    if (s.ok()) {
+      rocksdb_db_options->env = rdbp_env;
+    } else {
+      rdb_log_status_error(s, "Can't initialize Rocksdb Plugin Environment");
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
   }
 
   DBUG_EXECUTE_IF("rocksdb_init_failure_files_corruption",

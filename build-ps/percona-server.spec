@@ -372,7 +372,9 @@ Obsoletes:      mariadb-libs
 Obsoletes:      mysql-connector-c-shared < 6.2
 Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-shared
+%if 0%{?rhel} < 9
 Requires(pre):  percona-server-shared-compat
+%endif
 
 %description -n percona-server-shared
 This package contains the shared libraries (*.so*) which certain languages

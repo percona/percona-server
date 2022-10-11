@@ -187,28 +187,40 @@ static char *logname(const LOGGER_HANDLE &log, char *buf, size_t buf_len,
 static int do_rotate(LOGGER_HANDLE *log) {
   if (log->rotations == 0) return 0;
 
-  char namebuf[FN_REFLEN];
-  memcpy(namebuf, log->path, log->path_len);
+  char new_name_buf[FN_REFLEN] = {0};
+  char old_name_buf[FN_REFLEN] = {0};
+  char *new_name = nullptr;
+  char *old_name = nullptr;
 
-  int result;
-  char *buf_new = logname(*log, namebuf, sizeof(namebuf), log->rotations);
-  char *buf_old = log->path;
-  for (auto i = log->rotations - 1; i > 0; i--) {
-    logname(*log, buf_old, FN_REFLEN, i);
-    if (!access(buf_old, F_OK) &&
-        (result = my_rename(buf_old, buf_new, MYF(0))))
-      goto exit;
-    char *tmp = buf_old;
-    buf_old = buf_new;
-    buf_new = tmp;
+  memcpy(new_name_buf, log->path, log->path_len);
+  memcpy(old_name_buf, log->path, log->path_len);
+
+  for (auto i = log->rotations; i > 0; i--) {
+    new_name = logname(*log, new_name_buf, sizeof(new_name_buf), i);
+
+    if (i > 1) {
+      old_name = logname(*log, old_name_buf, sizeof(new_name_buf), i - 1);
+    } else {
+      old_name = old_name_buf;
+      old_name_buf[log->path_len] = 0;
+    }
+
+    if (0 == access(old_name, F_OK) &&
+        0 != my_rename(old_name, new_name, MYF(0))) {
+      errno = my_errno();
+      return -1;
+    }
   }
-  if ((result = my_close(log->file, MYF(0)))) goto exit;
-  namebuf[log->path_len] = 0;
-  result = my_rename(namebuf, logname(*log, log->path, FN_REFLEN, 1), MYF(0));
-  log->file = my_open(namebuf, LOG_FLAGS, MYF(0));
-exit:
+
+  if (0 != my_close(log->file, MYF(0))) {
+    errno = my_errno();
+    return -1;
+  }
+
+  log->file = my_open(log->path, LOG_FLAGS, MYF(0));
+
   errno = my_errno();
-  return log->file < 0 || result;
+  return log->file < 0 ? -1 : 0;
 }
 
 int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size,

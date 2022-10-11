@@ -1,0 +1,25 @@
+--echo #
+--echo # PS-1098: 'SET GLOBAL audit_log_flush=1' reopens wrong file after auto rotation
+--echo #
+
+--disable_result_log
+--disable_query_log
+--source audit_log_events.inc
+--enable_query_log
+--enable_result_log
+
+SET GLOBAL audit_log_flush=1;
+
+let MYSQLD_DATADIR= `select @@datadir`;
+
+perl;
+  my $current_log_size = -s $ENV{'MYSQLD_DATADIR'} . "/test_audit.log";
+  my $rotated_log_size = -s $ENV{'MYSQLD_DATADIR'} . "/test_audit.log.1";
+
+  die "Current log file rewritten!" if ($current_log_size == 0);
+  die "Already rotated file reopened!" if ($rotated_log_size < 4096);
+EOF
+
+--remove_files_wildcard $MYSQLD_DATADIR test_audit.log*
+
+--echo success

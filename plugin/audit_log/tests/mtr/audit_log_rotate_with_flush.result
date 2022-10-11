@@ -1,0 +1,5 @@
+#
+# PS-1098: 'SET GLOBAL audit_log_flush=1' reopens wrong file after auto rotation
+#
+SET GLOBAL audit_log_flush=1;
+success

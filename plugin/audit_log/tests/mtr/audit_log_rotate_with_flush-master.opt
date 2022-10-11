@@ -1,0 +1,5 @@
+--audit_log_file=test_audit.log
+--audit_log_format=JSON
+--audit_log_strategy=SEMISYNCHRONOUS
+--audit_log_rotate_on_size=4096
+--audit_log_rotations=1

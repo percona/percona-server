@@ -52,11 +52,6 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
              bool print_separator [[maybe_unused]]) noexcept override {}
 
   /**
-   * @brief Close and reopen current log file. Used for manual log rotation.
-   */
-  void flush() noexcept override {}
-
-  /**
    * @brief Prune outdated log files.
    */
   void prune() noexcept override {}

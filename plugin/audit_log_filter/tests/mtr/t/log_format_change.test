@@ -30,16 +30,14 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --source rename_rotated_log.inc
 
 # Make sure all rotated logs have valid format
---let $xml_file_path = $audit_filter_log_path
---let $xml_file_name = test_audit_filter.NEW
---source validate_xml_file.inc
+--let $audit_filter_log_name = test_audit_filter.NEW
+--source validate_xml_logs.inc
 
---let $xml_file_name = test_audit_filter.OLD
---source validate_xml_file.inc
+--let $audit_filter_log_name = test_audit_filter.OLD
+--source validate_xml_logs.inc
 
---let $json_file_path = $audit_filter_log_path
---let $json_file_name = test_audit_filter.JSON
---source validate_json_file.inc
+--let $audit_filter_log_name = test_audit_filter.JSON
+--source validate_json_logs.inc
 
 --echo #
 --echo # Cleanup

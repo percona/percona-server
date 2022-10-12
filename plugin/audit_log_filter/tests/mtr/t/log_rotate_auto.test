@@ -10,12 +10,8 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --source generate_audit_events.inc
 --source generate_audit_events.inc
 
---let $log_path = `SELECT @@global.datadir`
-
-# There is no closing XML tag in current log file while the server is working
---source include/shutdown_mysqld.inc
---source check_rotated_logs.inc
---source include/start_mysqld.inc
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--source validate_xml_logs.inc
 
 --echo #
 --echo # Cleanup

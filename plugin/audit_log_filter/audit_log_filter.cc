@@ -386,10 +386,6 @@ bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
   return is_flushed;
 }
 
-void AuditLogFilter::on_audit_log_flush_requested() noexcept {
-  m_log_writer->flush();
-}
-
 void AuditLogFilter::on_audit_log_prune_requested() noexcept {
   m_log_writer->prune();
 }

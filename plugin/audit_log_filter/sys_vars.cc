@@ -164,7 +164,6 @@ constexpr ulonglong default_log_rotate_on_size = 1024 * 1024 * 1024;
 ulonglong log_max_size = 0;
 constexpr ulonglong default_log_max_size = 1024 * 1024 * 1024;
 ulonglong log_prune_seconds = 0;
-bool log_flush_requested = false;
 bool log_disabled = false;
 char *log_syslog_ident = nullptr;
 const char default_log_syslog_ident[] = "percona-audit-event-filter";
@@ -319,18 +318,6 @@ MYSQL_SYSVAR_ULONGLONG(
     nullptr, prune_seconds_update_func, 0UL, 0UL, ULLONG_MAX, 0UL);
 
 /*
- * When this variable is set to ON log file will be closed and reopened.
- * This can be used for manual log rotation.
- */
-void flush_update_func(MYSQL_THD, SYS_VAR *, void *, const void *) {
-  get_audit_log_filter_instance()->on_audit_log_flush_requested();
-}
-
-MYSQL_SYSVAR_BOOL(flush, log_flush_requested, PLUGIN_VAR_NOCMDARG,
-                  "Close and reopen log file when set to ON.", nullptr,
-                  flush_update_func, false);
-
-/*
  * The audit_log_filter.syslog_ident variable is used to specify the ident
  * value for syslog.
  */
@@ -476,7 +463,6 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(rotate_on_size),
                        MYSQL_SYSVAR(max_size),
                        MYSQL_SYSVAR(prune_seconds),
-                       MYSQL_SYSVAR(flush),
                        MYSQL_SYSVAR(syslog_ident),
                        MYSQL_SYSVAR(syslog_facility),
                        MYSQL_SYSVAR(syslog_priority),

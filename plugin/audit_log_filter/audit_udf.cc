@@ -888,6 +888,40 @@ char *AuditUdf::audit_log_read_bookmark_udf(AuditUdf *udf [[maybe_unused]],
 
 void AuditUdf::audit_log_read_bookmark_udf_deinit(UDF_INIT *) {}
 
+// audit_log_rotate()
+bool AuditUdf::audit_log_rotate_udf_init(AuditUdf *udf [[maybe_unused]],
+                                         UDF_INIT *initid, UDF_ARGS *udf_args,
+                                         char *message) noexcept {
+  if (udf_args->arg_count != 0) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Wrong argument list: audit_log_rotate()");
+    return true;
+  }
+
+  initid->maybe_null = false;
+  initid->const_item = false;
+
+  return false;
+}
+
+char *AuditUdf::audit_log_rotate_udf(AuditUdf *udf [[maybe_unused]],
+                                     UDF_INIT *initid [[maybe_unused]],
+                                     UDF_ARGS *udf_args [[maybe_unused]],
+                                     char *result, unsigned long *length,
+                                     unsigned char *is_null,
+                                     unsigned char *error) noexcept {
+  get_audit_log_filter_instance()->on_audit_log_rotate_requested();
+
+  std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
+  *length = std::strlen(result);
+  *is_null = 0;
+  *error = 0;
+
+  return result;
+}
+
+void AuditUdf::audit_log_rotate_udf_deinit(UDF_INIT *) {}
+
 bool AuditUdf::set_return_value_charset(
     UDF_INIT *initid, const std::string &charset_name) noexcept {
   my_service<SERVICE_TYPE(mysql_udf_metadata)> udf_metadata_srv(

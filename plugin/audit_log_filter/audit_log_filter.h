@@ -99,7 +99,12 @@ class AuditLogFilter {
   void on_audit_log_prune_requested() noexcept;
 
   /**
-   * @brief Handle log rotation event.
+   * @brief Handle log files rotation request.
+   */
+  void on_audit_log_rotate_requested() noexcept;
+
+  /**
+   * @brief Handle successful log rotation event.
    */
   void on_audit_log_rotated() noexcept;
 

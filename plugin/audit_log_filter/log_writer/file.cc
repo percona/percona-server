@@ -133,11 +133,6 @@ void LogWriterFile::rotate() noexcept {
   get_audit_log_filter_instance()->on_audit_log_rotated();
 }
 
-void LogWriterFile::flush() noexcept {
-  do_close_file();
-  do_open_file();
-}
-
 void LogWriterFile::prune() noexcept {
   if (SysVars::get_rotate_on_size() == 0) {
     return;

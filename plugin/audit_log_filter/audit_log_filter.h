@@ -89,11 +89,6 @@ class AuditLogFilter {
   bool on_audit_rule_flush_requested() noexcept;
 
   /**
-   * @brief Handle log file flush request.
-   */
-  void on_audit_log_flush_requested() noexcept;
-
-  /**
    * @brief Handle log files prunning request.
    */
   void on_audit_log_prune_requested() noexcept;

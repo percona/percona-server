@@ -7,7 +7,9 @@ OK
 # restart: --audit_log_filter_format=OLD
 # restart: --audit_log_filter_format=JSON
 # restart: --audit_log_filter_format=NEW
-JSON audit filtering log is valid
+File format Ok
+File format Ok
+File format Ok
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;

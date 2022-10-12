@@ -10,8 +10,7 @@ OK
 SELECT audit_log_rotate();
 audit_log_rotate()
 OK
-Rotation Ok
-# restart
+Rotated files Ok
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;

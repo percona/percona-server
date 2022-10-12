@@ -99,12 +99,10 @@ UPDATE t1 SET id = 2 WHERE id = 1;
 query_attributes attr1 val1 attr2 val2 skipped_attr skipped_val;
 DELETE FROM t1;
 
---move_file $audit_filter_log_path$audit_filter_log_name $audit_filter_log_path$audit_filter_log_name.1
-SET GLOBAL audit_log_filter_flush = ON;
+SELECT audit_log_rotate();
 
---let $json_file_path = $audit_filter_log_path
---let $json_file_name = $audit_filter_log_name.1
---source validate_json_file.inc
+--let $audit_filter_log_name=
+--source validate_json_logs.inc
 
 --echo #
 --echo # Wrong format, missing "tag" or invalid format
@@ -240,8 +238,6 @@ let $filter = {
 };
 eval SELECT audit_log_filter_set_filter('query_attrs_element_bad_args', '$filter');
 
-#--cat_file $audit_filter_log_path$audit_filter_log_name
-
 --echo #
 --echo # Cleanup
 DROP TABLE t1;
@@ -249,5 +245,3 @@ DROP TABLE t1;
 DELETE FROM mysql.audit_log_user;
 DELETE FROM mysql.audit_log_filter;
 SELECT audit_log_filter_flush();
-
---remove_file $json_file_path$json_file_name

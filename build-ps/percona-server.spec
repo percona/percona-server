@@ -372,7 +372,9 @@ Obsoletes:      mariadb-libs
 Obsoletes:      mysql-connector-c-shared < 6.2
 Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-shared
+%if 0%{?rhel} < 9
 Requires(pre):  percona-server-shared-compat
+%endif
 
 %description -n percona-server-shared
 This package contains the shared libraries (*.so*) which certain languages
@@ -1087,6 +1089,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
+
 %if 0%{?rhel} > 6
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_encryption_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_encryption_udf.so

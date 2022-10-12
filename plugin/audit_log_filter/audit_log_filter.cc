@@ -98,6 +98,7 @@ DECLARE_AUDIT_UDF(audit_log_filter_remove_user)
 DECLARE_AUDIT_UDF(audit_log_filter_flush)
 DECLARE_AUDIT_UDF(audit_log_read)
 DECLARE_AUDIT_UDF(audit_log_read_bookmark)
+DECLARE_AUDIT_UDF(audit_log_rotate)
 
 #define DECLARE_AUDIT_UDF_INFO(NAME) \
   UdfFuncInfo { #NAME, &NAME##_udf, &NAME##_udf_init, &NAME##_udf_deinit }
@@ -109,7 +110,8 @@ static std::array udfs_list{
     DECLARE_AUDIT_UDF_INFO(audit_log_filter_remove_user),
     DECLARE_AUDIT_UDF_INFO(audit_log_filter_flush),
     DECLARE_AUDIT_UDF_INFO(audit_log_read),
-    DECLARE_AUDIT_UDF_INFO(audit_log_read_bookmark)};
+    DECLARE_AUDIT_UDF_INFO(audit_log_read_bookmark),
+    DECLARE_AUDIT_UDF_INFO(audit_log_rotate)};
 
 /**
  * @brief Initialize the plugin at server start or plugin installation.
@@ -390,6 +392,10 @@ void AuditLogFilter::on_audit_log_flush_requested() noexcept {
 
 void AuditLogFilter::on_audit_log_prune_requested() noexcept {
   m_log_writer->prune();
+}
+
+void AuditLogFilter::on_audit_log_rotate_requested() noexcept {
+  m_log_writer->rotate();
 }
 
 void AuditLogFilter::on_audit_log_rotated() noexcept { m_log_reader->init(); }

@@ -1,0 +1,7 @@
+SELECT audit_log_rotate();
+audit_log_rotate()
+OK
+#
+# Check wrong argument number
+SELECT audit_log_rotate("");
+ERROR HY000: Can't initialize function 'audit_log_rotate'; Wrong argument list: audit_log_rotate()

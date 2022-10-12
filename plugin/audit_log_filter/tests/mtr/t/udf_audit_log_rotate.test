@@ -1,0 +1,6 @@
+SELECT audit_log_rotate();
+
+--echo #
+--echo # Check wrong argument number
+--error 1123
+SELECT audit_log_rotate("");

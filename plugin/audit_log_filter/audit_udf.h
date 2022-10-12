@@ -329,6 +329,45 @@ class AuditUdf {
   static void audit_log_read_bookmark_udf_deinit(UDF_INIT *initid);
 
   /**
+   * @brief Init function for audit_log_rotate UDF.
+   *
+   * @param udf Pointer to UDFs handler instance
+   * @param initid Pointer to UDF_INIT argument
+   * @param udf_args Pointer to the UDF arguments struct
+   * @param message Error message in case of error
+   * @retval false Success
+   * @retval true  Failure. Error in the message argument
+   */
+  static bool audit_log_rotate_udf_init(AuditUdf *udf, UDF_INIT *initid,
+                                        UDF_ARGS *udf_args,
+                                        char *message) noexcept;
+
+  /**
+   * @brief Main function for audit_log_rotate UDF.
+   *
+   * @param udf Pointer to UDFs handler instance
+   * @param initid Pointer to UDF_INIT argument
+   * @param udf_args Pointer to the UDF arguments struct
+   * @param result UDFs result buffer
+   * @param length Result length
+   * @param is_null Indicates a return value of NULL in the UDF
+   * @param error Indicates if there was an error
+   * @return Pointer to the result buffer
+   */
+  static char *audit_log_rotate_udf(AuditUdf *udf, UDF_INIT *initid,
+                                    UDF_ARGS *udf_args, char *result,
+                                    unsigned long *length,
+                                    unsigned char *is_null,
+                                    unsigned char *error) noexcept;
+
+  /**
+   * @brief De-init function for audit_log_rotate UDF.
+   *
+   * @param initid Pointer to UDF_INIT argument
+   */
+  static void audit_log_rotate_udf_deinit(UDF_INIT *initid);
+
+  /**
    * @brief Get pointer to a component registry service.
    *
    * @return Pointer to a component registry service

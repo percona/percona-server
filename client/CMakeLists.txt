@@ -270,6 +270,7 @@ SET(MYSQLBINLOG_LIBRARIES
   binlogevents_static
   client_base
   perconaserverclient
+  extra::unordered_dense
   )
 
 IF(WITH_JSON_BINLOG_LIBRARY)

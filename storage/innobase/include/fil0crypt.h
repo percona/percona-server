@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_INNOCHECKSUM
 
 #include "log0types.h"
-#include "my_crypt.h"
+#include "my_aes.h"
 #include "os0event.h"
 // TODO: Robert: This is temporary for fil_encryption_t
 #include "fil0fil.h"

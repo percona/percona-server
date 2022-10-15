@@ -32,7 +32,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "page0zip.h"
 #include "system_key.h"
 #ifndef UNIV_INNOCHECKSUM
-#include <my_crypt.h>
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "fil0crypt.h"
@@ -50,7 +49,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 #include "fts0priv.h"
 #include "lock0lock.h"
+#include "my_aes.h"
 #include "my_dbug.h"
+#include "my_rnd.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0mysql.h"
@@ -289,10 +290,10 @@ fil_space_crypt_t::fil_space_crypt_t(uint new_min_key_version, uint new_key_id,
          ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
 
   key_id = new_key_id;
-  if (my_random_bytes(iv, sizeof(iv)) != MY_AES_OK)  // TODO:Robert: This can
-                                                     // return error and because
-                                                     // of that it should not be
-                                                     // in constructor
+  if (my_rand_buffer(iv, sizeof(iv)) != 0)  // TODO:Robert: This can
+                                            // return error and because
+                                            // of that it should not be
+                                            // in constructor
     type = 0;  // TODO:Robert: This is temporary to get rid of unused variable
                // problem
   if (new_uuid != nullptr && strlen(new_uuid) > 0) {

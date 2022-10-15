@@ -48,7 +48,7 @@ const int min_kdf_iterations_size{1000};
 */
 int create_kdf_key(const unsigned char *key, const unsigned int key_length,
                    unsigned char *rkey, unsigned int rkey_size,
-                   vector<string> *kdf_options) {
+                   std::vector<std::string> *kdf_options) {
   assert(kdf_options != nullptr);
   int const nkdf_options = kdf_options->size();
   assert(nkdf_options > 0);
@@ -56,7 +56,7 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
     return 1;
   }
 
-  string const kdf_name = (*kdf_options)[0];
+  std::string const kdf_name = (*kdf_options)[0];
   std::unique_ptr<Key_derivation_function> kdf_function;
 
   if (kdf_name == "hkdf") {
@@ -76,7 +76,7 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
 }
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-Key_hkdf_function::Key_hkdf_function(vector<string> *kdf_options) {
+Key_hkdf_function::Key_hkdf_function(std::vector<std::string> *kdf_options) {
   kdf_options_ = {kdf_options};
 }
 
@@ -153,7 +153,7 @@ int Key_hkdf_function::derive_key(const unsigned char *key,
 #endif
 
 Key_pbkdf2_hmac_function::Key_pbkdf2_hmac_function(
-    vector<string> *kdf_options) {
+    std::vector<std::string> *kdf_options) {
   kdf_options_ = {kdf_options};
 }
 
@@ -169,7 +169,7 @@ int Key_pbkdf2_hmac_function::validate_options() {
     salt_ = (*kdf_options_)[1];
   }
   if (nkdf_options > 2) {
-    string const sIterations = (*kdf_options_)[2];
+    std::string const sIterations = (*kdf_options_)[2];
     iterations_ = atoi(sIterations.c_str());
   }
   if (iterations_ < min_kdf_iterations_size ||

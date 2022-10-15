@@ -283,9 +283,14 @@ static bool encrypt_iv(byte *iv, os_offset_t offs, space_id_t space_id) {
   mach_write_to_8(iv, space_id);
   mach_write_to_8(iv + 8, offs);
 
+  // ensure that key length is 32 bytes (256 bits), so that it could be used
+  // with my_aes_256_ecb
+  ut_ad(crypt_info.encryption_klen == 32);
+
   int dst_len = my_aes_encrypt(
       iv, MY_AES_BLOCK_SIZE, iv, crypt_info.encryption_key,
-      crypt_info.encryption_klen, my_aes_256_ecb, nullptr, false /*padding*/);
+      crypt_info.encryption_klen, my_aes_256_ecb, nullptr, false /*padding*/
+  );
 
   if (dst_len != MY_AES_BLOCK_SIZE) {
     ib::error() << "Unable to encrypt IV";
@@ -310,15 +315,16 @@ bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
     return false;
   }
 
-  int dst_len = my_aes_encrypt(
-      src_block, size, dst_block, crypt_info.encryption_key,
-      crypt_info.encryption_klen, my_aes_256_cbc, iv, false /*padding*/);
+  assert(crypt_info.encryption_klen == 32);
+  int res = my_legacy_aes_cbc_nopad_encrypt(src_block, size, dst_block,
+                                            crypt_info.encryption_key,
+                                            crypt_info.encryption_klen, iv);
 
-  if (dst_len != MY_AES_BLOCK_SIZE) {
+  if (res != static_cast<int>(size)) {
     ib::error() << "Unable to encrypt data block  src: "
                 << static_cast<const void *>(src_block) << " srclen: " << size
                 << " buf: " << static_cast<const void *>(dst_block)
-                << " buflen: " << dst_len << ".";
+                << " buflen: " << res << ".";
     return false;
   }
 
@@ -340,15 +346,16 @@ bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
     return false;
   }
 
-  int dst_len = my_aes_decrypt(
-      src_block, size, dst_block, crypt_info.encryption_key,
-      crypt_info.encryption_klen, my_aes_256_cbc, iv, false /*padding*/);
+  assert(crypt_info.encryption_klen == 32);
+  int res = my_legacy_aes_cbc_nopad_decrypt(src_block, size, dst_block,
+                                            crypt_info.encryption_key,
+                                            crypt_info.encryption_klen, iv);
 
-  if (dst_len != MY_AES_BLOCK_SIZE) {
+  if (res != static_cast<int>(size)) {
     ib::error() << "Unable to decrypt data block src: "
                 << static_cast<const void *>(src_block) << " srclen: " << size
                 << " buf: " << static_cast<const void *>(dst_block)
-                << " buflen: " << dst_len << ".";
+                << " buflen: " << res << ".";
     return false;
   }
 

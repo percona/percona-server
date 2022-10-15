@@ -25,7 +25,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @file mysys/my_aes_openssl.cc
 */
 
-#include <assert.h>
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <utility>
+
 #include <openssl/aes.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -131,7 +135,7 @@ static const EVP_CIPHER *aes_evp_type(const my_aes_opmode mode) {
 */
 int my_create_key(unsigned char *rkey, const unsigned char *key,
                   uint32 key_length, enum my_aes_opmode mode,
-                  vector<string> *kdf_options) {
+                  std::vector<std::string> *kdf_options) {
   if (kdf_options) {
     if (kdf_options->size() < 1) {
       return 1;
@@ -148,7 +152,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
                    const unsigned char *iv, bool padding,
-                   vector<string> *kdf_options) {
+                   std::vector<std::string> *kdf_options) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx = &stack_ctx;
@@ -195,7 +199,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
                    const unsigned char *iv, bool padding,
-                   vector<string> *kdf_options) {
+                   std::vector<std::string> *kdf_options) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx = &stack_ctx;
@@ -259,4 +263,94 @@ bool my_aes_needs_iv(my_aes_opmode opmode) {
   iv_length = EVP_CIPHER_iv_length(cipher);
   assert(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
   return iv_length != 0 ? true : false;
+}
+
+static int my_legacy_aes_cbc_nopad_crypt(
+    bool encrypt, const unsigned char *source, uint32 source_length,
+    unsigned char *dest, const unsigned char *key, uint32 key_length,
+    const unsigned char *iv) {
+  assert(key_length == 32 || key_length == 16);
+
+  if (key == nullptr || iv == nullptr) return MY_AES_BAD_DATA;
+
+  auto cipher =
+      aes_evp_type(key_length == 32 ? my_aes_256_cbc : my_aes_128_cbc);
+  assert(cipher != nullptr);
+
+  auto evp_cipher_deleter = [](EVP_CIPHER_CTX *ctx) {
+    if (ctx != nullptr)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+      EVP_CIPHER_CTX_cleanup(ctx);
+#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+      EVP_CIPHER_CTX_free(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  };
+  using evp_cipher_ctx_ptr =
+      std::unique_ptr<EVP_CIPHER_CTX, decltype(evp_cipher_deleter)>;
+
+  auto clear_error_helper = [](int return_value) {
+    if (return_value != MY_AES_BAD_DATA) ERR_clear_error();
+    return return_value;
+  };
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX stack_ctx;
+  EVP_CIPHER_CTX *ctx_raw = &stack_ctx;
+  EVP_CIPHER_CTX_init(ctx_raw);
+#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  EVP_CIPHER_CTX *ctx_raw = EVP_CIPHER_CTX_new();
+  if (ctx_raw == nullptr) return clear_error_helper(MY_AES_BAD_DATA);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+
+  evp_cipher_ctx_ptr ctx(ctx_raw, std::move(evp_cipher_deleter));
+
+  int u_len = 0, f_len = 0;
+
+  if (!EVP_CipherInit_ex(ctx_raw, cipher, nullptr, key, iv, encrypt ? 1 : 0))
+    return clear_error_helper(MY_AES_BAD_DATA);
+  if (!EVP_CIPHER_CTX_set_padding(ctx_raw, 0))
+    return clear_error_helper(MY_AES_BAD_DATA);
+  if (!EVP_CipherUpdate(ctx_raw, dest, &u_len, source, source_length))
+    return clear_error_helper(MY_AES_BAD_DATA);
+
+  assert(static_cast<int>(source_length) >= u_len);
+  std::size_t remainder_len = source_length - u_len;
+  if (remainder_len > 0) {
+    const unsigned char *remainder_source = source + u_len;
+    unsigned char *remainder_dest = dest + u_len;
+    /*
+      Not much we can do, block ciphers cannot encrypt data that aren't
+      a multiple of the block length. At least not without padding.
+      Let's do something CTR-like for the last partial block.
+    */
+    unsigned char mask[MY_AES_BLOCK_SIZE];
+
+    int mask_result = my_aes_encrypt(
+        iv, sizeof(mask), mask, key, key_length,
+        key_length == 32 ? my_aes_256_ecb : my_aes_128_ecb, nullptr, false);
+    if (mask_result != MY_AES_BLOCK_SIZE)
+      return clear_error_helper(MY_AES_BAD_DATA);
+
+    for (std::size_t i = 0; i < remainder_len; ++i)
+      remainder_dest[i] = remainder_source[i] ^ mask[i];
+    f_len = remainder_len;
+  }
+
+  return clear_error_helper(u_len + f_len);
+}
+
+int my_legacy_aes_cbc_nopad_encrypt(const unsigned char *source,
+                                    uint32 source_length, unsigned char *dest,
+                                    const unsigned char *key, uint32 key_length,
+                                    const unsigned char *iv) {
+  return my_legacy_aes_cbc_nopad_crypt(true, source, source_length, dest, key,
+                                       key_length, iv);
+}
+
+int my_legacy_aes_cbc_nopad_decrypt(const unsigned char *source,
+                                    uint32 source_length, unsigned char *dest,
+                                    const unsigned char *key, uint32 key_length,
+                                    const unsigned char *iv) {
+  return my_legacy_aes_cbc_nopad_crypt(false, source, source_length, dest, key,
+                                       key_length, iv);
 }

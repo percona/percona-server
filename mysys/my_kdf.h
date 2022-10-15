@@ -25,9 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <string>
 #include <vector>
 
-using std::string;
-using std::vector;
-
 /**
   Creates the required size of key using supplied key and KDF options.
 
@@ -46,11 +43,11 @@ using std::vector;
 */
 int create_kdf_key(const unsigned char *key, const unsigned int key_length,
                    unsigned char *rkey, unsigned int rkey_size,
-                   vector<string> *kdf_options);
+                   std::vector<std::string> *kdf_options);
 
 class Key_derivation_function {
  protected:
-  vector<string> *kdf_options_{nullptr};
+  std::vector<std::string> *kdf_options_{nullptr};
   bool options_valid_{false};
 
  public:
@@ -65,8 +62,8 @@ class Key_derivation_function {
 
 /** Class to implement KDF method hkdf. */
 class Key_hkdf_function : public Key_derivation_function {
-  string salt_;
-  string info_;
+  std::string salt_;
+  std::string info_;
 
  public:
   /**
@@ -84,7 +81,7 @@ class Key_hkdf_function : public Key_derivation_function {
 
      3. KDF info: The context and application specific information.
   */
-  Key_hkdf_function(vector<string> *kdf_options);
+  Key_hkdf_function(std::vector<std::string> *kdf_options);
   virtual ~Key_hkdf_function() override {}
   int derive_key(const unsigned char *key, const unsigned int key_length,
                  unsigned char *rkey, unsigned int key_size) override;
@@ -94,7 +91,7 @@ class Key_hkdf_function : public Key_derivation_function {
 
 /** Class to implement KDF method pbkdf2_hmac. */
 class Key_pbkdf2_hmac_function : public Key_derivation_function {
-  string salt_;
+  std::string salt_;
   int iterations_{0};
 
  public:
@@ -116,7 +113,7 @@ class Key_pbkdf2_hmac_function : public Key_derivation_function {
      It is better to use the highest count possible for the maximum resistance
      to brute-force attacks.
   */
-  Key_pbkdf2_hmac_function(vector<string> *kdf_options);
+  Key_pbkdf2_hmac_function(std::vector<std::string> *kdf_options);
   virtual ~Key_pbkdf2_hmac_function() override {}
   int derive_key(const unsigned char *key, const unsigned int key_length,
                  unsigned char *rkey, unsigned int key_size) override;

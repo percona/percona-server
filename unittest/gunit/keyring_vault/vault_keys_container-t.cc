@@ -750,7 +750,7 @@ class Vault_keys_container_with_mocked_io_test : public ::testing::Test {
       return;
     }
 
-    system_charset_info = &my_charset_utf8_general_ci;
+    system_charset_info = &my_charset_utf8mb3_general_ci;
   }
 
   static void TearDownTestCase() {

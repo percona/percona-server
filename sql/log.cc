@@ -1859,13 +1859,13 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
         assert(sp_sql_command != -1);
         if (sp_sql_command == SQLCOM_CALL) return false;
       } else
-	 return false;
+        return false;
     } else if (thd->lex->sql_command == SQLCOM_EXECUTE) {
       Prepared_statement *stmt;
       LEX_CSTRING *name = &thd->lex->prepared_stmt_name;
-      if ((stmt = thd->stmt_map.find_by_name(*name)) != NULL && stmt->lex &&
-          stmt->lex->sql_command == SQLCOM_CALL)
-	 return false;
+      if ((stmt = thd->stmt_map.find_by_name(*name)) != NULL && stmt->m_lex &&
+          stmt->m_lex->sql_command == SQLCOM_CALL)
+        return false;
     }
   }
 

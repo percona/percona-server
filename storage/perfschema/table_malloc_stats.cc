@@ -257,7 +257,7 @@ int table_malloc_stats::read_row_values(TABLE *table, unsigned char *,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       if (!f->field_index()) { /* TYPE */
         const char *tp = row_type[m_row.type];
-        set_field_char_utf8(f, tp, strlen(tp));
+        set_field_char_utf8mb4(f, tp, strlen(tp));
       } else if (f->field_index() <=
                  NUM_STAT) /* ALLOCATED, NMALLOC, NDALLOC, NREQUESTS */
         set_field_ulonglong(f, m_row.stat[f->field_index() - 1]);

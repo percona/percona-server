@@ -1186,15 +1186,15 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
 
   // Let's check if next event is Start encryption event
   // If we go outside the file read_event will also return an error
-  const auto binlog_pos_after_fdle = reader->position();
+  const auto binlog_pos_after_fdle = reader.position();
   if (read_event(reader, &event_ptr, &event_len, true)) {
-    reader->seek(binlog_pos_after_fdle);
+    reader.seek(binlog_pos_after_fdle);
     set_last_pos(binlog_pos_after_fdle);
     return 0;
   }
 
   binlog_read_error = binlog_event_deserialize(
-      event_ptr, event_len, reader->format_description_event(), false, &ev);
+      event_ptr, event_len, reader.format_description_event(), false, &ev);
 
   if (binlog_read_error.has_error()) {
     set_fatal_error(binlog_read_error.get_str());
@@ -1210,20 +1210,20 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
       return 1;
     }
 
-    if (reader->start_decryption(sele)) {
+    if (reader.start_decryption(sele)) {
       set_fatal_error("Could not decrypt binlog: encryption key error");
       return 1;
     }
 
     if (start_pos <= BIN_LOG_HEADER_SIZE) {
-      const auto log_pos = reader->position();
+      const auto log_pos = reader.position();
       // We have read start encryption event from master binlog, but we have
       // not sent it to slave. We need to inform slave that master position
       // has advanced.
       if (unlikely(send_heartbeat_event(log_pos))) return 1;
     }
   } else {
-    reader->seek(binlog_pos_after_fdle);
+    reader.seek(binlog_pos_after_fdle);
     set_last_pos(binlog_pos_after_fdle);
   }
 

@@ -1592,6 +1592,11 @@ ELSE()
   ENDIF()
 ENDIF()
 
+IF(APPLE)
+  # Get access to memset_s
+  ADD_DEFINITIONS(-D__STDC_WANT_LIB_EXT1__=1)
+ENDIF()
+
 # Run platform tests
 INCLUDE(configure.cmake)
 

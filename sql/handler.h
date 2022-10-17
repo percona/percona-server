@@ -2907,27 +2907,27 @@ struct TABLE_STATS {
 constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
     1 << 17};
 
+/** Engine supports Generated invisible primary key. */
+constexpr const decltype(
+    handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 18};
+
 /**
    Set if the storage engine supports 'online' backups. This means that there
    exists a way to create a consistent copy of its tables without blocking
    updates to them. If so, statements that update such tables will not be
    affected by an active LOCK TABLES FOR BACKUP.
 */
-#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 18)
+#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 19)
 
 /**
   Engine supports secondary clustered keys.
 */
-#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 19)
+#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 20)
 
 /**
   Engine supports compressed columns.
 */
-#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 20)
-
-/** Engine supports Generated invisible primary key. */
-constexpr const decltype(
-    handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 21};
+#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 21)
 
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;

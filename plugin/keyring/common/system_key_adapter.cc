@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "system_key_adapter.h"
+
+#include "my_sys.h"
 #include "secure_string.h"
 
 namespace keyring {

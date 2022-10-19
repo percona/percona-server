@@ -1212,7 +1212,7 @@ IF(CMAKE_C_FLAGS MATCHES "-fsanitize" OR CMAKE_CXX_FLAGS MATCHES "-fsanitize")
 ENDIF()
 
 # Older versions of ccache must be disabled: export CCACHE_DISABLE=1
-# See http://www.cmake.org/Wiki/CTest/Coverage
+# See https://gitlab.kitware.com/cmake/community/-/wikis/doc/ctest/Coverage
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
 IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
   STRING_APPEND(CMAKE_C_FLAGS   " -fprofile-arcs -ftest-coverage -DHAVE_GCOV")

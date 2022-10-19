@@ -1069,16 +1069,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     db_access= (acl_get(sctx->host().str, sctx->ip().str,
                         sctx->priv_user().str, dbname, 0) |
                 sctx->master_access());
-<<<<<<< HEAD
-  if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
-  {
-    thd->diff_access_denied_errors++;
-||||||| e081d4dc0f6
-  if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
-  {
-=======
   if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname, true)) {
->>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
+    thd->diff_access_denied_errors++;
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user().str, sctx->host_or_ip().str, dbname);
     query_logger.general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),

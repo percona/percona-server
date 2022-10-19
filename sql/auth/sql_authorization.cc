@@ -4307,16 +4307,8 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
                      &thd->col_access, NULL, FALSE, FALSE))
       return TRUE;
 
-<<<<<<< HEAD
-    if (!thd->col_access && check_grant_db(thd, dst_db_name))
-    {
-      thd->diff_access_denied_errors++;
-||||||| e081d4dc0f6
-    if (!thd->col_access && check_grant_db(thd, dst_db_name))
-    {
-=======
     if (!(thd->col_access & DB_OP_ACLS) && check_grant_db(thd, dst_db_name)) {
->>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
+      thd->diff_access_denied_errors++;
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->security_context()->priv_user().str,
                thd->security_context()->priv_host().str,

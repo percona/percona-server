@@ -74,12 +74,6 @@ enum my_aes_opmode
 /** String representations of the supported AES modes. Keep in sync with my_aes_opmode */
 extern const char *my_aes_opmode_names[];
 
-#ifdef __cplusplus
-  #define CPP_DEFAULT_PARAM(v) = v
-#else
-  #define CPP_DEFAULT_PARAM(v)
-#endif
-
 /**
   Encrypt a buffer using AES
 
@@ -99,14 +93,8 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-<<<<<<< HEAD
-                   my_bool padding CPP_DEFAULT_PARAM(TRUE));
-||||||| e081d4dc0f6
-                   bool padding = true);
-=======
                    bool padding = true,
                    vector<string> *kdf_options = NULL);
->>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
 
 /**
   Decrypt an AES encrypted buffer
@@ -128,14 +116,8 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-<<<<<<< HEAD
-                   my_bool padding CPP_DEFAULT_PARAM(TRUE));
-||||||| e081d4dc0f6
-                   bool padding = true);
-=======
                    bool padding = true,
                    vector<string> *kdf_options = NULL);
->>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
 
 /**
   Calculate the size of a buffer large enough for encrypted data

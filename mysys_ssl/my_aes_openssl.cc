@@ -161,14 +161,8 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-<<<<<<< HEAD
-                   my_bool padding)
-||||||| e081d4dc0f6
-                   bool padding)
-=======
                    bool padding,
                    vector<string> *kdf_options)
->>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
@@ -184,21 +178,11 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   /* The real key to be used for encryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
-<<<<<<< HEAD
-  my_aes_create_key(key, key_length, rkey, mode);
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-    goto aes_error;                             /* Error */
-||||||| e081d4dc0f6
-  my_aes_create_key(key, key_length, rkey, mode);
-  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-    return MY_AES_BAD_DATA;
-=======
   if (my_create_key(rkey, key, key_length, mode, kdf_options)) {
-    return MY_AES_BAD_DATA;
+    goto aes_error;  /* Error */
   }
-  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-    return MY_AES_BAD_DATA;
->>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
+  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+    goto aes_error;  /* Error */
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_init(ctx);
@@ -236,14 +220,8 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-<<<<<<< HEAD
-                   my_bool padding)
-||||||| e081d4dc0f6
-                   bool padding)
-=======
                    bool padding,
                    vector<string> *kdf_options)
->>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
@@ -260,21 +238,11 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   /* The real key to be used for decryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
-<<<<<<< HEAD
-  my_aes_create_key(key, key_length, rkey, mode);
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-    goto aes_error;                             /* Error */
-||||||| e081d4dc0f6
-  my_aes_create_key(key, key_length, rkey, mode);
-  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-    return MY_AES_BAD_DATA;
-=======
   if (my_create_key(rkey, key, key_length, mode, kdf_options)) {
-    return MY_AES_BAD_DATA;
+    goto aes_error;  /* Error */
   }
-  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-    return MY_AES_BAD_DATA;
->>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
+  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+    goto aes_error;  /* Error */
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_init(ctx);

@@ -7888,6 +7888,7 @@ truncate_t::truncate(
 			ib::error() << "Failed to open tablespace file "
 				<< path << ".";
 
+			mutex_exit(&fil_system->mutex);
 			ut_free(path);
 
 			return(DB_ERROR);

@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <m_string.h>
 #include <my_aes.h>
 #include "my_aes_impl.h"
+#include "my_kdf.h"
 
 #include <openssl/aes.h>
 #include <openssl/evp.h>
@@ -127,12 +128,47 @@ aes_evp_type(const my_aes_opmode mode)
   }
 }
 
+/**
+  Creates required length of AES key,
+  Input key size can be smaller or bigger in length, we need exact AES key
+  size. If KDF options are valid and given, use KDF functionality. otherwise
+  use previously used method.
+
+  @param [out] rkey Output key
+  @param key Input key
+  @param key_length input key length
+  @param mode AES mode
+  @param kdf_options  KDF function options
+
+  @return 0 on success and 1 on failure
+*/
+int my_create_key(unsigned char *rkey, const unsigned char *key,
+                  uint32 key_length, enum my_aes_opmode mode,
+                  vector<string> *kdf_options) {
+  if (kdf_options) {
+    if (kdf_options->size() < 1) {
+      return 1;
+    }
+    const uint key_size = my_aes_opmode_key_sizes[mode] / 8;
+    return create_kdf_key(key, key_length, rkey, key_size, kdf_options);
+  }
+
+  my_aes_create_key(key, key_length, rkey, mode);
+  return 0;
+}
 
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
+<<<<<<< HEAD
                    my_bool padding)
+||||||| e081d4dc0f6
+                   bool padding)
+=======
+                   bool padding,
+                   vector<string> *kdf_options)
+>>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
@@ -148,9 +184,21 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   /* The real key to be used for encryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
+<<<<<<< HEAD
   my_aes_create_key(key, key_length, rkey, mode);
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
     goto aes_error;                             /* Error */
+||||||| e081d4dc0f6
+  my_aes_create_key(key, key_length, rkey, mode);
+  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+    return MY_AES_BAD_DATA;
+=======
+  if (my_create_key(rkey, key, key_length, mode, kdf_options)) {
+    return MY_AES_BAD_DATA;
+  }
+  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+    return MY_AES_BAD_DATA;
+>>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_init(ctx);
@@ -188,7 +236,14 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
+<<<<<<< HEAD
                    my_bool padding)
+||||||| e081d4dc0f6
+                   bool padding)
+=======
+                   bool padding,
+                   vector<string> *kdf_options)
+>>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
@@ -205,9 +260,21 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   /* The real key to be used for decryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
+<<<<<<< HEAD
   my_aes_create_key(key, key_length, rkey, mode);
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
     goto aes_error;                             /* Error */
+||||||| e081d4dc0f6
+  my_aes_create_key(key, key_length, rkey, mode);
+  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+    return MY_AES_BAD_DATA;
+=======
+  if (my_create_key(rkey, key, key_length, mode, kdf_options)) {
+    return MY_AES_BAD_DATA;
+  }
+  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+    return MY_AES_BAD_DATA;
+>>>>>>> c4f63caa8d9f30b2850672291e0ad0928dd89d0e^
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_init(ctx);

@@ -176,6 +176,14 @@ class Object_table {
   */
   virtual void set_hidden(bool hidden) = 0;
 
+  virtual bool is_target_encrypted() const = 0;
+
+  virtual void unset_target_encrypted() const = 0;
+
+  virtual void set_target_encrypted() const = 0;
+
+  virtual void set_actual_encrypted() const = 0;
+
  public:
   virtual ~Object_table() = default;
 };

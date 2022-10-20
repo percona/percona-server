@@ -19,6 +19,7 @@
 #include "plugin/audit_log_filter/event_field_action/block.h"
 #include "plugin/audit_log_filter/event_field_action/log.h"
 #include "plugin/audit_log_filter/event_field_action/print_query_attrs.h"
+#include "plugin/audit_log_filter/event_field_action/print_service_comp.h"
 #include "plugin/audit_log_filter/event_field_action/replace_filter.h"
 #include "plugin/audit_log_filter/event_field_condition/and.h"
 #include "plugin/audit_log_filter/event_field_condition/bool.h"
@@ -1130,6 +1131,77 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
 
       return std::make_shared<EventFieldActionPrintQueryAttrs>(
           std::move(tag_name), std::move(attrs_list));
+    }
+    case EventActionType::PrintServiceComp: {
+      /*
+       * "print" : {
+       *   "service": {
+       *     "tag": "query_statistics",
+       *     "element": [
+       *       { "name": "query_time",     "type": "double" },
+       *       { "name": "bytes_sent",     "type": "longlong" },
+       *       { "name": "bytes_received", "type": "longlong" },
+       *       { "name": "rows_sent",      "type": "longlong" },
+       *       { "name": "rows_examined",  "type": "longlong" }
+       *     ]
+       *   }
+       * }
+       */
+      if (!action_json["print"].IsObject() ||
+          !action_json["print"].HasMember("service") ||
+          !action_json["print"]["service"].IsObject()) {
+        return nullptr;
+      }
+
+      const auto &service_json = action_json["print"]["service"];
+
+      if (!service_json.HasMember("tag") ||
+          !service_json.HasMember("element") ||
+          !service_json["tag"].IsString() ||
+          !service_json["element"].IsArray()) {
+        return nullptr;
+      }
+
+      std::string tag_name = service_json["tag"].GetString();
+
+      if (tag_name.empty() || service_json["element"].Empty()) {
+        return nullptr;
+      }
+
+      PrintServiceElementsList elements;
+
+      for (auto it = service_json["element"].Begin();
+           it != service_json["element"].End(); ++it) {
+        if (!it->IsObject()) {
+          return nullptr;
+        }
+
+        auto element_info = it->GetObject();
+
+        if (!element_info.HasMember("name") ||
+            !element_info["name"].IsString() ||
+            !element_info.HasMember("type") ||
+            !element_info["type"].IsString()) {
+          return nullptr;
+        }
+
+        auto element_type =
+            EventFieldActionPrintServiceComp::string_to_element_type(
+                element_info["type"].GetString());
+        auto element_name =
+            EventFieldActionPrintServiceComp::string_to_element_name(
+                element_info["name"].GetString());
+
+        if (element_type == ServiceCompElementType::Unknown ||
+            element_name.empty()) {
+          return nullptr;
+        }
+
+        elements.emplace_back(element_type, element_name);
+      }
+
+      return std::make_shared<EventFieldActionPrintServiceComp>(
+          std::move(tag_name), std::move(elements));
     }
     default:
       assert(false);

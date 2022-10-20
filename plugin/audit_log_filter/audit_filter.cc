@@ -48,12 +48,17 @@ AuditAction AuditEventFilter::apply(AuditRule *rule,
       EventActionType::ReplaceFilter, event_class_name, event_subclass_name);
   const auto *print_query_attrs_action = rule->get_action(
       EventActionType::PrintQueryAttrs, event_class_name, event_subclass_name);
+  const auto *print_service_comp_action = rule->get_action(
+      EventActionType::PrintServiceComp, event_class_name, event_subclass_name);
 
   if (replace_field_action != nullptr) {
     replace_field_action->apply(event_fields, audit_record, rule);
   }
   if (print_query_attrs_action != nullptr) {
     print_query_attrs_action->apply(event_fields, audit_record, rule);
+  }
+  if (print_service_comp_action != nullptr) {
+    print_service_comp_action->apply(event_fields, audit_record, rule);
   }
 
   const auto *log_action = rule->get_action(

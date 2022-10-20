@@ -5745,6 +5745,9 @@ dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
     ut_ad(read_size > 0);
     err = os_file_read_page(type, file_name, file, buf, 0, read_size, nullptr,
                             true, nullptr);
+    if (err == DB_SUCCESS) {
+      srv_stats.page0_read.add(1);
+    }
   }
   return (err);
 }

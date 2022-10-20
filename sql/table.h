@@ -762,6 +762,8 @@ struct TABLE_SHARE {
   /** Secondary engine load status */
   bool secondary_load{false};
 
+  bool explicit_encryption{false};
+
   const CHARSET_INFO *table_charset{
       nullptr}; /* Default charset of string fields */
 

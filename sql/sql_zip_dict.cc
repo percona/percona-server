@@ -106,6 +106,10 @@ bool bootstrap(THD *thd) {
 
   dd::String_type dict_table_str_enc{dict_table_str};
 
+  if (dd::bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    dict_table_str_enc += " ENCRYPTION='Y'";
+  }
+
   dd::end_transaction(thd, false);
 
   // Create mysql.compression_dictionary table
@@ -114,6 +118,10 @@ bool bootstrap(THD *thd) {
   }
 
   dd::String_type dict_cols_table_str_enc{dict_cols_table_str};
+
+  if (dd::bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    dict_cols_table_str_enc += " ENCRYPTION='Y'";
+  }
 
   // Create mysql.compression_dictionary_cols table
   if (execute_query(thd, dict_cols_table_str_enc)) {

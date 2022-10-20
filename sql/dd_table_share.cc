@@ -757,6 +757,9 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   if (table_options.exists("secondary_load"))
     table_options.get("secondary_load", &share->secondary_load);
 
+  if (table_options.exists("explicit_encryption")) {
+    table_options.get("explicit_encryption", &share->explicit_encryption);
+  }
   return false;
 }
 

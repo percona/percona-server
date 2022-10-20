@@ -175,6 +175,9 @@ struct srv_stats_t {
 
   /* Number of row log blocks decrypted */
   ulint_ctr_64_t n_rowlog_blocks_decrypted;
+
+  /** Number of times page 0 is read from tablespace */
+  ulint_ctr_64_t page0_read;
 };
 
 /** Structure which keeps shared future objects for InnoDB background
@@ -857,6 +860,8 @@ extern bool srv_print_ddl_logs;
 extern bool srv_print_lock_wait_timeout_info;
 
 extern bool srv_cmp_per_index_enabled;
+
+extern enum_default_table_encryption srv_default_table_encryption;
 
 extern ulong srv_encrypt_tables;
 

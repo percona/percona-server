@@ -347,6 +347,8 @@ dberr_t Datafile::read_first_page() {
   }
 
   if (err == DB_SUCCESS && m_order == 0) {
+    srv_stats.page0_read.add(1);
+
     m_flags = fsp_header_get_flags(m_first_page);
 
     m_space_id = fsp_header_get_space_id(m_first_page);

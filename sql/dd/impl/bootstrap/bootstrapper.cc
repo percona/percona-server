@@ -172,6 +172,9 @@ bool update_system_tables(THD *thd) {
       std::unique_ptr<Properties> table_def_properties(
           Properties::parse_properties(def));
       table_def->set_actual_table_definition(*table_def_properties);
+      if (bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+        table_def->set_actual_encrypted();
+      }
     }
   }
 
@@ -750,6 +753,25 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
                innodb_init_failed ? "unsuccessful" : "successful", "\n");
   if (innodb_init_failed) return true;
 
+  // first table in ddse_tablespaces is mysql.ibd
+  std::unique_ptr<dd::Properties> p{dd::Properties_impl::parse_properties(
+      ddse_tablespaces.begin()->get_options())};
+
+  assert(p != nullptr);
+
+  assert(memcmp(ddse_tablespaces.begin()->get_name(), MYSQL_TABLESPACE_NAME.str,
+                MYSQL_TABLESPACE_NAME.length) == 0);
+
+  if (p->exists("encryption")) {
+    dd::String_type tablespace_encryption;
+    p->get("encryption", &tablespace_encryption);
+    if (my_strcasecmp(system_charset_info, tablespace_encryption.c_str(),
+                      "y") == 0) {
+      bootstrap::DD_bootstrap_ctx::instance().set_dd_encrypted();
+      // From now on all DD tables will be created with encryption='y'
+    }
+  }
+
   /*
     Iterate over the table definitions and add them to the System_tables
     registry. The Object_table instances will later be used to execute
@@ -1114,8 +1136,11 @@ void store_predefined_tablespace_metadata(THD *thd) {
       space_file->set_se_private_data(file->get_se_private_data());
     }
 
-    // All the predefined tablespace are unencrypted (at least for now).
-    tablespace->options().set("encryption", "N");
+    // If predefined tablespace is not encrypted assign
+    // encryption=n to it.
+    if (!tablespace->options().exists("encryption")) {
+      tablespace->options().set("encryption", "N");
+    }
 
     /*
       Here, we just want to populate the core registry in the storage
@@ -1189,6 +1214,9 @@ bool setprop(THD *thd, const char *key, const String_type &value,
 
 bool initialize_dd_properties(THD *thd) {
   // Create the dd_properties table.
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    dd::tables::DD_properties::instance().set_target_encrypted();
+  }
   const Object_table_definition *dd_properties_def =
       dd::tables::DD_properties::instance().target_table_definition();
   if (dd::execute_query(thd, dd_properties_def->get_ddl())) return true;
@@ -1792,6 +1820,25 @@ bool sync_meta_data(THD *thd) {
   return false;
 }
 
+// Helper guard used in update_properties, to be sure
+// that encryption will get set back before
+// update_properties exits.
+struct Target_encryption_guard {
+ public:
+  Target_encryption_guard(const Object_table *object_table)
+      : m_object_table(object_table),
+        set_encryption(object_table->is_target_encrypted()) {}
+  ~Target_encryption_guard() {
+    if (set_encryption) {
+      m_object_table->set_target_encrypted();
+    }
+  }
+
+ private:
+  const Object_table *m_object_table;
+  bool set_encryption;
+};
+
 bool update_properties(THD *thd, const std::set<String_type> *create_set,
                        const std::set<String_type> *remove_set,
                        const String_type &target_table_schema_name) {
@@ -1811,6 +1858,22 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
         will have a corresponding Object_table.
       */
       assert((*it)->entity() != nullptr);
+
+      /*
+        Percona Server supports mysql.ibd encryption in earlier versions than
+        upstream. Upstream started supporting it since 8.0.16. Upstream when
+        ALTER TABLESPACE mysql ENCRYPTION='Y' is issued does not update
+        dd_properties table that is updated here. To be in sync with upstream we
+        also do not want to update dd_properties. Since dd_properties are
+        updated based on target definition we unset the encryption from target
+        definition for the time of updating dd_properties. The exact field that
+        contains system tables properties in dd_properties is SYSTEM_TABLES.
+      */
+      Target_encryption_guard target_encryption_guard((*it)->entity());
+      if ((*it)->entity()->is_target_encrypted()) {
+        (*it)->entity()->unset_target_encrypted();
+      }
+
       const Object_table_definition *table_def =
           (*it)->entity()->target_table_definition();
 

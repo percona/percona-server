@@ -90,7 +90,9 @@ static const std::set<String_type> default_valid_option_keys = {
     "tablespace",
     "timestamp",
     "view_valid",
-    "gipk"};
+    "gipk",
+    "encryption_key_id",     // Added by Percona InnoDB KEYRING encryption
+    "explicit_encryption"};  // Added by Percona InnoDB KEYRING encryption
 
 ///////////////////////////////////////////////////////////////////////////
 // Abstract_table_impl implementation.

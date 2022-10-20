@@ -551,3 +551,21 @@ END$
 # In non-debug build, statement executes successfully.
 CALL p();
 DROP PROCEDURE p;
+#
+# PS-8327: ALTER TABLE ... CHECK PARTITION inside prodecure causes problem
+#
+CREATE TABLE t1(i INT PRIMARY KEY)
+PARTITION BY RANGE (i)
+(
+PARTITION p0 VALUES LESS THAN (2),
+PARTITION p1 VALUES LESS THAN (4)
+);
+CREATE PROCEDURE p1()
+BEGIN
+ALTER TABLE t1 CHECK PARTITION p0;
+END|
+CALL p1();
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP PROCEDURE p1;
+DROP TABLE t1;

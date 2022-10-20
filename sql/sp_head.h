@@ -797,8 +797,6 @@ class sp_head {
   bool is_not_allowed_in_function(const char *where) {
     if (m_flags & CONTAINS_DYNAMIC_SQL)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "Dynamic SQL");
-    else if (m_flags & MULTI_RESULTS)
-      my_error(ER_SP_NO_RETSET, MYF(0), where);
     else if (m_flags & HAS_SET_AUTOCOMMIT_STMT)
       my_error(ER_SP_CANT_SET_AUTOCOMMIT, MYF(0));
     else if (m_flags & HAS_COMMIT_OR_ROLLBACK)
@@ -807,6 +805,8 @@ class sp_head {
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "RESET");
     else if (m_flags & HAS_SQLCOM_FLUSH)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
+    else if (m_flags & MULTI_RESULTS)
+      my_error(ER_SP_NO_RETSET, MYF(0), where);
 
     return (m_flags &
             (CONTAINS_DYNAMIC_SQL | MULTI_RESULTS | HAS_SET_AUTOCOMMIT_STMT |

@@ -333,6 +333,11 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_READ},
 
+    {"buffer_pages0_read", "buffer",
+     "Number of page 0 read (innodb_pages0_read)",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES0_READ},
+
     {"buffer_data_reads", "buffer",
      "Amount of data read in bytes (innodb_data_read)",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
@@ -1751,6 +1756,11 @@ void srv_mon_process_existing_counter(
     case MONITOR_OVLD_PAGES_READ:
       buf_get_total_stat(&stat);
       value = stat.n_pages_read;
+      break;
+
+    /* innodb_pages0_read */
+    case MONITOR_OVLD_PAGES0_READ:
+      value = srv_stats.page0_read;
       break;
 
     /* innodb_data_read, the amount of data read since the server was started

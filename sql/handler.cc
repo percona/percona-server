@@ -2823,6 +2823,9 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     // Assert to check that used_fields flag and encrypt_type are in sync
     assert(!encrypt_type.str);
     encrypt_type = share->encrypt_type;
+    explicit_encryption = share->explicit_encryption;
+  } else {
+    explicit_encryption = true;
   }
 
   if (!(used_fields & HA_CREATE_USED_SECONDARY_ENGINE)) {

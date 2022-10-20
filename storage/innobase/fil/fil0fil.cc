@@ -2576,8 +2576,15 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
     space->flags |= flags & FSP_FLAGS_MASK_ENCRYPTION;
   }
 
+  /* Make a copy of space->flags and flags from the page header
+  so that they can be compared. */
+  /* Do not compare the data directory flag, in case this tablespace was
+  relocated. */
+  auto fil_space_flags = space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
+  auto header_fsp_flags = flags & ~FSP_FLAGS_MASK_DATA_DIR;
+
   /* Make sure the space_flags are the same as the header page flags. */
-  if (space->flags != flags) {
+  if (UNIV_UNLIKELY(fil_space_flags != header_fsp_flags)) {
     ib::error(ER_IB_MSG_272, ulong{space->flags}, file->name, ulonglong{flags});
     ut_error;
   }
@@ -7891,6 +7898,10 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   /* Set encryption information. */
   fil_io_set_encryption(req_type, page_id, space);
 
+  if (page_size.is_compressed()) {
+    ut_ad(page_size.physical() > 0);
+  }
+
   req_type.block_size(file->block_size);
 
 #ifdef UNIV_HOTBACKUP
@@ -8253,7 +8264,6 @@ void Fil_system::flush_file_spaces() {
   }
 }
 
-
 void fil_flush_file_spaces() { fil_system->flush_file_spaces(); }
 
 /** Returns true if file address is undefined.
@@ -8392,6 +8402,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
   ulint write_type = IORequest::WRITE;
 
   for (offset = iter.m_start; offset < iter.m_end; offset += n_bytes) {
+    IORequest read_request(read_type);
+
     byte *io_buffer = iter.m_io_buffer;
 
     block->frame = io_buffer;
@@ -8424,7 +8436,6 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     ut_ad(!(n_bytes % iter.m_page_size));
 
     dberr_t err;
-    IORequest read_request(read_type);
     read_request.block_size(iter.block_size);
 
     /* For encrypted table, set encryption information. */
@@ -9011,6 +9022,8 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
 
   Encryption::set_or_generate(algorithm, key, iv, space->m_encryption_metadata);
 
+  fsp_flags_set_encryption(space->flags);
+
   shard->mutex_release();
 
   return DB_SUCCESS;
@@ -9021,10 +9034,6 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
 @return DB_SUCCESS or error code */
 dberr_t fil_reset_encryption(space_id_t space_id) {
   ut_ad(space_id != TRX_SYS_SPACE);
-
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return DB_IO_NO_ENCRYPT_TABLESPACE;
-  }
 
   auto shard = fil_system->shard_by_id(space_id);
 

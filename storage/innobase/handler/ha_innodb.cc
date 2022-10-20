@@ -2829,6 +2829,18 @@ bool Encryption::is_none(const char *algorithm) noexcept {
   return (false);
 }
 
+/** Check if the NO algorithm was explicitly specified.
+@param[in]      algorithm       Encryption algorithm to check
+@return true if no algorithm explicitly requested */
+bool Encryption::none_explicitly_specified(bool explicit_encryption,
+                                           const char *algorithm) noexcept {
+  if (explicit_encryption) {
+    ut_ad(algorithm != nullptr);
+    return innobase_strcasecmp(algorithm, "n") == 0;
+  }
+  return false;
+}
+
 dberr_t Encryption::validate(const char *option) noexcept {
   return (is_none(option) || (innobase_strcasecmp(option, "y") == 0))
              ? DB_SUCCESS
@@ -3462,8 +3474,8 @@ static int innodb_init_abort() {
 @param[in,out]  tablespaces     predefined tablespaces created by the DDSE
 @return 0 on success, 1 on failure */
 [[nodiscard]] static int innobase_init_files(
-    dict_init_mode_t dict_init_mode,
-    List<const Plugin_tablespace> *tablespaces);
+    dict_init_mode_t dict_init_mode, List<const Plugin_tablespace> *tablespaces,
+    bool &is_dd_encrypted);
 
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
@@ -4647,6 +4659,15 @@ error_exit:
   return (ret);
 }
 
+bool innobase_fix_default_table_encryption(ulong encryption_option,
+                                           bool is_server_starting) {
+  if (!srv_read_only_mode) {
+    srv_default_table_encryption =
+        static_cast<enum_default_table_encryption>(encryption_option);
+  }
+  return false;
+}
+
 /** Enable or Disable SE write ahead logging.
 @param[in]      thd     connection THD
 @param[in]      enable  enable/disable redo logging
@@ -5714,6 +5735,9 @@ static int innodb_init(void *p) {
   innobase_hton->rotate_encryption_master_key =
       innobase_encryption_key_rotation;
 
+  innobase_hton->fix_default_table_encryption =
+      innobase_fix_default_table_encryption;
+
   innobase_hton->redo_log_set_state = innobase_redo_set_state;
 
   innobase_hton->post_ddl = innobase_post_ddl;
@@ -5971,7 +5995,8 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
 @param[in,out]  tablespaces     predefined tablespaces created by the DDSE
 @return 0 on success, 1 on failure */
 static int innobase_init_files(dict_init_mode_t dict_init_mode,
-                               List<const Plugin_tablespace> *tablespaces) {
+                               List<const Plugin_tablespace> *tablespaces,
+                               bool &is_dd_encrypted) {
   DBUG_TRACE;
 
   ut_ad(dict_init_mode == DICT_INIT_CREATE_FILES ||
@@ -9445,7 +9470,7 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
       row_mysql_store_col_in_innobase_format(dfield, buf, true, mysql_data,
                                              col_len, comp, false, nullptr, 0,
                                              nullptr);
-     } else if (type == DATA_CHAR || type == DATA_VARCHAR ||
+    } else if (type == DATA_CHAR || type == DATA_VARCHAR ||
                type == DATA_VARMYSQL) {
       mysql_data = (byte *)elt.get_data();
       col_len = (ulint)elt.get_data_length();
@@ -11981,6 +12006,43 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
   }
 }
 
+/** If encryption is requested, check for master key availability
+and set the encryption flag in table flags
+@param[in,out]	table	table object
+@return on success DB_SUCCESS else DB_UNSPPORTED on failure */
+dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
+  const char *encrypt = m_create_info->encrypt_type.str;
+
+  if (Encryption::is_none(encrypt)) return (DB_SUCCESS);
+
+  /* If table is part of tablespace - no need for retrieving
+  master key as tablespace key was already decrypted
+  either by validate_first_page or during tablespace creation.
+  Just set the encryption flag and return. */
+  if (!(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
+    DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
+    return (DB_SUCCESS);
+  }
+
+  /* Set the encryption flag. */
+  byte *master_key = nullptr;
+  uint32_t master_key_id;
+
+  /* Check if keyring is ready. */
+  Encryption::get_master_key(&master_key_id, &master_key);
+
+  dberr_t err = DB_SUCCESS;
+  if (master_key == nullptr) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    err = DB_UNSUPPORTED;
+  } else {
+    my_free(master_key);
+    DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
+  }
+
+  return (err);
+}
+
 /** Create a table definition to an InnoDB database.
 @param[in]      dd_table        dd::Table or nullptr for intrinsic table
 @param[in]      old_part_table  dd::Table from an old partition for partitioned
@@ -12004,6 +12066,9 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
   space_id_t space_id = 0;
   dd::Object_id dd_space_id = dd::INVALID_OBJECT_ID;
   ulint actual_n_cols;
+
+  bool keyring_encryption_option_none = Encryption::none_explicitly_specified(
+      m_create_info->explicit_encryption, m_create_info->encrypt_type.str);
 
   uint32_t i_c = 0;
   uint32_t c_c = 0;
@@ -12375,6 +12440,9 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
     fts_add_doc_id_column(table, heap);
   }
 
+  if (!keyring_encryption_option_none) {
+    err = enable_encryption(table);
+  }
   if (err != DB_SUCCESS) {
     dict_mem_table_free(table);
     mem_heap_free(heap);
@@ -13049,13 +13117,14 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
 
   if (!m_use_shared_space) {
     if (!m_use_file_per_table) {
-      /* System tablespace is being used for table */
       if (m_create_info->encrypt_type.str != nullptr &&
-          !Encryption::is_none(m_create_info->encrypt_type.str)) {
-        /* Encryption is not allowed for system tablespace. */
+          m_create_info->explicit_encryption && is_temp) {
+        /* Temporary tablespace is being used for table */
         my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                        "InnoDB : ENCRYPTION=Y is not accepted"
-                        " for system tablespace.",
+                        "InnoDB: ENCRYPTION is not accepted"
+                        " for temporary tablespace. For temporary tablespace"
+                        " encryption please use innodb_temp_tablespace_encrypt"
+                        " variable.",
                         MYF(0));
         return false;
       }
@@ -13332,14 +13401,6 @@ bool create_table_info_t::create_option_encryption_is_valid() const {
     return (false);
   }
 
-  if (!table_is_encrypted && tablespace_is_encrypted) {
-    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                    "InnoDB: Tablespace `%s` can contain only an"
-                    " ENCRYPTED tables.",
-                    MYF(0), tablespace_name);
-    return (false);
-  }
-
   return (true);
 }
 
@@ -13598,7 +13659,8 @@ static bool innobase_ddse_dict_init(
     ib::info(ER_IB_MSG_DBLWR_1305) << "Atomic write disabled";
   }
 
-  if (innobase_init_files(dict_init_mode, tablespaces)) {
+  bool is_dd_encrypted{false};
+  if (innobase_init_files(dict_init_mode, tablespaces, is_dd_encrypted)) {
     return true;
   }
 
@@ -13702,6 +13764,13 @@ static bool innobase_ddse_dict_init(
   def->add_index(0, "index_pk", "PRIMARY KEY(id)");
   def->add_index(1, "index_k_thread_id", "KEY(thread_id)");
   /* Options and tablespace are set at the SQL layer. */
+
+  if (is_dd_encrypted) {
+    innodb_dynamic_metadata->set_target_encrypted();
+    innodb_table_stats->set_target_encrypted();
+    innodb_index_stats->set_target_encrypted();
+    innodb_ddl_log->set_target_encrypted();
+  }
 
   tables->push_back(innodb_dynamic_metadata);
   tables->push_back(innodb_table_stats);

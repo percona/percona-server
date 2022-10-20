@@ -2144,6 +2144,23 @@ static bool fill_dd_table_from_create_info(
       encrypt_type.assign(create_info->encrypt_type.str,
                           create_info->encrypt_type.length);
     }
+    table_options->set("encrypt_type", encrypt_type);
+  }
+
+  // assign explicit encryption. explict_encryption can come from ENCRYPTION
+  // clause usage (used_fields) or from DD (create_info->explicit_encryption -
+  // this means table originally was created with explicit_encryption
+  // (ENCRYPTION clause was used with CREATE)).
+  if ((create_info->used_fields & HA_CREATE_USED_ENCRYPT) ||
+      create_info->explicit_encryption) {
+    // clear explicit encryption if SE does not support encryption
+    if (!(hton->flags & HTON_SUPPORTS_TABLE_ENCRYPTION)) {
+      table_options->set("explicit_encryption", false);
+    } else {
+      table_options->set("explicit_encryption", true);
+    }
+  } else {
+    table_options->set("explicit_encryption", false);
   }
 
   // Storage media
@@ -2725,6 +2742,35 @@ inline void report_error_as_tablespace_missing(Object_id id) {
 
 inline void report_error_as_tablespace_missing(const String_type name) {
   my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), name.c_str());
+}
+
+Encrypt_result is_system_tablespace_encrypted(THD *thd) {
+  MDL_request system_mdl_request;
+  MDL_REQUEST_INIT(&system_mdl_request, MDL_key::TABLESPACE, "",
+                   "innodb_system", MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
+
+  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  if (thd->mdl_context.acquire_lock(&system_mdl_request,
+                                    thd->variables.lock_wait_timeout)) {
+    return {true, false};
+  }
+
+  // Acquire the tablespace object.
+  const Tablespace *tsp = nullptr;
+  if (thd->dd_client()->acquire("innodb_system", &tsp)) {
+    return {true, false};
+  }
+  assert(tsp);
+
+  if (tsp->options().exists("encryption")) {
+    String_type e;
+    (void)tsp->options().get("encryption", &e);
+    assert(!e.empty());
+    return {false, is_encrypted(e)};
+  }
+
+  return {false, false};
 }
 
 /*

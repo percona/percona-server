@@ -564,3 +564,24 @@ DELIMITER ;$
 --echo # In non-debug build, statement executes successfully.
 CALL p();
 DROP PROCEDURE p;
+
+--echo #
+--echo # PS-8327: ALTER TABLE ... CHECK PARTITION inside prodecure causes problem
+--echo #
+CREATE TABLE t1(i INT PRIMARY KEY)
+PARTITION BY RANGE (i)
+(
+  PARTITION p0 VALUES LESS THAN (2),
+  PARTITION p1 VALUES LESS THAN (4)
+);
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  ALTER TABLE t1 CHECK PARTITION p0;
+END|
+delimiter ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TABLE t1;

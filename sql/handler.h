@@ -918,6 +918,7 @@ class st_alter_tablespace {
   bool wait_until_completed = true;
   const char *ts_comment = nullptr;
   const char *encryption = nullptr;
+  bool explicit_encryption{false};
 
   bool is_tablespace_command() {
     return ts_cmd_type == CREATE_TABLESPACE ||
@@ -2134,6 +2135,15 @@ typedef bool (*notify_truncate_table_t)(THD *thd, const MDL_key *mdl_key,
 typedef bool (*rotate_encryption_master_key_t)(void);
 
 /**
+ @brief
+ This is used by encryption threads. It updates innodb's copy of
+ default_table_encryption variable according to the parameter.
+ @param value for innodb's copy of default_table_encryption
+ @param is_starting True if the server is starting
+*/
+using fix_default_table_encryption_t = bool (*)(ulong value, bool is_starting);
+
+/**
   @brief
   Enable or Disable SE write ahead logging.
 
@@ -3014,6 +3024,7 @@ struct handlerton {
   notify_rename_table_t notify_rename_table;
   notify_truncate_table_t notify_truncate_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
+  fix_default_table_encryption_t fix_default_table_encryption;
   redo_log_set_state_t redo_log_set_state;
 
   get_table_statistics_t get_table_statistics;
@@ -3431,6 +3442,11 @@ struct HA_CREATE_INFO {
   and ignored by the Server layer. */
 
   LEX_STRING encrypt_type{nullptr, 0};
+  // explicit_encryption should be true if table was originally created with
+  // ENCRYPTION clause. We keep it separate from used_fields &
+  // HA_CREATE_USED_ENCRYPT which can indicate whether current ALTER used
+  // ENCRYPTION clause.
+  bool explicit_encryption{false};
 
   /**
    * Secondary engine of the table.

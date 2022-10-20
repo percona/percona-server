@@ -2420,13 +2420,22 @@ uint sp_get_flags_for_command(LEX *lex) {
     case SQLCOM_RESET:
       flags = sp_head::HAS_SQLCOM_RESET;
       break;
+    /*
+      EXECUTE statement may return a result set (in case of CHECK
+      PARTITION at least), but doesn't have to. We can't, however,
+      know it in advance, and therefore must add this statement here.
+      This is ok, as is equivalent to a result-set statement within
+      an IF condition.
+    */
+    case SQLCOM_ALTER_TABLE:
+      flags = sp_head::MULTI_RESULTS | sp_head::HAS_COMMIT_OR_ROLLBACK;
+      break;
     case SQLCOM_CREATE_INDEX:
     case SQLCOM_CREATE_COMPRESSION_DICTIONARY:
     case SQLCOM_CREATE_DB:
     case SQLCOM_CREATE_VIEW:
     case SQLCOM_CREATE_TRIGGER:
     case SQLCOM_CREATE_USER:
-    case SQLCOM_ALTER_TABLE:
     case SQLCOM_GRANT:
     case SQLCOM_GRANT_ROLE:
     case SQLCOM_REVOKE:

@@ -119,6 +119,18 @@ class Object_table_definition_impl : public Object_table_definition {
     (*element_definitions)[element_number] = element_definition;
   }
 
+  void remove_element(const String_type &element_name,
+                      Element_numbers *element_numbers,
+                      Element_definitions *element_definitions) {
+    assert(element_numbers != nullptr &&
+           element_numbers->find(element_name) != element_numbers->end() &&
+           element_definitions->find((*element_numbers)[element_name]) !=
+               element_definitions->end());
+
+    element_definitions->erase((*element_numbers)[element_name]);
+    element_numbers->erase(element_name);
+  }
+
   int element_number(const String_type &element_name,
                      const Element_numbers &element_numbers) const {
     assert(element_numbers.find(element_name) != element_numbers.end());
@@ -240,6 +252,15 @@ class Object_table_definition_impl : public Object_table_definition {
                           const String_type &option_definition) {
     add_element(option_number, option_name, option_definition,
                 &m_option_numbers, &m_option_definitions);
+  }
+
+  virtual void remove_option(const String_type &option_name) {
+    remove_element(option_name, &m_option_numbers, &m_option_definitions);
+  }
+
+  virtual bool has_option(int option_number) const {
+    return m_option_definitions.find(option_number) !=
+           m_option_definitions.end();
   }
 
   virtual void add_populate_statement(const String_type &statement) {

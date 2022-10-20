@@ -36,7 +36,7 @@ namespace dd {
 class Object_table_impl : virtual public Object_table {
  protected:
   mutable uint m_last_dd_version;
-  Object_table_definition_impl m_target_def;
+  mutable Object_table_definition_impl m_target_def;
   mutable bool m_actual_present;
   mutable Object_table_definition_impl m_actual_def;
   bool m_hidden;
@@ -49,7 +49,8 @@ class Object_table_impl : virtual public Object_table {
     COLLATION,
     ROW_FORMAT,
     STATS_PERSISTENT,
-    TABLESPACE
+    TABLESPACE,
+    ENCRYPTION
   };
 
   /*
@@ -122,6 +123,14 @@ class Object_table_impl : virtual public Object_table {
   bool is_hidden() const override { return m_hidden; }
 
   void set_hidden(bool hidden) override { m_hidden = hidden; }
+
+  virtual bool is_target_encrypted() const override;
+
+  virtual void unset_target_encrypted() const override;
+
+  virtual void set_target_encrypted() const override;
+
+  virtual void set_actual_encrypted() const override;
 
   ~Object_table_impl() override = default;
 };

@@ -7608,7 +7608,7 @@ static bool prepare_key(
                     ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                     ha_resolve_storage_engine_name(subpart_elem->engine_type),
                     "CLUSTERING");
-		return true;
+                return true;
               }
             }
           } else if (unlikely(!ha_check_storage_engine_flag(
@@ -7617,14 +7617,14 @@ static bool prepare_key(
             my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                      ha_resolve_storage_engine_name(part_elem->engine_type),
                      "CLUSTERING");
-	    return true;
+            return true;
           }
         }
       } else if (unlikely(!ha_check_storage_engine_flag(
                      file->ht, HTON_SUPPORTS_CLUSTERED_KEYS))) {
         my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                  ha_resolve_storage_engine_name(file->ht), "CLUSTERING");
-	return true;
+        return true;
       }
       if (key->type & KEYTYPE_UNIQUE)
         key_info->flags = HA_NOSAME;
@@ -9440,10 +9440,14 @@ static bool create_table_impl(
 
   @returns true on failure, false on success.
 */
+
+extern bool srv_sys_tablespace_encrypt;
 static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
+  DBUG_TRACE;
   // Study if this table uses general tablespaces and if any one is encrypted.
   bool uses_general_tablespace = false;
   bool uses_encrypted_tablespace = false;
+  bool uses_system_tablespace = false;
   dd::Encrypt_result result =
       dd::is_tablespace_encrypted(thd, create_info, &uses_general_tablespace);
   if (result.error) return true;
@@ -9462,7 +9466,14 @@ static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
             create_info->tablespace, &tt)) {
       return true;
     }
-    uses_general_tablespace = (tt != Tablespace_type::SPACE_TYPE_IMPLICIT);
+    uses_general_tablespace = (tt != Tablespace_type::SPACE_TYPE_IMPLICIT &&
+                               tt != Tablespace_type::SPACE_TYPE_SHARED);
+    uses_system_tablespace = tt == Tablespace_type::SPACE_TYPE_SYSTEM;
+    if (uses_system_tablespace) {
+      dd::Encrypt_result result2 = dd::is_system_tablespace_encrypted(thd);
+      if (result2.error) return true;
+      uses_encrypted_tablespace = result2.value;
+    }
   }
 
   /*
@@ -9470,7 +9481,8 @@ static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
     type does not match the general tablespace encryption type.
   */
   const bool requested_type = dd::is_encrypted(create_info->encrypt_type);
-  if (uses_general_tablespace && requested_type != uses_encrypted_tablespace) {
+  if ((uses_general_tablespace || uses_system_tablespace) &&
+      ((requested_type != uses_encrypted_tablespace))) {
     my_error(ER_INVALID_ENCRYPTION_REQUEST, MYF(0),
              requested_type ? "'encrypted'" : "'unencrypted'",
              uses_encrypted_tablespace ? "'encrypted'" : "'unencrypted'");
@@ -9571,18 +9583,11 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
     return true;
   }
 
-  // Do not accept ENCRYPTION and AUTOEXTEND_SIZE clauses for
-  // temporary table.
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-    if (create_info->encrypt_type.length) {
-      my_error(ER_CANNOT_USE_ENCRYPTION_CLAUSE, MYF(0), "temporary");
-      return true;
-    }
-
-    if (create_info->m_implicit_tablespace_autoextend_size > 0) {
-      my_error(ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE, MYF(0), "temporary");
-      return true;
-    }
+  // Fix create_info->explicit_encryption. For alter it is retrieved
+  // from share.
+  if (!(create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE) &&
+      (create_info->used_fields & HA_CREATE_USED_ENCRYPT)) {
+    create_info->explicit_encryption = true;
   }
 
   // Do not accept AUTOEXTEND_SIZE clauses for
@@ -11382,15 +11387,6 @@ bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
   */
   if (src_table_obj && !src_table_obj->is_explicit_tablespace()) {
     local_create_info.tablespace = nullptr;
-  }
-
-  /*
-    Do not keep ENCRYPTION clause for unencrypted table.
-    We raise error if we are creating encrypted temporary table later.
-  */
-  if (local_create_info.encrypt_type.str &&
-      !dd::is_encrypted(local_create_info.encrypt_type)) {
-    local_create_info.encrypt_type = {nullptr, 0};
   }
 
   /*
@@ -16555,7 +16551,7 @@ static bool remove_secondary_keys(
 
   if (table->file->check_if_supported_inplace_alter(table, &ha_alter_info) ==
       HA_ALTER_INPLACE_NOT_SUPPORTED)
-	  return true;
+    return true;
 
   for (const auto index : *altered_table_def->indexes()) {
     const char *dd_index_name = index->name().c_str();

@@ -559,6 +559,8 @@ ulong srv_n_purge_threads = 4;
 /* the number of pages to purge in one batch */
 ulong srv_purge_batch_size = 20;
 
+enum_default_table_encryption srv_default_table_encryption;
+
 ulong srv_encrypt_tables = 0;
 
 /* Internal setting for "innodb_stats_method". Decides how InnoDB treats
@@ -1804,6 +1806,8 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_pages_created = stat.n_pages_created;
 
   export_vars.innodb_pages_read = stat.n_pages_read;
+
+  export_vars.innodb_page0_read = srv_stats.page0_read;
 
   export_vars.innodb_pages_written = stat.n_pages_written;
 

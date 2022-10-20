@@ -22,4 +22,5 @@ ALTER TABLE t1 ADD INDEX (b);
 
 --source include/wait_until_connected_again.inc
 
-SELECT NAME, FLAG FROM INFORMATION_SCHEMA.INNODB_TABLES ORDER BY NAME;
+# Ignore ndb_binlog_index to have same results not depending on whether NDB is enabled or not
+SELECT NAME, FLAG FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME != 'mysql/ndb_binlog_index' ORDER BY NAME;

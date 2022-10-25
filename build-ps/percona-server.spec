@@ -236,6 +236,7 @@ Requires:       shadow-utils
 Requires:       net-tools
 Requires(pre):  percona-server-shared
 Requires:       percona-server-client
+Requires:       percona-icu-data-files
 Requires:       openssl
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench

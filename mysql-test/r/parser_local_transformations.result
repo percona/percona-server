@@ -1,0 +1,23 @@
+CREATE TABLE a (a_id int);
+CREATE TABLE b (b_id int, a_id int);
+CREATE VIEW view1 AS
+SELECT a.a_id, MAX(b_id) as b_agg
+FROM (a LEFT JOIN b ON a.a_id = b.a_id)
+GROUP BY a.a_id;
+CREATE VIEW view2 AS
+SELECT b_agg
+FROM (view1 JOIN b ON view1.a_id = b.a_id);
+CREATE PROCEDURE p ()
+BEGIN
+IF (FALSE AND (SELECT COUNT(*) FROM view2) <= 0)
+THEN
+SELECT 'Dummy';
+END IF;
+END //
+CALL p();
+CALL p();
+DROP PROCEDURE p;
+DROP VIEW view1;
+DROP VIEW view2;
+DROP TABLE b;
+DROP TABLE a;

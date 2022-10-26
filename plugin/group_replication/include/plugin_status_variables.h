@@ -359,4 +359,13 @@ class Plugin_status_variables {
                                               char *buffer);
 };
 
+/* Struct used for exporting Flow Control stats */
+struct group_replication_fc_stats {
+  std::string active;  // Active / Disabled / Releasing
+  std::string nodes;
+  int64 quota;  // Current throttle rate
+
+  group_replication_fc_stats() : active(""), nodes(""), quota(0) {}
+};
+
 #endif /* PLUGIN_STATUS_VARIABLES_INCLUDE */

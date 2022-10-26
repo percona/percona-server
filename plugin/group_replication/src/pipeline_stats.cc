@@ -633,7 +633,8 @@ void Pipeline_member_stats::update_member_stats(
 }
 
 bool Pipeline_member_stats::is_flow_control_needed() {
-  return (m_flow_control_mode == FCM_QUOTA) &&
+  return (m_flow_control_mode == FCM_QUOTA ||
+          m_flow_control_mode == FCM_QUOTA_MAJORITY) &&
          (m_transactions_waiting_certification >
               get_flow_control_certifier_threshold_var() ||
           m_transactions_waiting_apply >
@@ -775,6 +776,7 @@ void Flow_control_module::flow_control_step(
   });
 
   switch (fcm) {
+    case FCM_QUOTA_MAJORITY:
     case FCM_QUOTA: {
       double HOLD_FACTOR =
           1.0 -
@@ -820,7 +822,8 @@ void Flow_control_module::flow_control_step(
             */
             m_info.erase(it++);
           } else {
-            if (it->second.get_flow_control_mode() == FCM_QUOTA) {
+            Flow_control_mode mode = it->second.get_flow_control_mode();
+            if (mode == FCM_QUOTA || mode == FCM_QUOTA_MAJORITY) {
               if (get_flow_control_certifier_threshold_var() > 0 &&
                   it->second.get_delta_transactions_certified() > 0 &&
                   it->second.get_transactions_waiting_certification() -
@@ -965,16 +968,83 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
   /*
     Verify if flow control is required.
   */
-  if (it->second.is_flow_control_needed()) {
-    ++m_holds_in_period;
+  Flow_control_mode mode = message.get_flow_control_mode();
+
+  if (mode == FCM_QUOTA_MAJORITY) {
+    int members_needing_flow_control = 0;
+    int total_members = 0;
+    auto itr = m_info.begin();
+    while (itr != m_info.end()) {
+      total_members += 1;
+      if (itr->second.is_flow_control_needed()) {
+        members_needing_flow_control += 1;
 #ifndef NDEBUG
-    it->second.debug(it->first.c_str(), m_quota_size.load(),
-                     m_quota_used.load());
+        itr->second.debug(itr->first.c_str(), m_quota_size.load(),
+                          m_quota_used.load());
 #endif
+      }
+      itr++;
+    }
+    if (members_needing_flow_control > total_members / 2) {
+      ++m_holds_in_period;
+    }
+  } else if (mode == FCM_QUOTA) {
+    if (it->second.is_flow_control_needed()) {
+      ++m_holds_in_period;
+#ifndef NDEBUG
+      it->second.debug(it->first.c_str(), m_quota_size.load(),
+                       m_quota_used.load());
+#endif
+    }
   }
 
   m_flow_control_module_info_lock->unlock();
   return error;
+}
+
+void Flow_control_module::get_flow_control_stats(
+    group_replication_fc_stats &stats) {
+  int members_needing_flow_control{0};
+  int total_members{0};
+  bool add_separator{false};
+  std::ostringstream str;
+
+  /* Acquire read lock */
+  m_flow_control_module_info_lock->rdlock();
+  Flow_control_module_info::iterator it = m_info.begin();
+
+  while (it != m_info.end()) {
+    ++total_members;
+    if (it->second.is_flow_control_needed()) {
+      ++members_needing_flow_control;
+      if (add_separator) str << ",";
+      str << it->first;
+      add_separator = true;
+    }
+    ++it;
+  }
+
+  /* Release read lock */
+  m_flow_control_module_info_lock->unlock();
+
+  std::ostringstream tmp;
+  tmp << "(" << members_needing_flow_control << "/" << total_members << ")";
+  std::string status = str.str();
+  status = tmp.str() + status;
+  stats.nodes.assign(status);
+
+  int64 quota_size = m_quota_size.load();
+  tmp.str("");
+  tmp.clear();
+
+  if (quota_size > 0) {
+    tmp << "ACTIVE";
+    stats.quota = quota_size;
+  } else {
+    tmp << "DISABLED";
+    stats.quota = 0;
+  }
+  stats.active = tmp.str();
 }
 
 Pipeline_member_stats *Flow_control_module::get_pipeline_stats(

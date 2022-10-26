@@ -29,16 +29,21 @@ SET GLOBAL group_replication_flow_control_mode= "XXX";
 ERROR 42000: Variable 'group_replication_flow_control_mode' can't be set to the value of 'XXX'
 SET GLOBAL group_replication_flow_control_mode= -1;
 ERROR 42000: Variable 'group_replication_flow_control_mode' can't be set to the value of '-1'
-SET GLOBAL group_replication_flow_control_mode= 2;
-ERROR 42000: Variable 'group_replication_flow_control_mode' can't be set to the value of '2'
+SET GLOBAL group_replication_flow_control_mode= 3;
+ERROR 42000: Variable 'group_replication_flow_control_mode' can't be set to the value of '3'
 SET GLOBAL group_replication_flow_control_mode= DISABLED;
 include/assert.inc [group_replication_flow_control_mode is correct]
 SET GLOBAL group_replication_flow_control_mode= QUOTA;
+include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= MAJORITY;
 include/assert.inc [group_replication_flow_control_mode is correct]
 SET GLOBAL group_replication_flow_control_mode= 0;
 include/assert.inc [group_replication_flow_control_mode is correct]
 SET GLOBAL group_replication_flow_control_mode= 1;
 include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= 2;
+include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= DEFAULT;
 
 ############################################################
 # 2. Test group_replication_flow_control_certifier_threshold
@@ -219,6 +224,9 @@ SET GLOBAL group_replication_flow_control_mode= DISABLED;
 include/assert.inc [group_replication_flow_control_mode is correct]
 SET GLOBAL group_replication_flow_control_mode= QUOTA;
 include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= MAJORITY;
+include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= DEFAULT;
 SET GLOBAL group_replication_flow_control_certifier_threshold= 1000;
 include/assert.inc [group_replication_flow_control_certifier_threshold is correct]
 SET GLOBAL group_replication_flow_control_applier_threshold= 1000;

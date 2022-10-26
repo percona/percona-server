@@ -50,7 +50,7 @@ SET GLOBAL group_replication_flow_control_mode= "XXX";
 SET GLOBAL group_replication_flow_control_mode= -1;
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL group_replication_flow_control_mode= 2;
+SET GLOBAL group_replication_flow_control_mode= 3;
 
 # Valid values
 SET GLOBAL group_replication_flow_control_mode= DISABLED;
@@ -63,6 +63,11 @@ SET GLOBAL group_replication_flow_control_mode= QUOTA;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
 --source include/assert.inc
 
+SET GLOBAL group_replication_flow_control_mode= MAJORITY;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "MAJORITY"
+--source include/assert.inc
+
 SET GLOBAL group_replication_flow_control_mode= 0;
 --let $assert_text= group_replication_flow_control_mode is correct
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "DISABLED"
@@ -72,6 +77,13 @@ SET GLOBAL group_replication_flow_control_mode= 1;
 --let $assert_text= group_replication_flow_control_mode is correct
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
 --source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= 2;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "MAJORITY"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= DEFAULT;
 
 --echo
 --echo ############################################################
@@ -399,6 +411,13 @@ SET GLOBAL group_replication_flow_control_mode= QUOTA;
 --let $assert_text= group_replication_flow_control_mode is correct
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
 --source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= MAJORITY;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "MAJORITY"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= DEFAULT;
 
 SET GLOBAL group_replication_flow_control_certifier_threshold= 1000;
 --let $assert_text= group_replication_flow_control_certifier_threshold is correct

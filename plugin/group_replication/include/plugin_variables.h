@@ -221,9 +221,9 @@ struct plugin_options_variables {
   bool single_primary_mode_var;
   bool enforce_update_everywhere_checks_var;
 
-  const char *flow_control_mode_values[3] = {"DISABLED", "QUOTA",
+  const char *flow_control_mode_values[4] = {"DISABLED", "QUOTA", "MAJORITY",
                                              (const char *)nullptr};
-  TYPELIB flow_control_mode_typelib_t = {2, "flow_control_mode_typelib_t",
+  TYPELIB flow_control_mode_typelib_t = {3, "flow_control_mode_typelib_t",
                                          flow_control_mode_values, nullptr};
   ulong flow_control_mode_var;
 #define DEFAULT_FLOW_CONTROL_THRESHOLD 25000

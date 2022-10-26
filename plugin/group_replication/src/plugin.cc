@@ -72,6 +72,9 @@ static struct plugin_local_variables lv;
 */
 static struct plugin_options_variables ov;
 
+/* Flow Control Status variables that are only accessible inside plugin.cc */
+static struct group_replication_fc_stats fc_stats;
+
 /*
   Log service log_bi and log_bs are extern variables.
 */
@@ -5382,7 +5385,39 @@ static SYS_VAR *group_replication_system_vars[] = {
     nullptr,
 };
 
+#define DEF_GR_FC_STATUS_VAR_PTR(name, ptr, option) \
+  { name, (char *)ptr, option, SHOW_SCOPE_GLOBAL }
+
+static SHOW_VAR gr_flow_control_status_variables[] = {
+    DEF_GR_FC_STATUS_VAR_PTR("active", &fc_stats.active, SHOW_CHAR_PTR),
+    DEF_GR_FC_STATUS_VAR_PTR("threshold_nodes", &fc_stats.nodes, SHOW_CHAR_PTR),
+    DEF_GR_FC_STATUS_VAR_PTR("throttle_quota", &fc_stats.quota, SHOW_LONGLONG),
+    // end of the array marker
+    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
+
+static void update_gr_flow_control_status_vars(THD *thd, SHOW_VAR *var,
+                                               char *buff) {
+  if (applier_module && plugin_is_group_replication_running()) {
+    group_replication_fc_stats tmp;
+    applier_module->get_flow_control_stats(tmp);
+    fc_stats = tmp;
+  } else {
+    fc_stats.active.clear();
+    fc_stats.nodes.clear();
+    fc_stats.quota = 0;
+  }
+}
+
+static void show_flow_control_status_vars(THD *thd, SHOW_VAR *var, char *buff) {
+  update_gr_flow_control_status_vars(thd, var, buff);
+  var->type = SHOW_ARRAY;
+  var->value = reinterpret_cast<char *>(&gr_flow_control_status_variables);
+}
+
 static SHOW_VAR group_replication_status_vars[] = {
+    {"group_replication_flow_control",
+     reinterpret_cast<char *>(&show_flow_control_status_vars), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Gr_control_messages_sent_count",
      (char *)&Plugin_status_variables::get_control_messages_sent_count,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},

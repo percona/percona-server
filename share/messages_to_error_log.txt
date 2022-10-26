@@ -12034,6 +12034,9 @@ ER_KEYRING_COMPONENT_KMS_ERROR
 ER_XB_MSG_DOWNGRADING_LOG_FILE
   eng "Upgrade failed, recreating redo logs with previous version"
 
+ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED
+  eng "Could not add event rule '%s' to --replica-enable-event. %s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

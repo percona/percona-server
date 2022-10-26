@@ -39,6 +39,7 @@
 #include "plugin/group_replication/include/pipeline_factory.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
+#include "plugin/group_replication/include/plugin_status_variables.h"
 #include "plugin/group_replication/include/plugin_utils.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 #include "sql/sql_class.h"
@@ -311,6 +312,7 @@ class Applier_module_interface {
                      PSI_memory_key key) = 0;
   virtual int handle_pipeline_action(Pipeline_action *action) = 0;
   virtual Flow_control_module *get_flow_control_module() = 0;
+  virtual void get_flow_control_stats(group_replication_fc_stats &stats) = 0;
   virtual void run_flow_control_step() = 0;
   virtual int purge_applier_queue_and_restart_applier_module() = 0;
   virtual bool queue_and_wait_on_queue_checkpoint(
@@ -759,6 +761,13 @@ class Applier_module : public Applier_module_interface {
 
   Flow_control_module *get_flow_control_module() override {
     return &flow_control_module;
+  }
+
+  /**
+    Get the stats related to Flow Control
+  */
+  void get_flow_control_stats(group_replication_fc_stats &stats) override {
+    flow_control_module.get_flow_control_stats(stats);
   }
 
   void run_flow_control_step() override {

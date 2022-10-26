@@ -27,6 +27,9 @@
 --echo #
 --let $rpl_connection_name = server_3
 --source include/rpl_connection.inc
+# server_3 has to use a single worker to make reads from 'table_io_waits_summary_by_table' deterministic
+set @save.replica_parallel_workers = @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers = 0;
 INSERT INTO performance_schema.setup_objects VALUES ('TABLE', 'mysql', 'slave_relay_log_info', 'YES', 'YES');
 INSERT INTO performance_schema.setup_objects VALUES ('TABLE', 'mysql', 'slave_master_info', 'YES', 'YES');
 --source include/stop_slave.inc
@@ -96,6 +99,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 --let $assert_text = number of IO waits for "slave_master_info" must not change
 --let $assert_cond = count_star = $initial_slave_master_info FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = "mysql" AND object_name = "slave_master_info"
 --source include/assert.inc
+
+set @@global.replica_parallel_workers = @save.replica_parallel_workers;
 
 --echo #
 --echo # Cleaning up and final syncing

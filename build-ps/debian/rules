@@ -146,6 +146,8 @@ endif
 
 	touch $@
 
+rpath = '$$ORIGIN/../private'
+
 override_dh_auto_build:
 	@echo "RULES.$@"
 	
@@ -197,6 +199,11 @@ override_dh_auto_install:
 	# install AppArmor profile for Percona Server
 	install -d $(TMP)/etc/apparmor.d
 	install -d $(TMP)/etc/apparmor.d/local
+
+override_dh_install:
+	dh_install
+	patchelf --debug --set-rpath $(rpath) debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so
+	@echo "RULES.$@"
 
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-dbg

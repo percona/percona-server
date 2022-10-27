@@ -655,6 +655,9 @@ install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysco
 %endif
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
+# set rpath for plugin to use private/libfido2.so
+patchelf --debug --set-rpath '$ORIGIN/../private' %{buildroot}/%{_libdir}/mysql/plugin/authentication_fido.so
+
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/percona-server/mysql.server
@@ -1089,6 +1092,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 
 %if 0%{?rhel} > 6
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_encryption_udf.so

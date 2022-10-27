@@ -263,12 +263,17 @@ bool my_aes_needs_iv(my_aes_opmode opmode) {
   assert(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
   return iv_length != 0 ? true : false;
 }
-static int my_legacy_aes_256_cbc_nopad_crypt(
+
+static int my_legacy_aes_cbc_nopad_crypt(
     bool encrypt, const unsigned char *source, uint32 source_length,
-    unsigned char *dest, const unsigned char *key, const unsigned char *iv) {
+    unsigned char *dest, const unsigned char *key, uint32 key_length,
+    const unsigned char *iv) {
+  assert(key_length == 32 || key_length == 16);
+
   if (key == nullptr || iv == nullptr) return MY_AES_BAD_DATA;
 
-  auto cipher = aes_evp_type(my_aes_256_cbc);
+  auto cipher =
+      aes_evp_type(key_length == 32 ? my_aes_256_cbc : my_aes_128_cbc);
   assert(cipher != nullptr);
 
   auto evp_cipher_deleter = [](EVP_CIPHER_CTX *ctx) {
@@ -319,8 +324,9 @@ static int my_legacy_aes_256_cbc_nopad_crypt(
     */
     unsigned char mask[MY_AES_BLOCK_SIZE];
 
-    int mask_result = my_aes_encrypt(iv, sizeof(mask), mask, key, 32,
-                                     my_aes_256_ecb, nullptr, false);
+    int mask_result = my_aes_encrypt(
+        iv, sizeof(mask), mask, key, key_length,
+        key_length == 32 ? my_aes_256_ecb : my_aes_128_ecb, nullptr, false);
     if (mask_result != MY_AES_BLOCK_SIZE)
       return clear_error_helper(MY_AES_BAD_DATA);
 
@@ -332,20 +338,18 @@ static int my_legacy_aes_256_cbc_nopad_crypt(
   return clear_error_helper(u_len + f_len);
 }
 
-int my_legacy_aes_256_cbc_nopad_encrypt(const unsigned char *source,
-                                        uint32 source_length,
-                                        unsigned char *dest,
-                                        const unsigned char *key,
-                                        const unsigned char *iv) {
-  return my_legacy_aes_256_cbc_nopad_crypt(true, source, source_length, dest,
-                                           key, iv);
+int my_legacy_aes_cbc_nopad_encrypt(const unsigned char *source,
+                                    uint32 source_length, unsigned char *dest,
+                                    const unsigned char *key, uint32 key_length,
+                                    const unsigned char *iv) {
+  return my_legacy_aes_cbc_nopad_crypt(true, source, source_length, dest, key,
+                                       key_length, iv);
 }
 
-int my_legacy_aes_256_cbc_nopad_decrypt(const unsigned char *source,
-                                        uint32 source_length,
-                                        unsigned char *dest,
-                                        const unsigned char *key,
-                                        const unsigned char *iv) {
-  return my_legacy_aes_256_cbc_nopad_crypt(false, source, source_length, dest,
-                                           key, iv);
+int my_legacy_aes_cbc_nopad_decrypt(const unsigned char *source,
+                                    uint32 source_length, unsigned char *dest,
+                                    const unsigned char *key, uint32 key_length,
+                                    const unsigned char *iv) {
+  return my_legacy_aes_cbc_nopad_crypt(false, source, source_length, dest, key,
+                                       key_length, iv);
 }

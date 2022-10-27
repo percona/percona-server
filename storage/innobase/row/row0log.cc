@@ -314,8 +314,9 @@ bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
   }
 
   assert(crypt_info.encryption_klen == 32);
-  int res = my_legacy_aes_256_cbc_nopad_encrypt(src_block, size, dst_block,
-                                                crypt_info.encryption_key, iv);
+  int res = my_legacy_aes_cbc_nopad_encrypt(src_block, size, dst_block,
+                                            crypt_info.encryption_key,
+                                            crypt_info.encryption_klen, iv);
 
   if (res != static_cast<int>(size)) {
     ib::error() << "Unable to encrypt data block  src: "
@@ -344,8 +345,9 @@ bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
   }
 
   assert(crypt_info.encryption_klen == 32);
-  int res = my_legacy_aes_256_cbc_nopad_decrypt(src_block, size, dst_block,
-                                                crypt_info.encryption_key, iv);
+  int res = my_legacy_aes_cbc_nopad_decrypt(src_block, size, dst_block,
+                                            crypt_info.encryption_key,
+                                            crypt_info.encryption_klen, iv);
 
   if (res != static_cast<int>(size)) {
     ib::error() << "Unable to decrypt data block src: "

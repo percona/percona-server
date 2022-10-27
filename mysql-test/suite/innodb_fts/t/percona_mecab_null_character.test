@@ -3,7 +3,7 @@
 eval INSTALL PLUGIN mecab SONAME '$MECAB';
 
 let $ipadic_charset=utf-8;
-let $mysql_charset=utf8;
+let $mysql_charset=utf8mb4;
 let $mecab_charset=`SELECT variable_value FROM performance_schema.global_status WHERE VARIABLE_NAME='mecab_charset'`;
 
 if ($mecab_charset == '') {
@@ -33,7 +33,7 @@ if ($mecab_charset == '') {
 
 if ($mecab_charset != $mysql_charset) {
   UNINSTALL PLUGIN mecab;
-  -- skip Test mecab charset mismatch.
+  -- skip Test mecab charset mismatch (mecab_charset=$mecab_charset, mysql_charset=$mysql_charset).
 }
 
 SHOW STATUS LIKE 'mecab_charset';

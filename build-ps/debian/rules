@@ -208,7 +208,7 @@ override_dh_auto_install:
 override_dh_install:
 	dh_install
 	patchelf --debug --set-rpath $(rpath) debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so
-	@echo "RULES.$@
+	@echo "RULES.$@"
 
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-dbg

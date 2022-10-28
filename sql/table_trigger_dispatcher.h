@@ -34,6 +34,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"                        // MYSQL_ERRMSG_SIZE
 #include "mysqld_error.h"                     // ER_PARSE_ERROR
+#include "sql/sql_list.h"                     // List
 #include "sql/table_trigger_field_support.h"  // Table_trigger_field_support
 #include "sql/trigger_def.h"                  // enum_trigger_action_time_type
 
@@ -53,6 +54,10 @@ class Table_ref;
 template <class T>
 class List;
 
+namespace table_cache_unittest {
+class Mock_share;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -63,7 +68,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
  public:
   static Table_trigger_dispatcher *create(TABLE *subject_table);
 
-  bool check_n_load(THD *thd, const dd::Table &table);
+  bool finalize_load(THD *thd);
 
   /*
    During upgrade from 5.7, we need to use the trigger chains to fix
@@ -73,6 +78,8 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
 
  private:
   Table_trigger_dispatcher(TABLE *subject_table);
+
+  friend class table_cache_unittest::Mock_share;
 
  public:
   ~Table_trigger_dispatcher() override;
@@ -165,6 +172,13 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
 
   void parse_triggers(THD *thd, List<Trigger> *triggers, bool is_upgrade);
 
+  /**
+    Check whether we have finalized loading of triggers for the table
+    by parsing their bodies, creating sp_head objects and preparing
+    row-accessors.
+  */
+  bool has_load_been_finalized() { return m_load_finalized; }
+
  private:
   Trigger_chain *create_trigger_chain(
       MEM_ROOT *mem_root, enum_trigger_event_type event,
@@ -234,9 +248,10 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
 
     @see Table_trigger_dispatcher::set_parse_error()
   */
-  /**
-   */
   const char *m_parse_error_message;
+
+  /** Indicates whether we have finalized loading of triggers for the table. */
+  bool m_load_finalized;
 };
 
 ///////////////////////////////////////////////////////////////////////////

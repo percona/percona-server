@@ -1331,6 +1331,8 @@ ulong back_log, connect_timeout, server_id;
 ulong table_cache_size;
 ulong table_cache_instances;
 ulong table_cache_size_per_instance;
+ulong table_cache_triggers;
+ulong table_cache_triggers_per_instance;
 ulong schema_def_size;
 ulong stored_program_def_size;
 ulong table_def_size;
@@ -9066,6 +9068,8 @@ static void adjust_table_cache_size(ulong requested_open_files) {
   }
 
   table_cache_size_per_instance = table_cache_size / table_cache_instances;
+  table_cache_triggers_per_instance =
+      table_cache_triggers / table_cache_instances;
 }
 
 static void adjust_table_def_size() {
@@ -10312,6 +10316,15 @@ SHOW_VAR status_vars[] = {
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Table_open_cache_overflows",
      (char *)offsetof(System_status_var, table_open_cache_overflows),
+     SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+    {"Table_open_cache_triggers_hits",
+     (char *)offsetof(System_status_var, table_open_cache_triggers_hits),
+     SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+    {"Table_open_cache_triggers_misses",
+     (char *)offsetof(System_status_var, table_open_cache_triggers_misses),
+     SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+    {"Table_open_cache_triggers_overflows",
+     (char *)offsetof(System_status_var, table_open_cache_triggers_overflows),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Tc_log_max_pages_used", (char *)&tc_log_max_pages_used, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},

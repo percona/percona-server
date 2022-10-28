@@ -52,9 +52,22 @@ using sql_mode_t = uint64_t;
   This class represents a trigger object.
   Trigger can be created, initialized, parsed and executed.
 
-  Trigger attributes are usually stored on the memory root of the subject table.
+  Trigger attributes are usually stored on the memory root of the subject table
+  TABLE object or its TABLE_SHARE (depending on whether it is something specific
+  to the TABLE instance, e.g. sp_head, or static metadata that can be shared by
+  all TABLE instances, e.g. subject table name).
   Trigger object however can exist when the subject table does not. In this
   case, trigger attributes are stored on a separate memory root.
+
+  @note We create separate sets of Trigger objects for both TABLE_SHARE and
+        TABLE instances. The set for the former is used to store static
+        information about table's triggers and is directly associated with
+        TABLE_SHARE object. The set for the latter is used primarily for
+        trigger execution, and is asssociated with TABLE object with the help
+        of Table_triggers_dispatcher class. Attributes representing static
+        properties in Trigger instances of the latter type reference
+        attributes/memory belonging to attributes of Trigger objects associated
+        with the TABLE_SHARE.
 
   Trigger objects are created in two ways:
 
@@ -87,6 +100,8 @@ class Trigger {
       enum_trigger_event_type trg_event_type,
       enum_trigger_action_time_type trg_time_type, uint action_order,
       my_timeval created_timestamp);
+
+  Trigger *clone_shallow(MEM_ROOT *mem_root) const;
 
   /**
     Constructs CREATE TRIGGER statement taking into account a value of
@@ -249,7 +264,9 @@ class Trigger {
   /**
     Memory root to store all data of this Trigger object.
 
-    This can be a pointer to the subject table memory root, or it can be a
+    This can be a pointer to the subject table share memory root (if this
+    Trigger object is associated with TABLE_SHARE), table memory root
+    (if this Trigger object is associated with TABLE object), or it can be a
     pointer to a dedicated memory root if subject table does not exist.
   */
   MEM_ROOT *m_mem_root;
@@ -263,7 +280,9 @@ class Trigger {
  private:
   /************************************************************************
    * Mandatory trigger attributes loaded from data dictionary.
-   * All these strings are allocated on m_mem_root.
+   * All these strings are allocated on TABLE_SHARE's memory root
+   * (for both cases when Trigger object is bound to TABLE_SHARE object
+   * and to TABLE object) or dedicated memory root pointed by m_mem_root.
    ***********************************************************************/
 
   /// Database name.
@@ -323,7 +342,7 @@ class Trigger {
 
  private:
   /************************************************************************
-   * All these strings are allocated on the trigger table's mem-root.
+   * All these strings are allocated on the TABLE_SHARE's mem-root.
    ***********************************************************************/
 
   /// Trigger name.
@@ -331,7 +350,7 @@ class Trigger {
 
  private:
   /************************************************************************
-   * Other attributes.
+   * Other attributes. Allocated on m_mem_root if necessary.
    ***********************************************************************/
 
   /// Grant information for the trigger.

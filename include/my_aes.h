@@ -138,39 +138,39 @@ longlong my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode);
 bool my_aes_needs_iv(my_aes_opmode opmode);
 
 /**
-  Encrypt a buffer using AES 256-bit CBC with no padding
+  Encrypt a buffer using AES CBC with no padding
 
   @param [in] source         Pointer to data for encryption
   @param [in] source_length  Size of original data
   @param [out] dest          Buffer to place encrypted data (must be large
   enough)
-  @param [in] key            32-bytes key to be used for encryption
+  @param [in] key            Key to be used for encryption
+  @param [in] key_length     Size of the key
   @param [in] iv             16-bytes initialization vector.
   @return size of encrypted data, or MY_AES_BAD_DATA in case of an error
 */
 
-int my_legacy_aes_256_cbc_nopad_encrypt(const unsigned char *source,
-                                        uint32 source_length,
-                                        unsigned char *dest,
-                                        const unsigned char *key,
-                                        const unsigned char *iv);
+int my_legacy_aes_cbc_nopad_encrypt(const unsigned char *source,
+                                    uint32 source_length, unsigned char *dest,
+                                    const unsigned char *key, uint32 key_length,
+                                    const unsigned char *iv);
 
 /**
-  Decrypt a buffer encrypted with AES 256-bit CBC with no padding
+  Decrypt a buffer encrypted with AES CBC with no padding
 
   @param [in] source         Pointer to data for decryption
   @param [in] source_length  size of encrypted data
   @param [out] dest          buffer to place decrypted data (must be large
   enough)
-  @param [in] key            32-bytes key to be used for decryption
+  @param [in] key            Key to be used for decryption
+  @param [in] key_length     Size of the key
   @param [in] iv             16-bytes initialization vector
   @return size of original data, or MY_AES_BAD_DATA in case of an error
 */
 
-int my_legacy_aes_256_cbc_nopad_decrypt(const unsigned char *source,
-                                        uint32 source_length,
-                                        unsigned char *dest,
-                                        const unsigned char *key,
-                                        const unsigned char *iv);
+int my_legacy_aes_cbc_nopad_decrypt(const unsigned char *source,
+                                    uint32 source_length, unsigned char *dest,
+                                    const unsigned char *key, uint32 key_length,
+                                    const unsigned char *iv);
 
 #endif /* MY_AES_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,8 +127,6 @@ int index_next_different(bool is_index_scan, handler *file,
 class SEL_IMERGE {
  public:
   Mem_root_array<SEL_TREE *> trees;
-
-  SEL_ARG ***best_keys; /* best keys to read in SEL_TREEs */
 
   SEL_IMERGE(MEM_ROOT *mem_root) : trees(mem_root) {}
   SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param);

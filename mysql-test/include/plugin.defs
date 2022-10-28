@@ -37,6 +37,7 @@ qa_auth_server                          plugin_output_directory  no PLUGIN_AUTH_
 qa_auth_client                          plugin_output_directory  no PLUGIN_AUTH_CLIENT    qa_auth_client
 udf_example                             plugin_output_directory  no UDF_EXAMPLE_LIB
 ha_example                              plugin_output_directory  no EXAMPLE_PLUGIN         EXAMPLE
+conflicting_variables                   plugin_output_directory  no CONFLICTING_VARIABLES
 semisync_source                         plugin_output_directory  no SEMISYNC_SOURCE_PLUGIN
 semisync_replica                        plugin_output_directory  no SEMISYNC_REPLICA_PLUGIN
 semisync_master                         plugin_output_directory  no SEMISYNC_MASTER_PLUGIN
@@ -168,6 +169,9 @@ component_test_mysql_system_variable_set          plugin_output_directory  no  C
 # component test_table_access
 component_test_table_access  	plugin_output_directory no TEST_TABLE_ACCESS
 
+# component test_sensitive_system_variables
+component_test_sensitive_system_variables  	plugin_output_directory no TEST_SENSITIVE_SYSTEM_VARIABLES
+
 # Percona additions
 auth_socket        plugin_output_directory  no  SOCKET_AUTH
 audit_log          plugin_output_directory  no  AUDIT_LOG             audit_log
@@ -177,6 +181,7 @@ ha_rocksdb         plugin_output_directory  no  ROCKSDB         rocksdb,rocksdb_
 auth_pam           plugin_output_directory  no  AUTH_PAM
 auth_pam_compat    plugin_output_directory  no  AUTH_PAM_COMPAT
 authentication_ldap_simple          plugin_output_directory  no  AUTH_LDAP             authentication_ldap_simple
+authentication_ldap_sasl          plugin_output_directory  no  AUTH_LDAP_SASL             authentication_ldap_sasl
 keyring_vault      plugin_output_directory  no  KEYRING_VAULT_PLUGIN keyring_vault
 test_udf_wrappers  plugin_output_directory  no  TEST_UDF_WRAPPERS_LIB
 binlog_utils_udf   plugin_output_directory  no  BINLOG_UTILS_UDF_LIB

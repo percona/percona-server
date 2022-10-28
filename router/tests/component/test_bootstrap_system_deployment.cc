@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'mycluster'"));
+                           "InnoDB Cluster 'my-cluster'"));
 }
 
 /*

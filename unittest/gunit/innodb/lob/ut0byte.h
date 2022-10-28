@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -67,12 +67,12 @@ inline ulint ut_align_offset(const void *ptr, ulint align_no) {
 /*******************************************************/ /**
  Creates a 64-bit integer out of two 32-bit integers.
  @return created integer */
-inline ib_uint64_t ut_ull_create(ulint high, /*!< in: high-order 32 bits */
-                                 ulint low)  /*!< in: low-order 32 bits */
+inline uint64_t ut_ull_create(ulint high, /*!< in: high-order 32 bits */
+                              ulint low)  /*!< in: low-order 32 bits */
 {
   ut_ad(high <= ULINT32_MASK);
   ut_ad(low <= ULINT32_MASK);
-  return (((ib_uint64_t)high) << 32 | low);
+  return (((uint64_t)high) << 32 | low);
 }
 
 #endif  // _ut0byte_h_

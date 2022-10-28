@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -405,18 +405,6 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
       init_global_thread_stats();
     }
     mysql_mutex_unlock(&LOCK_global_user_client_stats);
-  }
-  if (options & REFRESH_FLUSH_PAGE_BITMAPS) {
-    result = ha_flush_changed_page_bitmaps();
-    if (result) {
-      my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH CHANGED_PAGE_BITMAPS");
-    }
-  }
-  if (options & REFRESH_RESET_PAGE_BITMAPS) {
-    result = ha_purge_changed_page_bitmaps(0);
-    if (result) {
-      my_error(ER_UNKNOWN_ERROR, MYF(0), "RESET CHANGED_PAGE_BITMAPS");
-    }
   }
   if (*write_to_binlog != -1) {
     if (thd == nullptr || thd->security_context() == nullptr) {

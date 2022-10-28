@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <NDBT_ReturnCodes.h>
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
@@ -3447,10 +3448,12 @@ int runTryGetEvent(NDBT_Context *ctx, NDBT_Step *step) {
   while (iterations--) {
     g_err << "Attempting to get the event, expect "
           << ((odd ? "success" : "failure")) << endl;
-    const NdbDictionary::Event *ev = myDict->getEvent(eventName);
-
-    if (odd) {
-      if (ev == NULL) {
+    NdbDictionary::Event_ptr ev(myDict->getEvent(eventName));
+    
+    if (odd)
+    {
+      if (ev == NULL)
+      {
         g_err << "Failed to get event on odd cycle with error "
               << myDict->getNdbError().code << " "
               << myDict->getNdbError().message << endl;

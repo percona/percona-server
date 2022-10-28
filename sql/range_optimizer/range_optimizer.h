@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,13 +82,13 @@ class QUICK_RANGE {
       max_keypart_map;           // bitmap of used keyparts in max_key
 
   QUICK_RANGE(); /* Full range */
-  QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
+  QUICK_RANGE(MEM_ROOT *mem_root, const uchar *min_key_arg, uint min_length_arg,
               key_part_map min_keypart_map_arg, const uchar *max_key_arg,
               uint max_length_arg, key_part_map max_keypart_map_arg,
               uint flag_arg, enum ha_rkey_function rkey_func);
 
   /**
-     Initalizes a key_range object for communication with storage engine.
+     Initializes a key_range object for communication with storage engine.
 
      This function facilitates communication with the Storage Engine API by
      translating the minimum endpoint of the interval represented by this
@@ -109,7 +109,7 @@ class QUICK_RANGE {
   }
 
   /**
-     Initalizes a key_range object for communication with storage engine.
+     Initializes a key_range object for communication with storage engine.
 
      This function facilitates communication with the Storage Engine API by
      translating the minimum endpoint of the interval represented by this
@@ -127,7 +127,7 @@ class QUICK_RANGE {
   }
 
   /**
-     Initalizes a key_range object for communication with storage engine.
+     Initializes a key_range object for communication with storage engine.
 
      This function facilitates communication with the Storage Engine API by
      translating the maximum endpoint of the interval represented by this
@@ -148,7 +148,7 @@ class QUICK_RANGE {
   }
 
   /**
-     Initalizes a key_range object for communication with storage engine.
+     Initializes a key_range object for communication with storage engine.
 
      This function facilitates communication with the Storage Engine API by
      translating the maximum endpoint of the interval represented by this

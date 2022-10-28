@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,6 +215,7 @@ uint get_number_of_autorejoin_tries();
 ulonglong get_rejoin_timeout();
 void declare_plugin_cloning(bool is_running);
 bool get_allow_single_leader();
+uint get_auto_evict_timeout();
 /**
   Encapsulates the logic necessary to attempt a rejoin, i.e. gracefully leave
   the group, terminate GCS infrastructure, terminate auto-rejoin relevant plugin

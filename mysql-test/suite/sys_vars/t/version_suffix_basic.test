@@ -89,10 +89,9 @@ SELECT COUNT(@@SESSION.version_suffix);
 SELECT COUNT(@@GLOBAL.version_suffix);
 --echo 1 Expected
 
---Error ER_BAD_FIELD_ERROR
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT version_suffix = @@SESSION.version_suffix;
---echo Expected error 'Readonly variable'
-
+--echo Expected error 'Variable is a GLOBAL variable'
 
 
 #####################################################################################

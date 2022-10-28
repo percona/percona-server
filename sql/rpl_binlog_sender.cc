@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,8 +41,8 @@
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/binlog_reader.h"
@@ -101,8 +101,6 @@ class Observe_transmission_guard {
     @param flag            The flag variable to guard
     @param event_type      The type of the event being processed
     @param event_ptr       The raw content of the event being processed
-    @param event_len       The size of the raw content of the event being
-                           processed
     @param checksum_alg    The checksum algorithm being used currently
     @param prev_event_type The type of the event processed just before the
                            current one
@@ -1000,7 +998,7 @@ void Binlog_sender::init_checksum_alg() {
   const auto &uv = get_user_var_from_alternatives(
       m_thd, "source_binlog_checksum", "master_binlog_checksum");
   // Get value of user_var.
-  if (uv) {
+  if (uv && uv->ptr()) {
     m_slave_checksum_alg = static_cast<enum_binlog_checksum_alg>(
         find_type(uv->ptr(), &binlog_checksum_typelib, 1) - 1);
     assert(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);

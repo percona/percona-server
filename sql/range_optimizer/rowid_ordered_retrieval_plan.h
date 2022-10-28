@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,8 +74,8 @@ struct ROR_SCAN_INFO {
 
 AccessPath *get_best_ror_intersect(
     THD *thd, const RANGE_OPT_PARAM *param, TABLE *table,
-    bool index_merge_intersect_allowed, enum_order order_direction,
-    SEL_TREE *tree, const MY_BITMAP *needed_fields, double cost_est,
+    bool index_merge_intersect_allowed, SEL_TREE *tree,
+    const MY_BITMAP *needed_fields, double cost_est,
     bool force_index_merge_result, bool reuse_handler);
 
 void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,

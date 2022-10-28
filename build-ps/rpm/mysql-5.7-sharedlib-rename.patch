@@ -105,24 +105,24 @@
    client_base
    ${SSL_LIBRARIES}
  )
---- include/mysql.h	2018-08-18 03:30:11.721480261 -0400
-+++ include/mysql.h	2018-08-18 03:30:11.727980360 -0400
+--- include/mysql.h	2022-09-13 10:19:20.000000000 +0300
++++ include/mysql.h	2022-09-13 12:40:29.000000000 +0300
 @@ -28,7 +28,7 @@
  /**
    @file include/mysql.h
    This file defines the client API to MySQL and also the ABI of the
 -  dynamically linked libperconaserverclient.
 +  dynamically linked libmysqlclient.
- 
+
    The ABI should never be changed in a released product of MySQL,
    thus you need to take great care when changing the file. In case
-@@ -402,12 +402,12 @@ void STDCALL mysql_server_end(void);
- 
+@@ -410,12 +410,12 @@
+
  /*
    mysql_server_init/end need to be called when using libmysqld or
 -  libperconaserverclient (exactly, mysql_server_init() is called by
 +  libmysqlclient (exactly, mysql_server_init() is called by
-   mysql_init() so you don't need to call it explicitely; but you need to call
+   mysql_init() so you don't need to call it explicitly; but you need to call
    mysql_server_end() to free memory). The names are a bit misleading
    (mysql_SERVER* to be used when using libmysqlCLIENT). So we add more general
    names which suit well whether you're using libmysqld or
@@ -220,37 +220,6 @@
    ${MYSQLX_CLIENT_FULL_LIB}
    ${MYSQLX_PROTOCOL_FULL_LIB}
    ${PROTOBUF_LIBRARY}
---- router/src/metadata_cache/CMakeLists.txt
-+++ router/src/metadata_cache/CMakeLists.txt
-@@ -71,7 +71,7 @@ IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
-   ADD_LIBRARY(metadata_cache_static STATIC ${METADATA_CACHE_SOURCES})
-   TARGET_LINK_LIBRARIES(metadata_cache_static
-     router_lib
--    perconaserverclient
-+    mysqlclient
-     mysqlxmessages_lite
-     ${PROTOBUF_LITE_LIBRARY}
-     )
---- router/src/metadata_cache/tests/CMakeLists.txt
-+++ router/src/metadata_cache/tests/CMakeLists.txt
-@@ -56,7 +56,7 @@
-   TARGET_LINK_LIBRARIES(metadata_cache_tests
-     router_lib
-     metadata_cache
--    perconaserverclient
-+    mysqlclient
-     mysqlxclient_lite
-     mysqlxmessages_lite
-     ${PROTOBUF_LITE_LIBRARY}
-@@ -69,7 +69,7 @@
-   ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
-   TARGET_LINK_LIBRARIES(metadata_cache_tests
-     router_lib
--    perconaserverclient
-+    mysqlclient
-     mysqlxclient_lite
-     mysqlxmessages_lite
-     ${PROTOBUF_LITE_LIBRARY}
 --- router/src/router/src/CMakeLists.txt
 +++ router/src/router/src/CMakeLists.txt
 @@ -71,7 +71,7 @@ TARGET_LINK_LIBRARIES(router_lib
@@ -287,7 +256,7 @@
 @@ -302,7 +302,7 @@ ELSE()
  ENDIF()
  
- # Use cmake variables to inspect dependencies for 
+ # Use cmake variables to inspect dependencies for
 -# perconaserverclient library (add -l stuff)
 +# mysqlclient library (add -l stuff)
  SET(CLIENT_LIBS "")
@@ -568,3 +537,42 @@
    gunit_small)
  
  IF (WITH_CS_PROTOBUF)
+
+--- router/src/router/tests/CMakeLists.txt	2022-07-26 08:37:14.834824576 +0000
++++ router/src/router/tests/CMakeLists.txt	2022-07-26 08:38:26.484931770 +0000
+@@ -130,7 +130,7 @@
+ ADD_HARNESS_TEST_FILE(test_mysql_session.cc
+   MODULE ${TEST_MODULE}
+   LIB_DEPENDS
+-    test-helpers perconaserverclient
++    test-helpers mysqlclient
+   EXTRA_SOURCES
+     ../src/common/mysql_session.cc
+     ../src/common/log_filter.cc
+@@ -146,7 +146,7 @@
+ ADD_HARNESS_TEST_FILE(test_metadata_check.cc
+   MODULE ${TEST_MODULE}
+   LIB_DEPENDS
+-    test-helpers perconaserverclient
++    test-helpers mysqlclient
+   EXTRA_SOURCES
+     ../src/common/mysql_session.cc
+     ../src/common/log_filter.cc
+@@ -168,7 +168,7 @@
+ ADD_HARNESS_TEST_FILE(test_cluster_metadata.cc
+   MODULE ${TEST_MODULE}
+   LIB_DEPENDS
+-    test-helpers perconaserverclient
++    test-helpers mysqlclient
+   EXTRA_SOURCES
+     ../src/common/mysql_session.cc
+     ../src/common/log_filter.cc
+@@ -190,7 +190,7 @@
+ ADD_HARNESS_TEST_FILE(test_windows_service.cc
+   MODULE ${TEST_MODULE}
+   LIB_DEPENDS
+-    test-helpers perconaserverclient
++    test-helpers mysqlclient
+   EXTRA_SOURCES
+     ../src/windows/main-windows.cc
+     ../src/windows/nt_servc.cc

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <functional>
 #include <iterator>
 #include <ostream>
+#include <string_view>
 
 namespace mysql_harness {
 
@@ -39,8 +40,8 @@ namespace mysql_harness {
 Path::Path() noexcept : type_(FileType::EMPTY_PATH) {}
 
 // throws std::invalid_argument
-Path::Path(const std::string &path)
-    : path_(path), type_(FileType::TYPE_UNKNOWN) {
+Path::Path(std::string path)
+    : path_(std::move(path)), type_(FileType::TYPE_UNKNOWN) {
 #ifdef _WIN32
   // in Windows, we normalize directory separator from \ to /, to not
   // confuse the rest of the code, which assume \ to be an escape char
@@ -58,9 +59,6 @@ Path::Path(const std::string &path)
   else
     throw std::invalid_argument("Empty path");
 }
-
-// throws std::invalid_argument
-Path::Path(const char *path) : Path(std::string(path)) {}
 
 // throws std::invalid_argument
 void Path::validate_non_empty_path() const {
@@ -265,35 +263,45 @@ stdx::expected<void, std::error_code> delete_dir_recursive(
 }
 
 std::string get_plugin_dir(const std::string &runtime_dir) {
-  std::string cur_dir = Path(runtime_dir.c_str()).basename().str();
+  std::string cur_dir = Path(runtime_dir).basename().str();
   if (cur_dir == "runtime_output_directory") {
     // single configuration build
-    auto result = Path(runtime_dir.c_str()).dirname();
-    return result.join("plugin_output_directory").str();
+    return Path(runtime_dir).dirname().join("plugin_output_directory").str();
   } else {
     // multiple configuration build
     // in that case cur_dir has to be configuration name (Debug, Release etc.)
     // we need to go 2 levels up
-    auto result = Path(runtime_dir.c_str()).dirname().dirname();
-    return result.join("plugin_output_directory").join(cur_dir).str();
+    return Path(runtime_dir)
+        .dirname()
+        .dirname()
+        .join("plugin_output_directory")
+        .join(cur_dir)
+        .str();
   }
 }
 
-HARNESS_EXPORT
 std::string get_tests_data_dir(const std::string &runtime_dir) {
-  std::string cur_dir = Path(runtime_dir.c_str()).basename().str();
+  std::string cur_dir = Path(runtime_dir).basename().str();
   if (cur_dir == "runtime_output_directory") {
     // single configuration build
-    auto result = Path(runtime_dir.c_str()).dirname();
-    return result.join("router").join("tests").join("data").str();
+    return Path(runtime_dir)
+        .dirname()
+        .join("router")
+        .join("tests")
+        .join("data")
+        .str();
   } else {
     // multiple configuration build
     // in that case cur_dir has to be configuration name (Debug, Release etc.)
     // we need to go 2 levels up
-    auto result = Path(runtime_dir.c_str()).dirname().dirname();
-    return result.join("router").join("tests").join("data").join(cur_dir).str();
-
-    return result.str();
+    return Path(runtime_dir)
+        .dirname()
+        .dirname()
+        .join("router")
+        .join("tests")
+        .join("data")
+        .join(cur_dir)
+        .str();
   }
 }
 

@@ -388,6 +388,24 @@ get_system(){
     return
 }
 
+apply_workaround_bug_304121(){
+    cat > /tmp/bugzilla_bug_304121.patch <<- EOF
+--- /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:38.582288603 +0000
++++ /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:17.089255640 +0000
+@@ -309,7 +309,7 @@
+
+   echo "extracting debug info from \$f"
+   id=\$(/usr/lib/rpm/debugedit -b "\$RPM_BUILD_DIR" -d /usr/src/debug \\
+-			      -i -l "\$SOURCEFILE" "\$f") || exit
++			      -i -l "\$SOURCEFILE" "\$f") || true
+   if [ \$nlinks -gt 1 ]; then
+     eval linkedid_\$inum=\\\$id
+   fi
+EOF
+    patch -ruN -d /usr/lib/rpm < /tmp/bugzilla_bug_304121.patch
+    return
+}
+
 install_deps() {
     if [ $INSTALL = 0 ]
     then
@@ -405,20 +423,26 @@ install_deps() {
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         yum -y update
-        add_percona_yum_repo
-        yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
-        percona-release enable tools testing
+        if [ "${RHEL}" -lt 9 ]; then
+            add_percona_yum_repo
+            yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+            percona-release enable tools testing
+            percona-release enable tools experimental
+        else
+            yum -y install yum-utils
+            yum-config-manager --enable ol9_codeready_builder
+        fi
         yum -y install epel-release
-        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd zstd-devel
+        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
-        yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
+        yum -y install perl-Env perl-Data-Dumper perl-JSON perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
         if [ "${RHEL}" -lt 8 ]; then
             until yum -y install centos-release-scl; do
                 echo "waiting"
                 sleep 1
             done
-            yum -y install  gcc-c++ devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
+            yum -y install gcc-c++ devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
             yum -y install ccache devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
             yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
             yum -y install re2-devel redhat-lsb-core lz4-static
@@ -429,20 +453,21 @@ install_deps() {
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
             yum -y install automake autoconf cmake cmake3 jemalloc jemalloc-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-	    yum -y install rpcgen re2-devel libtirpc-devel
-	    yum -y install zstd libzstd libzstd-devel
-	    yum -y install cmake
-            yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
+	    yum -y install rpcgen re2-devel
+	    yum -y install libzstd libzstd-devel
+	    yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         fi
         if [ "x${RHEL}" = "x8" ]; then
             yum -y install centos-release-stream
-            yum -y install git gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-annobin
-            source /opt/rh/gcc-toolset-10/enable
+            yum -y install git gcc-toolset-11-gcc gcc-toolset-11-gcc-c++ gcc-toolset-11-annobin-plugin-gcc
+            source /opt/rh/gcc-toolset-11/enable
         fi
         if [ "x${RHEL}" = "x7" ]; then
-            yum -y install devtoolset-10
+            apply_workaround_bug_304121
+            yum -y install devtoolset-11
+            yum -y install devtoolset-11-annobin-plugin-gcc
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
-            source /opt/rh/devtoolset-10/enable
+            source /opt/rh/devtoolset-11/enable
         fi
 	 if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable
@@ -456,17 +481,22 @@ install_deps() {
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
-            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-gcc-c++ devtoolset-10-binutils devtoolset-10-valgrind devtoolset-10-valgrind-devel devtoolset-10-libatomic-devel
-            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-libasan-devel devtoolset-10-libubsan-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-11-gcc-c++ devtoolset-11-binutils devtoolset-11-valgrind devtoolset-11-valgrind-devel devtoolset-11-libatomic-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-11-libasan-devel devtoolset-11-libubsan-devel
             rm -f /usr/bin/cmake
 	    cp -p /usr/bin/cmake3 /usr/bin/cmake
         fi
         if [ "x$RHEL" = "x8" ]; then
+            yum -y install libtirpc-devel
             yum -y install centos-release-stream
-            yum -y install gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils
-            yum -y install gcc-toolset-10-valgrind gcc-toolset-10-valgrind-devel gcc-toolset-10-libatomic-devel
-            yum -y install gcc-toolset-10-libasan-devel gcc-toolset-10-libubsan-devel
+            yum -y install gcc-toolset-11-binutils gcc-toolset-11-valgrind gcc-toolset-11-valgrind-devel gcc-toolset-11-libatomic-devel
+            yum -y install gcc-toolset-11-libasan-devel gcc-toolset-11-libubsan-devel
             yum -y remove centos-release-stream
+        fi
+        if [ "x$RHEL" = "x9" ]; then
+            yum -y install libtirpc-devel
+        else
+            yum -y install MySQL-python
         fi
     else
         apt-get -y install dirmngr || true
@@ -491,7 +521,7 @@ install_deps() {
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
@@ -510,10 +540,10 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy ]; then
             apt-get -y install libeatmydata1
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy ]; then
             apt-get -y install libzstd-dev
         else
             apt-get -y install libzstd1-dev
@@ -521,7 +551,7 @@ install_deps() {
         if [ x${DIST} = xhirsute ]; then
             apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
         fi
-	if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]]; then
+	if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]]; then
             apt-get -y install libgflags-dev
 	fi
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
@@ -609,7 +639,7 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.tar.gz
+    wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
     #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
@@ -723,7 +753,7 @@ build_rpm(){
         source /opt/rh/devtoolset-8/enable
     fi
     if [ "x${RHEL}" = "x7" ]; then
-        source /opt/rh/devtoolset-10/enable
+        source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
         source /opt/rh/gcc-toolset-10/enable
@@ -738,7 +768,7 @@ build_rpm(){
         sudo ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
     fi
     if [ "x${RHEL}" = "x7" ]; then
-        source /opt/rh/devtoolset-10/enable
+        source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
         source /opt/rh/gcc-toolset-10/enable
@@ -856,7 +886,7 @@ build_deb(){
     fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7
@@ -912,7 +942,7 @@ build_tarball(){
           source /opt/rh/devtoolset-8/enable
       fi
       if [ "x${RHEL}" = "x7" ]; then
-          source /opt/rh/devtoolset-10/enable
+          source /opt/rh/devtoolset-11/enable
       fi
       if [ "x${RHEL}" = "x8" ]; then
           source /opt/rh/gcc-toolset-10/enable
@@ -1001,7 +1031,7 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.27-18"
+BRANCH="release-8.0.30-22"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -1009,13 +1039,13 @@ REPO="https://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=27
-MYSQL_VERSION_EXTRA=-18
-PRODUCT_FULL=Percona-Server-8.0.27
-BOOST_PACKAGE_NAME=boost_1_73_0
+MYSQL_VERSION_PATCH=30
+MYSQL_VERSION_EXTRA=-22
+PRODUCT_FULL=Percona-Server-8.0.30
+BOOST_PACKAGE_NAME=boost_1_77_0
 BUILD_TOKUDB_TOKUBACKUP=0
-PERCONAFT_BRANCH=Percona-Server-8.0.27-18
-TOKUBACKUP_BRANCH=Percona-Server-8.0.27-18
+PERCONAFT_BRANCH=Percona-Server-8.0.30-22
+TOKUBACKUP_BRANCH=Percona-Server-8.0.30-22
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

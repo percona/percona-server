@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,9 +232,9 @@ struct plugin_options_variables {
   bool single_primary_mode_var;
   bool enforce_update_everywhere_checks_var;
 
-  const char *flow_control_mode_values[3] = {"DISABLED", "QUOTA",
+  const char *flow_control_mode_values[4] = {"DISABLED", "QUOTA", "MAJORITY",
                                              (const char *)nullptr};
-  TYPELIB flow_control_mode_typelib_t = {2, "flow_control_mode_typelib_t",
+  TYPELIB flow_control_mode_typelib_t = {3, "flow_control_mode_typelib_t",
                                          flow_control_mode_values, nullptr};
   ulong flow_control_mode_var;
 #define DEFAULT_FLOW_CONTROL_THRESHOLD 25000
@@ -295,6 +295,8 @@ struct plugin_options_variables {
   ulong communication_stack_var;
 
   bool allow_single_leader_var{false};
+
+  uint auto_evict_timeout;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef ROUTER_MYSQL_ROUTER_INCLUDED
 #define ROUTER_MYSQL_ROUTER_INCLUDED
+
+#include "mysqlrouter/router_export.h"
 
 /** @file
  * @brief Defining the main class MySQLRouter
@@ -68,7 +70,7 @@ class ConfigFiles;
  *     }
  *
  */
-class MySQLRouter {
+class ROUTER_LIB_EXPORT MySQLRouter {
  public:
   /** @brief Default constructor
    *
@@ -314,6 +316,7 @@ class MySQLRouter {
    * use it.
    * @endinternal
    *
+   * @param program_name path to the executable.
    * @param arguments command line arguments as vector of strings
    */
   virtual void init(const std::string &program_name,

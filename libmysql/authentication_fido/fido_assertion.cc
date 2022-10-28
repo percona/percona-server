@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,8 @@ bool fido_prepare_assert::sign_challenge() {
   fido_init(0);
   size_t dev_infos_len = 0;
   fido_dev_info_t *dev_infos = fido_dev_info_new(1);
-  if (fido_dev_info_manifest(dev_infos, 1, &dev_infos_len) != FIDO_OK) {
+  if (fido_dev_info_manifest(dev_infos, 1, &dev_infos_len) != FIDO_OK ||
+      dev_infos_len == 0) {
     fido_dev_info_free(&dev_infos, 1);
     get_plugin_messages("No FIDO device available on client host.",
                         message_type::ERROR);
@@ -117,7 +118,7 @@ bool fido_prepare_assert::sign_challenge() {
         "Please insert FIDO device and perform gesture action for"
         " authentication to complete.");
     get_plugin_messages(s, message_type::INFO);
-    if (fido_dev_get_assert(dev, m_assert, NULL) != FIDO_OK) {
+    if (fido_dev_get_assert(dev, m_assert, nullptr) != FIDO_OK) {
       get_plugin_messages(
           "Assertion failed.Please check relying party ID "
           "(@@global.authentication_fido_rp_id) of server.",
@@ -139,8 +140,6 @@ end:
 
   @param [out] challenge_res     buffer to signed challenge
   @param [out] challenge_res_len length of signed challenge
-
-  @retval void
 */
 void fido_prepare_assert::get_signed_challenge(unsigned char **challenge_res,
                                                size_t &challenge_res_len) {
@@ -162,8 +161,6 @@ void fido_prepare_assert::get_signed_challenge(unsigned char **challenge_res,
 
   @param [in] scramble   buffer holding random salt
   @param [in] len        length of salt
-
-  @retval void
 */
 void fido_prepare_assert::set_scramble(unsigned char *scramble, size_t len) {
   fido_assert_set_clientdata_hash(m_assert, scramble, len);
@@ -174,8 +171,6 @@ void fido_prepare_assert::set_scramble(unsigned char *scramble, size_t len) {
 
   @param [in] cred   buffer holding credential ID
   @param [in] len    length of credential ID
-
-  @retval void
 */
 void fido_prepare_assert::set_cred_id(unsigned char *cred, size_t len) {
   fido_assert_allow_cred(m_assert, cred, len);
@@ -185,8 +180,6 @@ void fido_prepare_assert::set_cred_id(unsigned char *cred, size_t len) {
   Method to set the relying party name or id.
 
   @param [in] rp_id   buffer holding relying party name
-
-  @retval void
 */
 void fido_prepare_assert::set_rp_id(const char *rp_id) {
   fido_assert_set_rp(m_assert, rp_id);

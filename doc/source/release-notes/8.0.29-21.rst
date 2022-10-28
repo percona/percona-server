@@ -1,0 +1,55 @@
+.. _8.0.29-21:
+
+================================================================================
+*Percona Server for MySQL* 8.0.29-21 (2022-08-08)
+================================================================================
+
+`Percona Server for MySQL <https://www.percona.com/software/mysql-database/percona-server>`_ 8.0.29-21
+includes all the features and bug fixes available in the
+`MySQL 8.0.29 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html>`__
+in addition to enterprise-grade features developed by Percona.
+
+.. include:: ../_res/rn/ps-mysql-blurb.txt
+
+.. contents::
+   :local:
+
+Release Highlights
+=================================================
+
+Improvements and bug fixes introduced by Oracle for *MySQL* 8.0.29 and included in Percona Server for MySQL are the following:
+
+* The Performance Schema tracks if a query was processed on the PRIMARY engine, InnoDB, or a SECONDARY engine, HeatWave. An EXECUTION_ENGINE column, which indicates the engine used, was added to the Performance Schema statement event tables and the `sys.processlist` and the `sys.x$processlist` views.
+* Added support for the `IF NOT EXISTS` option for the `CREATE FUNCTION`, `CREATE PROCEDURE`, and `CREATE TRIGGER` statements.
+* Added support for `ALTER TABLE ... DROP COLUMN ALGORITHM=INSTANT`. 
+* An anonymous user with the `PROCESS` privilege was unable to select `processlist` table rows.
+
+Find the full list of bug fixes and changes in the `MySQL 8.0.29 Release Notes <https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html>`__.
+
+.. note::
+    
+    Percona Server for MySQL has changed the default for `supported DDL column operations <https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-operations.html>`__ to `ALGORITHM=INPLACE`. This fixes the corruption issue with the INSTANT ADD/DROP COLUMNS (find more details in `PS-8292 <https://jira.percona.com/browse/PS-8292>`__.) 
+
+    
+    In MySQL 8.0.29, the default setting for supported DDL operations is `ALGORITHM=INSTANT`. You can explicitly specify `ALGORITHM=INSTANT` in DDL column operations.
+
+Improvements
+=================================================
+
+* :jirabug:`PS-8258`: **Percona Server for MySQL** can be built on the MacOS with RocksDB enabled.
+
+Bugs fixed
+=================================================
+
+* :jirabug:`PS-8291`: An unexpected MySQL 8.0.29 server exit when executing `ALTER TABLE ... DROP COLUMN ALGORITHM=INSTANT`. (Upstream :mysqlbug:`107613`)
+* :jirabug:`PS-8292`: MySQL 8.0.29 failed to perform crash recovery.
+* :jirabug:`PS-8303`: A MySQL 8.0.29 server exit on `ALTER TABLE` created an assertion failure: `dict0mem.h:2498:pos < n_def`.
+* :jirabug:`PS-8116`: Executing `ALTER TABLE IMPORT TABLESPACE` with a different data directory failed. (Thanks to Sami Ahlroos for reporting this issue)
+* :jirabug:`PS-8273`: A MyRocks exit when inserting into a table with a unique key and TTL setting.
+
+Packaging Notes
+====================================================
+
+Debian 9 is no longer supported.
+
+.. include:: ../_res/rn/useful-links.txt

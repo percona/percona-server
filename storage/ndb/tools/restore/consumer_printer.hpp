@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ public:
   void endOfTuples() override {}
   void endOfLogEntrys() override;
   bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart) override;
+  bool delete_epoch_tuple() override;
   bool m_print;
   bool m_print_log;
   bool m_print_sql_log;

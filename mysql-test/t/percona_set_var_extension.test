@@ -13,23 +13,18 @@ SET myisam_sort_buffer_size=400000;
 CALL test_hint("SET_VAR(myisam_sort_buffer_size=900000)", "myisam_sort_buffer_size");
 SET myisam_sort_buffer_size=default;
 
-CALL test_hint("SET_VAR(myisam_repair_threads=2)", "myisam_repair_threads");
-SET myisam_repair_threads=4;
-CALL test_hint("SET_VAR(myisam_repair_threads=2)", "myisam_repair_threads");
-SET myisam_repair_threads=default;
-
 --echo ###################################################
 --echo # Test SET_VAR hint optimize table for myisam table
 --echo ###################################################
 CREATE TABLE t1 (v1 INT, v2 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (3,4);
-OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=700000) SET_VAR(myisam_repair_threads=3) */  TABLE t1;
+OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=700000) */  TABLE t1;
 
 --echo ##############################################
 --echo # Test with invalid values to myisam variables
 --echo ##############################################
-OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=abc) SET_VAR(myisam_repair_threads=def) */  TABLE t1;
+OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=abc) */  TABLE t1;
 
 DROP TABLE t1;
 
@@ -91,7 +86,6 @@ DROP TABLE t1;
 DELIMITER |;
               CREATE PROCEDURE p1() BEGIN
               SELECT @@myisam_sort_buffer_size,
-                     @@myisam_repair_threads,
                      @@sort_buffer_size,
                      @@max_join_size,
 		     @@innodb_lock_wait_timeout;
@@ -102,9 +96,9 @@ DELIMITER ;|
 --echo # check without hints
 CALL p1();
 --echo # check with hints
-CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
 --echo # some with invalid values
-CALL /*+ SET_VAR(myisam_sort_buffer_size=a216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288b) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+CALL /*+ SET_VAR(myisam_sort_buffer_size=a216) SET_VAR(sort_buffer_size=524288b) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
 DROP PROCEDURE p1;
 
 --echo ###########################################################
@@ -117,7 +111,6 @@ DROP PROCEDURE p1;
 DELIMITER |;
               CREATE PROCEDURE p1() BEGIN
 	      CALL test_hint("SET_VAR(myisam_sort_buffer_size=600000)", "myisam_sort_buffer_size");
-	      CALL test_hint("SET_VAR(myisam_repair_threads=9)", "myisam_repair_threads");
 	      CALL test_hint("SET_VAR(sort_buffer_size=420000)", "sort_buffer_size");
 	      CALL test_hint("SET_VAR(max_join_size=200200200)", "max_join_size");
 	      CALL test_hint("SET_VAR(innodb_lock_wait_timeout=299)", "innodb_lock_wait_timeout");
@@ -133,7 +126,7 @@ CALL p1();
 --echo
 --echo # test with hints to CALL statement
 --echo
-CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
 DROP PROCEDURE p1;
 
 --echo #######################################

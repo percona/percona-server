@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -96,6 +96,11 @@ IF(HAS_WARN_FLAG)
   LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
+ENDIF()
+
 IF(WIN32)
   ADD_DEFINITIONS(
     -DU_STATIC_IMPLEMENTATION=1
@@ -108,6 +113,13 @@ IF(MSVC AND NOT WIN32_CLANG)
   # MSVC needs /utf-8 compiler switch if source file has no BOM
   STRING_APPEND(CMAKE_CXX_FLAGS " /utf-8")
 ENDIF()
+
+#TODO(Bug#33986227): fix the deprecation for ICU
+IF(MSVC)
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4996")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4996")
+ENDIF()
+
 
 IF(WITH_ICU STREQUAL "bundled")
   REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")

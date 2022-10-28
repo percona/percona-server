@@ -32,7 +32,8 @@ INSERT INTO t SELECT t.id,t.data from t;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/log_stop.inc
-
+ 
+--let $log_accept_any_innodb_io=1
 --source include/percona_slow_log_verbosity_grep.inc
 
 connection master;

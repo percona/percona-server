@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_OPTIONS("/W4")
   # Disable C4324: structure was padded due to __declspec(align())
   ADD_COMPILE_OPTIONS("/wd4324")
+  # Disable C4589: Constructor of abstract class 'dd::Entity_object_impl'
+  # ignores initializer for virtual base class 'dd::Weak_object'
+  ADD_COMPILE_OPTIONS("/wd4589")
 ENDIF()
 
 # TODO: Fix up all non-canonical include paths and remove this.
@@ -60,6 +63,7 @@ SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
   os/os0thread.cc
   page/zipdecompress.cc
   rem/rec.cc
+  rem/rem0wrec.cc
   ut/crc32.cc
   ut/ut.cc
   ut/ut0new.cc)
@@ -75,7 +79,6 @@ SET(INNOBASE_SOURCES
   btr/btr0cur.cc
   btr/btr0pcur.cc
   btr/btr0sea.cc
-  btr/btr0scrub.cc
   buf/buf0block_hint.cc
   buf/buf0buddy.cc
   buf/buf0buf.cc
@@ -98,6 +101,7 @@ SET(INNOBASE_SOURCES
   dict/dict0crea.cc
   dict/dict0dict.cc
   dict/dict0dd.cc
+  dict/dict0inst.cc
   dict/dict0load.cc
   dict/dict0mem.cc
   dict/dict0sdi.cc
@@ -170,10 +174,18 @@ SET(INNOBASE_SOURCES
   lock/lock0wait.cc
   log/log0buf.cc
   log/log0chkp.cc
+  log/log0consumer.cc
   log/log0ddl.cc
+  log/log0encryption.cc
+  log/log0files_capacity.cc
+  log/log0files_dict.cc
+  log/log0files_finder.cc
+  log/log0files_governor.cc
+  log/log0files_io.cc
   log/log0log.cc
   log/log0meb.cc
-  log/log0online.cc
+  log/log0pfs.cc
+  log/log0pre_8_0_30.cc
   log/log0recv.cc
   log/log0test.cc
   log/log0write.cc
@@ -197,6 +209,7 @@ SET(INNOBASE_SOURCES
   read/read0read.cc
   rem/rem0cmp.cc
   rem/rem0rec.cc
+  rem/rem0wrec.cc
   row/row0ext.cc
   row/row0import.cc
   row/row0ins.cc
@@ -234,6 +247,7 @@ SET(INNOBASE_SOURCES
   usr/usr0sess.cc
   ut/ut0dbg.cc
   ut/ut0list.cc
+  ut/ut0math.cc
   ut/ut0mem.cc
   ut/ut0new.cc
   ut/ut0rbt.cc
@@ -261,12 +275,6 @@ IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_FLAGS(fts/fts0pars.cc COMPILE_FLAGS "/wd4100 /wd4701 /wd4702")
 
   # Temporary disables for warnings that are not yet fixed:
-  # C4100: unreferenced formal parameter
-  ADD_COMPILE_OPTIONS("/wd4100")
-  # C4127	conditional expression is constant
-  ADD_COMPILE_OPTIONS("/wd4127")
-  # C4245: conversion from 'X'' to 'Y', signed/unsigned mismatch
-  ADD_COMPILE_OPTIONS("/wd4245")
   # C4456: declaration of 'X' hides local declaration
   ADD_COMPILE_OPTIONS("/wd4456")
   # C4457: declaration of 'X' hides function parameter
@@ -275,8 +283,6 @@ IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_OPTIONS("/wd4458")
   # C4459: declaration of 'X' hides global declaration
   ADD_COMPILE_OPTIONS("/wd4459")
-  # C4389: '==': signed/unsigned mismatch
-  ADD_COMPILE_OPTIONS("/wd4389")
 ENDIF()
 
 # There seems to be a bug in gcc for Oracle Linux 8 on ARM.

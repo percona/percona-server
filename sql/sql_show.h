@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/status_var.h"
@@ -51,10 +52,15 @@ struct TABLE_LIST;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 enum enum_schema_tables : int;
 enum enum_var_type : int;
-enum enum_field_types : int;
+
+/** Characters shown for the command in 'show processlist'. */
+constexpr const size_t PROCESS_LIST_WIDTH{100};
+/* Characters shown for the command in 'information_schema.processlist' */
+constexpr const size_t PROCESS_LIST_INFO_WIDTH{65535};
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                       HA_CREATE_INFO *create_info_arg, bool show_database);
+                       HA_CREATE_INFO *create_info_arg, bool show_database,
+                       bool for_show_create_stmt);
 
 void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length, const CHARSET_INFO *from_cs,

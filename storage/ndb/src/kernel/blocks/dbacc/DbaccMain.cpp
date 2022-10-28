@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <cstdint>
 #include <cstring>
 
@@ -766,7 +767,7 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
   FragmentrecPtr regFragPtr;
   regFragPtr.i = fragIndex;
   ptrCheckGuard(regFragPtr, cfragmentsize, fragmentrec);
-  verifyFragCorrect(regFragPtr);
+  ndbrequire(regFragPtr.p->lockCount == 0);
 
   if (regFragPtr.p->expandOrShrinkQueued)
   {
@@ -823,11 +824,6 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
   ndbassert(validatePageCount());
 }//Dbacc::releaseFragResources()
 
-void Dbacc::verifyFragCorrect(FragmentrecPtr regFragPtr)const
-{
-  ndbrequire(regFragPtr.p->lockOwnersList == RNIL);
-}//Dbacc::verifyFragCorrect()
-
 void Dbacc::releaseDirResources(Signal* signal)
 {
   jam();
@@ -839,7 +835,7 @@ void Dbacc::releaseDirResources(Signal* signal)
   FragmentrecPtr regFragPtr;
   regFragPtr.i = fragIndex;
   ptrCheckGuard(regFragPtr, cfragmentsize, fragmentrec);
-  verifyFragCorrect(regFragPtr);
+  ndbrequire(regFragPtr.p->lockCount == 0);
 
   DynArr256::Head* directory;
   ndbrequire(signal->theData[0] == ZREL_DIR);
@@ -1091,12 +1087,12 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
 
   if (operationRecPtr.p->tupkeylen == 0)
   {
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
+    static_assert(AccKeyReq::SignalLength_localKey == 10);
     ndbassert(siglen == AccKeyReq::SignalLength_localKey);
   }
   else
   {
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 8);
+    static_assert(AccKeyReq::SignalLength_keyInfo == 8);
     ndbassert(siglen == AccKeyReq::SignalLength_keyInfo + operationRecPtr.p->tupkeylen);
   }
 }//Dbacc::initOpRec()
@@ -1269,7 +1265,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
           operationRecPtr.p->elementPointer = elemptr;
 
 	  eh = ElementHeader::setLocked(operationRecPtr.i);
-	  insertLockOwnersList(operationRecPtr);
+	  fragrecptr.p->lockCount++;
 	  opbits |= Operationrec::OP_LOCK_OWNER;
 	  operationRecPtr.p->m_op_bits = opbits;
 
@@ -1818,7 +1814,8 @@ void Dbacc::insertelementLab(Signal* signal,
    * and thus decide the row still doesn't exist.
    */
   acquire_frag_mutex_hash(fragrecptr.p, operationRecPtr);
-  insertLockOwnersList(operationRecPtr);
+  fragrecptr.p->lockCount++;
+  operationRecPtr.p->m_op_bits |= Operationrec::OP_LOCK_OWNER;
 
   operationRecPtr.p->reducedHashValue =
     fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
@@ -1851,6 +1848,33 @@ void Dbacc::insertelementLab(Signal* signal,
                           localKey.m_page_idx,
                           fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
+
+  fragrecptr.p->slack -= fragrecptr.p->elementLength;
+  // EXPAND the structures if required:
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(3004) &&
+      fragrecptr.p->fragmentid == 0 &&
+      fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
+  {
+    if (!fragrecptr.p->expandOrShrinkQueued)
+    {
+      jam();
+      signal->theData[0] = fragrecptr.i;
+      fragrecptr.p->expandOrShrinkQueued = true;
+      sendSignal(reference(), GSN_EXPANDCHECK2, signal, 1, JBB);
+    }//if
+  }
+#endif
+  if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
+  {
+    if (!fragrecptr.p->expandOrShrinkQueued)
+    {
+      jam();
+      signal->theData[0] = fragrecptr.i;
+      fragrecptr.p->expandOrShrinkQueued = true;
+      sendSignal(reference(), GSN_EXPANDCHECK2, signal, 1, JBB);
+    }//if
+  }//if
   return;
 }//Dbacc::insertelementLab()
 
@@ -2669,59 +2693,6 @@ void Dbacc::execACC_COMMITREQ(Signal* signal,
      (Toperation != ZSCAN_OP))
   {
     fragrecptr.p->m_commit_count++;
-#ifdef ERROR_INSERT
-    bool force_expand_shrink = false;
-    if (ERROR_INSERTED(3004) &&
-        fragrecptr.p->fragmentid == 0 &&
-        fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
-    {
-      force_expand_shrink = true;
-    }
-#endif
-    if (Toperation != ZINSERT) {
-      if (Toperation != ZDELETE) {
-	return;
-      } else {
-	jam();
-	fragrecptr.p->slack += fragrecptr.p->elementLength;
-#ifdef ERROR_INSERT
-        if (force_expand_shrink || fragrecptr.p->slack > fragrecptr.p->slackCheck)
-#else
-        if (fragrecptr.p->slack > fragrecptr.p->slackCheck)
-#endif
-        {
-          /* TIME FOR JOIN BUCKETS PROCESS */
-	  if (fragrecptr.p->expandCounter > 0) {
-            if (!fragrecptr.p->expandOrShrinkQueued)
-            {
-	      jam();
-	      signal->theData[0] = fragrecptr.i;
-              fragrecptr.p->expandOrShrinkQueued = true;
-              sendSignal(reference(), GSN_SHRINKCHECK2, signal, 1, JBB);
-	    }//if
-	  }//if
-	}//if
-      }//if
-    } else {
-      jam();                                                /* EXPAND PROCESS HANDLING */
-      fragrecptr.p->slack -= fragrecptr.p->elementLength;
-#ifdef ERROR_INSERT
-      if ((force_expand_shrink || fragrecptr.p->slack < 0) &&
-          !fragrecptr.p->level.isFull())
-#else
-      if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
-#endif
-      {
-	/* IT MEANS THAT IF SLACK < ZERO */
-        if (!fragrecptr.p->expandOrShrinkQueued)
-        {
-	  jam();
-	  signal->theData[0] = fragrecptr.i;
-          fragrecptr.p->expandOrShrinkQueued = true;
-          sendSignal(reference(), GSN_EXPANDCHECK2, signal, 1, JBB);
-	}//if
-      }//if
-    }
   }
   return;
 }//Dbacc::execACC_COMMITREQ()
@@ -2861,7 +2832,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         // enter local key in place of PK
         keyreq->localKey[0] = req->page_id;
         keyreq->localKey[1] = req->page_idx;
-        NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
+        static_assert(AccKeyReq::SignalLength_localKey == 10);
       }
       signal->setLength(AccKeyReq::SignalLength_localKey);
       execACCKEYREQ(signal,
@@ -4387,34 +4358,61 @@ void Dbacc::commitdelete(Signal* signal)
       }
     }
   }
-  if (operationRecPtr.p->elementPage == lastPageptr.i) {
-    if (operationRecPtr.p->elementPointer == tlastElementptr) {
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*  THE LAST ELEMENT WAS THE ELEMENT TO BE DELETED. WE NEED NOT COPY IT.             */
-      /*  Setting it to an invalid value only for sanity, the value should never be read.  */
-      /* --------------------------------------------------------------------------------- */
-      jamLineDebug(Uint16(delPageptr.i));
-      jamLineDebug(Uint16(delElemptr));
-      delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
-      return;
+  if (operationRecPtr.p->elementPage == lastPageptr.i &&
+      operationRecPtr.p->elementPointer == tlastElementptr) {
+    jam();
+    /* --------------------------------------------------------------------------------- */
+    /*  THE LAST ELEMENT WAS THE ELEMENT TO BE DELETED. WE NEED NOT COPY IT.             */
+    /*  Setting it to an invalid value only for sanity, the value should never be read.  */
+    /* --------------------------------------------------------------------------------- */
+    jamLineDebug(Uint16(delPageptr.i));
+    jamLineDebug(Uint16(delElemptr));
+    delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
+  } else {
+    /* --------------------------------------------------------------------------------- */
+    /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND OVERWRITE THE  */
+    /*  DELETED ELEMENT.                                                                 */
+    /* --------------------------------------------------------------------------------- */
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+    jamDebug();
+    jamLineDebug(Uint16(delPageptr.i));
+    jamLineDebug(Uint16(delElemptr));
+    delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
+#endif
+    deleteElement(delPageptr,
+                  delConptr,
+                  delElemptr,
+                  lastPageptr,
+                  tlastElementptr);
+  }
+
+  // Adjust the 'slack' for the deleted element.
+  // If needed, initiate a 'shrink' of the storage structures.
+  fragrecptr.p->slack += fragrecptr.p->elementLength;
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(3004) &&
+      fragrecptr.p->fragmentid == 0 &&
+      fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
+  {
+    jam();
+    signal->theData[0] = fragrecptr.i;
+    fragrecptr.p->expandOrShrinkQueued = true;
+    sendSignal(reference(), GSN_SHRINKCHECK2, signal, 1, JBB);
+  }
+#endif
+  if (fragrecptr.p->slack > fragrecptr.p->slackCheck)
+  {
+    /* TIME FOR JOIN BUCKETS PROCESS */
+    if (fragrecptr.p->expandCounter > 0) {
+      if (!fragrecptr.p->expandOrShrinkQueued)
+      {
+        jam();
+        signal->theData[0] = fragrecptr.i;
+        fragrecptr.p->expandOrShrinkQueued = true;
+        sendSignal(reference(), GSN_SHRINKCHECK2, signal, 1, JBB);
+      }//if
     }//if
   }//if
-  /* --------------------------------------------------------------------------------- */
-  /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND OVERWRITE THE  */
-  /*  DELETED ELEMENT.                                                                 */
-  /* --------------------------------------------------------------------------------- */
-#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
-  jamDebug();
-  jamLineDebug(Uint16(delPageptr.i));
-  jamLineDebug(Uint16(delElemptr));
-  delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
-#endif
-  deleteElement(delPageptr,
-                delConptr,
-                delElemptr,
-                lastPageptr,
-                tlastElementptr);
 }//Dbacc::commitdelete()
 
 /** --------------------------------------------------------------------------
@@ -5248,7 +5246,7 @@ void Dbacc::abortOperation(Signal* signal)
      * consider a row deleted which isn't and vice versa.
      */
     acquire_frag_mutex_hash(fragrecptr.p, operationRecPtr);
-    takeOutLockOwnersList(operationRecPtr);
+    fragrecptr.p->lockCount--;
     opbits &= ~(Uint32)Operationrec::OP_LOCK_OWNER;
     if (opbits & Operationrec::OP_INSERT_IS_DONE)
     { 
@@ -5430,7 +5428,7 @@ void Dbacc::commitOperation(Signal* signal)
   {
     jam();
     acquire_frag_mutex_hash(fragrecptr.p, operationRecPtr);
-    takeOutLockOwnersList(operationRecPtr);
+    fragrecptr.p->lockCount--;
     opbits &= ~(Uint32)Operationrec::OP_LOCK_OWNER;
     operationRecPtr.p->m_op_bits = opbits;
     
@@ -5760,7 +5758,8 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     action = START_NEW;
   }
   
-  insertLockOwnersList(newOwner);
+  fragrecptr.p->lockCount++;
+  newOwner.p->m_op_bits |= Operationrec::OP_LOCK_OWNER;
   
   /**
    * Copy op info, and store op in element
@@ -5916,106 +5915,6 @@ ref:
   operationRecPtr = save;
   return;
 }
-
-/**
- * takeOutLockOwnersList
- *
- * Description: Take out an operation from the doubly linked 
- * lock owners list on the fragment.
- *
- */
-void Dbacc::takeOutLockOwnersList(const OperationrecPtr& outOperPtr) const
-{
-  const Uint32 Tprev = outOperPtr.p->prevLockOwnerOp;
-  const Uint32 Tnext = outOperPtr.p->nextLockOwnerOp;
-#ifdef VM_TRACE
-  // Check that operation is already in the list
-  OperationrecPtr tmpOperPtr;
-  bool inList = false;
-  tmpOperPtr.i = fragrecptr.p->lockOwnersList;
-  while (tmpOperPtr.i != RNIL){
-    ndbrequire(oprec_pool.getValidPtr(tmpOperPtr));
-    if (tmpOperPtr.i == outOperPtr.i)
-      inList = true;
-    tmpOperPtr.i = tmpOperPtr.p->nextLockOwnerOp;
-  }
-  ndbrequire(inList == true);
-#endif
-  
-  ndbassert(outOperPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
-  
-  // Fast path through the code for the common case.
-  if ((Tprev == RNIL) && (Tnext == RNIL)) {
-    ndbrequire(fragrecptr.p->lockOwnersList == outOperPtr.i);
-    fragrecptr.p->lockOwnersList = RNIL;
-    return;
-  } 
-
-  // Check previous operation 
-  if (Tprev != RNIL) {
-    jam();
-    OperationrecPtr prevOp;
-    prevOp.i = Tprev;
-    ndbrequire(oprec_pool.getValidPtr(prevOp));
-    prevOp.p->nextLockOwnerOp = Tnext;
-  } else {
-    fragrecptr.p->lockOwnersList = Tnext;
-  }//if
-
-  // Check next operation
-  if (Tnext == RNIL) {
-    return;
-  } else {
-    jam();
-    OperationrecPtr nextOp;
-    nextOp.i = Tnext;
-    ndbrequire(oprec_pool.getValidPtr(nextOp));
-    nextOp.p->prevLockOwnerOp = Tprev;
-  }//if
-
-  return;
-}//Dbacc::takeOutLockOwnersList()
-
-/**
- * insertLockOwnersList
- *
- * Description: Insert an operation first in the dubly linked lock owners 
- * list on the fragment.
- *
- */
-void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) const
-{
-  OperationrecPtr tmpOperPtr;
-#ifdef VM_TRACE
-  // Check that operation is not already in list
-  tmpOperPtr.i = fragrecptr.p->lockOwnersList;
-  while(tmpOperPtr.i != RNIL){
-    ndbrequire(oprec_pool.getValidPtr(tmpOperPtr));
-    ndbrequire(tmpOperPtr.i != insOperPtr.i);
-    tmpOperPtr.i = tmpOperPtr.p->nextLockOwnerOp;    
-  }
-#endif
-  tmpOperPtr.i = fragrecptr.p->lockOwnersList;
-  
-  ndbrequire(! (insOperPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER));
-
-  insOperPtr.p->m_op_bits |= Operationrec::OP_LOCK_OWNER;
-  insOperPtr.p->prevLockOwnerOp = RNIL;
-  insOperPtr.p->nextLockOwnerOp = tmpOperPtr.i;
-  
-  fragrecptr.p->lockOwnersList = insOperPtr.i;
-  if (likely(tmpOperPtr.i == RNIL))
-  {
-    return;
-  }
-  else
-  {
-    jam();
-    ndbrequire(oprec_pool.getValidPtr(tmpOperPtr));
-    tmpOperPtr.p->prevLockOwnerOp = insOperPtr.i;
-  }//if
-}//Dbacc::insertLockOwnersList()
-
 
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
@@ -7564,8 +7463,7 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)const
 {
   new (&regFragPtr.p->directory) DynArr256::Head();
 
-  regFragPtr.p->lockOwnersList = RNIL;
-
+  regFragPtr.p->lockCount = 0;
   regFragPtr.p->hasCharAttr = ZFALSE;
   regFragPtr.p->dirRangeFull = ZFALSE;
   regFragPtr.p->fragState = FREEFRAG;
@@ -7864,9 +7762,10 @@ void Dbacc::checkNextBucketLab(Signal* signal)
                          getHighResTimer());
       
       setlock(nsPageptr, tnsElementptr);
-      insertLockOwnersList(operationRecPtr);
-      operationRecPtr.p->m_op_bits |= 
-	Operationrec::OP_STATE_RUNNING | Operationrec::OP_RUN_QUEUE;
+      fragrecptr.p->lockCount++;
+      operationRecPtr.p->m_op_bits |=
+        Operationrec::OP_LOCK_OWNER |
+        Operationrec::OP_STATE_RUNNING | Operationrec::OP_RUN_QUEUE;
     }//if
   } else {
     arrGuard(tnsElementptr, 2048);
@@ -8618,26 +8517,6 @@ void Dbacc::putActiveScanOp() const
  */
 void Dbacc::putOpScanLockQue() const
 {
-
-#ifdef VM_TRACE
-  // DEBUG CODE
-  // Check that there are as many operations in the lockqueue as 
-  // scanLockHeld indicates
-  OperationrecPtr tmpOp;
-  int numLockedOpsBefore = 0;
-  tmpOp.i = scanPtr.p->scanFirstLockedOp;
-  while(tmpOp.i != RNIL){
-    numLockedOpsBefore++;
-    ndbrequire(oprec_pool.getValidPtr(tmpOp));
-    if (tmpOp.p->nextOp == RNIL)
-    {
-      ndbrequire(tmpOp.i == scanPtr.p->scanLastLockedOp);
-    }
-    tmpOp.i = tmpOp.p->nextOp;
-  } 
-  ndbrequire(numLockedOpsBefore==scanPtr.p->scanLockHeld);
-#endif
-
   OperationrecPtr pslOperationRecPtr;
   ScanRec theScanRec;
   theScanRec = *scanPtr.p;
@@ -9002,25 +8881,6 @@ void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex) const
     TscanPtr.p->scanLastLockedOp = operationRecPtr.p->prevOp;
   }//if
   TscanPtr.p->scanLockHeld--;
-
-#ifdef VM_TRACE
-  // DEBUG CODE
-  // Check that there are as many operations in the lockqueue as 
-  // scanLockHeld indicates
-  OperationrecPtr tmpOp;
-  int numLockedOps = 0;
-  tmpOp.i = TscanPtr.p->scanFirstLockedOp;
-  while(tmpOp.i != RNIL){
-    numLockedOps++;
-    ndbrequire(oprec_pool.getValidPtr(tmpOp));
-    if (tmpOp.p->nextOp == RNIL)
-    {
-      ndbrequire(tmpOp.i == TscanPtr.p->scanLastLockedOp);
-    }
-    tmpOp.i = tmpOp.p->nextOp;
-  } 
-  ndbrequire(numLockedOps==TscanPtr.p->scanLockHeld);
-#endif
 }//Dbacc::takeOutScanLockQueue()
 
 /* --------------------------------------------------------------------------------- */
@@ -9273,7 +9133,7 @@ void Dbacc::releaseFreeOpRec()
     OperationrecPtr opPtr;
     opPtr.i = cfreeopRec;
     cfreeopRec = RNIL;
-    oprec_pool.getValidPtr(opPtr);
+    ndbrequire(oprec_pool.getValidPtr(opPtr));
     ndbrequire(opPtr.p->m_op_bits == Operationrec::OP_INITIAL);
     oprec_pool.release(opPtr);
     checkPoolShrinkNeed(DBACC_OPERATION_RECORD_TRANSIENT_POOL_INDEX,
@@ -9526,7 +9386,9 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
 
     static const size_t num_config_params =
       sizeof(pools[0].config_params)/sizeof(pools[0].config_params[0]);
+    const Uint32 numPools = NDB_ARRAY_SIZE(pools);
     Uint32 pool = cursor->data[0];
+    ndbrequire(pool < numPools);
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
     {
@@ -9879,15 +9741,13 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("fid=%d, fragptr=%d ",
               tmpOpPtr.p->fid, tmpOpPtr.p->fragptr);
     infoEvent("hashValue=%d", tmpOpPtr.p->hashValue.pack());
-    infoEvent("nextLockOwnerOp=%d, nextOp=%d, nextParallelQue=%d ",
-	      tmpOpPtr.p->nextLockOwnerOp, tmpOpPtr.p->nextOp, 
-	      tmpOpPtr.p->nextParallelQue);
+    infoEvent("nextOp=%d, nextParallelQue=%d ",
+	      tmpOpPtr.p->nextOp, tmpOpPtr.p->nextParallelQue);
     infoEvent("nextSerialQue=%d, prevOp=%d ",
 	      tmpOpPtr.p->nextSerialQue, 
 	      tmpOpPtr.p->prevOp);
-    infoEvent("prevLockOwnerOp=%d, prevParallelQue=%d",
-	      tmpOpPtr.p->prevLockOwnerOp, tmpOpPtr.p->nextParallelQue);
-    infoEvent("prevSerialQue=%d, scanRecPtr=%d",
+    infoEvent("prevParallelQue=%d, prevSerialQue=%d, scanRecPtr=%d",
+	      tmpOpPtr.p->prevParallelQue,
 	      tmpOpPtr.p->prevSerialQue, tmpOpPtr.p->scanRecPtr);
     infoEvent("m_op_bits=0x%x, reducedHashValue=%x ",
               tmpOpPtr.p->m_op_bits, tmpOpPtr.p->reducedHashValue.pack());

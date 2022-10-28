@@ -32,6 +32,8 @@
 
 --echo # Unzip the zip file.
 --exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+--mkdir $MYSQL_TMP_DIR/data57/#innodb_redo
+
 
 --let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1
 --let $wait_counter= 10000

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -184,7 +184,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     SA6. Clustered index can not be used by GROUP_MIN_MAX quick select
          for AGG_FUNC(DISTINCT ...) optimization because cursor position is
          never stored after a unique key lookup in the clustered index and
-         furhter index_next/prev calls can not be used. So loose index scan
+         further index_next/prev calls can not be used. So loose index scan
          optimization can not be used in this case.
     SA7. If Q has both AGG_FUNC(DISTINCT ...) and MIN/MAX() functions then this
          access method is not used.
@@ -576,13 +576,13 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
     if ((join->group_list.empty() && join->select_distinct) ||
         is_agg_distinct) {
       auto agg_distinct_flds_it = agg_distinct_flds.begin();
-      auto select_items_it = join->fields->begin();
-      while (is_agg_distinct ? (agg_distinct_flds_it != agg_distinct_flds.end())
-                             : (select_items_it != join->fields->end())) {
+      auto select_items_it = VisibleFields(*join->fields).begin();
+      while (is_agg_distinct
+                 ? (agg_distinct_flds_it != agg_distinct_flds.end())
+                 : (select_items_it != VisibleFields(*join->fields).end())) {
         Item *item =
             (is_agg_distinct ? static_cast<Item *>(*agg_distinct_flds_it++)
                              : *select_items_it++);
-        if (item->hidden) continue;
 
         /* (SA5) already checked above. */
         item_field = (Item_field *)item->real_item();
@@ -598,7 +598,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
         key_part_nr = get_field_keypart(cur_index_info, item_field->field);
         /*
           Check if this attribute was already present in the select list.
-          If it was present, then its corresponding key part was alredy used.
+          If it was present, then its corresponding key part was already used.
         */
         if (used_key_parts_map.is_set(key_part_nr)) continue;
         if (key_part_nr < 1 ||
@@ -957,10 +957,11 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
       /* Prepare for a IndexRangeScanIterator to be used for group prefix
        * retrieval.
        */
-      unsigned used_key_parts_unused;
+      unsigned used_key_parts_unused, num_exact_key_parts_unused;
       if (get_ranges_from_tree(return_mem_root, table, used_key_part, keyno,
                                index_tree, group_key_parts,
-                               &used_key_parts_unused, &prefix_ranges)) {
+                               &used_key_parts_unused,
+                               &num_exact_key_parts_unused, &prefix_ranges)) {
         return nullptr;
       }
       // Opens the ranges if there are more conditions in
@@ -974,7 +975,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
       // are more keyparts to follow the ones we are using we must make the
       // condition on the key inclusive (because x < "ab" means
       // x[0] < 'a' OR (x[0] == 'a' AND x[1] < 'b').
-      // To achive the above we must turn off the NEAR_MIN/NEAR_MAX
+      // To achieve the above we must turn off the NEAR_MIN/NEAR_MAX
       uint prefix_max_length = 0;
       for (const QUICK_RANGE *range : prefix_ranges) {
         prefix_max_length =
@@ -1122,7 +1123,7 @@ static bool check_group_min_max_predicates(Item *cond,
 
     It's been suggested that it may be possible to use the access method
     for a sub-family of cases when we're aggregating constants or
-    outer references. For the moment, we bale out and we reject
+    outer references. For the moment, we bail out and we reject
     the access method for the query.
 
     It's hard to prove that there are no other cases where the
@@ -1213,7 +1214,7 @@ static bool check_group_min_max_predicates(Item *cond,
 
 /**
   Utility function used by min_max_inspect_cond_for_fields() for comparing
-  FILED item with given MIN/MAX item and setting appropriate out paramater.
+  FIELD item with given MIN/MAX item and setting appropriate out parameter.
 
 @param         item_field         Item field for comparison.
 @param         min_max_arg_item   The field referenced by the MIN/MAX
@@ -1343,7 +1344,7 @@ static bool min_max_inspect_cond_for_fields(Item *cond,
     first_non_group_part   [in]  First index part after group attribute parts
     min_max_arg_part       [in]  The keypart of the MIN/MAX argument if any
     last_part              [in]  Last keypart of the index
-    key_infix_len          [out] Lenghth of the infix
+    key_infix_len          [out] Length of the infix
     first_non_infix_part   [out] The first keypart after the infix (if any)
     infix_factor           [out] The number of combinations of infixes
                                  that can be possible.
@@ -1521,7 +1522,7 @@ static inline uint get_field_keypart(KEY *index, const Field *field) {
        This needs fixing.
      - When both min and max are present, LIS will make two reads per group
        instead of one. Similarly when min and max functions are not present,
-       rows retrived are different. Cost model should reflect what happens
+       rows retrieved are different. Cost model should reflect what happens
        in GroupIndexSkipScanIterator::Read()
 
   RETURN
@@ -1625,7 +1626,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     as the sum of:
     1. Cost for evaluating the condition (similarly as for index scan).
     2. Cost for navigating the index structure (assuming a b-tree).
-       Note: We only add the cost for one comparision per block. For a
+       Note: We only add the cost for one comparison per block. For a
              b-tree the number of comparisons will be larger.
        TODO: This cost should be provided by the storage engine.
   */
@@ -1672,9 +1673,9 @@ static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
       range_flag |= EQ_RANGE; /* equality condition */
   }
   QUICK_RANGE *range = new (return_mem_root) QUICK_RANGE(
-      sel_range->min_value, key_length, make_keypart_map(sel_range->part),
-      sel_range->max_value, key_length, make_keypart_map(sel_range->part),
-      range_flag, HA_READ_INVALID);
+      return_mem_root, sel_range->min_value, key_length,
+      make_keypart_map(sel_range->part), sel_range->max_value, key_length,
+      make_keypart_map(sel_range->part), range_flag, HA_READ_INVALID);
   if (!range) return true;
   if (range_array->push_back(range)) return true;
   return false;

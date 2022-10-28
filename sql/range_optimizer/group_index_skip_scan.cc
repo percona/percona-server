@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -527,24 +527,6 @@ int GroupIndexSkipScanIterator::next_prefix() {
   conditions to discover the prefix of the next group that satisfies the range
   conditions.
 
-<<<<<<< HEAD:sql/range_optimizer/group_min_max.cc
-||||||| parent of b4f911b96da (Bug #33037007: PRELIMINARY FIXES FOR WL #14488
-[renaming, noclose]):sql/range_optimizer/group_min_max.cc
-  @todo
-
-    This method is a modified copy of QUICK_RANGE_SELECT::Read(), so both
-    methods should be unified into a more general one to reduce code
-    duplication.
-
-=======
-  @todo
-
-    This method is a modified copy of IndexRangeScanIterator::Read(), so both
-    methods should be unified into a more general one to reduce code
-    duplication.
-
->>>>>>> b4f911b96da (Bug #33037007: PRELIMINARY FIXES FOR WL #14488 [renaming,
-noclose]):sql/range_optimizer/group_index_skip_scan.cc
   @retval 0                  on success
   @retval HA_ERR_END_OF_FILE if returned all keys
   @retval other              if some error occurred
@@ -692,7 +674,7 @@ void GroupIndexSkipScanIterator::reset_group() {
   key part's order (ascending or descending) and if the
   range is on MIN function or a MAX function to get the
   right search mode.
-  For "MIN" functon:
+  For "MIN" function:
    - ASC keypart
    We need to
     1. Read the first key that matches the range
@@ -885,7 +867,7 @@ int GroupIndexSkipScanIterator::next_min_in_range() {
                             real_prefix_len + min_max_arg_len);
       /*
         The key is outside of the range if:
-        the interval is open and the key is equal to the maximum boundry
+        the interval is open and the key is equal to the maximum boundary
         or
         the key is greater than the maximum
       */
@@ -1000,7 +982,7 @@ int GroupIndexSkipScanIterator::next_max_in_range() {
                             real_prefix_len + min_max_arg_len);
       /*
         The key is outside of the range if:
-        the interval is open and the key is equal to the minimum boundry
+        the interval is open and the key is equal to the minimum boundary
         or
         the key is less than the minimum
       */

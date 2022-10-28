@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -44,8 +44,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "db0err.h"
 #include "dict0dd.h"
 #include "ha_innodb.h"
-#include "log0log.h"
-#include "log0types.h"
+#include "log0chkp.h"
+#include "log0encryption.h"
+#include "log0files_io.h"
+#include "log0write.h"
 #include "os0event.h"
 #include "os0file.h"
 #include "os0thread-create.h"
@@ -571,6 +573,29 @@ long long innodb_redo_log_sharp_checkpoint(
     [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
     [[maybe_unused]] unsigned char *null_value,
     [[maybe_unused]] unsigned char *error);
+bool innodb_redo_log_consumer_register_init([[maybe_unused]] UDF_INIT *initid,
+                                            UDF_ARGS *args, char *message);
+void innodb_redo_log_consumer_register_deinit([
+    [maybe_unused]] UDF_INIT *initid);
+long long innodb_redo_log_consumer_register(
+    [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
+    [[maybe_unused]] unsigned char *null_value,
+    [[maybe_unused]] unsigned char *error);
+bool innodb_redo_log_consumer_unregister_init([[maybe_unused]] UDF_INIT *initid,
+                                              UDF_ARGS *args, char *message);
+void innodb_redo_log_consumer_unregister_deinit([
+    [maybe_unused]] UDF_INIT *initid);
+long long innodb_redo_log_consumer_unregister(
+    [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
+    [[maybe_unused]] unsigned char *null_value,
+    [[maybe_unused]] unsigned char *error);
+bool innodb_redo_log_consumer_advance_init([[maybe_unused]] UDF_INIT *initid,
+                                           UDF_ARGS *args, char *message);
+void innodb_redo_log_consumer_advance_deinit([[maybe_unused]] UDF_INIT *initid);
+long long innodb_redo_log_consumer_advance(
+    [[maybe_unused]] UDF_INIT *initid, UDF_ARGS *args,
+    [[maybe_unused]] unsigned char *null_value,
+    [[maybe_unused]] unsigned char *error);
 
 /**
 This component's UDFs.mysql
@@ -590,7 +615,17 @@ class Dynamic_procedures : public srv::Dynamic_procedures {
          innodb_redo_log_archive_flush_deinit},
         {"innodb_redo_log_sharp_checkpoint", innodb_redo_log_sharp_checkpoint,
          innodb_redo_log_sharp_checkpoint_init,
-         innodb_redo_log_sharp_checkpoint_deinit}};
+         innodb_redo_log_sharp_checkpoint_deinit},
+        {"innodb_redo_log_consumer_advance", innodb_redo_log_consumer_advance,
+         innodb_redo_log_consumer_advance_init,
+         innodb_redo_log_consumer_advance_deinit},
+        {"innodb_redo_log_consumer_register", innodb_redo_log_consumer_register,
+         innodb_redo_log_consumer_register_init,
+         innodb_redo_log_consumer_register_deinit},
+        {"innodb_redo_log_consumer_unregister",
+         innodb_redo_log_consumer_unregister,
+         innodb_redo_log_consumer_unregister_init,
+         innodb_redo_log_consumer_unregister_deinit}};
   }
   std::string get_module_name() const override {
     return "innodb_redo_log_archive";
@@ -718,10 +753,10 @@ void redo_log_archive_deinit() {
 /**
   Check whether a valid value is given to innodb_redo_log_archive_dirs.
   This function is registered as a callback with MySQL.
-  @param[in]	thd       thread handle
-  @param[in]	var       pointer to system variable
-  @param[out]	save      immediate result for update function
-  @param[in]	value     incoming string
+  @param[in]    thd       thread handle
+  @param[in]    var       pointer to system variable
+  @param[out]   save      immediate result for update function
+  @param[in]    value     incoming string
   @return 0 for valid contents
 */
 int validate_redo_log_archive_dirs(THD *thd [[maybe_unused]],
@@ -1064,7 +1099,6 @@ static void construct_file_pathname(const Fil_path &path,
 
 /**
   Execute security checks and construct a file path name.
-  @param[in,out]  thd           current THD instance, current session
   @param[in]      label         a label from innodb_redo_log_archive_dirs
   @param[in]      subdir        a plain directory name, on Unix/Linux/Mac
                                 no slash ('/') is allowed, on Windows no
@@ -1076,7 +1110,7 @@ static void construct_file_pathname(const Fil_path &path,
     @retval       false         success
     @retval       true          failure
 */
-static bool construct_secure_file_path_name(THD *thd, const char *label,
+static bool construct_secure_file_path_name(const char *label,
                                             const char *subdir,
                                             std::string *file_pathname) {
   DBUG_TRACE;
@@ -1278,7 +1312,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     Construct a file path name.
   */
   std::string file_pathname;
-  if (construct_secure_file_path_name(thd, label, subdir, &file_pathname)) {
+  if (construct_secure_file_path_name(label, subdir, &file_pathname)) {
     mutex_exit(&redo_log_archive_admin_mutex);
     return true;
   }
@@ -1630,6 +1664,72 @@ static bool redo_log_archive_flush(THD *thd) {
   return false;
 }
 
+static std::unique_ptr<Log_user_consumer> log_meb_consumer;
+static innodb_session_t *log_meb_consumer_session;
+
+static bool redo_log_consumer_register(innodb_session_t *session,
+                                       std::string const &name) {
+  log_t &log = *log_sys;
+
+  IB_mutex_guard checkpointer_latch{&(log.checkpointer_mutex),
+                                    UT_LOCATION_HERE};
+
+  IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
+
+  if (session == nullptr || log_meb_consumer_session != nullptr) {
+    return true;
+  }
+
+  ut_a(log_meb_consumer.get() == nullptr);
+
+  log_meb_consumer = std::make_unique<Log_user_consumer>(name);
+
+  log_meb_consumer->set_consumed_lsn(log_get_checkpoint_lsn(log));
+
+  log_consumer_register(log, log_meb_consumer.get());
+
+  log_meb_consumer_session = session;
+
+  return false;
+}
+
+static bool redo_log_consumer_unregister(innodb_session_t *session) {
+  log_t &log = *log_sys;
+
+  IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
+
+  if (session == nullptr || log_meb_consumer_session != session) {
+    return true;
+  }
+
+  ut_a(log_meb_consumer.get() != nullptr);
+
+  log_consumer_unregister(log, log_meb_consumer.get());
+  log_meb_consumer.reset();
+
+  log_meb_consumer_session = nullptr;
+
+  return false;
+}
+
+static bool redo_log_consumer_advance(innodb_session_t *session, lsn_t lsn) {
+  IB_mutex_guard files_latch{&(log_sys->m_files_mutex), UT_LOCATION_HERE};
+
+  if (session == nullptr || log_meb_consumer_session != session) {
+    return true;
+  }
+
+  ut_a(log_meb_consumer.get() != nullptr);
+
+  if (lsn < log_meb_consumer->get_consumed_lsn()) {
+    return true;
+  }
+
+  log_meb_consumer->set_consumed_lsn(lsn);
+
+  return false;
+}
+
 /*
   Security function to be called when the current session ends.
 */
@@ -1675,6 +1775,21 @@ void redo_log_archive_session_end(innodb_session_t *session) {
       }
     }
   }
+
+  {
+    IB_mutex_guard files_latch{&(log_sys->m_files_mutex), UT_LOCATION_HERE};
+
+    if (log_meb_consumer_session != session) {
+      return;
+    }
+  }
+
+  ut_ad(log_meb_consumer_session == session);
+
+  ut_d(const bool ret =) redo_log_consumer_unregister(session);
+
+  ut_ad(!ret);
+  ut_ad(log_meb_consumer_session == nullptr);
 }
 
 /**
@@ -1835,45 +1950,27 @@ static void redo_log_archive_consumer() {
 
     /* Prepare an I/O request with potential encryption. */
     IORequest request(IORequest::LOG | IORequest::WRITE);
+
     if (srv_redo_log_encrypt) {
-      /* The page number does not matter much, but it should not be zero. */
-      page_id_t page_id{dict_sys_t::s_log_space_first_id, 128};
-      fil_space_t *space = fil_space_t::s_redo_space;
-      if (space == nullptr) {
-        /*
-          Sometimes fil_space_t::s_redo_space is NULL even though
-          fil_space_get() finds it in the spaces container.
-        */
-        space = fil_space_get(page_id.space());
+      IB_mutex_guard files_latch{&(log_sys->m_files_mutex), UT_LOCATION_HERE};
+
+      if (log_can_encrypt(*log_sys)) {
+        request.encryption_key(log_sys->m_encryption_metadata.m_key,
+                               log_sys->m_encryption_metadata.m_key_len,
+                               log_sys->m_encryption_metadata.m_iv);
+        request.encryption_algorithm(log_sys->m_encryption_metadata.m_type);
       }
-      if (space == nullptr) {
-        /* purecov: begin inspected */
-        std::stringstream recorded_error_ss;
-        recorded_error_ss
-            << "Cannot encrypt archive log: cannot find log space.";
-        if (!redo_log_archive_recorded_error.empty()) {
-          redo_log_archive_recorded_error.append("; ");
-        }
-        redo_log_archive_recorded_error.append(recorded_error_ss.str());
-        LogErr(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-               (LOGMSGPFX + recorded_error_ss.str()).c_str());
-        /* Setting this flag prevents from entering the below loop. */
-        redo_log_archive_consume_complete = true;
-        /* purecov: end */
-      } else {
-        fil_io_set_encryption(request, page_id, space);
-      }
+
       // Ensure, that the block written has a minimum size.
       // The encryption is skipped for offsets smaller than
       // `LOG_FILE_HDR_SIZE` (not only for offsets==0).
-      ut_ad(QUEUE_BLOCK_SIZE >= LOG_FILE_HDR_SIZE);
+      static_assert(QUEUE_BLOCK_SIZE >= LOG_FILE_HDR_SIZE);
     }
-
     /*
       Offset inside the redo log archive file. The offset is incremented
       each time the consumer writes to the redo log archive file.
     */
-    uint64_t file_offset{0};
+    os_offset_t file_offset{0};
     Block temp_block;
 
     mutex_enter(&redo_log_archive_admin_mutex);
@@ -1995,19 +2092,19 @@ static void redo_log_archive_consumer() {
 bool innodb_redo_log_archive_start_init(UDF_INIT *initid [[maybe_unused]],
                                         UDF_ARGS *args, char *message) {
   if ((args->arg_count < 1) || (args->arg_count > 2)) {
-    strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
     return true;
   }
   if (args->args[0] == nullptr) {
-    strncpy(message, "First argument must not be null.", MYSQL_ERRMSG_SIZE);
+    snprintf(message, MYSQL_ERRMSG_SIZE, "First argument must not be null.");
     return true;
   }
   if (args->arg_type[0] != STRING_RESULT) {
-    strncpy(message, "Invalid first argument type.", MYSQL_ERRMSG_SIZE);
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid first argument type.");
     return true;
   }
   if ((args->arg_count == 2) && (args->arg_type[1] != STRING_RESULT)) {
-    strncpy(message, "Invalid second argument type.", MYSQL_ERRMSG_SIZE);
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid second argument type.");
     return true;
   }
   return false;
@@ -2058,7 +2155,7 @@ long long innodb_redo_log_archive_start(UDF_INIT *initid [[maybe_unused]],
 bool innodb_redo_log_archive_stop_init(UDF_INIT *initid [[maybe_unused]],
                                        UDF_ARGS *args, char *message) {
   if (args->arg_count != 0) {
-    strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
     return true;
   }
   return false;
@@ -2101,7 +2198,7 @@ long long innodb_redo_log_archive_stop(UDF_INIT *initid [[maybe_unused]],
 bool innodb_redo_log_archive_flush_init(UDF_INIT *initid [[maybe_unused]],
                                         UDF_ARGS *args, char *message) {
   if (args->arg_count != 0) {
-    strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
     return true;
   }
   return false;
@@ -2144,7 +2241,7 @@ long long innodb_redo_log_archive_flush(UDF_INIT *initid [[maybe_unused]],
 bool innodb_redo_log_sharp_checkpoint_init([[maybe_unused]] UDF_INIT *initid,
                                            UDF_ARGS *args, char *message) {
   if (args->arg_count != 0) {
-    strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
     return true;
   }
   return false;
@@ -2189,5 +2286,150 @@ long long innodb_redo_log_sharp_checkpoint(
          "innodb_redo_log_sharp_checkpoint() making checkpoint");
   log_make_latest_checkpoint(*log_sys);
   return 0;
+}
+
+/**
+  Initialize UDF innodb_redo_log_consumer_register
+
+  See include/mysql/udf_registration_types.h
+*/
+bool innodb_redo_log_consumer_register_init([[maybe_unused]] UDF_INIT *initid,
+                                            UDF_ARGS *args, char *message) {
+  if (args->arg_count > 1) {
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
+    return true;
+  }
+  return false;
+}
+
+/**
+  Deinitialize UDF innodb_redo_log_consumer_register
+
+  See include/mysql/udf_registration_types.h
+*/
+void innodb_redo_log_consumer_register_deinit([
+    [maybe_unused]] UDF_INIT *initid) {}
+
+/**
+  UDF innodb_redo_log_consumer_register
+
+  The UDF is of type Udf_func_longlong returning INT_RESULT
+  and expects no arguments.
+
+  See include/mysql/udf_registration_types.h
+
+  Returns zero on success, one otherwise.
+*/
+long long innodb_redo_log_consumer_register(
+    [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
+    [[maybe_unused]] unsigned char *null_value,
+    [[maybe_unused]] unsigned char *error) {
+  std::string name = "MEB";
+  if (current_thd == nullptr ||
+      verify_privilege(current_thd, backup_admin_privilege)) {
+    return 1;
+  }
+
+  if (args->arg_count >= 1) {
+    name.assign(args->args[0]);
+  }
+
+  return static_cast<long long>(meb::redo_log_consumer_register(
+      thd_to_innodb_session(current_thd), name));
+}
+
+/**
+  Initialize UDF innodb_redo_log_consumer_unregister
+
+  See include/mysql/udf_registration_types.h
+*/
+bool innodb_redo_log_consumer_unregister_init([[maybe_unused]] UDF_INIT *initid,
+                                              UDF_ARGS *args, char *message) {
+  if (args->arg_count != 0) {
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
+    return true;
+  }
+  return false;
+}
+
+/**
+  Deinitialize UDF innodb_redo_log_consumer_unregister
+
+  See include/mysql/udf_registration_types.h
+*/
+void innodb_redo_log_consumer_unregister_deinit([
+    [maybe_unused]] UDF_INIT *initid) {}
+
+/**
+  UDF innodb_redo_log_consumer_unregister
+
+  The UDF is of type Udf_func_longlong returning INT_RESULT
+  and expects no arguments.
+
+  See include/mysql/udf_registration_types.h
+
+  Returns zero on success, one otherwise.
+*/
+long long innodb_redo_log_consumer_unregister(
+    [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
+    [[maybe_unused]] unsigned char *null_value,
+    [[maybe_unused]] unsigned char *error) {
+  if (current_thd == nullptr) {
+    return 1;
+  }
+  return static_cast<long long>(
+      meb::redo_log_consumer_unregister(thd_to_innodb_session(current_thd)));
+}
+
+/**
+  Initialize UDF innodb_redo_log_consumer_advance
+
+  See include/mysql/udf_registration_types.h
+*/
+bool innodb_redo_log_consumer_advance_init([[maybe_unused]] UDF_INIT *initid,
+                                           UDF_ARGS *args, char *message) {
+  if (args->arg_count != 1) {
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
+    return true;
+  }
+  if (args->arg_type[0] != INT_RESULT) {
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid argument type.");
+    return true;
+  }
+  return false;
+}
+
+/**
+  Deinitialize UDF innodb_redo_log_consumer_advance
+
+  See include/mysql/udf_registration_types.h
+*/
+void innodb_redo_log_consumer_advance_deinit([
+    [maybe_unused]] UDF_INIT *initid) {}
+
+/**
+  UDF innodb_redo_log_consumer_advance
+
+  The UDF is of type Udf_func_longlong returning INT_RESULT
+  and expects LSN argument which is the LSN up to which all
+  redo log data has been consumed by the registered consumer.
+
+  Before calling this function the consumer must be registered
+  by the innodb_redo_log_consumer_register UDF.
+
+  See include/mysql/udf_registration_types.h
+
+  Returns zero on success, one otherwise.
+*/
+long long innodb_redo_log_consumer_advance(
+    [[maybe_unused]] UDF_INIT *initid, UDF_ARGS *args,
+    [[maybe_unused]] unsigned char *null_value,
+    [[maybe_unused]] unsigned char *error) {
+  if (current_thd == nullptr ||
+      verify_privilege(current_thd, backup_admin_privilege)) {
+    return 1;
+  }
+  return static_cast<long long>(meb::redo_log_consumer_advance(
+      thd_to_innodb_session(current_thd), *((long long *)args->args[0])));
 }
 } /* namespace meb */

@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ class JOIN {
   /// mapping between table indexes and JOIN_TABs
   JOIN_TAB **map2table{nullptr};
   /*
-    The table which has an index that allows to produce the requried ordering.
+    The table which has an index that allows to produce the required ordering.
     A special value of 0x1 means that the ordering will be produced by
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
@@ -766,6 +766,7 @@ class JOIN {
   bool push_to_engines();
 
   AccessPath *root_access_path() const { return m_root_access_path; }
+  void set_root_access_path(AccessPath *path) { m_root_access_path = path; }
 
   /**
     If this query block was planned twice, once with and once without conditions
@@ -858,7 +859,7 @@ class JOIN {
     Initialize key dependencies for join tables.
 
     TODO figure out necessity of this method. Current test
-         suite passed without this intialization.
+         suite passed without this initialization.
   */
   void init_key_dependencies() {
     JOIN_TAB *const tab_end = join_tab + tables;
@@ -1008,7 +1009,7 @@ class JOIN {
   /** @{ Helpers for create_access_paths. */
   AccessPath *create_root_access_path_for_join();
   AccessPath *attach_access_paths_for_having_and_limit(AccessPath *path);
-  AccessPath *attach_access_path_for_delete(AccessPath *path);
+  AccessPath *attach_access_path_for_update_or_delete(AccessPath *path);
   /** @} */
 
   /**

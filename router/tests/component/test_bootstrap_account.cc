@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -4764,7 +4764,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     // check if the bootstraping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr("MySQL Router configured for the "
-                                     "InnoDB Cluster 'mycluster'"));
+                                     "InnoDB Cluster 'my-cluster'"));
     check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();
@@ -4795,7 +4795,7 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
   auto &router =
       launch_router_for_bootstrap({"--bootstrap=1.2.3.4:5678", "--report-host",
                                    "host1", "--report-host", "host2"},
-                                  1);
+                                  EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful

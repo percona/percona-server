@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -38,6 +38,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "mach0data.h"
 #include "os0file.h"
 #include "srv0mon.h"
@@ -925,10 +928,6 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
 
-    {"log_lsn_tracked", "log", "Last LSN tracked for changed pages",
-     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
-     MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_TRACKED},
-
     {"log_flush_total_time", "log", "Total time spent on fsync for log files",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_TOTAL_TIME},
 
@@ -1496,10 +1495,10 @@ void srv_mon_set_module_control(
 {
   ulint ix;
   ulint start_id;
-  ibool set_current_module = FALSE;
+  bool set_current_module = false;
 
   ut_a(module_id <= NUM_MONITOR);
-  ut_a(UT_ARR_SIZE(innodb_counter_info) == NUM_MONITOR);
+  static_assert(UT_ARR_SIZE(innodb_counter_info) == NUM_MONITOR);
 
   /* The module_id must be an ID of MONITOR_MODULE type */
   ut_a(innodb_counter_info[module_id].monitor_type & MONITOR_MODULE);
@@ -1515,7 +1514,7 @@ void srv_mon_set_module_control(
     and cannot be turned on/off individually. Need to set
     the on/off bit in the module counter */
     start_id = module_id;
-    set_current_module = TRUE;
+    set_current_module = true;
 
   } else {
     start_id = module_id + 1;
@@ -1530,7 +1529,7 @@ void srv_mon_set_module_control(
       if (set_current_module) {
         /* Continue to set on/off bit on current
         module */
-        set_current_module = FALSE;
+        set_current_module = false;
       } else if (module_id == MONITOR_ALL_COUNTER) {
         if (!(innodb_counter_info[ix].monitor_type & MONITOR_GROUP_MODULE)) {
           continue;
@@ -1631,7 +1630,7 @@ void srv_mon_process_existing_counter(
 {
   mon_type_t value;
   monitor_info_t *monitor_info;
-  ibool update_min = FALSE;
+  bool update_min = false;
   buf_pool_stat_t stat;
   buf_pools_list_size_t buf_pools_list_size;
   ulint LRU_len;
@@ -1778,19 +1777,19 @@ void srv_mon_process_existing_counter(
 
     /* innodb_os_log_fsyncs */
     case MONITOR_OVLD_OS_LOG_FSYNC:
-      value = fil_n_log_flushes;
+      value = log_total_flushes();
       break;
 
     /* innodb_os_log_pending_fsyncs */
     case MONITOR_OVLD_OS_LOG_PENDING_FSYNC:
-      value = fil_n_pending_log_flushes;
-      update_min = TRUE;
+      value = log_pending_flushes();
+      update_min = true;
       break;
 
     /* innodb_os_log_pending_writes */
     case MONITOR_OVLD_OS_LOG_PENDING_WRITES:
       value = srv_stats.os_log_pending_writes;
-      update_min = TRUE;
+      update_min = true;
       break;
 
     /* innodb_log_waits */
@@ -1975,11 +1974,11 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_LSN_FLUSHDISK:
-      value = (mon_type_t)log_sys->flushed_to_disk_lsn;
+      value = static_cast<mon_type_t>(log_sys->flushed_to_disk_lsn.load());
       break;
 
     case MONITOR_OVLD_LSN_CURRENT:
-      value = (mon_type_t)log_get_lsn(*log_sys);
+      value = static_cast<mon_type_t>(log_get_lsn(*log_sys));
       break;
 
     case MONITOR_OVLD_LSN_ARCHIVED: {
@@ -2012,15 +2011,11 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_MAX_AGE_ASYNC:
-      value = log_sys->max_modified_age_async;
+      value = log_sys->m_capacity.adaptive_flush_min_age();
       break;
 
     case MONITOR_OVLD_MAX_AGE_SYNC:
-      value = log_sys->max_modified_age_sync;
-      break;
-
-    case MONITOR_OVLD_LSN_TRACKED:
-      value = log_sys->tracked_lsn.load();
+      value = log_sys->m_capacity.adaptive_flush_max_age();
       break;
 
     case MONITOR_OVLD_ADAPTIVE_HASH_SEARCH:
@@ -2060,7 +2055,7 @@ void srv_mon_process_existing_counter(
         /* If MONITOR_DISPLAY_CURRENT bit is on, we
         only record the current value, rather than
         incremental value over a period. Most of
-`			this type of counters are resource related
+`                       this type of counters are resource related
         counters such as number of buffer pages etc. */
         if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
           MONITOR_SET(monitor_id, value);
@@ -2068,7 +2063,7 @@ void srv_mon_process_existing_counter(
           /* Most status counters are monotonically
           increasing, no need to update their
           minimum values. Only do so
-          if "update_min" set to TRUE */
+          if "update_min" set to true */
           MONITOR_SET_DIFF(monitor_id, value);
 
           if (update_min &&
@@ -2096,7 +2091,7 @@ void srv_mon_process_existing_counter(
  value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
 void srv_mon_reset(monitor_id_t monitor) /*!< in: monitor id */
 {
-  ibool monitor_was_on;
+  bool monitor_was_on;
 
   monitor_was_on = MONITOR_IS_ON(monitor);
 

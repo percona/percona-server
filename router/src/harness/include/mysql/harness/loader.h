@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -955,6 +955,24 @@ class HARNESS_EXPORT Loader {
   std::condition_variable signal_thread_ready_cond_;
   bool signal_thread_ready_{false};
   std::thread signal_thread_;
+
+  /**
+   * Checks if all the options in the configuration fed to the Loader are
+   * supported.
+   *
+   * @throws std::runtime_error if there is unsupported option in the
+   * configuration
+   */
+  void check_config_options_supported();
+
+  /**
+   * Checks if all the options in the section [DEFAULT] in the configuration fed
+   * to the Loader are supported.
+   *
+   * @throws std::runtime_error if there is unsupported option in the [DEFAULT]
+   * section of the configuration
+   */
+  void check_default_config_options_supported();
 
 #ifdef FRIEND_TEST
   friend class ::TestLoader;

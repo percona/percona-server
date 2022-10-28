@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -273,7 +273,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table) {
       break;
     case ROW_RESULT:
     default:
-      // This case should never be choosen
+      // This case should never be chosen
       assert(0);
       new_field = nullptr;
       break;
@@ -332,7 +332,7 @@ static Field *create_tmp_field_for_schema(const Item *item, TABLE *table) {
   @param default_field	If field has a default value field, store it here
   @param group		1 if we are going to do a relative group by on result
   @param modify_item	1 if item->result_field should point to new item.
-                       This is relevent for how fill_record() is going to
+                       This is relevant for how fill_record() is going to
                        work:
                        If modify_item is 1 then fill_record() will update
                        the record in the original table.
@@ -670,7 +670,7 @@ static const char *create_tmp_table_field_tmp_name(THD *thd, Item *item) {
   @param default_field    Default value array pointer
   @param from_field       Original field array pointer
   @param blob_field       Array pointer to record fields index of blob type
-  @param field            The registed hidden field
+  @param field            The registered hidden field
  */
 
 static void register_hidden_field(TABLE *table, Field **default_field,
@@ -679,7 +679,7 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   uint i;
   Field **tmp_field = table->field;
 
-  /* Increase all of registed fields index */
+  /* Increase all of registered fields index */
   for (i = 0; i < table->s->fields; i++)
     tmp_field[i]->set_field_index(tmp_field[i]->field_index() + 1);
 
@@ -1041,10 +1041,23 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
           store_column = false;
       }
 
-      if (item->const_for_execution() &&
-          evaluate_during_optimization(item, thd->lex->current_query_block()) &&
-          hidden_field_count <= 0) {
-        continue;  // We don't have to store this
+      if (hidden_field_count <= 0) {
+        if (thd->lex->current_query_block()->is_implicitly_grouped() &&
+            (item->used_tables() & ~(RAND_TABLE_BIT | INNER_TABLE_BIT)) == 0) {
+          /*
+            This will be evaluated exactly once, regardless of the number
+            of rows in the temporary table, as there is only one result row.
+          */
+          continue;
+        } else if (item->const_for_execution() &&
+                   evaluate_during_optimization(
+                       item, thd->lex->current_query_block())) {
+          /*
+             Constant for the duration of the query, so no need to store in
+             temporary table.
+          */
+          continue;
+        }
       }
     }
 
@@ -1524,7 +1537,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         */
         param->keyinfo->flags |= HA_NULL_ARE_EQUAL;  // def. that NULL == NULL
         cur_group->buff++;                           // Pointer to field data
-        group_buff++;                                // Skipp null flag
+        group_buff++;                                // Skip null flag
       }
       group_buff += cur_group->field_in_tmp_table->pack_length();
     }
@@ -1627,7 +1640,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
 
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl) {
-  MEM_ROOT own_root;
   TABLE *table;
   TABLE_SHARE *share;
   Field **reg_field;
@@ -1656,7 +1668,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     unique_constraint_via_hash_field = true;
 
   /* STEP 2: Allocate memory for temptable description */
-  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  MEM_ROOT own_root(key_memory_TABLE, TABLE_ALLOC_BLOCK_SIZE);
   if (!multi_alloc_root(
           &own_root, &table, sizeof(*table), &share, sizeof(*share), &reg_field,
           sizeof(Field *) * (1 + 2), &blob_field, sizeof(uint) * 3, &keyinfo,
@@ -1696,7 +1708,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   }
   {
     /*
-      For the sake of uniformity, always use Field_varstring (altough we could
+      For the sake of uniformity, always use Field_varstring (although we could
       use Field_string for shorter keys)
     */
     field = new (thd->mem_root) Field_varstring(
@@ -1860,17 +1872,18 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
   uchar *bitmaps;
   TABLE *table;
   TABLE_SHARE *share;
-  MEM_ROOT own_root, *m_root;
+  MEM_ROOT own_root{key_memory_TABLE, TABLE_ALLOC_BLOCK_SIZE};
+  MEM_ROOT *m_root;
   /*
     total_uneven_bit_length is uneven bit length for BIT fields
   */
   uint total_uneven_bit_length = 0;
 
   if (!is_virtual) {
-    init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
     m_root = &own_root;
-  } else
+  } else {
     m_root = thd->mem_root;
+  }
 
   if (!multi_alloc_root(m_root, &table, sizeof(*table), &share, sizeof(*share),
                         &reg_field, (field_count + 1) * sizeof(Field *),
@@ -2454,7 +2467,7 @@ void free_tmp_table(TABLE *table) {
                                 is inserted into the newly created table after
                                 copying all the records from the temp table.
                                 If false, the last record is not inserted
-                                and the paramters ignore_last_dup, is_duplicate
+                                and the parameters ignore_last_dup, is_duplicate
                                 are ignored.
   @param[in] ignore_last_dup    If true, ignore duplicate key error for last
                                 inserted key (see detailed description below).

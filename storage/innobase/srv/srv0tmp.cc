@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -90,7 +90,7 @@ Tablespace::~Tablespace() {
     ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE)
         << "Failed to delete file " << path();
     os_file_get_last_error(true);
-    ut_ad(0);
+    ut_d(ut_error);
   }
 }
 
@@ -119,8 +119,7 @@ dberr_t Tablespace::create() {
 
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-  bool ret =
-      fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
+  bool ret = fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr);
   mtr_commit(&mtr);
 
   if (!ret) {
@@ -156,7 +155,7 @@ bool Tablespace::truncate() {
 
   mtr_start(&mtr);
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-  fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
+  fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr);
   mtr_commit(&mtr);
 
   release();
@@ -191,7 +190,7 @@ void Tablespace::decrypt() {
   (zero-filled) to initial size. Just make sure that in-memory
   tablespace structure (fil_space_t) doesn't have encryption info */
 
-  rw_lock_x_lock(&space->latch);
+  rw_lock_x_lock(&space->latch, UT_LOCATION_HERE);
   /* Reset In-mem encryption for tablespace */
 
   /* fil_space_t of session temp tablespace will be always found and
@@ -203,20 +202,6 @@ void Tablespace::decrypt() {
 }
 
 void Tablespace::rotate_encryption_key() {
-  if (!is_encrypted()) {
-    return;
-  }
-
-  acquire();
-
-  fil_space_t *space = fil_space_get(m_space_id);
-
-  bool success = encryption_rotate_low(space);
-  if (!success) {
-    ib::warn(ER_XB_MSG_6, space->name);
-  }
-
-  release();
 }
 
 uint32_t Tablespace::file_id() const {
@@ -312,7 +297,7 @@ void Tablespace_pool::free_ts(Tablespace *ts) {
   if (it != m_active->end()) {
     m_active->erase(it);
   } else {
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   ts->reset_thread_id_and_purpose();

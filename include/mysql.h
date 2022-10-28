@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,6 +212,7 @@ enum mysql_option {
   MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
   MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
   MYSQL_OPT_USER_PASSWORD,
+  MYSQL_OPT_SSL_SESSION_DATA
 };
 
 /**
@@ -410,7 +411,7 @@ void STDCALL mysql_server_end(void);
 /*
   mysql_server_init/end need to be called when using libmysqld or
   libperconaserverclient (exactly, mysql_server_init() is called by
-  mysql_init() so you don't need to call it explicitely; but you need to call
+  mysql_init() so you don't need to call it explicitly; but you need to call
   mysql_server_end() to free memory). The names are a bit misleading
   (mysql_SERVER* to be used when using libmysqlCLIENT). So we add more general
   names which suit well whether you're using libmysqld or
@@ -461,6 +462,10 @@ bool STDCALL mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
                            const char *ca, const char *capath,
                            const char *cipher);
 const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql);
+bool STDCALL mysql_get_ssl_session_reused(MYSQL *mysql);
+void *STDCALL mysql_get_ssl_session_data(MYSQL *mysql, unsigned int n_ticket,
+                                         unsigned int *out_len);
+bool STDCALL mysql_free_ssl_session_data(MYSQL *mysql, void *data);
 bool STDCALL mysql_change_user(MYSQL *mysql, const char *user,
                                const char *passwd, const char *db);
 MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
@@ -611,7 +616,7 @@ enum enum_mysql_stmt_state {
 
   length         - On input: in case when lengths of input values
                    are different for each execute, you can set this to
-                   point at a variable containining value length. This
+                   point at a variable containing value length. This
                    way the value length can be different in each execute.
                    If length is not NULL, buffer_length is not used.
                    Note, length can even point at buffer_length if

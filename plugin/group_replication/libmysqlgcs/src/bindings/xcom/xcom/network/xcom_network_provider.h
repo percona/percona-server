@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,20 +92,8 @@ class Xcom_network_provider : public Network_provider {
     return successful;
   }
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
   bool cleanup_secure_connections_context() override;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
   bool finalize_secure_connections_context() override;
 
   std::unique_ptr<Network_connection> open_connection(

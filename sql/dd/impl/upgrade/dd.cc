@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@
 #include "sql/dd/types/object_table.h"             // dd::Object_table
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/dd/types/schema.h"
+#include "sql/dd/impl/upgrade/server.h" // Routine_event_context_guard
 #include "sql/sd_notify.h"  // sysd::notify
 #include "sql/sql_class.h"  // THD
 #include "sql/table.h"      // MYSQL_SCHEMA_NAME
@@ -137,11 +138,11 @@ bool create_temporary_schemas(THD *thd, Object_id *mysql_schema_id,
   if (dd::execute_query(
           thd, dd::String_type("CREATE SCHEMA ") + actual_table_schema_name +
                    dd::String_type(" DEFAULT COLLATE '") +
-                   dd::String_type(default_charset_info->name) + "'") ||
+                   dd::String_type(default_charset_info->m_coll_name) + "'") ||
       dd::execute_query(
           thd, dd::String_type("CREATE SCHEMA ") + *target_table_schema_name +
                    dd::String_type(" DEFAULT COLLATE '") +
-                   dd::String_type(default_charset_info->name) + "'") ||
+                   dd::String_type(default_charset_info->m_coll_name) + "'") ||
       dd::execute_query(thd,
                         dd::String_type("USE ") + *target_table_schema_name)) {
     return true;
@@ -822,10 +823,15 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
     if (migrated_set.find(*it) == migrated_set.end() &&
         remove_set.find(*it) != remove_set.end()) {
       std::stringstream ss;
+
+      dd::upgrade::Routine_event_context_guard recg(thd);
+      thd->variables.sql_mode = 0;
+
       ss << "INSERT INTO " << (*it) << " SELECT * FROM "
          << MYSQL_SCHEMA_NAME.str << "." << (*it);
       if (dd::execute_query(thd, ss.str().c_str()))
         return dd::end_transaction(thd, true);
+
     }
   }
 
@@ -1125,7 +1131,6 @@ bool upgrade_tables(THD *thd) {
   LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_COMPLETED,
          bootstrap::DD_bootstrap_ctx::instance().get_actual_dd_version(),
          dd::DD_VERSION);
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Data Dictionary upgrade complete\n");
 
   /*
@@ -1133,7 +1138,7 @@ bool upgrade_tables(THD *thd) {
     DD cache and re-initialize based on 'mysql.dd_properties', hence,
     we will lose track of the fact that we have done a DD upgrade as part
     of this restart. Thus, we record this fact in the bootstrap context
-    so we can check it e.g. when initializeing the information schema,
+    so we can check it e.g. when initializing the information schema,
     where we need to regenerate the meta data if the underlying tables
     have changed.
   */
@@ -1149,7 +1154,7 @@ bool upgrade_tables(THD *thd) {
 
   /*
     Reset the encryption attribute in object table def since we will now
-    start over by creating the scaffolding, which expectes an unencrypted
+    start over by creating the scaffolding, which expects an unencrypted
     DD tablespace.
   */
   Object_table_definition_impl::set_dd_tablespace_encrypted(false);

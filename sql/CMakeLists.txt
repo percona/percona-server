@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -343,7 +343,6 @@ SET(SQL_GIS_SOURCES
 )
 
 SET(SQL_SHARED_SOURCES
-  abstract_query_plan.cc
   auth/auth_acls.cc
   auth/auth_common.cc
   auth/dynamic_privileges_impl.cc
@@ -428,19 +427,17 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/estimate_selectivity.cc
   join_optimizer/explain_access_path.cc
   join_optimizer/finalize_plan.cc
+  join_optimizer/graph_simplification.cc
   join_optimizer/hypergraph.cc
   join_optimizer/interesting_orders.cc
   join_optimizer/join_optimizer.cc
   join_optimizer/make_join_hypergraph.cc
+  join_optimizer/online_cycle_finder.cc
   join_optimizer/overflow_bitset.cc
   join_optimizer/print_utils.cc
   join_optimizer/replace_item.cc
-  json_binary.cc
   json_diff.cc
-  json_dom.cc
-  json_path.cc
   json_schema.cc
-  json_syntax_check.cc
   key.cc
   key_spec.cc
   keycaches.cc
@@ -555,6 +552,7 @@ SET(SQL_SHARED_SOURCES
   sql_exception_handler.cc
   sql_executor.cc
   sql_get_diagnostics.cc
+  sql_gipk.cc
   sql_handler.cc
   sql_help.cc
   sql_import.cc
@@ -630,6 +628,16 @@ SET(SQL_SHARED_SOURCES
   userstat.cc
   uniques.cc
   xa.cc
+  xa/recovery.cc
+  xa/sql_xa_second_phase.cc
+  xa/sql_xa_commit.cc
+  xa/sql_xa_end.cc
+  xa/sql_xa_prepare.cc
+  xa/sql_xa_recover.cc
+  xa/sql_xa_rollback.cc
+  xa/sql_xa_start.cc
+  xa/transaction_cache.cc
+  xa/xid_extract.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
   )
 
@@ -775,6 +783,11 @@ SET(SQL_SOURCE
   ../sql-common/oci/ssl.cc
   ../sql-common/sql_string.cc
   ../sql-common/bind_params.cc
+  ../sql-common/json_binary.cc
+  ../sql-common/json_dom.cc
+  ../sql-common/json_error_handler.cc
+  ../sql-common/json_path.cc
+  ../sql-common/json_syntax_check.cc
   command_service.cc
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc
@@ -818,6 +831,30 @@ MY_ADD_COMPILE_DEFINITIONS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
   COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
   )
+
+# Workaround for Apple Clang bug on ARM.
+# When linking mysqld (and executables using server_unittest_library)
+# we get linker warnings about
+# ld: warning: direct access in function ....
+#     to global weak symbol 'typeinfo for .... '
+# It turns out we end up with conflicting visibilities for typeinfo symbols:
+# e.g. in in singleton.cc.o  vs  histogram.cc.o
+# (__DATA,__const) weak external __ZTIN10histograms9SingletonI6StringEE
+# (__DATA,__const) weak private external __ZTIN10histograms9SingletonI6StringEE
+#
+# Setting an explicit visibility here fixes the warnings.
+# Note that the LINK_PUBLIC for server_unittest_library
+# will make unit tests pick up histogram symbols from libsql_main.a.
+IF(APPLE_ARM)
+  ADD_COMPILE_FLAGS(
+    histograms/equi_height.cc
+    histograms/equi_height_bucket.cc
+    histograms/histogram.cc
+    histograms/singleton.cc
+    histograms/value_map.cc
+    COMPILE_FLAGS -fvisibility=hidden
+    )
+ENDIF()
 
 ADD_COMPILE_FLAGS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
@@ -962,6 +999,7 @@ SET(BINLOG_SOURCE
   basic_istream.cc
   basic_ostream.cc
   binlog/global.cc
+  binlog/recovery.cc
   binlog/monitoring/context.cc
   binlog/tools/iterators.cc
   binlog.cc
@@ -1022,6 +1060,7 @@ SET (SLAVE_SOURCE
   rpl_async_conn_failover_reset_udf.cc
   rpl_channel_service_interface.cc
   rpl_channel_credentials.cc
+  rpl_event_ctx.cc
   rpl_info.cc
   rpl_info_dummy.cc
   rpl_info_factory.cc
@@ -1072,7 +1111,12 @@ IF(WITH_ICU STREQUAL "bundled")
 ENDIF()
 
 IF(WIN32)
-  SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
+  SET(MYSQLD_SOURCE
+    main.cc
+    enable_win_jemalloc.cc
+    nt_servc.cc
+    nt_servc.h
+    message.rc)
 ELSE()
   SET(MYSQLD_SOURCE main.cc)
 ENDIF()
@@ -1207,7 +1251,7 @@ IF(WITH_VALGRIND)
   SET(LINK_MYSQLD_LDAP_LIBRARY 1)
 ENDIF()
 IF(WITH_SSL STREQUAL "system" AND
-    "${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}" VERSION_LESS "1.1")
+    "${OPENSSL_VERSION_MAJOR}.${OPENSSL_VERSION_MINOR}" VERSION_LESS "1.1")
   SET(LINK_MYSQLD_LDAP_LIBRARY 1)
 ENDIF()
 IF(WITH_AUTHENTICATION_LDAP AND LINK_MYSQLD_LDAP_LIBRARY)
@@ -1221,6 +1265,10 @@ ENDIF()
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
 
+IF(TARGET copy_jemalloc_dll)
+  ADD_DEPENDENCIES(mysqld copy_jemalloc_dll)
+ENDIF()
+
 # See DEBUG_EXTNAME above: mysqld may already have name mysqld-debug,
 # and the rename is a no-op. If it is called 'mysqld' we rename it.
 INSTALL_DEBUG_TARGET(mysqld
@@ -1228,9 +1276,7 @@ INSTALL_DEBUG_TARGET(mysqld
   RENAME mysqld-debug${CMAKE_EXECUTABLE_SUFFIX}
 )
 
-# Check BISON_VERSION and set BISON_FLAGS_WARNINGS
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
-
+# We have already included cmake/bison.cmake, and done FIND_PACKAGE(BISON)
 IF(BISON_FOUND)
   SET(USE_BISON_RESULTS_FROM_MAKE_DIST_DEFAULT OFF)
 ELSE()
@@ -1299,7 +1345,11 @@ SET_SOURCE_FILES_PROPERTIES(
 MYSQL_ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc SKIP_INSTALL)
 
 IF(HAS_MISSING_PROFILE)
-  ADD_COMPILE_FLAGS(gen_lex_hash.cc COMPILE_FLAGS ${HAS_MISSING_PROFILE})
+  ADD_COMPILE_FLAGS(
+    ../sql-common/oci/signing_key.cc
+    ../sql-common/oci/ssl.cc
+    gen_lex_hash.cc
+    COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 
 ADD_CUSTOM_COMMAND(
@@ -1331,6 +1381,15 @@ MY_ADD_CUSTOM_TARGET(
   GenKeywordList
   DEPENDS ${GEN_KEYWORD_LIST_SOURCES}
 )
+
+ADD_DEPENDENCIES(clang_tidy_prerequisites
+  GenBootstrapPriv
+  GenDigestServerSource
+  GenFixPrivs
+  GenKeywordList
+  GenServerSource
+  GenSysSchema
+  )
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
   MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example"

@@ -52,7 +52,7 @@ CREATE COMPRESSION_DICTIONARY d12(@dict_data12);
 
 # "CREATE COMPRESSION_DICTIONARY <dict>(@<var> := <expr>)" must
 # generate a syntax error
---error ER_SYNTAX_ERROR
+--error ER_PARSE_ERROR
 CREATE COMPRESSION_DICTIONARY d12(@dict_data12 := 'blah');
 
 # max dictionary name length is 64 characters - check if an

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,6 @@ using mysqlrouter::MySQLSession;
 
 using State = GroupReplicationMember::State;
 using Role = GroupReplicationMember::Role;
-using RS = metadata_cache::ClusterStatus;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -392,6 +391,8 @@ class MetadataTest : public ::testing::Test {
   // Only some tests need this variable.
 
   const ManagedCluster typical_cluster{
+      "cluster-id",
+      "cluster-name",
       {
           // will be set ----------------------vvvvvvvvvvvvvvvvvvvvvvv
           // v--v--vv--- ignored at the time of writing
@@ -573,7 +574,7 @@ TEST_F(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata) {
       {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
   };
 
-  EXPECT_EQ(RS::AvailableWritable,
+  EXPECT_EQ(GRClusterStatus::AvailableWritable,
             metadata.check_cluster_status(servers_in_metadata, server_status,
                                           metadata_gr_discrepancy));
   EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -609,7 +610,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -625,7 +626,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Primary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
 
@@ -644,7 +645,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Online, Role::Primary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
 
@@ -663,7 +664,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
 
@@ -684,7 +685,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
 #ifdef NDEBUG  // guardian assert() should fail in Debug
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
 
@@ -703,7 +704,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-1", {"", "", 0, State::Online, Role::Primary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -720,7 +721,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -736,7 +737,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
     std::map<std::string, GroupReplicationMember> server_status{
         {"instance-1", {"", "", 0, State::Online, Role::Primary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -754,7 +755,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
     std::map<std::string, GroupReplicationMember> server_status{
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -770,7 +771,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
   // all nodes missing
   {
     std::map<std::string, GroupReplicationMember> server_status{};
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -792,7 +793,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Primary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -812,7 +813,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Primary}},
         {"instance-5", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -837,7 +838,7 @@ TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
         {"instance-4", {"", "", 0, State::Online, Role::Primary}},
         {"instance-5", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -888,7 +889,7 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
         {"instance-6", ServerMode::Unavailable, "", 0, 0},
         {"instance-7", ServerMode::Unavailable, "", 0, 0},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -907,7 +908,7 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
         {"instance-3", ServerMode::Unavailable, "", 0, 0},
         {"instance-4", ServerMode::Unavailable, "", 0, 0},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -935,7 +936,7 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
         {"instance-1", ServerMode::Unavailable, "", 0, 0},
         {"instance-2", ServerMode::Unavailable, "", 0, 0},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -951,7 +952,7 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
     std::vector<ManagedInstance> servers_in_metadata{
         {"instance-1", ServerMode::Unavailable, "", 0, 0},
     };
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -965,7 +966,7 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
   // 0-node setup according to metadata -> quorum requires 3 nodes, 0 node count
   {
     std::vector<ManagedInstance> servers_in_metadata{};
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     // should log error "Member <host>:<port> (instance-1) found in Group
@@ -1007,9 +1008,10 @@ TEST_F(MetadataTest, CheckClusterStatus_VariousStatuses) {
           {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
           {"instance-3", {"", "", 0, state, Role::Secondary}},
       };
-      EXPECT_EQ(RS::AvailableWritable, metadata.check_cluster_status(
-                                           servers_in_metadata, server_status,
-                                           metadata_gr_discrepancy));
+      EXPECT_EQ(
+          GRClusterStatus::AvailableWritable,
+          metadata.check_cluster_status(servers_in_metadata, server_status,
+                                        metadata_gr_discrepancy));
       EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
       EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1023,9 +1025,10 @@ TEST_F(MetadataTest, CheckClusterStatus_VariousStatuses) {
           {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
           {"instance-3", {"", "", 0, state, Role::Secondary}},
       };
-      EXPECT_EQ(RS::AvailableReadOnly, metadata.check_cluster_status(
-                                           servers_in_metadata, server_status,
-                                           metadata_gr_discrepancy));
+      EXPECT_EQ(
+          GRClusterStatus::AvailableReadOnly,
+          metadata.check_cluster_status(servers_in_metadata, server_status,
+                                        metadata_gr_discrepancy));
       EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
       EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1039,9 +1042,10 @@ TEST_F(MetadataTest, CheckClusterStatus_VariousStatuses) {
           {"instance-2", {"", "", 0, state, Role::Secondary}},
           {"instance-3", {"", "", 0, state, Role::Secondary}},
       };
-      EXPECT_EQ(RS::Unavailable, metadata.check_cluster_status(
-                                     servers_in_metadata, server_status,
-                                     metadata_gr_discrepancy));
+      EXPECT_EQ(
+          GRClusterStatus::Unavailable,
+          metadata.check_cluster_status(servers_in_metadata, server_status,
+                                        metadata_gr_discrepancy));
       EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1058,8 +1062,8 @@ TEST_F(MetadataTest, CheckClusterStatus_VariousStatuses) {
  *
  * Here we test various scenarios with RECOVERING nodes. RECOVERING nodes
  * should be treated as valid quorum members just like ONLINE nodes, but they
- * cannot be routed to. RS::Recovering should be returned in a (corner) case
- * when all nodes in quorum are recovering.
+ * cannot be routed to. GRClusterStatus::Recovering should be returned in a
+ * (corner) case when all nodes in quorum are recovering.
  */
 TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
   ConnectCallback clb;
@@ -1080,7 +1084,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -1096,7 +1100,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Error, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -1112,7 +1116,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Error, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
@@ -1128,7 +1132,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Error, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -1143,7 +1147,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Error, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -1156,7 +1160,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
     std::map<std::string, GroupReplicationMember> server_status{
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::UnavailableRecovering,
+    EXPECT_EQ(GRClusterStatus::UnavailableRecovering,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -1170,7 +1174,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
@@ -1186,7 +1190,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
@@ -1202,7 +1206,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::UnavailableRecovering,
+    EXPECT_EQ(GRClusterStatus::UnavailableRecovering,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -1217,7 +1221,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::UnavailableRecovering,
+    EXPECT_EQ(GRClusterStatus::UnavailableRecovering,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -1232,7 +1236,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::UnavailableRecovering,
+    EXPECT_EQ(GRClusterStatus::UnavailableRecovering,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
@@ -1283,7 +1287,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Cornercase2of5Alive) {
         {"node-D", {"", "", 0, dead_state, Role::Secondary}},
         {"node-E", {"", "", 0, dead_state, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     // should log error "Member <host>:<port> (node-D) found in replicaset, yet
@@ -1360,7 +1364,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Cornercase3of5Alive) {
         {"node-D", {"", "", 0, State::Online, Role::Secondary}},
         {"node-E", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     // should log error "Member <host>:<port> (node-D) found in replicaset, yet
@@ -1433,7 +1437,7 @@ TEST_F(MetadataTest, CheckClusterStatus_Cornercase1Common) {
         {"node-D", {"", "", 0, State::Online, Role::Secondary}},
         {"node-E", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
+    EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
                                             metadata_gr_discrepancy));
     // should log warning "Member <host>:<port> (node-A) defined in metadata not

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,10 +41,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 
 namespace mysql_harness {
-
-void rename_thread(const char thread_name[16]) {
-  my_thread_self_setname(thread_name);
-}
 
 static inline const std::string &truncate_string_backend(
     const std::string &input, std::string &output, size_t max_len) {

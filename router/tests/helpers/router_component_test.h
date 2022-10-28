@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -84,6 +84,15 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     return session;
   }
 
+  uint16_t make_new_connection_ok(uint16_t router_port) {
+    MySQLSession session;
+    EXPECT_NO_THROW(session.connect("127.0.0.1", router_port, "username",
+                                    "password", "", ""));
+
+    auto result{session.query_one("select @@port")};
+    return static_cast<uint16_t>(std::strtoul((*result)[0], nullptr, 10));
+  }
+
   void verify_new_connection_fails(uint16_t router_port) {
     MySQLSession session;
     ASSERT_ANY_THROW(session.connect("127.0.0.1", router_port, "username",
@@ -151,7 +160,7 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
     uint16_t http_port;
     std::string js_filename;
     bool unaccessible{false};
-    std::string cluster_specific_id{"cluster-specific-id"};
+    std::string cluster_specific_id{"00000000-0000-0000-0000-0000000000g1"};
   };
 
   void bootstrap_failover(
@@ -161,7 +170,7 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
       int expected_exitcode = 0,
       const std::vector<std::string> &expected_output_regex = {},
       std::chrono::milliseconds wait_for_exit_timeout =
-          std::chrono::seconds(10),
+          std::chrono::seconds(30),
       const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 0, 3},
       const std::vector<std::string> &extra_router_options = {});
 

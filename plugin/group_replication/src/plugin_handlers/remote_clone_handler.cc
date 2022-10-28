@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,9 +99,9 @@ int Remote_clone_handler::after_view_change(
   return 0;
 }
 
-int Remote_clone_handler::after_primary_election(std::string, bool,
-                                                 enum_primary_election_mode,
-                                                 int) {
+int Remote_clone_handler::after_primary_election(
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0;
 }
 
@@ -156,7 +156,7 @@ int Remote_clone_handler::extract_donor_info(
   uint valid_recovering_donors = 0;
   bool clone_activation_threshold_breach = false;
 
-  std::vector<Group_member_info *> *all_members_info =
+  Group_member_info_list *all_members_info =
       group_member_mgr->get_all_members();
 
   Sid_map local_sid_map(nullptr);
@@ -343,7 +343,7 @@ end:
 
 void Remote_clone_handler::get_clone_donors(
     std::list<Group_member_info *> &suitable_donors) {
-  std::vector<Group_member_info *> *all_members_info =
+  Group_member_info_list *all_members_info =
       group_member_mgr->get_all_members();
   if (all_members_info->size() > 1) {
     vector_random_shuffle(all_members_info);
@@ -406,7 +406,7 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(
 
   Replication_thread_api applier_channel("group_replication_applier");
   if (!critical_error && !applier_channel.is_applier_thread_running() &&
-      applier_channel.start_threads(false, true, NULL, false)) {
+      applier_channel.start_threads(false, true, nullptr, false)) {
     abort_plugin_process(
         "The plugin was not able to start the group_replication_applier "
         "channel.");

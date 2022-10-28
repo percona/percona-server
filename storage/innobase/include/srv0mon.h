@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /** @file include/srv0mon.h
  Server monitor counter related defines
 
- Created 12/15/2009	Jimmy Yang
+ Created 12/15/2009     Jimmy Yang
  *******************************************************/
 
 #ifndef srv0mon_h
@@ -355,7 +355,6 @@ enum monitor_id_t {
   MONITOR_OVLD_LOG_WAITS,
   MONITOR_OVLD_LOG_WRITE_REQUEST,
   MONITOR_OVLD_LOG_WRITES,
-  MONITOR_OVLD_LSN_TRACKED,
 
   MONITOR_LOG_FLUSH_TOTAL_TIME,
   MONITOR_LOG_FLUSH_MAX_TIME,
@@ -693,7 +692,10 @@ could already be checked as a module group */
 /** Atomically increment a monitor counter.
 Use MONITOR_INC if appropriate mutex protection exists.
 @param monitor monitor to be incremented by 1 */
-#define MONITOR_ATOMIC_INC(monitor) monitor_atomic_inc(monitor)
+#define MONITOR_ATOMIC_INC(monitor) monitor_atomic_inc(monitor, 1)
+
+#define MONITOR_ATOMIC_INC_VALUE(monitor, value) \
+  monitor_atomic_inc(monitor, value)
 
 /** Atomically decrement a monitor counter.
 Use MONITOR_DEC if appropriate mutex protection exists.
@@ -712,9 +714,10 @@ inline void monitor_set_min_value(monitor_id_t monitor, mon_type_t value) {
   }
 }
 
-inline void monitor_atomic_inc(monitor_id_t monitor) {
+inline void monitor_atomic_inc(monitor_id_t monitor, mon_type_t inc_value) {
   if (MONITOR_IS_ON(monitor)) {
-    const mon_type_t value = ++MONITOR_VALUE(monitor);
+    const mon_type_t value =
+        MONITOR_VALUE(monitor).fetch_add(inc_value) + inc_value;
     /* Note: This is not 100% accurate because of the inherent race, we ignore
     it due to performance. */
     monitor_set_max_value(monitor, value);

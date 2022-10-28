@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
   }
 
   auto &launch_router(int expected_errorcode = EXIT_SUCCESS,
-                      std::chrono::milliseconds wait_for_notify_ready = 10s) {
+                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
     SCOPED_TRACE("// Prepare the dynamic state file for the Router");
     const auto clusterset_all_nodes_ports =
         clusterset_data_.get_all_nodes_classic_ports();
@@ -144,7 +144,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
 
   auto &relaunch_router(const std::string &conf_file,
                         int expected_errorcode = EXIT_SUCCESS,
-                        std::chrono::milliseconds wait_for_notify_ready = 10s) {
+                        std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_errorcode, /*catch_stderr=*/true,
         /*with_sudo=*/false, wait_for_notify_ready);
@@ -364,10 +364,10 @@ TEST_F(ClusterSetTest, TargetClusterNoChange) {
 
   // check the new target_cluster was repoted only once
   const std::string needle = "New target cluster assigned in the metadata";
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   // 1 is expected, that comes from the inital reading of the metadata
-  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+  EXPECT_EQ(1, count_str_occurences(log_content, needle));
 }
 
 class ClusterChangeTargetClusterInTheMetadataTest
@@ -699,8 +699,10 @@ TEST_P(UnknownClusterSetTargetClusterTest, UnknownClusterSetTargetCluster) {
   SCOPED_TRACE("// Prepare the dynamic state file for the Router");
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
-  EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 2s))
-      << router.get_full_logfile();
+  EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 2s));
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(
+      clusterset_data_.clusters[1].nodes[0].http_port, 2));
 
   SCOPED_TRACE(
       "// Make the connections to both RW and RO ports, both should fail");
@@ -737,10 +739,7 @@ INSTANTIATE_TEST_SUITE_P(
             "00000000-0000-0000-0000-0000000000G1", 0, 0,
             "ERROR.* Could not find target_cluster "
             "'00000000-0000-0000-0000-0000000000G1' in the metadata"},
-        // [@TS_R9_1/7]
-        TargetClusterTestParams{"", 0, 0,
-                                "Target cluster for router_id=1 not set, using "
-                                "'primary' as a target cluster"},
+
         // [@TS_R9_1/8]
         TargetClusterTestParams{"0", 0, 0,
                                 "ERROR.* Could not find target_cluster "
@@ -750,6 +749,38 @@ INSTANTIATE_TEST_SUITE_P(
             "'00000000-0000-0000-0000-0000000000g1'", 0, 0,
             "ERROR.* Could not find target_cluster "
             "''00000000-0000-0000-0000-0000000000g1'' in the metadata"}));
+
+/**
+ * @test Checks that if the `target_cluster` for the Router is empty in the
+ * metadata the warning is logged and the Router accepts the connections
+ * using primary cluster as a default.
+ * [@TS_R9_1/7]
+ */
+TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
+  create_clusterset(view_id, /*target_cluster_id*/ 0, /*primary_cluster_id*/ 0,
+                    "metadata_clusterset.js",
+                    /*router_options*/ R"({"target_cluster" : "" })");
+
+  SCOPED_TRACE("// Prepare the dynamic state file for the Router");
+  auto &router = launch_router(EXIT_SUCCESS, -1s);
+
+  EXPECT_TRUE(wait_log_contains(router,
+                                "Target cluster for router_id=1 not set, using "
+                                "'primary' as a target cluster",
+                                2s));
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(
+      clusterset_data_.clusters[1].nodes[0].http_port, 2));
+
+  SCOPED_TRACE(
+      "// Make the connections to both RW and RO ports, both should be ok");
+  make_new_connection_ok(
+      router_port_rw,
+      clusterset_data_.clusters[0].nodes[kRWNodeId].classic_port);
+  make_new_connection_ok(
+      router_port_ro,
+      clusterset_data_.clusters[0].nodes[kRONodeId].classic_port);
+}
 
 /**
  * @test Check that the Router correctly follows primary Cluster when it is its
@@ -1265,13 +1296,14 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
                    clusterset_data_.get_all_nodes_classic_ports(), view_id + 2);
 
   SCOPED_TRACE(
-      "// Let's propagete the last change to all nodes in the ClusterSet");
+      "// Let's propagate the last change to all nodes in the ClusterSet");
 
   for (const auto &cluster : clusterset_data_.clusters) {
     for (const auto &node : cluster.nodes) {
       const auto http_port = node.http_port;
-      set_mock_metadata(view_id + 2, /*this_cluster_id*/ 2, target_cluster_id,
-                        http_port, clusterset_data_, router_options);
+      set_mock_metadata(view_id + 2, /*this_cluster_id*/ cluster.id,
+                        target_cluster_id, http_port, clusterset_data_,
+                        router_options);
     }
   }
 
@@ -1379,12 +1411,10 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
   for (unsigned node_id = 0;
        node_id < clusterset_data_.clusters[kPrimaryClusterId].nodes.size();
        ++node_id) {
-    set_mock_metadata(view_id + 2, /*this_cluster_id*/ kPrimaryClusterId,
-                      kPrimaryClusterId,
-                      clusterset_data_.clusters[kFirstReplicaClusterId]
-                          .nodes[node_id]
-                          .http_port,
-                      clusterset_data_, router_options);
+    set_mock_metadata(
+        view_id + 2, /*this_cluster_id*/ kPrimaryClusterId, kPrimaryClusterId,
+        clusterset_data_.clusters[kPrimaryClusterId].nodes[node_id].http_port,
+        clusterset_data_, router_options);
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,6 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/abstract_query_plan.h"  // Join_plan
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -511,7 +510,8 @@ bool JOIN::optimize(bool finalize_access_paths) {
           // Verify, to be sure.
           if (where_cond != nullptr) {
             Item *table_independent_conds = make_cond_for_table(
-                thd, where_cond, PSEUDO_TABLE_BITS, table_map(0), false);
+                thd, where_cond, PSEUDO_TABLE_BITS, table_map(0),
+                /*exclude_expensive_cond=*/true);
             assert(table_independent_conds == nullptr);
           }
 #endif
@@ -576,7 +576,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
 
     m_root_access_path = FindBestQueryPlan(thd, query_block, trace_ptr);
     if (finalize_access_paths && m_root_access_path != nullptr) {
-      if (FinalizePlanForQueryBlock(thd, query_block, m_root_access_path)) {
+      if (FinalizePlanForQueryBlock(thd, query_block)) {
         return true;
       }
     }
@@ -985,23 +985,10 @@ bool JOIN::optimize(bool finalize_access_paths) {
     if (finalize_table_conditions()) return true;
   }
 
-  if (query_block->query_result()->optimize()) {
-    DBUG_PRINT("error", ("Error: Query_result::optimize() failed"));
-    return true;  // error == -1
-  }
-
   if (make_join_readinfo(this, no_jbuf_after))
     return true; /* purecov: inspected */
 
   if (make_tmp_tables_info()) return true;
-
-  /*
-    At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible,
-    Query parts being offloaded to the engines(below) may still change the
-    'plan', affecting which type of Iterator we should create. Thus no
-    Iterators should be set up until after push_to_engine() has completed.
-  */
-  if (push_to_engines()) return true;
 
   /*
     If we decided to not sort after all, update the cost of the JOIN.
@@ -1020,6 +1007,23 @@ bool JOIN::optimize(bool finalize_access_paths) {
   // Creating iterators may evaluate a constant hash join condition, which may
   // fail:
   if (thd->is_error()) return true;
+
+  /*
+    At this stage, we have set up an AccessPath 'plan'. Traverse the
+    AccessPath structures and find components which may be offloaded to
+    the engines. This process is allowed to modify the AccessPath itself.
+    (Removing/modifying FILTERs where pushed to the engines, change JOIN*
+    algorithms being used, modify aggregate expressions, ...).
+    This will later affects which type of Iterator we should create. Thus no
+    Iterators should be set up until after push_to_engines() has completed.
+
+    Note that when the Hypergraph optimizer is used, there is an entirely
+    different code path to push_to_engine(). (We create the AcccesPath directly
+    instead of converting the QEP_TABs into an AccessPath structure).
+    In the HG case we push_to_engine() when FinalizePlanForQueryBlock()
+    has finalized the 'plan'.
+  */
+  if (push_to_engines()) return true;
 
   // Make plan visible for EXPLAIN
   set_plan_state(PLAN_READY);
@@ -1041,11 +1045,6 @@ setup_subq_exit:
     sense.
   */
   child_subquery_can_materialize = true;
-
-  if (query_block->query_result()->optimize()) {
-    DBUG_PRINT("error", ("Error: Query_result::optimize() failed"));
-    return true;
-  }
 
   trace_steps.end();  // because all steps are done
   Opt_trace_object(trace, "empty_result").add_alnum("cause", zero_result_cause);
@@ -1084,7 +1083,8 @@ void JOIN::create_access_paths_for_zero_rows() {
     // Send no row at all (so also no need to check HAVING or LIMIT).
     m_root_access_path = NewZeroRowsAccessPath(thd, zero_result_cause);
   }
-  m_root_access_path = attach_access_path_for_delete(m_root_access_path);
+  m_root_access_path =
+      attach_access_path_for_update_or_delete(m_root_access_path);
 }
 
 /**
@@ -1104,17 +1104,16 @@ void JOIN::create_access_paths_for_zero_rows() {
 */
 bool JOIN::push_to_engines() {
   DBUG_TRACE;
+  assert(m_root_access_path != nullptr);
 
-  if (!plan_is_const()) {
-    const AQP::Join_plan plan(this);
-
-    for (uint i = const_tables; i < plan.get_access_count(); i++) {
-      TABLE *const table = qep_tab[i].table();
-      if (likely(table != nullptr)) {
-        if (unlikely(table->file->engine_push(plan.get_table_access(i)))) {
-          return true;
-        }
+  for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
+    const handlerton *hton = tl->table->file->hton_supporting_engine_pushdown();
+    if (hton != nullptr) {  // Involved an engine supporting pushdown.
+      if (unlikely(hton->push_to_engine(thd, m_root_access_path, this))) {
+        return true;
       }
+      break;  // Assume that at most a single handlerton per query support
+              // pushdown
     }
   }
   return false;
@@ -1515,6 +1514,12 @@ bool JOIN::optimize_distinct_group_order() {
     }
     ORDER *o;
     bool all_order_fields_used;
+    /*
+      There is possibility where the REF_SLICE_ACTIVE points to
+      freed-up Items like in case of non-first row of a UPDATE
+      trigger. Re-load the Items before using the slice.
+    */
+    refresh_base_slice();
     if ((o = create_order_from_distinct(
              thd, ref_items[REF_SLICE_ACTIVE], order.order, fields,
              /*skip_aggregates=*/true,
@@ -1754,7 +1759,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
   int reverse = 0;
   uint key_parts;
   bool on_pk_suffix = false;
-  // Whether [extented] key has key parts with mixed ASC/DESC order
+  // Whether [extended] key has key parts with mixed ASC/DESC order
   bool mixed_order = false;
   // Order direction of the first key part
   bool reverse_sorted = (bool)(key_part->key_part_flag & HA_REVERSE_SORT);
@@ -2190,8 +2195,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
         and there is no WHERE condition since a condition may potentially
         require more rows to be fetch from FT index.
       */
-      else if (!tab->condition() && select_limit != HA_POS_ERROR &&
-               select_limit <= ft_func->get_count()) {
+      if (!tab->condition() && select_limit != HA_POS_ERROR &&
+          select_limit <= ft_func->get_count()) {
         /* test_if_ft_index_order() always returns master MATCH function. */
         assert(!ft_func->master);
         /* ref is not set since there is no WHERE condition */
@@ -2298,7 +2303,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
             The range optimizer constructed QUICK_RANGE for ref_key, and
             we want to use instead new_ref_key as the index. We can't
             just change the index of the quick select, because this may
-            result in an incosistent RowIterator object. Below we
+            result in an inconsistent RowIterator object. Below we
             create a new RowIterator from scratch so that all its
             parameres are set correctly by the range optimizer.
 
@@ -2573,9 +2578,12 @@ check_reverse_order:
         and best_key doesn't, then revert the decision.
       */
       if (!table->covering_keys.is_set(best_key)) table->set_keyread(false);
-      if (!tab->range_scan() ||
-          tab->range_scan() == save_range_scan)  // created no QUICK
-      {
+      // Create an index scan if the table is not a temporary table that uses
+      // Temptable engine (Does not support index_first() and index_last()) and
+      // if there was no new range scan created.
+      if (!(is_temporary_table(tab->table_ref) &&
+            tab->table_ref->table->s->db_type() == temptable_hton) &&
+          ((!tab->range_scan() || tab->range_scan() == save_range_scan))) {
         // Avoid memory leak:
         assert(tab->range_scan() == save_range_scan ||
                tab->range_scan() == nullptr);
@@ -2715,19 +2723,28 @@ bool JOIN::prune_table_partitions() {
   assert(query_block->partitioned_table_count);
 
   for (TABLE_LIST *tbl = query_block->leaf_tables; tbl; tbl = tbl->next_leaf) {
-    /*
-      If tbl->embedding!=NULL that means that this table is in the inner
-      part of the nested outer join, and we can't do partition pruning
-      (TODO: check if this limitation can be lifted.
-             This also excludes semi-joins.  Is that intentional?)
-      This will try to prune non-static conditions, which can
-      be used after the tables are locked.
-    */
-    if (!tbl->embedding) {
-      Item *prune_cond =
-          tbl->join_cond_optim() ? tbl->join_cond_optim() : where_cond;
-      if (prune_partitions(thd, tbl->table, query_block, prune_cond))
-        return true;
+    // This will try to prune non-static conditions, which can be probed after
+    // the tables are locked.
+
+    // Predicates for pruning of this table must be placed in the outer-most
+    // join nest (Predicates in other join nests, or in the WHERE clause,
+    // would have caused an outer join to be converted to an inner join,
+    // and thus there would be no join nest graph to traverse)
+    // Look up the join nest hierarchy for the outermost condition:
+    Item *cond = where_cond;
+    const table_map tbl_map = tbl->map();
+    for (TABLE_LIST *nest = tbl; nest != nullptr; nest = nest->embedding) {
+      if (nest->join_cond_optim() != nullptr &&
+          Overlaps(tbl_map, nest->join_cond_optim()->used_tables())) {
+        cond = nest->join_cond_optim();
+        // For an anti-join operation, a synthetic left join nest is added above
+        // the anti-join nest. Make sure that we skip this when searching for
+        // the predicate to prune.
+        if (nest->is_aj_nest()) break;
+      }
+    }
+    if (prune_partitions(thd, tbl->table, query_block, cond)) {
+      return true;
     }
   }
 
@@ -2828,12 +2845,11 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
             destroy(tab->range_scan());
             tab->set_range_scan(range_scan);
             return true;
-          } else {
-            Opt_trace_object(trace, "access_type_unchanged")
-                .add("ref_key_length", length)
-                .add("range_key_length", get_max_used_key_length(range_scan));
-            destroy(range_scan);
           }
+          Opt_trace_object(trace, "access_type_unchanged")
+              .add("ref_key_length", length)
+              .add("range_key_length", get_max_used_key_length(range_scan));
+          destroy(range_scan);
         }
       } else
         return length < get_max_used_key_length(tab->range_scan());  // 5)
@@ -3314,6 +3330,29 @@ static void revise_cache_usage(JOIN_TAB *join_tab) {
     For a nested outer join/semi-join, currently, we either use join buffers for
     all inner tables or for none of them.
 
+    Join buffering is enabled for a few more cases for secondary engine.
+    Currently if blocked nested loop(BNL) is employed for join buffering,
+    it is replaced by hash joins in the executor. So the reasons for disabling
+    join buffering because of the way BNL works are no more valid. This gives
+    us an oppotunity to enable join buffering for more cases. However,
+    we enable it only for secondary engine (in particular for semijoins),
+    because of the following reasons:
+    Secondary engine does not care about the cost based decisions
+    involved in arriving at the best possible semijoin strategy;
+    because it can only interpret a plan using "FirstMatch" strategy
+    and can only do table scans. So the choices are very limited.
+    However, it's not the case for mysql. There are serveral semijoin
+    stratagies that could be picked. And these are picked based
+    on the assumption that a nested-loop join(NLJ) would be used because
+    optimizer currently generates plans only for NLJs and not
+    hash joins. So, when executor replaces with hash joins, the number
+    of rows that would be looked into for a particular semijoin strategy
+    will differ from what the optimizer presumed while picking that
+    strategy.
+    For mysql server, we could enable join buffering for more cases, when
+    a cost model for using hash joins is developed and optimizer could
+    generate plans for hash joins.
+
   @todo
     Support BKA inside SJ-Materialization nests. When doing this, we'll need
     to only store sj-inner tables in the join buffer.
@@ -3411,10 +3450,15 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
       /*
         Use join cache with FirstMatch semi-join strategy only when semi-join
         contains only one table.
+        As mentioned earlier (in comments), we lift this restriction for
+        secondary engine.
       */
-      if (!tab->is_single_inner_of_semi_join()) {
-        assert(tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
-        goto no_join_cache;
+      if (!(current_thd->lex->m_sql_cmd != nullptr &&
+            current_thd->lex->m_sql_cmd->using_secondary_storage_engine())) {
+        if (!tab->is_single_inner_of_semi_join()) {
+          assert(tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
+          goto no_join_cache;
+        }
       }
       break;
 
@@ -3461,10 +3505,16 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
     this cached row again)
      - but a row in a cache has only one "match flag"
      - so if "sj inner table"=="first inner", there is a problem.
+
+    As mentioned earlier(in comments), we lift this restriction for
+    secondary engine.
   */
-  if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
-      tab->is_inner_table_of_outer_join())
-    goto no_join_cache;
+  if (!(current_thd->lex->m_sql_cmd != nullptr &&
+        current_thd->lex->m_sql_cmd->using_secondary_storage_engine())) {
+    if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
+        tab->is_inner_table_of_outer_join())
+      goto no_join_cache;
+  }
 
   if (join->deps_of_remaining_lateral_derived_tables &
       (tab->prefix_tables() & ~tab->added_tables())) {
@@ -3719,12 +3769,12 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
 
   if (left_item->type() == Item::REF_ITEM &&
       down_cast<Item_ref *>(left_item)->ref_type() == Item_ref::VIEW_REF) {
-    if (down_cast<Item_ref *>(left_item)->depended_from) return false;
+    if (down_cast<Item_ref *>(left_item)->is_outer_reference()) return false;
     left_item = left_item->real_item();
   }
   if (right_item->type() == Item::REF_ITEM &&
       down_cast<Item_ref *>(right_item)->ref_type() == Item_ref::VIEW_REF) {
-    if (down_cast<Item_ref *>(right_item)->depended_from) return false;
+    if (down_cast<Item_ref *>(right_item)->is_outer_reference()) return false;
     right_item = right_item->real_item();
   }
   const Item_field *left_item_field, *right_item_field;
@@ -4037,7 +4087,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     thd->lex->current_query_block()->max_equal_elems.
 
   @note
-    Multiple equality predicate =(f1,..fn) is equivalent to the conjuction of
+    Multiple equality predicate =(f1,..fn) is equivalent to the conjunction of
     f1=f2, .., fn-1=fn. It substitutes any inference from these
     equality predicates that is equivalent to the conjunction.
     Thus, =(a1,a2,a3) can substitute for ((a1=a3) AND (a2=a3) AND (a2=a1)) as
@@ -4060,8 +4110,8 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     The Item_equal items built at the level are attached to other
     non-equality conjuncts as a sublist. The pointer to the inherited
     multiple equalities is saved in the and condition object (Item_cond_and).
-    This chain allows us for any field reference occurence to easily find a
-    multiple equality that must be held for this occurence.
+    This chain allows us for any field reference occurrence to easily find a
+    multiple equality that must be held for this occurrence.
     For each AND level we do the following:
     - scan it for all equality predicate (=) items
     - join them into disjoint Item_equal() groups
@@ -4321,7 +4371,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     if (build_equal_items_for_cond(thd, cond, &cond, inherited, do_inherit))
       return true;
     cond->update_used_tables();
-    // update_used_tables() returns void but can stil fail.
+    // update_used_tables() returns void but can still fail.
     if (thd->is_error()) return true;
 
     const enum Item::Type cond_type = cond->type();
@@ -5410,7 +5460,7 @@ bool JOIN::init_planner_arrays() {
   This will speed up the plan search for many cases with outer joins,
   as well as allow us to catch illegal cross references.
   Warshall's algorithm is used to build the transitive closure.
-  As we may restart the outer loop upto 'table_count' times, the
+  As we may restart the outer loop up to 'table_count' times, the
   complexity of the algorithm is O((number of tables)^3).
   However, most of the iterations will be shortcircuited when
   there are no dependencies to propagate.
@@ -6167,10 +6217,10 @@ static void trace_table_dependencies(Opt_trace_context *trace,
 
     Description of the optimization:
 
-      We look through equalities choosen to perform ref/eq_ref access,
+      We look through equalities chosen to perform ref/eq_ref access,
       pick equalities that have form "tbl.part_of_key = othertbl.field"
       (where othertbl is a non-const table and othertbl.field may be NULL)
-      and add them to conditions on correspoding tables (othertbl in this
+      and add them to conditions on corresponding tables (othertbl in this
       example).
 
       Exception from that is the case when referred_tab->join != join.
@@ -6201,7 +6251,7 @@ static void trace_table_dependencies(Opt_trace_context *trace,
       1.1 add_key_part saves these to Key_use.
       2. create_ref_for_key copies them to TABLE_REF.
       3. add_not_null_conds adds "x IS NOT NULL" to join_tab->m_condition of
-         appropiate JOIN_TAB members.
+         appropriate JOIN_TAB members.
 
   @returns false on success, true on error
 */
@@ -7094,7 +7144,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
                            is incremented if key was stored in the array
     @param  and_level      And level, to be stored in Key_field
     @param  cond           Condition predicate
-    @param  field_item     Field used in comparision
+    @param  field_item     Field used in comparison
     @param  eq_func        True if we used =, <=> or IS NULL
     @param  val            Value used for comparison with field
                            Is NULL for BETWEEN and IN
@@ -8396,7 +8446,7 @@ void JOIN::make_outerjoin_info() {
       if (tab->first_inner() == NO_PLAN_IDX)
         tab->set_first_inner(nested_join->first_nested);
       /*
-        If including the sj-mat tmp table, this also implicitely
+        If including the sj-mat tmp table, this also implicitly
         includes the inner tables of the sj-nest.
       */
       nested_join->nj_counter +=
@@ -8782,7 +8832,7 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
 
   @details
   A predicate of the form 'field = value' may be redundant if the
-  (ref-) access choosen for the table use an index containing 'field',
+  (ref-) access chosen for the table use an index containing 'field',
   where 'value' is specified as (part of) its ref-key. This method remove
   such redundant predicates, thus reducing the condition, possibly
   eliminating it entirely.
@@ -8845,7 +8895,7 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
         /*
           All inner-tables are possible null-extended when evaluating
           the 'FOUND_MATCH'. Thus, predicates embedded in this trig_cond,
-          refering these tables, should not be eliminated.
+          referring these tables, should not be eliminated.
           -> Add to null_extended map.
         */
         null_extended |= func_trig->get_inner_tables();
@@ -9107,7 +9157,7 @@ void JOIN::finalize_derived_keys() {
             blocks must be considered here, as they need a key_info array
             consistent with the to-be-changed table->s->keys.
           */
-          t->copy_tmp_key(old_idx, it.is_first());
+          t->move_tmp_key(old_idx, it.is_first());
         }
       } else
         new_idx = old_idx;  // Index stays at same slot
@@ -9678,7 +9728,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               The logic below for assigning tab->use_quick is strange.
               It bases the decision of which access method to use
               (dynamic range, range, scan) based on seemingly
-              unrelated information like the presense of another index
+              unrelated information like the presence of another index
               with too bad selectivity to be used.
 
               Consider the following scenario:
@@ -9699,7 +9749,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               scan is chosen instead.
 
               Thus, the choice of DYNAMIC RANGE vs SCAN depends on the
-              presense of an index that has so bad selectivity that it
+              presence of an index that has so bad selectivity that it
               will not be used anyway.
             */
             if (!tab->needed_reg.is_clear_all() &&
@@ -9890,7 +9940,7 @@ static bool duplicate_order(const ORDER *first_order,
   @param cond          WHERE condition.
   @param change        If true, remove sub-clauses that need not be evaluated.
                        If this is not set, then only simple_order is calculated.
-  @param simple_order[out]  Set to true if we are only using simple expressions.
+  @param[out] simple_order  Set to true if we are only using simple expressions.
   @param group_by      True if first_order represents a grouping operation.
 
   @returns new sort order, after const elimination (when change is true).

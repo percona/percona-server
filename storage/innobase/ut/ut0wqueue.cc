@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -137,9 +137,9 @@ void *ib_wqueue_timedwait(
 
 /********************************************************************
 Check if queue is empty. */
-ibool ib_wqueue_is_empty(
-    /* out: TRUE if queue empty
-    else FALSE */
+bool ib_wqueue_is_empty(
+    /* out: true if queue empty
+    else false */
     const ib_wqueue_t *wq) /* in: work queue */
 {
   return (ib_list_is_empty(wq->items));

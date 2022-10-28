@@ -25,7 +25,7 @@ VARIABLE_NAME LIKE '%source%') AND
 (VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 117 variables in the table.]
+include/assert.inc [Expect 119 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -34,6 +34,7 @@ SET PERSIST binlog_ddl_skip_rewrite = @@GLOBAL.binlog_ddl_skip_rewrite;
 SET PERSIST binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
 SET PERSIST binlog_encryption = @@GLOBAL.binlog_encryption;
 SET PERSIST binlog_error_action = @@GLOBAL.binlog_error_action;
+SET PERSIST binlog_expire_logs_auto_purge = @@GLOBAL.binlog_expire_logs_auto_purge;
 SET PERSIST binlog_expire_logs_seconds = @@GLOBAL.binlog_expire_logs_seconds;
 SET PERSIST binlog_format = @@GLOBAL.binlog_format;
 SET PERSIST binlog_group_commit_sync_delay = @@GLOBAL.binlog_group_commit_sync_delay;
@@ -70,6 +71,7 @@ SET PERSIST gtid_mode = @@GLOBAL.gtid_mode;
 SET PERSIST gtid_owned = @@GLOBAL.gtid_owned;
 ERROR HY000: Variable 'gtid_owned' is a read only variable
 SET PERSIST gtid_purged = @@GLOBAL.gtid_purged;
+ERROR HY000: Variable 'gtid_purged' is a non persistent variable
 SET PERSIST have_backup_safe_binlog_info = @@GLOBAL.have_backup_safe_binlog_info;
 ERROR HY000: Variable 'have_backup_safe_binlog_info' is a read only variable
 SET PERSIST init_replica = @@GLOBAL.init_replica;
@@ -129,12 +131,17 @@ SET PERSIST replica_allow_batching = @@GLOBAL.replica_allow_batching;
 SET PERSIST replica_checkpoint_group = @@GLOBAL.replica_checkpoint_group;
 SET PERSIST replica_checkpoint_period = @@GLOBAL.replica_checkpoint_period;
 SET PERSIST replica_compressed_protocol = @@GLOBAL.replica_compressed_protocol;
+SET PERSIST replica_enable_event = @@GLOBAL.replica_enable_event;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
 SET PERSIST replica_exec_mode = @@GLOBAL.replica_exec_mode;
 SET PERSIST replica_load_tmpdir = @@GLOBAL.replica_load_tmpdir;
 ERROR HY000: Variable 'replica_load_tmpdir' is a read only variable
 SET PERSIST replica_max_allowed_packet = @@GLOBAL.replica_max_allowed_packet;
 SET PERSIST replica_net_timeout = @@GLOBAL.replica_net_timeout;
 SET PERSIST replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET PERSIST replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET PERSIST replica_pending_jobs_size_max = @@GLOBAL.replica_pending_jobs_size_max;
 SET PERSIST replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
@@ -263,6 +270,7 @@ RESET PERSIST IF EXISTS binlog_ddl_skip_rewrite;
 RESET PERSIST IF EXISTS binlog_direct_non_transactional_updates;
 RESET PERSIST IF EXISTS binlog_encryption;
 RESET PERSIST IF EXISTS binlog_error_action;
+RESET PERSIST IF EXISTS binlog_expire_logs_auto_purge;
 RESET PERSIST IF EXISTS binlog_expire_logs_seconds;
 RESET PERSIST IF EXISTS binlog_format;
 RESET PERSIST IF EXISTS binlog_group_commit_sync_delay;
@@ -302,6 +310,8 @@ RESET PERSIST IF EXISTS gtid_owned;
 Warnings:
 Warning	3615	Variable gtid_owned does not exist in persisted config file
 RESET PERSIST IF EXISTS gtid_purged;
+Warnings:
+Warning	3615	Variable gtid_purged does not exist in persisted config file
 RESET PERSIST IF EXISTS have_backup_safe_binlog_info;
 Warnings:
 Warning	3615	Variable have_backup_safe_binlog_info does not exist in persisted config file
@@ -363,6 +373,9 @@ RESET PERSIST IF EXISTS replica_allow_batching;
 RESET PERSIST IF EXISTS replica_checkpoint_group;
 RESET PERSIST IF EXISTS replica_checkpoint_period;
 RESET PERSIST IF EXISTS replica_compressed_protocol;
+RESET PERSIST IF EXISTS replica_enable_event;
+Warnings:
+Warning	3615	Variable replica_enable_event does not exist in persisted config file
 RESET PERSIST IF EXISTS replica_exec_mode;
 RESET PERSIST IF EXISTS replica_load_tmpdir;
 Warnings:

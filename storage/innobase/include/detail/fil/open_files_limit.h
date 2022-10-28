@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -97,10 +97,9 @@ class Open_files_limit {
       return "innodb_set_open_files_limit";
     }
 
-    static long long innodb_set_open_files_limit(
-        UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
-        unsigned char *null_value MY_ATTRIBUTE((unused)),
-        unsigned char *error MY_ATTRIBUTE((unused))) {
+    static long long innodb_set_open_files_limit(UDF_INIT *, UDF_ARGS *args,
+                                                 unsigned char *,
+                                                 unsigned char *) {
       Security_context *sctx = current_thd->security_context();
       if (!sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
                .first &&
@@ -153,29 +152,26 @@ class Open_files_limit {
     }
 
     /** Initialize dynamic procedure innodb_set_open_files_limit */
-    static bool innodb_set_open_files_limit_init(
-        UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
-        char *message) {
+    static bool innodb_set_open_files_limit_init(UDF_INIT *, UDF_ARGS *args,
+                                                 char *message) {
       if (args->arg_count != 1) {
-        strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
+        snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
         return true;
       }
       if (args->args[0] == nullptr) {
-        strncpy(message, "First argument must not be null.", MYSQL_ERRMSG_SIZE);
+        snprintf(message, MYSQL_ERRMSG_SIZE,
+                 "First argument must not be null.");
         return true;
       }
       if (args->arg_type[0] != INT_RESULT) {
-        strncpy(message, "Invalid first argument type.", MYSQL_ERRMSG_SIZE);
+        snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid first argument type.");
         return true;
       }
       return false;
     }
 
     /** Deinitialize dynamic procedure innodb_set_open_files_limit */
-    static void innodb_set_open_files_limit_deinit(
-        UDF_INIT *initid MY_ATTRIBUTE((unused))) {
-      return;
-    }
+    static void innodb_set_open_files_limit_deinit(UDF_INIT *) { return; }
   };
 
   Dynamic_procedures m_dynamic_procedures;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,14 +44,6 @@
 
 
 #ifdef DBDIH_C
-
-/*###################*/
-/* FILE SYSTEM FLAGS */
-/*###################*/
-#define ZOPEN_READ_WRITE 2
-#define ZCREATE_READ_WRITE 0x302
-#define ZCLOSE_NO_DELETE 0
-#define ZCLOSE_DELETE 1
 
 /*###############*/
 /* NODE STATES   */

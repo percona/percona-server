@@ -275,6 +275,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :ref: `rocksdb_enable_tmp_table`
+     - Yes
+     - No
+     - Global
    * - :ref:`rocksdb_enable_write_thread_adaptive_yield`
      - Yes
      - No
@@ -328,6 +332,10 @@ Also, all variables can exist in one or both of the following scopes:
      - No
      - Global
    * - :ref:`rocksdb_info_log_level`
+     - Yes
+     - Yes
+     - Global
+   * - :ref: `rocksdb_instant_ddl`
      - Yes
      - Yes
      - Global
@@ -2213,6 +2221,28 @@ accessing the database.
 Disabled by default.
 If enabled, thread status will be available via ``GetThreadList()``.
 
+.. _rocksdb_enable_tmp_table:
+
+.. rubric:: ``rocksdb_enable_tmp_table``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--rocksdb-enable-tmp-table``
+   * - Dynamic
+     - No
+   * - Scope
+     - Global
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+    
+This variable has been implemented in :ref:`8.0.29-21`. Specifies whether to enable rocksdb tmp tables. Disabled by default.
+
 .. _rocksdb_enable_write_thread_adaptive_yield:
 
 .. rubric:: ``rocksdb_enable_write_thread_adaptive_yield``
@@ -2438,9 +2468,9 @@ but also flushes all L0 files.
    * - Data type
      - Boolean
    * - Default
-     - ``OFF``
+     - ``ON``
 
-Forces MyRocks to immediately flush all memtables out to data files.
+The default value has been changed from ``OFF`` to ``ON`` in :ref:`8.0.29-21`. This variable forces MyRocks to immediately flush all memtables out to data files.
 
 .. warning:: Use with caution!
    Write requests will be blocked until all memtables are flushed.
@@ -2491,9 +2521,8 @@ Set to ``0`` if you do not want to override the returned value.
    * - Default
      - ``ON``
 
-Specifies whether hash collisions are allowed.
-Enabled by default, which uses less memory.
-If disabled, full prefix is stored to prevent hash collisions.
+This variable was removed in :ref:`8.0.29-21`. The variable specifies whether hash collisions are allowed. 
+Enabled by default, which uses less memory. If disabled, full prefix is stored to prevent hash collisions.
 
 .. _rocksdb_ignore_unknown_options:
 
@@ -2572,6 +2601,28 @@ to the ``mysqld`` log.
 * ``warn_level``
 * ``error_level`` (default)
 * ``fatal_level``: Minimum logging (only fatal error messages logged)
+
+.. _rocksdb_instant_ddl:
+
+.. rubric:: ``rocksdb_instant_ddl``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--rocksdb-instant-ddl``
+   * - Dynamic
+     - Yes
+   * - Scope
+     - Global
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+
+This variable has been implemented in :ref:`8.0.29-21`. Specifies whether to enable instant ddl during alter table. Disabled by default.
 
 .. _rocksdb_is_fd_close_on_exec:
 
@@ -3245,12 +3296,8 @@ rate limit the delay in milliseconds.
    * - Default
      - ``OFF``
 
-Specifies whether MyRocks should create a new file descriptor and table reader
-for each compaction input.
-Disabled by default.
-Enabling this may increase memory consumption,
-but will also allow pre-fetch options to be specified for compaction
-input files without impacting table readers used for user queries.
+This variable was removed in :ref:`8.0.29-21`. The variable specifies whether MyRocks should create a new file descriptor and table reader for each compaction input. 
+Disabled by default. If you enable this variable, the memory consumption may increase, but it will also allow to specify pre-fetch options for compaction input files without impacting table readers used for user queries.
 
 .. _rocksdb_no_block_cache:
 

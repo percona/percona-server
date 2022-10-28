@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,4 +120,25 @@ bool OverlapsOverflow(OverflowBitset a, OverflowBitset b) {
     }
   }
   return false;
+}
+
+bool IsSubsetOverflow(OverflowBitset a, OverflowBitset b) {
+  assert(!a.is_inline());
+  assert(!b.is_inline());
+  assert(a.capacity() == b.capacity());
+  for (unsigned i = 0; i < a.m_ext->m_num_blocks; ++i) {
+    if (!IsSubset(a.m_ext->m_bits[i], b.m_ext->m_bits[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+int PopulationCountOverflow(OverflowBitset x) {
+  assert(!x.is_inline());
+  int count = 0;
+  for (unsigned i = 0; i < x.m_ext->m_num_blocks; ++i) {
+    count += PopulationCount(x.m_ext->m_bits[i]);
+  }
+  return count;
 }

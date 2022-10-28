@@ -2,12 +2,12 @@
 .\"     Title: mysqlpump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLPUMP" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLPUMP" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1828,6 +1828,19 @@ Do not dump table rows\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-skip\-generated\-invisible\-primary\-key\fR
+This option is available beginning with MySQL 8\&.0\&.30, and causes generated invisible primary keys (GIPKs) to be excluded from the dump\&. See
+Section\ \&13.1.20.11, \(lqGenerated Invisible Primary Keys\(rq, for more information about GIPKs and GIPK mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 For connections to
@@ -2549,7 +2562,7 @@ mysqlpump mysql user db \&.\&.\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

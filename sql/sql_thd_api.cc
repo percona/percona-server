@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,8 +34,8 @@
 #include "my_sqlcommand.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
-#include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_thd_engine_lock.h"
@@ -72,7 +72,7 @@ using std::min;
 
 //////////////////////////////////////////////////////////
 //
-//  Defintions of functions declared in thread_pool_priv.h
+//  Definitions of functions declared in thread_pool_priv.h
 //
 //////////////////////////////////////////////////////////
 
@@ -478,7 +478,21 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     else
       len = min(thd->query().length, max_query_len);
     str.append('\n');
-    str.append(thd->query().str, len);
+
+    /* The above limitation of length can cut the query string character
+       in the middle if it contains multbyte characters.
+       Let's put it through convert_string() method which will detect
+       such a case and produce valid string, truncating spoiled, trailing
+       character. */
+    LEX_STRING truncated_query = {nullptr, 0};
+    if (len < thd->query().length &&
+        !thd->convert_string(&truncated_query, thd->charset(), thd->query().str,
+                             len, thd->charset())) {
+      str.append(truncated_query.str, truncated_query.length);
+    } else {
+      // In case of error or not trimming, fall back to the original behavior
+      str.append(thd->query().str, len);
+    }
   }
 
   mysql_mutex_unlock(&thd->LOCK_thd_query);
@@ -491,7 +505,19 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
   */
   assert(buffer != nullptr);
   length = min(str.length(), length - 1);
-  memcpy(buffer, str.c_ptr_quick(), length);
+
+  /* We are again in the similar situation as above. String is going to be
+     truncated, but we need to avoid cutting in the middle of character. */
+  LEX_STRING truncated_str = {nullptr, 0};
+  if (length < str.length() &&
+      !thd->convert_string(&truncated_str, thd->charset(), str.c_ptr_safe(),
+                           length, thd->charset())) {
+    memcpy(buffer, truncated_str.str, truncated_str.length);
+  } else {
+    // In case of error or not trimming, fall back to the original behavior
+    memcpy(buffer, str.c_ptr_quick(), length);
+  }
+
   /* Make sure that the new string is null terminated */
   buffer[length] = '\0';
   return buffer;
@@ -585,27 +611,23 @@ void *thd_memdup(MYSQL_THD thd, const void *str, size_t size) {
 //
 //////////////////////////////////////////////////////////
 
-/*
+/**
   Interface for MySQL Server, plugins and storage engines to report
   when they are going to sleep/stall.
 
-  SYNOPSIS
-  thd_wait_begin()
-  thd                     Thread object
-                          Can be NULL, in this case current THD is used.
-  wait_type               Type of wait
-                          1 -- short wait (e.g. for mutex)
-                          2 -- medium wait (e.g. for disk io)
-                          3 -- large wait (e.g. for locked row/table)
-  NOTES
-    This is used by the threadpool to have better knowledge of which
-    threads that currently are actively running on CPUs. When a thread
-    reports that it's going to sleep/stall, the threadpool scheduler is
-    free to start another thread in the pool most likely. The expected wait
-    time is simply an indication of how long the wait is expected to
-    become, the real wait time could be very different.
+  This is currently only implemented by by the threadpool and used to have
+  better knowledge of which threads that currently are actively running on CPUs.
+  When not running with TP this makes a call, possibly through a service,
+  to an empty function.
 
   thd_wait_end MUST be called immediately after waking up again.
+
+  More info can be found in the TP documentation.
+
+  @param thd Calling thread context. If nullptr is passed, current_thd is used.
+  @param wait_type An enum value from the enum thd_wait_type (defined
+                   in include/mysql/service_thd_wait.h) but passed as int
+                   to preserve compatibility with exported service api.
 */
 void thd_wait_begin(MYSQL_THD thd, int wait_type) {
   if (!thd) {
@@ -619,7 +641,14 @@ void thd_wait_begin(MYSQL_THD thd, int wait_type) {
   Interface for MySQL Server, plugins and storage engines to report
   when they waking up from a sleep/stall.
 
-  @param  thd   Thread handle
+  This is currently only implemented by by the threadpool and used to have
+  better knowledge of which threads that currently are actively running on CPUs.
+  When not running with TP this makes a call, possibly through a service,
+  to an empty function.
+
+  More info can be found in the TP documentation.
+
+  @param thd Calling thread context. If nullptr is passed, current_thd is used.
 */
 void thd_wait_end(MYSQL_THD thd) {
   if (!thd) {

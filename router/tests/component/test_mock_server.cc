@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -230,9 +230,9 @@ const MockServerCLITestParam mock_server_cli_test_param[] = {
      }},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, MockServerCLITest,
-                        ::testing::ValuesIn(mock_server_cli_test_param),
-                        [](const auto &info) { return info.param.test_name; });
+INSTANTIATE_TEST_SUITE_P(Spec, MockServerCLITest,
+                         ::testing::ValuesIn(mock_server_cli_test_param),
+                         [](const auto &info) { return info.param.test_name; });
 
 class MockServerCLITestBase : public RouterComponentTest {};
 
@@ -563,9 +563,9 @@ const MockServerConnectOkTestParam mock_server_connect_ok_test_param[] = {
      }},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, MockServerConnectOkTest,
-                        ::testing::ValuesIn(mock_server_connect_ok_test_param),
-                        [](const auto &info) { return info.param.test_name; });
+INSTANTIATE_TEST_SUITE_P(Spec, MockServerConnectOkTest,
+                         ::testing::ValuesIn(mock_server_connect_ok_test_param),
+                         [](const auto &info) { return info.param.test_name; });
 
 // custom connect tests
 
@@ -1007,6 +1007,7 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
      {
          "--filename", "@datadir@/tls_endpoint.js",      //
          "--module-prefix", "@datadir@",                 //
+         "--port", "@port@",                             //
          "--xport", "@xport@",                           //
          "--ssl-mode", "required",                       //
          "--ssl-ca", "@certdir@/crl-ca-cert.pem",        //
@@ -1057,9 +1058,9 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
      }},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, MockServerConnectTest,
-                        ::testing::ValuesIn(mock_server_connect_test_param),
-                        [](const auto &info) { return info.param.test_name; });
+INSTANTIATE_TEST_SUITE_P(Spec, MockServerConnectTest,
+                         ::testing::ValuesIn(mock_server_connect_test_param),
+                         [](const auto &info) { return info.param.test_name; });
 
 int main(int argc, char *argv[]) {
   net::impl::socket::init();

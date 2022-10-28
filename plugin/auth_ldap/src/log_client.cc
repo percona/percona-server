@@ -1,4 +1,5 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2022, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +23,18 @@
 
 #include "plugin/auth_ldap/include/log_client.h"
 #include "include/mysql/services.h"
+#ifdef PLUGIN_SIMPLE
 #include "plugin/auth_ldap/include/plugin_simple.h"
+#endif
+#ifdef PLUGIN_SASL
+#include "plugin/auth_ldap/include/plugin_sasl.h"
+#endif
 
 namespace mysql {
 namespace plugin {
 namespace auth_ldap {
 Ldap_logger::Ldap_logger() {
   m_log_level = LDAP_LOG_LEVEL_NONE;
-  m_log_writer = NULL;
   m_log_writer = new Ldap_log_writer_error();
 }
 
@@ -45,6 +50,7 @@ void Ldap_log_writer_error::write(ldap_log_type::ldap_type level,
                                   const std::string &data) {
   plugin_log_level plevel = MY_INFORMATION_LEVEL;
   switch (level) {
+    case ldap_log_type::LDAP_LOG_LDAP_DBG:
     case ldap_log_type::LDAP_LOG_DBG:
     case ldap_log_type::LDAP_LOG_INFO:
       plevel = MY_INFORMATION_LEVEL;
@@ -56,8 +62,15 @@ void Ldap_log_writer_error::write(ldap_log_type::ldap_type level,
       plevel = MY_ERROR_LEVEL;
       break;
   };
-  my_plugin_log_message(&auth_ldap_simple_plugin_info, plevel, "%s",
-                        data.c_str());
+  my_plugin_log_message(
+#ifdef PLUGIN_SIMPLE
+      &auth_ldap_simple_plugin_info
+#endif
+#ifdef PLUGIN_SASL
+          & auth_ldap_sasl_plugin_info
+#endif
+      ,
+      plevel, "%s", data.c_str());
 }
 
 /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,9 @@ class Item_str_func : public Item_func {
 
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
       : Item_func(pos, a, b, c, d, e) {}
-
+  Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e,
+                Item *f)
+      : Item_func(pos, a, b, c, d, e, f) {}
   explicit Item_str_func(mem_root_deque<Item *> *list) : Item_func(list) {}
 
   Item_str_func(const POS &pos, PT_item_list *opt_list)
@@ -279,7 +281,14 @@ class Item_func_aes_encrypt final : public Item_str_func {
       : Item_str_func(pos, a, b) {}
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c)
       : Item_str_func(pos, a, b, c) {}
-
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+      : Item_str_func(pos, a, b, c, d) {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
+                        Item *e)
+      : Item_str_func(pos, a, b, c, d, e) {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
+                        Item *e, Item *f)
+      : Item_str_func(pos, a, b, c, d, e, f) {}
   bool itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
@@ -294,7 +303,14 @@ class Item_func_aes_decrypt : public Item_str_func {
       : Item_str_func(pos, a, b) {}
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c)
       : Item_str_func(pos, a, b, c) {}
-
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+      : Item_str_func(pos, a, b, c, d) {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
+                        Item *e)
+      : Item_str_func(pos, a, b, c, d, e) {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
+                        Item *e, Item *f)
+      : Item_str_func(pos, a, b, c, d, e, f) {}
   bool itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
@@ -868,11 +884,7 @@ class Item_func_hex : public Item_str_ascii_func {
   Item_func_hex(const POS &pos, Item *a) : Item_str_ascii_func(pos, a) {}
   const char *func_name() const override { return "hex"; }
   String *val_str_ascii(String *) override;
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, -1)) return true;
-    set_data_type_string(args[0]->max_length * 2U, default_charset());
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 };
 
 class Item_func_unhex final : public Item_str_func {
@@ -954,29 +966,7 @@ class Item_charset_conversion : public Item_str_func {
 
     @returns the maximum numbers of characters possible after the conversion
   */
-  uint32 compute_max_char_length() {
-    uint32 new_max_chars;
-    Item *from = args[0];
-    if (m_cast_cs == &my_charset_bin) {
-      // We are converting from CHAR/BINARY to BINARY, in which case we
-      // just reinterpret all the bytes of the (CHAR) source to be bytes,
-      // or no change, i.e. BINARY to BINARY
-      new_max_chars = from->max_length;
-    } else if (from->collation.collation == &my_charset_bin) {
-      // We reinterpret the bytes available, i.e. from BINARY to CHAR,
-      // so a by conservative guess it can contain one character per
-      // byte in the BINARY if the minimum character length of the
-      // target is one.  If it is larger, e.g. for UTF-16 (min 2 bytes
-      // per character), we can halve the estimate safely.
-      assert(from->max_length == from->max_char_length());
-      new_max_chars = ((from->max_length + (m_cast_cs->mbminlen - 1)) /
-                       m_cast_cs->mbminlen);
-    } else {
-      // We convert from CHAR -> CHAR, so length is the same
-      new_max_chars = from->max_char_length();
-    }
-    return new_max_chars;
-  }
+  uint32 compute_max_char_length();
 
   bool resolve_type(THD *thd) override;
 

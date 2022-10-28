@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -228,17 +228,17 @@ class Query_fetch_protocol_binary final : public Query_result_send {
 
   At the start of every result set, start_result_metadata allocates m_rset to
   prepare for the results. The metadata is stored on m_current_row which will
-  be transfered to m_fields in end_result_metadata. The memory for the
+  be transferred to m_fields in end_result_metadata. The memory for the
   metadata is allocated on m_rset_root.
 
-  Then, for every row of the result recieved, each of the fields is stored in
+  Then, for every row of the result received, each of the fields is stored in
   m_current_row. Then the row is moved to m_rset and m_current_row is cleared
-  to recieve the next row. The memory for all the results are also stored in
+  to receive the next row. The memory for all the results are also stored in
   m_rset_root.
 
   Finally, at the end of the result set, a new instance of Ed_result_set is
   created on m_rset_root and the result set (m_rset and m_fields) is moved into
-  this instance. The ownership of MEM_ROOT m_rset_root is also transfered to
+  this instance. The ownership of MEM_ROOT m_rset_root is also transferred to
   this instance. So, at the end we have a fresh MEM_ROOT, cleared m_rset and
   m_fields to accept the next result set.
 */
@@ -308,7 +308,6 @@ class Protocol_local final : public Protocol {
   bool store_column(const void *data, size_t length);
   void opt_add_row_to_rset();
 
- private:
   Ed_connection *m_connection;
   MEM_ROOT m_rset_root;
   List<Ed_row> *m_rset;
@@ -430,8 +429,6 @@ class Statement_backup {
 
     stmt->m_query_string = thd->query();
     thd->set_query(m_query_string);
-
-    return;
   }
 
   /**
@@ -1833,7 +1830,7 @@ void mysql_sql_stmt_prepare(THD *thd) {
     if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
             ->is_enabled())
       thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-          ->mark_as_changed(thd, nullptr);
+          ->mark_as_changed(thd, {});
     my_ok(thd, 0L, 0L, "Statement prepared");
   }
 }
@@ -1898,6 +1895,8 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   const auto saved_secondary_engine = thd->secondary_engine_optimization();
   thd->set_secondary_engine_optimization(
       Secondary_engine_optimization::PRIMARY_TENTATIVELY);
+
+  MYSQL_SET_PS_SECONDARY_ENGINE(stmt->m_prepared_stmt, false);
 
   // Query text for binary, general or slow log, if any of them is open
   String expanded_query;
@@ -2078,7 +2077,7 @@ void mysql_sql_stmt_close(THD *thd) {
     if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
             ->is_enabled())
       thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-          ->mark_as_changed(thd, nullptr);
+          ->mark_as_changed(thd, {});
     my_ok(thd);
   }
 }
@@ -2299,10 +2298,9 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
       flags((uint)IS_IN_USE),
       with_log(false),
       m_name(NULL_CSTR),
-      m_db(NULL_CSTR) {
-  init_sql_alloc(key_memory_prepared_statement_main_mem_root, &main_mem_root,
-                 thd_arg->variables.query_alloc_block_size,
-                 thd_arg->variables.query_prealloc_size);
+      m_db(NULL_CSTR),
+      main_mem_root(key_memory_prepared_statement_main_mem_root,
+                    thd_arg->variables.query_alloc_block_size) {
   *last_error = '\0';
 }
 
@@ -2384,7 +2382,6 @@ Prepared_statement::~Prepared_statement() {
     lex->destroy();
     delete (st_lex_local *)lex;  // TRASH memory
   }
-  main_mem_root.Clear();
 }
 
 void Prepared_statement::cleanup_stmt() {
@@ -2857,7 +2854,7 @@ bool Prepared_statement::check_parameter_types() {
       case MYSQL_TYPE_NEWDECIMAL:
         /*
           Parameters of type DECIMAL have large precisions, so they can
-          also accomodate any integer values, both signed and unsigned.
+          also accommodate any integer values, both signed and unsigned.
         */
         assert(item->decimal_precision() - item->decimals >= 20);
         if (item->data_type_actual() != MYSQL_TYPE_LONGLONG &&
@@ -2936,7 +2933,11 @@ bool Prepared_statement::check_parameter_types() {
       case MYSQL_TYPE_LONG_BLOB:
         if (item->data_type_actual() == MYSQL_TYPE_LONGLONG ||
             item->data_type_actual() == MYSQL_TYPE_NEWDECIMAL ||
-            item->data_type_actual() == MYSQL_TYPE_DOUBLE)
+            item->data_type_actual() == MYSQL_TYPE_DOUBLE ||
+            item->data_type_actual() == MYSQL_TYPE_DATETIME ||
+            item->data_type_actual() == MYSQL_TYPE_TIMESTAMP ||
+            item->data_type_actual() == MYSQL_TYPE_DATE ||
+            item->data_type_actual() == MYSQL_TYPE_TIME)
           return false;
         break;
       default:
@@ -2966,7 +2967,7 @@ bool Prepared_statement::check_parameter_types() {
   is retried for a maximum number of times then we give up.
 
   @param expanded_query   Query string.
-  @param open_cursor      Flag to specift if a cursor should be used.
+  @param open_cursor      Flag to specify if a cursor should be used.
 
   @return  a bool value representing the function execution status.
   @retval  true    error: either statement execution is retried for
@@ -3080,12 +3081,15 @@ reexecute:
                Secondary_engine_optimization::PRIMARY_TENTATIVELY);
         assert(!lex->unit->is_executed());
         thd->clear_error();
-        if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE)
+        if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE) {
           thd->set_secondary_engine_optimization(
               Secondary_engine_optimization::SECONDARY);
-        else
+          MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, true);
+        } else {
           thd->set_secondary_engine_optimization(
               Secondary_engine_optimization::PRIMARY_ONLY);
+          MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, false);
+        }
         // Disable the general log. The query was written to the general log in
         // the first attempt to execute it. No need to write it twice.
         general_log_temporarily_disabled |= disable_general_log(thd);
@@ -3102,6 +3106,7 @@ reexecute:
         thd->clear_error();
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_ONLY);
+        MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, false);
         error = reprepare();
         if (!error) {
           // The reprepared statement should not use a secondary engine.
@@ -3116,7 +3121,7 @@ reexecute:
   }
   reset_stmt_parameters(this);
 
-  // Reenable the general log if it was temporarily disabled while repreparing
+  // Re-enable the general log if it was temporarily disabled while repreparing
   // and executing a statement for a secondary engine.
   if (general_log_temporarily_disabled)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
@@ -3344,7 +3349,7 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
   @param expanded_query     A query for binlogging which has all parameter
                             markers ('?') replaced with their actual values.
   @param open_cursor        True if an attempt to open a cursor should be made.
-                            Currenlty used only in the binary protocol.
+                            Currently used only in the binary protocol.
 
   @note
     Preconditions, postconditions.

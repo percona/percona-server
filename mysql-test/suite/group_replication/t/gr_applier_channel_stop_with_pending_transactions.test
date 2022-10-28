@@ -70,6 +70,7 @@ INSERT INTO t1 VALUES (1);
 # give it an extra second to block
 --sleep 1
 
+SET DEBUG_SYNC='now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached';
 SET DEBUG_SYNC='now SIGNAL continue_commit';
 SET @@GLOBAL.DEBUG= @debug_save;
 

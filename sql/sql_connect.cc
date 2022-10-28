@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -679,8 +679,8 @@ bool thd_init_client_charset(THD *thd, uint cs_number) {
   if (!opt_character_set_client_handshake ||
       !(cs = get_charset(cs_number, MYF(0))) ||
       !my_strcasecmp(&my_charset_latin1,
-                     global_system_variables.character_set_client->name,
-                     cs->name)) {
+                     global_system_variables.character_set_client->m_coll_name,
+                     cs->m_coll_name)) {
     if (!is_supported_parser_charset(
             global_system_variables.character_set_client)) {
       /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
@@ -964,7 +964,7 @@ static int check_connection(THD *thd) {
 }
 
 /*
-  Autenticate user, with error reporting
+  Authenticate user, with error reporting
 
   SYNOPSIS
    login_connection()
@@ -1104,10 +1104,10 @@ static void prepare_new_connection_state(THD *thd) {
   const bool is_admin_conn =
       (sctx->check_access(SUPER_ACL) ||
        sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first);
-  thd->mem_cnt->set_orig_mode(is_admin_conn ? MEM_CNT_UPDATE_GLOBAL_COUNTER
-                                            : (MEM_CNT_UPDATE_GLOBAL_COUNTER |
-                                               MEM_CNT_GENERATE_ERROR |
-                                               MEM_CNT_GENERATE_LOG_ERROR));
+  thd->m_mem_cnt.set_orig_mode(is_admin_conn ? MEM_CNT_UPDATE_GLOBAL_COUNTER
+                                             : (MEM_CNT_UPDATE_GLOBAL_COUNTER |
+                                                MEM_CNT_GENERATE_ERROR |
+                                                MEM_CNT_GENERATE_LOG_ERROR));
   if (opt_init_connect.length && !is_admin_conn) {
     if (sctx->password_expired()) {
       LogErr(WARNING_LEVEL, ER_CONN_INIT_CONNECT_IGNORED, sctx->priv_user().str,
@@ -1115,10 +1115,10 @@ static void prepare_new_connection_state(THD *thd) {
       return;
     }
     // Do not print OOM error to error log.
-    thd->mem_cnt->set_curr_mode(
+    thd->m_mem_cnt.set_curr_mode(
         (MEM_CNT_UPDATE_GLOBAL_COUNTER | MEM_CNT_GENERATE_ERROR));
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
-    thd->mem_cnt->set_curr_mode(MEM_CNT_DEFAULT);
+    thd->m_mem_cnt.set_curr_mode(MEM_CNT_DEFAULT);
     if (thd->is_error()) {
       Host_errors errors;
       ulong packet_length;
@@ -1175,7 +1175,7 @@ static void prepare_new_connection_state(THD *thd) {
 }
 
 bool thd_prepare_connection(THD *thd) {
-  if (thd->enable_mem_cnt()) return true;
+  thd->enable_mem_cnt();
 
   bool rc;
   lex_start(thd);

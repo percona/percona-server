@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -384,10 +384,11 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
 
     lex_string_set(
         &default_connection_cl_name,
-        const_cast<char *>(thd->variables.collation_connection->name));
+        const_cast<char *>(thd->variables.collation_connection->m_coll_name));
 
-    lex_string_set(&default_db_cl_name,
-                   const_cast<char *>(thd->variables.collation_database->name));
+    lex_string_set(
+        &default_db_cl_name,
+        const_cast<char *>(thd->variables.collation_database->m_coll_name));
   }
 
   LEX_CSTRING db_name_str = {db_name, strlen(db_name)};
@@ -818,7 +819,7 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
 /**
   Construct ALTER VIEW statement to fix the column list
   and dependency information but retains the previous
-  view defintion entry in DD.
+  view definition entry in DD.
 
   @param[in]  thd       Thread handle.
   @param[in]  view_ref  TABLE_LIST to store view data.
@@ -1023,14 +1024,14 @@ static bool migrate_view_to_dd(THD *thd, const FRM_context &frm_context,
   if (invalid_ctx) {
     cs = system_charset_info;
     size_t cs_length = strlen(cs->csname);
-    size_t length = strlen(cs->name);
+    size_t length = strlen(cs->m_coll_name);
 
     table_list.view_client_cs_name.str =
         strmake_root(mem_root, cs->csname, cs_length);
     table_list.view_client_cs_name.length = cs_length;
 
     table_list.view_connection_cl_name.str =
-        strmake_root(mem_root, cs->name, length);
+        strmake_root(mem_root, cs->m_coll_name, length);
     table_list.view_connection_cl_name.length = length;
 
     if (table_list.view_client_cs_name.str == nullptr ||
@@ -1048,8 +1049,7 @@ static bool migrate_view_to_dd(THD *thd, const FRM_context &frm_context,
                         system_charset_info, invalid_sub_str)) {
     // Provide contextual information
     my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "view",
-             db_name.c_str(), view_name.c_str(),
-             replace_utf8_utf8mb3(system_charset_info->csname),
+             db_name.c_str(), view_name.c_str(), system_charset_info->csname,
              invalid_sub_str.c_str());
     return true;
   }
@@ -1258,7 +1258,7 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
       sp_head::destroy(sp);
 
     }  // End of while loop
-  }    // End of If condition to check Trigger existance
+  }    // End of If condition to check Trigger existence
   return false;
 }
 
@@ -1873,9 +1873,11 @@ bool migrate_plugin_table_to_dd(THD *thd) {
 }
 
 /**
-  Migration of NDB tables is deferred until later, except for legacy privilege
-  tables stored in NDB, which must be migrated now so that they can be moved to
-  InnoDB later in the upgrade.
+  Migration of NDB tables is deferred until later, except for:
+  1. Legacy privilege tables stored in NDB, which must be migrated now so that
+     they can be moved to InnoDB later in the upgrade.
+  2. Tables that have associated triggers which must be migrated now to avoid
+     loss of the triggers.
 
   To check whether the table is a NDB table, look for the presence of a
   table_name.ndb file in the data directory. These files still exist at this
@@ -1899,6 +1901,8 @@ static bool is_skipped_ndb_table(const char *db_name, const char *table_name) {
       return false;
     }
   }
+
+  if (Trigger_loader::trg_file_exists(db_name, table_name)) return false;
 
   return true;
 }
@@ -2008,8 +2012,6 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
       // Skip NDB tables which are upgraded later by the ndbcluster plugin
       if (is_skipped_ndb_table(schema_name, table_name)) continue;
 
-      log_sink_buffer_check_timeout();
-
       // Create an entry in the new DD.
       bool result = false;
       result = migrate_table_to_dd(thd, schema_name, table_name,
@@ -2025,7 +2027,7 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
         Upgrade process does not stop immediately if it encounters any error.
         All the tables in the data directory are processed and all error are
         reported to user at once. Server code has many checks for error in DA.
-        if thd->is_error() return true, atempt to upgrade all subsequent tables
+        if thd->is_error() return true, attempt to upgrade all subsequent tables
         will fail and error log will report error false positives.
        */
       thd->clear_error();

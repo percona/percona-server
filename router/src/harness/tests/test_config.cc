@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -685,6 +685,24 @@ message = Some kind of)";
     EXPECT_EQ(1u, expected_options.count(op));
   }
   EXPECT_THAT(config_options, SizeIs(2));
+}
+
+TEST(TestConfig, ConfigInitialDefaultsOverwritten) {
+  const std::map<std::string, std::string> defaults{
+      {"a", "B"}, {"c", "D"}, {"e", "F"}};
+
+  const Config::ConfigOverwrites conf_overwrites{
+      {{"DEFAULT", ""}, {{"a", "X"}, {"c", "Y"}}}};
+
+  // create a configuration with some initial default, some of them overwritten
+  Config config(defaults, 0, conf_overwrites);
+
+  // 'a' and 'c' were overwritten
+  EXPECT_STREQ("X", config.get_default("a").c_str());
+  EXPECT_STREQ("Y", config.get_default("c").c_str());
+
+  // 'e' should have initial value
+  EXPECT_STREQ("F", config.get_default("e").c_str());
 }
 
 struct InvalidConfigParam {

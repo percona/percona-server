@@ -1,5 +1,5 @@
 ﻿/*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,10 +71,11 @@
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
-#include <mysql.h>
 #include <iostream>
 #include <stdexcept>
-#include "common.h"
+
+#include <mysql.h>
+
 #include "dim.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"

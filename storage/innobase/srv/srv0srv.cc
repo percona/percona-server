@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -65,8 +65,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #ifndef UNIV_HOTBACKUP
 #include "lock0lock.h"
-#include "log0online.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0encryption.h"
 #include "log0recv.h"
+#include "log0write.h"
 #include "mem0mem.h"
 #include "os0proc.h"
 #include "os0thread-create.h"
@@ -133,8 +136,6 @@ std::chrono::seconds get_srv_fatal_semaphore_wait_threshold() {
 in microseconds, in order to reduce the lagging of the purge thread. */
 ulint srv_dml_needed_delay = 0;
 
-bool srv_scrub_log;
-
 const char *srv_main_thread_op_info = "";
 
 /* Server parameters which are read from the initfile */
@@ -145,7 +146,7 @@ names, where the file name itself may also contain a path */
 char *srv_data_home = nullptr;
 
 /** Separate directory for doublewrite files, if it is not NULL */
-char *srv_doublewrite_dir = NULL;
+char *srv_doublewrite_dir = nullptr;
 
 /** The innodb_directories variable value. This a list of directories
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
@@ -186,10 +187,10 @@ Note: If enabled then UNDO tablespace will be selected for truncate.
 While Server waits for undo-tablespace to truncate if user disables
 it, truncate action is completed but no new tablespace is marked
 for truncate (action is never aborted). */
-bool srv_undo_log_truncate = FALSE;
+bool srv_undo_log_truncate = false;
 
 /** Enable or disable Encrypt of UNDO tablespace. */
-bool srv_undo_log_encrypt = FALSE;
+bool srv_undo_log_encrypt = false;
 
 /** Maximum size of undo tablespace. */
 unsigned long long srv_max_undo_tablespace_size;
@@ -232,14 +233,6 @@ bool srv_use_native_aio = false;
 
 bool srv_numa_interleave = false;
 
-/** Whether the redo log tracking is currently enabled. Note that it is
-possible for the log tracker thread to be running and the tracking to be
-disabled */
-bool srv_track_changed_pages = false;
-
-ulonglong srv_max_bitmap_file_size = 100 * 1024 * 1024;
-
-ulonglong srv_max_changed_pages = 0;
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong srv_debug_compress;
@@ -257,24 +250,17 @@ static os_event_t srv_master_thread_disabled_event;
 char *srv_log_group_home_dir = nullptr;
 
 /** Enable or disable Encrypt of REDO tablespace. */
-ulong srv_redo_log_encrypt = 0;
+bool srv_redo_log_encrypt = false;
 
-ulong srv_n_log_files = SRV_N_LOG_FILES_MAX;
+ulong srv_log_n_files = 100; /* Deprecated (used only for deprecated sysvar). */
+
+ulonglong srv_log_file_size; /* Deprecated (used only for deprecated sysvar). */
+
+ulonglong srv_redo_log_capacity, srv_redo_log_capacity_used;
 
 #ifdef UNIV_DEBUG_DEDICATED
 ulong srv_debug_system_mem_size;
 #endif /* UNIV_DEBUG_DEDICATED */
-
-/** At startup, this is the current redo log file size.
-During startup, if this is different from srv_log_file_size_requested
-(innodb_log_file_size), the redo log will be rebuilt and this size
-will be initialized to srv_log_file_size_requested.
-When upgrading from a previous redo log format, this will be set to 0,
-and writing to the redo log is not allowed. Expressed in bytes. */
-ulonglong srv_log_file_size;
-
-/** The value of the startup parameter innodb_log_file_size. */
-ulonglong srv_log_file_size_requested;
 
 /** Space for log buffer, expressed in bytes. Note, that log buffer
 will use only the largest power of two, which is not greater than
@@ -429,12 +415,12 @@ page_size_t univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
-bool srv_adaptive_flushing = TRUE;
+bool srv_adaptive_flushing = true;
 
 ulint srv_show_locks_held = 10;
 
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
-bool srv_flush_sync = TRUE;
+bool srv_flush_sync = true;
 
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
@@ -514,7 +500,7 @@ ulong srv_n_read_io_threads;
 ulong srv_n_write_io_threads;
 
 /* Switch to enable random read ahead. */
-bool srv_random_read_ahead = FALSE;
+bool srv_random_read_ahead = false;
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -614,7 +600,7 @@ ulong srv_force_recovery_crash;
 #endif /* UNIV_DEBUG */
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
-bool srv_print_all_deadlocks = FALSE;
+bool srv_print_all_deadlocks = false;
 
 /** Print all DDL logs to mysqld stderr */
 bool srv_print_ddl_logs = false;
@@ -623,7 +609,7 @@ bool srv_print_ddl_logs = false;
 bool srv_print_lock_wait_timeout_info = false;
 
 /** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
-bool srv_cmp_per_index_enabled = FALSE;
+bool srv_cmp_per_index_enabled = false;
 
 /** If innodb redo logging is enabled. */
 bool srv_redo_log = true;
@@ -643,7 +629,7 @@ If innodb_fast_shutdown=2, shutdown will effectively 'crash' InnoDB
 ulong srv_fast_shutdown;
 
 /* Generate a innodb_status.<pid> file */
-ibool srv_innodb_status = FALSE;
+bool srv_innodb_status = false;
 
 /* When estimating number of different key values in an index, sample
 this many index pages, there are 2 ways to calculate statistics:
@@ -652,10 +638,10 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 unsigned long long srv_stats_transient_sample_pages = 8;
-bool srv_stats_persistent = TRUE;
-bool srv_stats_include_delete_marked = FALSE;
+bool srv_stats_persistent = true;
+bool srv_stats_include_delete_marked = false;
 unsigned long long srv_stats_persistent_sample_pages = 20;
-bool srv_stats_auto_recalc = TRUE;
+bool srv_stats_auto_recalc = true;
 
 ulong srv_replication_delay = 0;
 std::chrono::milliseconds get_srv_replication_delay() {
@@ -667,7 +653,7 @@ ulint srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
 /*-------------------------------------------*/
 ulong srv_n_spin_wait_rounds = 30;
 ulong srv_spin_wait_delay = 6;
-ibool srv_priority_boost = TRUE;
+bool srv_priority_boost = true;
 
 #ifndef UNIV_HOTBACKUP
 static ulint srv_n_rows_inserted_old = 0;
@@ -683,8 +669,9 @@ static ulint srv_n_system_rows_read_old = 0;
 
 ulint srv_truncated_status_writes = 0;
 
-bool srv_print_innodb_monitor = FALSE;
-bool srv_print_innodb_lock_monitor = FALSE;
+bool srv_print_innodb_monitor = false;
+std::atomic_uint32_t srv_innodb_needs_monitoring{0};
+bool srv_print_innodb_lock_monitor = false;
 
 /* Array of English strings describing the current state of an
 i/o handler thread */
@@ -693,7 +680,7 @@ const char *srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 const char *srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
 #ifndef UNIV_HOTBACKUP
-static std::chrono::steady_clock::time_point srv_last_monitor_time;
+static std::chrono::steady_clock::time_point srv_monitor_stats_refreshed_at;
 #endif /* !UNIV_HOTBACKUP */
 
 static ib_mutex_t srv_innodb_monitor_mutex;
@@ -769,21 +756,21 @@ constexpr std::chrono::seconds SRV_MASTER_DICT_LRU_INTERVAL{47};
 There is the following analogue between this database
 server and an operating system kernel:
 
-DB concept			equivalent OS concept
-----------			---------------------
-transaction		--	process;
+DB concept                      equivalent OS concept
+----------                      ---------------------
+transaction             --      process;
 
-query thread		--	thread;
+query thread            --      thread;
 
-lock			--	semaphore;
+lock                    --      semaphore;
 
-kernel			--	kernel;
+kernel                  --      kernel;
 
 query thread execution:
 (a) without lock mutex
-reserved		--	process executing in user mode;
+reserved                --      process executing in user mode;
 (b) with lock mutex reserved
-                        --	process executing in kernel mode;
+                        --      process executing in kernel mode;
 
 The server has several backgroind threads all running at the same
 priority as user threads. It periodically checks if here is anything
@@ -888,10 +875,6 @@ static const ulint SRV_PURGE_SLOT = 1;
 /** Slot index in the srv_sys->sys_threads array for the master thread. */
 static const ulint SRV_MASTER_SLOT = 0;
 
-os_event_t srv_checkpoint_completed_event;
-
-os_event_t srv_redo_log_tracked_event;
-
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Performance schema stage event for monitoring ALTER TABLE progress
 everything after flush log_make_latest_checkpoint(). */
@@ -983,7 +966,7 @@ void srv_reset_io_thread_op_info() {
 #ifdef UNIV_DEBUG
 /** Validates the type of a thread table slot.
  @return true if ok */
-static ibool srv_thread_type_validate(
+static bool srv_thread_type_validate(
     srv_thread_type type) /*!< in: thread type */
 {
   switch (type) {
@@ -992,7 +975,7 @@ static ibool srv_thread_type_validate(
     case SRV_WORKER:
     case SRV_PURGE:
     case SRV_MASTER:
-      return (TRUE);
+      return true;
   }
   ut_error;
 }
@@ -1041,8 +1024,8 @@ static srv_slot_t *srv_reserve_slot(
 
   ut_a(!slot->in_use);
 
-  slot->in_use = TRUE;
-  slot->suspended = FALSE;
+  slot->in_use = true;
+  slot->suspended = false;
   slot->type = type;
 
   ut_ad(srv_slot_get_type(slot) == type);
@@ -1089,7 +1072,7 @@ static int64_t srv_suspend_thread_low(
   }
 
   ut_a(!slot->suspended);
-  slot->suspended = TRUE;
+  slot->suspended = true;
 
   ut_a(srv_sys->n_threads_active[type] > 0);
 
@@ -1159,7 +1142,7 @@ ulint srv_release_threads(srv_thread_type type, /*!< in: thread type */
           break;
       }
 
-      slot->suspended = FALSE;
+      slot->suspended = false;
 
       ++srv_sys->n_threads_active[type];
 
@@ -1188,7 +1171,7 @@ static void srv_free_slot(srv_slot_t *slot) /*!< in/out: thread slot */
 
   /* Free the slot for reuse. */
   ut_ad(slot->in_use);
-  slot->in_use = FALSE;
+  slot->in_use = false;
 
   srv_sys_mutex_exit();
 }
@@ -1197,6 +1180,16 @@ static void srv_free_slot(srv_slot_t *slot) /*!< in/out: thread slot */
 static void srv_init(void) {
   ulint n_sys_threads = 0;
   ulint srv_sys_sz = sizeof(*srv_sys);
+
+  /* Create mutex to protect encryption master_key_id. */
+  {
+    /* This is defined in ha_innodb.cc and used during create_log_files(), which
+    we call after calling srv_boot() which defines types of mutexes, so we have
+    to create this mutex in between the two calls. */
+    extern ib_mutex_t master_key_id_mutex;
+
+    mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
+  }
 
   mutex_create(LATCH_ID_SRV_INNODB_MONITOR, &srv_innodb_monitor_mutex);
 
@@ -1266,11 +1259,6 @@ static void srv_init(void) {
     buf_flush_tick_event = os_event_create();
 
     UT_LIST_INIT(srv_sys->tasks);
-
-    srv_checkpoint_completed_event = os_event_create();
-
-    srv_redo_log_tracked_event = os_event_create();
-    os_event_set(srv_redo_log_tracked_event);
   }
 
   srv_buf_resize_event = os_event_create();
@@ -1320,8 +1308,6 @@ void srv_free(void) {
     os_event_destroy(srv_monitor_event);
     os_event_destroy(srv_buf_dump_event);
     os_event_destroy(buf_flush_event);
-    os_event_destroy(srv_checkpoint_completed_event);
-    os_event_destroy(srv_redo_log_tracked_event);
     os_event_destroy(buf_flush_tick_event);
   }
 
@@ -1398,7 +1384,7 @@ void srv_boot(void) {
 static void srv_refresh_innodb_monitor_stats(void) {
   mutex_enter(&srv_innodb_monitor_mutex);
 
-  srv_last_monitor_time = std::chrono::steady_clock::now();
+  srv_monitor_stats_refreshed_at = std::chrono::steady_clock::now();
 
   os_aio_refresh_stats();
 
@@ -1450,7 +1436,7 @@ static void srv_printf_locks_and_transactions(FILE *file,
 bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
                                ulint *trx_end) {
   ulint n_reserved;
-  ibool ret;
+  bool ret;
 
   mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1461,11 +1447,11 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   same time */
 
   const auto time_elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-                                current_time - srv_last_monitor_time)
+                                current_time - srv_monitor_stats_refreshed_at)
                                 .count() +
                             0.001;
 
-  srv_last_monitor_time = std::chrono::steady_clock::now();
+  srv_monitor_stats_refreshed_at = current_time;
 
   fputs("\n=====================================\n", file);
 
@@ -1555,7 +1541,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   }
 
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_s_lock(btr_search_latches[i]);
+    rw_lock_s_lock(btr_search_latches[i], UT_LOCATION_HERE);
     ha_print_info(file, btr_search_sys->hash_tables[i]);
     rw_lock_s_unlock(btr_search_latches[i]);
   }
@@ -1718,7 +1704,7 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_data_pending_writes = os_n_pending_writes;
 
   export_vars.innodb_data_pending_fsyncs =
-      fil_n_pending_log_flushes + fil_n_pending_tablespace_flushes;
+      log_pending_flushes() + fil_n_pending_tablespace_flushes;
   export_vars.innodb_adaptive_hash_hash_searches = btr_cur_n_sea;
   export_vars.innodb_adaptive_hash_non_hash_searches = btr_cur_n_non_sea;
   export_vars.innodb_background_log_sync = srv_log_writes_and_flush;
@@ -1782,18 +1768,13 @@ void srv_export_innodb_status(void) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
     export_vars.innodb_buffer_pool_pages_old += buf_pool->LRU_old_len;
   }
-  export_vars.innodb_checkpoint_age =
-      (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
 
-  export_vars.innodb_checkpoint_max_age = log_get_free_check_capacity(*log_sys);
-  ibuf_export_ibuf_status(&export_vars.innodb_ibuf_free_list,
-                          &export_vars.innodb_ibuf_segment_size);
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);
   export_vars.innodb_lsn_flushed = log_sys->flushed_to_disk_lsn;
   export_vars.innodb_lsn_last_checkpoint = log_sys->last_checkpoint_lsn;
   export_vars.innodb_master_thread_active_loops = srv_main_active_loops;
   export_vars.innodb_master_thread_idle_loops = srv_main_idle_loops;
-  export_vars.innodb_max_trx_id = trx_sys->rw_max_trx_id;
+  export_vars.innodb_max_trx_id = trx_sys_get_next_trx_id_or_no();
 
   mutex_enter(&trx_sys->mutex);
   auto *const oldest_view_for_low_limit_trx_id =
@@ -1813,9 +1794,9 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_os_log_written = srv_stats.os_log_written;
 
-  export_vars.innodb_os_log_fsyncs = fil_n_log_flushes;
+  export_vars.innodb_os_log_fsyncs = log_total_flushes();
 
-  export_vars.innodb_os_log_pending_fsyncs = fil_n_pending_log_flushes;
+  export_vars.innodb_os_log_pending_fsyncs = log_pending_flushes();
 
   export_vars.innodb_os_log_pending_writes = srv_stats.os_log_pending_writes;
 
@@ -1915,7 +1896,7 @@ void srv_export_innodb_status(void) {
       srv_stats.n_rowlog_blocks_decrypted;
 
 #ifdef UNIV_DEBUG
-  rw_lock_s_lock(&purge_sys->latch);
+  rw_lock_s_lock(&purge_sys->latch, UT_LOCATION_HERE);
   trx_id_t done_trx_no = purge_sys->done.trx_no;
 
   /* Purge always deals with transaction end points represented by
@@ -1958,10 +1939,6 @@ void srv_export_innodb_status(void) {
   thd_get_fragmentation_stats(current_thd,
                               &export_vars.innodb_fragmentation_stats);
 
-  export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
-
-  export_vars.innodb_redo_key_version = srv_redo_log_key_version;
-
   if (!srv_read_only_mode) {
     export_vars.innodb_encryption_rotation_pages_read_from_cache =
         crypt_stat.pages_read_from_cache;
@@ -1989,35 +1966,17 @@ bool srv_debug_monitor_printed = false;
 
 /** A thread which prints the info output by various InnoDB monitors. */
 void srv_monitor_thread() {
-  int64_t sig_count;
-  ulint mutex_skipped;
+  uint16_t mutex_skipped{0};
   bool last_srv_print_monitor = srv_print_innodb_monitor;
 
   ut_ad(!srv_read_only_mode);
 
-  auto last_monitor_time = std::chrono::steady_clock::now();
-  srv_last_monitor_time = last_monitor_time;
-
-  mutex_skipped = 0;
-
-loop:
-  /* Wake up every 5 seconds to see if we need to print
-  monitor information or if signaled at shutdown. */
-
-  sig_count = os_event_reset(srv_monitor_event);
-
-  os_event_wait_time_low(srv_monitor_event, std::chrono::seconds{5}, sig_count);
-
-  auto current_time = std::chrono::steady_clock::now();
-
-  auto time_elapsed = current_time - last_monitor_time;
-
-  if (time_elapsed > std::chrono::seconds(15)) {
-    last_monitor_time = std::chrono::steady_clock::now();
-
-    if (srv_print_innodb_monitor) {
-      /* Reset mutex_skipped counter every time srv_print_innodb_monitor
-      changes. This is to ensure we will not be blocked by lock_sys global
+  srv_monitor_stats_refreshed_at = std::chrono::steady_clock::now();
+  const auto sleep_interval = std::chrono::seconds{15};
+  while (0 != os_event_wait_time(srv_monitor_event, sleep_interval)) {
+    if (srv_print_innodb_monitor || 0 < srv_innodb_needs_monitoring.load()) {
+      /* Reset mutex_skipped counter every time the condition above becomes
+      true. This is to ensure we will not be blocked by lock_sys global
       latch for short duration information printing, such as requested by
       sync_array_print_long_waits() */
       if (!last_srv_print_monitor) {
@@ -2036,8 +1995,7 @@ loop:
       last_srv_print_monitor = false;
     }
 
-    /* We don't create the temp files or associated
-    mutexes in read-only-mode */
+    /* We don't create the temp files or associated mutexes in read-only-mode */
 
     if (!srv_read_only_mode && srv_innodb_status) {
       mutex_enter(&srv_monitor_file_mutex);
@@ -2053,11 +2011,16 @@ loop:
       os_file_set_eof(srv_monitor_file);
       mutex_exit(&srv_monitor_file_mutex);
     }
-  }
 
-  if (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
-    goto loop;
+    if (srv_monitor_stats_refreshed_at + std::chrono::minutes{1} <
+        std::chrono::steady_clock::now() + sleep_interval) {
+      /* We refresh InnoDB Monitor values so that averages are printed from at
+      most 60 last seconds and at least 15 seconds*/
+
+      srv_refresh_innodb_monitor_stats();
+    }
   }
+  ut_ad(SRV_SHUTDOWN_CLEANUP <= srv_shutdown_state.load());
 }
 
 /** A thread which prints warnings about semaphore waits which have lasted
@@ -2087,28 +2050,22 @@ loop:
 
   if (new_lsn < old_lsn) {
     ib::error(ER_IB_MSG_1046, ulonglong{old_lsn}, ulonglong{new_lsn});
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   old_lsn = new_lsn;
 
-  if (std::chrono::steady_clock::now() - srv_last_monitor_time >
-      std::chrono::minutes{1}) {
-    /* We refresh InnoDB Monitor values so that averages are
-    printed from at most 60 last seconds */
-
-    srv_refresh_innodb_monitor_stats();
-  }
-
-  /* Update the statistics collected for deciding LRU
-  eviction policy. */
+  /* Update the statistics collected for deciding LRU eviction policy.
+  NOTE: While this doesn't relate to error monitoring, it's here for historical
+  reasons, as it depends on being called ~1Hz. It is lock-free, so can't cause a
+  deadlock itself. */
   buf_LRU_stat_update();
 
   /* In case mutex_exit is not a memory barrier, it is
   theoretically possible some threads are left waiting though
   the semaphore is already released. Wake up those threads: */
-
   sync_arr_wake_threads_if_sema_free();
+
   sync_array_detect_deadlock();
 
   if (sync_array_print_long_waits(&waiter, &sema) && sema == old_sema &&
@@ -2151,35 +2108,10 @@ This is polled during the final phase of shutdown.
 The first phase of server shutdown must have already been executed
 (or the server must not have been fully started up).
 @see srv_pre_dd_shutdown()
-@retval true	if any thread is active
-@retval false	if no thread is active */
+@retval true    if any thread is active
+@retval false   if no thread is active */
 bool srv_master_thread_is_active() {
   return (srv_thread_is_active(srv_threads.m_master));
-}
-
-/** A thread which follows the redo log and outputs the changed page bitmap. */
-void srv_redo_log_follow_thread() {
-  ut_ad(!srv_read_only_mode);
-
-  do {
-    os_event_wait(srv_checkpoint_completed_event);
-    os_event_reset(srv_checkpoint_completed_event);
-
-    if (srv_track_changed_pages &&
-        srv_shutdown_state.load() < SRV_SHUTDOWN_LAST_PHASE) {
-      if (!log_online_follow_redo_log_one_pass()) {
-        /* TODO: sync with I_S log tracking status? */
-        ib::error() << "Log tracking bitmap write "
-                       "failed, stopping log tracking thread!";
-        break;
-      }
-      os_event_set(srv_redo_log_tracked_event);
-    }
-
-  } while (srv_shutdown_state.load() < SRV_SHUTDOWN_LAST_PHASE);
-
-  log_online_read_shutdown();
-  os_event_set(srv_redo_log_tracked_event);
 }
 
 /** Tells the InnoDB server that there has been activity in the database
@@ -2206,7 +2138,7 @@ void srv_active_wake_master_thread_low() {
       ut_a(srv_slot_get_type(slot) == SRV_MASTER);
 
       if (slot->suspended) {
-        slot->suspended = FALSE;
+        slot->suspended = false;
 
         ++srv_sys->n_threads_active[SRV_MASTER];
 
@@ -2294,7 +2226,7 @@ static ulint srv_master_evict_from_table_cache(
 {
   ulint n_tables_evicted = 0;
 
-  rw_lock_x_lock(dict_operation_lock);
+  rw_lock_x_lock(dict_operation_lock, UT_LOCATION_HERE);
 
   dict_mutex_enter_for_mysql();
 
@@ -2359,14 +2291,8 @@ static void srv_master_do_disabled_loop(void) {
   srv_main_thread_op_info = "";
 }
 
-/** Disables master thread. It's used by:
-        SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
-void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
-                                             void *var_ptr, const void *save) {
+void srv_master_thread_disabled_debug_update(THD *, SYS_VAR *, void *,
+                                             const void *save) {
   /* This method is protected by mutex, as every SET GLOBAL .. */
   ut_ad(srv_master_thread_disabled_event != nullptr);
 
@@ -2384,8 +2310,8 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 
 #ifdef UNIV_LINUX
 /** Calculates difference between two timeval values.
-@param[in]	a	later timeval
-@param[in]	b	earlier timeval
+@param[in]      a       later timeval
+@param[in]      b       earlier timeval
 @return a - b; number of microseconds between b and a */
 [[maybe_unused]] static int64_t timeval_diff_us(timeval a, timeval b) {
   return ((a.tv_sec - b.tv_sec) * 1000000LL + a.tv_usec - b.tv_usec);
@@ -2478,7 +2404,7 @@ static void srv_update_cpu_usage() {
 Do not cast a pointer to a FILETIME structure to either a ULARGE_INTEGER* or
 __int64* value because it can cause alignment faults on 64-bit Windows.
 */
-static uint64 FILETIME_to_microseconds(const FILETIME &ft) {
+static uint64_t FILETIME_to_microseconds(const FILETIME &ft) {
   ULARGE_INTEGER ulg;
   ulg.HighPart = ft.dwHighDateTime;
   ulg.LowPart = ft.dwLowDateTime;
@@ -2492,8 +2418,8 @@ static void srv_update_cpu_usage() {
 
   static Clock_point last_time = Clock::now();
 
-  static uint64 last_cpu_utime;
-  static uint64 last_cpu_stime;
+  static uint64_t last_cpu_utime;
+  static uint64_t last_cpu_stime;
   static bool last_cpu_times_set = false;
 
   Clock_point cur_time = Clock::now();
@@ -2518,8 +2444,8 @@ static void srv_update_cpu_usage() {
     return;
   }
 
-  uint64 cur_cpu_utime = FILETIME_to_microseconds(process_user_time);
-  uint64 cur_cpu_stime = FILETIME_to_microseconds(process_kernel_time);
+  uint64_t cur_cpu_utime = FILETIME_to_microseconds(process_user_time);
+  uint64_t cur_cpu_stime = FILETIME_to_microseconds(process_kernel_time);
   if (!last_cpu_times_set) {
     last_cpu_utime = cur_cpu_utime;
     last_cpu_stime = cur_cpu_stime;
@@ -2562,7 +2488,7 @@ static void srv_update_cpu_usage() {
 
   int n_cpu = 0;
   constexpr int MAX_CPU_N = 64;
-  uint64 j = 1;
+  uint64_t j = 1;
   for (int i = 0; i < MAX_CPU_N; ++i) {
     if (j & process_affinity_mask) {
       ++n_cpu;
@@ -2871,7 +2797,7 @@ void undo_rotate_default_master_key() {
 
     space = fil_space_get(undo_space->id());
 
-    if (space == nullptr || space->encryption_type != Encryption::AES) {
+    if (space == nullptr || space->m_encryption_metadata.m_type != Encryption::AES) {
       continue;
     }
 
@@ -2900,210 +2826,59 @@ void undo_rotate_default_master_key() {
   undo::spaces->s_unlock();
 }
 
-bool srv_enable_redo_encryption(THD *thd) {
-  switch (srv_redo_log_encrypt) {
-    case REDO_LOG_ENCRYPT_ON:
-    case REDO_LOG_ENCRYPT_MK:
-      return srv_enable_redo_encryption_mk(thd);
-    case REDO_LOG_ENCRYPT_RK:
-      return srv_enable_redo_encryption_rk(thd);
-  }
+/* Enable REDO tablespace encryption */
+bool srv_enable_redo_encryption() {
+  log_t &log = *log_sys;
 
-  return false;
-}
+  /* While enabling encryption, make sure not to overwrite the existing
+  redo log encryption key (if it has already been generated).
 
-bool srv_enable_redo_encryption_mk(THD *thd) {
-  switch (existing_redo_encryption_mode) {
-    case REDO_LOG_ENCRYPT_RK:
-      if (thd != nullptr) {
-        ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "master_key");
-        ib_senderrf(
-            thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-            log_encrypt_name(existing_redo_encryption_mode), "master_key");
-      } else {
-        ib::fatal(UT_LOCATION_HERE, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "master_key");
-      }
-      return true;
-    case REDO_LOG_ENCRYPT_OFF:
-    case REDO_LOG_ENCRYPT_MK:
-    case REDO_LOG_ENCRYPT_ON:
-      break;
-  }
-
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-  /* While enabling encryption, make sure not to overwrite the tablespace key.
-   */
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+  Note that we can safely check log.m_encryption_metadata without acquiring
+  any of mutexes which are enlisted as required to protect updates of this
+  field. That's because srv_enable_redo_encryption() is called either in
+  startup phase, or during update of innodb_redo_log_encrypt. Server ensures
+  that sysvars are not being updated concurrently and that they are not being
+  updated during startup phase. */
+  if (log_can_encrypt(log)) {
     return false;
   }
 
   Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
-                        dict_sys_t::s_log_space_first_id, false);
+                        dict_sys_t::s_log_space_id, false);
   if (notifier.failed()) {
     return true;
   }
 
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
-
-  Encryption::random_value(iv);
-  Encryption::random_value(key);
-
-  if (!log_write_encryption(key, iv, false, REDO_LOG_ENCRYPT_MK)) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1243);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
-    }
+  /* Start to encrypt the redo log block from now on. */
+  if (log_encryption_generate_metadata(log) != DB_SUCCESS) {
+    ib::error(ER_IB_MSG_LOG_FILES_ENCRYPTION_INIT_FAILED);
     return true;
   }
 
-  fsp_flags_set_encryption(space->flags);
-  const dberr_t err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-  if (err != DB_SUCCESS) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
-    return true;
-  }
-
+  /* Announce encryption is successfully enabled for the redo log. */
   ib::info(ER_IB_MSG_1245);
-
-  return false;
-}
-
-bool srv_enable_redo_encryption_rk(THD *thd) {
-  switch (existing_redo_encryption_mode) {
-    case REDO_LOG_ENCRYPT_ON:
-    case REDO_LOG_ENCRYPT_MK:
-      if (thd != nullptr) {
-        ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "keyring_key");
-        ib_senderrf(
-            thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-            log_encrypt_name(existing_redo_encryption_mode), "keyring_key");
-      } else {
-        ib::fatal(UT_LOCATION_HERE, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "keyring_key");
-      }
-      return true;
-    case REDO_LOG_ENCRYPT_OFF:
-    case REDO_LOG_ENCRYPT_RK:
-      break;
-  }
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    return false;
-  }
-
-  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
-                        dict_sys_t::s_log_space_first_id, false);
-  if (notifier.failed()) {
-    return true;
-  }
-
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
-  uint version;
-
-  Encryption::random_value(iv);
-
-  // load latest key & write version
-
-  redo_log_key *mkey =
-      strlen(server_uuid) > 0
-          ? redo_log_key_mgr.load_latest_key(thd, true)
-          : redo_log_key_mgr.fetch_or_generate_default_key(thd);
-  if (mkey == nullptr) {
-    return true;
-  }
-
-  // if server_uuid is not available we should be using default percona_redo
-  // key, which does not have version - i.e. has version 0
-  // (REDO_LOG_ENCRYPT_NO_VERSION)
-  ut_ad(strlen(server_uuid) > 0 ||
-        mkey->version == REDO_LOG_ENCRYPT_NO_VERSION);
-
-  version = mkey->version;
-  srv_redo_log_key_version = version;
-  memcpy(key, mkey->key, Encryption::KEY_LEN);
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Fetched redo key: %s.\n", key);
-#endif
-
-  if (!log_write_encryption(key, iv, false, REDO_LOG_ENCRYPT_RK, version)) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1243);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
-    }
-    return true;
-  }
-
-  space->encryption_redo_key = mkey;
-  space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-  space->encryption_key_version = version;
-  space->encryption_redo_key_uuid.reset(
-      new (std::nothrow) char[Encryption::SERVER_UUID_LEN + 1]);
-  if (space->encryption_redo_key_uuid.get() == nullptr) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
-  }
-
-  memcpy(space->encryption_redo_key_uuid.get(), server_uuid,
-         Encryption::SERVER_UUID_LEN + 1);
-  dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, key, iv);
-
-  if (err != DB_SUCCESS) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
-    return true;
-  }
-
-  ib::info(ER_IB_MSG_1245);
-
   return false;
 }
 
 /* Set encryption for UNDO tablespace with given space id. */
-bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
-                                    bool is_boot) {
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr) {
   ut_ad(fsp_is_undo_tablespace(space_id));
   fil_space_t *space = fil_space_get(space_id);
 
   dberr_t err;
   byte encrypt_info[Encryption::INFO_SIZE];
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
 
-  Encryption::random_value(key);
-  Encryption::random_value(iv);
+  Encryption_metadata encryption_metadata;
+
+  Encryption::set_or_generate(Encryption::AES, nullptr, nullptr,
+                              encryption_metadata);
 
   /* 0 fill encryption info */
   memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
   /* Fill up encryption info to be set */
-  if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot, true)) {
+  if (!Encryption::fill_encryption_info(encryption_metadata, true,
+                                        encrypt_info)) {
     ib::error(ER_IB_MSG_1052, space->name);
     if (thd != nullptr) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1052, space->name);
@@ -3125,7 +2900,8 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
 
   /* Update In-Mem encryption information for UNDO tablespace */
   fsp_flags_set_encryption(space->flags);
-  err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+  err = fil_set_encryption(space->id, encryption_metadata.m_type,
+                           encryption_metadata.m_key, encryption_metadata.m_iv);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_1054, space->name, int{err}, ut_strerr(err));
     if (thd != nullptr) {
@@ -3139,7 +2915,7 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
 }
 
 /* Enable UNDO tablespace encryption */
-bool srv_enable_undo_encryption(THD *thd, bool is_boot) {
+bool srv_enable_undo_encryption(THD *thd) {
   /* Make sure undo::ddl_mutex is owned. */
   ut_ad(mutex_own(&undo::ddl_mutex));
   bool ret_val = false;
@@ -3178,7 +2954,7 @@ bool srv_enable_undo_encryption(THD *thd, bool is_boot) {
     mtr_start(&mtr);
     mtr_x_lock_space(space, &mtr);
 
-    if (set_undo_tablespace_encryption(thd, undo_space->id(), &mtr, is_boot)) {
+    if (set_undo_tablespace_encryption(thd, undo_space->id(), &mtr)) {
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
       ret_val = true;
@@ -3268,8 +3044,6 @@ static void srv_master_main_loop(srv_slot_t *slot) {
 
     /* Purge any deleted tablespace pages. */
     fil_purge();
-
-    log_check_new_key_version();
   }
 }
 
@@ -3419,7 +3193,7 @@ void srv_worker_thread() {
 
   THD *thd = create_internal_thd();
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->thds.insert(thd);
 
@@ -3459,7 +3233,7 @@ void srv_worker_thread() {
 
   srv_free_slot(slot);
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   ut_a(!purge_sys->running);
   ut_a(purge_sys->state == PURGE_STATE_EXIT);
@@ -3572,7 +3346,7 @@ static void srv_purge_coordinator_suspend(
   do {
     ulint ret;
 
-    rw_lock_x_lock(&purge_sys->latch);
+    rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
     purge_sys->running = false;
 
@@ -3600,7 +3374,7 @@ static void srv_purge_coordinator_suspend(
     but before this check if another thread sent a wakeup signal. */
 
     if (slot->suspended) {
-      slot->suspended = FALSE;
+      slot->suspended = false;
       ++srv_sys->n_threads_active[slot->type];
       ut_a(srv_sys->n_threads_active[slot->type] == 1);
     }
@@ -3609,7 +3383,7 @@ static void srv_purge_coordinator_suspend(
 
     sig_count = srv_suspend_thread(slot);
 
-    rw_lock_x_lock(&purge_sys->latch);
+    rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
     stop = (srv_shutdown_state.load() < SRV_SHUTDOWN_PURGE &&
             purge_sys->state == PURGE_STATE_STOP);
@@ -3653,7 +3427,7 @@ static void srv_purge_coordinator_suspend(
   srv_sys_mutex_enter();
 
   if (slot->suspended) {
-    slot->suspended = FALSE;
+    slot->suspended = false;
     ++srv_sys->n_threads_active[slot->type];
     ut_a(srv_sys->n_threads_active[slot->type] == 1);
   }
@@ -3667,7 +3441,7 @@ void srv_purge_coordinator_thread() {
 
   THD *thd = create_internal_thd();
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->thds.insert(thd);
 
@@ -3688,7 +3462,7 @@ void srv_purge_coordinator_thread() {
                << srv_sched_priority_master << " the current priority is "
                << actual_priority;
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->running = true;
   purge_sys->state = PURGE_STATE_RUN;
@@ -3769,7 +3543,7 @@ void srv_purge_coordinator_thread() {
   srv_free_slot(slot);
 
   /* Note that we are shutting down. */
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->state = PURGE_STATE_EXIT;
 

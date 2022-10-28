@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -183,8 +183,8 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
 }
 
 /**
-  Boostrap the dynamic privilege service by seeding it with server
-  implementation specific data.
+  Bootstrap the dynamic privilege service by seeding it with server
+  implementation-specific data.
 */
 
 bool dynamic_privilege_init(void) {
@@ -245,6 +245,8 @@ bool dynamic_privilege_init(void) {
           STRING_WITH_LEN("AUTHENTICATION_POLICY_ADMIN"));
       ret += service->register_privilege(
           STRING_WITH_LEN("PASSWORDLESS_USER_ADMIN"));
+      ret += service->register_privilege(
+          STRING_WITH_LEN("SENSITIVE_VARIABLES_OBSERVER"));
     }
   }  // exist scope
   mysql_plugin_registry_release(r);

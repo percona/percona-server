@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,8 +191,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   /*
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM. We assume fixed order of engine file name
-    extentions array. First element of engine file name extentions array
-    is meta/index file extention. Second element - data file extention.
+    extensions array. First element of engine file name extensions array
+    is meta/index file extension. Second element - data file extension.
   */
   ext = table->file->ht->file_extensions;
   if (!ext || !ext[0] || !ext[1]) goto end;  // No data file
@@ -391,7 +391,7 @@ bool Sql_cmd_analyze_table::send_histogram_results(
         message.append(pair.first);
         message.append("'.");
         break;
-      // Errror messages
+      // Error messages
       case histograms::Message::FIELD_NOT_FOUND:
         message_type.assign("Error");
         message.assign("The column '");
@@ -1406,7 +1406,7 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  if (!(key_cache = get_key_cache(&m_key_cache_name))) {
+  if (!(key_cache = get_key_cache(to_string_view(m_key_cache_name)))) {
     mysql_mutex_unlock(&LOCK_global_system_variables);
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), m_key_cache_name.str);
     return true;
@@ -1540,7 +1540,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
         /*
           If a histogram was added, updated or removed, we will request the old
           TABLE_SHARE to go away from the table definition cache. This is
-          beacuse histogram data is cached in the TABLE_SHARE, so we want new
+          because histogram data is cached in the TABLE_SHARE, so we want new
           transactions to fetch the updated data into the TABLE_SHARE before
           using it again.
         */
@@ -2191,9 +2191,12 @@ bool Sql_cmd_set_role::execute(THD *thd) {
 
     Update the flag in THD if invoker has SYSTEM_USER privilege not if the
     definer user has that privilege.
+    Do the same for the CONNECTION_ADMIN user privilege flag.
   */
-  if (!ret) set_system_user_flag(thd, true);
-
+  if (!ret) {
+    set_system_user_flag(thd, true);
+    set_connection_admin_flag(thd, true);
+  }
   return ret;
 }
 

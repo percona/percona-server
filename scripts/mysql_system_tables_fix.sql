@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,8 @@ ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 #
 # tables_priv
 #
+SET SESSION innodb_strict_mode=OFF;
+
 ALTER TABLE tables_priv
   ADD KEY Grantor (Grantor);
 
@@ -93,6 +95,8 @@ ALTER TABLE tables_priv
                         'Create View','Show view','Trigger')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   COMMENT='Table privileges';
+
+SET SESSION innodb_strict_mode=DEFAULT;
 
 #
 # columns_priv
@@ -356,6 +360,7 @@ UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
 # procs_priv
 #
 
+SET SESSION innodb_strict_mode=OFF;
 ALTER TABLE procs_priv
   MODIFY User char(32) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
@@ -374,6 +379,7 @@ ALTER TABLE procs_priv
 
 ALTER TABLE procs_priv
   MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
+SET SESSION innodb_strict_mode=DEFAULT;
 
 
 #
@@ -1034,9 +1040,11 @@ ALTER TABLE time_zone_transition ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition_type ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE db ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE user ENGINE=InnoDB STATS_PERSISTENT=0;
+SET SESSION innodb_strict_mode=OFF;
 ALTER TABLE tables_priv ENGINE=InnoDB STATS_PERSISTENT=0;
-ALTER TABLE columns_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE procs_priv ENGINE=InnoDB STATS_PERSISTENT=0;
+SET SESSION innodb_strict_mode=DEFAULT;
+ALTER TABLE columns_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE proxies_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 
 --
@@ -1310,17 +1318,8 @@ PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET SESSION innodb_strict_mode=OFF;
 SET @cmd="ALTER TABLE mysql.tables_priv TABLESPACE = mysql";
-PREPARE stmt FROM @cmd;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd = CONCAT("ALTER TABLE mysql.columns_priv ENCRYPTION='", @is_mysql_encrypted, "'");
-PREPARE stmt FROM @cmd;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1331,6 +1330,17 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET SESSION innodb_strict_mode=DEFAULT;
+
+SET @cmd = CONCAT("ALTER TABLE mysql.columns_priv ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1583,7 +1593,6 @@ INSERT INTO global_grants SELECT user, host, 'FLUSH_TABLES', IF(grant_priv = 'Y'
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushTablesPriv = 0;
 COMMIT;
 
-SET @@session.sql_mode = @old_sql_mode;
 
 -- Fixes to inconsistent system table upgrades.
 ALTER TABLE func
@@ -1645,3 +1654,48 @@ SET @hadAuditAbortExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUD
 INSERT INTO mysql.global_grants
   SELECT user, host, 'AUDIT_ABORT_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
    FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadAuditAbortExempt = 0;
+
+-- grant FIREWALL_EXEMPT to all current holders of SYSTEM_USER
+SET @hadFirewallExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FIREWALL_EXEMPT');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'FIREWALL_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadFirewallExempt = 0;
+
+-- Add the privilege SENSITIVE_VARIABLES_OBSERVER for every user who has the SYSTEM_VARIABLES_ADMIN privilege
+-- provided that there isn't a user who already has the privilege SENSITIVE_VARIABLES_OBSERVER.
+SET @hadSensitiveVariablesAdmin = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SENSITIVE_VARIABLES_OBSERVER');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'SENSITIVE_VARIABLES_OBSERVER', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_VARIABLES_ADMIN' AND @hadSensitiveVariablesAdmin = 0 AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');
+COMMIT;
+
+-- add the PK for mysql.firewall_membership, if missing and if the table is present
+SET @had_firewall_membership =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_membership' AND
+           table_type = 'BASE TABLE');
+SET @had_firewall_membership_pk =
+  (SELECT COUNT(table_name) FROM information_schema.table_constraints
+     WHERE constraint_type = 'PRIMARY KEY' AND
+           table_schema = 'mysql' AND
+           table_name = 'firewall_membership');
+SET @cmd="ALTER TABLE mysql.firewall_membership ADD PRIMARY KEY(GROUP_ID,MEMBER_ID)";
+SET @str = IF(@had_firewall_membership_pk = 0 AND @had_firewall_membership,
+              @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+ALTER TABLE mysql.db DROP PRIMARY KEY,
+                     ADD PRIMARY KEY (`Host`,`User`,`Db`);
+
+ALTER TABLE mysql.tables_priv DROP PRIMARY KEY,
+                              ADD PRIMARY KEY (`Host`,`User`,`Db`,`Table_name`);
+
+ALTER TABLE mysql.columns_priv DROP PRIMARY KEY,
+                               ADD PRIMARY KEY (`Host`,`User`,`Db`,`Table_name`,`Column_name`);
+
+ALTER TABLE mysql.procs_priv DROP PRIMARY KEY,
+                             ADD PRIMARY KEY (`Host`,`User`,`Db`,`Routine_name`,`Routine_type`);
+
+SET @@session.sql_mode = @old_sql_mode;

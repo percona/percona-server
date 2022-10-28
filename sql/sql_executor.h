@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -226,7 +226,7 @@ bool copy_funcs(Temp_table_param *, const THD *thd,
   @param ref   information about the index lookup key
 
   @retval false ref key copied successfully
-  @retval true  error dectected during copying of key
+  @retval true  error detected during copying of key
 */
 bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
@@ -238,12 +238,12 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int update_item_cache_if_changed(List<Cached_item> &list);
 
-// Create list for using with tempory table
+// Create list for using with temporary table
 bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
                               mem_root_deque<Item *> *res_fields,
                               size_t added_non_hidden_fields);
-// Create list for using with tempory table
+// Create list for using with temporary table
 bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
                                           THD *thd, Query_block *select,
                                           Ref_item_array ref_item_array,
@@ -431,7 +431,7 @@ class QEP_TAB : public QEP_shared_owner {
 
   /**
     If we pushed a global ORDER BY down onto this first table, that ORDER BY
-    list will be preseved here.
+    list will be preserved here.
    */
   ORDER *filesort_pushed_order = nullptr;
 
@@ -477,7 +477,6 @@ void init_tmptable_sum_functions(Item_sum **func_ptr);
 void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
 bool has_rollup_result(Item *item);
 bool is_rollup_group_wrapper(Item *item);
-bool is_rollup_sum_wrapper(Item *item);
 Item *unwrap_rollup_group(Item *item);
 
 /*
@@ -492,7 +491,29 @@ struct PendingCondition {
 };
 
 /**
-  Create an AND conjuction of all given items. If there are no items, returns
+  Cache invalidator iterators we need to apply, but cannot yet due to outer
+  joins. As soon as “table_index_to_invalidate” is visible in our current join
+  nest (which means there could no longer be NULL-complemented rows we could
+  forget), we can and must output this invalidator and remove it from the array.
+ */
+struct PendingInvalidator {
+  /**
+    The table whose every (post-join) row invalidates one or more derived
+    lateral tables.
+   */
+  QEP_TAB *qep_tab;
+  plan_idx table_index_to_invalidate;
+};
+
+enum CallingContext {
+  TOP_LEVEL,
+  DIRECTLY_UNDER_SEMIJOIN,
+  DIRECTLY_UNDER_OUTER_JOIN,
+  DIRECTLY_UNDER_WEEDOUT
+};
+
+/**
+  Create an AND conjunction of all given items. If there are no items, returns
   nullptr. If there's only one item, returns that item.
  */
 Item *CreateConjunction(List<Item> *items);
@@ -504,7 +525,8 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
 void SplitConditions(Item *condition, QEP_TAB *current_table,
                      std::vector<Item *> *predicates_below_join,
                      std::vector<PendingCondition> *predicates_above_join,
-                     std::vector<PendingCondition> *join_conditions);
+                     std::vector<PendingCondition> *join_conditions,
+                     plan_idx semi_join_table_idx, qep_tab_map left_tables);
 
 /**
   For a MATERIALIZE access path, move any non-basic iterators (e.g. sorts and
@@ -570,5 +592,14 @@ inline unique_ptr_destroy_only<RowIterator> init_table_iterator(
   return init_table_iterator(thd, table, nullptr, nullptr, nullptr,
                              ignore_not_found_rows, count_examined_rows);
 }
+
+AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
+                         plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
+                         CallingContext calling_context,
+                         std::vector<PendingCondition> *pending_conditions,
+                         std::vector<PendingInvalidator> *pending_invalidators,
+                         std::vector<PendingCondition> *pending_join_conditions,
+                         qep_tab_map *unhandled_duplicates,
+                         table_map *conditions_depend_on_outer_tables);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +65,9 @@ static struct plugin_local_variables lv;
   Plugin options variables that are only acessible inside plugin.cc.
 */
 static struct plugin_options_variables ov;
+
+/* Flow Control Status variables that are only accessible inside plugin.cc */
+static struct group_replication_fc_stats fc_stats;
 
 /*
   Log service log_bi and log_bs are extern variables.
@@ -341,6 +344,8 @@ bool get_allow_single_leader() {
   else
     return ov.allow_single_leader_var;
 }
+
+uint get_auto_evict_timeout() { return ov.auto_evict_timeout; }
 
 /**
  * @brief Callback implementation of
@@ -924,6 +929,8 @@ int configure_group_member_manager() {
                   { local_version = 0x080012; };);
   DBUG_EXECUTE_IF("group_replication_legacy_election_version2",
                   { local_version = 0x080015; };);
+  DBUG_EXECUTE_IF("group_replication_version_8_0_28",
+                  { local_version = 0x080028; };);
   Member_version local_member_plugin_version(local_version);
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
@@ -967,6 +974,7 @@ int configure_group_member_manager() {
   // Create the membership info visible for the group
   else
     group_member_mgr = new Group_member_info_manager(local_member_info);
+
   lv.group_member_mgr_configured = true;
 
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CONF_INFO, get_server_id(),
@@ -5109,6 +5117,19 @@ static MYSQL_SYSVAR_ENUM(
     &ov.communication_stack_values_typelib_t /* type lib */
 );
 
+static MYSQL_SYSVAR_UINT(auto_evict_timeout,    /* name */
+                         ov.auto_evict_timeout, /* var */
+                         PLUGIN_VAR_OPCMDARG |
+                             PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+                         "Flow control auto eviction timeout",
+                         nullptr, /* check func */
+                         nullptr, /* update func */
+                         0U,      /* default */
+                         0U,      /* min */
+                         65535U,  /* max */
+                         0        /* block */
+);
+
 static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(group_name),
     MYSQL_SYSVAR(start_on_boot),
@@ -5170,6 +5191,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(view_change_uuid),
     MYSQL_SYSVAR(communication_stack),
     MYSQL_SYSVAR(paxos_single_leader),
+    MYSQL_SYSVAR(auto_evict_timeout),
     nullptr,
 };
 
@@ -5191,9 +5213,41 @@ static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+#define DEF_GR_FC_STATUS_VAR_PTR(name, ptr, option) \
+  { name, (char *)ptr, option, SHOW_SCOPE_GLOBAL }
+
+static SHOW_VAR gr_flow_control_status_variables[] = {
+    DEF_GR_FC_STATUS_VAR_PTR("active", &fc_stats.active, SHOW_CHAR_PTR),
+    DEF_GR_FC_STATUS_VAR_PTR("threshold_nodes", &fc_stats.nodes, SHOW_CHAR_PTR),
+    DEF_GR_FC_STATUS_VAR_PTR("throttle_quota", &fc_stats.quota, SHOW_LONGLONG),
+    // end of the array marker
+    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
+
+static void update_gr_flow_control_status_vars(THD *thd, SHOW_VAR *var,
+                                               char *buff) {
+  if (applier_module && plugin_is_group_replication_running()) {
+    group_replication_fc_stats tmp;
+    applier_module->get_flow_control_stats(tmp);
+    fc_stats = tmp;
+  } else {
+    fc_stats.active.clear();
+    fc_stats.nodes.clear();
+    fc_stats.quota = 0;
+  }
+}
+
+static void show_flow_control_status_vars(THD *thd, SHOW_VAR *var, char *buff) {
+  update_gr_flow_control_status_vars(thd, var, buff);
+  var->type = SHOW_ARRAY;
+  var->value = reinterpret_cast<char *>(&gr_flow_control_status_variables);
+}
+
 static SHOW_VAR group_replication_status_vars[] = {
     {"group_replication_primary_member", (char *)&show_primary_member,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"group_replication_flow_control",
+     reinterpret_cast<char *>(&show_flow_control_status_vars), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL},
 };
 

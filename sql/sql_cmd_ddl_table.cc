@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -441,7 +441,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
           thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
               ->is_enabled())
         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-            ->mark_as_changed(thd, nullptr);
+            ->mark_as_changed(thd, {});
       my_ok(thd);
     }
   }

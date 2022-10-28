@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -6511,7 +6511,7 @@ ER_ACCESS_DENIED_NO_PASSWORD_ERROR 28000
         swe "Användare '%-.48s'@'%-.64s' är ej berättigad att logga in"
         ukr "Доступ заборонено для користувача: '%-.48s'@'%-.64s'"
 
-ER_SET_PASSWORD_AUTH_PLUGIN
+OBSOLETE_ER_SET_PASSWORD_AUTH_PLUGIN
         eng "SET PASSWORD has no significance for users authenticating via plugins"
 
 OBSOLETE_ER_GRANT_PLUGIN_USER_EXISTS
@@ -7866,6 +7866,43 @@ OBSOLETE_ER_CANT_START_SERVER_NAMED_PIPE
 
 ER_WRITE_SET_EXCEEDS_LIMIT
   eng "The size of writeset data for the current transaction exceeds a limit imposed by an external component. If using Group Replication check 'group_replication_transaction_size_limit'."
+
+# Created in 8.0: ER_DEPRECATED_TLS_VERSION_SESSION (13745)
+# Back ported in 5.7: ER_DEPRECATED_TLS_VERSION_SESSION (3232)
+# Obsolete in 8.0: OBSOLETE_ER_DEPRECATED_TLS_VERSION_SESSION (13745)
+# Reserved in 8.0: OBSOLETE_ER_DEPRECATED_TLS_VERSION_SESSION_57 (3232)
+# This error was never used in 8.0,
+# this entry is to preserve error numbering for 5.7 -> 8.0 merges.
+OBSOLETE_ER_DEPRECATED_TLS_VERSION_SESSION_57
+  eng "Accepted a connection with deprecated protocol '%s' for account `%s`@`%s` from host `%s`. Client supplied username `%s`"
+
+# Created in 8.0: ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI (4038)
+# Created in 8.0: ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL (13746)
+# Back ported in 5.7: ER_WARN_DEPRECATED_TLS_VERSION (3233)
+# Obsolete in 8.0: OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI (4038)
+# Obsolete in 8.0: OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL (13746)
+# Reserved in 8.0: OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_57 (3233)
+# This error was never used in 8.0,
+# this entry is to preserve error numbering for 5.7 -> 8.0 merges.
+OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_57
+  eng "A deprecated TLS version %s is enabled. Please use TLSv1.2 or higher."
+
+# In 5.7: ER_WARN_WRONG_NATIVE_TABLE_STRUCTURE
+# Not used in 8.0
+OBSOLETE_ER_WARN_WRONG_NATIVE_TABLE_STRUCTURE
+  eng "Optional native table '%-.64s'.'%-.64s' has the wrong structure or is missing."
+
+ER_AES_INVALID_KDF_NAME
+  eng "KDF method name is not valid. Please use hkdf or pbkdf2_hmac method name"
+
+ER_AES_INVALID_KDF_ITERATIONS
+  eng "For KDF method pbkdf2_hmac iterations value less than 1000 or more than 65535 is not allowed due to security reasons. Please provide iterations >= 1000 and iterations < 65535"
+
+WARN_AES_KEY_SIZE
+  eng "AES key size should be %d bytes length or secure KDF methods hkdf or pbkdf2_hmac should be used, please provide exact AES key size or use KDF methods for better security."
+
+ER_AES_INVALID_KDF_OPTION_SIZE
+  eng "KDF option size is invalid, please provide valid size < %d bytes and not NULL"
 
 #
 #  End of 5.7 error messages (server-to-client).
@@ -9700,12 +9737,79 @@ ER_DEFINITION_CONTAINS_INVALID_STRING
 ER_CANT_EXECUTE_COMMAND_WITH_ASSIGNED_GTID_NEXT
   eng "Can't execute the given command when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 
+ER_XA_TEMP_TABLE
+  eng "XA: Temporary tables cannot be accessed inside XA transactions when xa_detach_on_prepare=ON"
+
+ER_INNODB_MAX_ROW_VERSION
+  eng "Maximum row versions reached for table %s. No more columns can be added or dropped instantly. Please use COPY/INPLACE."
+
+ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
+  eng "Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY."
+
+ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+  eng "All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'."
+
+ER_WARN_DEPRECATED_DATETIME_DELIMITER
+  eng "Delimiter '%s' in position %d in datetime value '%s' at row %d is deprecated. Prefer the standard '%c'."
+
+ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER
+  eng "Delimiter '%s' in position %d in datetime value '%s' at row %d is superfluous and is deprecated. Please remove."
+
+ER_CANNOT_PERSIST_SENSITIVE_VARIABLES
+  eng "Cannot persist SENSITIVE system variable '%s' because keyring component support is unavailable."
+
+ER_WARN_CANNOT_SECURELY_PERSIST_SENSITIVE_VARIABLES
+  eng "SENSITIVE system variable '%s' was persisted without encryption. Consider restarting server with keyring component support to persist SENSITIVE variables securely."
+
+ER_WARN_TRG_ALREADY_EXISTS
+  eng "Trigger '%-.192s' already exists on the table '%-.192s'.'%-.192s'."
+
+ER_IF_NOT_EXISTS_UNSUPPORTED_TRG_EXISTS_ON_DIFFERENT_TABLE
+  eng "Trigger '%-.192s'.'%-.192s' already exists on a different table. The 'IF NOT EXISTS' clause is only supported for triggers associated with the same table."
+
+ER_IF_NOT_EXISTS_UNSUPPORTED_UDF_NATIVE_FCT_NAME_COLLISION
+  eng "This function '%-.192s' has the same name as a native function. The 'IF NOT EXISTS' clause is not supported while creating a loadable function with the same name as a native function."
+
+ER_SET_PASSWORD_AUTH_PLUGIN_ERROR
+  eng "SET PASSWORD has no significance for user '%s'@'%s' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters."
+
+ER_REDUCED_DBLWR_FILE_CORRUPTED
+  eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."
+
+ER_REDUCED_DBLWR_PAGE_FOUND
+  eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
+
+ER_SRS_INVALID_LATITUDE_OF_ORIGIN SR002
+  eng "Latitude of origin must be within [-90, 90] degrees, specified in the SRS angular unit."
+
+ER_SRS_INVALID_LONGITUDE_OF_ORIGIN SR002
+  eng "Longitude of origin must be within (-180, 180] degrees, specified in the SRS angular unit."
+
+ER_SRS_UNUSED_PROJ_PARAMETER_PRESENT SR002
+  eng "The spatial reference system definition for SRID %u contains unused projection parameter \"%s\"."
+
+ER_GIPK_COLUMN_EXISTS
+  eng "Failed to generate invisible primary key. Column 'my_row_id' already exists."
+
+ER_GIPK_FAILED_AUTOINC_COLUMN_EXISTS
+  eng "Failed to generate invisible primary key. Auto-increment column already exists."
+
+ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  eng "Altering generated invisible primary key column 'my_row_id' is not allowed."
+
+ER_DROP_PK_COLUMN_TO_DROP_GIPK
+  eng "Please drop primary key column to be able to drop generated invisible primary key."
+
+ER_CREATE_SELECT_WITH_GIPK_DISALLOWED_IN_SBR
+  eng "Generating an invisible primary key for a table created using CREATE TABLE ... SELECT ... is disallowed when binlog_format=STATEMENT. It cannot be guaranteed that the SELECT retrieves rows in the same order on source and replica. Therefore, it cannot be guaranteed that the value generated for the generated implicit primary key column will be the same on source and replica for all rows. Use binlog_format=ROW or MIXED to execute this statement."
+
+ER_DA_EXPIRE_LOGS_DAYS_IGNORED
+  eng "The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. To set one, first unset the other by setting it to 0."
 
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
 #
-
 
 ################################################################################
 # Error numbers 5000 to 5999 are reserved for X Plugin. Please do not use
@@ -9819,6 +9923,9 @@ ER_TOO_MANY_ERROR_CODES
 
 ER_TOO_BIG_ERROR_CODE
   eng "Provided error code is bigger than maximum allowed %lu"
+
+ER_DYNAMIC_ROLE
+  eng "The role %s is a dynamic role and can't be revoked or dropped. It should be managed by the external authentication plugin instead."
 
 #
 # End of Percona Server 8.0 client messages

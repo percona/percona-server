@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ struct MEM_ROOT;
 bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
                           KEY_PART *key, uint keyno, SEL_ROOT *key_tree,
                           uint num_key_parts, unsigned *used_key_parts,
-                          Quick_ranges *ranges);
+                          unsigned *num_exact_key_parts, Quick_ranges *ranges);
 
 /*
   Get best "range" table read plan for given SEL_TREE, also update some info

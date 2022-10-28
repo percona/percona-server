@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,7 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
                                             &eq_items);
 
           table_map included_tables = 0;
-          Item *base_item = nullptr;
+          Item_field *base_item = nullptr;
           for (Item_field &field : equal->get_fields()) {
             assert(IsSingleBitSet(field.used_tables()));
             if (!IsSubset(field.used_tables(), tables_in_subtree) ||
@@ -862,15 +862,13 @@ bool IsCandidateForCycle(RelationalExpression *expr, Item *cond,
 }
 
 bool ComesFromMultipleEquality(Item *item, Item_equal *equal) {
-  return item->type() == Item::FUNC_ITEM &&
-         down_cast<Item_func *>(item)->functype() == Item_func::EQ_FUNC &&
+  return is_function_of_type(item, Item_func::EQ_FUNC) &&
          down_cast<Item_func_eq *>(item)->source_multiple_equality == equal;
 }
 
 int FindSourceMultipleEquality(Item *item,
                                const Mem_root_array<Item_equal *> &equals) {
-  if (item->type() != Item::FUNC_ITEM ||
-      down_cast<Item_func *>(item)->functype() != Item_func::EQ_FUNC) {
+  if (!is_function_of_type(item, Item_func::EQ_FUNC)) {
     return -1;
   }
   Item_func_eq *eq = down_cast<Item_func_eq *>(item);
@@ -902,11 +900,31 @@ bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
 bool AlreadyExistsOnJoin(Item *cond, const RelationalExpression &expr) {
   assert(expr.equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
+  constexpr bool binary_cmp = true;
   for (Item *item : expr.join_conditions) {
-    if (cond->eq(item, /*binary_eq=*/true)) {
+    if (cond->eq(item, binary_cmp)) {
       return true;
     }
   }
+
+  // If "cond" is an equality created from a multiple equality, it's a bit
+  // arbitrary if it ends up as a=b or b=a. If we didn't find an exact match,
+  // see if we find one with the operands swapped.
+  Item_func_eq *cond_eq = is_function_of_type(cond, Item_func::EQ_FUNC)
+                              ? down_cast<Item_func_eq *>(cond)
+                              : nullptr;
+  if (cond_eq != nullptr && cond_eq->source_multiple_equality != nullptr) {
+    for (Item *item : expr.join_conditions) {
+      if (ComesFromMultipleEquality(item, cond_eq->source_multiple_equality)) {
+        Item_func_eq *item_eq = down_cast<Item_func_eq *>(item);
+        if (cond_eq->get_arg(0)->eq(item_eq->get_arg(1), binary_cmp) &&
+            cond_eq->get_arg(1)->eq(item_eq->get_arg(0), binary_cmp)) {
+          return true;
+        }
+      }
+    }
+  }
+
   return false;
 }
 
@@ -1071,12 +1089,7 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
   assert(left != nullptr);
   assert(right != nullptr);
 
-  Item_func_eq *eq_item = new Item_func_eq(left, right);
-  eq_item->set_cmp_func();
-  eq_item->update_used_tables();
-  eq_item->quick_fix_field();
-  eq_item->source_multiple_equality = cond;
-  return eq_item;
+  return MakeEqItem(left, right, cond);
 }
 
 /**
@@ -1104,12 +1117,7 @@ static void FullyConcretizeMultipleEquals(Item_equal *cond,
       continue;
     }
     if (last_field != nullptr) {
-      Item_func_eq *eq_item = new Item_func_eq(last_field, &field);
-      eq_item->set_cmp_func();
-      eq_item->update_used_tables();
-      eq_item->quick_fix_field();
-      eq_item->source_multiple_equality = cond;
-      result->push_back(eq_item);
+      result->push_back(MakeEqItem(last_field, &field, cond));
     }
     last_field = &field;
     seen_tables |= field.used_tables();
@@ -1690,7 +1698,10 @@ void PushDownToSargableCondition(Item *cond, RelationalExpression *expr,
     if (cond->has_subquery()) {
       return;
     }
-    expr->join_conditions_pushable_to_this.push_back(cond);
+    if (!IsSubset(cond->used_tables() & ~PSEUDO_TABLE_BITS,
+                  expr->tables_in_subtree)) {
+      expr->join_conditions_pushable_to_this.push_back(cond);
+    }
     return;
   }
 
@@ -1753,7 +1764,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       // be sent through PushDownCondition() below, and possibly end up
       // in table_filters.
       remaining_parts.push_back(item);
-    } else if (is_join_condition_for_expr &&
+    } else if (is_join_condition_for_expr && !IsMultipleEquals(item) &&
                !IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
                          expr->tables_in_subtree)) {
       // Condition refers to tables outside this subtree, so it can not be
@@ -2098,6 +2109,14 @@ void MakeHashJoinConditions(THD *thd, RelationalExpression *expr) {
       extra_conditions.push_back(item);
     }
 
+    // Put potentially expensive functions last: First everything normal,
+    // then subqueries (which can be expensive), then stored procedures
+    // (which are unknown, so potentially _very_ expensive).
+    std::stable_partition(extra_conditions.begin(), extra_conditions.end(),
+                          [](Item *item) { return !item->has_subquery(); });
+    std::stable_partition(extra_conditions.begin(), extra_conditions.end(),
+                          [](Item *item) { return !item->is_expensive(); });
+
     expr->join_conditions = std::move(extra_conditions);
   }
   MakeHashJoinConditions(thd, expr->left);
@@ -2136,8 +2155,6 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
 
 /**
   Do some constant conversion/folding work needed for correctness.
-  We also move more expensive functions last in the conjunction,
-  as a heuristic so that they are less likely to be evaluated.
  */
 bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   CSEConditions(thd, conditions);
@@ -2157,14 +2174,6 @@ bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
       ++it;
     }
   }
-
-  // Put potentially expensive functions last: First everything normal,
-  // then subqueries (which can be expensive), then stored procedures
-  // (which are unknown, so potentially _very_ expensive).
-  std::stable_partition(conditions->begin(), conditions->end(),
-                        [](Item *item) { return !item->has_subquery(); });
-  std::stable_partition(conditions->begin(), conditions->end(),
-                        [](Item *item) { return !item->is_expensive(); });
 
   return false;
 }
@@ -2261,6 +2270,8 @@ table_map FindTESForCondition(table_map used_tables,
   }
 }
 
+}  // namespace
+
 /**
   For the given hypergraph, make a textual representation in the form
   of a dotty graph. You can save this to a file and then use Graphviz
@@ -2297,6 +2308,8 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
     const Hyperedge &e = graph.graph.edges[edge_idx];
     const RelationalExpression *expr = graph.edges[edge_idx / 2].expr;
     string label = GenerateExpressionLabel(expr);
+
+    label += StringPrintf(" (%.3g)", graph.edges[edge_idx / 2].selectivity);
 
     // Add conflict rules to the label.
     for (const ConflictRule &rule : expr->conflict_rules) {
@@ -2368,6 +2381,8 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
   digraph += "}\n";
   return digraph;
 }
+
+namespace {
 
 NodeMap IntersectIfNotDegenerate(NodeMap used_nodes, NodeMap available_nodes) {
   if (!Overlaps(used_nodes, available_nodes)) {
@@ -2608,6 +2623,31 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
 }
 
 /**
+  Sorts the given range of predicates so that the most selective and least
+  expensive predicates come first, and the less selective and more expensive
+  ones come last.
+ */
+void SortPredicates(Predicate *begin, Predicate *end) {
+  // Move the most selective predicates first.
+  std::stable_sort(begin, end, [](const Predicate &p1, const Predicate &p2) {
+    return p1.selectivity < p2.selectivity;
+  });
+
+  // If the predicates contain subqueries, move them towards the end, regardless
+  // of their selectivity, since they could be expensive to evaluate. We could
+  // refine this by looking at the estimated cost of the contained subqueries.
+  std::stable_partition(begin, end, [](const Predicate &pred) {
+    return !pred.condition->has_subquery();
+  });
+
+  // UDFs and stored procedures have unknown and potentially very high cost.
+  // Move them last.
+  std::stable_partition(begin, end, [](const Predicate &pred) {
+    return !pred.condition->is_expensive();
+  });
+}
+
+/**
   Add the given predicate to the list of WHERE predicates, doing some
   bookkeeping that such predicates need.
  */
@@ -2755,32 +2795,74 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
   for (Item *cond : cycle_inducing_edges) {
     const NodeMap used_nodes = GetNodeMapFromTableMap(
         cond->used_tables(), graph->table_num_to_node_num);
+    RelationalExpression *expr = nullptr;
+    JoinPredicate *pred = nullptr;
+
     const NodeMap left = IsolateLowestBit(used_nodes);  // Arbitrary.
     const NodeMap right = used_nodes & ~left;
-    graph->graph.AddEdge(left, right);
 
-    RelationalExpression *expr = new (thd->mem_root) RelationalExpression(thd);
-    expr->type = RelationalExpression::INNER_JOIN;
+    // See if we already have a suitable edge.
+    for (size_t edge_idx = 0; edge_idx < graph->edges.size(); ++edge_idx) {
+      Hyperedge edge = graph->graph.edges[edge_idx * 2];
+      if ((edge.left | edge.right) == used_nodes &&
+          graph->edges[edge_idx].expr->type ==
+              RelationalExpression::INNER_JOIN) {
+        pred = &graph->edges[edge_idx];
+        expr = pred->expr;
+        break;
+      }
+    }
+
+    if (expr == nullptr) {
+      graph->graph.AddEdge(left, right);
+
+      expr = new (thd->mem_root) RelationalExpression(thd);
+      expr->type = RelationalExpression::INNER_JOIN;
+
+      // TODO(sgunders): This does not really make much sense, but
+      // estimated_bytes_per_row doesn't make that much sense to begin with; it
+      // will depend on the join order. See if we can replace it with a
+      // per-table width calculation that we can sum up in the join optimizer.
+      expr->tables_in_subtree = cond->used_tables();
+      expr->nodes_in_subtree =
+          GetNodeMapFromTableMap(cond->used_tables() & ~PSEUDO_TABLE_BITS,
+                                 graph->table_num_to_node_num);
+      double selectivity = EstimateSelectivity(thd, cond, trace);
+      const size_t estimated_bytes_per_row =
+          EstimateRowWidthForJoin(*graph, expr);
+      graph->edges.push_back(JoinPredicate{
+          expr, selectivity, estimated_bytes_per_row,
+          /*functional_dependencies=*/0, /*functional_dependencies_idx=*/{}});
+    } else {
+      // Skip this item if it is a duplicate (this can
+      // happen with multiple equalities in particular).
+      bool dup = false;
+      for (Item *other_cond : expr->equijoin_conditions) {
+        if (other_cond->eq(cond, /*binary_cmp=*/true)) {
+          dup = true;
+          break;
+        }
+      }
+      if (dup) {
+        continue;
+      }
+      for (Item *other_cond : expr->join_conditions) {
+        if (other_cond->eq(cond, /*binary_cmp=*/true)) {
+          dup = true;
+          break;
+        }
+      }
+      if (dup) {
+        continue;
+      }
+      pred->selectivity *= EstimateSelectivity(thd, cond, trace);
+    }
     if (cond->type() == Item::FUNC_ITEM &&
         down_cast<Item_func *>(cond)->functype() == Item_func::EQ_FUNC) {
       expr->equijoin_conditions.push_back(down_cast<Item_func_eq *>(cond));
     } else {
       expr->join_conditions.push_back(cond);
     }
-
-    // TODO(sgunders): This does not really make much sense, but
-    // estimated_bytes_per_row doesn't make that much sense to begin with; it
-    // will depend on the join order. See if we can replace it with a per-table
-    // width calculation that we can sum up in the join optimizer.
-    expr->tables_in_subtree = cond->used_tables();
-    expr->nodes_in_subtree = GetNodeMapFromTableMap(
-        cond->used_tables() & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
-    double selectivity = EstimateSelectivity(thd, cond, trace);
-    const size_t estimated_bytes_per_row =
-        EstimateRowWidthForJoin(*graph, expr);
-    graph->edges.push_back(JoinPredicate{
-        expr, selectivity, estimated_bytes_per_row,
-        /*functional_dependencies=*/0, /*functional_dependencies_idx=*/{}});
 
     // Make this predicate potentially sargable (cycle edges are always
     // simple equalities).
@@ -2839,6 +2921,8 @@ void PromoteCycleJoinPredicates(
                    root, graph, trace);
     }
     expr->join_predicate_last = graph->predicates.size();
+    SortPredicates(graph->predicates.begin() + expr->join_predicate_first,
+                   graph->predicates.begin() + expr->join_predicate_last);
   }
 }
 
@@ -2888,6 +2972,26 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
   const Hyperedge edge = FindHyperedgeAndJoinConflicts(thd, used_nodes, expr);
   graph->graph.AddEdge(edge.left, edge.right);
 
+  // Figure out whether we have two left joins that are associatively
+  // reorderable, which can trigger a bug in our row count estimation. See the
+  // definition of has_reordered_left_joins for more information.
+  if (!graph->has_reordered_left_joins &&
+      expr->type == RelationalExpression::LEFT_JOIN) {
+    ForEachJoinOperator(expr->left, [expr, graph](RelationalExpression *child) {
+      if (child->type == RelationalExpression::LEFT_JOIN &&
+          OperatorsAreAssociative(*child, *expr)) {
+        graph->has_reordered_left_joins = true;
+      }
+    });
+    ForEachJoinOperator(expr->right,
+                        [expr, graph](RelationalExpression *child) {
+                          if (child->type == RelationalExpression::LEFT_JOIN &&
+                              OperatorsAreAssociative(*expr, *child)) {
+                            graph->has_reordered_left_joins = true;
+                          }
+                        });
+  }
+
   if (trace != nullptr) {
     *trace += StringPrintf("Selectivity of join %s:\n",
                            GenerateExpressionLabel(expr).c_str());
@@ -2925,6 +3029,8 @@ NodeMap GetNodeMapFromTableMap(
   return ret;
 }
 
+namespace {
+
 void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
                                   Item_field *left_field, int left_table_idx,
                                   Item_field *right_field, int right_table_idx,
@@ -2932,10 +3038,12 @@ void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
   const int left_node_idx = graph->table_num_to_node_num[left_table_idx];
   const int right_node_idx = graph->table_num_to_node_num[right_table_idx];
 
-  // See if there is already an edge between these two tables.
-  // Since the tables are in the same companion set, they are not
-  // outerjoined to each other, so it's enough to check the simple
-  // neighborhood.
+  // See if there is already an edge between these two tables. Since the tables
+  // are in the same companion set, they are not outerjoined to each other, so
+  // it's enough to check the simple neighborhood. They could already be
+  // connected through complex edges due to hyperpredicates, but in this case we
+  // still want to add a simple edge, as it could in some cases be advantageous
+  // to join along the simple edge before applying the hyperpredicate.
   RelationalExpression *expr = nullptr;
   if (IsSubset(TableBitmap(right_node_idx),
                graph->graph.nodes[left_node_idx].simple_neighborhood)) {
@@ -2974,11 +3082,7 @@ void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
                                          /*functional_dependencies_idx=*/{}});
   }
 
-  Item_func_eq *eq_item = new Item_func_eq(left_field, right_field);
-  eq_item->source_multiple_equality = item_equal;
-  eq_item->set_cmp_func();
-  eq_item->update_used_tables();
-  eq_item->quick_fix_field();
+  Item_func_eq *eq_item = MakeEqItem(left_field, right_field, item_equal);
   expr->equijoin_conditions.push_back(
       eq_item);  // NOTE: We run after MakeHashJoinConditions().
 
@@ -3019,6 +3123,8 @@ void CompleteFullMeshForMultipleEqualities(
     }
   }
 }
+
+}  // namespace
 
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
 
@@ -3090,11 +3196,10 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
       return true;
     }
 
-    // See if we can push remaining WHERE conditions to sargable predicates.
-    for (Item *item : where_conditions) {
-      PushDownToSargableCondition(item, root,
-                                  /*is_join_condition_for_expr=*/false);
-    }
+    // NOTE: Any remaining WHERE conditions, whether single-table or multi-table
+    // (join conditions), are left up here for a reason (i.e., they are
+    // nondeterministic and/or blocked by outer joins), so they should not be
+    // attempted pushed as sargable predicates.
   } else {
     // We're done pushing, so unflatten so that the rest of the algorithms
     // don't need to worry about it.
@@ -3116,6 +3221,33 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   FindConditionsUsedTables(thd, root);
   MakeHashJoinConditions(thd, root);
 
+  // One could argue this is a strange place to inject casts into the SELECT
+  // list, since it has nothing to do with the construction of the hypergraph
+  // itself. However, putting it here allows us to easily reach it in the unit
+  // test, and since we just added casts to the join conditions (in
+  // CanonicalizeJoinConditions), it should at least be fairly easy to find one
+  // from the other, and it's nice to have all canonicalization done before we
+  // start optimizing (this should really have been done in the prepare phase,
+  // as deciding data types should be part of resolving). For the old join
+  // optimizer, we do this after the join optimizer has finished, in
+  // sql_optimizer.cc.
+
+  // Traverse the expressions and inject cast nodes to compatible data types,
+  // if needed.
+  for (Item *item : *query_block->join->fields) {
+    item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+  }
+
+  // Also GROUP BY expressions and HAVING, to be consistent everywhere.
+  for (ORDER *ord = join->group_list.order; ord != nullptr; ord = ord->next) {
+    (*ord->item)
+        ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+  }
+  if (join->having_cond != nullptr) {
+    join->having_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                            nullptr);
+  }
+
   if (trace != nullptr) {
     *trace += StringPrintf(
         "\nAfter pushdown; remaining WHERE conditions are %s, "
@@ -3124,6 +3256,16 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
         ItemsToString(table_filters).c_str());
     *trace += PrintRelationalExpression(root, 0);
     *trace += '\n';
+  }
+
+  // Ask the storage engine to update stats.records, if needed.
+  // We need to do this before MakeJoinGraphFromRelationalExpression(),
+  // which determines selectivities that are in part based on it.
+  // NOTE: ha_archive breaks without this call! (That is probably a bug in
+  // ha_archive, though.)
+  for (TABLE_LIST *tl = graph->query_block()->leaf_tables; tl != nullptr;
+       tl = tl->next_leaf) {
+    tl->fetch_number_of_rows();
   }
 
   // Construct the hypergraph from the relational expression.
@@ -3180,6 +3322,26 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     *trace += "\n";
   }
 
+#ifndef NDEBUG
+  {
+    // Verify we have no duplicate edges.
+    const vector<Hyperedge> &edges = graph->graph.edges;
+    for (size_t edge1_idx = 0; edge1_idx < edges.size(); ++edge1_idx) {
+      for (size_t edge2_idx = edge1_idx + 1; edge2_idx < edges.size();
+           ++edge2_idx) {
+        const Hyperedge &e1 = edges[edge1_idx];
+        const Hyperedge &e2 = edges[edge2_idx];
+        assert(e1.left != e2.left || e1.right != e2.right);
+      }
+    }
+  }
+
+#endif
+
+  // The predicates added so far are join conditions that have been promoted to
+  // WHERE predicates by PromoteCycleJoinPredicates().
+  const size_t num_cycle_predicates = graph->predicates.size();
+
   // Find TES and selectivity for each WHERE predicate that was not pushed
   // down earlier.
   for (Item *condition : where_conditions) {
@@ -3209,6 +3371,15 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
       return true;
     }
   }
+
+  // Sort the predicates so that filters created from them later automatically
+  // evaluate the most selective and least expensive predicates first. Don't
+  // touch the join (cycle) predicates at the beginning, as they are already
+  // sorted, and reordering them would make the join_predicate_first and
+  // join_predicate_last pointers in the corresponding RelationalExpression
+  // incorrect.
+  SortPredicates(graph->predicates.begin() + num_cycle_predicates,
+                 graph->predicates.end());
 
   graph->num_where_predicates = graph->predicates.size();
 

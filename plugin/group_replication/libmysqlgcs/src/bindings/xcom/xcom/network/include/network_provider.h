@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,20 +337,8 @@ class Network_provider {
   virtual bool configure_secure_connections(
       const Network_configuration_parameters &params) = 0;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
   virtual bool cleanup_secure_connections_context() = 0;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
   virtual bool finalize_secure_connections_context() = 0;
 
   /**

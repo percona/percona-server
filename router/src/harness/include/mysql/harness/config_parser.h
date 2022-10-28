@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -115,6 +115,17 @@ class bad_section : public std::runtime_error {
 class bad_option : public std::runtime_error {
  public:
   explicit bad_option(const std::string &msg) : std::runtime_error(msg) {}
+};
+
+/**
+ * Exception thrown for option value problems.
+ *
+ * @ingroup ConfigParser
+ */
+
+class bad_option_value : public std::runtime_error {
+ public:
+  explicit bad_option_value(const std::string &msg) : std::runtime_error(msg) {}
 };
 
 /**
@@ -283,6 +294,7 @@ class HARNESS_EXPORT Config {
       : Config(flags, config_overwrites) {
     for (auto item : parameters)
       defaults_->set(item.first, item.second);  // throws bad_option
+    apply_overwrites();
   }
 
   /**
@@ -421,6 +433,8 @@ class HARNESS_EXPORT Config {
   /** @overload */
   SectionList get(const std::string &section);
 
+  ConfigSection &get_default_section() const;
+
   /**
    * Get a section by name and key.
    *
@@ -482,6 +496,8 @@ class HARNESS_EXPORT Config {
    * Get a list of all sections in the configuration.
    */
   ConstSectionList sections() const;
+
+  bool error_on_unsupported_option{false};
 
  protected:
   using SectionMap = std::map<SectionKey, ConfigSection>;

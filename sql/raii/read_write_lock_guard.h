@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class Rdlock_guard : public raii::Sentry<> {
    Constructor for the class that creates a sentry that will unlock
    the callable object on destruction and then read locks the object.
 
-   @param dispose The callable object to be locked/unlocked
+   @param lock The callable object to be locked/unlocked
  */
   Rdlock_guard(Rd_lockable &lock)
       : Sentry{[&lock]() -> void { lock.unlock(); }} {
@@ -60,7 +60,7 @@ class Wrlock_guard : public raii::Sentry<> {
     Constructor for the class that creates a sentry that will unlock
     the callable object on destruction and then write locks the object.
 
-    @param dispose The callable object to be locked/unlocked
+    @param lock The callable object to be locked/unlocked
   */
   Wrlock_guard(Wr_lockable &lock)
       : Sentry{[&lock]() -> void { lock.unlock(); }} {

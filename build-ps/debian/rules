@@ -151,6 +151,8 @@ endif
 
 	touch $@
 
+rpath = '$$ORIGIN/../private'
+
 override_dh_auto_build:
 	@echo "RULES.$@"
 	
@@ -165,6 +167,9 @@ endif
 	cd $(builddir) && $(MAKE) -j$(NCPU) VERBOSE=1
 
 	touch $@
+
+override_dh_builddeb:
+	dh_builddeb -- -Zgzip
 
 override_dh_auto_install:
 	@echo "RULES.$@"
@@ -200,9 +205,17 @@ override_dh_auto_install:
 	install -d $(TMP)/etc/apparmor.d
 	install -d $(TMP)/etc/apparmor.d/local
 
+override_dh_install:
+	dh_install
+	patchelf --debug --set-rpath $(rpath) debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so
+	@echo "RULES.$@"
+
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-dbg
 	dh_strip -Xlibprotobuf-lite
+
+override_dh_shlibdeps:
+	dh_shlibdeps -Lpercona-server-server -l/usr/lib/mysql/private --dpkg-shlibdeps-params=--ignore-missing-info
 
 override_dh_installinit:
 	@echo "RULES.$@"

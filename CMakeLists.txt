@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -238,15 +238,23 @@ ENDIF()
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
 INCLUDE(cmake_policies NO_POLICY_SCOPE)
 
+MACRO(STRING_APPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")
+ENDMACRO()
+
+MACRO(STRING_PREPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${INPUT}${${STRING_VAR}}")
+ENDMACRO()
+
 IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
   SET(SOLARIS 1)
 ENDIF()
 
 IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
   # Trust 'rpm -qf /' rather than 'uname -s'
-  STRING(REGEX MATCH "\\.el([678])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
+  STRING(REGEX MATCH "\\.el([6789])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
 
-  # Set LINUX_RHEL6 or LINUX_RHEL7 or LINUX_RHEL8
+  # Set LINUX_RHEL6, LINUX_RHEL7, LINUX_RHEL8 or LINUX_RHEL9
   IF(CMAKE_MATCH_1)
     SET(LINUX_RHEL 1)
     SET(LINUX_RHEL${CMAKE_MATCH_1} 1)
@@ -299,6 +307,17 @@ IF(LINUX_SUSE)
   ENDIF()
 ENDIF()
 
+# In case we pick up values form the CACHE or from the command line.
+# See invokation of ADD_LINUX_RPM_FLAGS below.
+SET(INITIAL_CMAKE_C_FLAGS)
+SET(INITIAL_CMAKE_CXX_FLAGS)
+IF(DEFINED CMAKE_C_FLAGS)
+  SET(INITIAL_CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+ENDIF()
+IF(DEFINED CMAKE_CXX_FLAGS)
+  SET(INITIAL_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+ENDIF()
+
 IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     AND NOT CMAKE_C_COMPILER AND NOT CMAKE_CXX_COMPILER)
   # Cannot INCLUDE(CMakeDetermineSystem) prior to PROJECT initialization below.
@@ -307,13 +326,20 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
   IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
     IF(LINUX_RHEL)
       MESSAGE(STATUS "This is ${MATCH_FSYS} as found from 'rpm -qf /'")
+    ENDIF()
+    IF(LINUX_RHEL AND NOT LINUX_RHEL9)
       MESSAGE(STATUS "Looking for a devtoolset compiler")
       IF(LINUX_RHEL6)
         SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-8")
       ELSEIF(LINUX_RHEL7)
-        SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
+        # gcc11 not available yet
+        IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
+          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
+        ELSE()
+          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-11")
+        ENDIF()
       ELSEIF(LINUX_RHEL8)
-        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-10")
+        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-11")
       ENDIF()
 
       FOREACH(OPT_PATH ${ALTERNATIVE_PATHS})
@@ -338,6 +364,12 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
       ENDFOREACH()
       # A missing ALTERNATIVE_LD may generate bad executables.
       IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP AND ALTERNATIVE_LD)
+        # Set correct search path for executables, libraries, and data files.
+        GET_FILENAME_COMPONENT(GCC_B_PREFIX ${ALTERNATIVE_GCC} DIRECTORY)
+        STRING_PREPEND(CMAKE_C_FLAGS "-B${GCC_B_PREFIX} ")
+        GET_FILENAME_COMPONENT(GPP_B_PREFIX ${ALTERNATIVE_GPP} DIRECTORY)
+        STRING_PREPEND(CMAKE_CXX_FLAGS "-B${GPP_B_PREFIX} ")
+
         SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
         SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
         SET(CMAKE_LINKER ${ALTERNATIVE_LD})
@@ -357,11 +389,16 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           SET(DEV_PACKAGES
             "devtoolset-8-gcc devtoolset-8-gcc-c++ devtoolset-8-binutils")
         ELSEIF(LINUX_RHEL7)
-          SET(DEV_PACKAGES
-            "devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-binutils")
+          IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
+            SET(DEV_PACKAGES
+              "devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-binutils")
+          ELSE()
+            SET(DEV_PACKAGES
+              "devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-binutils")
+          ENDIF()
         ELSEIF(LINUX_RHEL8)
           SET(DEV_PACKAGES
-            "gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils")
+            "gcc-toolset-11-gcc gcc-toolset-11-gcc-c++ gcc-toolset-11-binutils")
         ENDIF()
         MESSAGE(WARNING
           "Could not find devtoolset compiler/linker in ${ALTERNATIVE_PATHS}")
@@ -580,15 +617,6 @@ MACRO(REPORT_CXX_FLAGS)
   ENDFOREACH()
 ENDMACRO()
 
-# STRING(APPEND ...) from cmake VERSION 3.4
-MACRO(STRING_APPEND STRING_VAR INPUT)
-  SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")
-ENDMACRO()
-
-MACRO(STRING_PREPEND STRING_VAR INPUT)
-  SET(${STRING_VAR} "${INPUT}${${STRING_VAR}}")
-ENDMACRO()
-
 # Write content to file, using CONFIGURE_FILE
 # The advantage compared to FILE(WRITE) is that timestamp
 # does not change if file already has the same content
@@ -722,7 +750,7 @@ ENDIF()
 # in environment or on command line.
 # And only for gcc (not clang).
 IF(MY_COMPILER_IS_GNU AND WITH_PACKAGE_FLAGS AND
-    NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
+    NOT INITIAL_CMAKE_C_FLAGS AND NOT INITIAL_CMAKE_CXX_FLAGS)
   IF(LINUX_RPM_PLATFORM)
     IF(MY_RPM)
       ADD_LINUX_RPM_FLAGS()
@@ -741,18 +769,6 @@ ENDIF()
 
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
-ENDIF()
-
-# Set correct search path for executables, libraries, and data files.
-IF(LINUX_RHEL)
-  IF(ALTERNATIVE_GCC)
-    GET_FILENAME_COMPONENT(GCC_B_PREFIX ${ALTERNATIVE_GCC} DIRECTORY)
-    STRING_PREPEND(CMAKE_C_FLAGS "-B${GCC_B_PREFIX} ")
-  ENDIF()
-  IF(ALTERNATIVE_GPP)
-    GET_FILENAME_COMPONENT(GPP_B_PREFIX ${ALTERNATIVE_GPP} DIRECTORY)
-    STRING_PREPEND(CMAKE_CXX_FLAGS "-B${GPP_B_PREFIX} ")
-  ENDIF()
 ENDIF()
 
 INCLUDE(CMakePushCheckState)
@@ -791,6 +807,7 @@ INCLUDE(rapidjson)
 INCLUDE(fprofile)
 INCLUDE(gloves)
 INCLUDE(fido2)
+INCLUDE(win_jemalloc)
 
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -984,17 +1001,33 @@ ENDMACRO()
 #       Visual Studio has a few /W options, but are totally different.
 # Hence we check for gcc/clang only.
 # No return value for functions in cmake, so we use an output argument.
+#
+# To only avoid failing on warning when compiled with -Werror and still show
+# the warnings use SHOW_SUPPRESSED_COMPILER_WARNINGS=ON.
+OPTION(SHOW_SUPPRESSED_COMPILER_WARNINGS
+  "Show suppressed compiler warnings, without failing with -Werror" OFF)
+MARK_AS_ADVANCED(SHOW_SUPPRESSED_COMPILER_WARNINGS)
+
 FUNCTION(MY_CHECK_CXX_COMPILER_WARNING WARNING_OPTION RETURN_VALUE)
   # Strip off possible leading -Wno- or -W
   STRING(REGEX REPLACE "^-Wno-" "" WARNING_OPTION ${WARNING_OPTION})
   STRING(REGEX REPLACE "^-W" "" WARNING_OPTION ${WARNING_OPTION})
+  STRING(REGEX MATCH "^error=" ERROR_PREFIX ${WARNING_OPTION})
   # Use HAVE_CXX_W_warning_option as cache variable.
   STRING(REPLACE "-" "_" VAR_NAME ${WARNING_OPTION})
   STRING(REPLACE "=" "_" VAR_NAME ${VAR_NAME})
   STRING(REPLACE "c++" "cpp" VAR_NAME ${VAR_NAME})
   SET(VAR_NAME "HAVE_CXX_W_${VAR_NAME}")
   IF(MY_COMPILER_IS_GNU_OR_CLANG)
-    MY_CHECK_CXX_COMPILER_FLAG("-W${WARNING_OPTION}" ${VAR_NAME})
+    IF(SHOW_SUPPRESSED_COMPILER_WARNINGS AND NOT ERROR_PREFIX)
+      MY_CHECK_CXX_COMPILER_FLAG("-Werror=${WARNING_OPTION}" ${VAR_NAME})
+      IF(${VAR_NAME})
+        SET(WARNING_OPTION "error=${WARNING_OPTION}")
+      ENDIF()
+    ENDIF()
+    IF(NOT ${VAR_NAME})
+      MY_CHECK_CXX_COMPILER_FLAG("-W${WARNING_OPTION}" ${VAR_NAME})
+    ENDIF()
   ELSE()
     SET(${VAR_NAME} 0 CACHE INTERNAL "-W${WARNING_OPTION} not supported")
   ENDIF()
@@ -1015,6 +1048,13 @@ MACRO(DISABLE_MISSING_PROFILE_WARNING)
       STRING_APPEND(CMAKE_C_FLAGS   " ${HAS_WARN_FLAG}")
       STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
     ENDIF()
+  ENDIF()
+ENDMACRO()
+
+# Disable -Werror=maybe-uninitialized for googlemock matchers.
+MACRO(DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING)
+  IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+    ADD_COMPILE_FLAGS(${ARGN} COMPILE_FLAGS "-Wno-maybe-uninitialized")
   ENDIF()
 ENDMACRO()
 
@@ -1138,6 +1178,10 @@ OPTION(HANDLE_FATAL_SIGNALS
   "Handle fatal signals with internal signal handler"
   ${HANDLE_FATAL_SIGNALS_DEFAULT})
 
+IF(CMAKE_C_FLAGS MATCHES "-fsanitize" OR CMAKE_CXX_FLAGS MATCHES "-fsanitize")
+  SET(CMAKE_COMPILER_FLAG_WITH_SANITIZE 1)
+ENDIF()
+
 # Older versions of ccache must be disabled: export CCACHE_DISABLE=1
 # See http://www.cmake.org/Wiki/CTest/Coverage
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
@@ -1226,6 +1270,83 @@ ELSE()
   SET(COMPRESS_DEBUG_SECTIONS OFF)
 ENDIF()
 
+# Newer versions of gcc produce huge amounts of debug information
+# with the default debug level.
+#
+# From 'man gcc':
+# Level 1 produces minimal information, enough for making backtraces in
+# parts of the program that you don't plan to debug.  This includes
+# descriptions of functions and external variables, and line number
+# tables, but no information about local variables.
+#
+# clang documentation says: -gline-tables-only, -g1, -gmlt
+# Emit debug line number tables only
+IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG)
+  # By default, do this for STANDALONE and tarball builds.
+  # Off by default for sanitizer or valgrind builds.
+  # Off by default for Apple Clang.
+  IF((INSTALL_LAYOUT MATCHES "STANDALONE" OR
+        INSTALL_LAYOUT MATCHES "TARGZ" OR
+        INSTALL_LAYOUT MATCHES "SVR4"
+        )
+      AND NOT CMAKE_COMPILER_FLAG_WITH_SANITIZE AND NOT WITH_VALGRIND
+      AND NOT APPLE)
+    SET(MINIMAL_RELWITHDEBINFO_DEFAULT ON)
+  ELSE()
+    SET(MINIMAL_RELWITHDEBINFO_DEFAULT OFF)
+  ENDIF()
+  OPTION(MINIMAL_RELWITHDEBINFO
+    "Reduce debug information for gcc RelWithDebInfo builds"
+    ${MINIMAL_RELWITHDEBINFO_DEFAULT})
+  # Appending here will override any earlier -g options.
+  IF(MINIMAL_RELWITHDEBINFO)
+    STRING_APPEND(CMAKE_C_FLAGS_RELWITHDEBINFO   " -g1")
+    STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -g1")
+  ENDIF()
+ENDIF()
+
+# Enable "-Og -fno-inline" for ordinary Debug builds.
+# Note that this may optimize away local stack variables.
+# Do not enable it for WITH_NDBCLUSTER, several build breaks at
+# this optimization level.
+IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG AND NOT WITH_NDBCLUSTER
+    AND NOT CMAKE_COMPILER_FLAG_WITH_SANITIZE AND NOT WITH_VALGRIND)
+  # ON by default in pushbuild, to save time running Debug test suites.
+  # man clang:
+  # -Og Like -O1. In future versions, this option might disable different
+  # optimizations in order to improve debuggability.
+  # man gcc:
+  # -Og Optimize debugging experience. -Og should be the
+  #  optimization level of choice for the standard edit-compile-
+  #  debug cycle, offering a reasonable level of optimization while
+  #  maintaining fast compilation and a good debugging experience.
+  #  It is a better choice than -O0 for producing debuggable code
+  #  because some compiler passes that collect debug information are
+  #  disabled at -O0.
+  #
+  # OFF by default if CFLAGS or CXXFLAGS are defined in the environment.
+  # CFLAGS/CXXFLAGS will be set e.g. for LINUX_DEB_PLATFORM,
+  # and may contain other optimization flags, interfering with ours.
+  IF((NOT DEFINED ENV{CFLAGS} AND NOT DEFINED ENV{CXXFLAGS}
+        AND DEFINED ENV{PB2WORKDIR})
+      OR
+      (DEFINED ENV{OPTIMIZE_DEBUG_BUILDS} AND "$ENV{OPTIMIZE_DEBUG_BUILDS}"
+        AND NOT DEFINED(OPTIMIZE_DEBUG_BUILDS)))
+    SET(OPTIMIZE_DEBUG_BUILDS_DEFAULT ON)
+  ELSE()
+    SET(OPTIMIZE_DEBUG_BUILDS_DEFAULT OFF)
+  ENDIF()
+  OPTION(OPTIMIZE_DEBUG_BUILDS
+    "Add -Og -fno-inline to CMAKE_<lang>_FLAGS_DEBUG"
+    ${OPTIMIZE_DEBUG_BUILDS_DEFAULT}
+    )
+  # Use STRING_PREPEND here, so command-line input can override our defaults.
+  IF(OPTIMIZE_DEBUG_BUILDS)
+    STRING_PREPEND(CMAKE_C_FLAGS_DEBUG   " -Og -fno-inline ")
+    STRING_PREPEND(CMAKE_CXX_FLAGS_DEBUG " -Og -fno-inline ")
+  ENDIF()
+ENDIF()
+
 # For aarch64 some sub-architectures support LSE atomics and some don't. Thus,
 # compiling for the common denominator (-march=armv8-a) means LSE is not used.
 # The -moutline-atomics switch enables run-time detection of LSE support.
@@ -1269,7 +1390,7 @@ ENDIF()
 # Linker/binutils bug in Fedora 28, Ubuntu 16.04, Debian 8 and Debian 9,
 # undefined reference to symbol '__bss_start'
 # Fedora 34: undefined reference to symbol 'crc32_z@@ZLIB_1.2.9'
-IF(LINUX_FEDORA_28 OR LINUX_FEDORA_34 OR LINUX_UBUNTU_16_04 OR LINUX_DEBIAN_8 OR LINUX_DEBIAN_9)
+IF(LINUX_FEDORA_34 OR LINUX_RHEL9 OR LINUX_DEBIAN_8 OR LINUX_DEBIAN_9)
   IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
       NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
@@ -1572,6 +1693,10 @@ IF(WITH_LTO)
   ENDIF()
 ENDIF(WITH_LTO)
 
+IF(APPLE)
+  OPTION(WITH_DEVELOPER_ENTILEMENTS "Add developer entitlements" OFF)
+ENDIF()
+
 # Explicit list of all -DWITH_XXX=system possibilities
 # *except* boost, which requires one specific version to be downloaded.
 # RapidJSON is also excluded, since the latest released version does not
@@ -1579,17 +1704,31 @@ ENDIF(WITH_LTO)
 # is required by JSON_SCHEMA_VALID, so don't add it automatically until an
 # official version with full support for std::regex is released. The bundled
 # version has the necessary patches to make it work.
+#
+# "system" versions of these for macOS are available from Xcode or Homebrew.
+# Libraries from Xcode have file extension '.tbd'.
+# Libraries from Homebrew have file extension '.dylib'.
+# To get all the Homebrew libraries, do 'brew install' <name of lib>.
 SET(SYSTEM_LIBRARIES
-  CURL
-  ICU
-  LIBEVENT
-  LZ4
-  PROTOBUF
-  SSL
-  ZLIB
-  ZSTD
-  FIDO
+  CURL      # Xcode
+  ICU       # Homebrew  icu4c
+  LIBEVENT  # Homebrew  libevent
+  LZ4       # Homebrew  lz4
+  PROTOBUF  # Homebrew  protobuf
+  SSL       # Homebrew  openssl@1.1
+# ZLIB      # Xcode                  Min required version is now 1.2.12
+  ZSTD      # Homebrew  zstd
+  FIDO      # Homebrew  libfido2
   )
+
+IF(APPLE)
+  # Homebrew default location is
+  IF(APPLE_ARM)
+    SET(HOMEBREW_HOME "/opt/homebrew/opt")
+  ELSE()
+    SET(HOMEBREW_HOME "/usr/local/opt")
+  ENDIF()
+ENDIF()
 
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
 OPTION(WITH_SYSTEM_LIBS
@@ -1667,6 +1806,18 @@ ENDIF()
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
 
+# Other system libs which use OpenSSL must be disabled.
+# This includes: kerberos sasl ldap curl.
+IF(ALTERNATIVE_SYSTEM_SSL)
+  SET(WITH_AUTHENTICATION_LDAP OFF)
+  SET(WITH_AUTHENTICATION_LDAP OFF CACHE INTERNAL "" FORCE)
+  SET(WITH_AUTHENTICATION_CLIENT_PLUGINS OFF)
+  SET(WITH_AUTHENTICATION_CLIENT_PLUGINS OFF CACHE INTERNAL "" FORCE)
+  SET(WITH_CURL "bundled")
+  SET(WITH_CURL "bundled" CACHE INTERNAL "" FORCE)
+  MESSAGE(STATUS "Disabling all authentication plugins.")
+ENDIF()
+
 # Add Kerberos library
 MYSQL_CHECK_KERBEROS()
 MYSQL_CHECK_KERBEROS_DLLS()
@@ -1678,6 +1829,14 @@ MYSQL_CHECK_SASL_DLLS()
 # Add LDAP library
 MYSQL_CHECK_LDAP()
 MYSQL_CHECK_LDAP_DLLS()
+
+# Percona LDAP Simple / LDAP SASL authentication plugins
+OPTION(WITH_PERCONA_AUTHENTICATION_LDAP "Build with Percona LDAP Simple / LDAP SASL authentication plugins" ON)
+
+# Add Windows specific jemalloc DLL
+IF(WIN32)
+  MYSQL_CHECK_WIN_JEMALLOC()
+ENDIF()
 
 # Custom versions of LDAP / SASL / SSL.
 IF(LINUX AND KNOWN_CUSTOM_LIBRARIES)
@@ -1752,17 +1911,45 @@ ENDIF()
 
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()
+SET(EDITLINE_WARN_GIVEN)
+WARN_MISSING_SYSTEM_EDITLINE(EDITLINE_WARN_GIVEN)
+IF(EDITLINE_WARN_GIVEN)
+  MESSAGE(FATAL_ERROR
+    "-DWITH_EDITLINE=system, but missing system libraries.\n"
+    "You can use -DWITH_EDITLINE=bundled instead."
+    )
+ENDIF()
+
 # Add libevent
 MYSQL_CHECK_LIBEVENT()
+SET(LIBEVENT_WARN_GIVEN)
+WARN_MISSING_SYSTEM_LIBEVENT(LIBEVENT_WARN_GIVEN)
+IF(LIBEVENT_WARN_GIVEN)
+  MESSAGE(FATAL_ERROR
+    "-DWITH_LIBEVENT=system, but missing system libraries.\n"
+    "You can use -DWITH_LIBEVENT=bundled instead."
+    )
+ENDIF()
+
 # Add lz4 library
 MYSQL_CHECK_LZ4()
 # Add icu library
-MYSQL_CHECK_ICU()
+IF(NOT WITHOUT_SERVER)
+  MYSQL_CHECK_ICU()
+ENDIF()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
   MYSQL_CHECK_PROTOBUF_DLLS()
 ENDIF()
+
+IF(NOT WITHOUT_SERVER)
+  # Check BISON_VERSION and set BISON_FLAGS_WARNINGS
+  # Do it here, before any other cmake file does FIND_PACKAGE(BISON REQUIRED)
+  # so that our search for custom bison installations can run first.
+  INCLUDE(bison)
+ENDIF()
+
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
 MYSQL_CHECK_CURL_DLLS()
@@ -1782,6 +1969,31 @@ MYSQL_CHECK_COREDUMPER()
 # Look for fido2 library
 MYSQL_CHECK_FIDO()
 MYSQL_CHECK_FIDO_DLLS()
+
+IF(APPLE)
+  GET_FILENAME_COMPONENT(HOMEBREW_BASE ${HOMEBREW_HOME} DIRECTORY)
+  IF(EXISTS ${HOMEBREW_BASE}/include/boost)
+    FOREACH(SYSTEM_LIB ICU LIBEVENT LZ4 PROTOBUF ZSTD FIDO)
+      IF(WITH_${SYSTEM_LIB} STREQUAL "system")
+        MESSAGE(FATAL_ERROR
+          "WITH_${SYSTEM_LIB}=system is not compatible with Homebrew boost\n"
+          "MySQL depends on ${BOOST_PACKAGE_NAME} with a set of patches.\n"
+          "Including headers from ${HOMEBREW_BASE}/include "
+          "will break the build.\n"
+          "Please use WITH_${SYSTEM_LIB}=bundled\n"
+          "or do 'brew uninstall boost' or 'brew unlink boost'"
+          )
+      ENDIF()
+    ENDFOREACH()
+  ENDIF()
+  # Ensure that we look in /usr/local/include or /opt/homebrew/include
+  FOREACH(SYSTEM_LIB ICU LIBEVENT LZ4 PROTOBUF ZSTD FIDO)
+    IF(WITH_${SYSTEM_LIB} STREQUAL "system")
+      INCLUDE_DIRECTORIES(SYSTEM ${HOMEBREW_BASE}/include)
+      BREAK()
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 IF(WITH_AUTHENTICATION_FIDO OR WITH_AUTHENTICATION_CLIENT_PLUGINS)
   IF(WITH_FIDO STREQUAL "system" AND
@@ -1965,6 +2177,24 @@ ADD_CUSTOM_TARGET(plugin_all)
 # Utility target to build every target added with MYSQL_ADD_COMPONENT.
 ADD_CUSTOM_TARGET(component_all)
 
+# Utility target to generate all sources from .proto files.
+ADD_CUSTOM_TARGET(protobuf_generated_all)
+
+# Utility target to generate sources needed for clang-tidy.
+# Example usage:
+#
+# export CC=clang
+# export CXX=clang++
+# mkdir build-clang-tidy; cd build-clang-tidy
+# cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DWITH_SYSTEM_LIBS=1
+# make clang_tidy_prerequisites
+# clang-tidy -p .
+#     --checks=modernize-use-nullptr,-clang-analyzer-core.NullDereference
+#     ../sql/sys_vars.cc
+ADD_CUSTOM_TARGET(clang_tidy_prerequisites)
+ADD_DEPENDENCIES(clang_tidy_prerequisites protobuf_generated_all)
+ADD_DEPENDENCIES(clang_tidy_prerequisites GenError)
+
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(strings)
 ADD_SUBDIRECTORY(vio)
@@ -2028,6 +2258,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       sql_main
       ${MYSQLD_STATIC_PLUGIN_LIBS}
       minchassis
+      ${ICU_LIBRARIES}
       # Import some core symbols. Other symbols needed by the unit test
       # executables are pulled in transitively by symbol dependencies.
       #
@@ -2062,6 +2293,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
     TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
     TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
     TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
+    TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
   ENDIF()
 ENDIF()
 
@@ -2305,14 +2537,25 @@ ENDIF()
 SET(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/doxygen")
 FIND_PACKAGE(Doxygen)
 IF(DOXYGEN_FOUND)
+  # We want output on stdout in pushbuild.
+  IF(DEFINED ENV{PB2WORKDIR})
+    SET(REDIRECT_DOXYGEN_STDOUT_DEFAULT FALSE)
+  ELSE()
+    SET(REDIRECT_DOXYGEN_STDOUT_DEFAULT TRUE)
+  ENDIF()
+  OPTION(REDIRECT_DOXYGEN_STDOUT "Redirect doxygen output to a file"
+    ${REDIRECT_DOXYGEN_STDOUT_DEFAULT})
+
   CONFIGURE_FILE(Doxyfile.in Doxyfile @ONLY)
   ADD_CUSTOM_TARGET(
     doxygen
     COMMAND ${CMAKE_COMMAND}
     -DDOXYGEN_EXECUTABLE=${DOXYGEN_EXECUTABLE}
+    -DDOXYGEN_DOT_EXECUTABLE=${DOXYGEN_DOT_EXECUTABLE}
     -DDOXYFILE=${CMAKE_BINARY_DIR}/Doxyfile
     -DERROR_FILE=${CMAKE_BINARY_DIR}/doxyerror.log
     -DOUTPUT_FILE=${CMAKE_BINARY_DIR}/doxyoutput.log
+    -DREDIRECT_DOXYGEN_STDOUT=${REDIRECT_DOXYGEN_STDOUT}
     -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
     -DTOFIX_FILE=${CMAKE_BINARY_DIR}/tofix-all.log
     -DREGRESSION_FILE=${CMAKE_BINARY_DIR}/tofix-regressions.log

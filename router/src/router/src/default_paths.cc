@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "default_paths.h"
-
 #include <array>
 #include <cstring>  // strlen
 #include <map>
 #include <string>
 
 #include "mysql/harness/filesystem.h"  // Path
-#include "mysqlrouter/utils.h"         // substitute_envvar
+#include "mysqlrouter/default_paths.h"
+#include "mysqlrouter/utils.h"  // substitute_envvar
 #include "router_config.h"
 
 #ifndef _WIN32

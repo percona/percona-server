@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ bool RouterComponentTest::wait_log_contains(const ProcessWrapper &router,
   using clock_type = std::chrono::steady_clock;
   const auto end = clock_type::now() + timeout;
   do {
-    const std::string log_content = router.get_full_logfile();
+    const std::string log_content = router.get_logfile_content();
     found = pattern_found(log_content, pattern);
     if (!found) {
       auto step = std::min(timeout, MSEC_STEP);
@@ -113,7 +113,7 @@ void RouterComponentBootstrapTest::bootstrap_failover(
     std::chrono::milliseconds wait_for_exit_timeout,
     const mysqlrouter::MetadataSchemaVersion &metadata_version,
     const std::vector<std::string> &extra_router_options) {
-  std::string cluster_name("mycluster");
+  std::string cluster_name("my-cluster");
 
   std::vector<std::pair<std::string, unsigned>> gr_members;
   for (const auto &mock_server_config : mock_server_configs) {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <OutputStream.hpp>
@@ -148,17 +149,20 @@ my_long_options[] =
     &g_opt.m_monitor, &g_opt.m_monitor, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_monitor, 0, 0, 0, 0, 0 },
   { "ai-prefetch-sz", NDB_OPT_NOSHORT,
-    "For table with hidden PK, specify number of autoincrement values"
+    "For table with an auto inc (including hidden) PK,"
+    " specify number of autoincrement values"
     " that are prefetched. See mysqld",
     &g_opt.m_ai_prefetch_sz, &g_opt.m_ai_prefetch_sz, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_ai_prefetch_sz, 0, 0, 0, 0, 0 },
   { "ai-increment", NDB_OPT_NOSHORT,
-    "For table with hidden PK, specify autoincrement increment."
+    "For table with an auto inc (including hidden) PK,"
+    " specify autoincrement increment."
     " See mysqld",
     &g_opt.m_ai_increment, &g_opt.m_ai_increment, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_ai_increment, 0, 0, 0, 0, 0 },
   { "ai-offset", NDB_OPT_NOSHORT,
-    "For table with hidden PK, specify autoincrement offset."
+    "For table with an auto inc (including hidden) PK,"
+    " specify autoincrement offset."
     " See mysqld",
     &g_opt.m_ai_offset, &g_opt.m_ai_offset, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_ai_offset, 0, 0, 0, 0, 0 },
@@ -315,6 +319,10 @@ my_long_options[] =
     "Error insert delay in milliseconds (random variation added)",
     &g_opt.m_errins_delay, &g_opt.m_errins_delay, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_errins_delay, 0, 0, 0, 0, 0 },
+  { "missing-ai-column", 'm',
+    "Missing auto-increment column",
+    &g_opt.m_missing_ai_col, &g_opt.m_missing_ai_col, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0,
     0,
     0, 0, 0,

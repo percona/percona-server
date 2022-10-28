@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -181,7 +181,7 @@ class StateFileTest : public RouterComponentTest {
       kRetrySleep *= 10;
     }
     do {
-      const auto log_content = router.get_full_logfile();
+      const auto log_content = router.get_logfile_content();
       if (log_content.find(expected_entry) != std::string::npos) return true;
 
       std::this_thread::sleep_for(kRetrySleep);
@@ -780,10 +780,9 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   // proper log should get logged
-  auto log_content = router.get_full_logfile();
+  auto log_content = router.get_logfile_content();
   for (const auto &expeted_in_log : test_params.expected_errors_in_log) {
-    EXPECT_TRUE(log_content.find(expeted_in_log) != std::string::npos)
-        << log_content << "\n";
+    EXPECT_TRUE(log_content.find(expeted_in_log) != std::string::npos);
   }
 }
 
@@ -1124,13 +1123,14 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
       router_cmdline, EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 20s));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
-  check_state_file(state_file, ClusterType::GR_V1, "cluster-specific-id",
-                   {5500, 5510, 5520}, 0, "localhost");
+  check_state_file(state_file, ClusterType::GR_V1,
+                   "00000000-0000-0000-0000-0000000000g1", {5500, 5510, 5520},
+                   0, "localhost");
 
   // check that static file has a proper reference to the dynamic file
   const std::string conf_content =
@@ -1183,15 +1183,16 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
       router_cmdline, EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 5s));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";
 
-  check_state_file(state_file, ClusterType::GR_V1, "cluster-specific-id",
-                   {5500, 5510, 5520}, 0, "localhost");
+  check_state_file(state_file, ClusterType::GR_V1,
+                   "00000000-0000-0000-0000-0000000000g1", {5500, 5510, 5520},
+                   0, "localhost");
 }
 
 #endif  // SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS

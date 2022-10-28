@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -119,7 +119,7 @@ extern mysql_pfs_key_t log_flusher_mutex_key;
 extern mysql_pfs_key_t log_write_notifier_mutex_key;
 extern mysql_pfs_key_t log_flush_notifier_mutex_key;
 extern mysql_pfs_key_t log_limits_mutex_key;
-extern mysql_pfs_key_t log_bmp_sys_mutex_key;
+extern mysql_pfs_key_t log_files_mutex_key;
 extern mysql_pfs_key_t log_cmdq_mutex_key;
 extern mysql_pfs_key_t log_sn_lock_key;
 extern mysql_pfs_key_t log_sn_mutex_key;
@@ -132,6 +132,7 @@ extern mysql_pfs_key_t recalc_pool_mutex_key;
 extern mysql_pfs_key_t page_cleaner_mutex_key;
 extern mysql_pfs_key_t purge_sys_pq_mutex_key;
 extern mysql_pfs_key_t recv_sys_mutex_key;
+extern mysql_pfs_key_t recv_writer_mutex_key;
 extern mysql_pfs_key_t rtr_active_mutex_key;
 extern mysql_pfs_key_t rtr_match_mutex_key;
 extern mysql_pfs_key_t rtr_path_mutex_key;
@@ -173,7 +174,6 @@ extern mysql_pfs_key_t zip_pad_mutex_key;
 extern mysql_pfs_key_t row_drop_list_mutex_key;
 extern mysql_pfs_key_t file_open_mutex_key;
 extern mysql_pfs_key_t master_key_id_mutex_key;
-extern mysql_pfs_key_t scrub_stat_mutex_key;
 extern mysql_pfs_key_t clone_sys_mutex_key;
 extern mysql_pfs_key_t clone_task_mutex_key;
 extern mysql_pfs_key_t clone_snapshot_mutex_key;
@@ -216,7 +216,7 @@ extern mysql_pfs_key_t PFS_NOT_INSTRUMENTED;
 #endif /* HAVE_PFS_INTERFACE */
 
 /** Prints info of the sync system.
-@param[in]	file	where to print */
+@param[in]      file    where to print */
 void sync_print(FILE *file);
 
 #endif /* !sync0sync_h */

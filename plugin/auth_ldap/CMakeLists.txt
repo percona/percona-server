@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(WITH_LDAP)
+IF(WITH_PERCONA_AUTHENTICATION_LDAP)
   INCLUDE (CheckLibraryExists)
   CHECK_LIBRARY_EXISTS(ldap ldap_initialize "" HAVE_LDAP)
 
@@ -43,11 +43,11 @@ SET(ALP_SOURCES_SASL
   INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
   MYSQL_ADD_PLUGIN(authentication_ldap_simple ${ALP_SOURCES_SIMPLE}
-    LINK_LIBRARIES ldap_r MODULE_ONLY MODULE_OUTPUT_NAME "authentication_ldap_simple")
+    LINK_LIBRARIES "${LDAP_LIBRARY}" "${LBER_LIBRARY}" MODULE_ONLY MODULE_OUTPUT_NAME "authentication_ldap_simple")
   TARGET_COMPILE_DEFINITIONS(authentication_ldap_simple PRIVATE -DPLUGIN_SIMPLE)
 
   MYSQL_ADD_PLUGIN(authentication_ldap_sasl ${ALP_SOURCES_SASL}
-    LINK_LIBRARIES ldap_r MODULE_ONLY MODULE_OUTPUT_NAME "authentication_ldap_sasl")
+    LINK_LIBRARIES "${LDAP_LIBRARY}" "${LBER_LIBRARY}" MODULE_ONLY MODULE_OUTPUT_NAME "authentication_ldap_sasl")
   TARGET_COMPILE_DEFINITIONS(authentication_ldap_sasl PRIVATE -DPLUGIN_SASL)
 
   IF(UNIX)
@@ -56,4 +56,4 @@ SET(ALP_SOURCES_SASL
     ENDIF(INSTALL_MYSQLTESTDIR)
   ENDIF(UNIX)
 
-ENDIF(WITH_LDAP)
+ENDIF(WITH_PERCONA_AUTHENTICATION_LDAP)

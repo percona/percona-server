@@ -22,8 +22,8 @@ ELSE ()
 ENDIF ()
 
 # check platform support, no 32 bit
-IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-  MESSAGE (${MYROCKS_STATUS_MODE} "x86_64 is only platform supported. ${CMAKE_SYSTEM_PROCESSOR} found. Not building MyRocks")
+IF (NOT (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64"))
+  MESSAGE (${MYROCKS_STATUS_MODE} "x86_64 and aarch64 are the only supported platforms. ${CMAKE_SYSTEM_PROCESSOR} found. Not building MyRocks")
   RETURN ()
 ENDIF ()
 
@@ -151,17 +151,19 @@ IF (NOT HAVE_THREAD_LOCAL)
   MESSAGE(FATAL_ERROR "No '__thread' support found. Not building MyRocks")
 ENDIF()
 
-IF (HAVE_SSE42)
-  MESSAGE(STATUS "MyRocks: SSE42 support found")
-  add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2") # use Fast_CRC32
-  IF (HAVE_PCLMUL)
-    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-mpclmul") # use crc32c_3way instead of Fast_CRC32
-  ENDIF()
-ELSE()
-  IF (ALLOW_NO_SSE42)
-    MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
+IF (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64") 
+  IF (HAVE_SSE42)
+    MESSAGE(STATUS "MyRocks: SSE42 support found")
+    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2") # use Fast_CRC32
+    IF (HAVE_PCLMUL)
+      add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-mpclmul") # use crc32c_3way instead of Fast_CRC32
+    ENDIF()
   ELSE()
-    MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks")
+    IF (ALLOW_NO_SSE42)
+      MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
+    ELSE()
+      MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks")
+    ENDIF()
   ENDIF()
 ENDIF()
 

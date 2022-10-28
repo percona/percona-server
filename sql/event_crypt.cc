@@ -14,10 +14,9 @@ bool decrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
   crypto.set_iv(iv, offs);
   memcpy(buf + EVENT_LEN_OFFSET, buf, 4);
 
-  assert(crypto.get_keys_length() == 32);
-  if (my_legacy_aes_256_cbc_nopad_decrypt(buf + 4, buf_len - 4, ebuf + 4,
-                                          crypto.get_key(), iv) !=
-      static_cast<int>(buf_len - 4)) {
+  if (my_legacy_aes_cbc_nopad_decrypt(
+          buf + 4, buf_len - 4, ebuf + 4, crypto.get_key(),
+          crypto.get_keys_length(), iv) != static_cast<int>(buf_len - 4)) {
     memcpy(buf, buf + EVENT_LEN_OFFSET, 4);
     return true;
   }

@@ -17,6 +17,7 @@ TOKUDB_BACKUP_VERSION = "@@TOKUDB_BACKUP_VERSION@@"
 TMP=$(CURDIR)/debian/tmp/
 TMPD=$(CURDIR)/debian/tmp-debug/
 prefix=/usr
+rpath='$$ORIGIN/../private'
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -145,8 +146,6 @@ endif
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_RELEASE) ..
 
 	touch $@
-
-rpath = '$$ORIGIN/../private'
 
 override_dh_auto_build:
 	@echo "RULES.$@"

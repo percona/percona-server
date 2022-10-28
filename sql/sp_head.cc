@@ -185,7 +185,7 @@ proc_param).
 
   - #Table_trigger_dispatcher::create_trigger()
 
-  - #Table_trigger_dispatcher::check_n_load()
+  - #dd::load_triggers()
 
   See the C++ class #Table_trigger_dispatcher in general.
 

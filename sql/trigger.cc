@@ -321,6 +321,22 @@ Trigger *Trigger::create_from_dd(
 }
 
 /**
+  Create a new Trigger object as a shallow clone of existing Trigger object.
+
+  @note Allows to produce Trigger objects to be associated with specific TABLE
+        instance from Trigger objects associated with TABLE_SHARE.
+*/
+Trigger *Trigger::clone_shallow(MEM_ROOT *mem_root) const {
+  // Do not create shallow clones of Trigger objects associated with TABLE.
+  assert(m_sp == nullptr);
+  return new (mem_root) Trigger(
+      m_trigger_name, mem_root, m_db_name, m_subject_table_name, m_definition,
+      m_definition_utf8, m_sql_mode, m_definer_user, m_definer_host,
+      m_client_cs_name, m_connection_cl_name, m_db_cl_name, m_event,
+      m_action_time, m_action_order, m_created_timestamp);
+}
+
+/**
   Trigger constructor.
 */
 Trigger::Trigger(

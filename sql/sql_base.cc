@@ -148,7 +148,6 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"                     // Table_ref
 #include "sql/table_cache.h"               // table_cache_manager
-#include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql/transaction_info.h"
@@ -340,8 +339,7 @@ static bool table_def_shutdown_in_progress = false;
 
 static bool check_and_update_table_version(THD *thd, Table_ref *tables,
                                            TABLE_SHARE *table_share);
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
-                                  const dd::Table *table, TABLE *entry);
+static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
 static bool auto_repair_table(THD *thd, Table_ref *table_list);
 static TABLE *find_temporary_table(THD *thd, const char *table_key,
                                    size_t table_key_length);
@@ -3194,9 +3192,14 @@ retry_share : {
   /*
     Try to get unused TABLE object or at least pointer to
     TABLE_SHARE from the table cache.
+
+    For cases when table is going to be updated try to get TABLE object,
+    which has trigger bodies fully loaded/ready for use.
   */
   if (!table_list->is_view())
-    table = tc->get_table(thd, key, key_length, &share);
+    table =
+        tc->get_table(thd, key, key_length,
+                      table_list->mdl_request.is_write_lock_request(), &share);
 
   if (table) {
     /* We have found an unused TABLE object. */
@@ -3483,7 +3486,7 @@ share_found:
       }
     }
 
-    if (open_table_entry_fini(thd, share, table_def, table)) {
+    if (open_table_entry_fini(thd, share, table)) {
       closefrm(table, false);
       destroy(table);
       my_free(table);
@@ -3525,6 +3528,24 @@ table_found:
       table->file->unbind_psi();
 
       return true;
+    }
+  }
+
+  if (table_list->mdl_request.is_write_lock_request() && table->triggers) {
+    /*
+      For tables which are going to be updated and have triggers we need
+      to ensure that trigger bodies are fully loaded and ready for execution.
+    */
+    if (table->triggers->has_load_been_finalized()) {
+      // Common case. We've got TABLE instance with fully ready triggers.
+      thd->status_var.table_open_cache_triggers_hits++;
+    } else {
+      /*
+        Rare case. We've got either fresh TABLE object or TABLE object,
+        which was used only by read-only statements so far.
+      */
+      thd->status_var.table_open_cache_triggers_misses++;
+      if (table->triggers->finalize_load(thd)) return true;
     }
   }
 
@@ -3866,23 +3887,11 @@ static bool tdc_open_view(THD *thd, Table_ref *table_list,
 }
 
 /**
-   Finalize the process of TABLE creation by loading table triggers
-   and taking action if a HEAP table content was emptied implicitly.
+   Finalize the process of TABLE creation by taking action if a HEAP table
+   content was emptied implicitly.
 */
 
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
-                                  const dd::Table *table, TABLE *entry) {
-  if (table != nullptr && table->has_trigger()) {
-    Table_trigger_dispatcher *d = Table_trigger_dispatcher::create(entry);
-
-    if (!d || d->check_n_load(thd, *table)) {
-      destroy(d);
-      return true;
-    }
-
-    entry->triggers = d;
-  }
-
+static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry) {
   /*
     If we are here, there was no fatal error (but error may be still
     uninitialized).
@@ -4841,8 +4850,12 @@ static bool open_and_process_routine(
 
         tc->lock();
 
+        /*
+          We don't need TABLE object with fully loaded triggers, since it is
+          not going to be used it for update, but only to get TABLE_SHARE.
+        */
         table = tc->get_table(thd, rt->part_mdl_key(),
-                              rt->part_mdl_key_length(), &share);
+                              rt->part_mdl_key_length(), false, &share);
 
         if (table) {
           assert(table->s == share);

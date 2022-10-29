@@ -169,8 +169,11 @@ std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_or_create_cf(
   } else {
     /* Create a Column Family. */
     rocksdb::ColumnFamilyOptions opts;
-
-    bool cf_name_found = m_cf_options->get_cf_options(cf_name, &opts);
+    bool cf_name_found;
+    if (!m_cf_options->get_cf_options(cf_name, &opts, cf_name_found)) {
+      RDB_MUTEX_UNLOCK_CHECK(m_mutex);
+      return cf_handle;
+    }
 
     if (create || cf_name_found) {
       LogPluginErrMsg(INFORMATION_LEVEL, 0, "Creating a column family %s",

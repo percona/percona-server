@@ -71,8 +71,9 @@ class Rdb_cf_options {
   std::shared_ptr<rocksdb::MergeOperator> get_cf_merge_operator(
       const std::string &cf_name);
 
+  /* return true when success */
   bool get_cf_options(const std::string &cf_name,
-                      rocksdb::ColumnFamilyOptions *const opts)
+                      rocksdb::ColumnFamilyOptions *const opts, bool &cf_exists)
       MY_ATTRIBUTE((__nonnull__));
 
   static bool parse_cf_options(const std::string &cf_options,

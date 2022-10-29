@@ -328,9 +328,11 @@ static_assert(HA_ERR_ROCKSDB_FIRST > HA_ERR_LAST,
 
 const constexpr char rocksdb_hton_name[] = "ROCKSDB";
 
+using Index_id = uint32_t;
+
 typedef struct _gl_index_id_s {
   uint32_t cf_id;
-  uint32_t index_id;
+  Index_id index_id;
   bool operator==(const struct _gl_index_id_s &other) const {
     return cf_id == other.cf_id && index_id == other.index_id;
   }

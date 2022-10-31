@@ -17,6 +17,7 @@ TOKUDB_BACKUP_VERSION = "@@TOKUDB_BACKUP_VERSION@@"
 TMP=$(CURDIR)/debian/tmp/
 TMPD=$(CURDIR)/debian/tmp-debug/
 prefix=/usr
+rpath='$$ORIGIN/../private'
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -205,7 +206,7 @@ override_dh_auto_install:
 
 override_dh_install:
 	dh_install
-	patchelf --debug --set-rpath '$$ORIGIN/../private' debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so
+	patchelf --debug --set-rpath $(rpath) debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so
 	@echo "RULES.$@"
 
 override_dh_strip:

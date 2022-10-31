@@ -363,7 +363,7 @@ enable_zenfs() {
     if [[ $mode == "tarball" ]]; then
         echo "mode tarball selected"
     elif [[ $mode == "debian" ]]; then
-        sed -i 's:\.\.:$(ZENFS_OPTS_DEFAULT) \.\.:g' debian/rules
+        sed -i 's: \.\.: $(ZENFS_OPTS_DEFAULT) \.\.:g' debian/rules
         sed -i '51s:percona-server:libgflags2.2, percona-server:' debian/control
         echo "usr/bin/zenfs" >> debian/percona-server-rocksdb.install
         dch -D unstable --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}" "Update to new upstream release Percona Server ${VERSION}-${RELEASE}-1"

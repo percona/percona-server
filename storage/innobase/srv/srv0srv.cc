@@ -697,7 +697,7 @@ FILE *srv_monitor_file;
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 ib_mutex_t srv_misc_tmpfile_mutex;
-/** Temporary file for miscellanous diagnostic output */
+/** Temporary file for miscellaneous diagnostic output */
 FILE *srv_misc_tmpfile;
 
 #ifndef UNIV_HOTBACKUP
@@ -1752,14 +1752,12 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_buffer_pool_pages_free = free_len;
 
-#ifdef UNIV_DEBUG
-  export_vars.innodb_buffer_pool_pages_latched = buf_get_latched_pages_number();
-#endif /* UNIV_DEBUG */
   export_vars.innodb_buffer_pool_pages_total = buf_pool_get_n_pages();
 
   export_vars.innodb_buffer_pool_pages_misc =
       buf_pool_get_n_pages() - LRU_len - free_len;
 
+<<<<<<< HEAD
   export_vars.innodb_buffer_pool_pages_made_young = stat.n_pages_made_young;
   export_vars.innodb_buffer_pool_pages_made_not_young =
       stat.n_pages_not_made_young;
@@ -1788,6 +1786,15 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_purge_trx_id = purge_sys->limit.trx_no;
   export_vars.innodb_purge_undo_no = purge_sys->limit.undo_no;
 
+||||||| fbdaa4def30
+=======
+  export_vars.innodb_buffer_pool_resize_status_code =
+      buf_pool_resize_status_code.load();
+
+  export_vars.innodb_buffer_pool_resize_status_progress =
+      buf_pool_resize_status_progress.load();
+
+>>>>>>> mysql-8.0.31
   export_vars.innodb_page_size = UNIV_PAGE_SIZE;
 
   export_vars.innodb_log_waits = srv_stats.log_waits;

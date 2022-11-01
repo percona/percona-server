@@ -142,7 +142,19 @@ struct File_reader : private ut::Non_copyable {
   /** Pointer current offset within file buffer. */
   const byte *m_ptr{};
 
+<<<<<<< HEAD
   /** Auxilliary buffer for records that span across pages. */
+||||||| fbdaa4def30
+  /** File buffer bounds. */
+  Bounds m_bounds{};
+
+  /** Auxilliary buffer for records that span across pages. */
+=======
+  /** File buffer bounds. */
+  Bounds m_bounds{};
+
+  /** Auxiliary buffer for records that span across pages. */
+>>>>>>> mysql-8.0.31
   byte *m_aux_buf{};
 
   /** IO buffer size in bytes. */

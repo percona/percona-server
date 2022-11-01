@@ -88,7 +88,7 @@ static uint buf_flush_lsn_scan_factor = 3;
 static lsn_t buf_flush_sync_lsn = 0;
 
 #ifdef UNIV_DEBUG
-/** Get the lsn upto which data pages are to be synchronously flushed.
+/** Get the lsn up to which data pages are to be synchronously flushed.
 @return target lsn for the requested flush_sync */
 lsn_t get_flush_sync_lsn() noexcept { return buf_flush_sync_lsn; }
 #endif /* UNIV_DEBUG */
@@ -134,7 +134,7 @@ struct page_cleaner_slot_t {
   /*!< number of requested pages
   for the slot */
   /* These values are updated during state==PAGE_CLEANER_STATE_FLUSHING,
-  and commited with state==PAGE_CLEANER_STATE_FINISHED.
+  and committed with state==PAGE_CLEANER_STATE_FINISHED.
   The consistency is protected by the 'state' */
   ulint n_flushed_list;
   /*!< number of flushed pages
@@ -3541,8 +3541,19 @@ static void buf_flush_page_coordinator_thread() {
   ut_ad(buf_flush_active_lru_managers() == 0);
 
   bool success;
+  bool are_any_read_ios_still_underway;
 
   do {
+    /* If there are any read operations pending, they can result in the ibuf
+    merges and a dirtying page after the read is completed. If there are any
+    IO reads running before we run the flush loop, we risk having some dirty
+    pages after flushing reports n_flushed == 0. The ibuf change merging on
+    page results in dirtying the page and is followed by decreasing the
+    n_pend_reads counter, thus it's safe to check it before flush loop and
+    have guarantees if it was seen with value of 0. These reads could be issued
+    in the previous stage(s), the srv_master thread on shutdown tasks clear the
+    ibuf unless it's the fast shutdown. */
+    are_any_read_ios_still_underway = buf_get_n_pending_read_ios() > 0;
     pc_request(ULINT_MAX, LSN_MAX);
 
     while (pc_flush_slot() > 0) {
@@ -3555,8 +3566,14 @@ static void buf_flush_page_coordinator_thread() {
 
     buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
 
+<<<<<<< HEAD
   } while (!success || n_flushed > 0 || buf_get_n_pending_read_ios() > 0 ||
            buf_get_flush_list_len(nullptr) > 0);
+||||||| fbdaa4def30
+  } while (!success || n_flushed > 0);
+=======
+  } while (!success || n_flushed > 0 || are_any_read_ios_still_underway);
+>>>>>>> mysql-8.0.31
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);

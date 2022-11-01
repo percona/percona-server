@@ -2994,7 +2994,6 @@ int ha_federated::real_query(const char *query, size_t length) {
   int rc = 0;
   ulong len = static_cast<ulong>(length);
   DBUG_TRACE;
-
   if (!mysql && (rc = real_connect())) goto end;
 
   if (!query || !length) goto end;
@@ -3014,6 +3013,51 @@ int ha_federated::real_query(const char *query, size_t length) {
     rc = mysql_real_query(mysql, query, len);
   }
 
+  // Simulate as errors happened within the previous query
+  DBUG_EXECUTE_IF("bug33500956_simulate_out_of_order",
+                  DBUG_SET("-d,bug33500956_simulate_out_of_order");
+                  current_thd->get_stmt_da()->set_error_status(
+                      current_thd, ER_NET_PACKETS_OUT_OF_ORDER);
+                  mysql->net.last_errno = CR_SERVER_LOST; rc = 1;);
+  DBUG_EXECUTE_IF("bug33500956_simulate_read_error",
+                  DBUG_SET("-d,bug33500956_simulate_read_error");
+                  current_thd->get_stmt_da()->set_error_status(
+                      current_thd, ER_NET_READ_ERROR);
+                  mysql->net.last_errno = CR_SERVER_LOST; rc = 1;);
+  DBUG_EXECUTE_IF("bug33500956_simulate_read_interrupted",
+                  DBUG_SET("-d,bug33500956_simulate_read_interrupted");
+                  current_thd->get_stmt_da()->set_error_status(
+                      current_thd, ER_NET_READ_INTERRUPTED);
+                  mysql->net.last_errno = CR_SERVER_LOST; rc = 1;);
+  DBUG_EXECUTE_IF("bug33500956_simulate_write_error",
+                  DBUG_SET("-d,bug33500956_simulate_write_error");
+                  current_thd->get_stmt_da()->set_error_status(
+                      current_thd, ER_NET_ERROR_ON_WRITE);
+                  mysql->net.last_errno = CR_SERVER_LOST; rc = 1;);
+  DBUG_EXECUTE_IF("bug33500956_simulate_write_interrupted",
+                  DBUG_SET("-d,bug33500956_simulate_write_interrupted");
+                  current_thd->get_stmt_da()->set_error_status(
+                      current_thd, ER_NET_WRITE_INTERRUPTED);
+                  mysql->net.last_errno = CR_SERVER_LOST; rc = 1;);
+
+  // reconnect and retry on timeout
+  // (this fix will be obsoleted by WL#15232)
+  if (rc) {
+    Diagnostics_area *da = current_thd->get_stmt_da();
+    if (da->is_set()) {
+      const uint err = da->mysql_errno();
+      if ((err == ER_NET_PACKETS_OUT_OF_ORDER || err == ER_NET_ERROR_ON_WRITE ||
+           err == ER_NET_WRITE_INTERRUPTED || err == ER_NET_READ_ERROR ||
+           err == ER_NET_READ_INTERRUPTED) &&
+          mysql->net.last_errno == CR_SERVER_LOST) {
+        mysql_free_result(mysql_store_result(mysql));
+        da->reset_condition_info(current_thd);
+        da->reset_diagnostics_area();
+        mysql_reconnect(mysql);
+        rc = mysql_real_query(mysql, query, static_cast<ulong>(length));
+      }
+    }
+  }
 end:
   return rc;
 }

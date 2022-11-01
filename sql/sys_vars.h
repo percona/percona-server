@@ -59,9 +59,10 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/debug_sync.h"  // debug_sync_update
 #include "sql/handler.h"
-#include "sql/item.h"       // Item
-#include "sql/keycaches.h"  // default_key_cache_base
-#include "sql/mysqld.h"     // max_system_variables
+#include "sql/item.h"           // Item
+#include "sql/keycaches.h"      // default_key_cache_base
+#include "sql/mysqld.h"         // max_system_variables
+#include "sql/rpl_event_ctx.h"  // Rpl_event_ctx
 #include "sql/rpl_gtid.h"
 #include "sql/set_var.h"    // sys_var_chain
 #include "sql/sql_class.h"  // THD
@@ -561,7 +562,7 @@ class Sys_var_alias : public sys_var {
     file, and get rid of the warning, using RESET PERSIST
     OLD_VARIABLE_NAME.
 
-  - After downgrade from verson X+1 to version X, all persisted
+  - After downgrade from version X+1 to version X, all persisted
     variables retain their values.  User will not see deprecation
     warnings.  If user needs to further downgrade to version X-1, user
     needs to first run SET PERSIST for some variable in order to
@@ -3107,4 +3108,19 @@ class Sys_var_errors_set : public sys_var {
 
 extern std::size_t buffered_error_log_size;
 
+/**
+  Class for @@global.replica_enable_event.
+*/
+class Sys_var_replica_enable_event : Sys_var_charptr_func {
+ public:
+  Sys_var_replica_enable_event(const char *name_arg, const char *comment_arg)
+      : Sys_var_charptr_func(name_arg, comment_arg, GLOBAL) {}
+
+  const uchar *global_value_ptr(THD *thd, std::string_view) override {
+    std::string value;
+    Rpl_event_ctx::get_instance().get_events_wild_list(value);
+    return reinterpret_cast<uchar *>(
+        thd->strmake(value.c_str(), value.length()));
+  }
+};
 #endif /* SYS_VARS_H_INCLUDED */

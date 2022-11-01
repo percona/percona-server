@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef srv0start_h
 #define srv0start_h
 
-#include "log0types.h"
 #include "os0thread-create.h"
 #ifndef UNIV_HOTBACKUP
 #include "sync0rw.h"
@@ -126,9 +125,6 @@ single-table tablespace.
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
                                       ulint max_len);
 #endif /* !UNIV_HOTBACKUP */
-
-/** Initializes the log tracking subsystem and starts its thread.  */
-void srv_init_log_online();
 
 /** true if the server is being started */
 extern bool srv_is_being_started;

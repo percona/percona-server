@@ -209,6 +209,7 @@ ENDIF()
 SET(SERVER_TESTS
   character_set_deprecation
   compare_access_paths
+  connect_joins
   copy_info
   create_field
   dd_cache
@@ -242,6 +243,7 @@ SET(SERVER_TESTS
   gis_setops
   gis_srs
   gis_symdifference
+  gis_transform
   gis_union
   gis_wkb_parser
   gis_wkb_writer
@@ -304,7 +306,20 @@ SET(SERVER_TESTS
   value_map
   walk_access_paths
   wild_case_compare
+  ha_info_iterator
+  xid_extract
 )
+
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  copy_info-t.cc
+  dd_schema-t.cc
+  opt_range-t.cc
+  regexp_engine-t.cc
+  )
+
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+  ADD_COMPILE_FLAGS(regexp_engine-t.cc COMPILE_FLAGS "-Wno-restrict")
+ENDIF()
 
 IF(WIN32)
   LIST(APPEND SERVER_TESTS win_tests)
@@ -430,6 +445,16 @@ MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
   ENABLE_EXPORTS
   ADD_TEST rpl_commit_order_queue
   LINK_LIBRARIES rpl_commit_order_queue_lib gunit_small sqlgunitlib
+)
+
+ADD_LIBRARY(rpl_event_ctx_lib STATIC
+  ${CMAKE_SOURCE_DIR}/sql/rpl_event_ctx.cc
+)
+
+MYSQL_ADD_EXECUTABLE(rpl_event_ctx-t rpl_event_ctx-t.cc
+  ENABLE_EXPORTS
+  ADD_TEST rpl_event_ctx
+  LINK_LIBRARIES rpl_event_ctx_lib gunit_small
 )
 
 ADD_SUBDIRECTORY(ddl_rewriter)

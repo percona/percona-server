@@ -80,6 +80,7 @@ usr/lib/mysql/plugin/udf_example.so
 usr/lib/mysql/plugin/component_mysqlx_global_reset.so
 usr/lib/mysql/plugin/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/libtest_sql_reset_connection.so
+usr/lib/mysql/plugin/conflicting_variables.so
 usr/lib/mysql/plugin/debug/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/debug/libtest_sql_reset_connection.so
 usr/lib/mysql/plugin/debug/auth.so
@@ -154,5 +155,6 @@ usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
 usr/lib/mysql/plugin/debug/test_udf_services.so
 usr/lib/mysql/plugin/debug/udf_example.so
 usr/lib/mysql/plugin/debug/component_mysqlx_global_reset.so
+usr/lib/mysql/plugin/debug/conflicting_variables.so
 # test suite
 usr/lib/mysql-test/*

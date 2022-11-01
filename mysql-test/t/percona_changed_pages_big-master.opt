@@ -1,2 +1,0 @@
---innodb_track_changed_pages=1 --innodb_max_bitmap_file_size=1G
-

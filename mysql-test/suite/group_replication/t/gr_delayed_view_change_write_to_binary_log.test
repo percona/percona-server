@@ -110,6 +110,7 @@ START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --echo # 6. Resume transaction T1, it will be send to the group for
 --echo #    conflict detection and apply.
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC="RESET";
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --let $rpl_connection_name= server_1

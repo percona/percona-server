@@ -65,8 +65,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #ifndef UNIV_HOTBACKUP
 #include "lock0lock.h"
-#include "log0online.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0encryption.h"
 #include "log0recv.h"
+#include "log0write.h"
 #include "mem0mem.h"
 #include "os0proc.h"
 #include "os0thread-create.h"
@@ -132,8 +135,6 @@ std::chrono::seconds get_srv_fatal_semaphore_wait_threshold() {
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
 ulint srv_dml_needed_delay = 0;
-
-bool srv_scrub_log;
 
 const char *srv_main_thread_op_info = "";
 
@@ -232,14 +233,6 @@ bool srv_use_native_aio = false;
 
 bool srv_numa_interleave = false;
 
-/** Whether the redo log tracking is currently enabled. Note that it is
-possible for the log tracker thread to be running and the tracking to be
-disabled */
-bool srv_track_changed_pages = false;
-
-ulonglong srv_max_bitmap_file_size = 100 * 1024 * 1024;
-
-ulonglong srv_max_changed_pages = 0;
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong srv_debug_compress;
@@ -257,24 +250,17 @@ static os_event_t srv_master_thread_disabled_event;
 char *srv_log_group_home_dir = nullptr;
 
 /** Enable or disable Encrypt of REDO tablespace. */
-ulong srv_redo_log_encrypt = 0;
+bool srv_redo_log_encrypt = false;
 
-ulong srv_n_log_files = SRV_N_LOG_FILES_MAX;
+ulong srv_log_n_files = 100; /* Deprecated (used only for deprecated sysvar). */
+
+ulonglong srv_log_file_size; /* Deprecated (used only for deprecated sysvar). */
+
+ulonglong srv_redo_log_capacity, srv_redo_log_capacity_used;
 
 #ifdef UNIV_DEBUG_DEDICATED
 ulong srv_debug_system_mem_size;
 #endif /* UNIV_DEBUG_DEDICATED */
-
-/** At startup, this is the current redo log file size.
-During startup, if this is different from srv_log_file_size_requested
-(innodb_log_file_size), the redo log will be rebuilt and this size
-will be initialized to srv_log_file_size_requested.
-When upgrading from a previous redo log format, this will be set to 0,
-and writing to the redo log is not allowed. Expressed in bytes. */
-ulonglong srv_log_file_size;
-
-/** The value of the startup parameter innodb_log_file_size. */
-ulonglong srv_log_file_size_requested;
 
 /** Space for log buffer, expressed in bytes. Note, that log buffer
 will use only the largest power of two, which is not greater than
@@ -889,10 +875,6 @@ static const ulint SRV_PURGE_SLOT = 1;
 /** Slot index in the srv_sys->sys_threads array for the master thread. */
 static const ulint SRV_MASTER_SLOT = 0;
 
-os_event_t srv_checkpoint_completed_event;
-
-os_event_t srv_redo_log_tracked_event;
-
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Performance schema stage event for monitoring ALTER TABLE progress
 everything after flush log_make_latest_checkpoint(). */
@@ -1277,11 +1259,6 @@ static void srv_init(void) {
     buf_flush_tick_event = os_event_create();
 
     UT_LIST_INIT(srv_sys->tasks);
-
-    srv_checkpoint_completed_event = os_event_create();
-
-    srv_redo_log_tracked_event = os_event_create();
-    os_event_set(srv_redo_log_tracked_event);
   }
 
   srv_buf_resize_event = os_event_create();
@@ -1331,8 +1308,6 @@ void srv_free(void) {
     os_event_destroy(srv_monitor_event);
     os_event_destroy(srv_buf_dump_event);
     os_event_destroy(buf_flush_event);
-    os_event_destroy(srv_checkpoint_completed_event);
-    os_event_destroy(srv_redo_log_tracked_event);
     os_event_destroy(buf_flush_tick_event);
   }
 
@@ -1729,7 +1704,7 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_data_pending_writes = os_n_pending_writes;
 
   export_vars.innodb_data_pending_fsyncs =
-      fil_n_pending_log_flushes + fil_n_pending_tablespace_flushes;
+      log_pending_flushes() + fil_n_pending_tablespace_flushes;
   export_vars.innodb_adaptive_hash_hash_searches = btr_cur_n_sea;
   export_vars.innodb_adaptive_hash_non_hash_searches = btr_cur_n_non_sea;
   export_vars.innodb_background_log_sync = srv_log_writes_and_flush;
@@ -1793,18 +1768,14 @@ void srv_export_innodb_status(void) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
     export_vars.innodb_buffer_pool_pages_old += buf_pool->LRU_old_len;
   }
-  export_vars.innodb_checkpoint_age =
-      (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
 
-  export_vars.innodb_checkpoint_max_age = log_get_free_check_capacity(*log_sys);
-  ibuf_export_ibuf_status(&export_vars.innodb_ibuf_free_list,
-                          &export_vars.innodb_ibuf_segment_size);
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);
   export_vars.innodb_lsn_flushed = log_sys->flushed_to_disk_lsn;
   export_vars.innodb_lsn_last_checkpoint = log_sys->last_checkpoint_lsn;
   export_vars.innodb_master_thread_active_loops = srv_main_active_loops;
   export_vars.innodb_master_thread_idle_loops = srv_main_idle_loops;
   export_vars.innodb_max_trx_id = trx_sys_get_next_trx_id_or_no();
+
   mutex_enter(&trx_sys->mutex);
   auto *const oldest_view_for_low_limit_trx_id =
       trx_sys->mvcc->get_oldest_view();
@@ -1823,9 +1794,9 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_os_log_written = srv_stats.os_log_written;
 
-  export_vars.innodb_os_log_fsyncs = fil_n_log_flushes;
+  export_vars.innodb_os_log_fsyncs = log_total_flushes();
 
-  export_vars.innodb_os_log_pending_fsyncs = fil_n_pending_log_flushes;
+  export_vars.innodb_os_log_pending_fsyncs = log_pending_flushes();
 
   export_vars.innodb_os_log_pending_writes = srv_stats.os_log_pending_writes;
 
@@ -1967,10 +1938,6 @@ void srv_export_innodb_status(void) {
 
   thd_get_fragmentation_stats(current_thd,
                               &export_vars.innodb_fragmentation_stats);
-
-  export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
-
-  export_vars.innodb_redo_key_version = srv_redo_log_key_version;
 
   if (!srv_read_only_mode) {
     export_vars.innodb_encryption_rotation_pages_read_from_cache =
@@ -2145,31 +2112,6 @@ The first phase of server shutdown must have already been executed
 @retval false   if no thread is active */
 bool srv_master_thread_is_active() {
   return (srv_thread_is_active(srv_threads.m_master));
-}
-
-/** A thread which follows the redo log and outputs the changed page bitmap. */
-void srv_redo_log_follow_thread() {
-  ut_ad(!srv_read_only_mode);
-
-  do {
-    os_event_wait(srv_checkpoint_completed_event);
-    os_event_reset(srv_checkpoint_completed_event);
-
-    if (srv_track_changed_pages &&
-        srv_shutdown_state.load() < SRV_SHUTDOWN_LAST_PHASE) {
-      if (!log_online_follow_redo_log_one_pass()) {
-        /* TODO: sync with I_S log tracking status? */
-        ib::error() << "Log tracking bitmap write "
-                       "failed, stopping log tracking thread!";
-        break;
-      }
-      os_event_set(srv_redo_log_tracked_event);
-    }
-
-  } while (srv_shutdown_state.load() < SRV_SHUTDOWN_LAST_PHASE);
-
-  log_online_read_shutdown();
-  os_event_set(srv_redo_log_tracked_event);
 }
 
 /** Tells the InnoDB server that there has been activity in the database
@@ -2855,7 +2797,7 @@ void undo_rotate_default_master_key() {
 
     space = fil_space_get(undo_space->id());
 
-    if (space == nullptr || space->encryption_type != Encryption::AES) {
+    if (space == nullptr || space->m_encryption_metadata.m_type != Encryption::AES) {
       continue;
     }
 
@@ -2884,188 +2826,37 @@ void undo_rotate_default_master_key() {
   undo::spaces->s_unlock();
 }
 
-bool srv_enable_redo_encryption(THD *thd) {
-  switch (srv_redo_log_encrypt) {
-    case REDO_LOG_ENCRYPT_ON:
-    case REDO_LOG_ENCRYPT_MK:
-      return srv_enable_redo_encryption_mk(thd);
-    case REDO_LOG_ENCRYPT_RK:
-      return srv_enable_redo_encryption_rk(thd);
-  }
+/* Enable REDO tablespace encryption */
+bool srv_enable_redo_encryption() {
+  log_t &log = *log_sys;
 
-  return false;
-}
+  /* While enabling encryption, make sure not to overwrite the existing
+  redo log encryption key (if it has already been generated).
 
-bool srv_enable_redo_encryption_mk(THD *thd) {
-  switch (existing_redo_encryption_mode) {
-    case REDO_LOG_ENCRYPT_RK:
-      if (thd != nullptr) {
-        ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "master_key");
-        ib_senderrf(
-            thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-            log_encrypt_name(existing_redo_encryption_mode), "master_key");
-      } else {
-        ib::fatal(UT_LOCATION_HERE, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "master_key");
-      }
-      return true;
-    case REDO_LOG_ENCRYPT_OFF:
-    case REDO_LOG_ENCRYPT_MK:
-    case REDO_LOG_ENCRYPT_ON:
-      break;
-  }
-
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-  /* While enabling encryption, make sure not to overwrite the tablespace key.
-   */
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+  Note that we can safely check log.m_encryption_metadata without acquiring
+  any of mutexes which are enlisted as required to protect updates of this
+  field. That's because srv_enable_redo_encryption() is called either in
+  startup phase, or during update of innodb_redo_log_encrypt. Server ensures
+  that sysvars are not being updated concurrently and that they are not being
+  updated during startup phase. */
+  if (log_can_encrypt(log)) {
     return false;
   }
 
   Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
-                        dict_sys_t::s_log_space_first_id, false);
+                        dict_sys_t::s_log_space_id, false);
   if (notifier.failed()) {
     return true;
   }
 
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
-
-  Encryption::random_value(iv);
-  Encryption::random_value(key);
-
-  if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_MK)) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1243);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
-    }
+  /* Start to encrypt the redo log block from now on. */
+  if (log_encryption_generate_metadata(log) != DB_SUCCESS) {
+    ib::error(ER_IB_MSG_LOG_FILES_ENCRYPTION_INIT_FAILED);
     return true;
   }
 
-  fsp_flags_set_encryption(space->flags);
-  const dberr_t err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-  if (err != DB_SUCCESS) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
-    return true;
-  }
-
+  /* Announce encryption is successfully enabled for the redo log. */
   ib::info(ER_IB_MSG_1245);
-
-  return false;
-}
-
-bool srv_enable_redo_encryption_rk(THD *thd) {
-  switch (existing_redo_encryption_mode) {
-    case REDO_LOG_ENCRYPT_ON:
-    case REDO_LOG_ENCRYPT_MK:
-      if (thd != nullptr) {
-        ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "keyring_key");
-        ib_senderrf(
-            thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-            log_encrypt_name(existing_redo_encryption_mode), "keyring_key");
-      } else {
-        ib::fatal(UT_LOCATION_HERE, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                  log_encrypt_name(existing_redo_encryption_mode),
-                  "keyring_key");
-      }
-      return true;
-    case REDO_LOG_ENCRYPT_OFF:
-    case REDO_LOG_ENCRYPT_RK:
-      break;
-  }
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    return false;
-  }
-
-  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
-                        dict_sys_t::s_log_space_first_id, false);
-  if (notifier.failed()) {
-    return true;
-  }
-
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
-  uint version;
-
-  Encryption::random_value(iv);
-
-  // load latest key & write version
-
-  redo_log_key *mkey =
-      strlen(server_uuid) > 0
-          ? redo_log_key_mgr.load_latest_key(thd, true)
-          : redo_log_key_mgr.fetch_or_generate_default_key(thd);
-  if (mkey == nullptr) {
-    return true;
-  }
-
-  // if server_uuid is not available we should be using default percona_redo
-  // key, which does not have version - i.e. has version 0
-  // (REDO_LOG_ENCRYPT_NO_VERSION)
-  ut_ad(strlen(server_uuid) > 0 ||
-        mkey->version == REDO_LOG_ENCRYPT_NO_VERSION);
-
-  version = mkey->version;
-  srv_redo_log_key_version = version;
-  memcpy(key, mkey->key, Encryption::KEY_LEN);
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Fetched redo key: %s.\n", key);
-#endif
-
-  if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_RK, version)) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1243);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
-    }
-    return true;
-  }
-
-  space->encryption_redo_key = mkey;
-  space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-  space->encryption_key_version = version;
-  space->encryption_redo_key_uuid.reset(
-      new (std::nothrow) char[Encryption::SERVER_UUID_LEN + 1]);
-  if (space->encryption_redo_key_uuid.get() == nullptr) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
-  }
-
-  memcpy(space->encryption_redo_key_uuid.get(), server_uuid,
-         Encryption::SERVER_UUID_LEN + 1);
-  dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, key, iv);
-
-  if (err != DB_SUCCESS) {
-    if (thd != nullptr) {
-      ib::error(ER_IB_MSG_1244);
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
-    } else {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
-    }
-    return true;
-  }
-
-  ib::info(ER_IB_MSG_1245);
-
   return false;
 }
 
@@ -3076,17 +2867,18 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr) {
 
   dberr_t err;
   byte encrypt_info[Encryption::INFO_SIZE];
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
 
-  Encryption::random_value(key);
-  Encryption::random_value(iv);
+  Encryption_metadata encryption_metadata;
+
+  Encryption::set_or_generate(Encryption::AES, nullptr, nullptr,
+                              encryption_metadata);
 
   /* 0 fill encryption info */
   memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
   /* Fill up encryption info to be set */
-  if (!Encryption::fill_encryption_info(key, iv, encrypt_info, true)) {
+  if (!Encryption::fill_encryption_info(encryption_metadata, true,
+                                        encrypt_info)) {
     ib::error(ER_IB_MSG_1052, space->name);
     if (thd != nullptr) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1052, space->name);
@@ -3108,7 +2900,8 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr) {
 
   /* Update In-Mem encryption information for UNDO tablespace */
   fsp_flags_set_encryption(space->flags);
-  err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+  err = fil_set_encryption(space->id, encryption_metadata.m_type,
+                           encryption_metadata.m_key, encryption_metadata.m_iv);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_1054, space->name, int{err}, ut_strerr(err));
     if (thd != nullptr) {
@@ -3251,8 +3044,6 @@ static void srv_master_main_loop(srv_slot_t *slot) {
 
     /* Purge any deleted tablespace pages. */
     fil_purge();
-
-    log_check_new_key_version();
   }
 }
 

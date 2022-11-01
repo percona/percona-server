@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 21
+#define PERCONA_INNODB_VERSION 22
 #endif
 
 /* The following is the InnoDB version as shown in
@@ -591,7 +591,7 @@ typedef void *os_thread_ret_t;
   do {                                \
     void *p = (addr);                 \
     ut_d(memset(p, c, size));         \
-    UNIV_MEM_INVALID(addr, size);     \
+    UNIV_MEM_INVALID(p, size);        \
   } while (0)
 #else
 #define UNIV_MEM_VALID(addr, size) \

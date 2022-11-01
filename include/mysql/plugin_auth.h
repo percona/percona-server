@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_INCLUDED
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,10 +140,14 @@ struct MYSQL_SERVER_AUTH_INFO {
   */
   unsigned int current_auth_factor;
   /**
-    Refers to authentication details of 1st, 2nd or 3rd factor authentiction
+    Refers to authentication details of 1st, 2nd or 3rd factor authentication
     method
   */
   auth_factor_desc *multi_factor_auth_info;
+
+  /** Comma separated list of possible roles the user can have, if they do
+     exists on the server */
+  char external_roles[512];
 };
 
 /**

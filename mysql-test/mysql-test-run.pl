@@ -2820,18 +2820,8 @@ sub executable_setup () {
   $exe_mysql_migrate_keyring =
     mtr_exe_exists("$path_client_bindir/mysql_migrate_keyring");
   $exe_mysql_keyring_encryption_test =
-<<<<<<< HEAD
-    my_find_bin($bindir,
-                [ "runtime_output_directory", "libexec", "sbin", "bin" ],
-                "mysql_keyring_encryption_test");
-  $exe_mysql_zenfs = mtr_exe_maybe_exists("$path_client_bindir/zenfs");
-||||||| fbdaa4def30
-    my_find_bin($bindir,
-                [ "runtime_output_directory", "libexec", "sbin", "bin" ],
-                "mysql_keyring_encryption_test");
-=======
     mtr_exe_exists("$path_client_bindir/mysql_keyring_encryption_test");
->>>>>>> mysql-8.0.31
+  $exe_mysql_zenfs = mtr_exe_maybe_exists("$path_client_bindir/zenfs");
 
   # For custom OpenSSL builds, look for the my_openssl executable.
   $exe_openssl =

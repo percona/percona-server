@@ -1767,15 +1767,9 @@ void THD::store_globals() {
   */
   set_my_thread_var_id(m_thread_id);
 #endif
-<<<<<<< HEAD
-  real_id = my_thread_self();  // For debugging
+  real_id = my_thread_self();
 
   vio_set_thread_id(net.vio, real_id);
-||||||| fbdaa4def30
-  real_id = my_thread_self();  // For debugging
-=======
-  real_id = my_thread_self();
->>>>>>> mysql-8.0.31
 }
 
 /*
@@ -2081,11 +2075,6 @@ void THD::shutdown_active_vio() {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (active_vio) {
-<<<<<<< HEAD
-    vio_shutdown(active_vio, SHUT_RDWR);
-||||||| fbdaa4def30
-    vio_shutdown(active_vio);
-=======
 #ifdef USE_PPOLL_IN_VIO
     // Vio::thread_id may not be correct if the THD has been
     // associated with a different OS thread since the Vio object was
@@ -2094,8 +2083,7 @@ void THD::shutdown_active_vio() {
     // invalid thread id.
     active_vio->thread_id = real_id;
 #endif /* USE_PPOLL_IN_VIO */
-    vio_shutdown(active_vio);
->>>>>>> mysql-8.0.31
+    vio_shutdown(active_vio, SHUT_RDWR);
     active_vio = nullptr;
     m_SSL = nullptr;
   }
@@ -2113,11 +2101,6 @@ void THD::shutdown_clone_vio() {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (clone_vio != nullptr) {
-<<<<<<< HEAD
-    vio_shutdown(clone_vio, SHUT_RDWR);
-||||||| fbdaa4def30
-    vio_shutdown(clone_vio);
-=======
 #ifdef USE_PPOLL_IN_VIO
     // Vio::thread_id may not be correct if the THD has been
     // associated with a different OS thread since the Vio object was
@@ -2126,8 +2109,7 @@ void THD::shutdown_clone_vio() {
     // invalid thread id.
     clone_vio->thread_id = real_id;
 #endif /* USE_PPOLL_IN_VIO */
-    vio_shutdown(clone_vio);
->>>>>>> mysql-8.0.31
+    vio_shutdown(clone_vio, SHUT_RDWR);
     clone_vio = nullptr;
   }
 }

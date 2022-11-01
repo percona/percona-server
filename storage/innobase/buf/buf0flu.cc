@@ -3566,14 +3566,8 @@ static void buf_flush_page_coordinator_thread() {
 
     buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
 
-<<<<<<< HEAD
-  } while (!success || n_flushed > 0 || buf_get_n_pending_read_ios() > 0 ||
+  } while (!success || n_flushed > 0 || are_any_read_ios_still_underway ||
            buf_get_flush_list_len(nullptr) > 0);
-||||||| fbdaa4def30
-  } while (!success || n_flushed > 0);
-=======
-  } while (!success || n_flushed > 0 || are_any_read_ios_still_underway);
->>>>>>> mysql-8.0.31
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);

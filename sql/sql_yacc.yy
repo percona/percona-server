@@ -9673,25 +9673,15 @@ analyze_table_stmt:
           ANALYZE_SYM opt_no_write_to_binlog table_or_tables table_list
           opt_histogram
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $1, $2, $4,
-                                              $5.command, $5.num_buckets,
-                                              $5.columns);
-||||||| fbdaa4def30
-            $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
-                                              $5.command, $5.num_buckets,
-                                              $5.columns);
-=======
             if ($5.param) {
-              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
+              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $1, $2, $4,
                                                 $5.command, $5.param->num_buckets,
                                                 $5.columns, $5.param->data);
             } else {
-              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
+              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $1, $2, $4,
                                                 $5.command, 0,
                                                 $5.columns, {nullptr, 0});
             }
->>>>>>> mysql-8.0.31
           }
         ;
 

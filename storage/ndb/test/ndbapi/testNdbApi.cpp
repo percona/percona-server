@@ -1250,19 +1250,8 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
 	  }
 	}
       }
-<<<<<<< HEAD
-
-      // Dont' call any getValues
-
-||||||| fbdaa4def30
-    
-      // Dont' call any getValues
-    
-=======
-    
       // Don't call any getValues
-    
->>>>>>> mysql-8.0.31
+
       // Execute should work
       int check = pCon->execute(cm == 0 ? NoCommit : Commit);
       if (check == 0){
@@ -1299,22 +1288,9 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
       NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
 
-
-    // Dont' call any getValues
-
-||||||| fbdaa4def30
-    
-    
-    // Dont' call any getValues
-    
-=======
-    
-    
     // Don't call any getValues
-    
->>>>>>> mysql-8.0.31
+
     // Execute should work
     int check = pCon->execute(NoCommit);
     if (check == 0){

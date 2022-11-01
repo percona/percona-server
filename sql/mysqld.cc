@@ -10093,12 +10093,6 @@ static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
-<<<<<<< HEAD
-/*
-  Variables shown by SHOW STATUS in alphabetical order
-*/
-||||||| fbdaa4def30
-=======
 static int show_resource_group_support(THD *, SHOW_VAR *var, char *buf) {
   var->type = SHOW_BOOL;
   var->value = buf;
@@ -10107,7 +10101,9 @@ static int show_resource_group_support(THD *, SHOW_VAR *var, char *buf) {
   return 0;
 }
 
->>>>>>> mysql-8.0.31
+/*
+  Variables shown by SHOW STATUS in alphabetical order
+*/
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,

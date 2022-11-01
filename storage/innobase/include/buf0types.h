@@ -126,7 +126,6 @@ enum srv_checksum_algorithm_t {
                                         when reading */
 };
 
-<<<<<<< HEAD
 /** Alternatives for srv_cleaner_lsn_age_factor, set through
 innodb_cleaner_lsn_age_factor variable  */
 enum srv_cleaner_lsn_age_factor_t {
@@ -153,8 +152,6 @@ enum srv_empty_free_list_t {
                               thread */
 };
 
-||||||| fbdaa4def30
-=======
 /** Buffer pool resize status code and progress are tracked using these
 atomic variables to ensure thread synchronization between
 innodb_buffer_pool_size_update (raising srv_buf_resize_event) and
@@ -190,7 +187,6 @@ enum buf_pool_resize_status_code_t {
   BUF_POOL_RESIZE_FAILED = 7
 };
 
->>>>>>> mysql-8.0.31
 inline bool is_checksum_strict(srv_checksum_algorithm_t algo) {
   return (algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 ||
           algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB ||

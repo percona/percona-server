@@ -180,32 +180,6 @@ class Move_thread_to_default_group {
     PSI_thread_attrs pfs_thread_attr;
     memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
     if (!res_grp_mgr->get_thread_attributes(&pfs_thread_attr, pfs_thread_id)) {
-<<<<<<< HEAD
-      applied_res_grp->controller()->apply_control(
-          pfs_thread_attr.m_thread_os_id);
-      res_grp_mgr->set_res_grp_in_pfs(applied_res_grp->name().c_str(),
-                                      applied_res_grp->name().length(),
-                                      pfs_thread_id);
-      if (!pfs_thread_attr.m_system_thread) {
-        Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id,
-                                          false);
-        THD_ptr thd_ptr =
-            Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-        if (thd_ptr)
-          thd_ptr->resource_group_ctx()->m_cur_resource_group = nullptr;
-||||||| fbdaa4def30
-      applied_res_grp->controller()->apply_control(
-          pfs_thread_attr.m_thread_os_id);
-      res_grp_mgr->set_res_grp_in_pfs(applied_res_grp->name().c_str(),
-                                      applied_res_grp->name().length(),
-                                      pfs_thread_id);
-      if (!pfs_thread_attr.m_system_thread) {
-        Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
-        THD_ptr thd_ptr =
-            Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-        if (thd_ptr)
-          thd_ptr->resource_group_ctx()->m_cur_resource_group = nullptr;
-=======
       bool is_rg_applied_to_thread = false;
       rg_switch_handler->apply(applied_res_grp, pfs_thread_attr.m_thread_os_id,
                                &is_rg_applied_to_thread);
@@ -218,13 +192,13 @@ class Move_thread_to_default_group {
                                         pfs_thread_id);
 #endif
         if (!pfs_thread_attr.m_system_thread) {
-          Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
+          Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id,
+                                            false);
           THD_ptr thd_ptr =
               Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
           if (thd_ptr)
             thd_ptr->resource_group_ctx()->m_cur_resource_group = nullptr;
         }
->>>>>>> mysql-8.0.31
       }
     }
   }

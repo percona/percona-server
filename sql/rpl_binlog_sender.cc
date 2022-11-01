@@ -656,7 +656,12 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
         m_packet.length(tmp.length());
       }
 
-<<<<<<< HEAD
+      Observe_transmission_guard obs_guard(
+          m_observe_transmission, event_type,
+          const_cast<const char *>(reinterpret_cast<char *>(event_ptr)),
+          m_event_checksum_alg, m_prev_event_type);
+
+      if (before_send_hook(log_file, log_pos)) return 1;
       if (unlikely(send_packet())) return 1;
 
       DBUG_EXECUTE_IF("dump_thread_wait_after_send_write_rows", {
@@ -669,19 +674,6 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
           assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
         }
       });
-    }
-||||||| fbdaa4def30
-      if (unlikely(send_packet())) return 1;
-    }
-=======
-      Observe_transmission_guard obs_guard(
-          m_observe_transmission, event_type,
-          const_cast<const char *>(reinterpret_cast<char *>(event_ptr)),
-          m_event_checksum_alg, m_prev_event_type);
->>>>>>> mysql-8.0.31
-
-      if (before_send_hook(log_file, log_pos)) return 1;
-      if (unlikely(send_packet())) return 1;
       if (unlikely(after_send_hook(log_file, in_exclude_group ? log_pos : 0)))
         return 1;
     }
@@ -1278,17 +1270,9 @@ const char *Binlog_sender::log_read_error_msg(
   }
 }
 
-<<<<<<< HEAD
-inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
+inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
                                      uint32 *event_len,
                                      bool readahead [[maybe_unused]]) {
-||||||| fbdaa4def30
-inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
-                                     uint32 *event_len) {
-=======
-inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
-                                     uint32 *event_len) {
->>>>>>> mysql-8.0.31
   DBUG_TRACE;
 
   if (reset_transmit_packet(0, 0)) return 1;

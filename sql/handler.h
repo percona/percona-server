@@ -2965,7 +2965,6 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
 constexpr const decltype(
     handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 18};
 
-<<<<<<< HEAD
 /**
    Set if the storage engine supports 'online' backups. This means that there
    exists a way to create a consistent copy of its tables without blocking
@@ -2984,11 +2983,9 @@ constexpr const decltype(
 */
 #define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 21)
 
-||||||| fbdaa4def30
-=======
 /** Whether the secondary engine supports DDLs. No meaning if the engine is not
  * secondary. */
-#define HTON_SECONDARY_ENGINE_SUPPORTS_DDL (1 << 19)
+#define HTON_SECONDARY_ENGINE_SUPPORTS_DDL (1 << 22)
 
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
@@ -2996,7 +2993,6 @@ inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   return (hton->flags & HTON_SECONDARY_ENGINE_SUPPORTS_DDL) != 0;
 }
 
->>>>>>> mysql-8.0.31
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }

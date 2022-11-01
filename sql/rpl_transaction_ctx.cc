@@ -99,15 +99,8 @@ int set_transaction_ctx(
                        transaction_termination_ctx.m_gno));
 
   uint error = ER_NO_SUCH_THREAD;
-<<<<<<< HEAD
-  Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id,
-                                    false);
-||||||| fbdaa4def30
-  Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id);
-=======
   Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id,
                                     true);
->>>>>>> mysql-8.0.31
 
   THD_ptr thd_ptr =
       Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);

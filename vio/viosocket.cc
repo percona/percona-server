@@ -52,23 +52,14 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-<<<<<<< HEAD
 #include "mysql/service_mysql_alloc.h"
-||||||| fbdaa4def30
-=======
 #include "mysys_err.h"
->>>>>>> mysql-8.0.31
 #include "template_utils.h"
 #include "vio/vio_priv.h"
-<<<<<<< HEAD
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-||||||| fbdaa4def30
-
-=======
->>>>>>> mysql-8.0.31
 #ifdef FIONREAD_IN_SYS_FILIO
 #include <sys/filio.h>
 #endif

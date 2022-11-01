@@ -3869,15 +3869,9 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
       false,  // COLUMN_STATISTICS
       false,  // RESOURCE_GROUPS
       false,  // FOREIGN_KEY
-<<<<<<< HEAD
       false,  // CHECK_CONSTRAINT
-      false,  // BACKUP_TABLES
-||||||| fbdaa4def30
-      false   // CHECK_CONSTRAINT
-=======
-      false,  // CHECK_CONSTRAINT
-      false   // RESOURCE_GROUPS_GLOBAL
->>>>>>> mysql-8.0.31
+      false,  // RESOURCE_GROUPS_GLOBAL
+      false   // BACKUP_TABLES
   };
   static_assert(
       sizeof(notify_or_not) == MDL_key::NAMESPACE_END,

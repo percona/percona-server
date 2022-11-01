@@ -1818,9 +1818,6 @@ bool Query_expression::execute(THD *thd) {
 void Query_expression::cleanup(bool full) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
-  assert(thd == current_thd);
-
   if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) {
 #ifndef NDEBUG
     if (cleaned == UC_CLEAN)
@@ -1829,13 +1826,6 @@ void Query_expression::cleanup(bool full) {
 #endif
     return;
   }
-||||||| fbdaa4def30
-  assert(thd == current_thd);
-
-  if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) return;
-=======
-  if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) return;
->>>>>>> mysql-8.0.31
 
   cleaned = (full ? UC_CLEAN : UC_PART_CLEAN);
 

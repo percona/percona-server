@@ -830,7 +830,6 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     {
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-<<<<<<< HEAD
       /* ha_innopart::clone calls handler::clone which calls
          handler::ha_open(table_def=nullptr)) */
       if (table_def == nullptr && table_share->tmp_table == NO_TMP_TABLE) {
@@ -843,19 +842,14 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
       table_parts = Ha_innopart_share::open_table_parts(thd, table, table_def,
                                                         m_part_info, norm_name);
 
-      if (table_parts == nullptr) return HA_ERR_INTERNAL_ERROR;
-    }
-||||||| fbdaa4def30
-    if (table_parts == nullptr) return HA_ERR_INTERNAL_ERROR;
-=======
-    if (table_parts == nullptr) {
-      ib::warn(ER_IB_MSG_557)
-          << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
-      set_my_errno(ENOENT);
+      if (table_parts == nullptr) {
+        ib::warn(ER_IB_MSG_557)
+            << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
+        set_my_errno(ENOENT);
 
-      return HA_ERR_NO_SUCH_TABLE;
+        return HA_ERR_NO_SUCH_TABLE;
+      }
     }
->>>>>>> mysql-8.0.31
 
     /* Now acquire TABLE_SHARE::LOCK_ha_data again and assign table
     and index information. set_table_parts_and_indexes() will check

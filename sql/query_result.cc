@@ -653,20 +653,10 @@ err:
   return true;
 }
 
-<<<<<<< HEAD
-void Query_result_export::cleanup(THD *thd) {
-  thd->set_sent_row_count(row_count);
-  thd->sent_row_count_2 = row_count;
-  Query_result_to_file::cleanup(thd);
-||||||| fbdaa4def30
-void Query_result_export::cleanup(THD *thd) {
-  thd->set_sent_row_count(row_count);
-  Query_result_to_file::cleanup(thd);
-=======
 void Query_result_export::cleanup() {
   current_thd->set_sent_row_count(row_count);
+  current_thd->sent_row_count_2 = row_count;
   Query_result_to_file::cleanup();
->>>>>>> mysql-8.0.31
 }
 
 /***************************************************************************

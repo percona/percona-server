@@ -161,7 +161,7 @@ std::string rsa_key::export_private_pem(const rsa_key &key) {
     core_error::raise_with_error_string(
         "cannot export RSA key to PEM PRIVATE KEY");
 
-  return sink.str();
+  return std::string{sink.sv()};
 }
 
 /*static*/
@@ -176,11 +176,11 @@ std::string rsa_key::export_public_pem(const rsa_key &key) {
     core_error::raise_with_error_string(
         "cannot export RSA key to PEM PUBLIC KEY");
 
-  return sink.str();
+  return std::string{sink.sv()};
 }
 
 /*static*/
-rsa_key rsa_key::import_private_pem(const std::string &pem) {
+rsa_key rsa_key::import_private_pem(std::string_view pem) {
   auto source = bio{pem};
   rsa_key res{};
   rsa_key_accessor::set_impl(
@@ -194,7 +194,7 @@ rsa_key rsa_key::import_private_pem(const std::string &pem) {
 }
 
 /*static*/
-rsa_key rsa_key::import_public_pem(const std::string &pem) {
+rsa_key rsa_key::import_public_pem(std::string_view pem) {
   auto source = bio{pem};
   rsa_key res{};
   rsa_key_accessor::set_impl(

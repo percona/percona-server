@@ -21,6 +21,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 #include <opensslpp/rsa_key_fwd.hpp>
 
@@ -68,8 +69,8 @@ class rsa_key final {
   static std::string export_private_pem(const rsa_key &key);
   static std::string export_public_pem(const rsa_key &key);
 
-  static rsa_key import_private_pem(const std::string &pem);
-  static rsa_key import_public_pem(const std::string &pem);
+  static rsa_key import_private_pem(std::string_view pem);
+  static rsa_key import_public_pem(std::string_view pem);
 
  private:
   // should not be declared final as this prevents optimization for empty

@@ -18,10 +18,12 @@
 #define OPENSSLPP_DIGEST_OPERATIONS_HPP
 
 #include <string>
+#include <string_view>
 
 namespace opensslpp {
 
-std::string calculate_digest(const std::string &type, const std::string &data);
+// no std::string_view for 'type' as we need it to be nul-terminated
+std::string calculate_digest(const std::string &type, std::string_view data);
 
 }  // namespace opensslpp
 

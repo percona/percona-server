@@ -19,6 +19,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include <opensslpp/core_error_fwd.hpp>
 
@@ -30,7 +31,7 @@ class core_error : public std::runtime_error {
   core_error(const std::string &message) : std::runtime_error{message} {}
 
   [[noreturn]] static void raise_with_error_string(
-      const std::string &prefix = std::string());
+      std::string_view prefix = "");
 };
 
 }  // namespace opensslpp

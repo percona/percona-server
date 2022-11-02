@@ -249,7 +249,7 @@ std::string dsa_key::export_parameters_pem(const dsa_key &key) {
     core_error::raise_with_error_string(
         "cannot export DSA key to PEM PARAMETERS");
 
-  return sink.str();
+  return std::string{sink.sv()};
 }
 
 /*static*/
@@ -268,7 +268,7 @@ std::string dsa_key::export_private_pem(const dsa_key &key) {
     core_error::raise_with_error_string(
         "cannot export DSA key to PEM PRIVATE KEY");
 
-  return sink.str();
+  return std::string{sink.sv()};
 }
 
 /*static*/
@@ -286,11 +286,11 @@ std::string dsa_key::export_public_pem(const dsa_key &key) {
     core_error::raise_with_error_string(
         "cannot export DSA key to PEM PUBLIC KEY");
 
-  return sink.str();
+  return std::string{sink.sv()};
 }
 
 /*static*/
-dsa_key dsa_key::import_parameters_pem(const std::string &pem) {
+dsa_key dsa_key::import_parameters_pem(std::string_view pem) {
   auto source = bio{pem};
   dsa_key res{};
   dsa_key_accessor::set_impl(
@@ -304,7 +304,7 @@ dsa_key dsa_key::import_parameters_pem(const std::string &pem) {
 }
 
 /*static*/
-dsa_key dsa_key::import_private_pem(const std::string &pem) {
+dsa_key dsa_key::import_private_pem(std::string_view pem) {
   auto source = bio{pem};
   dsa_key res{};
   dsa_key_accessor::set_impl(
@@ -318,7 +318,7 @@ dsa_key dsa_key::import_private_pem(const std::string &pem) {
 }
 
 /*static*/
-dsa_key dsa_key::import_public_pem(const std::string &pem) {
+dsa_key dsa_key::import_public_pem(std::string_view pem) {
   auto source = bio{pem};
   dsa_key res{};
   dsa_key_accessor::set_impl(

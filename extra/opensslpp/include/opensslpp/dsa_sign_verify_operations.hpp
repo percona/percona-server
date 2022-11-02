@@ -18,18 +18,21 @@
 #define OPENSSLPP_DSA_SIGN_VERIFY_OPERATIONS_HPP
 
 #include <string>
+#include <string_view>
 
 #include <opensslpp/dsa_key_fwd.hpp>
 
 namespace opensslpp {
 
+// no std::string_view for 'digest_type' as we need it to be nul-terminated
 std::string sign_with_dsa_private_key(const std::string &digest_type,
-                                      const std::string &digest_data,
+                                      std::string_view digest_data,
                                       const dsa_key &key);
 
+// no std::string_view for 'digest_type' as we need it to be nul-terminated
 bool verify_with_dsa_public_key(const std::string &digest_type,
-                                const std::string &digest_data,
-                                const std::string &signature_data,
+                                std::string_view digest_data,
+                                std::string_view signature_data,
                                 const dsa_key &key);
 
 }  // namespace opensslpp

@@ -27,9 +27,10 @@ static constexpr std::size_t error_message_buffer_size = 256;
 
 /* static */
 [[noreturn]] void core_error::raise_with_error_string(
-    const std::string &prefix /* = std::string() */) {
+    std::string_view prefix /* = "" */) {
   std::string message{prefix};
 
+  // TODO: optimize this to avoid buffer -> string copying
   using buffer_type = std::array<char, error_message_buffer_size>;
   buffer_type buffer;
 

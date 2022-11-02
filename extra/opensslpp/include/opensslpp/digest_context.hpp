@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include <opensslpp/digest_context_fwd.hpp>
 
@@ -31,6 +32,7 @@ class digest_context final {
 
  public:
   digest_context() noexcept = default;
+  // no std::string_view for 'type' as we need it to be nul-terminated
   explicit digest_context(const std::string &type);
   ~digest_context() noexcept = default;
 
@@ -46,7 +48,7 @@ class digest_context final {
 
   std::size_t get_size_in_bytes() const noexcept;
 
-  void update(const std::string &data);
+  void update(std::string_view data);
   std::string finalize();
 
  private:

@@ -21,6 +21,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 #include <opensslpp/dh_key_fwd.hpp>
 
@@ -73,9 +74,9 @@ class dh_key final {
   static std::string export_private_pem(const dh_key &key);
   static std::string export_public_pem(const dh_key &key);
 
-  static dh_key import_parameters_pem(const std::string &pem);
-  static dh_key import_private_pem(const std::string &pem);
-  static dh_key import_public_pem(const std::string &pem);
+  static dh_key import_parameters_pem(std::string_view pem);
+  static dh_key import_private_pem(std::string_view pem);
+  static dh_key import_public_pem(std::string_view pem);
 
  private:
   // should not be declared final as this prevents optimization for empty

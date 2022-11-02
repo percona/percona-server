@@ -21,6 +21,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 #include <opensslpp/dsa_key_fwd.hpp>
 
@@ -68,9 +69,9 @@ class dsa_key final {
   static std::string export_private_pem(const dsa_key &key);
   static std::string export_public_pem(const dsa_key &key);
 
-  static dsa_key import_parameters_pem(const std::string &pem);
-  static dsa_key import_private_pem(const std::string &pem);
-  static dsa_key import_public_pem(const std::string &pem);
+  static dsa_key import_parameters_pem(std::string_view pem);
+  static dsa_key import_private_pem(std::string_view pem);
+  static dsa_key import_public_pem(std::string_view pem);
 
  private:
   // should not be declared final as this prevents optimization for empty

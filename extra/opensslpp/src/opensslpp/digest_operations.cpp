@@ -20,7 +20,7 @@
 
 namespace opensslpp {
 
-std::string calculate_digest(const std::string &type, const std::string &data) {
+std::string calculate_digest(const std::string &type, std::string_view data) {
   digest_context ctx(type);
   ctx.update(data);
   return ctx.finalize();

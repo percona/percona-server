@@ -257,7 +257,7 @@ std::string dh_key::export_parameters_pem(const dh_key &key) {
     core_error::raise_with_error_string(
         "cannot export DH key to PEM PARAMETERS");
 
-  return sink.str();
+  return std::string{sink.sv()};
 }
 
 struct evp_pkey_deleter {
@@ -282,7 +282,7 @@ std::string dh_key::export_private_pem(const dh_key &key) {
     core_error::raise_with_error_string(
         "cannot export DH key to PEM PRIVATE KEY");
 
-  return sink.str();
+  return std::string{sink.sv()};
 }
 
 /*static*/
@@ -298,11 +298,11 @@ std::string dh_key::export_public_pem(const dh_key &key) {
     core_error::raise_with_error_string(
         "cannot export DH key to PEM PUBLIC KEY");
 
-  return sink.str();
+  return std::string{sink.sv()};
 }
 
 /*static*/
-dh_key dh_key::import_parameters_pem(const std::string &pem) {
+dh_key dh_key::import_parameters_pem(std::string_view pem) {
   auto source = bio{pem};
   dh_key res{};
   dh_key_accessor::set_impl(
@@ -316,7 +316,7 @@ dh_key dh_key::import_parameters_pem(const std::string &pem) {
 }
 
 /*static*/
-dh_key dh_key::import_private_pem(const std::string &pem) {
+dh_key dh_key::import_private_pem(std::string_view pem) {
   auto source = bio{pem};
   evp_pkey_capsule pkey{PEM_read_bio_PrivateKey(bio_accessor::get_impl(source),
                                                 nullptr, nullptr, nullptr)};
@@ -333,7 +333,7 @@ dh_key dh_key::import_private_pem(const std::string &pem) {
 }
 
 /*static*/
-dh_key dh_key::import_public_pem(const std::string &pem) {
+dh_key dh_key::import_public_pem(std::string_view pem) {
   auto source = bio{pem};
   evp_pkey_capsule pkey{PEM_read_bio_PUBKEY(bio_accessor::get_impl(source),
                                             nullptr, nullptr, nullptr)};

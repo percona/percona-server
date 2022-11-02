@@ -33,12 +33,12 @@ bio::bio() : impl_(BIO_new(BIO_s_mem())) {
   if (!impl_) throw core_error{"cannot create new rw bio"};
 }
 
-bio::bio(const std::string &buffer)
-    : impl_(BIO_new_mem_buf(buffer.c_str(), buffer.size())) {
+bio::bio(std::string_view buffer)
+    : impl_(BIO_new_mem_buf(buffer.data(), buffer.size())) {
   if (!impl_) throw core_error{"cannot create new ro bio"};
 }
 
-std::string bio::str() const {
+std::string_view bio::sv() const {
   char *bio_mem_ptr = nullptr;
   const long bio_mem_len = BIO_get_mem_data(
       bio_accessor::get_impl_const_casted(*this), &bio_mem_ptr);

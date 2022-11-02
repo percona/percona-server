@@ -57,18 +57,16 @@ static std::string compute_dh_key_internal(const BIGNUM *public_component,
 
   auto function = get_compute_key_function(padding);
 
-  // TODO: use c++17 non-const std::string::data() member here
-  using buffer_type = std::vector<unsigned char>;
-  buffer_type res(private_key.get_size_in_bytes());
-  auto compute_status =
-      (*function)(res.data(), public_component,
-                  dh_key_accessor::get_impl_const_casted(private_key));
+  std::string res(private_key.get_size_in_bytes(), '\0');
+  auto compute_status = (*function)(
+      reinterpret_cast<unsigned char *>(res.data()), public_component,
+      dh_key_accessor::get_impl_const_casted(private_key));
 
   if (compute_status == -1)
     core_error::raise_with_error_string(
         "cannot compute shared key from DH private / public components");
 
-  return {reinterpret_cast<char *>(res.data()), res.size()};
+  return res;
 }
 
 std::string compute_dh_key(const big_number &public_component,

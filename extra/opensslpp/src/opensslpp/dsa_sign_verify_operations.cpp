@@ -30,7 +30,7 @@
 namespace opensslpp {
 
 std::string sign_with_dsa_private_key(const std::string &digest_type,
-                                      const std::string &digest_data,
+                                      std::string_view digest_data,
                                       const dsa_key &key) {
   assert(!key.is_empty());
 
@@ -42,27 +42,26 @@ std::string sign_with_dsa_private_key(const std::string &digest_type,
 
   auto md_nid = EVP_MD_type(md);
 
-  // TODO: use c++17 non-const std::string::data() member here
-  using buffer_type = std::vector<unsigned char>;
-  buffer_type res(key.get_size_in_bytes());
+  std::string res(key.get_size_in_bytes(), '\0');
 
   unsigned int signature_length = 0;
   auto sign_status = DSA_sign(
-      md_nid, reinterpret_cast<const unsigned char *>(digest_data.c_str()),
-      digest_data.size(), res.data(), &signature_length,
-      dsa_key_accessor::get_impl_const_casted(key));
+      md_nid, reinterpret_cast<const unsigned char *>(digest_data.data()),
+      digest_data.size(), reinterpret_cast<unsigned char *>(res.data()),
+      &signature_length, dsa_key_accessor::get_impl_const_casted(key));
 
   if (sign_status != 1)
     core_error::raise_with_error_string(
         "cannot sign message digest with the specified private DSA key");
 
-  return {reinterpret_cast<char *>(res.data()),
-          static_cast<std::size_t>(signature_length)};
+  res.resize(signature_length);
+
+  return res;
 }
 
 bool verify_with_dsa_public_key(const std::string &digest_type,
-                                const std::string &digest_data,
-                                const std::string &signature_data,
+                                std::string_view digest_data,
+                                std::string_view signature_data,
                                 const dsa_key &key) {
   assert(!key.is_empty());
 
@@ -72,9 +71,9 @@ bool verify_with_dsa_public_key(const std::string &digest_type,
   auto md_nid = EVP_MD_type(md);
 
   auto verify_status = DSA_verify(
-      md_nid, reinterpret_cast<const unsigned char *>(digest_data.c_str()),
+      md_nid, reinterpret_cast<const unsigned char *>(digest_data.data()),
       digest_data.size(),
-      reinterpret_cast<const unsigned char *>(signature_data.c_str()),
+      reinterpret_cast<const unsigned char *>(signature_data.data()),
       signature_data.size(), dsa_key_accessor::get_impl_const_casted(key));
 
   assert(verify_status == -1 || verify_status == 0 || verify_status == 1);

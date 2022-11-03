@@ -260,10 +260,6 @@ MACRO(ROCKSDB_SET_DEFINTIONS)
 	  add_definitions(-DNUMA)
 	endif()
 
-	if(WITH_JEMALLOC)
-	  add_definitions(-DROCKSDB_JEMALLOC)
-	endif()
-
 	if(HAVE_SYNC_FILE_RANGE_WRITE AND NOT ROCKSDB_DISABLE_SYNC_FILE_RANGE)
 	  add_definitions(-DROCKSDB_RANGESYNC_PRESENT)
 	endif()

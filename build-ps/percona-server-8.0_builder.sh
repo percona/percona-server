@@ -117,7 +117,7 @@ get_sources(){
         return 0
     fi
 
-    git clone "$REPO"
+    git clone --depth 1 --branch $BRANCH "$REPO"
     retval=$?
     if [ $retval != 0 ]
     then

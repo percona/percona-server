@@ -852,7 +852,7 @@ static int rocksdb_tracing(THD *const thd MY_ATTRIBUTE((__unused__)),
     return HA_EXIT_FAILURE;
   }
   const std::string &trace_file_name = trace_opts_strs[2];
-  if (trace_file_name.find("/") != std::string::npos) {
+  if (trace_file_name.find('/') != std::string::npos) {
     LogPluginErrMsg(INFORMATION_LEVEL, 0,
                     "Start tracing failed (trace option string: %s). The file "
                     "name contains directory separator.\n",
@@ -869,7 +869,7 @@ static int rocksdb_tracing(THD *const thd MY_ATTRIBUTE((__unused__)),
                     s.ToString().c_str());
     return HA_EXIT_FAILURE;
   }
-  const std::string trace_file_path = trace_dir + "/" + trace_file_name;
+  const auto trace_file_path = rdb_concat_paths(trace_dir, trace_file_name);
   s = rdb->GetEnv()->FileExists(trace_file_path);
   if (s.ok() || !s.IsNotFound()) {
     LogPluginErrMsg(

@@ -1224,7 +1224,8 @@ THD::THD(bool enable_plugins)
    m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da),
    duplicate_slave_id(false),
-   is_a_srv_session_thd(false)
+   is_a_srv_session_thd(false),
+   is_rpl_stmt_event_format_used(true)
 {
   main_lex.reset();
   set_psi(NULL);
@@ -5220,6 +5221,23 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const
   return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
           is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
+}
+
+void THD::check_rpl_stmt_event_format_used() {
+  for (TABLE_LIST* table = lex->query_tables; table;
+       table = table->next_global) {
+    if (!table->is_placeholder() && table->table != NULL &&
+        table->table->file != NULL) {
+      if (!table->table->file->rpl_can_handle_stm_event()) {
+        is_rpl_stmt_event_format_used = false;
+        return;
+      }
+    }
+  }
+}
+
+bool THD::get_rpl_stmt_event_format_used() const {
+  return is_rpl_stmt_event_format_used;
 }
 
 static my_bool lock_keyring(THD *thd, plugin_ref plugin, void *arg);

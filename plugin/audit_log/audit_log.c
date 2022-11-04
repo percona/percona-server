@@ -35,6 +35,7 @@
 #include "audit_handler.h"
 #include "filter.h"
 #include "security_context_wrapper.h"
+#include "sql_const.h"
 
 #define PLUGIN_VERSION 0x0002
 
@@ -236,12 +237,12 @@ void xml_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
     { 0,  0, NULL },
     { 0,  0, NULL },
     { 0,  0, NULL },
+    { '\b',  0, NULL },
+    { '\t', 4, "&#9;" },
+    { '\n', 5, "&#10;" },
     { 0,  0, NULL },
-    { '\t', 5, "&#9;" },
-    { '\n', 6, "&#10;" },
-    { 0,  0, NULL },
-    { 0,  0, NULL },
-    { '\r', 6, "&#13;" },
+    { '\f',  0, NULL },
+    { '\r', 5, "&#13;" },
     { 0,  0, NULL },
     { 0,  0, NULL },
     { 0,  0, NULL },
@@ -1437,24 +1438,31 @@ static MYSQL_THDVAR_STR(record_buffer,
                         PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
                         "Buffer for query formatting.", NULL, NULL, "");
 
+static const char *val_strmake(MYSQL_THD              thd,
+                               struct st_mysql_value *mysql_val)
+{
+  char        buf[STRING_BUFFER_USUAL_SIZE];
+  int         len= sizeof(buf);
+  const char *val= mysql_val->val_str(mysql_val, buf, &len);
+
+  if (val != NULL)
+    val= thd_strmake(thd, val, len);
+
+  return val;
+}
+
 static
 int
 audit_log_exclude_accounts_validate(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          MYSQL_THD thd,
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_include_accounts)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1494,21 +1502,15 @@ static MYSQL_SYSVAR_STR(exclude_accounts, audit_log_exclude_accounts,
 static
 int
 audit_log_include_accounts_validate(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          MYSQL_THD thd,
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_exclude_accounts)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1552,16 +1554,10 @@ audit_log_exclude_commands_validate(
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_include_commands)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }
@@ -1601,21 +1597,15 @@ static MYSQL_SYSVAR_STR(exclude_commands, audit_log_exclude_commands,
 static
 int
 audit_log_include_commands_validate(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          MYSQL_THD thd,
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
-  const char *new_val;
-  char buf[80];
-  int len= sizeof(buf);
-
   if (audit_log_exclude_commands)
     return 1;
 
-  new_val = value->val_str(value, buf, &len);
-
-  *(const char **)(save) = new_val;
+  *(const char **)(save)= val_strmake(thd, value);
 
   return 0;
 }

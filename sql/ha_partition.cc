@@ -4273,7 +4273,9 @@ exit:
   {
     if (!part_share->auto_inc_initialized)
       info(HA_STATUS_AUTO);
+    my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->read_set);
     set_auto_increment_if_higher(table->found_next_number_field);
+    dbug_tmp_restore_column_map(table->read_set, old_map);
   }
   DBUG_RETURN(error);
 }

@@ -293,6 +293,10 @@ ulong get_exit_state_action_var() { return ov.exit_state_action_var; }
 
 ulong get_flow_control_mode_var() { return ov.flow_control_mode_var; }
 
+ulong get_certification_loop_sleep_time_var() { return ov.certification_loop_sleep_time_var; }
+
+ulong get_certification_loop_chunk_size_var() { return ov.certification_loop_chunk_size_var; }
+
 long get_flow_control_certifier_threshold_var() {
   return ov.flow_control_certifier_threshold_var;
 }
@@ -4540,6 +4544,37 @@ static MYSQL_SYSVAR_ULONG(
 );
 
 static MYSQL_SYSVAR_ULONG(
+    certification_loop_sleep_time,        /* name */
+    ov.certification_loop_sleep_time_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | no set default */
+    "The sleep time, in microseconds, in the certification "
+    "loop to allow transactions to interleave. "
+    "Default: 2000.",
+    nullptr,                       /* check func. */
+    nullptr,                       /* update func. */
+    DEFAULT_CERTIFICATION_LOOP_SLEEP_TIME, /* default */
+    MIN_CERTIFICATION_LOOP_SLEEP_TIME,     /* min */
+    MAX_CERTIFICATION_LOOP_SLEEP_TIME,     /* max */
+    0                              /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
+    certification_loop_chunk_size,        /* name */
+    ov.certification_loop_chunk_size_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | no set default */
+    "The chunk size of the certification loop."
+    "Default: 10000.",
+    nullptr,                       /* check func. */
+    nullptr,                       /* update func. */
+    DEFAULT_CERTIFICATION_LOOP_CHUNK_SIZE, /* default */
+    MIN_CERTIFICATION_LOOP_CHUNK_SIZE,     /* min */
+    MAX_CERTIFICATION_LOOP_CHUNK_SIZE,     /* max */
+    0                              /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
     compression_threshold,        /* name */
     ov.compression_threshold_var, /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
@@ -5138,6 +5173,8 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(components_stop_timeout),
     MYSQL_SYSVAR(allow_local_lower_version_join),
     MYSQL_SYSVAR(auto_increment_increment),
+    MYSQL_SYSVAR(certification_loop_sleep_time),
+    MYSQL_SYSVAR(certification_loop_chunk_size),
     MYSQL_SYSVAR(compression_threshold),
     MYSQL_SYSVAR(communication_max_message_size),
     MYSQL_SYSVAR(gtid_assignment_block_size),

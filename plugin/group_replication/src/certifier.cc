@@ -1182,7 +1182,12 @@ void Certifier::garbage_collect() {
   DBUG_EXECUTE_IF("group_replication_do_not_clear_certification_database",
                   { return; };);
 
-  mysql_mutex_lock(&LOCK_certification_info);
+  ulong i;
+  /*
+    The goal of the following loop is to avoid locking for too long transactions
+    on servers that have a high rate of trx. Processing 1M GTIDs in the original
+    code blocked the transaction processing for about 1s.
+  */
 
   /*
     When a transaction "t" is applied to all group members and for all
@@ -1191,23 +1196,42 @@ void Certifier::garbage_collect() {
     precedes them), then "t" is stable and can be removed from
     the certification info.
   */
-  Certification_info::iterator it = certification_info.begin();
-  stable_gtid_set_lock->wrlock();
-  while (it != certification_info.end()) {
-    if (it->second->is_subset_not_equals(stable_gtid_set)) {
-      if (it->second->unlink() == 0) delete it->second;
-      certification_info.erase(it++);
-    } else
-      ++it;
-  }
-  stable_gtid_set_lock->unlock();
 
-  /*
-    We need to update parallel applier indexes since we do not know
-    what write sets were purged, which may cause transactions
-    last committed to be incorrectly computed.
-  */
-  increment_parallel_applier_sequence_number(true);
+  /* get the starttime in 100ns unit */
+  ulonglong starttime = my_getsystime();
+
+  mysql_mutex_lock(&LOCK_certification_info);
+
+  Certification_info::iterator it = certification_info.begin();
+
+  while (1) {
+    stable_gtid_set_lock->wrlock();
+
+    /* Needs to increase the rate if it takes too long, add a chunk every 5s */
+    ulonglong rate_multiplier = (my_getsystime() - starttime) / 50000000 + 1;
+
+    for (i = 0; i < get_certification_loop_chunk_size_var()*rate_multiplier; i++) {
+      if (it == certification_info.end()) {
+        break;
+      }
+      if (it->second->is_subset_not_equals(stable_gtid_set)) {
+        if (it->second->unlink() == 0) {
+          delete it->second;
+        }
+        certification_info.erase(it++);
+      } else {
+        ++it;
+      }
+    } /* for loop */
+
+    stable_gtid_set_lock->unlock();
+
+    /*
+      We need to update parallel applier indexes since we do not know
+      what write sets were purged, which may cause transactions
+      last committed to be incorrectly computed.
+    */
+    increment_parallel_applier_sequence_number(true);
 
 #if !defined(NDEBUG)
   /*
@@ -1223,8 +1247,16 @@ void Certifier::garbage_collect() {
   }
 #endif
 
-  mysql_mutex_unlock(&LOCK_certification_info);
+    mysql_mutex_unlock(&LOCK_certification_info);
+    if (it == certification_info.end()) {
+      break;
+    }
+    /* could add else clause with a short sleep */
+    my_sleep(get_certification_loop_sleep_time_var());
+    /* if we are here, we'll loop back so let's lock the mutex */
 
+    mysql_mutex_lock(&LOCK_certification_info);
+  } /* while loop */
   /*
     Applier channel received set does only contain the GTIDs of the
     remote (committed by other members) transactions. On the long

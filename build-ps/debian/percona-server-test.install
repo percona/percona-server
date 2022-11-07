@@ -81,6 +81,7 @@ usr/lib/mysql/plugin/component_mysqlx_global_reset.so
 usr/lib/mysql/plugin/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/libtest_sql_reset_connection.so
 usr/lib/mysql/plugin/conflicting_variables.so
+usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/debug/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/debug/libtest_sql_reset_connection.so
 usr/lib/mysql/plugin/debug/auth.so

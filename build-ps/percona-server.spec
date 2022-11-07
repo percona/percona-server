@@ -1085,8 +1085,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmurmur_udf.*
 %attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_vault.so

@@ -323,6 +323,7 @@ get_sources(){
     if [ ${BUILD_TOKUDB_TOKUBACKUP} != 1 ]; then
         rm -rf storage/tokudb
         rm -rf plugin/tokudb-backup-plugin
+        rm -rf mysql-test/suite/tokudb*
     else
         # set tokudb version - can be seen with show variables like '%version%'
         sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt

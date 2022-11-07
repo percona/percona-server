@@ -133,8 +133,6 @@ usr/lib/mysql/plugin/libmurmur_udf.so
 usr/lib/mysql/plugin/debug/libmurmur_udf.so
 usr/lib/mysql/plugin/dialog.so
 usr/lib/mysql/plugin/debug/dialog.so
-usr/lib/mysql/plugin/auth.so
-usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/connection_control.so
 usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/authentication_ldap_sasl_client.so

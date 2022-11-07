@@ -671,11 +671,11 @@ IF(MY_COMPILER_IS_CLANG OR MY_COMPILER_IS_GNU)
   SET(MY_COMPILER_IS_GNU_OR_CLANG 1)
 ENDIF()
 
+SET(BUILD_TESTING ON)
 INCLUDE(CTest)
-# Explicitly disabling BUILD_TESTING set by just included CTest, since other
-# code is not ready to handle BUILD_TESTING set. If you try to remove the
-# directive and CMake configuration and reconfiguration finishes successfully,
-# remove the hack.
+# Explicitly disabling BUILD_TESTING since other code is not ready to handle
+# BUILD_TESTING set. If you try to remove the directive and CMake configuration
+# and reconfiguration finishes successfully, remove the hack.
 SET(BUILD_TESTING OFF)
 
 # Maintainer mode is default on only for debug builds using GCC/G++

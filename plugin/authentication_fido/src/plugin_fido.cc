@@ -257,6 +257,10 @@ bool reconstruct_fido_cred(fido_cred_t *cred, const char *data,
 int fido_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
   unsigned char *response;
 
+  if (info == nullptr) {
+    return CR_ERROR;  // PS-8454
+  }
+
   if (info->multi_factor_auth_info &&
       info->multi_factor_auth_info[info->current_auth_factor]
           .is_registration_required) {
@@ -282,6 +286,12 @@ int fido_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
   std::vector<unsigned char> decoded(512);
   auto decoded_len = base64_decode(info->auth_string, info->auth_string_length,
                                    decoded.data(), nullptr, 0);
+
+  static auto const data_offset = 64;
+
+  if (decoded_len < data_offset + 1) {
+    return CR_ERROR;  // PS-8454
+  }
   unsigned char data[512];
   unsigned char *pos = data;
 
@@ -299,8 +309,8 @@ int fido_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
 
   // remaining is copied from auth_string
   // first 64 bytes is the public key the data we'll need is after that
-  memcpy(pos, decoded.data() + 64, decoded_len - 64);
-  pos += decoded_len - 64;
+  memcpy(pos, decoded.data() + data_offset, decoded_len - data_offset);
+  pos += decoded_len - data_offset;
 
   if (vio->write_packet(
           vio,

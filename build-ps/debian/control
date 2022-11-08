@@ -236,7 +236,7 @@ Architecture: any
 Depends: percona-server-client (= ${binary:Version}),
          percona-server-server (= ${binary:Version}),
          libperconaserverclient21-dev (= ${binary:Version}),
-         perl, python, ${misc:Depends}, ${shlibs:Depends}
+         perl, ${misc:Depends}, ${shlibs:Depends}
 Replaces: percona-server-server, percona-server-client
 Description: Percona Server database test suite
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL

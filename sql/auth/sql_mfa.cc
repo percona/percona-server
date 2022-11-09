@@ -814,6 +814,11 @@ bool Multi_factor_auth_info::deserialize(uint nth_factor, Json_dom *mfa_dom) {
 bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
   /* check if we are registerting correct multi-factor authentication method */
   if (get_nth_factor() != nth_factor) return false;
+  /*
+    in case init registration is done, then server challenge will be
+    in auth string
+  */
+  if (get_auth_str_len()) return false;
   plugin_ref plugin = my_plugin_lock_by_name(nullptr, plugin_name(),
                                              MYSQL_AUTHENTICATION_PLUGIN);
   /* check if plugin is loaded */

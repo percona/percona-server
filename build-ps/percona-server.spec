@@ -91,7 +91,7 @@
 %endif
 
 # Version for compat libs
-%if 0%{?rhel} > 6
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
 %global compat_prefix         56
 %global compatver             5.6.51
 %global percona_compatver     91.0

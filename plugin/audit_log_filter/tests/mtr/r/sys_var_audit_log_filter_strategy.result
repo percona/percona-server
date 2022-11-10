@@ -2,7 +2,7 @@ SET GLOBAL audit_log_filter_strategy=ASYNCHRONOUS;
 ERROR HY000: Variable 'audit_log_filter_strategy' is a read only variable
 SELECT @@global.audit_log_filter_strategy;
 @@global.audit_log_filter_strategy
-SYNCHRONOUS
+ASYNCHRONOUS
 call mtr.add_suppression("Failed to shutdown components infrastructure.");
 # restart: --audit-log-filter-strategy=ASYNCHRONOUS
 SELECT @@global.audit_log_filter_strategy;
@@ -20,3 +20,4 @@ SEMISYNCHRONOUS
 SELECT @@global.audit_log_filter_strategy;
 @@global.audit_log_filter_strategy
 SYNCHRONOUS
+# restart:

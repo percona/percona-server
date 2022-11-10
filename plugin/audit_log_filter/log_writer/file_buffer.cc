@@ -76,7 +76,11 @@ bool FileBuffer::init(size_t size, bool drop_if_full,
   m_size = size;
   m_drop_if_full = drop_if_full;
   m_write_func = write_func;
+
   m_state = FileBufferState::COMPLETE;
+  m_write_pos = 0;
+  m_flush_pos = 0;
+  m_stop_flush_worker = false;
 
   mysql_mutex_init(key_log_mutex, &m_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_log_flushed_cond, &m_flushed_cond);
@@ -96,6 +100,7 @@ void FileBuffer::shutdown() noexcept {
     mysql_mutex_destroy(&m_mutex);
     my_free(m_buf);
     m_buf = nullptr;
+    m_flush_worker_thread = 0;
   }
 }
 

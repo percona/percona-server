@@ -199,20 +199,19 @@ class create_asymmetric_priv_key_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
-  auto length_or_dh_parameters = ctx.get_arg<STRING_RESULT>(1);
+  auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
+  auto length_or_dh_parameters_sv = ctx.get_arg<STRING_RESULT>(1);
 
   std::string pem;
   if (algorithm_id == algorithm_id_type::dh) {
-    auto dh_parameters_pem = static_cast<std::string>(length_or_dh_parameters);
-
-    auto key = opensslpp::dh_key::import_parameters_pem(dh_parameters_pem);
+    auto key =
+        opensslpp::dh_key::import_parameters_pem(length_or_dh_parameters_sv);
     key.promote_to_key();
     pem = opensslpp::dh_key::export_private_pem(key);
   } else {
     std::uint32_t length = 0;
-    if (!boost::conversion::try_lexical_convert(length_or_dh_parameters,
+    if (!boost::conversion::try_lexical_convert(length_or_dh_parameters_sv,
                                                 length))
       throw std::invalid_argument("Key length is not a numeric value");
 
@@ -275,19 +274,19 @@ class create_asymmetric_pub_key_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
-  auto priv_key_pem = static_cast<std::string>(ctx.get_arg<STRING_RESULT>(1));
+  auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
+  auto priv_key_pem_sv = ctx.get_arg<STRING_RESULT>(1);
 
   std::string pem;
   if (algorithm_id == algorithm_id_type::rsa) {
-    auto priv_key = opensslpp::rsa_key::import_private_pem(priv_key_pem);
+    auto priv_key = opensslpp::rsa_key::import_private_pem(priv_key_pem_sv);
     pem = opensslpp::rsa_key::export_public_pem(priv_key);
   } else if (algorithm_id == algorithm_id_type::dsa) {
-    auto priv_key = opensslpp::dsa_key::import_private_pem(priv_key_pem);
+    auto priv_key = opensslpp::dsa_key::import_private_pem(priv_key_pem_sv);
     pem = opensslpp::dsa_key::export_public_pem(priv_key);
   } else if (algorithm_id == algorithm_id_type::dh) {
-    auto priv_key = opensslpp::dh_key::import_private_pem(priv_key_pem);
+    auto priv_key = opensslpp::dh_key::import_private_pem(priv_key_pem_sv);
     pem = opensslpp::dh_key::export_public_pem(priv_key);
   }
   return {std::move(pem)};
@@ -326,28 +325,26 @@ class asymmetric_encrypt_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
+  auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
   if (algorithm_id != algorithm_id_type::rsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
-  auto message = static_cast<std::string>(message_sv);
-
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
-  auto key_pem = static_cast<std::string>(key_pem_sv);
 
   opensslpp::rsa_key key;
   try {
-    key = opensslpp::rsa_key::import_private_pem(key_pem);
+    key = opensslpp::rsa_key::import_private_pem(key_pem_sv);
   } catch (const opensslpp::core_error &) {
-    key = opensslpp::rsa_key::import_public_pem(key_pem);
+    key = opensslpp::rsa_key::import_public_pem(key_pem_sv);
   }
 
-  return {key.is_private() ? opensslpp::encrypt_with_rsa_private_key(
-                                 message, key, opensslpp::rsa_padding::pkcs1)
-                           : opensslpp::encrypt_with_rsa_public_key(
-                                 message, key, opensslpp::rsa_padding::pkcs1)};
+  return {key.is_private()
+              ? opensslpp::encrypt_with_rsa_private_key(
+                    message_sv, key, opensslpp::rsa_padding::pkcs1)
+              : opensslpp::encrypt_with_rsa_public_key(
+                    message_sv, key, opensslpp::rsa_padding::pkcs1)};
 }
 
 // ASYMMETRIC_DECRYPT(@algorithm, @crypt_str, @key_str)
@@ -383,28 +380,26 @@ class asymmetric_decrypt_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
+  auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
   if (algorithm_id != algorithm_id_type::rsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
-  auto message = static_cast<std::string>(message_sv);
-
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
-  auto key_pem = static_cast<std::string>(key_pem_sv);
 
   opensslpp::rsa_key key;
   try {
-    key = opensslpp::rsa_key::import_private_pem(key_pem);
+    key = opensslpp::rsa_key::import_private_pem(key_pem_sv);
   } catch (const opensslpp::core_error &) {
-    key = opensslpp::rsa_key::import_public_pem(key_pem);
+    key = opensslpp::rsa_key::import_public_pem(key_pem_sv);
   }
 
-  return {key.is_private() ? opensslpp::decrypt_with_rsa_private_key(
-                                 message, key, opensslpp::rsa_padding::pkcs1)
-                           : opensslpp::decrypt_with_rsa_public_key(
-                                 message, key, opensslpp::rsa_padding::pkcs1)};
+  return {key.is_private()
+              ? opensslpp::decrypt_with_rsa_private_key(
+                    message_sv, key, opensslpp::rsa_padding::pkcs1)
+              : opensslpp::decrypt_with_rsa_public_key(
+                    message_sv, key, opensslpp::rsa_padding::pkcs1)};
 }
 
 // CREATE_DIGEST(@digest_type, @str)
@@ -441,9 +436,8 @@ mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
-  auto message = static_cast<std::string>(message_sv);
 
-  return {opensslpp::calculate_digest(digest_type, message)};
+  return {opensslpp::calculate_digest(digest_type, message_sv)};
 }
 
 // ASYMMETRIC_SIGN(@algorithm, @digest_str, @priv_key_str, @digest_type)
@@ -492,30 +486,28 @@ class asymmetric_sign_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
+  auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
   if (algorithm_id != algorithm_id_type::rsa &&
       algorithm_id != algorithm_id_type::dsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
-  auto message_digest = static_cast<std::string>(message_digest_sv);
-
   auto private_key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
-  auto private_key_pem = static_cast<std::string>(private_key_pem_sv);
-
   auto digest_type_sv = ctx.get_arg<STRING_RESULT>(3);
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   std::string signature;
   if (algorithm_id == algorithm_id_type::rsa) {
-    auto private_key = opensslpp::rsa_key::import_private_pem(private_key_pem);
+    auto private_key =
+        opensslpp::rsa_key::import_private_pem(private_key_pem_sv);
     signature = opensslpp::sign_with_rsa_private_key(
-        digest_type, message_digest, private_key);
+        digest_type, message_digest_sv, private_key);
   } else if (algorithm_id == algorithm_id_type::dsa) {
-    auto private_key = opensslpp::dsa_key::import_private_pem(private_key_pem);
+    auto private_key =
+        opensslpp::dsa_key::import_private_pem(private_key_pem_sv);
     signature = opensslpp::sign_with_dsa_private_key(
-        digest_type, message_digest, private_key);
+        digest_type, message_digest_sv, private_key);
   }
   return {std::move(signature)};
 }
@@ -572,33 +564,27 @@ class asymmetric_verify_impl {
 
 mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  auto algorithm = ctx.get_arg<STRING_RESULT>(0);
-  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
+  auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
+  auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
   if (algorithm_id != algorithm_id_type::rsa &&
       algorithm_id != algorithm_id_type::dsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
-  auto message_digest = static_cast<std::string>(message_digest_sv);
-
   auto signature_sv = ctx.get_arg<STRING_RESULT>(2);
-  auto signature = static_cast<std::string>(signature_sv);
-
   auto public_key_pem_sv = ctx.get_arg<STRING_RESULT>(3);
-  auto public_key_pem = static_cast<std::string>(public_key_pem_sv);
-
   auto digest_type_sv = ctx.get_arg<STRING_RESULT>(4);
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   bool verification_result = false;
   if (algorithm_id == algorithm_id_type::rsa) {
-    auto public_key = opensslpp::rsa_key::import_public_pem(public_key_pem);
+    auto public_key = opensslpp::rsa_key::import_public_pem(public_key_pem_sv);
     verification_result = opensslpp::verify_with_rsa_public_key(
-        digest_type, message_digest, signature, public_key);
+        digest_type, message_digest_sv, signature_sv, public_key);
   } else if (algorithm_id == algorithm_id_type::dsa) {
-    auto public_key = opensslpp::dsa_key::import_public_pem(public_key_pem);
+    auto public_key = opensslpp::dsa_key::import_public_pem(public_key_pem_sv);
     verification_result = opensslpp::verify_with_dsa_public_key(
-        digest_type, message_digest, signature, public_key);
+        digest_type, message_digest_sv, signature_sv, public_key);
   }
   return {verification_result ? 1LL : 0LL};
 }
@@ -683,12 +669,10 @@ class asymmetric_derive_impl {
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_derive_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto public_key_pem_sv = ctx.get_arg<STRING_RESULT>(0);
-  auto public_key_pem = static_cast<std::string>(public_key_pem_sv);
-  auto public_key = opensslpp::dh_key::import_public_pem(public_key_pem);
+  auto public_key = opensslpp::dh_key::import_public_pem(public_key_pem_sv);
 
   auto private_key_pem_sv = ctx.get_arg<STRING_RESULT>(1);
-  auto private_key_pem = static_cast<std::string>(private_key_pem_sv);
-  auto private_key = opensslpp::dh_key::import_private_pem(private_key_pem);
+  auto private_key = opensslpp::dh_key::import_private_pem(private_key_pem_sv);
 
   return {opensslpp::compute_dh_key(public_key, private_key,
                                     opensslpp::dh_padding::nist_sp800_56a)};

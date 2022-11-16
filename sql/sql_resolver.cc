@@ -96,7 +96,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_derived.h"  //Condition_pushdown
 #include "sql/sql_error.h"
-#include "sql/sql_executor.h"  // is_rollup_sum_wrapper, is_rollup_group_wrapper
+#include "sql/sql_executor.h"  // is_rollup_group_wrapper
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // build_bitmap_for_nested_joins
@@ -5096,6 +5096,15 @@ static bool fulltext_uses_rollup_column(const Query_block *query_block) {
 bool Query_block::resolve_rollup_wfs(THD *thd) {
   DBUG_TRACE;
   for (auto it = fields.begin(); it != fields.end(); ++it) {
+    /*
+      Do not replace references to grouped expressions with
+      Item_rollup_group_item objects if they belong to a top-level aggregate
+      expression (which were wrapped into Item_rollup_sum_switcher earlier).
+    */
+    if ((*it)->type() == Item::SUM_FUNC_ITEM &&
+        down_cast<Item_sum *>(*it)->is_rollup_sum_wrapper())
+      continue;
+
     Item *new_item = resolve_rollup_item(thd, *it);
     if (new_item == nullptr) return true;
     *it = new_item;

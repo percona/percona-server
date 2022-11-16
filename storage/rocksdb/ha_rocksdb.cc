@@ -654,6 +654,7 @@ static const constexpr uint64_t RDB_DEFAULT_MAX_COMPACTION_HISTORY = 64;
 
 static long long rocksdb_block_cache_size = RDB_DEFAULT_BLOCK_CACHE_SIZE;
 static long long rocksdb_sim_cache_size = 0;
+static bool rocksdb_use_hyper_clock_cache = false;
 static bool rocksdb_charge_memory = false;
 static bool rocksdb_use_write_buffer_manager = false;
 static double rocksdb_cache_high_pri_pool_ratio = 0.0;
@@ -1836,6 +1837,12 @@ static MYSQL_SYSVAR_LONGLONG(sim_cache_size, rocksdb_sim_cache_size,
                              /* max */ LLONG_MAX,
                              /* Block size */ 0);
 
+static MYSQL_SYSVAR_BOOL(
+    use_hyper_clock_cache, rocksdb_use_hyper_clock_cache,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Use HyperClockCache instead of default LRUCache for RocksDB", nullptr,
+    nullptr, false);
+
 static MYSQL_SYSVAR_BOOL(cache_dump, rocksdb_cache_dump,
                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                          "Include RocksDB block cache content in core dump.",
@@ -2572,6 +2579,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(block_cache_size),
     MYSQL_SYSVAR(sim_cache_size),
+    MYSQL_SYSVAR(use_hyper_clock_cache),
     MYSQL_SYSVAR(cache_high_pri_pool_ratio),
     MYSQL_SYSVAR(cache_dump),
     MYSQL_SYSVAR(cache_index_and_filter_blocks),
@@ -6330,10 +6338,19 @@ static int rocksdb_init_internal(void *const p) {
           "Ignoring rocksdb_cache_dump because jemalloc is missing.");
 #endif  // HAVE_JEMALLOC
     }
-    std::shared_ptr<rocksdb::Cache> block_cache = rocksdb::NewLRUCache(
-        rocksdb_block_cache_size, -1 /*num_shard_bits*/,
-        false /*strict_capcity_limit*/, rocksdb_cache_high_pri_pool_ratio,
-        memory_allocator);
+    std::shared_ptr<rocksdb::Cache> block_cache =
+        rocksdb_use_hyper_clock_cache
+            ? rocksdb::HyperClockCacheOptions(
+                  rocksdb_block_cache_size, rocksdb_tbl_options->block_size,
+                  -1
+                  /* num_shard_bits */,
+                  false /* strict_capacity_limit */, memory_allocator)
+                  .MakeSharedCache()
+
+            : rocksdb::NewLRUCache(
+                  rocksdb_block_cache_size, -1 /*num_shard_bits*/,
+                  false /*strict_capcity_limit*/,
+                  rocksdb_cache_high_pri_pool_ratio, memory_allocator);
     if (rocksdb_sim_cache_size > 0) {
       // Simulated cache enabled
       // Wrap block cache inside a simulated cache and pass it to RocksDB

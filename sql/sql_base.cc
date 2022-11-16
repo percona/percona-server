@@ -6733,6 +6733,8 @@ bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags)
                   &prelocking_strategy))
     goto end;
 
+  thd->check_rpl_stmt_event_format_used();
+
   DBUG_RETURN(0);
 end:
   /*

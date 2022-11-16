@@ -5165,6 +5165,13 @@ private:
     aggregates THD.
   */
   bool is_a_srv_session_thd;
+
+private:
+  bool is_rpl_stmt_event_format_used;
+
+public:
+  void check_rpl_stmt_event_format_used();
+  bool get_rpl_stmt_event_format_used() const;
 };
 
 /* Returns string as 'IP' for the client-side of the connection represented by

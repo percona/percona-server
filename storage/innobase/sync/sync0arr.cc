@@ -424,16 +424,17 @@ void sync_array_cell_print(FILE *file, const sync_cell_t *cell) {
       fprintf(file, " (thread id %s)",
               to_string(rwlock->reader_thread.recover_if_single()).c_str());
     }
-    fprintf(file,
-            ", waiters flag %d"
-            ", lock_word: %lx\n"
-            "Last time read locked in file %s line %lu\n"
-            "Last time write locked in file %s line %lu\n",
-            rwlock->waiters.load(),
-            static_cast<ulong>(rwlock->lock_word.load()),
-            innobase_basename(rwlock->last_s_file_name),
-            static_cast<ulong>(rwlock->last_s_line), rwlock->last_x_file_name,
-            static_cast<ulong>(rwlock->last_x_line));
+    fprintf(
+        file,
+        ", waiters flag %d"
+        ", lock_word: %lx\n"
+        "Last time read locked in file %s line %lu\n"
+        "Last time write locked in file %s line %lu\n",
+        rwlock->waiters.load(std::memory_order_relaxed),
+        static_cast<ulong>(rwlock->lock_word.load(std::memory_order_relaxed)),
+        innobase_basename(rwlock->last_s_file_name),
+        static_cast<ulong>(rwlock->last_s_line), rwlock->last_x_file_name,
+        static_cast<ulong>(rwlock->last_x_line));
   } else {
     ut_error;
   }

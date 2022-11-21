@@ -91,9 +91,8 @@ Table_trigger_dispatcher::Table_trigger_dispatcher(TABLE *subject_table)
       m_record1_field(nullptr),
       m_new_field(nullptr),
       m_old_field(nullptr),
-      m_has_unparseable_trigger(false) {
+      m_parse_error_message(nullptr) {
   memset(m_trigger_map, 0, sizeof(m_trigger_map));
-  m_parse_error_message[0] = 0;
 }
 
 Table_trigger_dispatcher::~Table_trigger_dispatcher() {
@@ -474,8 +473,8 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd, List<Trigger> *triggers,
 
       /*
         In case we are upgrading, call set_parse_error_message() to set
-        m_has_unparseable_trigger in case of fatal errors too. As return type
-        of this function is void, we use m_has_unparseable_trigger to check
+        m_parse_error_message in case of fatal errors too. As return type
+        of this function is void, we use m_parse_error_message to check
         for any errors in Trigger upgrade upgrade.
       */
       if (is_upgrade && fatal_parse_error) {
@@ -674,4 +673,14 @@ bool Table_trigger_dispatcher::mark_fields(enum_trigger_event_type event) {
 
   m_subject_table->file->column_bitmaps_signal();
   return false;
+}
+
+void Table_trigger_dispatcher::set_parse_error_message(
+    const char *error_message) {
+  if (!m_parse_error_message) {
+    m_parse_error_message =
+        strdup_root(&m_subject_table->mem_root, error_message);
+    // Play safe even in case of OOM.
+    if (!m_parse_error_message) m_parse_error_message = ER_DEFAULT(ER_DA_OOM);
+  }
 }

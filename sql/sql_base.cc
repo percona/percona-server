@@ -6815,6 +6815,8 @@ bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags) {
 
   if (open_secondary_engine_tables(thd, flags)) goto end;
 
+  thd->check_rpl_stmt_event_format_used();
+
   return false;
 end:
   /*

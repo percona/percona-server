@@ -718,7 +718,8 @@ THD::THD(bool enable_plugins)
       m_is_plugin_fake_ddl(false),
       m_inside_system_variable_global_update(false),
       bind_parameter_values(nullptr),
-      bind_parameter_values_count(0) {
+      bind_parameter_values_count(0),
+      is_rpl_stmt_event_format_used(true) {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -3245,6 +3246,23 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const {
   return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
           is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
+}
+
+void THD::check_rpl_stmt_event_format_used() {
+  for (TABLE_LIST *table = lex->query_tables; table;
+       table = table->next_global) {
+    if (!table->is_placeholder() && table->table != NULL &&
+        table->table->file != NULL) {
+      if (!table->table->file->rpl_can_handle_stm_event()) {
+        is_rpl_stmt_event_format_used = false;
+        return;
+      }
+    }
+  }
+}
+
+bool THD::get_rpl_stmt_event_format_used() const {
+  return is_rpl_stmt_event_format_used;
 }
 
 bool THD::Query_plan::is_single_table_plan() const {

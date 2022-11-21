@@ -80,7 +80,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
     SQL-definition can not be parsed) for this table.
   */
   bool check_for_broken_triggers() {
-    if (m_has_unparseable_trigger) {
+    if (m_parse_error_message) {
       my_message(ER_PARSE_ERROR, m_parse_error_message, MYF(0));
       return true;
     }
@@ -170,19 +170,13 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   /**
     Remember a parse error that occurred while parsing trigger definitions
     loaded from the Data Dictionary. This makes the Table_trigger_dispatcher
-    enter the error state flagged by m_has_unparseable_trigger == true. The
+    enter the error state flagged by m_parse_error_message != nullptr . The
     error message will be used whenever a statement invoking or manipulating
     triggers is issued against the Table_trigger_dispatcher's table.
 
     @param error_message The error message thrown by the parser.
   */
-  void set_parse_error_message(const char *error_message) {
-    if (!m_has_unparseable_trigger) {
-      m_has_unparseable_trigger = true;
-      snprintf(m_parse_error_message, sizeof(m_parse_error_message), "%s",
-               error_message);
-    }
-  }
+  void set_parse_error_message(const char *error_message);
 
  private:
   /************************************************************************
@@ -223,28 +217,21 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   Field **m_old_field;
 
   /**
-    This flag indicates that one of the triggers was not parsed successfully,
-    and as a precaution the object has entered the state where all trigger
-    operations result in errors until all the table triggers are dropped. It is
+    Error which occurred while parsing one of the triggers for the table,
+    nullptr - if there was no error for any of its triggers.
+
+    Non-nullptr value indicates that as a precaution the object has entered
+    the state where all trigger operations result in errors (referencing
+    this error message saved) until all the table triggers are dropped. It is
     not safe to add triggers since it is unknown if the broken trigger has the
     same name or event type. Nor is it safe to invoke any trigger. The only
     safe operations are drop_trigger() and drop_all_triggers().
 
-    We can't use the value of m_parse_error_message as a flag to inform that
-    a trigger has a parse error since for multi-byte locale the first byte of
-    message can be 0 but the message still be meaningful. It means that just a
-    comparison against m_parse_error_message[0] can not be done safely.
-
     @see Table_trigger_dispatcher::set_parse_error()
   */
-  bool m_has_unparseable_trigger;
-
   /**
-    This error will be displayed when the user tries to manipulate or invoke
-    triggers on a table that has broken triggers. It is set once per statement
-    and thus will contain the first parse error encountered in the trigger file.
    */
-  char m_parse_error_message[MYSQL_ERRMSG_SIZE];
+  const char *m_parse_error_message;
 };
 
 ///////////////////////////////////////////////////////////////////////////

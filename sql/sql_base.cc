@@ -7053,6 +7053,8 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
                                     OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
   }
 
+  thd->check_rpl_stmt_event_format_used();
+
   return false;
 end:
   /*

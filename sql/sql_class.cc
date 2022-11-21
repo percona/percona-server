@@ -727,6 +727,7 @@ THD::THD(bool enable_plugins)
       m_inside_system_variable_global_update(false),
       bind_parameter_values(nullptr),
       bind_parameter_values_count(0),
+      is_rpl_stmt_event_format_used(true),
       external_store_(),
       events_cache_(nullptr),
       audit_plugins_present(false) {
@@ -3282,6 +3283,23 @@ void THD::disable_low_level_commit_ordering() {
 bool THD::is_low_level_commit_ordering_enabled() const {
   DBUG_TRACE;
   return m_is_low_level_commit_ordering_enabled;
+}
+
+void THD::check_rpl_stmt_event_format_used() {
+  for (Table_ref *table = lex->query_tables; table;
+       table = table->next_global) {
+    if (!table->is_placeholder() && table->table != NULL &&
+        table->table->file != NULL) {
+      if (!table->table->file->rpl_can_handle_stm_event()) {
+        is_rpl_stmt_event_format_used = false;
+        return;
+      }
+    }
+  }
+}
+
+bool THD::get_rpl_stmt_event_format_used() const {
+  return is_rpl_stmt_event_format_used;
 }
 
 bool THD::Query_plan::is_single_table_plan() const {

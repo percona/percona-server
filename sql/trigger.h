@@ -198,7 +198,7 @@ class Trigger {
 
   GRANT_INFO *get_subject_table_grant() { return &m_subject_table_grant; }
 
-  bool has_parse_error() const { return m_has_parse_error; }
+  bool has_parse_error() const { return m_parse_error_message; }
 
   const char *get_parse_error_message() const { return m_parse_error_message; }
 
@@ -244,11 +244,7 @@ class Trigger {
     m_definition_utf8 = trigger_def_utf8;
   }
 
-  void set_parse_error_message(const char *error_message) {
-    m_has_parse_error = true;
-    snprintf(m_parse_error_message, sizeof(m_parse_error_message), "%s",
-             error_message);
-  }
+  void set_parse_error_message(const char *error_message);
 
   /**
     Memory root to store all data of this Trigger object.
@@ -344,16 +340,15 @@ class Trigger {
   /// Pointer to the sp_head corresponding to the trigger.
   sp_head *m_sp;
 
-  /// This flags specifies whether the trigger has parse error or not.
-  bool m_has_parse_error;
-
   /**
+    Parse error for trigger, if it has one, nullptr - if not.
+
     This error will be displayed when the user tries to manipulate or invoke
     triggers on a table that has broken triggers. It will get set only once
     per statement and thus will contain the first parse error encountered in
     the trigger file.
   */
-  char m_parse_error_message[MYSQL_ERRMSG_SIZE];
+  const char *m_parse_error_message;
 };
 
 ///////////////////////////////////////////////////////////////////////////

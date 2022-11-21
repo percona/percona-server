@@ -350,9 +350,7 @@ Trigger::Trigger(
       m_action_order(action_order),
       m_trigger_name(trigger_name),
       m_sp(nullptr),
-      m_has_parse_error(false) {
-  m_parse_error_message[0] = 0;
-
+      m_parse_error_message(nullptr) {
   construct_definer_value(mem_root, &m_definer, definer_user, definer_host);
 }
 
@@ -372,7 +370,7 @@ Trigger::~Trigger() { sp_head::destroy(m_sp); }
 */
 
 bool Trigger::execute(THD *thd) {
-  if (m_has_parse_error) return true;
+  if (has_parse_error()) return true;
 
   bool err_status;
   Sub_statement_state statement_state;
@@ -672,4 +670,14 @@ void Trigger::print_upgrade_warning(THD *thd) {
       thd, Sql_condition::SL_WARNING, ER_WARN_TRIGGER_DOESNT_HAVE_CREATED,
       ER_THD(thd, ER_WARN_TRIGGER_DOESNT_HAVE_CREATED), get_db_name().str,
       get_subject_table_name().str, get_trigger_name().str);
+}
+
+/**
+  Mark trigger as having a parse error and remember the message for future use.
+*/
+
+void Trigger::set_parse_error_message(const char *error_message) {
+  m_parse_error_message = strdup_root(m_mem_root, error_message);
+  // Play safe even in case of OOM.
+  if (!m_parse_error_message) m_parse_error_message = ER_DEFAULT(ER_DA_OOM);
 }

@@ -7294,6 +7294,8 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
       thd->secondary_engine_optimization() ==
       Secondary_engine_optimization::SECONDARY);
 
+  thd->check_rpl_stmt_event_format_used();
+
   return false;
 end:
   /*

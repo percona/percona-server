@@ -5087,6 +5087,13 @@ class THD : public MDL_context_owner,
   /** the number of elements in parameters */
   unsigned long bind_parameter_values_count;
 
+ private:
+  bool is_rpl_stmt_event_format_used;
+
+ public:
+  void check_rpl_stmt_event_format_used();
+  bool get_rpl_stmt_event_format_used() const;
+
  public:
   /**
     Copy session properties that affect table access

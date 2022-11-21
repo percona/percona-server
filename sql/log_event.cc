@@ -4841,29 +4841,19 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         }
 
         if (sqlcom_can_generate_row_events(thd->lex->sql_command) &&
-            thd->get_row_count_func() > 0) {
-          for (Table_ref *tbl = thd->lex->query_tables; tbl;
-               tbl = tbl->next_global) {
-            if (!tbl->is_placeholder() && tbl->table->file) {
-              if (!tbl->table->file->rpl_can_handle_stm_event()) {
-                String message;
-                message.append(
-                    "Masters binlog format is not ROW and storage "
-                    "engine can not handle non-ROW events at this "
-                    "time. Table: '");
-                message.append(tbl->get_db_name());
-                message.append(".");
-                message.append(tbl->get_table_name());
-                message.append("' Query: '");
-                message.append(thd->query().str);
-                message.append("'");
-                rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
-                            ER_THD(thd, ER_REPLICA_FATAL_ERROR), message.c_ptr());
-                thd->is_slave_error = true;
-                goto end;
-              }
-            }
-          }
+            thd->get_row_count_func() > 0 &&
+            !thd->get_rpl_stmt_event_format_used()) {
+          String message;
+          message.append(
+              "Masters binlog format is not ROW and storage "
+              "engine can not handle non-ROW events at this "
+              "time. Query: '");
+          message.append(thd->query().str);
+          message.append("'");
+          rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                      ER_THD(thd, ER_REPLICA_FATAL_ERROR), message.c_ptr());
+          thd->is_slave_error = true;
+          goto end;
         }
 
         /*

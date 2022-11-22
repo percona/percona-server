@@ -241,10 +241,11 @@ enum latch_level_t {
   SYNC_RECV,
 
   SYNC_LOG_LIMITS,
+  SYNC_LOG_FLUSHER,
+  SYNC_LOG_FILES,
   SYNC_LOG_WRITER,
   SYNC_LOG_WRITE_NOTIFIER,
   SYNC_LOG_FLUSH_NOTIFIER,
-  SYNC_LOG_FLUSHER,
   SYNC_LOG_CLOSER,
   SYNC_LOG_CHECKPOINTER,
   SYNC_LOG_SN,
@@ -319,6 +320,8 @@ enum latch_level_t {
 
   SYNC_TRX_I_S_RWLOCK,
 
+  SYNC_RECV_WRITER,
+
   /** Level is varying. Only used with buffer pool page locks, which
   do not have a fixed level, but instead have their level set after
   the page is locked; see e.g.  ibuf_bitmap_get_map_page(). */
@@ -379,6 +382,7 @@ enum latch_id_t {
   LATCH_ID_LOG_FLUSH_NOTIFIER,
   LATCH_ID_LOG_LIMITS,
   LATCH_ID_LOG_ONLINE,
+  LATCH_ID_LOG_FILES,
   LATCH_ID_PARSER,
   LATCH_ID_LOG_ARCH,
   LATCH_ID_PAGE_ARCH,
@@ -448,7 +452,6 @@ enum latch_id_t {
   LATCH_ID_HASH_TABLE_RW_LOCK,
   LATCH_ID_BUF_CHUNK_MAP_LATCH,
   LATCH_ID_SYNC_DEBUG_MUTEX,
-  LATCH_ID_SCRUB_STAT_MUTEX,
   LATCH_ID_MASTER_KEY_ID_MUTEX,
   LATCH_ID_FIL_CRYPT_MUTEX,
   LATCH_ID_FIL_CRYPT_STAT_MUTEX,
@@ -541,6 +544,9 @@ struct OSMutex {
     ut_a(ret == 0);
 #endif /* _WIN32 */
   }
+
+  void lock() { enter(); }
+  void unlock() { exit(); }
 
   /** @return true if locking succeeded */
   bool try_lock() UNIV_NOTHROW {
@@ -1132,7 +1138,7 @@ struct dict_sync_check : public sync_check_functor_t {
     if (!m_dict_mutex_allowed ||
         (level != SYNC_DICT && level != SYNC_UNDO_SPACES &&
          level != SYNC_FTS_CACHE && level != SYNC_DICT_OPERATION &&
-         level != SYNC_NO_ORDER_CHECK)) {
+         level != SYNC_RECV_WRITER && level != SYNC_NO_ORDER_CHECK)) {
       m_result = true;
 #ifdef UNIV_NO_ERR_MSGS
       ib::error()

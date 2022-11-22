@@ -27,17 +27,17 @@ ERROR HY000: Can't initialize function 'asymmetric_derive'; Function requires ex
 SELECT asymmetric_derive(NULL, @dh_priv2);
 ERROR HY000: asymmetric_derive<string> UDF failed; Public key cannot be NULL
 SELECT asymmetric_derive(42, @dh_priv2);
-ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PUBLIC KEY
 SELECT asymmetric_derive('blah-blah', @dh_priv2);
-ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PUBLIC KEY
 SELECT asymmetric_derive(@dh_pub1, NULL);
 ERROR HY000: asymmetric_derive<string> UDF failed; Private key cannot be NULL
 SELECT asymmetric_derive(@dh_pub1, 42);
-ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PRIVATE KEY
 SELECT asymmetric_derive(@dh_pub1, 'blah-blah');
-ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PRIVATE KEY
 SELECT asymmetric_derive(@dh_pub1, @dh_pub2);
-ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PRIVATE KEY
 SELECT asymmetric_derive(@dh_priv1, @dh_priv2);
-ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PUBLIC KEY
 UNINSTALL COMPONENT 'file://component_encryption_udf';

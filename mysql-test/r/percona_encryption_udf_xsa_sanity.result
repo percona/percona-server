@@ -31,11 +31,11 @@ ERROR HY000: Can't initialize function 'create_asymmetric_pub_key'; Function req
 SELECT create_asymmetric_pub_key(@algorithm);
 ERROR HY000: Can't initialize function 'create_asymmetric_pub_key'; Function requires exactly two arguments
 SELECT create_asymmetric_pub_key(@algorithm, NULL);
-ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
 SELECT create_asymmetric_pub_key(@algorithm, 42);
-ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
 SELECT create_asymmetric_pub_key(@algorithm, 'blah-blah');
-ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
 SELECT create_asymmetric_priv_key('FOO', 2048);
 ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid algorithm specified
 
@@ -49,9 +49,9 @@ ERROR HY000: Can't initialize function 'asymmetric_encrypt'; Function requires e
 SELECT asymmetric_encrypt(@algorithm, @message, NULL);
 ERROR HY000: asymmetric_encrypt<string> UDF failed; Key cannot be NULL
 SELECT asymmetric_encrypt(@algorithm, @message, 42);
-ERROR HY000: asymmetric_encrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_encrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY
 SELECT asymmetric_encrypt(@algorithm, @message, 'blah-blah');
-ERROR HY000: asymmetric_encrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_encrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY
 SELECT asymmetric_encrypt(@algorithm, NULL, NULL);
 ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
 
@@ -65,9 +65,9 @@ ERROR HY000: Can't initialize function 'asymmetric_decrypt'; Function requires e
 SELECT asymmetric_decrypt(@algorithm, @message, NULL);
 ERROR HY000: asymmetric_decrypt<string> UDF failed; Key cannot be NULL
 SELECT asymmetric_decrypt(@algorithm, @message, 42);
-ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY
 SELECT asymmetric_decrypt(@algorithm, @message, 'blah-blah');
-ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY
 SELECT asymmetric_decrypt(@algorithm, NULL, NULL);
 ERROR HY000: asymmetric_decrypt<string> UDF failed; Message cannot be NULL
 
@@ -93,9 +93,9 @@ ERROR HY000: asymmetric_sign<string> UDF failed; Message digest cannot be NULL
 SELECT asymmetric_sign(@algorithm, @message_digest, NULL, @digest_type);
 ERROR HY000: asymmetric_sign<string> UDF failed; Private key cannot be NULL
 SELECT asymmetric_sign(@algorithm, @message_digest, 42, @digest_type);
-ERROR HY000: asymmetric_sign<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_sign<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
 SELECT asymmetric_sign(@algorithm, @message_digest, 'blah-blah', @digest_type);
-ERROR HY000: asymmetric_sign<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_sign<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
 SELECT asymmetric_sign(@algorithm, @message_digest, @priv, NULL);
 ERROR HY000: asymmetric_sign<string> UDF failed; Digest type cannot be NULL
 SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 42);
@@ -129,9 +129,9 @@ ERROR HY000: asymmetric_verify<int> UDF failed; Signature cannot be NULL
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, NULL, @digest_type);
 ERROR HY000: asymmetric_verify<int> UDF failed; Public key cannot be NULL
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 42, @digest_type);
-ERROR HY000: asymmetric_verify<int> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_verify<int> UDF failed; cannot import RSA key from PEM PUBLIC KEY
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 'blah-blah', @digest_type);
-ERROR HY000: asymmetric_verify<int> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+ERROR HY000: asymmetric_verify<int> UDF failed; cannot import RSA key from PEM PUBLIC KEY
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, NULL);
 ERROR HY000: asymmetric_verify<int> UDF failed; Digest type cannot be NULL
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 42);

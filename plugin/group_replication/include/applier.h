@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include "plugin/group_replication/include/pipeline_factory.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
+#include "plugin/group_replication/include/plugin_status_variables.h"
 #include "plugin/group_replication/include/plugin_utils.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 #include "sql/sql_class.h"
@@ -267,9 +268,11 @@ class Applier_module_interface {
       Leaving_members_action_packet *packet) = 0;
   virtual int handle(const uchar *data, ulong len,
                      enum_group_replication_consistency_level consistency_level,
-                     std::list<Gcs_member_identifier> *online_members) = 0;
+                     std::list<Gcs_member_identifier> *online_members,
+                     PSI_memory_key key) = 0;
   virtual int handle_pipeline_action(Pipeline_action *action) = 0;
   virtual Flow_control_module *get_flow_control_module() = 0;
+  virtual void get_flow_control_stats(group_replication_fc_stats &stats) = 0;
   virtual void run_flow_control_step() = 0;
   virtual int purge_applier_queue_and_restart_applier_module() = 0;
   virtual bool queue_and_wait_on_queue_checkpoint(
@@ -381,6 +384,7 @@ class Applier_module : public Applier_module_interface {
     @param[in]  consistency_level  the transaction consistency level
     @param[in]  online_members     the ONLINE members when the transaction
                                    message was delivered
+    @param[in]  key       the memory instrument key
 
     @return the operation status
       @retval 0      OK
@@ -388,9 +392,10 @@ class Applier_module : public Applier_module_interface {
   */
   int handle(const uchar *data, ulong len,
              enum_group_replication_consistency_level consistency_level,
-             std::list<Gcs_member_identifier> *online_members) override {
+             std::list<Gcs_member_identifier> *online_members,
+             PSI_memory_key key) override {
     this->incoming->push(
-        new Data_packet(data, len, consistency_level, online_members));
+        new Data_packet(data, len, key, consistency_level, online_members));
     return 0;
   }
 
@@ -695,6 +700,13 @@ class Applier_module : public Applier_module_interface {
 
   Flow_control_module *get_flow_control_module() override {
     return &flow_control_module;
+  }
+
+  /**
+    Get the stats related to Flow Control
+  */
+  void get_flow_control_stats(group_replication_fc_stats &stats) override {
+    flow_control_module.get_flow_control_stats(stats);
   }
 
   void run_flow_control_step() override {

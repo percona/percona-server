@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,18 +33,28 @@
 #include "my_md5.h"
 
 #include <openssl/crypto.h>
-#include <openssl/md5.h>
+
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
 #include <openssl/provider.h>
-#endif
+#else
+#include <openssl/md5.h>
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
 static void my_md5_hash(unsigned char *digest, unsigned const char *buf,
                         int len) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  /*
+    EVP_Digest() is a wrapper around the EVP_DigestInit_ex(),
+    EVP_Update() and EVP_Final_ex() functions.
+  */
+  EVP_Digest(buf, len, digest, nullptr, EVP_md5(), nullptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   MD5_CTX ctx;
   MD5_Init(&ctx);
   MD5_Update(&ctx, buf, len);
   MD5_Final(digest, &ctx);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 }
 
 /**
@@ -59,13 +69,14 @@ static void my_md5_hash(unsigned char *digest, unsigned const char *buf,
 */
 int compute_md5_hash(char *digest, const char *buf, int len) {
   int retval = 0;
-  int fips_mode = 0;
+
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  fips_mode = EVP_default_properties_is_fips_enabled(NULL) &&
-              OSSL_PROVIDER_available(NULL, "fips");
-#else
-  fips_mode = FIPS_mode();
-#endif
+  int fips_mode = EVP_default_properties_is_fips_enabled(nullptr) &&
+                  OSSL_PROVIDER_available(nullptr, "fips");
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  int fips_mode = FIPS_mode();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
   /* If fips mode is ON/STRICT restricted method calls will result into abort,
    * skipping call. */
   if (fips_mode == 0) {

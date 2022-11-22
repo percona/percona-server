@@ -5,10 +5,8 @@
 #
 INSTALL COMPONENT 'file://component_encryption_udf';
 
-# to support older versions of openssl library (1.0.2 in particular), some
-# error messages need to be replaced with newer ones (1.0.x)
-# PEM_read_bio => get_name
-# 0906D06C => 0909006C
+# to support different versions of openssl library (1.0.2, 1.1.x and 3.0.x),
+# we need to unify recorded error messages via --replace_regex
 
 --echo
 --echo ** checking 'create_dh_parameters()' function basics
@@ -48,26 +46,26 @@ SELECT asymmetric_derive();
 
 --error ER_UDF_ERROR
 SELECT asymmetric_derive(NULL, @dh_priv2);
---replace_result PEM_read_bio get_name 0906D06C 0909006C
+--replace_regex /(cannot import DH key from PEM PUBLIC KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_derive(42, @dh_priv2);
---replace_result PEM_read_bio get_name 0906D06C 0909006C
+--replace_regex /(cannot import DH key from PEM PUBLIC KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_derive('blah-blah', @dh_priv2);
 
 --error ER_UDF_ERROR
 SELECT asymmetric_derive(@dh_pub1, NULL);
---replace_result PEM_read_bio get_name 0906D06C 0909006C
+--replace_regex /(cannot import DH key from PEM PRIVATE KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_derive(@dh_pub1, 42);
---replace_result PEM_read_bio get_name 0906D06C 0909006C
+--replace_regex /(cannot import DH key from PEM PRIVATE KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_derive(@dh_pub1, 'blah-blah');
 
---replace_result PEM_read_bio get_name 0906D06C 0909006C
+--replace_regex /(cannot import DH key from PEM PRIVATE KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_derive(@dh_pub1, @dh_pub2);
---replace_result PEM_read_bio get_name 0906D06C 0909006C
+--replace_regex /(cannot import DH key from PEM PUBLIC KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_derive(@dh_priv1, @dh_priv2);
 

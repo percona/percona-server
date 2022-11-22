@@ -156,7 +156,7 @@ bool Rotate_innodb_master_key::execute() {
     /*
       Though we failed to write to binlog,
       there is no way we can undo this operation.
-      So, covert error to a warning and let user
+      So, convert error to a warning and let user
       know that something went wrong while trying
       to make entry in binlog.
     */
@@ -349,7 +349,7 @@ bool Reload_keyring::execute() {
 
   /*
     Persisted variables require keyring support to
-    persist SENSITIVE varaiables in a secure manner.
+    persist SENSITIVE variables in a secure manner.
   */
   persisted_variables_refresh_keyring_support();
 

@@ -32,7 +32,7 @@
 
 --sleep 30
 
---let $gr_var_count= 61
+--let $gr_var_count= 62
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 

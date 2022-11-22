@@ -133,8 +133,6 @@ usr/lib/mysql/plugin/libmurmur_udf.so
 usr/lib/mysql/plugin/debug/libmurmur_udf.so
 usr/lib/mysql/plugin/dialog.so
 usr/lib/mysql/plugin/debug/dialog.so
-usr/lib/mysql/plugin/auth.so
-usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/connection_control.so
 usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
@@ -162,6 +160,10 @@ usr/lib/mysql/plugin/component_encryption_udf.so
 usr/lib/mysql/plugin/debug/component_encryption_udf.so
 usr/lib/mysql/plugin/component_keyring_kms.so
 usr/lib/mysql/plugin/debug/component_keyring_kms.so
+usr/lib/mysql/plugin/authentication_fido.so
+usr/lib/mysql/plugin/debug/authentication_fido.so
+usr/lib/mysql/plugin/authentication_ldap_sasl.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 
 # support files
 usr/share/mysql/dictionary.txt

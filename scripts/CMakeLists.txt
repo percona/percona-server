@@ -301,7 +301,7 @@ ELSE()
   SET(TARGET_LINUX "false")
 ENDIF()
 
-# Use cmake variables to inspect dependencies for 
+# Use cmake variables to inspect dependencies for
 # perconaserverclient library (add -l stuff)
 SET(CLIENT_LIBS "")
 SET(LIBS "")

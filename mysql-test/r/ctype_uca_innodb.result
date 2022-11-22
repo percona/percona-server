@@ -7,7 +7,7 @@
 SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 #
 # Start of ctype_utf8_ilseq.inc
 #
@@ -18,7 +18,7 @@ ADD KEY(ch);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ch` varchar(60) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci DEFAULT NULL,
+  `ch` varchar(60) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `ch` (`ch`)

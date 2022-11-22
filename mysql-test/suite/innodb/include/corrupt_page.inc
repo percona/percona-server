@@ -3,7 +3,7 @@
 # 2. INNODB_PAGE_SIZE :- page_size of IBD
 # 3. PAGE_NUM :- the page to corrupt
 # 4. ALL_ZEROES :- write the entire page as all-zeros (optional parameter)
-#		  (innodb doesn't treat all-zero as corrupted page)
+#                (innodb doesn't treat all-zero as corrupted page)
 perl;
 use IO::Handle;
 my $file = $ENV{'IBD_FILE'} or die;

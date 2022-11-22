@@ -11,7 +11,7 @@
 --let $explicit_default_wait_counter=10000
 
 --disable_query_log
-call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 
@@ -78,7 +78,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo # Restart after crash without Keyring plugin loaded
 --source include/keyring_tests/helper/instance_backup_manifest.inc
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $PLUGIN_DIR_OPT --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
 
 # Search the failure pattern in error log

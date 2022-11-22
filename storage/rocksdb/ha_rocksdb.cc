@@ -49,7 +49,7 @@
 #include "mysys_err.h"
 #include "scope_guard.h"
 #include "sql/debug_sync.h"
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 #include "sql/mysqld.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_lex.h"

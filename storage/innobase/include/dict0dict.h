@@ -50,6 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0types.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/init_mode.h"  // dict_init_mode_t
+#include "srv0mon.h" /* for dict0dict.ic */
 #include "sync0rw.h"
 #include "trx0types.h"
 #include "univ.i"
@@ -125,12 +126,6 @@ void dict_table_close_and_drop(
     dict_table_t *table); /*!< in/out: table */
 /** Inits the data dictionary module. */
 void dict_init(void);
-
-dict_table_t *dict_table_open_on_index_id(
-    /*==================*/
-    space_index_t table_id, /*!< in: table id */
-    bool dict_locked)       /*!< in: TRUE=data dictionary locked */
-    __attribute__((warn_unused_result));
 
 /** Closes the data dictionary module. */
 void dict_close(void);
@@ -1057,7 +1052,7 @@ struct dict_sys_t {
     const auto n_cells = hash->get_n_cells();
     for (ulint i = 0; i < n_cells; i++) {
       for (dict_table_t *table =
-               static_cast<dict_table_t *>(HASH_GET_FIRST(hash, i));
+               static_cast<dict_table_t *>(hash_get_first(hash, i));
            table;
            table = static_cast<dict_table_t *>(HASH_GET_NEXT(id_hash, table))) {
         functor(table);
@@ -1088,7 +1083,7 @@ struct dict_sys_t {
   }
 
   /** The first ID of the redo log pseudo-tablespace */
-  static constexpr space_id_t s_log_space_first_id = 0xFFFFFFF0UL;
+  static constexpr space_id_t s_log_space_id = 0xFFFFFFF0UL;
 
   /** Use maximum UINT value to indicate invalid space ID. */
   static constexpr space_id_t s_invalid_space_id = 0xFFFFFFFF;
@@ -1104,10 +1099,10 @@ struct dict_sys_t {
 
   /** The lowest undo tablespace ID. */
   static constexpr space_id_t s_min_undo_space_id =
-      s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * s_undo_space_id_range);
+      s_log_space_id - (FSP_MAX_UNDO_TABLESPACES * s_undo_space_id_range);
 
   /** The highest undo tablespace ID. */
-  static constexpr space_id_t s_max_undo_space_id = s_log_space_first_id - 1;
+  static constexpr space_id_t s_max_undo_space_id = s_log_space_id - 1;
 
   /** Start space_ids for temporary tablespaces. */
   static constexpr space_id_t s_max_temp_space_id = s_min_undo_space_id - 1;
@@ -1678,12 +1673,6 @@ void dict_table_change_id_sys_tables();
 /** Set is_corrupt flag by space_id */
 void dict_table_set_corrupt_by_space(space_id_t space_id,
                                      bool need_mutex) noexcept;
-
-/** Flag a table with specified space_id encrypted in the data dictionary
-cache
-@param[in] space_id Tablespace id */
-void dict_table_set_encrypted_by_space(space_id_t space_id,
-                                       bool need_mutex) noexcept;
 
 /** SYS_ZIP_DICT and SYS_ZIP_DICT_COLS will be missing when upgrading
 mysql-5.7 to PS-8.0 */

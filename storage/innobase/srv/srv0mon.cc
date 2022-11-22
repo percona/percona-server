@@ -38,6 +38,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "mach0data.h"
 #include "os0file.h"
 #include "srv0mon.h"
@@ -925,10 +928,6 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
 
-    {"log_lsn_tracked", "log", "Last LSN tracked for changed pages",
-     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
-     MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_TRACKED},
-
     {"log_flush_total_time", "log", "Total time spent on fsync for log files",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_TOTAL_TIME},
 
@@ -1778,12 +1777,12 @@ void srv_mon_process_existing_counter(
 
     /* innodb_os_log_fsyncs */
     case MONITOR_OVLD_OS_LOG_FSYNC:
-      value = fil_n_log_flushes;
+      value = log_total_flushes();
       break;
 
     /* innodb_os_log_pending_fsyncs */
     case MONITOR_OVLD_OS_LOG_PENDING_FSYNC:
-      value = fil_n_pending_log_flushes;
+      value = log_pending_flushes();
       update_min = true;
       break;
 
@@ -1975,11 +1974,11 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_LSN_FLUSHDISK:
-      value = (mon_type_t)log_sys->flushed_to_disk_lsn;
+      value = static_cast<mon_type_t>(log_sys->flushed_to_disk_lsn.load());
       break;
 
     case MONITOR_OVLD_LSN_CURRENT:
-      value = (mon_type_t)log_get_lsn(*log_sys);
+      value = static_cast<mon_type_t>(log_get_lsn(*log_sys));
       break;
 
     case MONITOR_OVLD_LSN_ARCHIVED: {
@@ -2012,15 +2011,11 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_MAX_AGE_ASYNC:
-      value = log_sys->max_modified_age_async;
+      value = log_sys->m_capacity.adaptive_flush_min_age();
       break;
 
     case MONITOR_OVLD_MAX_AGE_SYNC:
-      value = log_sys->max_modified_age_sync;
-      break;
-
-    case MONITOR_OVLD_LSN_TRACKED:
-      value = log_sys->tracked_lsn.load();
+      value = log_sys->m_capacity.adaptive_flush_max_age();
       break;
 
     case MONITOR_OVLD_ADAPTIVE_HASH_SEARCH:

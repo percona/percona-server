@@ -1,7 +1,7 @@
 INSTALL PLUGIN mecab SONAME 'libpluginmecab.so';
 SHOW STATUS LIKE 'mecab_charset';
 Variable_name	Value
-mecab_charset	utf8
+mecab_charset	utf8mb4
 #
 # PS-3851: Crash when SELECT using a fulltext search index with special character
 #

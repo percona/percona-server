@@ -3,6 +3,7 @@
 #
 INSTALL COMPONENT 'file://component_encryption_udf';
 
+--let $include_digests_with_no_ans1_ids = 0
 --source include/percona_encryption_udf_digest_table.inc
 
 --echo
@@ -31,7 +32,7 @@ if ($use_openssl_binary)
   {
     --let $subcommand = dsaparam -genkey -noout
   }
-  --exec openssl $subcommand -out $private_key_file_path $key_length
+  --exec $OPENSSL_EXECUTABLE $subcommand -out $private_key_file_path $key_length
   --replace_result $private_key_file_path <PRIVATE_KEY_FILE_PATH>
   eval SET @priv = TRIM(TRAILING '\n' FROM LOAD_FILE('$private_key_file_path'));
 }
@@ -53,7 +54,7 @@ if ($use_openssl_binary)
   {
     --let $subcommand = dsa
   }
-  --exec openssl $subcommand -in $private_key_file_path -pubout -out $public_key_file_path
+  --exec $OPENSSL_EXECUTABLE $subcommand -in $private_key_file_path -pubout -out $public_key_file_path
   --replace_result $public_key_file_path <PUBLIC_KEY_FILE_PATH>
   eval SET @pub = TRIM(TRAILING '\n' FROM LOAD_FILE('$public_key_file_path'));
   --remove_file $public_key_file_path
@@ -141,10 +142,8 @@ while ($message_index <= 4)
   while($digest_type_idx <= $number_of_digest_types)
   {
     --let $digest_name = `SELECT digest_name FROM digest_type WHERE id = $digest_type_idx`
-    --echo ******** [$algorithm][$key_length][message_len=$message_length][$digest_name] calculating digest
     eval SET @digest_type = '$digest_name';
     SET @message_digest = create_digest(@digest_type, @message);
-    --echo ******** [$algorithm][$key_length][message_len=$message_length][$digest_name] calculating signature
     SET @message_signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type);
     if ($algorithm == 'RSA')
     {
@@ -166,7 +165,6 @@ while ($message_index <= 4)
     --source include/assert.inc
     --let $include_silent =
 
-    --echo ******** [$algorithm][$key_length][message_len=$message_length][$digest_name] verifying signature
     SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @message_signature, @pub, @digest_type);
     --let $assert_text = [$algorithm][$key_length][message_len=$message_length][$digest_name] signature must pass verification
     --let $assert_cond = @verification_result = 1

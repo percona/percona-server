@@ -35,7 +35,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define buf0flu_h
 
 #include "buf0types.h"
-#include "log0log.h"
 #include "univ.i"
 #include "ut0byte.h"
 
@@ -252,10 +251,13 @@ ulint buf_pool_get_dirty_pages_count(
     Flush_observer *observer); /*!< in: flush observer to check */
 #endif
 
+/** Executes fsync for all tablespaces, to fsync all pages written to disk. */
+void buf_flush_fsync();
+
 /** Synchronously flush dirty blocks from the end of the flush list of all
  buffer pool instances. NOTE: The calling thread is not allowed to own any
  latches on pages! */
-void buf_flush_sync_all_buf_pools(void);
+void buf_flush_sync_all_buf_pools();
 
 /** Checks if all flush lists are empty. It is supposed to be used in
 single thread, during startup or shutdown. Hence it does not acquire

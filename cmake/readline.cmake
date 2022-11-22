@@ -1,7 +1,5 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates.
-# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -26,6 +24,27 @@
 # or
 # cmake -DWITH_READLINE=system
 # system readline is the default
+
+FUNCTION(WARN_MISSING_SYSTEM_EDITLINE OUTPUT_WARNING)
+  IF(NOT EDITLINE_FOUND AND WITH_EDITLINE STREQUAL "system")
+    MESSAGE(WARNING "Cannot find EDITLINE development libraries. "
+      "You need to install the required packages:\n"
+      "  Debian/Ubuntu:              apt install libedit-dev\n"
+      "  RedHat/Fedora/Oracle Linux: yum install libedit-devel\n"
+      "  SuSE:                       zypper install libedit-devel\n"
+      )
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+MACRO(RESET_EDITLINE_VARIABLES)
+  UNSET(EDITLINE_INCLUDE_DIR)
+  UNSET(EDITLINE_INCLUDE_DIR CACHE)
+  UNSET(EDITLINE_LIBRARY)
+  UNSET(EDITLINE_LIBRARY CACHE)
+  UNSET(FOUND_EDITLINE_READLINE)
+  UNSET(FOUND_EDITLINE_READLINE CACHE)
+ENDMACRO()
 
 MACRO (MYSQL_CHECK_MULTIBYTE)
   SET(CMAKE_EXTRA_INCLUDE_FILES wchar.h)
@@ -283,7 +302,7 @@ MACRO (MYSQL_CHECK_EDITLINE)
     ELSEIF(WITH_EDITLINE STREQUAL "system")
       FIND_SYSTEM_EDITLINE()
       IF(NOT EDITLINE_FOUND)
-        MESSAGE(FATAL_ERROR "Cannot find system editline libraries.")
+        RESET_EDITLINE_VARIABLES()
       ELSE()
         SET(MY_READLINE_INCLUDE_DIR ${EDITLINE_INCLUDE_DIR})
         SET(MY_READLINE_LIBRARY ${EDITLINE_LIBRARY})

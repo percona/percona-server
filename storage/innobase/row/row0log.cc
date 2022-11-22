@@ -42,7 +42,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0ddl.h"
 #include "handler0alter.h"
 #include "lob0lob.h"
-#include "my_crypt.h"
+#include "log0chkp.h"
+#include "my_aes.h"
 #include "my_rnd.h"
 #include "que0que.h"
 #include "row0ext.h"
@@ -280,19 +281,19 @@ static bool encrypt_iv(byte *iv, os_offset_t offs, space_id_t space_id) {
   mach_write_to_8(iv, space_id);
   mach_write_to_8(iv + 8, offs);
 
-  size_t dst_len;
+  // ensure that key length is 32 bytes (256 bits), so that it could be used
+  // with my_aes_256_ecb
+  ut_ad(crypt_info.encryption_klen == 32);
 
-  int res = my_aes_crypt(
-      my_aes_mode::ECB, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD, iv,
-      MY_AES_BLOCK_SIZE, iv, &dst_len, crypt_info.encryption_key,
-      crypt_info.encryption_klen, nullptr, 0);
+  int dst_len = my_aes_encrypt(
+      iv, MY_AES_BLOCK_SIZE, iv, crypt_info.encryption_key,
+      crypt_info.encryption_klen, my_aes_256_ecb, nullptr, false /*padding*/
+  );
 
-  if (res != MY_AES_OK) {
+  if (dst_len != MY_AES_BLOCK_SIZE) {
     ib::error() << "Unable to encrypt IV";
     return false;
   }
-
-  ut_ad(dst_len == MY_AES_BLOCK_SIZE);
 
   return true;
 }
@@ -312,22 +313,18 @@ bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
     return false;
   }
 
-  size_t dst_len;
+  assert(crypt_info.encryption_klen == 32);
+  int res = my_legacy_aes_cbc_nopad_encrypt(src_block, size, dst_block,
+                                            crypt_info.encryption_key,
+                                            crypt_info.encryption_klen, iv);
 
-  int res = my_aes_crypt(
-      my_aes_mode::CBC, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD,
-      src_block, size, dst_block, &dst_len, crypt_info.encryption_key,
-      crypt_info.encryption_klen, iv, MY_AES_BLOCK_SIZE);
-
-  if (res != MY_AES_OK) {
+  if (res != static_cast<int>(size)) {
     ib::error() << "Unable to encrypt data block  src: "
                 << static_cast<const void *>(src_block) << " srclen: " << size
                 << " buf: " << static_cast<const void *>(dst_block)
-                << " buflen: " << dst_len << ".";
+                << " buflen: " << res << ".";
     return false;
   }
-
-  ut_ad(dst_len == size);
 
   return true;
 }
@@ -347,22 +344,18 @@ bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
     return false;
   }
 
-  size_t dst_len;
+  assert(crypt_info.encryption_klen == 32);
+  int res = my_legacy_aes_cbc_nopad_decrypt(src_block, size, dst_block,
+                                            crypt_info.encryption_key,
+                                            crypt_info.encryption_klen, iv);
 
-  int res = my_aes_crypt(
-      my_aes_mode::CBC, ENCRYPTION_FLAG_DECRYPT | ENCRYPTION_FLAG_NOPAD,
-      src_block, size, dst_block, &dst_len, crypt_info.encryption_key,
-      crypt_info.encryption_klen, iv, MY_AES_BLOCK_SIZE);
-
-  if (res != MY_AES_OK) {
+  if (res != static_cast<int>(size)) {
     ib::error() << "Unable to decrypt data block src: "
                 << static_cast<const void *>(src_block) << " srclen: " << size
                 << " buf: " << static_cast<const void *>(dst_block)
-                << " buflen: " << dst_len << ".";
+                << " buflen: " << res << ".";
     return false;
   }
-
-  ut_ad(dst_len == size);
 
   return true;
 }
@@ -1275,7 +1268,8 @@ const dtuple_t *row_log_table_get_pk(
         ut_ad(pos > 0);
 
         if (!offsets) {
-          offsets = rec_get_offsets(rec, index, nullptr, pos + 1, heap);
+          offsets = rec_get_offsets(rec, index, nullptr, pos + 1,
+                                    UT_LOCATION_HERE, heap);
         }
 
         trx_id_offs = rec_get_nth_field_offs(index, offsets, pos, &len);
@@ -1312,7 +1306,8 @@ const dtuple_t *row_log_table_get_pk(
     }
 
     if (!offsets) {
-      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, heap);
+      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, heap);
     }
 
     tuple = dtuple_create(*heap, new_n_uniq + 2);
@@ -1825,6 +1820,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       /* We did not request buffering. */
       break;
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       goto flag_ok;
@@ -1999,6 +1995,7 @@ flag_ok:
       /* We did not request buffering. */
       break;
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       goto flag_ok;
@@ -2020,7 +2017,7 @@ flag_ok:
   }
 
   offsets = rec_get_offsets(pcur.get_rec(), index, nullptr, ULINT_UNDEFINED,
-                            &offsets_heap);
+                            UT_LOCATION_HERE, &offsets_heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
   ut_a(!rec_offs_any_null_extern(index, pcur.get_rec(), offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
@@ -2220,6 +2217,7 @@ flag_ok:
     case BTR_CUR_INSERT_TO_IBUF:
       ut_d(ut_error); /* We did not request buffering. */
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       break;
@@ -2292,8 +2290,9 @@ flag_ok:
   }
 
   /* Prepare to update (or delete) the record. */
-  ulint *cur_offsets = rec_get_offsets(pcur.get_rec(), index, nullptr,
-                                       ULINT_UNDEFINED, &offsets_heap);
+  ulint *cur_offsets =
+      rec_get_offsets(pcur.get_rec(), index, nullptr, ULINT_UNDEFINED,
+                      UT_LOCATION_HERE, &offsets_heap);
 
   if (!log->same_pk) {
     /* Only update the record if DB_TRX_ID,DB_ROLL_PTR match what

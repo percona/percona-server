@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,6 @@ static const SYMBOL symbols[] = {
     {SYM("CHALLENGE_RESPONSE", CHALLENGE_RESPONSE_SYM)},
     {SYM("CHANGE", CHANGE)},
     {SYM("CHANGED", CHANGED)},
-    {SYM_PERCONA("CHANGED_PAGE_BITMAPS", CHANGED_PAGE_BITMAPS_SYM)},
     {SYM("CHANNEL", CHANNEL_SYM)},
     {SYM("CHAR", CHAR_SYM)},
     {SYM("CHARACTER", CHAR_SYM)},

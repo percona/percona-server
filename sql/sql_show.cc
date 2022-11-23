@@ -1297,14 +1297,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
                    sctx->master_access(dbname ? dbname : ""));
     }
   }
-<<<<<<< HEAD
-  if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname)) {
-    thd->diff_access_denied_errors++;
-||||||| fbdaa4def30
-  if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname)) {
-=======
   if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname, true)) {
->>>>>>> mysql-8.0.31
+    thd->diff_access_denied_errors++;
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->host_or_ip().str, dbname);
     query_logger.general_log_print(

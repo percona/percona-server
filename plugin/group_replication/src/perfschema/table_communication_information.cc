@@ -133,19 +133,11 @@ unsigned long long Pfs_table_communication_information::get_row_count() {
   return NR_ROWS;
 }
 
-<<<<<<< HEAD
-static int rnd_next(PSI_table_handle *handle [[maybe_unused]]) {
-  if (s_current_pos >= NR_ROWS) {
-||||||| fbdaa4def30
-static int rnd_next(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
-  if (s_current_pos >= NR_ROWS) {
-=======
 int Pfs_table_communication_information::rnd_next(PSI_table_handle *handle) {
   Replication_group_communication_information_table_handle *t =
       (Replication_group_communication_information_table_handle *)handle;
 
   if (t->current_pos >= NR_ROWS) {
->>>>>>> mysql-8.0.31
     return PFS_HA_ERR_END_OF_FILE;
   }
 
@@ -160,59 +152,27 @@ int Pfs_table_communication_information::rnd_next(PSI_table_handle *handle) {
   return SUCCESS;
 }
 
-<<<<<<< HEAD
-static int rnd_init(PSI_table_handle *handle [[maybe_unused]],
-                    bool scan [[maybe_unused]]) {
-||||||| fbdaa4def30
-static int rnd_init(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
-                    bool scan MY_ATTRIBUTE((unused))) {
-=======
 int Pfs_table_communication_information::rnd_init(PSI_table_handle *handle
                                                   [[maybe_unused]],
                                                   bool scan [[maybe_unused]]) {
->>>>>>> mysql-8.0.31
   return SUCCESS;
 }
 
-<<<<<<< HEAD
-static int rnd_pos(PSI_table_handle *handle [[maybe_unused]]) {
-||||||| fbdaa4def30
-static int rnd_pos(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
-=======
 int Pfs_table_communication_information::rnd_pos(PSI_table_handle *handle
                                                  [[maybe_unused]]) {
->>>>>>> mysql-8.0.31
   return SUCCESS;
 }
 
-<<<<<<< HEAD
-static void reset_position(PSI_table_handle *handle [[maybe_unused]]) {
-  s_current_pos = 0;
-||||||| fbdaa4def30
-static void reset_position(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
-  s_current_pos = 0;
-=======
 void Pfs_table_communication_information::reset_position(
     PSI_table_handle *handle) {
   Replication_group_communication_information_table_handle *t =
       (Replication_group_communication_information_table_handle *)handle;
   t->current_pos = 0;
->>>>>>> mysql-8.0.31
 }
 
-<<<<<<< HEAD
-static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
-                             PSI_field *field,
-                             unsigned int index [[maybe_unused]]) {
-||||||| fbdaa4def30
-static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
-                             PSI_field *field,
-                             unsigned int index MY_ATTRIBUTE((unused))) {
-=======
 int Pfs_table_communication_information::read_column_value(
     PSI_table_handle *handle, PSI_field *field,
     unsigned int index [[maybe_unused]]) {
->>>>>>> mysql-8.0.31
   Registry_guard guard;
   my_service<SERVICE_TYPE(pfs_plugin_column_tiny_v1)> column_tinyint_service{
       "pfs_plugin_column_tiny_v1", guard.get_registry()};
@@ -282,19 +242,6 @@ int Pfs_table_communication_information::read_column_value(
   return 0;
 }
 
-<<<<<<< HEAD
-static PSI_table_handle *open_table(PSI_pos **pos [[maybe_unused]]) {
-  auto *dummy = reinterpret_cast<PSI_table_handle *>(&dummy_table_handle);
-  reset_position(dummy);
-  *pos = reinterpret_cast<PSI_pos *>(&s_current_pos);
-  return dummy;
-||||||| fbdaa4def30
-static PSI_table_handle *open_table(PSI_pos **pos MY_ATTRIBUTE((unused))) {
-  auto *dummy = reinterpret_cast<PSI_table_handle *>(&dummy_table_handle);
-  reset_position(dummy);
-  *pos = reinterpret_cast<PSI_pos *>(&s_current_pos);
-  return dummy;
-=======
 PSI_table_handle *Pfs_table_communication_information::open_table(
     PSI_pos **pos) {
   Replication_group_communication_information_table_handle *handle =
@@ -303,7 +250,6 @@ PSI_table_handle *Pfs_table_communication_information::open_table(
   reset_position((PSI_table_handle *)handle);
   *pos = reinterpret_cast<PSI_pos *>(&(handle->current_pos));
   return (PSI_table_handle *)handle;
->>>>>>> mysql-8.0.31
 }
 
 void Pfs_table_communication_information::close_table(

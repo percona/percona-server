@@ -139,16 +139,10 @@ const char *globerrs[GLOBERRS] = {
     "Reset character out of range: %s.",
     "Unknown LDML tag: '%.*s'.",
     "Failed to reset before a secondary ignorable character %s.",
-<<<<<<< HEAD
     "Stopped processing the '%s' directive in file %s at line %d.",
+    "pthread_kill(thread_id:%lu, signal:%s) returned '%s'.",
     "Can't create socket '%s' (Errcode: %d)",
     "File name '%s' is too long (max: %d)"};
-||||||| fbdaa4def30
-    "Stopped processing the '%s' directive in file %s at line %d."};
-=======
-    "Stopped processing the '%s' directive in file %s at line %d.",
-    "pthread_kill(thread_id:%lu, signal:%s) returned '%s'."};
->>>>>>> mysql-8.0.31
 
 /*
  We cannot call my_error/my_printf_error here in this function.

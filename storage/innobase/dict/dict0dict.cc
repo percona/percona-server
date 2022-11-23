@@ -1868,23 +1868,10 @@ void dict_table_change_id_in_cache(
 #endif /*UNIV_DEBUG*/
 
   /* Remove the table from the hash table of id's */
+
   HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
               ut::hash_uint64(table->id), table);
-<<<<<<< HEAD
 
-  uint id_fold = ut::hash_uint64(new_id);
-  /* Look for a table with the same id: error if such exists */
-  {
-    dict_table_t *table2;
-    HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold, dict_table_t *,
-                table2, ut_ad(table2->cached), table2->id == new_id);
-    ut_a(table2 == nullptr);
-  }
-
-||||||| fbdaa4def30
-=======
-
->>>>>>> mysql-8.0.31
   table->id = new_id;
 
   /* Add the table back to the hash table */
@@ -5960,17 +5947,6 @@ an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES
 void dict_table_change_id_sys_tables() {
   ut_ad(dict_sys_mutex_own());
 
-<<<<<<< HEAD
-  /* SYS_* tables are special. All SYS_* tables are loaded and then their table
-  ids are changed. Some SYS tables like SYS_ZIP_DICT, VIRTUAL can have ids >
-  1024 (say 1028). When changing table_ids of SYS_FIELDS, from 4 to 1028, it
-  will conflict with the table_id of those existing SYS_ZIP_DICT/VIRTUAL
-  which haven't been shifted by 1024 yet and currently loaded with 1028.
-  Hence, we change ids of these SYS tables in reverse order*/
-  for (int i = SYS_NUM_SYSTEM_TABLES - 1; i >= 0; i--) {
-||||||| fbdaa4def30
-  for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
-=======
   /* On upgrading from 5.6 to 5.7, new system table SYS_VIRTUAL is given table
    id after the last created user table. So, if last user table was created
    with table_id as 1027, SYS_VIRTUAL would get id 1028. On upgrade to 8.0,
@@ -5983,7 +5959,6 @@ void dict_table_change_id_sys_tables() {
    on upgrading to 5.7. */
 
   for (int i = SYS_NUM_SYSTEM_TABLES - 1; i >= 0; i--) {
->>>>>>> mysql-8.0.31
     dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
     ut_a(system_table != nullptr || i == SYS_ZIP_DICT ||

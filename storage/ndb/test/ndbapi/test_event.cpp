@@ -923,7 +923,6 @@ int runEventApplier(NDBT_Context *ctx, NDBT_Step *step) {
             g_err << "Ignoring execute failed " << trans->getNdbError().code
                   << " " << trans->getNdbError().message << endl;
 
-<<<<<<< HEAD
             trans->close();
             count++;
             break;
@@ -935,155 +934,8 @@ int runEventApplier(NDBT_Context *ctx, NDBT_Step *step) {
             goto end;
           }
           trans->close();
-          NdbSleep_MilliSleep(100);  // sleep before retying
+          NdbSleep_MilliSleep(100);  // sleep before retrying
         } while (1);
-||||||| fbdaa4def30
-	    }
-	  }
-	
-	  switch (pOp->getEventType()) {
-	  case NdbDictionary::Event::TE_INSERT:
-	    for (i= 0; i < n_columns; i++)
-	    {
-	      if (!table->getColumn(i)->getPrimaryKey() &&
-		  op->setValue(i,recAttr[i]->isNULL() ? 0:recAttr[i]->aRef()))
-	      {
-		g_err << "setValue(insert) " << i << " "
-		      << op->getNdbError().code << " "
-		      << op->getNdbError().message << endl;
-		result = NDBT_FAILED;
-		goto end;
-
-	      }
-	    }
-	    break;
-	  case NdbDictionary::Event::TE_DELETE:
-	    break;
-	  case NdbDictionary::Event::TE_UPDATE:
-	    for (i= 0; i < n_columns; i++)
-	    {
-	      if (!table->getColumn(i)->getPrimaryKey() &&
-		  recAttr[i]->isNULL() >= 0 &&
-		  op->setValue(i,recAttr[i]->isNULL() ? 0:recAttr[i]->aRef()))
-	      {
-		g_err << "setValue(update) " << i << " "
-		      << op->getNdbError().code << " "
-		      << op->getNdbError().message << endl;
-		result = NDBT_FAILED;
-		goto end;
-
-	      }
-	    }
-	    break;
-	  default:
-	  case NdbDictionary::Event::TE_ALL:
-	    abort();
-	  }
-	  if (trans->execute(Commit) == 0)
-	  {
-	    trans->close();
-	    count++;
-	    // everything ok
-	    break;
-	  }
-
-	  if (trans->getNdbError().status == NdbError::PermanentError)
-	  {
-	    g_err << "Ignoring execute failed "
-		  << trans->getNdbError().code << " "
-		  << trans->getNdbError().message << endl;
-	  
-	    trans->close();
-	    count++;
-	    break;
-	  }
-	  else if (noRetries++ == 10)
-	  {
-	    g_err << "execute failed "
-		  << trans->getNdbError().code << " "
-		  << trans->getNdbError().message << endl;
-	    trans->close();
-	    result = NDBT_FAILED;
-	    goto end;
-
-	  }
-	  trans->close();
-	  NdbSleep_MilliSleep(100); // sleep before retying
-	} while(1);
-=======
-	    }
-	  }
-	
-	  switch (pOp->getEventType()) {
-	  case NdbDictionary::Event::TE_INSERT:
-	    for (i= 0; i < n_columns; i++)
-	    {
-	      if (!table->getColumn(i)->getPrimaryKey() &&
-		  op->setValue(i,recAttr[i]->isNULL() ? 0:recAttr[i]->aRef()))
-	      {
-		g_err << "setValue(insert) " << i << " "
-		      << op->getNdbError().code << " "
-		      << op->getNdbError().message << endl;
-		result = NDBT_FAILED;
-		goto end;
-
-	      }
-	    }
-	    break;
-	  case NdbDictionary::Event::TE_DELETE:
-	    break;
-	  case NdbDictionary::Event::TE_UPDATE:
-	    for (i= 0; i < n_columns; i++)
-	    {
-	      if (!table->getColumn(i)->getPrimaryKey() &&
-		  recAttr[i]->isNULL() >= 0 &&
-		  op->setValue(i,recAttr[i]->isNULL() ? 0:recAttr[i]->aRef()))
-	      {
-		g_err << "setValue(update) " << i << " "
-		      << op->getNdbError().code << " "
-		      << op->getNdbError().message << endl;
-		result = NDBT_FAILED;
-		goto end;
-
-	      }
-	    }
-	    break;
-	  default:
-	  case NdbDictionary::Event::TE_ALL:
-	    abort();
-	  }
-	  if (trans->execute(Commit) == 0)
-	  {
-	    trans->close();
-	    count++;
-	    // everything ok
-	    break;
-	  }
-
-	  if (trans->getNdbError().status == NdbError::PermanentError)
-	  {
-	    g_err << "Ignoring execute failed "
-		  << trans->getNdbError().code << " "
-		  << trans->getNdbError().message << endl;
-	  
-	    trans->close();
-	    count++;
-	    break;
-	  }
-	  else if (noRetries++ == 10)
-	  {
-	    g_err << "execute failed "
-		  << trans->getNdbError().code << " "
-		  << trans->getNdbError().message << endl;
-	    trans->close();
-	    result = NDBT_FAILED;
-	    goto end;
-
-	  }
-	  trans->close();
-	  NdbSleep_MilliSleep(100); // sleep before retrying
-	} while(1);
->>>>>>> mysql-8.0.31
       }
       Uint32 stop_gci_hi = ctx->getProperty("LastGCI_hi", ~(Uint32)0);
       Uint32 stop_gci_lo = ctx->getProperty("LastGCI_lo", ~(Uint32)0);
@@ -1595,23 +1447,9 @@ static int copy_events(Ndb *ndb) {
 
     NdbEventOperation *pOp = ndb->nextEvent();
     // (res==1 && pOp==NULL) means empty epochs
-<<<<<<< HEAD
     if (pOp == NULL) {
       if (r == 0) {
-        // Empty epoch preceeding regular epochs. Continue consuming.
-||||||| fbdaa4def30
-    if (pOp == NULL)
-    {
-      if (r == 0)
-      {
-        // Empty epoch preceeding regular epochs. Continue consuming.
-=======
-    if (pOp == NULL)
-    {
-      if (r == 0)
-      {
         // Empty epoch preceding regular epochs. Continue consuming.
->>>>>>> mysql-8.0.31
         continue;
       }
       // Empty epoch after regular epochs. We are done.
@@ -1790,18 +1628,8 @@ static int createEventOperations(Ndb *ndb, NDBT_Context *ctx) {
   DBUG_ENTER("createEventOperations");
   int i;
 
-<<<<<<< HEAD
-  // creat all event ops
-  for (i = 0; pTabs[i]; i++) {
-||||||| fbdaa4def30
-  // creat all event ops
-  for (i= 0; pTabs[i]; i++)
-  {
-=======
   // create all event ops
-  for (i= 0; pTabs[i]; i++)
-  {
->>>>>>> mysql-8.0.31
+  for (i = 0; pTabs[i]; i++) {
     char buf[1024];
     sprintf(buf, "%s_EVENT", pTabs[i]->getName());
     NdbEventOperation *pOp = ndb->createEventOperation(buf);
@@ -4428,18 +4256,8 @@ ConsumptionStatistics::ConsumptionStatistics()
   }
 }
 
-<<<<<<< HEAD
 void ConsumptionStatistics::print() {
-  /* Buffer capacity : #epochs event buffer can accomodate.
-||||||| fbdaa4def30
-void ConsumptionStatistics::print()
-{
-  /* Buffer capacity : #epochs event buffer can accomodate.
-=======
-void ConsumptionStatistics::print()
-{
   /* Buffer capacity : #epochs event buffer can accommodate.
->>>>>>> mysql-8.0.31
    * The test fills the event buffer twice.
    * The buffer capacity of the first and the second rounds
    * should be comparable, with a small difference due to
@@ -4995,13 +4813,7 @@ int runGetLogEventPretty(NDBT_Context *ctx, NDBT_Step *step) {
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};
-<<<<<<< HEAD
-  ndb_native_socket_t fd = ndb_mgm_listen_event(mgmd.handle(), filter);
-||||||| fbdaa4def30
-  ndb_native_socket_t fd= ndb_mgm_listen_event(mgmd.handle(), filter);
-=======
   socket_t fd= ndb_mgm_listen_event(mgmd.handle(), filter);
->>>>>>> mysql-8.0.31
   ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
   if (!ndb_socket_valid(my_fd)) {

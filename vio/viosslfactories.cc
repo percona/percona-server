@@ -738,7 +738,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
-
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
   {
     const auto ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);

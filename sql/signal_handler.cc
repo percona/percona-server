@@ -38,12 +38,8 @@
 #include "my_macros.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
-<<<<<<< HEAD
-#include "mysql_version.h"
-||||||| fbdaa4def30
-=======
 #include "my_time.h"
->>>>>>> mysql-8.0.31
+#include "mysql_version.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -142,7 +138,10 @@ void print_fatal_signal(int sig) {
       "Most likely, you have hit a bug, but this error can also "
       "be caused by malfunctioning hardware.\n");
 
-<<<<<<< HEAD
+#if defined(HAVE_BUILD_ID_SUPPORT)
+  my_safe_printf_stderr("BuildID[sha1]=%s\n", server_build_id);
+#endif
+
   my_safe_printf_stderr("\n");
 #ifdef __linux__
   my_print_buildID();
@@ -150,13 +149,6 @@ void print_fatal_signal(int sig) {
   my_safe_printf_stderr("Server Version: %s %s\n\n", server_version,
                         MYSQL_COMPILATION_COMMENT);
 
-||||||| fbdaa4def30
-=======
-#if defined(HAVE_BUILD_ID_SUPPORT)
-  my_safe_printf_stderr("BuildID[sha1]=%s\n", server_build_id);
-#endif
-
->>>>>>> mysql-8.0.31
 #ifdef HAVE_STACKTRACE
   THD *thd = current_thd;
 

@@ -1252,13 +1252,7 @@ static void set_client_port_in_thd(THD *thd, uint16_t *input) {
   @param port  Port number
 */
 void Srv_session::set_client_port(uint16_t port) {
-<<<<<<< HEAD
-  Find_thd_with_id find_thd_with_id(thd.thread_id(), false);
-||||||| fbdaa4def30
-  Find_thd_with_id find_thd_with_id(thd.thread_id());
-=======
   Find_thd_with_id find_thd_with_id(m_thd->thread_id());
->>>>>>> mysql-8.0.31
   THD_ptr thd_ptr =
       Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd_ptr) set_client_port_in_thd(thd_ptr.get(), &port);

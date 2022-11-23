@@ -126,35 +126,6 @@ enum srv_checksum_algorithm_t {
                                         when reading */
 };
 
-<<<<<<< HEAD
-/** Alternatives for srv_cleaner_lsn_age_factor, set through
-innodb_cleaner_lsn_age_factor variable  */
-enum srv_cleaner_lsn_age_factor_t {
-  SRV_CLEANER_LSN_AGE_FACTOR_LEGACY, /*!< Original Oracle MySQL 5.6
-                                     formula */
-  SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT
-  /*!< Percona Server 5.6 formula
-  that returns lower values than
-  legacy option for low
-  checkpoint ages, and higher
-  values for high ages.  This has
-  the effect of stabilizing the
-  checkpoint age higher.  */
-};
-
-/** Alternatives for srv_empty_free_list_algorithm, set through
-innodb_empty_free_list_algorithm variable  */
-enum srv_empty_free_list_t {
-  SRV_EMPTY_FREE_LIST_LEGACY, /*!< Original Oracle MySQL 5.6
-                              algorithm */
-  SRV_EMPTY_FREE_LIST_BACKOFF /*!< Percona Server 5.6 algorithm that
-                              loops in a progressive backoff until a
-                              free page is produced by the cleaner
-                              thread */
-};
-
-||||||| fbdaa4def30
-=======
 /** Buffer pool resize status code and progress are tracked using these
 atomic variables to ensure thread synchronization between
 innodb_buffer_pool_size_update (raising srv_buf_resize_event) and
@@ -190,7 +161,32 @@ enum buf_pool_resize_status_code_t {
   BUF_POOL_RESIZE_FAILED = 7
 };
 
->>>>>>> mysql-8.0.31
+/** Alternatives for srv_cleaner_lsn_age_factor, set through
+innodb_cleaner_lsn_age_factor variable  */
+enum srv_cleaner_lsn_age_factor_t {
+  SRV_CLEANER_LSN_AGE_FACTOR_LEGACY, /*!< Original Oracle MySQL 5.6
+                                     formula */
+  SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT
+  /*!< Percona Server 5.6 formula
+  that returns lower values than
+  legacy option for low
+  checkpoint ages, and higher
+  values for high ages.  This has
+  the effect of stabilizing the
+  checkpoint age higher.  */
+};
+
+/** Alternatives for srv_empty_free_list_algorithm, set through
+innodb_empty_free_list_algorithm variable  */
+enum srv_empty_free_list_t {
+  SRV_EMPTY_FREE_LIST_LEGACY, /*!< Original Oracle MySQL 5.6
+                              algorithm */
+  SRV_EMPTY_FREE_LIST_BACKOFF /*!< Percona Server 5.6 algorithm that
+                              loops in a progressive backoff until a
+                              free page is produced by the cleaner
+                              thread */
+};
+
 inline bool is_checksum_strict(srv_checksum_algorithm_t algo) {
   return (algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 ||
           algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB ||

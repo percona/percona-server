@@ -3881,7 +3881,7 @@ static bool rdb_is_simple_collation(const my_core::CHARSET_INFO *const cs) {
 
 static bool rdb_is_binary_collation(const my_core::CHARSET_INFO *const cs) {
   return (cs->coll == &my_collation_8bit_bin_handler) ||
-         (cs == &my_charset_utf8mb4_bin) || (cs == &my_charset_utf8_bin);
+         (cs == &my_charset_utf8mb4_bin) || (cs == &my_charset_utf8mb3_bin);
 }
 
 static const Rdb_collation_codec *rdb_init_collation_mapping(
@@ -4259,7 +4259,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         m_unpack_func =
             (cs == &my_charset_utf8mb4_bin)
                 ? Rdb_key_def::unpack_utf8mb4_varlength_space_pad
-                : (cs == &my_charset_utf8_bin)
+                : (cs == &my_charset_utf8mb3_bin)
                       ? Rdb_key_def::unpack_utf8_varlength_space_pad
                       : Rdb_key_def::unpack_binary_varlength_space_pad;
 
@@ -4279,7 +4279,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         assert(m_make_unpack_info_func == nullptr);
         m_unpack_func = (cs == &my_charset_utf8mb4_bin)
                             ? Rdb_key_def::unpack_utf8mb4_str
-                            : (cs == &my_charset_utf8_bin)
+                            : (cs == &my_charset_utf8mb3_bin)
                                   ? Rdb_key_def::unpack_utf8_str
                                   : Rdb_key_def::unpack_binary_str;
       }

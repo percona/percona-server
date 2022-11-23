@@ -656,7 +656,12 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
         m_packet.length(tmp.length());
       }
 
-<<<<<<< HEAD
+      Observe_transmission_guard obs_guard(
+          m_observe_transmission, event_type,
+          const_cast<const char *>(reinterpret_cast<char *>(event_ptr)),
+          m_event_checksum_alg, m_prev_event_type);
+
+      if (before_send_hook(log_file, log_pos)) return 1;
       if (unlikely(send_packet())) return 1;
 
       DBUG_EXECUTE_IF("dump_thread_wait_after_send_write_rows", {
@@ -669,19 +674,7 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
           assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
         }
       });
-    }
-||||||| fbdaa4def30
-      if (unlikely(send_packet())) return 1;
-    }
-=======
-      Observe_transmission_guard obs_guard(
-          m_observe_transmission, event_type,
-          const_cast<const char *>(reinterpret_cast<char *>(event_ptr)),
-          m_event_checksum_alg, m_prev_event_type);
->>>>>>> mysql-8.0.31
 
-      if (before_send_hook(log_file, log_pos)) return 1;
-      if (unlikely(send_packet())) return 1;
       if (unlikely(after_send_hook(log_file, in_exclude_group ? log_pos : 0)))
         return 1;
     }
@@ -1194,15 +1187,15 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
 
   // Let's check if next event is Start encryption event
   // If we go outside the file read_event will also return an error
-  const auto binlog_pos_after_fdle = reader->position();
+  const auto binlog_pos_after_fdle = reader.position();
   if (read_event(reader, &event_ptr, &event_len, true)) {
-    reader->seek(binlog_pos_after_fdle);
+    reader.seek(binlog_pos_after_fdle);
     set_last_pos(binlog_pos_after_fdle);
     return 0;
   }
 
   binlog_read_error = binlog_event_deserialize(
-      event_ptr, event_len, reader->format_description_event(), false, &ev);
+      event_ptr, event_len, reader.format_description_event(), false, &ev);
 
   if (binlog_read_error.has_error()) {
     set_fatal_error(binlog_read_error.get_str());
@@ -1218,20 +1211,20 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
       return 1;
     }
 
-    if (reader->start_decryption(sele)) {
+    if (reader.start_decryption(sele)) {
       set_fatal_error("Could not decrypt binlog: encryption key error");
       return 1;
     }
 
     if (start_pos <= BIN_LOG_HEADER_SIZE) {
-      const auto log_pos = reader->position();
+      const auto log_pos = reader.position();
       // We have read start encryption event from master binlog, but we have
       // not sent it to slave. We need to inform slave that master position
       // has advanced.
       if (unlikely(send_heartbeat_event(log_pos))) return 1;
     }
   } else {
-    reader->seek(binlog_pos_after_fdle);
+    reader.seek(binlog_pos_after_fdle);
     set_last_pos(binlog_pos_after_fdle);
   }
 
@@ -1278,17 +1271,9 @@ const char *Binlog_sender::log_read_error_msg(
   }
 }
 
-<<<<<<< HEAD
-inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
+inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
                                      uint32 *event_len,
                                      bool readahead [[maybe_unused]]) {
-||||||| fbdaa4def30
-inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
-                                     uint32 *event_len) {
-=======
-inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
-                                     uint32 *event_len) {
->>>>>>> mysql-8.0.31
   DBUG_TRACE;
 
   if (reset_transmit_packet(0, 0)) return 1;

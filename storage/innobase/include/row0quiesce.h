@@ -64,7 +64,7 @@ constexpr uint32_t IB_EXPORT_CFG_VERSION_V1_WITH_RK = 0xFFFFFFFF;
 void row_quiesce_table_start(dict_table_t *table, trx_t *trx);
 
 /** Set a table's quiesce state.
- @return DB_SUCCESS or errro code. */
+ @return DB_SUCCESS or error code. */
 [[nodiscard]] dberr_t row_quiesce_set_state(
     dict_table_t *table, /*!< in: quiesce this table */
     ib_quiesce_t state,  /*!< in: quiesce state to set */

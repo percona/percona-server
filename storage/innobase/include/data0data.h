@@ -264,7 +264,7 @@ dtuple_create, but if you want later to set it smaller, you can use this.
 @param[in] n_fields             Number of fields. */
 void dtuple_set_n_fields(dtuple_t *tuple, ulint n_fields);
 
-/** Copies a data tuple's virtaul fields to another. This is a shallow copy;
+/** Copies a data tuple's virtual fields to another. This is a shallow copy;
 @param[in,out]  d_tuple         destination tuple
 @param[in]      s_tuple         source tuple */
 static inline void dtuple_copy_v_fields(dtuple_t *d_tuple,
@@ -552,7 +552,7 @@ class Multi_value_logger {
   @return next to the end of the multi-value data log */
   static const byte *read(const byte *ptr, dfield_t *field, mem_heap_t *heap);
 
-  /** Estimate how many multi-value keys at most can be accomodated into the
+  /** Estimate how many multi-value keys at most can be accommodated into the
   log of specified size.
   @param[in]    log_size        max log size
   @param[in]    key_length      max multi-value key length, charset considered
@@ -636,7 +636,7 @@ struct dfield_t {
 
   /** Print the dfield_t object into the given output stream.
   @param[in]    out     the output stream.
-  @return       the ouput stream. */
+  @return       the output stream. */
   std::ostream &print(std::ostream &out) const;
 
   /** Adjust and(or) set virtual column value which is read from undo
@@ -812,7 +812,7 @@ struct big_rec_field_t {
 
   /** Print the big_rec_field_t object into the given output stream.
   @param[in]    out     the output stream.
-  @return       the ouput stream. */
+  @return       the output stream. */
   std::ostream &print(std::ostream &out) const;
 };
 
@@ -856,7 +856,7 @@ struct big_rec_t {
 
   /** Print the current object into the given output stream.
   @param[in]    out     the output stream.
-  @return       the ouput stream. */
+  @return       the output stream. */
   std::ostream &print(std::ostream &out) const;
 };
 

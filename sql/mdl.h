@@ -394,6 +394,7 @@ struct MDL_key {
      - RESOURCE_GROUPS is for resource groups.
      - FOREIGN_KEY is for foreign key names.
      - CHECK_CONSTRAINT is for check constraint names.
+     - RESOURCE_GROUPS_GLOBAL is global lock for resource groups.
     Note that requests waiting for user-level locks get special
     treatment - waiting is aborted if connection to client is lost.
   */
@@ -416,7 +417,12 @@ struct MDL_key {
     RESOURCE_GROUPS,
     FOREIGN_KEY,
     CHECK_CONSTRAINT,
+<<<<<<< HEAD
     BACKUP_TABLES, /* Percona LOCK TABLES FOR BACKUP */
+||||||| fbdaa4def30
+=======
+    RESOURCE_GROUPS_GLOBAL,
+>>>>>>> mysql-8.0.31
     /* This should be the last ! */
     NAMESPACE_END
   };

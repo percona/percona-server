@@ -90,14 +90,14 @@ static inline void bchange(uchar *dst, size_t old_length, const uchar *src,
   be used instead, but this is clearer and faster.
 */
 static inline const char *strend(const char *s) {
-  while (*s++)
-    ;
+  while (*s++) {
+  }
   return s - 1;
 }
 
 static inline char *strend(char *s) {
-  while (*s++)
-    ;
+  while (*s++) {
+  }
   return s - 1;
 }
 
@@ -131,8 +131,8 @@ static inline char *strfill(char *s, size_t len, char fill) {
   into dst, which seems useful.
 */
 static inline char *my_stpmov(char *dst, const char *src) {
-  while ((*dst++ = *src++))
-    ;
+  while ((*dst++ = *src++)) {
+  }
   return dst - 1;
 }
 

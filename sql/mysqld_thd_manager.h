@@ -81,14 +81,28 @@ class Find_THD_Impl {
 */
 class Find_thd_with_id : public Find_THD_Impl {
  public:
+<<<<<<< HEAD
   Find_thd_with_id(my_thread_id value, bool daemon_allowed)
       : m_thread_id(value), m_daemon_allowed(daemon_allowed) {}
   virtual bool operator()(THD *thd) override;
+||||||| fbdaa4def30
+  Find_thd_with_id(my_thread_id value) : m_thread_id(value) {}
+  bool operator()(THD *thd) override;
+=======
+  Find_thd_with_id(my_thread_id value, bool daemon_allowed = false)
+      : m_thread_id(value), m_daemon_allowed(daemon_allowed) {}
+  bool operator()(THD *thd) override;
+>>>>>>> mysql-8.0.31
 
   const my_thread_id m_thread_id;
+<<<<<<< HEAD
 
  private:
   const bool m_daemon_allowed;
+||||||| fbdaa4def30
+=======
+  const bool m_daemon_allowed;
+>>>>>>> mysql-8.0.31
 };
 
 /**

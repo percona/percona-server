@@ -39,6 +39,7 @@
 #include <type_traits>
 #include <utility>  // std::forward
 
+#include "my_compiler.h"
 #include "mysql/harness/stdx/type_traits.h"
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -97,8 +98,14 @@ class unexpected {
   unexpected() = delete;
 
   constexpr explicit unexpected(error_type &&e) : error_{std::move(e)} {}
-
+  // GCC 8.3.1, 8.4.0 report:
+  //
+  // '*((void*)& accu +64)' may be used uninitialized in this function
+  // [-Werror=maybe-uninitialized]
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized")
   constexpr explicit unexpected(const error_type &e) : error_{e} {}
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   template <
       class... Args,
@@ -848,7 +855,7 @@ class ExpectedImpl<void, E> : public ExpectedImplBase {
     }
   }
 
-  // error accesors
+  // error accessors
   constexpr const error_type &error() const & {
     RESO_ASSUME(!has_value());
     return storage_.error();

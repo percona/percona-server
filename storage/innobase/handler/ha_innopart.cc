@@ -137,7 +137,9 @@ bool Ha_innopart_share::open_one_table_part(
   if (part_table != nullptr) {
     cached = true;
     if (part_table->is_corrupted()) {
-      dict_table_remove_from_cache(part_table);
+      if (part_table->get_ref_count() == 0) {
+        dict_table_remove_from_cache(part_table);
+      }
       part_table = nullptr;
     } else if (part_table->discard_after_ddl) {
       btr_drop_ahi_for_table(part_table);
@@ -828,6 +830,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     {
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
+<<<<<<< HEAD
       /* ha_innopart::clone calls handler::clone which calls
          handler::ha_open(table_def=nullptr)) */
       if (table_def == nullptr && table_share->tmp_table == NO_TMP_TABLE) {
@@ -842,6 +845,17 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
 
       if (table_parts == nullptr) return HA_ERR_INTERNAL_ERROR;
     }
+||||||| fbdaa4def30
+    if (table_parts == nullptr) return HA_ERR_INTERNAL_ERROR;
+=======
+    if (table_parts == nullptr) {
+      ib::warn(ER_IB_MSG_557)
+          << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
+      set_my_errno(ENOENT);
+
+      return HA_ERR_NO_SUCH_TABLE;
+    }
+>>>>>>> mysql-8.0.31
 
     /* Now acquire TABLE_SHARE::LOCK_ha_data again and assign table
     and index information. set_table_parts_and_indexes() will check
@@ -1062,7 +1076,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     of the index used on scan, to make it avoid checking if we
     update the column of the index. That is why we assert below
     that key_used_on_scan is the undefined value MAX_KEY.
-    The column is the row id in the automatical generation case,
+    The column is the row id in the automatic generation case,
     and it will never be updated anyway. */
 
     if (key_used_on_scan != MAX_KEY) {

@@ -57,7 +57,13 @@ static inline int thd_partition(my_thread_id thread_id) {
 }
 
 bool Find_thd_with_id::operator()(THD *thd) {
+<<<<<<< HEAD
   if (!m_daemon_allowed && thd->get_command() == COM_DAEMON) return false;
+||||||| fbdaa4def30
+  if (thd->get_command() == COM_DAEMON) return false;
+=======
+  if (thd->get_command() == COM_DAEMON && !m_daemon_allowed) return false;
+>>>>>>> mysql-8.0.31
   return (thd->thread_id() == m_thread_id);
 }
 

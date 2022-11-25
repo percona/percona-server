@@ -95,6 +95,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
  private:
   bool m_is_rotating;
   bool m_is_log_empty;
+  bool m_is_opened;
   FileHandle m_file_handle;
   std::unique_ptr<log_writer_strategy::FileWriterStrategyBase> m_strategy;
 };

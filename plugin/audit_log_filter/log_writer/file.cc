@@ -32,6 +32,7 @@ LogWriter<AuditLogHandlerType::File>::LogWriter(
     : LogWriterBase{std::move(formatter)},
       m_is_rotating{false},
       m_is_log_empty{true},
+      m_is_opened{false},
       m_strategy{get_log_writer_strategy(SysVars::get_file_strategy_type())} {}
 
 LogWriter<AuditLogHandlerType::File>::~LogWriter() { do_close_file(); }
@@ -77,11 +78,18 @@ bool LogWriterFile::do_open_file() noexcept {
     m_is_log_empty = true;
   }
 
+  m_is_opened = true;
+
   return true;
 }
 
 bool LogWriterFile::do_close_file() noexcept {
-  write(get_formatter()->get_file_footer(), false);
+  if (m_is_opened) {
+    write(get_formatter()->get_file_footer(), false);
+  }
+
+  m_is_opened = false;
+
   return m_strategy->do_close_file(&m_file_handle);
 }
 

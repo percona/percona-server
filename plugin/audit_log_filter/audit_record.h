@@ -51,14 +51,6 @@ struct AuditRecordConnection {
   ExtendedInfo extended_info;
 };
 
-struct AuditRecordParse {
-  std::string_view event_class_name;
-  std::string_view event_subclass_name;
-  mysql_event_class_t event_class;
-  const mysql_event_parse *event;
-  ExtendedInfo extended_info;
-};
-
 struct AuditRecordTableAccess {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
@@ -156,8 +148,8 @@ struct AuditRecordUnknown {
 };
 
 using AuditRecordVariant = std::variant<
-    AuditRecordGeneral, AuditRecordConnection, AuditRecordParse,
-    AuditRecordTableAccess, AuditRecordGlobalVariable, AuditRecordServerStartup,
+    AuditRecordGeneral, AuditRecordConnection, AuditRecordTableAccess,
+    AuditRecordGlobalVariable, AuditRecordServerStartup,
     AuditRecordServerShutdown, AuditRecordCommand, AuditRecordQuery,
     AuditRecordStoredProgram, AuditRecordAuthentication, AuditRecordMessage,
     AuditRecordStartAudit, AuditRecordStopAudit, AuditRecordUnknown>;
@@ -206,14 +198,6 @@ AuditRecordFieldsList get_audit_record_fields(const AuditRecordGeneral &record);
  */
 AuditRecordFieldsList get_audit_record_fields(
     const AuditRecordConnection &record);
-
-/**
- * @brief Get fields list from AuditRecordParse event record.
- *
- * @param record Audit event record
- * @return Fields list, @ref AuditRecordFieldsList
- */
-AuditRecordFieldsList get_audit_record_fields(const AuditRecordParse &record);
 
 /**
  * @brief Get fields list from AuditRecordTableAccess event record.

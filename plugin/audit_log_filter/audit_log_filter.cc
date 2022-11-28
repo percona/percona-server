@@ -500,8 +500,7 @@ static st_mysql_audit audit_log_descriptor = {
     audit_log_filter::audit_log_notify, /* notify function      */
     {                                   /* class mask           */
      static_cast<unsigned long>(MYSQL_AUDIT_GENERAL_ALL),
-     static_cast<unsigned long>(MYSQL_AUDIT_CONNECTION_ALL),
-     static_cast<unsigned long>(MYSQL_AUDIT_PARSE_ALL), 0,
+     static_cast<unsigned long>(MYSQL_AUDIT_CONNECTION_ALL), 0, 0,
      static_cast<unsigned long>(MYSQL_AUDIT_TABLE_ACCESS_ALL),
      static_cast<unsigned long>(MYSQL_AUDIT_GLOBAL_VARIABLE_ALL),
      static_cast<unsigned long>(MYSQL_AUDIT_SERVER_STARTUP_ALL),

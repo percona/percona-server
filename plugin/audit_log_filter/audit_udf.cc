@@ -28,7 +28,9 @@
 
 #include "rapidjson/document.h"
 
+#include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
+#include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
 
@@ -894,6 +896,31 @@ void AuditUdf::audit_log_read_bookmark_udf_deinit(UDF_INIT *) {}
 bool AuditUdf::audit_log_rotate_udf_init(AuditUdf *udf [[maybe_unused]],
                                          UDF_INIT *initid, UDF_ARGS *udf_args,
                                          char *message) noexcept {
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", udf->get_comp_registry_srv());
+  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
+      "mysql_thd_security_context",
+      get_audit_log_filter_instance()->get_comp_registry_srv());
+  my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
+      "global_grants_check",
+      get_audit_log_filter_instance()->get_comp_registry_srv());
+
+  MYSQL_THD thd;
+  Security_context_handle ctx;
+
+  if (!security_context_service.is_valid() ||
+      !grants_check_service.is_valid() || thd_reader_srv->get(&thd) ||
+      security_context_service->get(thd, &ctx)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, "ERROR: Internal error");
+    return true;
+  }
+
+  if (!grants_check_service->has_global_grant(ctx,
+                                              STRING_WITH_LEN("AUDIT_ADMIN"))) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "AUDIT_ADMIN");
+    return true;
+  }
+
   if (udf_args->arg_count != 0) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Wrong argument list: audit_log_rotate()");

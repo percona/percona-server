@@ -31,7 +31,6 @@ namespace audit_log_filter {
 
 struct AuditRecordGeneral;
 struct AuditRecordConnection;
-struct AuditRecordParse;
 struct AuditRecordTableAccess;
 struct AuditRecordGlobalVariable;
 struct AuditRecordServerStartup;
@@ -79,15 +78,6 @@ class LogRecordFormatterBase {
    */
   [[nodiscard]] virtual AuditRecordString apply(
       const AuditRecordConnection &audit_record) const noexcept = 0;
-
-  /**
-   * @brief Apply formatting to AuditRecordParse audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordParse &audit_record) const noexcept = 0;
 
   /**
    * @brief Apply formatting to AuditRecordTableAccess audit record.
@@ -309,15 +299,6 @@ class LogRecordFormatterBase {
    */
   [[nodiscard]] virtual std::string_view event_subclass_to_string(
       mysql_event_connection_subclass_t event_subclass) const noexcept;
-
-  /**
-   * @brief Get string representation of audit event subclass name.
-   *
-   * @param event_subclass Audit event subclass
-   * @return String representation of audit event subclass name
-   */
-  [[nodiscard]] virtual std::string_view event_subclass_to_string(
-      mysql_event_parse_subclass_t event_subclass) const noexcept;
 
   /**
    * @brief Get string representation of audit event subclass name.

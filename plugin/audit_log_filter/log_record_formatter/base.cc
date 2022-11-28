@@ -25,7 +25,6 @@ namespace {
 
 const std::string_view kAuditEventNameGeneral{"General"};
 const std::string_view kAuditEventNameConnection{"Connection"};
-const std::string_view kAuditEventNameParse{"Parse"};
 const std::string_view kAuditEventNameAuthorization{"Authorization"};
 const std::string_view kAuditEventNameTableAccess{"Table Access"};
 const std::string_view kAuditEventNameGlobalVariable{"Global Variable"};
@@ -53,9 +52,6 @@ const std::string_view kAuditConnectionTypeNameSock{"Socket"};
 const std::string_view kAuditConnectionTypeNamePipe{"Named pipe"};
 const std::string_view kAuditConnectionTypeNameSsl{"SSL"};
 const std::string_view kAuditConnectionTypeNameShared{"Shared memory"};
-
-const std::string_view kAuditEventNamePreparse{"Preparse"};
-const std::string_view kAuditEventNamePostparse{"Postparse"};
 
 const std::string_view kAuditEventNameAccessRead{"TableRead"};
 const std::string_view kAuditEventNameAccessInsert{"TableInsert"};
@@ -156,8 +152,6 @@ std::string_view LogRecordFormatterBase::event_class_to_string(
       return kAuditEventNameGeneral;
     case MYSQL_AUDIT_CONNECTION_CLASS:
       return kAuditEventNameConnection;
-    case MYSQL_AUDIT_PARSE_CLASS:
-      return kAuditEventNameParse;
     case MYSQL_AUDIT_AUTHORIZATION_CLASS:
       return kAuditEventNameAuthorization;
     case MYSQL_AUDIT_TABLE_ACCESS_CLASS:
@@ -228,20 +222,6 @@ std::string_view LogRecordFormatterBase::event_subclass_to_string(
       return kAuditEventNameChangeUser;
     case MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE:
       return kAuditEventNamePreAuth;
-    default:
-      assert(false);
-  }
-
-  return kAuditNameUnknown;
-}
-
-std::string_view LogRecordFormatterBase::event_subclass_to_string(
-    mysql_event_parse_subclass_t event_subclass) const noexcept {
-  switch (event_subclass) {
-    case MYSQL_AUDIT_PARSE_PREPARSE:
-      return kAuditEventNamePreparse;
-    case MYSQL_AUDIT_PARSE_POSTPARSE:
-      return kAuditEventNamePostparse;
     default:
       assert(false);
   }

@@ -40,9 +40,6 @@ const std::string_view kAuditEventNameDisconnect{"disconnect"};
 const std::string_view kAuditEventNameChangeUser{"change_user"};
 const std::string_view kAuditEventNamePreAuth{"pre_authenticate"};
 
-const std::string_view kAuditEventNamePreparse{"preparse"};
-const std::string_view kAuditEventNamePostparse{"postparse"};
-
 const std::string_view kAuditEventNameGlobalVariableGet{"variable_get"};
 const std::string_view kAuditEventNameGlobalVariableSet{"variable_set"};
 
@@ -133,20 +130,6 @@ std::string_view LogRecordFormatterJson::event_subclass_to_string(
       return kAuditEventNameChangeUser;
     case MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE:
       return kAuditEventNamePreAuth;
-    default:
-      assert(false);
-  }
-
-  return kAuditNameUnknown;
-}
-
-std::string_view LogRecordFormatterJson::event_subclass_to_string(
-    mysql_event_parse_subclass_t event_subclass) const noexcept {
-  switch (event_subclass) {
-    case MYSQL_AUDIT_PARSE_PREPARSE:
-      return kAuditEventNamePreparse;
-    case MYSQL_AUDIT_PARSE_POSTPARSE:
-      return kAuditEventNamePostparse;
     default:
       assert(false);
   }
@@ -407,36 +390,6 @@ AuditRecordString LogRecordFormatterJson::apply(
          << make_escaped_string(&audit_record.event->database) << "\""
          << "    }" << extra_attrs_to_string(audit_record.extended_info)
          << "\n  }";
-
-  SysVars::update_log_bookmark(rec_id, timestamp);
-
-  return result.str();
-}
-
-AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordParse &audit_record) const noexcept {
-  std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
-  const auto rec_id = make_record_id();
-
-  result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
-         << R"(    "class": "parse",)"
-         << "\n"
-         << R"(    "event": ")"
-         << event_subclass_to_string(audit_record.event->event_subclass)
-         << "\",\n"
-         << R"(    "parse_data": {)"
-         << "\n"
-         << R"(      "query": ")"
-         << (audit_record.extended_info.digest.empty()
-                 ? make_escaped_string(&audit_record.event->query)
-                 : make_escaped_string(audit_record.extended_info.digest))
-         << "\",\n"
-         << R"(      "rewritten_query": ")"
-         << make_escaped_string(audit_record.event->rewritten_query) << "\"}"
-         << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
 
   SysVars::update_log_bookmark(rec_id, timestamp);
 

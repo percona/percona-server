@@ -95,31 +95,6 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordParse &audit_record) const noexcept {
-  std::stringstream result;
-  std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
-
-  result << "  <AUDIT_RECORD\n"
-         << "    NAME=\""
-         << event_subclass_to_string(audit_record.event->event_subclass)
-         << "\"\n"
-         << "    RECORD_ID=\"" << make_record_id(tp) << "\"\n"
-         << "    TIMESTAMP=\"" << make_timestamp(tp) << "\"\n"
-         << "    COMMAND_CLASS=\""
-         << event_class_to_string(audit_record.event_class) << "\"\n"
-         << "    SQLTEXT=\""
-         << (audit_record.extended_info.digest.empty()
-                 ? make_escaped_string(&audit_record.event->query)
-                 : make_escaped_string(audit_record.extended_info.digest))
-         << "\"\n"
-         << "    REWRITTEN_SQLTEXT=\""
-         << make_escaped_string(audit_record.event->rewritten_query)
-         << "\"/>\n";
-
-  return result.str();
-}
-
-AuditRecordString LogRecordFormatterOld::apply(
     const AuditRecordTableAccess &audit_record) const noexcept {
   std::stringstream result;
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();

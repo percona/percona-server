@@ -43,15 +43,6 @@ class LogRecordFormatter<AuditLogFormatType::New>
       const AuditRecordConnection &audit_record) const noexcept override;
 
   /**
-   * @brief Apply formatting to AuditRecordParse audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] AuditRecordString apply(
-      const AuditRecordParse &audit_record) const noexcept override;
-
-  /**
    * @brief Apply formatting to AuditRecordTableAccess audit record.
    *
    * @param [in] audit_record Audit record

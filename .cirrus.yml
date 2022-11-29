@@ -1,0 +1,157 @@
+env:  # Global defaults
+  CCACHE_SIZE: "500M"
+  CCACHE_DIR: "${MOUNT_POINT}/ccache_dir"
+  CCACHE_NOHASHDIR: "1"  # Debug info might contain a stale path if the build dir changes, but this is fine
+  BOOST_DIR: "${MOUNT_POINT}/boost_dir"
+  BOOST_VERSION: "boost_1_77_0"
+  PARENT_BRANCH: 8.0
+  MOUNT_POINT: "/data"
+  WORKING_DIR: "${MOUNT_POINT}/cirrus-ci-build"
+  RESULTS_FILE: "MTR_results"
+
+# https://cirrus-ci.org/guide/tips-and-tricks/#sharing-configuration-between-tasks
+filter_template: &FILTER_TEMPLATE
+  skip: $CIRRUS_REPO_FULL_NAME == "percona/percona-server" && $CIRRUS_PR == ""  # for "percona/percona-server" test only PRs. https://cirrus-ci.org/guide/writing-tasks/#conditional-task-execution
+  stateful: false  # https://cirrus-ci.org/guide/writing-tasks/#stateful-tasks
+  timeout_in: 60m  # https://cirrus-ci.org/faq/#instance-timed-out
+
+script_template: &SCRIPT_TEMPLATE
+  system_info_script: |
+    uname -r
+    df -Th
+    free -m
+    pwd
+    ls -l ..
+    nproc --all
+    cat /proc/cpuinfo
+  install_dependencies_script: |
+    cd $WORKING_DIR
+    export DEBIAN_FRONTEND=noninteractive
+    export PACKAGES_TO_INSTALL="unzip ca-certificates git pkg-config dpkg-dev make git cmake cmake-curses-gui ccache bison npm"
+    export PACKAGES_LIBS="libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+    export PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
+    apt update
+    apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF g++
+  compiler_info_script: |
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    $SELECTED_CC -v
+    $SELECTED_CXX -v
+    ccache --version
+    ccache -p
+    ccache --zero-stats
+    df -Th
+  clone_script: |
+    cd $WORKING_DIR
+    if [ -z "$CIRRUS_PR" ]; then
+      git clone --recursive --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $WORKING_DIR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    else
+      git clone --recursive https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $WORKING_DIR
+      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    fi
+    git submodule update --init
+    git submodule
+    df -Th
+  ccache_cache:
+    folder: "$CCACHE_DIR"
+    fingerprint_key: "$PARENT_BRANCH-$CIRRUS_OS-$BUILD_TYPE"
+    reupload_on_changes: true
+  boost_cache:
+    folder: "$BOOST_DIR"
+    fingerprint_key: "$BOOST_VERSION"
+    reupload_on_changes: true
+  cmake_script: |
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    cd $WORKING_DIR; mkdir bin; cd bin
+    export OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release -DDOWNLOAD_BOOST=1 -DWITH_BOOST=$BOOST_DIR"
+    export OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+    export OPTIONS_COMPONENTS="-DWITH_ROCKSDB=ON -DWITH_KEYRING_VAULT=ON -DWITH_KEYRING_VAULT_TEST=ON -DWITH_PAM=ON -DWITH_ROUTER=ON -DWITH_UNIT_TESTS=ON"
+    export OPTIONS_LIBS="-DWITH_SYSTEM_LIBS=ON -DWITH_ZLIB=bundled"
+    cmake .. $OPTIONS_BUILD $OPTIONS_COMPILER $OPTIONS_COMPONENTS $OPTIONS_LIBS
+    cmake -L .
+    rm -f $BOOST_DIR/$BOOST_VERSION.tar.gz
+  compile_script: |
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    cd $WORKING_DIR/bin
+    NPROC=`nproc --all`
+    NTHREADS=$(( $NPROC > 16 ? 16 : $NPROC ))
+    echo "Using $NTHREADS/$NPROC"
+    make -j${NTHREADS}
+    ccache --show-stats
+    df -Th
+  mysql_test_run_script: |
+    cd $WORKING_DIR/bin
+    NPROC=`nproc --all`
+    NTHREADS=$(( $NPROC > 16 ? 16 : $NPROC ))
+    if [[ "$BUILD_TYPE" == "RelWithDebInfo" ]]; then
+      MTR_TESTS="--suite=main"
+    else
+      MTR_TESTS="main.1st"
+    fi
+    echo "Start testing with $NTHREADS/$NPROC threads; MTR_TESTS=$MTR_TESTS"
+    mysql-test/mysql-test-run.pl $MTR_TESTS --parallel=$NTHREADS --junit-output=$CIRRUS_WORKING_DIR/${RESULTS_FILE}.xml --mysqld-env=LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libeatmydata.so --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
+    echo "Finished testing with $NTHREADS/$NPROC threads"
+    df -Th
+    npm install -g xunit-viewer
+    xunit-viewer --results $CIRRUS_WORKING_DIR/${RESULTS_FILE}.xml --output $CIRRUS_WORKING_DIR/${RESULTS_FILE}.html
+  html_artifacts:
+    path: ${RESULTS_FILE}.html
+
+task:
+  << : *FILTER_TEMPLATE
+  arm_container:
+    image: ubuntu:jammy
+    cpu: 8
+    memory: 32G
+    greedy: true
+  matrix:
+    - name: gcc Debug ubuntu:jammy
+      env:
+        SELECTED_CC: gcc
+        SELECTED_CXX: g++
+        BUILD_TYPE: Debug
+    - name: gcc RelWithDebInfo ubuntu:jammy
+      env:
+        SELECTED_CC: gcc
+        SELECTED_CXX: g++
+        BUILD_TYPE: RelWithDebInfo
+  mount_disk_script: |
+    lsblk
+    lsblk -f
+    df -Th
+    mkdir -p $WORKING_DIR
+  << : *SCRIPT_TEMPLATE
+
+task:
+  << : *FILTER_TEMPLATE
+  aws_credentials: ENCRYPTED[!92ac22d2430cf40dfcec42f739513a65c8b368c822cb397e95f799d41c0ba4498c3a1c337ab14a25cc47b2d4b53c46c5!]
+  only_if: $CIRRUS_BRANCH =~ '.*cirrus.*'
+  ec2_instance:
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202212*"
+    image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20221206
+    # image: ami-0e2b332e63c56bcb5  # Ubuntu Server 22.04 LTS ARM 64-bit
+    type: c6gd.4xlarge  # 16 vCPUs, 32 GB, 950 GB SSD, 0.6144 USD/H
+    region: us-east-1
+    architecture: arm64 # defautls to amd64
+  matrix:
+    - name: gcc Debug ubuntu:jammy
+      env:
+        SELECTED_CC: gcc
+        SELECTED_CXX: g++
+        BUILD_TYPE: Debug
+    - name: gcc RelWithDebInfo ubuntu:jammy
+      env:
+        SELECTED_CC: gcc
+        SELECTED_CXX: g++
+        BUILD_TYPE: RelWithDebInfo
+  mount_disk_script: |
+    lsblk
+    lsblk -f
+    df -Th
+    sudo mkfs -t xfs /dev/nvme1n1
+    sudo mkdir $MOUNT_POINT
+    sudo mount /dev/nvme1n1 $MOUNT_POINT
+    sudo mkdir -p $WORKING_DIR
+    df -Th
+  << : *SCRIPT_TEMPLATE

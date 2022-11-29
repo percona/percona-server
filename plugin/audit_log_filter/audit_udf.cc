@@ -591,6 +591,14 @@ bool AuditUdf::audit_log_filter_flush_udf_init(AuditUdf *udf [[maybe_unused]],
     return true;
   }
 
+  if (!udf->set_return_value_charset(initid) ||
+      !udf->set_args_charset(udf_args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for "
+                  "audit_log_filter_set_filter UDF");
+    return true;
+  }
+
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -749,6 +757,14 @@ bool AuditUdf::audit_log_read_udf_init(AuditUdf *udf [[maybe_unused]],
     return true;
   }
 
+  if (!udf->set_return_value_charset(initid) ||
+      !udf->set_args_charset(udf_args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for "
+                  "audit_log_filter_set_filter UDF");
+    return true;
+  }
+
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -866,6 +882,14 @@ bool AuditUdf::audit_log_read_bookmark_udf_init(AuditUdf *udf [[maybe_unused]],
     return true;
   }
 
+  if (!udf->set_return_value_charset(initid) ||
+      !udf->set_args_charset(udf_args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for "
+                  "audit_log_filter_set_filter UDF");
+    return true;
+  }
+
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -924,6 +948,14 @@ bool AuditUdf::audit_log_rotate_udf_init(AuditUdf *udf [[maybe_unused]],
   if (udf_args->arg_count != 0) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Wrong argument list: audit_log_rotate()");
+    return true;
+  }
+
+  if (!udf->set_return_value_charset(initid) ||
+      !udf->set_args_charset(udf_args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for "
+                  "audit_log_filter_set_filter UDF");
     return true;
   }
 

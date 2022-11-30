@@ -349,8 +349,8 @@ jobs:
   - task: Cache@2
     continueOnError: true
     inputs:
-      key: '"ccache"| "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)" | "$(Build.SourceVersion)"'
-      restoreKeys: '"ccache" | "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)"'
+      key: '"ccache"| "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)" | "INVERTED=$(INVERTED)" | "$(Build.SourceVersion)"'
+      restoreKeys: '"ccache" | "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)" | "INVERTED=$(INVERTED)"'
       path: $(CCACHE_DIR)
     displayName: '*** Download/upload ccached files'
 

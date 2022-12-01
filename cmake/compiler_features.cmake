@@ -55,10 +55,28 @@ int main() {
 " HAVE_AVX2)
 
 
+# The list of AVX-512 supported functions is at
+# https://github.com/gcc-mirror/gcc/blob/master/gcc/config/i386/avx512fintrin.h
+function (CHECK_AVX512_SUPPORT PARAM_OUT)
+  set(CMAKE_REQUIRED_FLAGS "-mavx512f -Wno-error")
+  CHECK_CXX_SOURCE_RUNS("
+  #include <immintrin.h>
+  #if !defined(__AVX512F__)
+  #error __AVX512F__ not defined
+  #endif
+  int main() {
+    __m512 zmm0 asm(\"zmm0\");
+    asm volatile(\"vmovdqu64 %zmm0, %zmm1\");
+    return 0;
+  }
+  " HAVE_AVX512)
+  unset(CMAKE_REQUIRED_FLAGS)
+  set(${PARAM_OUT} ${HAVE_AVX512})
+endfunction (CHECK_AVX512_SUPPORT)
+
+
 set(CMAKE_REQUIRED_FLAGS "-mbmi --std=c++11 -Wno-error")
 CHECK_CXX_SOURCE_RUNS("
-#include <cstdint>
-#include <immintrin.h>
 #include <cstdint>
 #include <immintrin.h>
 int main(int argc, char *argv[]) {

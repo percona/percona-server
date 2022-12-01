@@ -31,7 +31,7 @@ pr:
 jobs:
 - job: BiDiScan
   pool:
-    vmImage: 'ubuntu-18.04'
+    vmImage: 'ubuntu-20.04'
 
   steps:
   - checkout: self
@@ -61,6 +61,8 @@ jobs:
     CCACHE_CPP2: 1
     CCACHE_MAXSIZE: 2G
     OS_NAME: $(Agent.OS)
+    PARENT_BRANCH: 8.0
+    INVERTED: OFF
 
   strategy:
     matrix:
@@ -76,204 +78,204 @@ jobs:
           BuildType: Debug
 
       # clang-6 and newer compilers
-      Ubuntu Focal clang-14 Release:
+      clang-14 Release Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 14
         BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-14 Release INVERTED=ON:
+        clang-14 Release INVERTED=ON Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 14
           BuildType: RelWithDebInfo
-          Inverted: ON
+          INVERTED: ON
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-14 Debug:
+        clang-14 Debug Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 14
           BuildType: Debug
 
-      Ubuntu Focal clang-14 Debug INVERTED=ON:
+      clang-14 Debug INVERTED=ON Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 14
         BuildType: Debug
-        Inverted: ON
+        INVERTED: ON
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-13 Release:
+        clang-13 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 13
           BuildType: RelWithDebInfo
 
-      Ubuntu Focal clang-13 Debug:
+      clang-13 Debug Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 13
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-12 Release:
+        clang-12 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 12
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-12 Debug:
+        clang-12 Debug Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 12
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-11 Release:
+        clang-11 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 11
           BuildType: RelWithDebInfo
 
-      Ubuntu Focal clang-11 Debug:
+      clang-11 Debug Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 11
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-10 Release:
+        clang-10 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-10 Debug:
+        clang-10 Debug Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 10
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-9 Release:
+        clang-9 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      Ubuntu Focal clang-9 Debug:
+      clang-9 Debug Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 9
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-8 Release:
+        clang-8 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 8
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-8 Debug:
+        clang-8 Debug Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 8
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-7 Release:
+        clang-7 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 7
           BuildType: RelWithDebInfo
 
-      Ubuntu Focal clang-7 Debug:
+      clang-7 Debug Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 7
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-6 Release:
+        clang-6 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 6.0
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-6 Debug:
+        clang-6 Debug Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 6.0
           BuildType: Debug
 
       # gcc-7 and newer compilers
-      Ubuntu Focal gcc-11 Release:
+      gcc-11 Release Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 11
         BuildType: RelWithDebInfo
 
-      Ubuntu Focal gcc-11 Debug:
+      gcc-11 Debug Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 11
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal gcc-10 Release:
+        gcc-10 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal gcc-10 Debug:
+        gcc-10 Debug Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 10
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal gcc-9 Release:
+        gcc-9 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      Ubuntu Focal gcc-9 Debug:
+      gcc-9 Debug Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 9
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal gcc-8 Release:
+        gcc-8 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 8
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal gcc-8 Debug:
+        gcc-8 Debug Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 8
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal gcc-7 Release:
+        gcc-7 Release Ubuntu Focal:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 7
           BuildType: RelWithDebInfo
 
-      Ubuntu Focal gcc-7 Debug:
+      gcc-7 Debug Ubuntu Focal:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 7
@@ -287,22 +289,27 @@ jobs:
       pwd
       ls -l
       if [[ "$OS_NAME" == "Linux" ]]; then
-        CC=$(Compiler)-$(CompilerVer)
+        COMPILER_VER=$(CompilerVer)
+        SELECTED_CC=$(Compiler)-$(CompilerVer)
         if [[ "$(Compiler)" == "clang" ]]; then
-          CXX=clang++-$(CompilerVer)
-          PACKAGES="$CC $PACKAGES"
+          SELECTED_CXX=clang++-$(CompilerVer)
+          PACKAGES="$SELECTED_CC $PACKAGES"
         else
-          CXX=g++-$(CompilerVer)
-          PACKAGES="$CXX $PACKAGES"
+          SELECTED_CXX=g++-$(CompilerVer)
+          PACKAGES="$SELECTED_CXX $PACKAGES"
         fi
+      else
+        COMPILER_VER=`$(Compiler) -v 2>&1 | head -1 | awk '{print $4}'`
+        SELECTED_CC=$(Compiler)
+        SELECTED_CXX=clang++
       fi
 
-      echo CC=$CC CXX=$CXX BuildType=$(BuildType) Ubuntu=$UBUNTU_CODE_NAME OS_NAME=$OS_NAME
+      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX BuildType=$(BuildType) Ubuntu=$(UBUNTU_CODE_NAME) OS_NAME=$OS_NAME
       echo --- Configure required LLVM and Ubuntu Toolchain repositories
-      if [[ "$OS_NAME" == "Linux" ]] && [[ "$CC" == "clang"* ]]; then
+      if [[ "$OS_NAME" == "Linux" ]] && [[ "$SELECTED_CC" == "clang"* ]]; then
         PACKAGES="llvm-$(CompilerVer)-dev $PACKAGES"
         curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
-        echo "deb http://apt.llvm.org/$UBUNTU_CODE_NAME/ llvm-toolchain-$UBUNTU_CODE_NAME-$(CompilerVer) main" | sudo tee -a /etc/apt/sources.list > /dev/null
+        echo "deb http://apt.llvm.org/$(UBUNTU_CODE_NAME)/ llvm-toolchain-$(UBUNTU_CODE_NAME)-$(CompilerVer) main" | sudo tee -a /etc/apt/sources.list > /dev/null
       fi
 
       echo --- Update list of packages and download dependencies
@@ -311,7 +318,7 @@ jobs:
         sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
 
         sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
-        if [[ "$(Inverted)" != "ON" ]]; then
+        if [[ "$(INVERTED)" != "ON" ]]; then
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libevent-dev libeditline-dev liblz4-dev libre2-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || exit 1;
         fi
       else
@@ -322,30 +329,26 @@ jobs:
       UPDATE_TIME=$SECONDS
       echo --- Packages updated in $UPDATE_TIME seconds.
 
-      $CC -v
-      $CXX -v
-      CCACHE_BIN=$(which ccache)
-      echo ccache=$CCACHE_BIN
+      echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`)"
+      $SELECTED_CC -v
+      $SELECTED_CXX -v
       ccache --version
       ccache -p
       ccache --zero-stats
       df -Th
 
-      COMPILER_VER=$(CompilerVer)
-      echo '##vso[task.setvariable variable=CompilerMajorVer]'${COMPILER_VER%.*}
-      echo '##vso[task.setvariable variable=CC]'$CC
-      echo '##vso[task.setvariable variable=CXX]'$CXX
-      echo '##vso[task.setvariable variable=CCACHE_BIN]'$CCACHE_BIN
-      echo '##vso[task.setvariable variable=UPDATE_TIME]'$UPDATE_TIME
-      echo '##vso[task.prependpath]/usr/lib/ccache'
+      echo "##vso[task.setvariable variable=CompilerMajorVer]${COMPILER_VER}"
+      echo "##vso[task.setvariable variable=SELECTED_CC]$SELECTED_CC"
+      echo "##vso[task.setvariable variable=SELECTED_CXX]$SELECTED_CXX"
+      echo "##vso[task.setvariable variable=UPDATE_TIME]$UPDATE_TIME"
 
     displayName: '*** Install Build Dependencies'
 
   - task: Cache@2
     continueOnError: true
     inputs:
-      key: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType) | $(Build.SourceVersion)
-      restoreKeys: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)
+      key: '"ccache"| "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)" | "INVERTED=$(INVERTED)" | "$(Build.SourceVersion)"'
+      restoreKeys: '"ccache" | "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)" | "INVERTED=$(INVERTED)"'
       path: $(CCACHE_DIR)
     displayName: '*** Download/upload ccached files'
 
@@ -360,6 +363,7 @@ jobs:
 
   - script: |
       df -Th
+      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX BuildType=$(BuildType) INVERTED=$(INVERTED) imageName=$(imageName) OS_NAME=$OS_NAME
       echo --- Set cmake parameters
       COMPILE_OPT+=(
         -DCMAKE_C_FLAGS_DEBUG=-g1
@@ -371,9 +375,10 @@ jobs:
       CMAKE_OPT="
         -DCMAKE_BUILD_TYPE=$(BuildType)
         -DBUILD_CONFIG=mysql_release
-        -DENABLE_DOWNLOADS=1
-        -DCMAKE_C_COMPILER_LAUNCHER=$CCACHE_BIN
-        -DCMAKE_CXX_COMPILER_LAUNCHER=$CCACHE_BIN
+        -DCMAKE_C_COMPILER=$SELECTED_CC
+        -DCMAKE_CXX_COMPILER=$SELECTED_CXX
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DWITH_ROCKSDB=ON
         -DWITH_KEYRING_VAULT=ON
         -DWITH_KEYRING_VAULT_TEST=ON
@@ -403,7 +408,7 @@ jobs:
           -DWITH_PROTOBUF=bundled
           -DWITH_ZLIB=bundled
         "
-        if [[ "$(Inverted)" != "ON" ]]; then
+        if [[ "$(INVERTED)" != "ON" ]]; then
           CMAKE_OPT+="
             -DWITH_READLINE=system
             -DWITH_ICU=system
@@ -429,14 +434,14 @@ jobs:
       echo --- CMAKE_OPT=\"$CMAKE_OPT\"
       echo --- COMPILE_OPT=\"${COMPILE_OPT[@]}\"
       mkdir bin; cd bin
-      CC=$CC CXX=$CXX cmake .. $CMAKE_OPT "${COMPILE_OPT[@]}" || exit 1
+      cmake .. $CMAKE_OPT "${COMPILE_OPT[@]}" || exit 1
 
       CMAKE_TIME=$SECONDS
       echo --- CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
 
       echo '##vso[task.setvariable variable=CMAKE_TIME]'$CMAKE_TIME
 
-    displayName: '*** CC=$(Compiler)-$(CompilerVer) cmake .. -DCMAKE_BUILD_TYPE=$(BuildType)'
+    displayName: '*** cmake -DCMAKE_BUILD_TYPE=$(BuildType)'
 
   - script: |
       df -Th

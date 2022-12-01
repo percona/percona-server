@@ -150,7 +150,7 @@ void get_challange_length(unsigned int *outbuflen) {
   // 512 bytes should be enough to store that
   *outbuflen = 512;
 }
-};  // namespace authentication_fido_reg
+}  // namespace authentication_fido_reg
 
 BEGIN_SERVICE_IMPLEMENTATION(authentication_fido,
                              mysql_authentication_registration)

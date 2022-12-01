@@ -216,14 +216,28 @@ jobs:
           CompilerVer: 6.0
           BuildType: Debug
 
+
       # gcc-7 and newer compilers
-      gcc-11 Release Ubuntu Focal:
-        imageName: 'ubuntu-20.04'
+      gcc-12 Release Ubuntu 22.04 Jammy:
+        imageName: 'ubuntu-22.04'
         Compiler: gcc
-        CompilerVer: 11
+        CompilerVer: 12
         BuildType: RelWithDebInfo
 
-      gcc-11 Debug Ubuntu Focal:
+      gcc-12 Debug Ubuntu 22.04 Jammy:
+        imageName: 'ubuntu-22.04'
+        Compiler: gcc
+        CompilerVer: 12
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        gcc-11 Release Ubuntu 20.04 Focal:
+          imageName: 'ubuntu-20.04'
+          Compiler: gcc
+          CompilerVer: 11
+          BuildType: RelWithDebInfo
+
+      gcc-11 Debug Ubuntu 20.04 Focal:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 11
@@ -319,13 +333,13 @@ jobs:
         sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
         sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
 
-        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
+        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libudev-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
         if [[ "$(INVERTED)" != "ON" ]]; then
-          sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libevent-dev libeditline-dev liblz4-dev libre2-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || exit 1;
+          sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libevent-dev libreadline-dev liblz4-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || exit 1;
         fi
       else
          brew update
-         brew install ccache protobuf lz4 re2 rapidjson openssl@1.1
+         brew install ccache protobuf lz4 rapidjson openssl@1.1
       fi
 
       UPDATE_TIME=$SECONDS
@@ -378,8 +392,6 @@ jobs:
       COMPILE_OPT+=(
         -DCMAKE_C_FLAGS_DEBUG=-g1
         -DCMAKE_CXX_FLAGS_DEBUG=-g1
-        '-DCMAKE_C_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
-        '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
       )
 
       CMAKE_OPT="

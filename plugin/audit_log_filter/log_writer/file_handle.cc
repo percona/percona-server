@@ -62,6 +62,10 @@ bool FileHandle::open_file(std::filesystem::path file_path) noexcept {
 }
 
 bool FileHandle::close_file() noexcept {
+  if (!m_file.is_open() && m_path.empty()) {
+    return true;
+  }
+
   m_file.close();
   m_path.clear();
 

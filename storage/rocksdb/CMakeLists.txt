@@ -155,6 +155,11 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/env/env.cc rocksdb/table/block_based/block_based_table_builder.cc)
 ENDIF()
 
+# Suppress warnings for gcc-12 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/env/fs_posix.cc rocksdb/tools/mysql_ldb.cc tools/mysql_ldb.cc)
+ENDIF()
+
 # Suppress warnings for gcc-4.8.x
 IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-missing-field-initializers FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/utilities/blob_db/blob_db_impl.cc)

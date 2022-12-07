@@ -73,158 +73,159 @@ jobs:
         Compiler: clang
         BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+      # skip pushed ("git push") commits if branch name doesn't contain "fullci"
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         macOS 12 Debug:
           imageName: 'macOS-12'
           Compiler: clang
           BuildType: Debug
 
       # clang-5 and newer compilers
-      clang-14 Release Ubuntu Focal:
+      clang-14 Release [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 14
         BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-14 Release INVERTED=ON Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-14 Release INVERTED=ON [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 14
           BuildType: RelWithDebInfo
           INVERTED: ON
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-14 Debug Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-14 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 14
           BuildType: Debug
 
-      clang-14 Debug INVERTED=ON Ubuntu Focal:
+      clang-14 Debug INVERTED=ON [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 14
         BuildType: Debug
         INVERTED: ON
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-13 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-13 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 13
           BuildType: RelWithDebInfo
 
-      clang-13 Debug Ubuntu Focal:
+      clang-13 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 13
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-12 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-12 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 12
           BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-12 Debug Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-12 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 12
           BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-11 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-11 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 11
           BuildType: RelWithDebInfo
 
-      clang-11 Debug Ubuntu Focal:
+      clang-11 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 11
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-10 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-10 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-10 Debug Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-10 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 10
           BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-9 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-9 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      clang-9 Debug Ubuntu Focal:
+      clang-9 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 9
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-8 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-8 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 8
           BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-8 Debug Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-8 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 8
           BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-7 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-7 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 7
           BuildType: RelWithDebInfo
 
-      clang-7 Debug Ubuntu Focal:
+      clang-7 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 7
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-6 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-6 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 6.0
           BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-6 Debug Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-6 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 6.0
           BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        clang-5 Release Ubuntu Bionic:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-5 Release [Ubuntu 18.04 Bionic]:
           imageName: 'ubuntu-18.04'
           UBUNTU_CODE_NAME: bionic
           Compiler: clang
           CompilerVer: 5.0
           BuildType: RelWithDebInfo
 
-      clang-5 Debug Ubuntu Bionic:
+      clang-5 Debug [Ubuntu 18.04 Bionic]:
         imageName: 'ubuntu-18.04'
         UBUNTU_CODE_NAME: bionic
         Compiler: clang
@@ -233,110 +234,110 @@ jobs:
 
 
       # gcc-5 and newer compilers
-      gcc-12 Release Ubuntu 22.04 Jammy:
+      gcc-12 Release [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         Compiler: gcc
         CompilerVer: 12
         BuildType: RelWithDebInfo
 
-      gcc-12 Debug Ubuntu 22.04 Jammy:
+      gcc-12 Debug [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         Compiler: gcc
         CompilerVer: 12
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-11 Release Ubuntu 20.04 Focal:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 11
           BuildType: RelWithDebInfo
 
-      gcc-11 Debug Ubuntu 20.04 Focal:
+      gcc-11 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 11
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-10 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-10 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-10 Debug Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-10 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 10
           BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-9 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-9 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      gcc-9 Debug Ubuntu Focal:
+      gcc-9 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 9
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-8 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-8 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 8
           BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-8 Debug Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-8 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 8
           BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-7 Release Ubuntu Focal:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-7 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 7
           BuildType: RelWithDebInfo
 
-      gcc-7 Debug Ubuntu Focal:
+      gcc-7 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 7
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-6 Release Ubuntu Bionic:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-6 Release [Ubuntu 18.04 Bionic]:
           imageName: 'ubuntu-18.04'
           UBUNTU_CODE_NAME: bionic
           Compiler: gcc
           CompilerVer: 6
           BuildType: RelWithDebInfo
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-6 Debug Ubuntu Bionic:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-6 Debug [Ubuntu 18.04 Bionic]:
           imageName: 'ubuntu-18.04'
           UBUNTU_CODE_NAME: bionic
           Compiler: gcc
           CompilerVer: 6
           BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        gcc-5 Release Ubuntu Bionic:
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-5 Release [Ubuntu 18.04 Bionic]:
           imageName: 'ubuntu-18.04'
           UBUNTU_CODE_NAME: bionic
           Compiler: gcc
           CompilerVer: 5
           BuildType: RelWithDebInfo
 
-      gcc-5 Debug Ubuntu Bionic:
+      gcc-5 Debug [Ubuntu 18.04 Bionic]:
         imageName: 'ubuntu-18.04'
         UBUNTU_CODE_NAME: bionic
         Compiler: gcc

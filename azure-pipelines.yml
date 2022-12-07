@@ -336,7 +336,7 @@ jobs:
 
         sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libudev-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
         if [[ "$(INVERTED)" != "ON" ]]; then
-          sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libevent-dev libreadline-dev liblz4-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || exit 1;
+          sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install rapidjson-dev zlib1g-dev libzstd-dev liblz4-dev libfido2-dev libevent-dev libreadline-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || exit 1;
         fi
 
         if [[ "$(Compiler)" == "clang" ]]; then
@@ -416,6 +416,7 @@ jobs:
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DWITH_ROCKSDB=ON
+        -DWITH_COREDUMPER=ON
         -DWITH_KEYRING_VAULT=ON
         -DWITH_KEYRING_VAULT_TEST=ON
         -DWITH_PAM=ON
@@ -436,27 +437,38 @@ jobs:
         CMAKE_OPT+="
           -DMYSQL_MAINTAINER_MODE=ON
           -DWITH_TOKUDB=ON
-          -DWITH_CURL=system
-          -DWITH_MECAB=system
-          -DWITH_RAPIDJSON=bundled
-          -DWITH_SSL=system
-          -DWITH_LIBEVENT=bundled
-          -DWITH_PROTOBUF=bundled
-          -DWITH_ZLIB=bundled
         "
         if [[ "$(INVERTED)" != "ON" ]]; then
           CMAKE_OPT+="
-            -DWITH_READLINE=system
-            -DWITH_ICU=system
-            -DWITH_LZ4=bundled
+            -DWITH_MECAB=system
             -DWITH_NUMA=ON
+            -DWITH_READLINE=system
+            -DWITH_SYSTEM_LIBS=ON
           "
+          `# Required liblz4 1.9.3 and installed version is 1.9.2`
+          if [[ "$(imageName)" == "ubuntu-20.04" ]]; then
+            CMAKE_OPT+="-DWITH_LZ4=bundled"
+          fi
         else
           CMAKE_OPT+="
-            -DWITH_EDITLINE=bundled
-            -DWITH_ICU=bundled
-            -DWITH_LZ4=bundled
+            -DWITH_NDB=ON
+            -DWITH_NDBCLUSTER=ON
+            -DWITH_NDB_JAVA=OFF
+
+            -DWITH_ROUTER=OFF
+            -DWITH_UNIT_TESTS=OFF
             -DWITH_NUMA=OFF
+
+            -DWITH_EDITLINE=bundled
+            -DWITH_FIDO=bundled
+            -DWITH_ICU=bundled
+            -DWITH_LIBEVENT=bundled
+            -DWITH_LZ4=bundled
+            -DWITH_PROTOBUF=bundled
+            -DWITH_RAPIDJSON=bundled
+            -DWITH_ZLIB=bundled
+            -DWITH_ZSTD=bundled
+
             -DWITH_ARCHIVE_STORAGE_ENGINE=OFF
             -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF
             -DWITH_EXAMPLE_STORAGE_ENGINE=ON

@@ -54,7 +54,7 @@ jobs:
 
   variables:
     UBUNTU_CODE_NAME: focal
-    BOOST_VERSION: boost_1_73_0
+    BOOST_VERSION: boost_1_77_0
     BOOST_DIR: $(Pipeline.Workspace)/boost
     USE_CCACHE: 1
     CCACHE_DIR: $(Pipeline.Workspace)/ccache
@@ -81,19 +81,44 @@ jobs:
           BuildType: Debug
 
       # clang-6 and newer compilers
-      clang-14 Release [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
+      clang-15 Release [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        UBUNTU_CODE_NAME: jammy
         Compiler: clang
-        CompilerVer: 14
+        CompilerVer: 15
         BuildType: RelWithDebInfo
 
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-14 Release INVERTED=ON [Ubuntu 20.04 Focal]:
+        clang-15 Release INVERTED=ON [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 15
+          BuildType: RelWithDebInfo
+          INVERTED: ON
+
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-15 Debug [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 15
+          BuildType: Debug
+
+      clang-15 Debug INVERTED=ON [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        UBUNTU_CODE_NAME: jammy
+        Compiler: clang
+        CompilerVer: 15
+        BuildType: Debug
+        INVERTED: ON
+
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-14 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 14
           BuildType: RelWithDebInfo
-          INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-14 Debug [Ubuntu 20.04 Focal]:
@@ -101,13 +126,6 @@ jobs:
           Compiler: clang
           CompilerVer: 14
           BuildType: Debug
-
-      clang-14 Debug INVERTED=ON [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: clang
-        CompilerVer: 14
-        BuildType: Debug
-        INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-13 Release [Ubuntu 20.04 Focal]:

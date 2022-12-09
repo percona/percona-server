@@ -260,17 +260,31 @@ jobs:
 
 
       # gcc-7 and newer compilers
-      gcc-12 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+      gcc-13 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         Compiler: gcc
-        CompilerVer: 12
+        CompilerVer: 13
         BuildType: RelWithDebInfo
 
-      gcc-12 Debug [Ubuntu 22.04 Jammy]:
+      gcc-13 Debug [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         Compiler: gcc
-        CompilerVer: 12
+        CompilerVer: 13
         BuildType: Debug
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-12 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          Compiler: gcc
+          CompilerVer: 12
+          BuildType: RelWithDebInfo
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-12 Debug [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          Compiler: gcc
+          CompilerVer: 12
+          BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-11 RelWithDebInfo Ubuntu 20.04 Focal:
@@ -378,6 +392,8 @@ jobs:
         `# SYSTEM_LIBRARIES = CURL EDITLINE ICU LIBEVENT LZ4 PROTOBUF SSL ZSTD FIDO (Ubuntu 21.04+)`
         if [[ "$(INVERTED)" != "ON" ]]; then
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libicu-dev libevent-dev liblz4-dev zlib1g-dev protobuf-compiler libprotobuf-dev libprotoc-dev libzstd-dev libfido2-dev || exit 1;
+        else
+          sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libgflags-dev || exit 1;
         fi
 
         if [[ "$(Compiler)" == "clang" ]]; then
@@ -387,7 +403,7 @@ jobs:
         fi
       else
          brew update
-         brew install ccache protobuf@21 lz4 openssl@1.1
+         brew install ccache protobuf@21 lz4 openssl@1.1 bison
          brew link protobuf@21
       fi
 
@@ -451,6 +467,7 @@ jobs:
       CMAKE_OPT="
         -DCMAKE_BUILD_TYPE=$(BuildType)
         -DBUILD_CONFIG=mysql_release
+        -DWITH_PACKAGE_FLAGS=OFF
         -DDOWNLOAD_BOOST=1
         -DWITH_BOOST=$(BOOST_DIR)
         -DCMAKE_C_COMPILER=$SELECTED_CC
@@ -515,6 +532,9 @@ jobs:
             -DWITH_FEDERATED_STORAGE_ENGINE=OFF
             -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON
             -DWITH_INNODB_MEMCACHED=ON
+
+            -DROCKSDB_PLUGINS=zenfs
+            -DWITH_ZENFS_UTILITY=ON
           "
         fi
       fi

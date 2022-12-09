@@ -26,7 +26,7 @@ script_template: &SCRIPT_TEMPLATE
   install_dependencies_script: |
     export DEBIAN_FRONTEND=noninteractive
     PACKAGES_TO_INSTALL="lz4 unzip ca-certificates git pkg-config dpkg-dev make cmake cmake-curses-gui ccache bison npm"
-    PACKAGES_LIBS="libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+    PACKAGES_LIBS="libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
     PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
     apt update
     apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF $SELECTED_CXX
@@ -71,7 +71,7 @@ script_template: &SCRIPT_TEMPLATE
     echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE BUILD_PARAMS_TYPE=$BUILD_PARAMS_TYPE"
     cd $WORKING_DIR; mkdir bin; cd bin
     OPTIONS_DEBUG="-DCMAKE_C_FLAGS_DEBUG=-g1 -DCMAKE_CXX_FLAGS_DEBUG=-g1"
-    OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release"
+    OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release -DWITH_PACKAGE_FLAGS=OFF"
     OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
     OPTIONS_COMPONENTS="-DWITH_ROCKSDB=ON -DWITH_COREDUMPER=ON -DWITH_KEYRING_VAULT=ON -DWITH_KEYRING_VAULT_TEST=ON -DWITH_PAM=ON"
     OPTIONS_LIBS="-DWITH_MECAB=system -DWITH_NUMA=ON -DWITH_READLINE=system -DWITH_SYSTEM_LIBS=ON -DWITH_ZLIB=bundled"
@@ -165,17 +165,17 @@ task:
   env:
     OS_TYPE: ubuntu-22.04-x86_64
   matrix:
-    - name: (x86_64) gcc-12 Debug INVERTED [Ubuntu 22.04 Jammy]
+    - name: (x86_64) gcc-13 Debug INVERTED [Ubuntu 22.04 Jammy]
       env:
-        SELECTED_CC: gcc-12
-        SELECTED_CXX: g++-12
+        SELECTED_CC: gcc-13
+        SELECTED_CXX: g++-13
         BUILD_TYPE: Debug
         BUILD_PARAMS_TYPE: inverted
-    - name: (x86_64) gcc-12 RelWithDebInfo INVERTED [Ubuntu 22.04 Jammy]
+    - name: (x86_64) gcc-13 RelWithDebInfo INVERTED [Ubuntu 22.04 Jammy]
       skip: $CIRRUS_PR != ""  # skip PRs
       env:
-        SELECTED_CC: gcc-12
-        SELECTED_CXX: g++-12
+        SELECTED_CC: gcc-13
+        SELECTED_CXX: g++-13
         BUILD_TYPE: RelWithDebInfo
         BUILD_PARAMS_TYPE: inverted
   mount_disk_script: |

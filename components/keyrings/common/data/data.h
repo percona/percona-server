@@ -24,6 +24,7 @@
 #ifndef DATA_INCLUDED
 #define DATA_INCLUDED
 
+#include <cstdint>
 #include <string>
 
 namespace keyring_common {

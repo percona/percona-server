@@ -37,6 +37,14 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
+# Suppress warnings for clang-15 or newer
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 15.0)
+  STRING_APPEND(MY_C_WARNING_FLAGS " -Wno-deprecated-non-prototype")
+ENDIF()
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15.0)
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-unused-parameter -Wno-unused-but-set-variable")
+ENDIF()
+
 # Turn on Werror (warning => error) when using maintainer mode.
 IF(MYSQL_MAINTAINER_MODE)
   STRING_APPEND(MY_C_WARNING_FLAGS   " -Werror")

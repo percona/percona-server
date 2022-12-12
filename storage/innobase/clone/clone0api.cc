@@ -2773,11 +2773,8 @@ static int clone_init_tablespaces(THD *thd) {
       continue;
     }
 
-    Keyring_encryption_info keyring_encryption_info;
-
     auto err = fil_ibd_open(false, FIL_TYPE_TABLESPACE, space_id, space_flags,
-                            space_name, filename.c_str(), false, false,
-                            keyring_encryption_info);
+                            space_name, filename.c_str(), false, false);
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_CLONE_INTERNAL)

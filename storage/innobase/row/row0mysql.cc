@@ -52,7 +52,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
@@ -385,7 +384,7 @@ static void column_zip_set_alloc(void *stream, mem_heap_t *heap) noexcept {
 @param[in]      lenlen          bytes used to store the length of data
 @param[in]      dict_data       optional dictionary data used for compression
 @param[in]      dict_data_len   optional dictionary data length
-@param[in]      compress_heap
+@param[in]      prebuilt        use prebuilt->compress only here
 @return pointer to the compressed data */
 byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
                           const byte *dict_data, ulint dict_data_len,
@@ -515,12 +514,14 @@ const byte *row_decompress_column(const byte *data, ulint *len,
                              &reserved);
 
   if (reserved != default_zip_column_reserved_value) {
-    ib::fatal(UT_LOCATION_HERE) << "unsupported compressed BLOB header format\n";
+    ib::fatal(UT_LOCATION_HERE)
+        << "unsupported compressed BLOB header format\n";
   }
 
   if (alg != default_zip_column_algorithm_value) {
-    ib::fatal(UT_LOCATION_HERE) << "unsupported 'algorithm' value in the compressed BLOB "
-                   "header\n";
+    ib::fatal(UT_LOCATION_HERE)
+        << "unsupported 'algorithm' value in the compressed BLOB "
+           "header\n";
   }
 
   ut_a(lenlen < 4);
@@ -600,12 +601,14 @@ const byte *row_decompress_column(const byte *data, ulint *len,
       ib::fatal(UT_LOCATION_HERE) << "zlib buf error, this shouldn't happen\n";
       break;
     default:
-      ib::fatal(UT_LOCATION_HERE) << "failed to decompress column, error: " << err << '\n';
+      ib::fatal(UT_LOCATION_HERE)
+          << "failed to decompress column, error: " << err << '\n';
   }
 
   if (err == Z_OK) {
     if (buf_len != uncomp_len) {
-      ib::fatal(UT_LOCATION_HERE) << "failed to decompress blob column, may be corrupted\n";
+      ib::fatal(UT_LOCATION_HERE)
+          << "failed to decompress blob column, may be corrupted\n";
     }
     *len = buf_len;
     return buf;
@@ -846,10 +849,10 @@ byte *row_mysql_store_col_in_innobase_format(
     bool need_compression,
     /*!< in: if the data need to be
     compressed*/
-    const byte *dict_data,    /*!< in: optional compression
-                              dictionary data */
-    ulint dict_data_len,      /*!< in: optional compression
-                              dictionary data length */
+    const byte *dict_data,      /*!< in: optional compression
+                                dictionary data */
+    ulint dict_data_len,        /*!< in: optional compression
+                                dictionary data length */
     mem_heap_t **compress_heap) /*!< in: compress_heap */
 {
   const byte *ptr = mysql_data;
@@ -3201,11 +3204,10 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
   trx->dict_operation_lock_mode = 0;
 }
 
-dberr_t row_create_table_for_mysql(
-    dict_table_t *&table, const char *compression,
-    const HA_CREATE_INFO *create_info, trx_t *trx, mem_heap_t *heap,
-    const fil_encryption_t mode,
-    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
+dberr_t row_create_table_for_mysql(dict_table_t *&table,
+                                   const char *compression,
+                                   const HA_CREATE_INFO *create_info,
+                                   trx_t *trx, mem_heap_t *heap) {
   dberr_t err;
 
   ut_ad(!dict_sys_mutex_own());
@@ -3234,8 +3236,7 @@ dberr_t row_create_table_for_mysql(
   }
 
   /* Assign table id and build table space. */
-  err = dict_build_table_def(table, create_info, trx, mode,
-                             keyring_encryption_key_id);
+  err = dict_build_table_def(table, create_info, trx);
   if (err != DB_SUCCESS) {
     trx->error_state = DB_SUCCESS;
     trx->op_info = "";

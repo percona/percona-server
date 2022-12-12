@@ -7991,20 +7991,8 @@ static Sys_var_uint Sys_immediate_server_version(
     BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_session_admin_or_replication_applier));
 
-static bool check_set_default_table_encryption_exclusions(THD *,
-                                                          set_var *var) {
-  longlong val = static_cast<longlong>(var->save_result.ulonglong_value);
-
-  if (val == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING ||
-      val == DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
-    return true;
-  }
-  return false;
-}
-
-static bool check_set_default_table_encryption_access(sys_var *self
-                                                      [[maybe_unused]],
-                                                      THD *thd, set_var *var) {
+static bool check_set_default_table_encryption(sys_var *self [[maybe_unused]],
+                                               THD *thd, set_var *var) {
   DBUG_EXECUTE_IF("skip_table_encryption_admin_check_for_set",
                   { return false; });
   if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
@@ -8036,45 +8024,6 @@ static bool check_set_default_table_encryption_access(sys_var *self
            "SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN");
   return true;
 }
-
-static bool check_set_default_table_encryption(sys_var *self [[maybe_unused]],
-                                               THD *thd, set_var *var) {
-  return check_set_default_table_encryption_access(self, thd, var) ||
-         check_set_default_table_encryption_exclusions(thd, var);
-}
-
-static const char *default_table_encryption_type_names[] = {
-    "OFF", "ON", "ONLINE_TO_KEYRING", "ONLINE_FROM_KEYRING_TO_UNENCRYPTED",
-    nullptr};
-
-bool Sys_var_enum_default_table_encryption::global_update(THD *, set_var *var) {
-  bool result = false;
-  global_var(ulong) = var->save_result.ulonglong_value;
-
-  static const LEX_CSTRING innodb_engine{STRING_WITH_LEN("innodb")};
-
-  plugin_ref plugin;
-  if ((plugin = ha_resolve_by_name(nullptr, &innodb_engine, false))) {
-    handlerton *hton = plugin_data<handlerton *>(plugin);
-    if (!hton->fix_default_table_encryption(var->save_result.ulonglong_value,
-                                            false)) {
-      my_error(ER_DTE_ENCRYPTION_THREADS_ACTIVE, MYF(0));
-      result = true;
-    }
-
-    plugin_unlock(nullptr, plugin);
-  }
-
-  return result;
-}
-
-static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
-    "default_table_encryption",
-    "Database and tablespace are created with this default encryption property "
-    "unless the user specifies an explicit encryption property.",
-    HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
-    default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
-    NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));
 
 static bool check_set_table_encryption_privilege_access(sys_var *, THD *thd,
                                                         set_var *) {
@@ -8351,3 +8300,34 @@ static Sys_var_bool Sys_persist_sensitive_variables_in_plaintext(
         GLOBAL_VAR(opt_persist_sensitive_variables_in_plaintext),
     CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);
+
+static const char *default_table_encryption_type_names[] = {"OFF", "ON",
+                                                            nullptr};
+
+bool Sys_var_enum_default_table_encryption::global_update(THD *, set_var *var) {
+  bool result = false;
+  global_var(ulong) = var->save_result.ulonglong_value;
+
+  static const LEX_CSTRING innodb_engine{STRING_WITH_LEN("innodb")};
+
+  plugin_ref plugin;
+  if ((plugin = ha_resolve_by_name(nullptr, &innodb_engine, false))) {
+    handlerton *hton = plugin_data<handlerton *>(plugin);
+    if (hton->fix_default_table_encryption(var->save_result.ulonglong_value,
+                                           false)) {
+      result = true;
+    }
+
+    plugin_unlock(nullptr, plugin);
+  }
+
+  return result;
+}
+
+static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
+    "default_table_encryption",
+    "Database and tablespace are created with this default encryption property "
+    "unless the user specifies an explicit encryption property.",
+    HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
+    default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
+    NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));

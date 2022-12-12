@@ -1,3 +1,0 @@
-SELECT @@global.innodb_encryption_rotation_iops;
-@@global.innodb_encryption_rotation_iops
-100

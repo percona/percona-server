@@ -77,8 +77,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <string>
 #include <vector>
 
-#include "fil0rkinfo.h"
-
 /* Forward declaration. */
 struct ib_rbt_t;
 
@@ -2418,8 +2416,6 @@ detect this and will eventually quit sooner. */
 
   /** encryption iv, it's only for export/import */
   byte *encryption_iv;
-
-  Keyring_encryption_info keyring_encryption_info;
 
   /** remove the dict_table_t from cache after DDL operation */
   bool discard_after_ddl;

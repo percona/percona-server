@@ -4552,6 +4552,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
   } else if (prebuilt->table->ibd_file_missing) {
     return DB_TABLESPACE_NOT_FOUND;
+
   } else if (!prebuilt->index_usable) {
     return DB_MISSING_HISTORY;
 

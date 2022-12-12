@@ -92,8 +92,6 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$error_log
---let SEARCH_PATTERN=Encryption can't find master key, please check the keyring is loaded.
---source include/search_pattern_in_file.inc
 --let SEARCH_PATTERN=Error reading encryption for innodb_undo001
 --source include/search_pattern_in_file.inc
 --let SEARCH_PATTERN= Unable to open undo tablespace number 1
@@ -122,8 +120,6 @@ EOF
 
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$error_log2
---let SEARCH_PATTERN=Encryption can't find master key, please check the keyring is loaded.
---source include/search_pattern_in_file.inc
 --let SEARCH_PATTERN=Error reading encryption for innodb_undo001
 --source include/search_pattern_in_file.inc
 --let SEARCH_PATTERN= Unable to open undo tablespace number 1

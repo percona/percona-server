@@ -94,10 +94,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "ut0crc32.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "fil0crypt.h"
 #include "ha_innodb.h"
 #include "sql/handler.h"
-#include "system_key.h"
 #include "ut0mem.h"
 
 #ifdef UNIV_HOTBACKUP
@@ -199,7 +197,7 @@ unsigned long long srv_max_undo_tablespace_size;
 bool srv_tmp_tablespace_encrypt;
 
 /** Option to enable encryption of system tablespace. */
-ulong srv_sys_tablespace_encrypt;
+bool srv_sys_tablespace_encrypt;
 
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
@@ -573,6 +571,8 @@ ulong srv_n_purge_threads = 4;
 ulong srv_purge_batch_size = 20;
 
 enum_default_table_encryption srv_default_table_encryption;
+
+ulong srv_encrypt_tables = 0;
 
 /* Internal setting for "innodb_stats_method". Decides how InnoDB treats
 NULL value when collecting statistics. By default, it is set to
@@ -1686,16 +1686,11 @@ void srv_export_innodb_status(void) {
   ulint LRU_len;
   ulint free_len;
   ulint flush_list_len;
-  fil_crypt_stat_t crypt_stat;
   ulint i;
 
   buf_get_total_stat(&stat);
   buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
   buf_get_total_list_size_in_bytes(&buf_pools_list_size);
-
-  if (!srv_read_only_mode) {
-    fil_crypt_total_stat(&crypt_stat);
-  }
 
   mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1883,9 +1878,6 @@ void srv_export_innodb_status(void) {
   }
   undo::spaces->s_unlock();
 
-  export_vars.innodb_pages_decrypted = srv_stats.pages_decrypted;
-  export_vars.innodb_pages_encrypted = srv_stats.pages_encrypted;
-
   export_vars.innodb_n_merge_blocks_encrypted =
       srv_stats.n_merge_blocks_encrypted;
 
@@ -1941,22 +1933,6 @@ void srv_export_innodb_status(void) {
 
   thd_get_fragmentation_stats(current_thd,
                               &export_vars.innodb_fragmentation_stats);
-
-  if (!srv_read_only_mode) {
-    export_vars.innodb_encryption_rotation_pages_read_from_cache =
-        crypt_stat.pages_read_from_cache;
-    export_vars.innodb_encryption_rotation_pages_read_from_disk =
-        crypt_stat.pages_read_from_disk;
-    export_vars.innodb_encryption_rotation_pages_modified =
-        crypt_stat.pages_modified;
-    export_vars.innodb_encryption_rotation_pages_flushed =
-        crypt_stat.pages_flushed;
-    export_vars.innodb_encryption_rotation_estimated_iops =
-        crypt_stat.estimated_iops;
-    export_vars.innodb_encryption_key_requests = srv_stats.n_key_requests;
-    export_vars.innodb_key_rotation_list_length =
-        srv_stats.key_rotation_list_length;
-  }
 
   mutex_exit(&srv_innodb_monitor_mutex);
 }

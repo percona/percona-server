@@ -2091,9 +2091,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   /* Create the new UNDO tablespace. */
   if (fil_ibd_create(new_space_id, marked_space->space_name(),
-                     marked_space->file_name(), flags, n_pages,
-                     FIL_ENCRYPTION_DEFAULT,
-                     KeyringEncryptionKeyIdInfo()) != DB_SUCCESS) {
+                     marked_space->file_name(), flags, n_pages) != DB_SUCCESS) {
     return false;
   }
 

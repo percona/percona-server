@@ -42,8 +42,8 @@ LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_keys_container.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_key_adapter.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_keys_container.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_key_adapter.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/converter.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
@@ -56,7 +56,6 @@ LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_2_0.cc
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/buffered_file_io_10.cc
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/psi_memory_key.cc
-  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/uuid.cc
   )
 
 IF(WIN32)

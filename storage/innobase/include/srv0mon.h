@@ -412,11 +412,6 @@ enum monitor_id_t {
   MONITOR_PAD_INCREMENTS,
   MONITOR_PAD_DECREMENTS,
 
-  /* New monitor variables for page encryption */
-  MONITOR_MODULE_ENCRYPTION,
-  MONITOR_OVLD_PAGES_ENCRYPTED,
-  MONITOR_OVLD_PAGES_DECRYPTED,
-
   /* Index related counters */
   MONITOR_MODULE_INDEX,
   MONITOR_INDEX_SPLIT,

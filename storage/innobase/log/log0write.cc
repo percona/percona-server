@@ -50,7 +50,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* arch_log_sys */
 #include "arch0arch.h"
-#include "fil0crypt.h" // todo
 
 /* page_id_t */
 #include "buf0types.h"

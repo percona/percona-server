@@ -2426,8 +2426,6 @@ int ha_innopart::create(const char *name, TABLE *form,
   THD *thd = ha_thd();
   trx_t *trx;
 
-  adjust_encryption_options(create_info, table_def);
-
   if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
     return (truncate_impl(name, form, table_def));
   }

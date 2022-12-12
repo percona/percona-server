@@ -543,7 +543,6 @@ void TABLE_SHARE::destroy() {
 
   DBUG_TRACE;
   DBUG_PRINT("info", ("db: %s table: %s", db.str, table_name.str));
-
   if (ha_share) {
     delete ha_share;
     ha_share = nullptr;
@@ -1879,18 +1878,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         goto err;
       }
       next_chunk += 2 + share->encrypt_type.length;
-    }
-
-    if (next_chunk + strlen("ENCRYPTION_KEY_ID") +
-                4  // + 4 for encryption_key_id value, ENCRYPTION_KEY_ID is used
-                   // here as a marker
-            <= buff_end &&
-        strncmp(reinterpret_cast<char *>(next_chunk), "ENCRYPTION_KEY_ID",
-                strlen("ENCRYPTION_KEY_ID")) == 0) {
-      share->encryption_key_id =
-          uint4korr(next_chunk + strlen("ENCRYPTION_KEY_ID"));
-      share->was_encryption_key_id_set = true;
-      next_chunk += 4 + strlen("ENCRYPTION_KEY_ID");
     }
   }
   share->key_block_size = uint2korr(head + 62);
@@ -3601,10 +3588,6 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table) {
   create_info->tablespace = share->tablespace;
   create_info->compress = share->compress;
   create_info->encrypt_type = share->encrypt_type;
-  create_info->was_encryption_key_id_set = share->was_encryption_key_id_set;
-  if (create_info->was_encryption_key_id_set) {
-    create_info->encryption_key_id = share->encryption_key_id;
-  }
   create_info->explicit_encryption = share->explicit_encryption;
   create_info->secondary_engine = share->secondary_engine;
 }

@@ -706,40 +706,6 @@ bool do_server_upgrade_checks(THD *thd) {
     return dd::end_transaction(thd, true);
   }
 
-  if (!error_count.has_too_many_errors()) {
-    /*
-      Get hold of the InnoDB handlerton. The check for partitioned tables
-      using shared tablespaces is only relevant for InnoDB.
-    */
-    plugin_ref pr =
-        ha_resolve_by_name_raw(thd, LEX_CSTRING{STRING_WITH_LEN("InnoDB")});
-    handlerton *hton =
-        (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
-    assert(hton != nullptr && hton->is_tablespace_keyring_pre_v3_encrypted);
-
-    /*
-      Get hold of all tablespaces, keep the non-implicit InnoDB spaces
-      in a map.
-    */
-    std::vector<const dd::Tablespace *> tablespaces;
-    if (thd->dd_client()->fetch_global_components(&tablespaces))
-      return dd::end_transaction(thd, true);
-
-    for (const dd::Tablespace *space : tablespaces) {
-      if (my_strcasecmp(system_charset_info, space->engine().c_str(),
-                        "InnoDB") != 0)
-        continue;
-
-      int error = 0;
-      bool is_tablespace_keyring_pre_v3_encrypted =
-          hton->is_tablespace_keyring_pre_v3_encrypted(*space, error);
-      if (is_tablespace_keyring_pre_v3_encrypted) {
-        LogErr(ERROR_LEVEL, ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
-        return dd::end_transaction(thd, true);
-      }
-    }
-  }
-
   thd->pop_internal_handler();
   return false;
 }

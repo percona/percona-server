@@ -135,13 +135,11 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
       return (0);
     }
 
-    SRV_CORRUPT_TABLE_CHECK(*err == DB_SUCCESS || *err == DB_IO_DECRYPT_FAIL,
-                            bpage->is_corrupt = true;);
+    SRV_CORRUPT_TABLE_CHECK(*err == DB_SUCCESS, bpage->is_corrupt = true;);
   }
 
   if (sync) {
-    /* The i/o is already completed when we arrive from
-    fil_read */
+    /* The i/o is already completed when we arrive from fil_read */
     if (!buf_page_io_complete(bpage, false)) {
       return (0);
     }

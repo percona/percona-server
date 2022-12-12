@@ -9936,9 +9936,6 @@ ER_SYSTEM_KEY_ROTATION_MAX_KEY_ID_EXCEEDED
 ER_SYSTEM_KEY_ROTATION_CANT_GENERATE_NEW_VERSION
   eng "Cannot generate new version of system key %lu. Keyring reported an error. Please check if keyring is available."
 
-ER_DTE_ENCRYPTION_THREADS_ACTIVE
-  eng "In order to change default_table_encryption, disable encryption threads. Please set number of innodb_encryption_threads to 0."
-
 ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE
   eng "The requested value %lu for the encryption_key_id exceeds the maximum allowed %lu"
 

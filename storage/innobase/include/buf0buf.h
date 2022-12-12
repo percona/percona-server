@@ -594,27 +594,6 @@ inline void buf_block_buf_fix_inc(buf_block_t *b,
 static inline void buf_block_modify_clock_inc(buf_block_t *block) {}
 #endif /* !UNIV_HOTBACKUP */
 
-bool buf_page_is_checksum_valid_crc32(const byte *read_buf,
-                                      ulint checksum_field1,
-                                      ulint checksum_field2,
-#ifdef UNIV_INNOCHECKSUM
-                                      uintmax_t page_no, bool is_log_enabled,
-                                      FILE *log_file,
-                                      const srv_checksum_algorithm_t curr_algo,
-#endif /* UNIV_INNOCHECKSUM */
-                                      bool use_legacy_big_endian);
-
-bool buf_page_is_checksum_valid_innodb(const byte *read_buf,
-                                       ulint checksum_field1,
-                                       ulint checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-                                       ,
-                                       uintmax_t page_no, bool is_log_enabled,
-                                       FILE *log_file,
-                                       const srv_checksum_algorithm_t curr_algo
-#endif /* UNIV_INNOCHECKSUM */
-);
-
 #ifndef UNIV_HOTBACKUP
 
 /** Gets the space id, page offset, and byte offset within page of a pointer

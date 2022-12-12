@@ -1059,18 +1059,6 @@ static monitor_info_t innodb_counter_info[] = {
      "Number of times padding is decremented due to good compressibility",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_PAD_DECREMENTS},
 
-    /* ========== Counters for Encryption ========== */
-    {"module_encryption", "encryption", "Counters for encryption",
-     MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_MODULE_ENCRYPTION},
-
-    {"pages_encrypted", "encryption", "Number of pages encrypted",
-     static_cast<monitor_type_t>(MONITOR_EXISTING), MONITOR_DEFAULT_START,
-     MONITOR_OVLD_PAGES_ENCRYPTED},
-
-    {"pages_decrypted", "encryption", "Number of pages decrypted",
-     static_cast<monitor_type_t>(MONITOR_EXISTING), MONITOR_DEFAULT_START,
-     MONITOR_OVLD_PAGES_DECRYPTED},
-
     /* ========== Counters for Index ========== */
     {"module_index", "index", "Index Manager", MONITOR_MODULE,
      MONITOR_DEFAULT_START, MONITOR_MODULE_INDEX},
@@ -1807,13 +1795,6 @@ void srv_mon_process_existing_counter(
       value = srv_stats.log_writes;
       break;
 
-    case MONITOR_OVLD_PAGES_ENCRYPTED:
-      value = srv_stats.pages_encrypted;
-      break;
-    case MONITOR_OVLD_PAGES_DECRYPTED:
-      value = srv_stats.pages_decrypted;
-      break;
-
     /* innodb_dblwr_writes */
     case MONITOR_OVLD_SRV_DBLWR_WRITES:
       value = srv_stats.dblwr_writes;
@@ -2017,7 +1998,6 @@ void srv_mon_process_existing_counter(
     case MONITOR_OVLD_MAX_AGE_SYNC:
       value = log_sys->m_capacity.adaptive_flush_max_age();
       break;
-
     case MONITOR_OVLD_ADAPTIVE_HASH_SEARCH:
       value = btr_cur_n_sea;
       break;

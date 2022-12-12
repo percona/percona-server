@@ -2731,11 +2731,6 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     m_implicit_tablespace_autoextend_size_change = false;
   }
 
-  if (!(used_fields & HA_CREATE_USED_ENCRYPTION_KEY_ID)) {
-    encryption_key_id = share->encryption_key_id;
-    was_encryption_key_id_set = share->was_encryption_key_id_set;
-  }
-
   if (engine_attribute.str == nullptr)
     engine_attribute = share->engine_attribute;
 

@@ -2042,8 +2042,9 @@ class PT_alter_instance final : public Parse_tree_root {
 
  public:
   explicit PT_alter_instance(
-      enum alter_instance_action_enum alter_instance_action, const LEX_CSTRING &channel, uint key_id)
-      : sql_cmd(alter_instance_action, channel, key_id) {}
+      enum alter_instance_action_enum alter_instance_action,
+      const LEX_CSTRING &channel)
+      : sql_cmd(alter_instance_action, channel) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 };
@@ -2384,27 +2385,6 @@ class PT_traceable_create_table_option : public PT_create_table_option {
   }
 };
 
-template <typename Option_type, Option_type HA_CREATE_INFO::*Property,
-          ulong Property_flag>
-class PT_traceable_create_table_option_encryption_key_id
-    : public PT_create_table_option {
-  typedef PT_create_table_option super;
-
-  const Option_type value;
-
- public:
-  explicit PT_traceable_create_table_option_encryption_key_id(Option_type value)
-      : value(value) {}
-
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
-    pc->create_info->*Property = value;
-    pc->create_info->used_fields |= Property_flag;
-    pc->create_info->was_encryption_key_id_set = true;
-    return false;
-  }
-};
-
 #define TYPE_AND_REF(x) decltype(x), &x
 
 /**
@@ -2469,11 +2449,6 @@ typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::compress),
 typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::encrypt_type), HA_CREATE_USED_ENCRYPT>
     PT_create_encryption_option;
-
-typedef PT_traceable_create_table_option_encryption_key_id<
-    TYPE_AND_REF(HA_CREATE_INFO::encryption_key_id),
-    HA_CREATE_USED_ENCRYPTION_KEY_ID>
-    PT_create_encryption_key_id_option;
 
 /**
   Node for the @SQL{AUTO_INCREMENT [=] @B{@<integer@>}} table option
@@ -5097,24 +5072,6 @@ typedef PT_alter_tablespace_option<
 typedef PT_alter_tablespace_option<decltype(Tablespace_options::encryption),
                                    &Tablespace_options::encryption>
     PT_alter_tablespace_option_encryption;
-
-class PT_alter_tablespace_option_encryption_key_id final
-    : public PT_alter_tablespace_option_base {
-  typedef PT_alter_tablespace_option_base super;
-
- public:
-  explicit PT_alter_tablespace_option_encryption_key_id(EncryptionKeyId value)
-      : m_value(value) {}
-
-  bool contextualize(Alter_tablespace_parse_context *pc) override {
-    pc->Tablespace_options::encryption_key_id.was_encryption_key_id_set = true;
-    pc->Tablespace_options::encryption_key_id.id = m_value;
-    return super::contextualize(pc);
-  }
-
- private:
-  const EncryptionKeyId m_value;
-};
 
 class PT_alter_tablespace_option_nodegroup final
     : public PT_alter_tablespace_option_base /* purecov: inspected */

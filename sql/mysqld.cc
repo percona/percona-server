@@ -8141,9 +8141,9 @@ int mysqld_main(int argc, char **argv)
   initialization, if tablespaces like system, redo, temporary are encrypted,
   they are initialized with "empty" UUID. Now UUID is available, fix the
   empty UUID of such tablespaces now */
-  if (innodb_hton != nullptr) {
-    if (innodb_hton->fix_tablespaces_empty_uuid != nullptr &&
-        innodb_hton->fix_tablespaces_empty_uuid()) {
+  if (innodb_hton != nullptr &&
+      innodb_hton->fix_tablespaces_empty_uuid != nullptr) {
+    if (innodb_hton->fix_tablespaces_empty_uuid()) {
       sql_print_error(
           "Fixing empty UUID with InnoDB Engine failed. Please"
           " check if keyring plugin is loaded and execute"

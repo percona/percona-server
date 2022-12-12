@@ -2152,10 +2152,6 @@ static bool fill_dd_table_from_create_info(
     table_options->set("explicit_encryption", false);
   }
 
-  if (create_info->was_encryption_key_id_set) {
-    table_options->set("encryption_key_id", create_info->encryption_key_id);
-  }
-
   // Storage media
   if (create_info->storage_media > HA_SM_DEFAULT)
     table_options->set("storage", create_info->storage_media);
@@ -2736,16 +2732,6 @@ inline void report_error_as_tablespace_missing(Object_id id) {
 inline void report_error_as_tablespace_missing(const String_type name) {
   my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), name.c_str());
 }
-
-/*
-  Find if system tablespace is encrypted.
-
-  @param[in] thd
-
-  @retval {true, *} in case of errors
-  @retval {false, true} if system tablespace is encrypted
-  @retval {false, false} if system tablespace is not encrypted
-*/
 
 Encrypt_result is_system_tablespace_encrypted(THD *thd) {
   MDL_request system_mdl_request;

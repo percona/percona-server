@@ -1,0 +1,92 @@
+# PS-8073: Replication crash when updating a table with a stored generated field in the primary key
+# https://jira.percona.com/browse/PS-8073
+
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+SET SESSION binlog_row_image= 'MINIMAL';
+
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  g INT GENERATED ALWAYS AS (a) STORED,
+  PRIMARY KEY (g)
+);
+INSERT INTO t1 (a) VALUES (1);
+UPDATE t1 SET a = 2 WHERE a = 1;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT,
+  g INT GENERATED ALWAYS AS (a) STORED,
+  PRIMARY KEY (g)
+);
+INSERT INTO t1 (a) VALUES (1);
+UPDATE t1 SET b = 1 WHERE a = 1;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  g INT GENERATED ALWAYS AS (a+10) STORED,
+  PRIMARY KEY (g)
+);
+INSERT INTO t1 (a) VALUES (1);
+UPDATE t1 SET a = 2 WHERE a = 1;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL,
+  g INT GENERATED ALWAYS AS (a+b) STORED,
+  PRIMARY KEY (g)
+);
+INSERT INTO t1 (a, b) VALUES (1, 2);
+UPDATE t1 SET a = 3 WHERE a = 1;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT,
+  g INT GENERATED ALWAYS AS (a+10) STORED,
+  PRIMARY KEY (g)
+);
+INSERT INTO t1 (a) VALUES (1);
+UPDATE t1 SET b = 2 WHERE a = 1;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL,
+  c INT,
+  g INT GENERATED ALWAYS AS (a+b) STORED,
+  PRIMARY KEY (g)
+);
+INSERT INTO t1 (a, b) VALUES (1, 2);
+UPDATE t1 SET c = 3 WHERE a = 1;
+
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/deinit.inc

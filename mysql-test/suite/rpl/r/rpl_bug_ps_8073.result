@@ -1,0 +1,90 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+SET SESSION binlog_row_image= 'MINIMAL';
+CREATE TABLE t1 (
+a INT NOT NULL,
+g INT GENERATED ALWAYS AS (a) STORED,
+PRIMARY KEY (g)
+);
+INSERT INTO t1 (a) VALUES (1);
+UPDATE t1 SET a = 2 WHERE a = 1;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	g
+2	2
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT,
+g INT GENERATED ALWAYS AS (a) STORED,
+PRIMARY KEY (g)
+);
+INSERT INTO t1 (a) VALUES (1);
+UPDATE t1 SET b = 1 WHERE a = 1;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	b	g
+1	1	1
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+a INT NOT NULL,
+g INT GENERATED ALWAYS AS (a+10) STORED,
+PRIMARY KEY (g)
+);
+INSERT INTO t1 (a) VALUES (1);
+UPDATE t1 SET a = 2 WHERE a = 1;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	g
+2	12
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT NOT NULL,
+g INT GENERATED ALWAYS AS (a+b) STORED,
+PRIMARY KEY (g)
+);
+INSERT INTO t1 (a, b) VALUES (1, 2);
+UPDATE t1 SET a = 3 WHERE a = 1;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	b	g
+3	2	5
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT,
+g INT GENERATED ALWAYS AS (a+10) STORED,
+PRIMARY KEY (g)
+);
+INSERT INTO t1 (a) VALUES (1);
+UPDATE t1 SET b = 2 WHERE a = 1;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	b	g
+1	2	11
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT NOT NULL,
+c INT,
+g INT GENERATED ALWAYS AS (a+b) STORED,
+PRIMARY KEY (g)
+);
+INSERT INTO t1 (a, b) VALUES (1, 2);
+UPDATE t1 SET c = 3 WHERE a = 1;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	b	c	g
+1	2	3	3
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

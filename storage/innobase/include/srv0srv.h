@@ -442,7 +442,6 @@ extern bool srv_undo_log_truncate;
 /** Enable or disable Encrypt of UNDO tablespace. */
 extern bool srv_undo_log_encrypt;
 
-
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 extern const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT;
@@ -909,7 +908,6 @@ extern mysql_pfs_key_t log_write_notifier_thread_key;
 extern mysql_pfs_key_t log_flush_notifier_thread_key;
 extern mysql_pfs_key_t page_flush_coordinator_thread_key;
 extern mysql_pfs_key_t page_flush_thread_key;
-extern mysql_pfs_key_t recv_writer_thread_key;
 extern mysql_pfs_key_t srv_error_monitor_thread_key;
 extern mysql_pfs_key_t srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t srv_master_thread_key;

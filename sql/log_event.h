@@ -2862,6 +2862,8 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
 
     @param cols The bitmap of columns included in the update.
 
+    @param local_cols The bitmap of local columns included in the update.
+
     @param is_after_image Should be true if this is an after-image,
     false if it is a before-image.
 
@@ -2877,7 +2879,8 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     and maybe others).
   */
   int unpack_current_row(const Relay_log_info *const rli, MY_BITMAP const *cols,
-                         bool is_after_image, bool only_seek = false);
+                         MY_BITMAP const *local_cols, bool is_after_image,
+                         bool only_seek = false);
   /**
     Updates the generated columns of the `TABLE` object referenced by
     `m_table`, that have an active bit in the parameter bitset

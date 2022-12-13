@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 SET @replica_parallel_workers_save = @@global.replica_parallel_workers;
-SET GLOBAL replica_parallel_workers = 0;
+SET GLOBAL replica_parallel_workers = 1;
 include/start_slave.inc
 CREATE TABLE joinit (
 i int NOT NULL AUTO_INCREMENT,

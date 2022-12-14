@@ -163,8 +163,6 @@ const char *dict_sys_t::s_file_per_table_name = "innodb_file_per_table";
 const char *dict_sys_t::s_default_undo_space_name_1 = "innodb_undo_001";
 const char *dict_sys_t::s_default_undo_space_name_2 = "innodb_undo_002";
 
-constexpr space_id_t dict_sys_t::s_dict_space_id;
-
 /** the dictionary persisting structure */
 dict_persist_t *dict_persist = nullptr;
 

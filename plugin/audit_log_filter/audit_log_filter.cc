@@ -228,6 +228,7 @@ int audit_log_filter_deinit(void *arg [[maybe_unused]]) {
   }
 
   audit_log_filter->send_audit_stop_event();
+  audit_log_filter->deinit();
 
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Uninstalled Audit Event Filter");
@@ -262,11 +263,18 @@ AuditLogFilter::AuditLogFilter(
       m_audit_rules_registry{std::move(audit_rules_registry)},
       m_audit_udf{std::move(audit_udf)},
       m_log_writer{std::move(log_writer)},
-      m_log_reader{std::move(log_reader)} {}
+      m_log_reader{std::move(log_reader)},
+      m_is_active{true} {}
+
+void AuditLogFilter::deinit() noexcept {
+  m_is_active = false;
+  m_audit_udf->deinit();
+  m_log_writer->close();
+}
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
                                  const void *event) {
-  if (SysVars::get_log_disabled()) {
+  if (SysVars::get_log_disabled() || !m_is_active) {
     return 0;
   }
 
@@ -378,6 +386,10 @@ void AuditLogFilter::send_audit_stop_event() noexcept {
 }
 
 bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
+  if (!m_is_active) {
+    return false;
+  }
+
   const bool is_flushed = m_audit_rules_registry->load();
 
   DBUG_EXECUTE_IF("audit_log_filter_rotate_after_audit_rules_flush",
@@ -387,14 +399,22 @@ bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
 }
 
 void AuditLogFilter::on_audit_log_prune_requested() noexcept {
-  m_log_writer->prune();
+  if (m_is_active) {
+    m_log_writer->prune();
+  }
 }
 
 void AuditLogFilter::on_audit_log_rotate_requested() noexcept {
-  m_log_writer->rotate();
+  if (m_is_active) {
+    m_log_writer->rotate();
+  }
 }
 
-void AuditLogFilter::on_audit_log_rotated() noexcept { m_log_reader->init(); }
+void AuditLogFilter::on_audit_log_rotated() noexcept {
+  if (m_is_active) {
+    m_log_reader->init();
+  }
+}
 
 void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
                                           AuditRecordVariant &audit_record) {

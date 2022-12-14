@@ -118,17 +118,7 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
 AuditUdf::AuditUdf(comp_registry_srv_t *comp_registry_srv)
     : m_comp_registry_srv{comp_registry_srv} {}
 
-AuditUdf::~AuditUdf() {
-  int was_present = 0;
-  my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
-      "udf_registration", m_comp_registry_srv);
-
-  for (const auto &name : m_active_udf_names) {
-    udf_registration_srv->udf_unregister(name.c_str(), &was_present);
-  }
-
-  m_active_udf_names.clear();
-}
+AuditUdf::~AuditUdf() { deinit(); }
 
 bool AuditUdf::init(UdfFuncInfo *begin, UdfFuncInfo *end) {
   my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
@@ -147,6 +137,20 @@ bool AuditUdf::init(UdfFuncInfo *begin, UdfFuncInfo *end) {
   }
 
   return true;
+}
+
+void AuditUdf::deinit() noexcept {
+  if (!m_active_udf_names.empty()) {
+    int was_present = 0;
+    my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
+        "udf_registration", m_comp_registry_srv);
+
+    for (const auto &name : m_active_udf_names) {
+      udf_registration_srv->udf_unregister(name.c_str(), &was_present);
+    }
+
+    m_active_udf_names.clear();
+  }
 }
 
 bool AuditUdf::audit_log_filter_set_filter_udf_init(AuditUdf *udf,

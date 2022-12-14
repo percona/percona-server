@@ -53,6 +53,11 @@ class AuditUdf {
   bool init(UdfFuncInfo *begin, UdfFuncInfo *end);
 
   /**
+   * @brief De-initialise audit log filter UDFs.
+   */
+  void deinit() noexcept;
+
+  /**
    * @brief Init function for audit_log_filter_set_filter UDF.
    *
    * @param udf Pointer to UDFs handler instance

@@ -23,6 +23,8 @@ SELECT audit_log_filter_set_user('%', 'log_table_access');
   close($fh);
 EOF
 
+--source clean_current_audit_log.inc
+
 --disable_query_log
 --source $TMP_QUERY_FILE
 --enable_query_log

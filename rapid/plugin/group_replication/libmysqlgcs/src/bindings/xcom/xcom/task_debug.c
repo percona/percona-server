@@ -30,10 +30,8 @@ char *mystrcat(char *dest, int *size, const char *src)
   int current_size= *size;
   char *ret= dest;
 
-  int num=0;
   while (*dest)
   {
-    num++;
     dest++;
   }
 

@@ -81,19 +81,44 @@ jobs:
           BuildType: Debug
 
       # clang-5 and newer compilers
-      clang-14 Release [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
+      clang-15 Release [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        UBUNTU_CODE_NAME: jammy
         Compiler: clang
-        CompilerVer: 14
+        CompilerVer: 15
         BuildType: RelWithDebInfo
 
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-14 Release INVERTED=ON [Ubuntu 20.04 Focal]:
+        clang-15 Release INVERTED=ON [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 15
+          BuildType: RelWithDebInfo
+          INVERTED: ON
+
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-15 Debug [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 15
+          BuildType: Debug
+
+      clang-15 Debug INVERTED=ON [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        UBUNTU_CODE_NAME: jammy
+        Compiler: clang
+        CompilerVer: 15
+        BuildType: Debug
+        INVERTED: ON
+
+      ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-14 Release [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 14
           BuildType: RelWithDebInfo
-          INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-14 Debug [Ubuntu 20.04 Focal]:
@@ -101,13 +126,6 @@ jobs:
           Compiler: clang
           CompilerVer: 14
           BuildType: Debug
-
-      clang-14 Debug INVERTED=ON [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: clang
-        CompilerVer: 14
-        BuildType: Debug
-        INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-13 Release [Ubuntu 20.04 Focal]:
@@ -316,7 +334,6 @@ jobs:
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-6 Release [Ubuntu 18.04 Bionic]:
           imageName: 'ubuntu-18.04'
-          UBUNTU_CODE_NAME: bionic
           Compiler: gcc
           CompilerVer: 6
           BuildType: RelWithDebInfo
@@ -324,7 +341,6 @@ jobs:
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-6 Debug [Ubuntu 18.04 Bionic]:
           imageName: 'ubuntu-18.04'
-          UBUNTU_CODE_NAME: bionic
           Compiler: gcc
           CompilerVer: 6
           BuildType: Debug
@@ -332,14 +348,12 @@ jobs:
       ${{ if or(ne(variables['Build.Reason'], 'IndividualCI'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-5 Release [Ubuntu 18.04 Bionic]:
           imageName: 'ubuntu-18.04'
-          UBUNTU_CODE_NAME: bionic
           Compiler: gcc
           CompilerVer: 5
           BuildType: RelWithDebInfo
 
       gcc-5 Debug [Ubuntu 18.04 Bionic]:
         imageName: 'ubuntu-18.04'
-        UBUNTU_CODE_NAME: bionic
         Compiler: gcc
         CompilerVer: 5
         BuildType: Debug
@@ -352,8 +366,8 @@ jobs:
       ls -l ..
       pwd
       ls -l
+
       if [[ "$OS_NAME" == "Linux" ]]; then
-        COMPILER_VER=$(CompilerVer)
         SELECTED_CC=$(Compiler)-$(CompilerVer)
         if [[ "$(Compiler)" == "clang" ]]; then
           SELECTED_CXX=clang++-$(CompilerVer)
@@ -363,12 +377,12 @@ jobs:
           PACKAGES="$SELECTED_CXX $PACKAGES"
         fi
       else
-        COMPILER_VER=`$(Compiler) -v 2>&1 | head -1 | awk '{print $4}'`
+        REAL_COMPILER_VER=`$(Compiler) --version | grep -o "clang version.*" | awk '{print $3}'`
         SELECTED_CC=$(Compiler)
         SELECTED_CXX=clang++
       fi
 
-      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX BuildType=$(BuildType) Ubuntu=$(UBUNTU_CODE_NAME) OS_NAME=$OS_NAME
+      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX BuildType=$(BuildType) INVERTED=$(INVERTED) imageName=$(imageName) OS_NAME=$OS_NAME
       echo --- Configure required LLVM and Ubuntu Toolchain repositories
       if [[ "$OS_NAME" == "Linux" ]] && [[ "$SELECTED_CC" == "clang"* ]]; then
         PACKAGES="llvm-$(CompilerVer)-dev $PACKAGES"
@@ -385,6 +399,12 @@ jobs:
         if [[ "$(INVERTED)" != "ON" ]]; then
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libevent-dev libreadline-dev liblz4-dev protobuf-compiler libprotobuf-dev libprotoc-dev || exit 1;
         fi
+
+        if [[ "$(Compiler)" == "clang" ]]; then
+          REAL_COMPILER_VER=`$SELECTED_CC --version | grep -o "clang version.*" | awk '{print $3}'`
+        else
+          REAL_COMPILER_VER=`$SELECTED_CC --version | head -1 | awk '{print $4}'`
+        fi
       else
          brew update
          brew install ccache protobuf lz4 openssl@1.1
@@ -393,15 +413,7 @@ jobs:
       UPDATE_TIME=$SECONDS
       echo --- Packages updated in $UPDATE_TIME seconds.
 
-      echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`)"
-      $SELECTED_CC -v
-      $SELECTED_CXX -v
-      ccache --version
-      ccache -p
-      ccache --zero-stats
-      df -Th
-
-      echo "##vso[task.setvariable variable=CompilerMajorVer]${COMPILER_VER}"
+      echo "##vso[task.setvariable variable=REAL_COMPILER_VER]${REAL_COMPILER_VER%%-*}"
       echo "##vso[task.setvariable variable=SELECTED_CC]$SELECTED_CC"
       echo "##vso[task.setvariable variable=SELECTED_CXX]$SELECTED_CXX"
       echo "##vso[task.setvariable variable=UPDATE_TIME]$UPDATE_TIME"
@@ -411,8 +423,8 @@ jobs:
   - task: Cache@2
     continueOnError: true
     inputs:
-      key: '"ccache"| "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)" | "INVERTED=$(INVERTED)" | "$(Build.SourceVersion)"'
-      restoreKeys: '"ccache" | "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)" | "INVERTED=$(INVERTED)"'
+      key: '"ccache"| "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(REAL_COMPILER_VER)-$(BuildType)" | "INVERTED=$(INVERTED)" | "$(Build.SourceVersion)"'
+      restoreKeys: '"ccache" | "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(REAL_COMPILER_VER)-$(BuildType)" | "INVERTED=$(INVERTED)"'
       path: $(CCACHE_DIR)
     displayName: '*** Download/upload ccached files'
 
@@ -431,11 +443,24 @@ jobs:
       df -Th
       git submodule sync
       git submodule update --init --force --depth=256
+      git submodule
     displayName: '*** Update git submodules'
 
   - script: |
+      echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) REAL_COMPILER_VER=$REAL_COMPILER_VER BuildType=$(BuildType)"
+      $SELECTED_CC -v
+      $SELECTED_CXX -v
+      ccache --version
+      ccache -p
+      ccache --zero-stats
       df -Th
-      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX BuildType=$(BuildType) INVERTED=$(INVERTED) imageName=$(imageName) OS_NAME=$OS_NAME
+      if [[ "$OS_NAME" == "Linux" ]]; then
+        cat /proc/cpuinfo
+      fi
+    displayName: '*** System and compiler info'
+
+  - script: |
+      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX REAL_COMPILER_VER=$REAL_COMPILER_VER BuildType=$(BuildType) INVERTED=$(INVERTED) imageName=$(imageName) OS_NAME=$OS_NAME
       echo --- Set cmake parameters
       COMPILE_OPT+=(
         -DCMAKE_C_FLAGS_DEBUG=-g1
@@ -523,6 +548,7 @@ jobs:
 
       CMAKE_TIME=$SECONDS
       echo --- CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
+      cmake -L .
 
       echo '##vso[task.setvariable variable=CMAKE_TIME]'$CMAKE_TIME
 

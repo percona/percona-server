@@ -82,7 +82,6 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
                           MYSQL_FTPARSER_BOOLEAN_INFO *info) {
   uchar *doc = *start;
   int ctype;
-  uint length;
   int mbl;
 
   info->yesno = (FTB_YES == ' ') ? 1 : (info->quot != nullptr);
@@ -146,9 +145,8 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
       info->weight_adjust = info->wasign = 0;
     }
 
-    length = 0;
     for (word->pos = doc; doc < end;
-         length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
+         doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, doc, end);
 
       if (extra_word_chars && *doc == FTB_RQUOT) {

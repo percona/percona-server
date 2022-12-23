@@ -1,0 +1,1524 @@
+#
+# PS-8378: Allow to run EXPLAIN with lower level of privileges
+#
+#
+# Prepare private and public databases and EXPLAIN-only user.
+CREATE DATABASE mysqlpriv;
+CREATE TABLE mysqlpriv.t1 (id INT PRIMARY KEY, j INT);
+CREATE TABLE mysqlpriv.t2 (a INT);
+INSERT INTO mysqlpriv.t1 VALUES (1, 0), (2, 0), (3, 0), (5, 0), (7, 0), (11, 1), (13, 1), (17, 1), (19, 1);
+INSERT INTO mysqlpriv.t2 VALUES (1), (2), (3);
+CREATE VIEW mysqlpriv.v0 AS SELECT * FROM mysqlpriv.t1;
+CREATE FUNCTION mysqlpriv.f1 () RETURNS INT RETURN 1;
+CREATE DATABASE mysqlpub;
+CREATE VIEW mysqlpub.v1 AS SELECT * FROM mysqlpriv.t1;
+CREATE VIEW mysqlpub.v2 AS SELECT * FROM mysqlpriv.v0;
+CREATE SQL SECURITY INVOKER VIEW mysqlpub.v3 AS SELECT * FROM mysqlpriv.t1;
+CREATE TABLE mysqlpub.t3 (id INT PRIMARY KEY, k INT);
+INSERT INTO mysqlpub.t3 VALUES (1, 0), (2, 0), (3, 0), (5, 0), (7, 0), (11, 0), (13, 0), (17, 0), (19, 0);
+CREATE VIEW mysqlpub.v_i_s AS SELECT * FROM information_schema.tables;
+CREATE USER broken_view_user@localhost;
+GRANT SELECT, INSERT, DELETE, UPDATE ON mysqlpriv.* TO broken_view_user@localhost;
+CREATE DEFINER=broken_view_user@localhost VIEW mysqlpub.v_broken AS SELECT * FROM mysqlpriv.t1;
+REVOKE SELECT, INSERT, DELETE, UPDATE ON mysqlpriv.* FROM broken_view_user@localhost;
+CREATE VIEW mysqlpub.v4 AS SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a;
+CREATE SQL SECURITY INVOKER VIEW mysqlpub.v5 AS SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a;
+CREATE VIEW mysqlpub.v6 AS SELECT a.id, a.j, b.k FROM mysqlpriv.t1 AS a NATURAL JOIN mysqlpub.t3 AS b;
+CREATE SQL SECURITY INVOKER VIEW mysqlpub.v7 AS SELECT a.id, a.j, b.k FROM mysqlpriv.t1 AS a NATURAL JOIN mysqlpub.t3 AS b;
+CREATE USER expl_user@localhost;
+GRANT EXPLAIN_PLAN ON *.* TO expl_user@localhost;
+GRANT SELECT, INSERT, DELETE, UPDATE ON mysqlpub.* TO expl_user@localhost;
+#
+# I. Test that user with an EXPLAIN_PLAN privilege can run EXPLAIN
+#    for various DML statements which involve private database directly
+#    or indirectly.
+#
+connect  con_expl,localhost,expl_user,,,,,;
+#
+# A) DELETE.
+#
+#
+# A.1) Basic DELETE
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from `mysqlpriv`.`t1` where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from `mysqlpriv`.`t1` where (`mysqlpriv`.`t1`.`id` = 1)
+# However, DELETE itself should not be allowed.
+DELETE FROM mysqlpriv.t1 WHERE id = 1;
+ERROR 42000: DELETE command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# A.2) Multi-DELETE
+#
+# A.2.1) Multi-DELETE in which we delete from private table.
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN DELETE mysqlpriv.t1 FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	delete `mysqlpriv`.`t1` from `mysqlpriv`.`t1` join `mysqlpriv`.`t2` where (`mysqlpriv`.`t2`.`a` = 1)
+# EXPLAIN form user with only EXPLAIN_PLAN ACL works too,
+# but not DELETE itself.
+connection con_expl;
+EXPLAIN DELETE mysqlpriv.t1 FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	delete `mysqlpriv`.`t1` from `mysqlpriv`.`t1` join `mysqlpriv`.`t2` where (`mysqlpriv`.`t2`.`a` = 1)
+DELETE mysqlpriv.t1 FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# A.2.2) Same for multi-DELETE in which we only read from private table.
+connection default;
+EXPLAIN DELETE mysqlpub.t3 FROM mysqlpub.t3 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t3	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	delete `mysqlpub`.`t3` from `mysqlpub`.`t3` join `mysqlpriv`.`t2` where (`mysqlpriv`.`t2`.`a` = 1)
+connection con_expl;
+EXPLAIN DELETE mysqlpub.t3 FROM mysqlpub.t3 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t3	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	delete `mysqlpub`.`t3` from `mysqlpub`.`t3` join `mysqlpriv`.`t2` where (`mysqlpriv`.`t2`.`a` = 1)
+DELETE mysqlpub.t3 FROM mysqlpub.t3 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't2'
+#
+# A.3) DELETE with unknown field
+#
+# Note that if we lack privileges on the table we throw access denied
+# error instead of one about bad field name.
+# EXPLAIN from superuser fails with error indicating field name.
+connection default;
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE no_such_field = 1;
+ERROR 42S22: Unknown column 'no_such_field' in 'where clause'
+# EXPLAIN from EXPLAIN-only user fails with the same error indicating field name.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE no_such_field = 1;
+ERROR 42S22: Unknown column 'no_such_field' in 'where clause'
+# DELETE by EXPLAIN-only user is blocked.
+DELETE FROM mysqlpriv.t1 WHERE no_such_field = 1;
+ERROR 42000: DELETE command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# A.4) DELETE and views
+#
+# A.4.1) DELETE on view in private database
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN DELETE FROM mysqlpriv.v0 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from (`mysqlpriv`.`t1`) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN by EXPLAIN-only user works as well. DELETE is blocked.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpriv.v0 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from (`mysqlpriv`.`t1`) where (`mysqlpriv`.`t1`.`id` = 1)
+DELETE FROM mysqlpriv.v0 WHERE id = 1;
+ERROR 42000: DELETE command denied to user 'expl_user'@'localhost' for table 'v0'
+#
+# A.4.2) DELETE on view in public database, referencing private table
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN DELETE FROM mysqlpub.v1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from (`mysqlpriv`.`t1`) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpub.v1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from (`mysqlpriv`.`t1`) where (`mysqlpriv`.`t1`.`id` = 1)
+# DELETE works (as view is SUID and public).
+DELETE FROM mysqlpub.v1 WHERE id = 0;
+# But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+# and SELECT ACL on underlying tables.
+SHOW CREATE VIEW mysqlpub.v1;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v1'
+#
+# A.4.3) DELETE on view in public database, referencing private view
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN DELETE FROM mysqlpub.v2 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from (`mysqlpriv`.`t1`) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpub.v2 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from (`mysqlpriv`.`t1`) where (`mysqlpriv`.`t1`.`id` = 1)
+# DELETE works (as view is SUID and public).
+DELETE FROM mysqlpub.v1 WHERE id = 0;
+# SHOW CREATE VIEW is blocked.
+SHOW CREATE VIEW mysqlpub.v2;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v2'
+#
+# A.4.4) DELETE on non-SUID view in public database, referencing
+#        private table
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN DELETE FROM mysqlpub.v3 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from (`mysqlpriv`.`t1`) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpub.v3 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from (`mysqlpriv`.`t1`) where (`mysqlpriv`.`t1`.`id` = 1)
+# Both DELETE and SHOW CREATE VIEW are blocked.
+DELETE FROM mysqlpub.v3 WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW mysqlpub.v3;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v3'
+#
+# A.4.5) DELETE on a broken view.
+# EXPLAIN and DELETE by superuser fail.
+connection default;
+EXPLAIN DELETE FROM mysqlpub.v_broken WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM mysqlpub.v_broken WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# EXPLAIN and DELETE by EXPLAIN-only user fail as well.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpub.v_broken WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM mysqlpub.v_broken WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+#
+# A.5) DELETE calling stored function.
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN DELETE FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
+Warnings:
+Note	1003	delete from `mysqlpub`.`t3` where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`f1`())
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
+Warnings:
+Note	1003	delete from `mysqlpub`.`t3` where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`f1`())
+# DELETE is blocked.
+DELETE FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+ERROR 42000: execute command denied to user 'expl_user'@'localhost' for routine 'mysqlpriv.f1'
+#
+# A.6) DELETE and I_S and P_S tables.
+#
+# Implementations of I_S and P_S abuse privilege checking to make I_S
+# tables read-only and prohibit some operations on P_S tables.
+#
+# A.6.1) Direct DELETE on I_S.
+# Both DELETE and EXPLAIN DELETE on I_S table should fail for superuser.
+connection default;
+EXPLAIN DELETE FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN DELETE FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'expl_user'@'localhost' to database 'information_schema'
+DELETE FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'expl_user'@'localhost' to database 'information_schema'
+#
+# A.6.2) DELETE on I_S through a view.
+# Both DELETE and EXPLAIN DELETE on I_S through a view should fail
+# for superuser.
+connection default;
+EXPLAIN DELETE FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN DELETE FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+#
+# A.6.3) DELETE on read-only P_S table.
+# Both DELETE and EXPLAIN DELETE on P_S.metadata_locks should fail
+# for superuser.
+connection default;
+EXPLAIN DELETE FROM performance_schema.metadata_locks WHERE object_schema = 'mysqlpriv' AND object_name = 't1';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'metadata_locks'
+DELETE FROM performance_schema.metadata_locks WHERE object_schema = 'mysqlpriv' AND object_name = 't1';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'metadata_locks'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN DELETE FROM performance_schema.metadata_locks WHERE object_schema = 'mysqlpriv' AND object_name = 't1';
+ERROR 42000: DELETE command denied to user 'expl_user'@'localhost' for table 'metadata_locks'
+DELETE FROM performance_schema.metadata_locks WHERE object_schema = 'mysqlpriv' AND object_name = 't1';
+ERROR 42000: DELETE command denied to user 'expl_user'@'localhost' for table 'metadata_locks'
+#
+# B) UPDATE.
+#
+#
+# B.1) Basic UPDATE
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `mysqlpriv`.`t1` set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `mysqlpriv`.`t1` set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# However, UPDATE itself should not be allowed.
+UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 1;
+ERROR 42000: UPDATE command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# B.2) Multi-UPDATE
+#
+# B.2.1) Multi-UPDATE in which we update private table.
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpriv.t1, mysqlpriv.t2 SET j = -1 WHERE id = a AND id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `mysqlpriv`.`t1` join `mysqlpriv`.`t2` set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t2`.`a` = 1)
+# EXPLAIN form user with only EXPLAIN_PLAN ACL works too,
+# but not UPDATE itself.
+connection con_expl;
+EXPLAIN UPDATE mysqlpriv.t1, mysqlpriv.t2 SET j = -1 WHERE id = a AND id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `mysqlpriv`.`t1` join `mysqlpriv`.`t2` set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t2`.`a` = 1)
+UPDATE mysqlpriv.t1, mysqlpriv.t2 SET j = -1 WHERE id = a AND id = 1 ;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# B.2.2) Same for multi-UPDATE in which we only read from private table.
+connection default;
+EXPLAIN UPDATE mysqlpub.t3, mysqlpriv.t2 SET k = -1 WHERE id = a AND id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `mysqlpub`.`t3` join `mysqlpriv`.`t2` set `mysqlpub`.`t3`.`k` = -(1) where (`mysqlpriv`.`t2`.`a` = 1)
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.t3, mysqlpriv.t2 SET k = -1 WHERE id = a AND id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `mysqlpub`.`t3` join `mysqlpriv`.`t2` set `mysqlpub`.`t3`.`k` = -(1) where (`mysqlpriv`.`t2`.`a` = 1)
+UPDATE mysqlpub.t3, mysqlpriv.t2 SET k = -1 WHERE id = a AND id = 1 ;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't2'
+#
+# B.3) UPDATE with unknown field
+#
+# Note that if we lack privileges on the table we throw access denied
+# error instead of one about bad field name.
+# EXPLAIN from superuser fails with error indicating field name.
+connection default;
+EXPLAIN UPDATE mysqlpriv.t1 SET j = -1 WHERE no_such_field = 1;
+ERROR 42S22: Unknown column 'no_such_field' in 'where clause'
+# EXPLAIN from EXPLAIN-only user fails with the same error indicating field name.
+connection con_expl;
+EXPLAIN UPDATE mysqlpriv.t1 SET j = -1 WHERE no_such_field = 1;
+ERROR 42S22: Unknown column 'no_such_field' in 'where clause'
+# UPDATE by EXPLAIN-only user is blocked.
+UPDATE mysqlpriv.t1 SET j = -1 WHERE no_such_field = 1;
+ERROR 42000: UPDATE command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# B.4) UPDATE and views
+#
+# B.4.1) UPDATE on view in private database
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpriv.v0 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN by EXPLAIN-only user works as well. UPDATE is blocked.
+connection con_expl;
+EXPLAIN UPDATE mysqlpriv.v0 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+UPDATE mysqlpriv.v0 SET j = -1 WHERE id = 1;
+ERROR 42000: UPDATE command denied to user 'expl_user'@'localhost' for table 'v0'
+#
+# B.4.2) UPDATE on view in public database, referencing private table
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpub.v1 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v1 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# UPDATE works (as view is SUID and public).
+UPDATE mysqlpub.v1 SET j = -1 WHERE id = 0;
+# But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+# and SELECT ACL on underlying tables.
+SHOW CREATE VIEW mysqlpub.v1;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v1'
+#
+# B.4.3) UPDATE on view in public database, referencing private view
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpub.v2 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v2 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# UPDATE works (as view is SUID and public).
+EXPLAIN UPDATE mysqlpub.v2 SET j = -1 WHERE id = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 0)
+# SHOW CREATE VIEW is blocked.
+SHOW CREATE VIEW mysqlpub.v2;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v2'
+#
+# B.4.4) UPDATE on non-SUID view in public database, referencing
+#        private table
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpub.v3 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v3 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t1`.`id` = 1)
+# Both UPDATE and SHOW CREATE VIEW are blocked.
+UPDATE mysqlpub.v3 SET j = -1 WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW mysqlpub.v3;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v3'
+#
+# B.4.5) UPDATE on multi-table view which is converted to multi-UPDATE
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpub.v4 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1` join `mysqlpriv`.`t2`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t2`.`a` = 1)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v4 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1` join `mysqlpriv`.`t2`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t2`.`a` = 1)
+# UPDATE works (as view is SUID and public).
+UPDATE mysqlpub.v4 SET j = -1 WHERE id = 0;
+# But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+# and SELECT ACL on underlying tables.
+SHOW CREATE VIEW mysqlpub.v4;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v4'
+# Same test for case when we only read from private table.
+connection default;
+EXPLAIN UPDATE mysqlpub.v6 SET k = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
+1	UPDATE	b	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1` `a` join `mysqlpub`.`t3` `b`) set `mysqlpub`.`b`.`k` = -(1) where true
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v6 SET k = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
+1	UPDATE	b	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1` `a` join `mysqlpub`.`t3` `b`) set `mysqlpub`.`b`.`k` = -(1) where true
+UPDATE mysqlpub.v6 SET k = -1 WHERE id = 0;
+SHOW CREATE VIEW mysqlpub.v6;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v6'
+#
+# B.4.6) UPDATE on multi-table non-SUID view which is converted to
+#        multi-UPDATE
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpub.v5 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1` join `mysqlpriv`.`t2`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t2`.`a` = 1)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v5 SET j = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1` join `mysqlpriv`.`t2`) set `mysqlpriv`.`t1`.`j` = -(1) where (`mysqlpriv`.`t2`.`a` = 1)
+# UPDATE is blocked.
+UPDATE mysqlpub.v5 SET j = -1 WHERE id = 0;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for column 'id' in table 't1'
+# Same test for case when we only read from private table.
+connection default;
+EXPLAIN UPDATE mysqlpub.v7 SET k = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
+1	UPDATE	b	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1` `a` join `mysqlpub`.`t3` `b`) set `mysqlpub`.`b`.`k` = -(1) where true
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v7 SET k = -1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
+1	UPDATE	b	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	update (`mysqlpriv`.`t1` `a` join `mysqlpub`.`t3` `b`) set `mysqlpub`.`b`.`k` = -(1) where true
+UPDATE mysqlpub.v7 SET k = -1 WHERE id = 0;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for column 'id' in table 't1'
+#
+# B.4.7) UPDATE on a broken view.
+# EXPLAIN and UPDATE by superuser fail.
+connection default;
+EXPLAIN UPDATE mysqlpub.v_broken SET j = -1 WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE mysqlpub.v_broken SET j = -1 WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# EXPLAIN and UPDATE by EXPLAIN-only user fail as well.
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v_broken SET j = -1 WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE mysqlpub.v_broken SET j = -1 WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+#
+# B.5) UPDATE calling stored function.
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN UPDATE mysqlpub.t3 SET k = -1 WHERE id = mysqlpriv.f1();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	index	NULL	PRIMARY	4	NULL	9	100.00	Using where
+Warnings:
+Note	1003	update `mysqlpub`.`t3` set `mysqlpub`.`t3`.`k` = -(1) where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`f1`())
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.t3 SET k = -1 WHERE id = mysqlpriv.f1();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	index	NULL	PRIMARY	4	NULL	9	100.00	Using where
+Warnings:
+Note	1003	update `mysqlpub`.`t3` set `mysqlpub`.`t3`.`k` = -(1) where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`f1`())
+# UPDATE is blocked.
+UPDATE mysqlpub.t3 SET k = -1 WHERE id = mysqlpriv.f1();
+ERROR 42000: execute command denied to user 'expl_user'@'localhost' for routine 'mysqlpriv.f1'
+#
+# B.6) UPDATE and I_S and P_S tables.
+#
+# Implementations of I_S and P_S abuse privilege checking to make I_S
+# tables read-only and prohibit some operations on P_S tables.
+#
+# B.6.1) Direct UPDATE on I_S.
+# Both UPDATE and EXPLAIN UPDATE on I_S table should fail for superuser.
+connection default;
+EXPLAIN UPDATE information_schema.tables SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+UPDATE information_schema.tables SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN UPDATE information_schema.tables SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'expl_user'@'localhost' to database 'information_schema'
+UPDATE information_schema.tables SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'expl_user'@'localhost' to database 'information_schema'
+#
+# B.6.2) UPDATE on I_S through a view.
+# Both UPDATE and EXPLAIN UPDATE on I_S through a view should fail
+# for superuser.
+connection default;
+EXPLAIN UPDATE mysqlpub.v_i_s SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+UPDATE mysqlpub.v_i_s SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN UPDATE mysqlpub.v_i_s SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+UPDATE mysqlpub.v_i_s SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+#
+# B.6.3) UPDATE on read-only P_S table.
+# Both UPDATE and EXPLAIN UPDATE on P_S.metadata_locks should fail
+# for superuser.
+connection default;
+EXPLAIN UPDATE performance_schema.metadata_locks SET lock_duration = 'EXPLICIT' WHERE object_schema = 'mysqlpriv' AND object_name = 't1';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'metadata_locks'
+UPDATE performance_schema.metadata_locks SET lock_duration = 'EXPLICIT' WHERE object_schema = 'mysqlpriv' AND object_name = 't1';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'metadata_locks'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN UPDATE performance_schema.metadata_locks SET lock_duration = 'EXPLICIT' WHERE object_schema = 'mysqlpriv' AND object_name = 't1';
+ERROR 42000: UPDATE command denied to user 'expl_user'@'localhost' for table 'metadata_locks'
+UPDATE performance_schema.metadata_locks SET lock_duration = 'EXPLICIT' WHERE object_schema = 'mysqlpriv' AND object_name = 't1';
+ERROR 42000: UPDATE command denied to user 'expl_user'@'localhost' for table 'metadata_locks'
+#
+# C) INSERT and friends.
+#
+#
+# C.1) Simple INSERT
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpriv.t1 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpriv.t1 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# However, INSERT itself should not be allowed.
+INSERT INTO mysqlpriv.t1 VALUES (23, -1);
+ERROR 42000: INSERT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# C.2) INSERT ... SELECT
+#
+# Both the case when private table is being inserted into:
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` /* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3`
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` /* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3`
+# However, INSERT itself should not be allowed.
+INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+ERROR 42000: INSERT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# And the case when it is only being read from:
+connection default;
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpub`.`t3` /* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1`
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpub`.`t3` /* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1`
+# However, INSERT itself should not be allowed.
+INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# C.3) REPLACE
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN REPLACE INTO mysqlpriv.t1 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `mysqlpriv`.`t1` values (23,-(1))
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN REPLACE INTO mysqlpriv.t1 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `mysqlpriv`.`t1` values (23,-(1))
+# However, REPLACE itself should not be allowed.
+REPLACE INTO mysqlpriv.t1 VALUES (23, -1);
+ERROR 42000: INSERT, DELETE command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# C.4) REPLACE ... SELECT
+#
+# Both the case when private table is being changed:
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN REPLACE INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	replace into `mysqlpriv`.`t1` /* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3`
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN REPLACE INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	replace into `mysqlpriv`.`t1` /* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3`
+# However, REPLACE itself should not be allowed.
+REPLACE INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+ERROR 42000: INSERT, DELETE command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# And the case when it is only being read from:
+connection default;
+EXPLAIN REPLACE INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	replace into `mysqlpub`.`t3` /* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1`
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN REPLACE INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	replace into `mysqlpub`.`t3` /* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1`
+# However, REPLACE itself should not be allowed.
+REPLACE INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# C.5) INSERT ... ON DUPLICATE KEY UPDATE
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpriv.t1 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1)) on duplicate key update `mysqlpriv`.`t1`.`j` = -(1)
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpriv.t1 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1)) on duplicate key update `mysqlpriv`.`t1`.`j` = -(1)
+# However, INSERT ON DUPLICATE KEY UPDATE itself should not be allowed.
+INSERT INTO mysqlpriv.t1 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+ERROR 42000: INSERT, UPDATE command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# C.6) INSERT ... SELECT ON DUPLICATE KEY UPDATE
+#
+# Again we test both the case when we change private table and when
+# it is only read only.
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3 ON DUPLICATE KEY UPDATE j = -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` /* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3` on duplicate key update `mysqlpriv`.`t1`.`j` = -(1)
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1 ON DUPLICATE KEY UPDATE k = -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpub`.`t3` /* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1` on duplicate key update `mysqlpub`.`t3`.`k` = -(1)
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3 ON DUPLICATE KEY UPDATE j = -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` /* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3` on duplicate key update `mysqlpriv`.`t1`.`j` = -(1)
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1 ON DUPLICATE KEY UPDATE k = -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpub`.`t3` /* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1` on duplicate key update `mysqlpub`.`t3`.`k` = -(1)
+# However, INSERT ON DUPLICATE KEY UPDATE itself should not be allowed.
+INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3 ON DUPLICATE KEY UPDATE j = -1;
+ERROR 42000: INSERT, UPDATE command denied to user 'expl_user'@'localhost' for table 't1'
+INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1 ON DUPLICATE KEY UPDATE k = -1;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# C.7) INSERT with unknown field
+#
+# Lack privileges on the table affects the error we throw in such cases.
+# EXPLAIN from superuser fails with error indicating field name.
+connection default;
+EXPLAIN INSERT INTO mysqlpriv.t1 SET id = 23, no_such_field = -1;
+ERROR 42S22: Unknown column 'no_such_field' in 'field list'
+# EXPLAIN from EXPLAIN-only user fails with the same error indicating field name.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpriv.t1 SET id = 23, no_such_field = -1;
+ERROR 42S22: Unknown column 'no_such_field' in 'field list'
+# INSERT by EXPLAIN-only user is blocked with access denied error.
+INSERT INTO mysqlpriv.t1 SET id = 23, no_such_field = -1;
+ERROR 42000: INSERT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# C.8) INSERT and views
+#
+# C.8.1) INSERT on view in private database
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpriv.v0 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# EXPLAIN by EXPLAIN-only user works as well. INSERT is blocked.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpriv.v0 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+INSERT INTO mysqlpriv.v0 VALUES (23, -1);
+ERROR 42000: INSERT command denied to user 'expl_user'@'localhost' for table 'v0'
+# Rinse and repeat for INSERT ... SELECT which only reads from private
+# view.
+connection default;
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.v0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpub`.`t3` /* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1`
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.v0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	insert into `mysqlpub`.`t3` /* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1`
+INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.v0;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 'v0'
+#
+# C.8.2) INSERT INTO view in public database, referencing private table
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpub.v1 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.v1 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# INSERT works (as view is SUID and public).
+# But it is a no-op to simplify testing.
+INSERT IGNORE INTO mysqlpub.v1 VALUES (1, 0);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
+# But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+# and SELECT ACL on underlying tables.
+SHOW CREATE VIEW mysqlpub.v1;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v1'
+# Let us run similar test for REPLACE
+connection default;
+EXPLAIN REPLACE INTO mysqlpub.v1 VALUES (1, 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `mysqlpriv`.`t1` values (1,0)
+connection con_expl;
+EXPLAIN REPLACE INTO mysqlpub.v1 VALUES (1, 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `mysqlpriv`.`t1` values (1,0)
+REPLACE INTO mysqlpub.v1 VALUES (1, 0);
+#
+# C.8.3) INSERT into view in public database, referencing private view
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpub.v2 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.v2 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# INSERT works (as view is SUID and public). But we made it no-op.
+INSERT IGNORE INTO mysqlpub.v2 VALUES (1, -1);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
+# SHOW CREATE VIEW is blocked.
+SHOW CREATE VIEW mysqlpub.v2;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v2'
+# Let us repeat the test for INSERT ON DUPLICATE KEY UPDATE
+connection default;
+EXPLAIN INSERT INTO mysqlpub.v2 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1)) on duplicate key update `mysqlpriv`.`t1`.`j` = -(1)
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.v2 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1)) on duplicate key update `mysqlpriv`.`t1`.`j` = -(1)
+INSERT INTO mysqlpub.v2 VALUES (1, 0) ON DUPLICATE KEY UPDATE j = 0;
+#
+# C.8.4) INSERT into non-SUID view in public database, referencing
+#        private table
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpub.v3 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.v3 VALUES (23, -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpriv`.`t1` values (23,-(1))
+# Both INSERT and SHOW CREATE VIEW are blocked.
+INSERT INTO mysqlpub.v3 VALUES (23, -1);
+ERROR HY000: View 'mysqlpub.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW mysqlpub.v3;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v3'
+#
+# C.8.5) INSERT INTO a broken view.
+# EXPLAIN and INSERT by superuser fail.
+connection default;
+EXPLAIN INSERT INTO mysqlpub.v_broken VALUES (23, -1);
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO mysqlpub.v_broken VALUES (23, -1);
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# EXPLAIN and INSERT by EXPLAIN-only user fail as well.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.v_broken VALUES (23, -1);
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO mysqlpub.v_broken VALUES (23, -1);
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+#
+# C.9) INSERT calling stored function.
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN INSERT INTO mysqlpub.t3 VALUES (mysqlpriv.f1(), 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpub`.`t3` values (`mysqlpriv`.`f1`(),0)
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.t3 VALUES (mysqlpriv.f1(), 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `mysqlpub`.`t3` values (`mysqlpriv`.`f1`(),0)
+# INSERT is blocked.
+INSERT INTO mysqlpub.t3 VALUES (mysqlpriv.f1(), 0);
+ERROR 42000: execute command denied to user 'expl_user'@'localhost' for routine 'mysqlpriv.f1'
+#
+# C.10) INSERT and I_S and P_S tables.
+#
+# EXPLAIN_PLAN privilege should not allow "updates" to I_S/
+# some P_S tables.
+#
+# C.10.1) Direct INSERT into I_S.
+# Both INSERT and EXPLAIN INSERT into I_S table should fail for
+# superuser.
+connection default;
+EXPLAIN INSERT INTO information_schema.tables (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+INSERT INTO information_schema.tables (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN INSERT INTO information_schema.tables (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: Access denied for user 'expl_user'@'localhost' to database 'information_schema'
+INSERT INTO information_schema.tables (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: Access denied for user 'expl_user'@'localhost' to database 'information_schema'
+#
+# C.10.2) INSERT into I_S through a view.
+# Both INSERT and EXPLAIN INSERT into I_S through a view should fail
+# for superuser.
+connection default;
+EXPLAIN INSERT INTO mysqlpub.v_i_s (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+EXPLAIN INSERT INTO mysqlpub.v_i_s (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN INSERT INTO mysqlpub.v_i_s (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+EXPLAIN INSERT INTO mysqlpub.v_i_s (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+#
+# C.10.3) INSERT into read-only P_S table.
+# Both INSERT and EXPLAIN INSERT into P_S.metadata_locks should fail
+# for superuser.
+connection default;
+EXPLAIN INSERT INTO performance_schema.metadata_locks (object_schema, object_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'metadata_locks'
+INSERT INTO performance_schema.metadata_locks (object_schema, object_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'metadata_locks'
+# Ditto for EXPLAIN-only user.
+connection con_expl;
+EXPLAIN INSERT INTO performance_schema.metadata_locks (object_schema, object_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: INSERT command denied to user 'expl_user'@'localhost' for table 'metadata_locks'
+INSERT INTO performance_schema.metadata_locks (object_schema, object_name) VALUES ('mysqlpriv', 't100');
+ERROR 42000: INSERT command denied to user 'expl_user'@'localhost' for table 'metadata_locks'
+#
+# D) SELECT.
+#
+#
+# D.1) Trivial SELECT
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN SELECT * FROM mysqlpriv.t1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN SELECT * FROM mysqlpriv.t1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# SELECT itself should not be allowed (even though user might deduce
+# the same information from EXPLAIN results).
+SELECT * FROM mysqlpriv.t1 WHERE id = 1;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# D.2) More complex SELECTs involving private and public tables.
+# EXPLAINs from superuser work as expected.
+connection default;
+EXPLAIN SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j`,`mysqlpriv`.`t2`.`a` AS `a` from `mysqlpriv`.`t1` join `mysqlpriv`.`t2` where (`mysqlpriv`.`t2`.`a` = 1)
+EXPLAIN SELECT * FROM mysqlpriv.t1 NATURAL JOIN mysqlpub.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	9	100.00	NULL
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	mysqlpriv.t1.id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpriv`.`t1` join `mysqlpub`.`t3` where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`t1`.`id`)
+EXPLAIN SELECT * FROM mysqlpub.t3 WHERE (SELECT COUNT(*) FROM mysqlpriv.t1 WHERE mysqlpriv.t1.id = mysqlpub.t3.id);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	mysqlpub.t3.id	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'mysqlpub.t3.id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3` where (0 <> (/* select#2 */ select count(0) from `mysqlpriv`.`t1` where (`mysqlpriv`.`t1`.`id` = `mysqlpub`.`t3`.`id`)))
+EXPLAIN SELECT * FROM mysqlpriv.t1 WHERE id IN (SELECT id FROM mysqlpub.t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	9	100.00	NULL
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	mysqlpriv.t1.id	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpub`.`t3` join `mysqlpriv`.`t1` where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`t1`.`id`)
+# EXPLAINs from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j`,`mysqlpriv`.`t2`.`a` AS `a` from `mysqlpriv`.`t1` join `mysqlpriv`.`t2` where (`mysqlpriv`.`t2`.`a` = 1)
+EXPLAIN SELECT * FROM mysqlpriv.t1 NATURAL JOIN mysqlpub.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	9	100.00	NULL
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	mysqlpriv.t1.id	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpriv`.`t1` join `mysqlpub`.`t3` where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`t1`.`id`)
+EXPLAIN SELECT * FROM mysqlpub.t3 WHERE (SELECT COUNT(*) FROM mysqlpriv.t1 WHERE mysqlpriv.t1.id = mysqlpub.t3.id);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	mysqlpub.t3.id	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'mysqlpub.t3.id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3` where (0 <> (/* select#2 */ select count(0) from `mysqlpriv`.`t1` where (`mysqlpriv`.`t1`.`id` = `mysqlpub`.`t3`.`id`)))
+EXPLAIN SELECT * FROM mysqlpriv.t1 WHERE id IN (SELECT id FROM mysqlpub.t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	9	100.00	NULL
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	mysqlpriv.t1.id	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpub`.`t3` join `mysqlpriv`.`t1` where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`t1`.`id`)
+# SELECTs themselves should not be allowed.
+SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+SELECT * FROM mysqlpriv.t1 NATURAL JOIN mysqlpub.t3;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+SELECT * FROM mysqlpub.t3 WHERE (SELECT COUNT(*) FROM mysqlpriv.t1 WHERE mysqlpriv.t1.id = mysqlpub.t3.id);
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+SELECT * FROM mysqlpriv.t1 WHERE id IN (SELECT id FROM mysqlpub.t3);
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# D.3) SELECT with INTO clause.
+# EXPLAINs from superuser work as expected.
+connection default;
+EXPLAIN SELECT j INTO @a FROM mysqlpriv.t1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '0' AS `j` from `mysqlpriv`.`t1` where true
+EXPLAIN SELECT * INTO OUTFILE '../../tmp/t1.txt' FROM mysqlpriv.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1`
+EXPLAIN SELECT * INTO DUMPFILE '../../tmp/t3.txt' FROM mysqlpub.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3`
+# EXPLAINs from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN SELECT j INTO @a FROM mysqlpriv.t1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '0' AS `j` from `mysqlpriv`.`t1` where true
+EXPLAIN SELECT * INTO OUTFILE '../../tmp/t1.txt' FROM mysqlpriv.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1`
+EXPLAIN SELECT * INTO DUMPFILE '../../tmp/t3.txt' FROM mysqlpub.t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3`
+# SELECTs themselves should not be allowed.
+SELECT j INTO @a FROM mysqlpriv.t1 WHERE id = 1;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+SELECT * INTO OUTFILE '../../tmp/t1.txt' FROM mysqlpriv.t1;
+ERROR 42000: Access denied; you need (at least one of) the FILE privilege(s) for this operation
+SELECT * INTO DUMPFILE '../../tmp/t3.txt' FROM mysqlpub.t3;
+ERROR 42000: Access denied; you need (at least one of) the FILE privilege(s) for this operation
+#
+# D.4) TABLE form of SELECT.
+# EXPLAIN from superuser works as expected.
+connection default;
+EXPLAIN TABLE mysqlpriv.t1 ORDER BY j, id;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1` order by `mysqlpriv`.`t1`.`j`,`mysqlpriv`.`t1`.`id`
+# EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+connection con_expl;
+EXPLAIN TABLE mysqlpriv.t1 ORDER BY j, id;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpriv`.`t1`.`id` AS `id`,`mysqlpriv`.`t1`.`j` AS `j` from `mysqlpriv`.`t1` order by `mysqlpriv`.`t1`.`j`,`mysqlpriv`.`t1`.`id`
+# TABLE itself should not be allowed.
+TABLE mysqlpriv.t1 ORDER BY j, id;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# D.5) SELECT with unknown field
+#
+# Lack privileges on the table affects the error we throw in such cases.
+# EXPLAIN from superuser fails with error indicating field name.
+connection default;
+EXPLAIN SELECT no_such_field FROM mysqlpriv.t1 WHERE id = 1;
+ERROR 42S22: Unknown column 'no_such_field' in 'field list'
+# EXPLAIN from EXPLAIN-only user fails with the same error indicating field name.
+connection con_expl;
+EXPLAIN SELECT no_such_field FROM mysqlpriv.t1 WHERE id = 1;
+ERROR 42S22: Unknown column 'no_such_field' in 'field list'
+# SELECT by EXPLAIN-only user is blocked with access denied error.
+SELECT no_such_field FROM mysqlpriv.t1 WHERE id = 1;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+#
+# D.6) SELECT and views
+#
+# D.6.1) SELECT on view in private database
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN SELECT * FROM mysqlpriv.v0 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# EXPLAIN by EXPLAIN-only user works as well. SELECT is blocked
+# (though the same info is visible in EXPLAIN output).
+connection con_expl;
+EXPLAIN SELECT * FROM mysqlpriv.v0 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+SELECT * FROM mysqlpriv.v0 WHERE id = 1;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 'v0'
+#
+# D.6.2) SELECT on view in public database, referencing private table
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN SELECT * FROM mysqlpub.v1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN SELECT * FROM mysqlpub.v1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# SELECT works (as view is SUID and public).
+SELECT * FROM mysqlpub.v1 WHERE id = 1;
+id	j
+1	0
+# But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+# and SELECT ACL on underlying tables.
+SHOW CREATE VIEW mysqlpub.v1;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v1'
+#
+# D.6.3) SELECT on view in public database, referencing private view
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN SELECT * FROM mysqlpub.v2 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN SELECT * FROM mysqlpub.v2 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# SELECT works (as view is SUID and public).
+SELECT * FROM mysqlpub.v2 WHERE id = 1;
+id	j
+1	0
+# SHOW CREATE VIEW is blocked.
+SHOW CREATE VIEW mysqlpub.v2;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v2'
+#
+# D.6.4) SELECT on non-SUID view in public database, referencing
+#        private table
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN SELECT * FROM mysqlpub.v3 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN SELECT * FROM mysqlpub.v3 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id`,'0' AS `j` from `mysqlpriv`.`t1` where true
+# Both SELECT and SHOW CREATE VIEW are blocked.
+SELECT * FROM mysqlpub.v3 WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW mysqlpub.v3;
+ERROR 42000: SHOW VIEW command denied to user 'expl_user'@'localhost' for table 'v3'
+#
+# D.6.5) SELECT on a broken view.
+# EXPLAIN and SELECT by superuser fail.
+connection default;
+EXPLAIN SELECT * FROM mysqlpub.v_broken WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM mysqlpub.v_broken WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# EXPLAIN and SELECT by EXPLAIN-only user fail as well.
+connection con_expl;
+EXPLAIN SELECT * FROM mysqlpub.v_broken WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM mysqlpub.v_broken WHERE id = 1;
+ERROR HY000: View 'mysqlpub.v_broken' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+#
+# D.7) SELECT calling stored function.
+# EXPLAIN by superuser works as expected.
+connection default;
+EXPLAIN SELECT * FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3` where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`f1`())
+# EXPLAIN by EXPLAIN-only user works as well.
+connection con_expl;
+EXPLAIN SELECT * FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `mysqlpub`.`t3`.`id` AS `id`,`mysqlpub`.`t3`.`k` AS `k` from `mysqlpub`.`t3` where (`mysqlpub`.`t3`.`id` = `mysqlpriv`.`f1`())
+# SELECT is blocked.
+SELECT * FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+ERROR 42000: execute command denied to user 'expl_user'@'localhost' for routine 'mysqlpriv.f1'
+#
+# D.8) SELECT and I_S and P_S tables.
+#
+# Reading from all I_S tables and some of P_S tables is always allowed.
+#
+# D.8.1) Direct SELECT on I_S.
+# Both SELECT and EXPLAIN SELECT on I_S table should succeed for all
+# users. Suppress results and warnings to make test more future proof.
+connection default;
+EXPLAIN SELECT table_name FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+TABLE_NAME
+t1
+connection con_expl;
+EXPLAIN SELECT table_name FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+TABLE_NAME
+#
+# D.8.2) SELECT on I_S through a view.
+# Both SELECT and EXPLAIN SELECT on I_S through a view should work
+# for all users. Suppress results and warnings to make test more
+# future proof.
+connection default;
+EXPLAIN SELECT table_name FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+SELECT table_name FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+TABLE_NAME
+t1
+connection con_expl;
+EXPLAIN SELECT table_name FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+SELECT table_name FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+TABLE_NAME
+#
+# D.8.3) SELECT on world readable P_S table.
+# Both SELECT and EXPLAIN SELECT on P_S.session_variables should
+# succeed for all users.
+connection default;
+EXPLAIN SELECT COUNT(*) FROM performance_schema.session_variables WHERE variable_name='character_set_connection';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	session_variables	NULL	const	PRIMARY	PRIMARY	258	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `performance_schema`.`session_variables` where true
+SELECT COUNT(*) FROM performance_schema.session_variables WHERE variable_name='character_set_connection';
+COUNT(*)
+1
+connection con_expl;
+EXPLAIN SELECT COUNT(*) FROM performance_schema.session_variables WHERE variable_name='character_set_connection';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	session_variables	NULL	const	PRIMARY	PRIMARY	258	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `performance_schema`.`session_variables` where true
+SELECT COUNT(*) FROM performance_schema.session_variables WHERE variable_name='character_set_connection';
+COUNT(*)
+1
+#
+# E) EXPLAIN ANALYZE
+#
+# EXPLAIN ANALYZE should be blocked for EXPLAIN-only user as it
+# might disclose too much info.
+EXPLAIN ANALYZE SELECT * FROM mysqlpriv.t1 WHERE id = 1;
+ERROR 42000: SELECT command denied to user 'expl_user'@'localhost' for table 't1'
+EXPLAIN ANALYZE DELETE FROM mysqlpriv.t1 WHERE id = 1;
+ERROR 42000: DELETE command denied to user 'expl_user'@'localhost' for table 't1'
+EXPLAIN ANALYZE INSERT INTO mysqlpriv.t1 VALUES (23, -1);
+ERROR 42000: INSERT command denied to user 'expl_user'@'localhost' for table 't1'
+EXPLAIN ANALYZE UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 1;
+ERROR 42000: UPDATE command denied to user 'expl_user'@'localhost' for table 't1'
+EXPLAIN ANALYZE SELECT * FROM mysqlpub.v1 WHERE id = 1;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+#
+# F) EXPLAIN FOR CONNECTION
+#
+# EXPLAIN_PLAN and PROCESS privileges should be enough to run
+# EXPLAIN FOR CONNECTION against other users.
+#
+connection default;
+# SESSION_VARIABLES_ADMIN is needed by explain_other.inc
+GRANT PROCESS, SESSION_VARIABLES_ADMIN ON *.* TO expl_user@localhost;
+# Create connection to run EXPLAIN and DML statements in, since
+# explain_other.inc helper script uses predefined connection names.
+connect  ce,localhost,expl_user,,,,,;
+connect  cq, localhost, root,,;
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM mysqlpriv.t1 WHERE id = 1'
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'DELETE FROM mysqlpriv.t1 WHERE id = 0'
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 0'
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'INSERT INTO mysqlpriv.t1 VALUES (23, -1)'
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+connection default;
+#
+# With only PROCESS privilege, but without EXPLAIN_PLAN and other
+# global privileges for DML, EXPLAIN FOR CONNECTION should not work.
+REVOKE EXPLAIN_PLAN ON *.* FROM expl_user@localhost;
+# Reconnect to ensure global privilege update takes effect.
+connection ce;
+disconnect ce;
+connect  ce,localhost,expl_user,,,,,;
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM mysqlpriv.t1 WHERE id = 1'
+ERROR 28000: Access denied for user 'expl_user'@'localhost' (using password: NO)
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'DELETE FROM mysqlpriv.t1 WHERE id = 0'
+ERROR 28000: Access denied for user 'expl_user'@'localhost' (using password: NO)
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 0'
+ERROR 28000: Access denied for user 'expl_user'@'localhost' (using password: NO)
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'INSERT IGNORE INTO mysqlpriv.t1 VALUES (23, -1)'
+ERROR 28000: Access denied for user 'expl_user'@'localhost' (using password: NO)
+#
+# Same for case when we have EXPLAIN_PLAN, but no PROCESS.
+GRANT EXPLAIN_PLAN ON *.* TO expl_user@localhost;
+REVOKE PROCESS ON *.* FROM expl_user@localhost;
+# Reconnect to ensure global privilege update takes effect.
+connection ce;
+disconnect ce;
+connect  ce,localhost,expl_user,,,,,;
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM mysqlpriv.t1 WHERE id = 1'
+ERROR 28000: Access denied for user 'expl_user'@'localhost' (using password: NO)
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'DELETE FROM mysqlpriv.t1 WHERE id = 0'
+ERROR 28000: Access denied for user 'expl_user'@'localhost' (using password: NO)
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 0'
+ERROR 28000: Access denied for user 'expl_user'@'localhost' (using password: NO)
+connection cq;
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'INSERT IGNORE INTO mysqlpriv.t1 VALUES (23, -1)'
+ERROR 28000: Access denied for user 'expl_user'@'localhost' (using password: NO)
+connection ce;
+disconnect ce;
+connection cq;
+disconnect cq;
+connection default;
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM expl_user@localhost;
+#
+# II. Demonstrate that EXPLAIN_PLAN privilege is correctly handled
+#     by SHOW GRANTS statement/logical backup tool like mysqlpump.
+# 
+SHOW GRANTS FOR expl_user@localhost;
+Grants for expl_user@localhost
+GRANT USAGE ON *.* TO `expl_user`@`localhost`
+GRANT EXPLAIN_PLAN ON *.* TO `expl_user`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE ON `mysqlpub`.* TO `expl_user`@`localhost`
+# Dump information about expl_user using mysqlpump tool.
+DROP USER expl_user@localhost;
+# Restore information about expl_user from the dump.
+# Check that grants were correctly preserved.
+SHOW GRANTS FOR expl_user@localhost;
+Grants for expl_user@localhost
+GRANT USAGE ON *.* TO `expl_user`@`localhost`
+GRANT EXPLAIN_PLAN ON *.* TO `expl_user`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE ON `mysqlpub`.* TO `expl_user`@`localhost`
+#
+# III. Test which simulates upgrade from versions without
+#      EXPLAIN_PLAN support.
+#
+# Simulate older version of privilege tables by dropping expl_user
+# and revoking EXPLAIN_PLAN from root.
+DROP USER expl_user@localhost;
+REVOKE EXPLAIN_PLAN ON *.* FROM root@localhost;
+# Upgrade!
+# restart:--upgrade=FORCE --log-error=test_error_log
+# Root user should not have EXPLAIN_PLAN privilege.
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ABORT_EXEMPT,AUDIT_ADMIN,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FIREWALL_EXEMPT,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,GROUP_REPLICATION_STREAM,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PASSWORDLESS_USER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SENSITIVE_VARIABLES_OBSERVER,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ``@`` TO `root`@`localhost` WITH GRANT OPTION
+# However it should be possible for it to grant this privilege to others.
+CREATE USER expl_user@localhost;
+GRANT EXPLAIN_PLAN ON *.* TO expl_user@localhost;
+SHOW GRANTS FOR expl_user@localhost;
+Grants for expl_user@localhost
+GRANT USAGE ON *.* TO `expl_user`@`localhost`
+GRANT EXPLAIN_PLAN ON *.* TO `expl_user`@`localhost`
+# And of course run EXPLAIN statements for DML.
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	delete from `mysqlpriv`.`t1` where (`mysqlpriv`.`t1`.`id` = 1)
+# Restore EXPLAIN_PLAN status for root.
+GRANT EXPLAIN_PLAN ON *.* TO root@localhost;
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT EXPLAIN_PLAN ON *.* TO `root`@`localhost`
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ABORT_EXEMPT,AUDIT_ADMIN,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FIREWALL_EXEMPT,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,GROUP_REPLICATION_STREAM,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PASSWORDLESS_USER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SENSITIVE_VARIABLES_OBSERVER,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ``@`` TO `root`@`localhost` WITH GRANT OPTION
+#
+# Clean-up.
+DROP DATABASE mysqlpriv;
+DROP DATABASE mysqlpub;
+DROP USER broken_view_user@localhost;
+DROP USER expl_user@localhost;

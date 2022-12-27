@@ -103,6 +103,12 @@ add_percona_yum_repo(){
     return
 }
 
+switch_to_vault_repo() {
+    sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Linux-*
+    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Linux-*
+    sed -i 's/enabled=0/enabled=1/g' /etc/yum.repos.d/CentOS-Linux-PowerTools.repo
+}
+
 get_sources(){
     cd "${WORKDIR}"
     if [ "${SOURCE}" = 0 ]
@@ -375,16 +381,26 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        yum -y update
-        if [ "${RHEL}" -lt 9 ]; then
-            add_percona_yum_repo
-            yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
-            percona-release enable tools testing
-            percona-release enable tools experimental
-        else
-            yum -y install yum-utils
-            yum-config-manager --enable ol9_codeready_builder
+        if [ "x${RHEL}" = "x8" ]; then
+            switch_to_vault_repo
         fi
+        if [ x"$ARCH" = "xx86_64" ]; then
+            if [ "${RHEL}" -lt 9 ]; then
+                add_percona_yum_repo
+                yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+                percona-release enable tools testing
+                percona-release enable tools experimental
+            else
+                yum -y install yum-utils
+                yum-config-manager --enable ol9_codeready_builder
+           fi
+        else
+            if [ "x${RHEL}" = "x9" ]; then
+                yum -y install yum-utils
+                yum-config-manager --enable ol"${RHEL}"_codeready_builder
+            fi
+        fi
+        yum -y update
         yum -y install epel-release
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
@@ -406,12 +422,14 @@ install_deps() {
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
             yum -y install automake autoconf cmake cmake3 jemalloc jemalloc-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-	    yum -y install rpcgen re2-devel
+	    yum -y install rpcgen
 	    yum -y install libzstd libzstd-devel
 	    yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         fi
         if [ "x${RHEL}" = "x8" ]; then
-            yum -y install centos-release-stream
+            if [ x"$ARCH" = "xx86_64" ]; then
+                yum -y install centos-release-stream
+            fi
             yum -y install git gcc-toolset-11-gcc gcc-toolset-11-gcc-c++ gcc-toolset-11-annobin-plugin-gcc
             source /opt/rh/gcc-toolset-11/enable
         fi
@@ -444,7 +462,9 @@ install_deps() {
             yum -y install centos-release-stream
             yum -y install gcc-toolset-11-binutils gcc-toolset-11-valgrind gcc-toolset-11-valgrind-devel gcc-toolset-11-libatomic-devel
             yum -y install gcc-toolset-11-libasan-devel gcc-toolset-11-libubsan-devel
-            yum -y remove centos-release-stream
+            if [ x"$ARCH" = "xx86_64" ]; then
+                yum -y remove centos-release-stream
+            fi
         fi
         if [ "x$RHEL" = "x9" ]; then
             yum -y install libtirpc-devel
@@ -606,6 +626,7 @@ build_srpm(){
 }
 
 build_mecab_lib(){
+    ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_TARBAL="mecab-0.996.tar.gz"
     MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
@@ -616,6 +637,12 @@ build_mecab_lib(){
     mkdir ${MECAB_INSTALL_DIR}
     wget --no-check-certificate ${MECAB_LINK}
     tar xf ${MECAB_TARBAL}
+    if [ x"$ARCH" = "xaarch64" ]; then
+        git clone git://git.savannah.gnu.org/config.git
+        unalias cp
+        cp config/config.guess ${MECAB_DIR}
+        cp config/config.sub ${MECAB_DIR}
+    fi
     cd ${MECAB_DIR}
     ./configure --with-pic --prefix=/usr
     make
@@ -623,13 +650,14 @@ build_mecab_lib(){
     make DESTDIR=${MECAB_INSTALL_DIR} install
     cd ${MECAB_INSTALL_DIR}
     if [ -d usr/lib64 ]; then
-	mkdir -p usr/lib
+        mkdir -p usr/lib
         mv usr/lib64/* usr/lib
     fi
     cd ${WORKDIR}
 }
 
 build_mecab_dict(){
+    ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
     MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
@@ -638,10 +666,10 @@ build_mecab_dict(){
     wget ${MECAB_IPADIC_LINK}
     tar xf ${MECAB_IPADIC_TARBAL}
     cd ${MECAB_IPADIC_DIR}
-    # these two lines should be removed if proper packages are created and used for builds
+  # these two lines should be removed if proper packages are created and used for builds
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MECAB_INSTALL_DIR}/usr/lib
     sed -i "/MECAB_DICT_INDEX=\"/c\MECAB_DICT_INDEX=\"${MECAB_INSTALL_DIR}\/usr\/libexec\/mecab\/mecab-dict-index\"" configure
-    #
+  #
     ./configure --with-mecab-config=${MECAB_INSTALL_DIR}/usr/bin/mecab-config
     make
     make DESTDIR=${MECAB_INSTALL_DIR} install
@@ -715,14 +743,10 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ "x${RHEL}" = "x8" ]; then
-        source /opt/rh/gcc-toolset-10/enable
-    fi
-    #
     if [ ${ARCH} = x86_64 ]; then
         rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_rocksdb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
 
     if [ $RHEL = 6 ]; then

@@ -39,7 +39,7 @@ static int flag=0,verbose=0,remove_ant=0,flags[50];
 
 int main(int argc, char **argv)
 {
-  int i,j,error,deleted;
+  int i,j,error,deleted MY_ATTRIBUTE((__unused__));
   HP_INFO *file;
   uchar record[128],key[32];
   const char *filename;

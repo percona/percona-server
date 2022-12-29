@@ -27,9 +27,7 @@ This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 Version Specific Information
 ============================
 
-  * :ref:`5.7.10-1`:
-
-    Feature ported from *Percona Server for MySQL* 5.6.
+  * :ref:`5.7.10-1`: Feature was ported from *Percona Server for MySQL* 5.6.
 
 
 Other Information
@@ -103,8 +101,6 @@ Specifies the number of locks held to print for each InnoDB transaction in
 
 .. rubric:: ``innodb_print_lock_wait_timeout_info``
 
-Implemented in :ref:`5.7.20-18`.
-
 .. list-table::
    :header-rows: 1
 
@@ -123,8 +119,7 @@ Implemented in :ref:`5.7.20-18`.
    * - Default
      - ``OFF``
 
-Makes InnoDB to write information about all lock wait timeout errors 
-into the log file. 
+The variable has been implemented in :ref:`5.7.20-18`. Makes InnoDB to write information about all lock wait timeout errors into the log file. 
 
 This allows to find out details about the failed transaction, and, most 
 importantly, the blocking transaction. Query string can be obtained from :ref:`EVENTS_STATEMENTS_CURRENT` table, based on the ``PROCESSLIST_ID`` field, which corresponds to ``thread_id`` from the log
@@ -179,7 +174,7 @@ the redo log if needed due to the checkpoint age; performs change buffer merge
 at full I/O capacity; evicts tables from the dictionary cache if
 needed; and makes a checkpoint.
 
-.. _Innodb_master_thread_active_loops:
+.. _innodb_master_thread_active_loops:
 
 .. rubric:: ``Innodb_master_thread_active_loops``
 

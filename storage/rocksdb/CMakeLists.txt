@@ -79,6 +79,15 @@ IF (ROCKSDB_CUSTOM_NAMESPACE)
   ADD_DEFINITIONS(-DROCKSDB_CUSTOM_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
 ENDIF()
 
+IF (WITH_UBSAN)
+  ADD_DEFINITIONS(-DROCKSDB_UBSAN_RUN)
+ENDIF()
+IF (WITH_VALGRIND)
+  ADD_DEFINITIONS(-DROCKSDB_VALGRIND_RUN)
+ENDIF()
+IF (WITH_JEMALLOC)
+  ADD_DEFINITIONS(-DROCKSDB_JEMALLOC)
+ENDIF()
 IF (WITH_NUMA)
   ADD_DEFINITIONS(-DNUMA)
 ENDIF()
@@ -140,10 +149,20 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERS
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
 ENDIF()
 
+# Suppress warnings for clang-15 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-array-parameter FILES ha_rocksdb.cc)
+ENDIF()
+
 # Suppress warnings for gcc-9 or newer
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/db/db_impl/db_impl.cc)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/env/env.cc rocksdb/table/block_based/block_based_table_builder.cc)
+ENDIF()
+
+# Suppress warnings for gcc-12 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/env/fs_posix.cc rocksdb/tools/mysql_ldb.cc tools/mysql_ldb.cc)
 ENDIF()
 
 # Suppress warnings for gcc-4.8.x

@@ -1,8 +1,9 @@
 .. _upstream_bug_fixes:
 
-=======================================================================
-List of upstream MySQL bugs fixed in *Percona Server for MySQL*  5.7
-=======================================================================
+============================================================
+List of upstream MySQL bugs fixed in **Percona Server for MySQL**  5.7
+============================================================
+
 
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`93917` - Wrong binlog entry for BLOB on a blackhole intermediary master            |

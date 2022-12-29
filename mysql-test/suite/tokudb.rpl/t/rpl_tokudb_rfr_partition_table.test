@@ -6,7 +6,7 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
-call mtr.add_suppression(".*read free replication is disabled for TokuDB/RocksDB table.*continue with rows lookup");
+call mtr.add_suppression(".*read free replication is disabled for table.*continue with rows lookup");
 
 connection master;
 

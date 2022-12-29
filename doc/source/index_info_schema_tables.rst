@@ -4,7 +4,7 @@
  Index of ``INFORMATION_SCHEMA`` Tables
 ========================================
 
-This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in *Percona Server for MySQL* with XtraDB. The entry for each table points to the page in the documentation where it's described.
+This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in **Percona Server for MySQL** with XtraDB. The entry for each table points to the page in the documentation where it's described.
 
   * :ref:`CLIENT_STATISTICS`
 

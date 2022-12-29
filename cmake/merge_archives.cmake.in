@@ -111,7 +111,9 @@ ELSEIF(APPLE)
 ELSEIF(LINUX)
   # First create a "thin" archive, then convert it to a normal one.
   SET(CONTENT "create ${TARGET_LOC}\n")
-  SET(CONTENT "${CONTENT}addlib ${TARGET_LOC}\n")
+  FOREACH(LIB ${LIB_LOCATIONS})
+    SET(CONTENT "${CONTENT}addlib ${LIB}\n")
+  ENDFOREACH()
   SET(CONTENT "${CONTENT}save\n")
   SET(CONTENT "${CONTENT}end\n")
   CONFIGURE_FILE_CONTENT(

@@ -1,0 +1,5 @@
+Deprecation and removal
+=================================================
+
+* The ``myisam_repair_threads`` system variable has been removed. 
+* **myisamchk** ``--parallel-recover`` option has been removed. 

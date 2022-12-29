@@ -148,7 +148,16 @@ ELSE()
   MARK_AS_ADVANCED(MYSQL_PROJECT_NAME)
 ENDIF()
 
-PROJECT(${MYSQL_PROJECT_NAME})
+# CMake version 3.22.1 and above
+# Policy CMP0048 is not set: project() command manages VERSION variables.
+INCLUDE(mysql_version)
+IF(POLICY CMP0048)
+  CMAKE_POLICY(SET CMP0048 NEW)
+  PROJECT(${MYSQL_PROJECT_NAME}
+    VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
+ELSE()
+  PROJECT(${MYSQL_PROJECT_NAME})
+ENDIF()
 
 MACRO(REPORT_CXX_FLAGS)
   MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
@@ -173,11 +182,11 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR STREQUAL "Xcode")
   SET(BUILD_IS_SINGLE_CONFIG FALSE)
 ENDIF()
 
+SET(BUILD_TESTING ON)
 INCLUDE(CTest)
-# Explicitly disabling BUILD_TESTING set by just included CTest, since other
-# code is not ready to handle BUILD_TESTING set. If you try to remove the
-# directive and CMake configuration and reconfiguration finishes successfully,
-# remove the hack.
+# Explicitly disabling BUILD_TESTING since other code is not ready to handle
+# BUILD_TESTING set. If you try to remove the directive and CMake configuration
+# and reconfiguration finishes successfully, remove the hack.
 SET(BUILD_TESTING OFF)
 
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -311,7 +320,6 @@ INCLUDE(ldap)
 INCLUDE(rpc)
 INCLUDE(readline)
 INCLUDE(protobuf)
-INCLUDE(mysql_version)
 INCLUDE(libutils)
 INCLUDE(dtrace)
 INCLUDE(plugin)

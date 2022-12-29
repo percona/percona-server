@@ -616,8 +616,6 @@ This variable can be used to specify the size of memory buffer used for logging,
 
 .. rubric:: ``audit_log_exclude_accounts``
 
-Implemented in :ref:`5.7.14-7`.
-
 .. list-table::
    :header-rows: 1
 
@@ -632,8 +630,7 @@ Implemented in :ref:`5.7.14-7`.
    * - Data type
      - String
 
-This variable is used to specify the list of users for which
-:ref:`filtering_by_user` is applied. The value can be ``NULL`` or comma
+The variable has been implemented in :ref:`5.7.14-7`. This variable is used to specify the list of users for which :ref:`filtering_by_user` is applied. The value can be ``NULL`` or comma
 separated list of accounts in form ``user@host`` or ``'user'@'host'`` (if user
 or host contains comma). If this variable is set, then
 :ref:`audit_log_include_accounts` must be unset, and vice versa.
@@ -642,8 +639,6 @@ or host contains comma). If this variable is set, then
 
 .. rubric:: ``audit_log_exclude_commands``
 
-Implemented in :ref:`5.7.14-7`.
-
 .. list-table::
    :header-rows: 1
 
@@ -658,17 +653,13 @@ Implemented in :ref:`5.7.14-7`.
    * - Data type
      - String
 
-This variable is used to specify the list of commands for which
-:ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
-comma separated list of commands. If this variable is set, then
-:ref:`audit_log_include_commands` must be unset, and vice versa.
+The variable has been implemented in :ref:`5.7.14-7`. This variable is used to specify the list of commands for which :ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
+comma separated list of commands. If this variable is set, then :ref:`audit_log_include_commands` must be unset, and vice versa.
 
 .. _audit_log_exclude_databases:
 
 .. rubric:: ``audit_log_exclude_databases``
 
-Implemented in :ref:`5.7.14-7`.
-
 .. list-table::
    :header-rows: 1
 
@@ -683,8 +674,7 @@ Implemented in :ref:`5.7.14-7`.
    * - Data type
      - String
 
-This variable is used to specify the list of commands for which
-:ref:`filtering_by_database` is applied. The value can be ``NULL`` or
+The variable has been implemented in :ref:`5.7.14-7`. This variable is used to specify the list of commands for which :ref:`filtering_by_database` is applied. The value can be ``NULL`` or
 comma separated list of commands. If this variable is set, then
 :ref:`audit_log_include_databases` must be unset, and vice versa.
 
@@ -710,13 +700,11 @@ comma separated list of commands. If this variable is set, then
    * - Allowed values
      - ``OLD``, ``NEW``, ``CSV``, ``JSON``
 
-This variable is used to specify the audit log format. The audit log plugin supports four log formats: ``OLD``, ``NEW``, ``JSON``, and ``CSV``. ``OLD`` and ``NEW`` formats are based on XML, where the former outputs log record properties as XML attributes and the latter as XML tags. Information logged is the same in all four formats.
+Implemented in :ref:`5.7.14-7`.
 
 .. _audit_log_include_accounts:
 
 .. rubric:: ``audit_log_include_accounts``
-
-Implemented in :ref:`5.7.14-7`.
 
 .. list-table::
    :header-rows: 1
@@ -732,8 +720,7 @@ Implemented in :ref:`5.7.14-7`.
    * - Data type
      - String
 
-This variable is used to specify the list of users for which
-:ref:`filtering_by_user` is applied. The value can be ``NULL`` or comma
+The variable has been implemented in :ref:`5.7.14-7`. This variable is used to specify the list of users for which :ref:`filtering_by_user` is applied. The value can be ``NULL`` or comma
 separated list of accounts in form ``user@host`` or ``'user'@'host'`` (if user
 or host contains comma). If this variable is set, then
 :ref:`audit_log_exclude_accounts` must be unset, and vice versa.
@@ -742,8 +729,6 @@ or host contains comma). If this variable is set, then
 
 .. rubric:: ``audit_log_include_commands``
 
-Implemented in :ref:`5.7.14-7`.
-
 .. list-table::
    :header-rows: 1
 
@@ -758,8 +743,7 @@ Implemented in :ref:`5.7.14-7`.
    * - Data type
      - String
 
-This variable is used to specify the list of commands for which
-:ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
+The variable has been implemented in :ref:`5.7.14-7`. This variable is used to specify the list of commands for which :ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
 comma separated list of commands. If this variable is set, then
 :ref:`audit_log_exclude_commands` must be unset, and vice versa.
 
@@ -767,8 +751,6 @@ comma separated list of commands. If this variable is set, then
 
 .. rubric:: ``audit_log_include_databases``
 
-Implemented in :ref:`5.7.14-7`.
-
 .. list-table::
    :header-rows: 1
 
@@ -783,8 +765,7 @@ Implemented in :ref:`5.7.14-7`.
    * - Data type
      - String
 
-This variable is used to specify the list of commands for which
-:ref:`filtering_by_database` is applied. The value can be ``NULL`` or
+The variable has been implemented in :ref:`5.7.14-7`. This variable is used to specify the list of commands for which :ref:`filtering_by_database` is applied. The value can be ``NULL`` or
 comma separated list of commands. If this variable is set, then
 :ref:`audit_log_exclude_databases` must be unset, and vice versa.
 
@@ -990,3 +971,4 @@ Version Specific Information
     :ref:`databases <filtering_by_database>`.
   * :ref:`5.7.26-29`
     :ref:`Audit_log_buffer_size_overflow` variable implemented
+

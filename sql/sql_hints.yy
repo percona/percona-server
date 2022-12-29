@@ -35,7 +35,6 @@
 %}
 
 %pure-parser
-%yacc
 
 %parse-param { class THD *thd }
 %parse-param { class Hint_scanner *scanner }

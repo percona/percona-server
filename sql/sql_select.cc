@@ -487,6 +487,59 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   return false;
 }
 
+/**
+  Helper guard class which allows temporarily elevate privileges to
+  level which is sufficient to run EXPLAIN for ANY explainable statement,
+  when user runs EXPLAIN and has EXPLAIN_PLAN global privilege.
+*/
+
+class Explain_fake_privileges_guard {
+  /** Privileges necessary to run EXPLAIN for ANY explainable statement. */
+  //
+  // QQ: Perhaps it is better to be more paranoid and only add specific
+  //     privileges depending on type of statement explained?
+  //     E.g. add DELETE only for DELETE and REPLACE, INSERT for INSERT
+  //     and REPLACE and so on.
+  const static ulong EXPLAIN_DML_ACLS = SELECT_ACL | INSERT_ACL | UPDATE_ACL |
+                                        DELETE_ACL | FILE_ACL | EXECUTE_ACL |
+                                        SHOW_VIEW_ACL;
+
+ public:
+  Explain_fake_privileges_guard(THD *thd, LEX *lex) {
+    /*
+      EXPLAIN_PLAN doesn't allow EXPLAIN ANALYZE as it might
+      disclose too much info from the tables used.
+    */
+    if (lex->is_explain() && !lex->is_explain_analyze) {
+      /*
+        Must be one of explainable statements such as SELECT, INSERT, UPDATE,
+        DELETE or their variants.
+      */
+      assert(is_explainable_query(lex->sql_command));
+
+      if (thd->security_context()
+              ->has_global_grant(STRING_WITH_LEN("EXPLAIN_PLAN"))
+              .first) {
+        m_fake_privileges = true;
+        m_thd = thd;
+        m_save_master_access = m_thd->security_context()->master_access();
+        m_thd->security_context()->set_master_access(m_save_master_access |
+                                                     EXPLAIN_DML_ACLS);
+      }
+    }
+  }
+  ~Explain_fake_privileges_guard() {
+    if (m_fake_privileges) {
+      m_thd->security_context()->set_master_access(m_save_master_access);
+    }
+  }
+
+ private:
+  bool m_fake_privileges{false};
+  THD *m_thd{nullptr};
+  ulong m_save_master_access{0};
+};
+
 bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;
 
@@ -509,6 +562,16 @@ bool Sql_cmd_dml::execute(THD *thd) {
   // If a timer is applicable to statement, then set it.
   if (is_timer_applicable_to_statement(thd))
     statement_timer_armed = set_statement_timer(thd);
+
+  /*
+    Temporarily use elevated privileges if running EXPLAIN for DML statement
+    and user has EXPLAIN_PLAN privilege. This allows monitoring tools to
+    get execution plans for problematic DMLs without needing stronger SELECT/
+    INSERT/UPDATE/DELETE privileges. In the absence of EXPLAIN_PLAN
+    privilege no elevation happens, so EXPLAIN for DML still requires the same
+    privileges as corresponding DML.
+  */
+  Explain_fake_privileges_guard explain_guard(thd, lex);
 
   if (is_data_change_stmt()) {
     // Push ignore / strict error handler

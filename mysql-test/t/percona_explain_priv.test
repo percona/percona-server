@@ -1,0 +1,1239 @@
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--source include/mysql_upgrade_preparation.inc
+
+--echo #
+--echo # PS-8378: Allow to run EXPLAIN with lower level of privileges
+--echo #
+
+--enable_connect_log
+--echo #
+--echo # Prepare private and public databases and EXPLAIN-only user.
+CREATE DATABASE mysqlpriv;
+CREATE TABLE mysqlpriv.t1 (id INT PRIMARY KEY, j INT);
+CREATE TABLE mysqlpriv.t2 (a INT);
+INSERT INTO mysqlpriv.t1 VALUES (1, 0), (2, 0), (3, 0), (5, 0), (7, 0), (11, 1), (13, 1), (17, 1), (19, 1);
+INSERT INTO mysqlpriv.t2 VALUES (1), (2), (3);
+CREATE VIEW mysqlpriv.v0 AS SELECT * FROM mysqlpriv.t1;
+CREATE FUNCTION mysqlpriv.f1 () RETURNS INT RETURN 1;
+
+CREATE DATABASE mysqlpub;
+CREATE VIEW mysqlpub.v1 AS SELECT * FROM mysqlpriv.t1;
+CREATE VIEW mysqlpub.v2 AS SELECT * FROM mysqlpriv.v0;
+CREATE SQL SECURITY INVOKER VIEW mysqlpub.v3 AS SELECT * FROM mysqlpriv.t1;
+CREATE TABLE mysqlpub.t3 (id INT PRIMARY KEY, k INT);
+INSERT INTO mysqlpub.t3 VALUES (1, 0), (2, 0), (3, 0), (5, 0), (7, 0), (11, 0), (13, 0), (17, 0), (19, 0);
+CREATE VIEW mysqlpub.v_i_s AS SELECT * FROM information_schema.tables;
+CREATE USER broken_view_user@localhost;
+GRANT SELECT, INSERT, DELETE, UPDATE ON mysqlpriv.* TO broken_view_user@localhost;
+CREATE DEFINER=broken_view_user@localhost VIEW mysqlpub.v_broken AS SELECT * FROM mysqlpriv.t1;
+REVOKE SELECT, INSERT, DELETE, UPDATE ON mysqlpriv.* FROM broken_view_user@localhost;
+CREATE VIEW mysqlpub.v4 AS SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a;
+CREATE SQL SECURITY INVOKER VIEW mysqlpub.v5 AS SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a;
+CREATE VIEW mysqlpub.v6 AS SELECT a.id, a.j, b.k FROM mysqlpriv.t1 AS a NATURAL JOIN mysqlpub.t3 AS b;
+CREATE SQL SECURITY INVOKER VIEW mysqlpub.v7 AS SELECT a.id, a.j, b.k FROM mysqlpriv.t1 AS a NATURAL JOIN mysqlpub.t3 AS b;
+
+CREATE USER expl_user@localhost;
+GRANT EXPLAIN_PLAN ON *.* TO expl_user@localhost;
+GRANT SELECT, INSERT, DELETE, UPDATE ON mysqlpub.* TO expl_user@localhost;
+
+
+--echo #
+--echo # I. Test that user with an EXPLAIN_PLAN privilege can run EXPLAIN
+--echo #    for various DML statements which involve private database directly
+--echo #    or indirectly.
+--echo #
+--connect (con_expl,localhost,expl_user,,,,,)
+
+--echo #
+--echo # A) DELETE.
+--echo #
+
+--echo #
+--echo # A.1) Basic DELETE
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE id = 1;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE id = 1;
+--echo # However, DELETE itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM mysqlpriv.t1 WHERE id = 1;
+
+--echo #
+--echo # A.2) Multi-DELETE
+--echo #
+--echo # A.2.1) Multi-DELETE in which we delete from private table.
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN DELETE mysqlpriv.t1 FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+--echo # EXPLAIN form user with only EXPLAIN_PLAN ACL works too,
+--echo # but not DELETE itself.
+--connection con_expl
+EXPLAIN DELETE mysqlpriv.t1 FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE mysqlpriv.t1 FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+
+--echo #
+--echo # A.2.2) Same for multi-DELETE in which we only read from private table.
+
+--connection default
+EXPLAIN DELETE mysqlpub.t3 FROM mysqlpub.t3 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+--connection con_expl
+EXPLAIN DELETE mysqlpub.t3 FROM mysqlpub.t3 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE mysqlpub.t3 FROM mysqlpub.t3 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+
+--echo #
+--echo # A.3) DELETE with unknown field
+--echo #
+--echo # Note that if we lack privileges on the table we throw access denied
+--echo # error instead of one about bad field name.
+
+--echo # EXPLAIN from superuser fails with error indicating field name.
+--connection default
+--error ER_BAD_FIELD_ERROR
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE no_such_field = 1;
+--echo # EXPLAIN from EXPLAIN-only user fails with the same error indicating field name.
+--connection con_expl
+--error ER_BAD_FIELD_ERROR
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE no_such_field = 1;
+--echo # DELETE by EXPLAIN-only user is blocked.
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM mysqlpriv.t1 WHERE no_such_field = 1;
+
+--echo #
+--echo # A.4) DELETE and views
+--echo #
+--echo # A.4.1) DELETE on view in private database
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN DELETE FROM mysqlpriv.v0 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well. DELETE is blocked.
+--connection con_expl
+EXPLAIN DELETE FROM mysqlpriv.v0 WHERE id = 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM mysqlpriv.v0 WHERE id = 1;
+
+--echo #
+--echo # A.4.2) DELETE on view in public database, referencing private table
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN DELETE FROM mysqlpub.v1 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN DELETE FROM mysqlpub.v1 WHERE id = 1;
+--echo # DELETE works (as view is SUID and public).
+DELETE FROM mysqlpub.v1 WHERE id = 0;
+--echo # But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+--echo # and SELECT ACL on underlying tables.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v1;
+
+--echo #
+--echo # A.4.3) DELETE on view in public database, referencing private view
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN DELETE FROM mysqlpub.v2 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN DELETE FROM mysqlpub.v2 WHERE id = 1;
+--echo # DELETE works (as view is SUID and public).
+DELETE FROM mysqlpub.v1 WHERE id = 0;
+--echo # SHOW CREATE VIEW is blocked.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v2;
+
+--echo #
+--echo # A.4.4) DELETE on non-SUID view in public database, referencing
+--echo #        private table
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN DELETE FROM mysqlpub.v3 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN DELETE FROM mysqlpub.v3 WHERE id = 1;
+--echo # Both DELETE and SHOW CREATE VIEW are blocked.
+--error ER_VIEW_INVALID
+DELETE FROM mysqlpub.v3 WHERE id = 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v3;
+
+--echo #
+--echo # A.4.5) DELETE on a broken view.
+
+--echo # EXPLAIN and DELETE by superuser fail.
+--connection default
+--error ER_VIEW_INVALID
+EXPLAIN DELETE FROM mysqlpub.v_broken WHERE id = 1;
+--error ER_VIEW_INVALID
+DELETE FROM mysqlpub.v_broken WHERE id = 1;
+--echo # EXPLAIN and DELETE by EXPLAIN-only user fail as well.
+--connection con_expl
+--error ER_VIEW_INVALID
+EXPLAIN DELETE FROM mysqlpub.v_broken WHERE id = 1;
+--error ER_VIEW_INVALID
+DELETE FROM mysqlpub.v_broken WHERE id = 1;
+
+--echo #
+--echo # A.5) DELETE calling stored function.
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN DELETE FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN DELETE FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+--echo # DELETE is blocked.
+--error ER_PROCACCESS_DENIED_ERROR
+DELETE FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+
+--echo #
+--echo # A.6) DELETE and I_S and P_S tables.
+--echo #
+--echo # Implementations of I_S and P_S abuse privilege checking to make I_S
+--echo # tables read-only and prohibit some operations on P_S tables.
+
+--echo #
+--echo # A.6.1) Direct DELETE on I_S.
+
+--echo # Both DELETE and EXPLAIN DELETE on I_S table should fail for superuser.
+--connection default
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+
+--echo #
+--echo # A.6.2) DELETE on I_S through a view.
+
+--echo # Both DELETE and EXPLAIN DELETE on I_S through a view should fail
+--echo # for superuser.
+--connection default
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+
+--echo #
+--echo # A.6.3) DELETE on read-only P_S table.
+
+--echo # Both DELETE and EXPLAIN DELETE on P_S.metadata_locks should fail
+--echo # for superuser.
+--connection default
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM performance_schema.metadata_locks WHERE object_schema = 'mysqlpriv' AND object_name = 't1'; 
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.metadata_locks WHERE object_schema = 'mysqlpriv' AND object_name = 't1'; 
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM performance_schema.metadata_locks WHERE object_schema = 'mysqlpriv' AND object_name = 't1'; 
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.metadata_locks WHERE object_schema = 'mysqlpriv' AND object_name = 't1'; 
+
+--echo #
+--echo # B) UPDATE.
+--echo #
+
+--echo #
+--echo # B.1) Basic UPDATE
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 1;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 1;
+--echo # However, UPDATE itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 1;
+
+--echo #
+--echo # B.2) Multi-UPDATE
+--echo #
+--echo # B.2.1) Multi-UPDATE in which we update private table.
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpriv.t1, mysqlpriv.t2 SET j = -1 WHERE id = a AND id = 1 ;
+--echo # EXPLAIN form user with only EXPLAIN_PLAN ACL works too,
+--echo # but not UPDATE itself.
+--connection con_expl
+EXPLAIN UPDATE mysqlpriv.t1, mysqlpriv.t2 SET j = -1 WHERE id = a AND id = 1 ;
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE mysqlpriv.t1, mysqlpriv.t2 SET j = -1 WHERE id = a AND id = 1 ;
+
+--echo #
+--echo # B.2.2) Same for multi-UPDATE in which we only read from private table.
+
+--connection default
+EXPLAIN UPDATE mysqlpub.t3, mysqlpriv.t2 SET k = -1 WHERE id = a AND id = 1 ;
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.t3, mysqlpriv.t2 SET k = -1 WHERE id = a AND id = 1 ;
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE mysqlpub.t3, mysqlpriv.t2 SET k = -1 WHERE id = a AND id = 1 ;
+
+--echo #
+--echo # B.3) UPDATE with unknown field
+--echo #
+--echo # Note that if we lack privileges on the table we throw access denied
+--echo # error instead of one about bad field name.
+
+--echo # EXPLAIN from superuser fails with error indicating field name.
+--connection default
+--error ER_BAD_FIELD_ERROR
+EXPLAIN UPDATE mysqlpriv.t1 SET j = -1 WHERE no_such_field = 1;
+--echo # EXPLAIN from EXPLAIN-only user fails with the same error indicating field name.
+--connection con_expl
+--error ER_BAD_FIELD_ERROR
+EXPLAIN UPDATE mysqlpriv.t1 SET j = -1 WHERE no_such_field = 1;
+--echo # UPDATE by EXPLAIN-only user is blocked.
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE mysqlpriv.t1 SET j = -1 WHERE no_such_field = 1;
+
+--echo #
+--echo # B.4) UPDATE and views
+--echo #
+--echo # B.4.1) UPDATE on view in private database
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpriv.v0 SET j = -1 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well. UPDATE is blocked.
+--connection con_expl
+EXPLAIN UPDATE mysqlpriv.v0 SET j = -1 WHERE id = 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE mysqlpriv.v0 SET j = -1 WHERE id = 1;
+
+--echo #
+--echo # B.4.2) UPDATE on view in public database, referencing private table
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpub.v1 SET j = -1 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.v1 SET j = -1 WHERE id = 1;
+--echo # UPDATE works (as view is SUID and public).
+UPDATE mysqlpub.v1 SET j = -1 WHERE id = 0;
+--echo # But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+--echo # and SELECT ACL on underlying tables.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v1;
+
+--echo #
+--echo # B.4.3) UPDATE on view in public database, referencing private view
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpub.v2 SET j = -1 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.v2 SET j = -1 WHERE id = 1;
+--echo # UPDATE works (as view is SUID and public).
+EXPLAIN UPDATE mysqlpub.v2 SET j = -1 WHERE id = 0;
+--echo # SHOW CREATE VIEW is blocked.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v2;
+
+--echo #
+--echo # B.4.4) UPDATE on non-SUID view in public database, referencing
+--echo #        private table
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpub.v3 SET j = -1 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.v3 SET j = -1 WHERE id = 1;
+--echo # Both UPDATE and SHOW CREATE VIEW are blocked.
+--error ER_VIEW_INVALID
+UPDATE mysqlpub.v3 SET j = -1 WHERE id = 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v3;
+
+--echo #
+--echo # B.4.5) UPDATE on multi-table view which is converted to multi-UPDATE
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpub.v4 SET j = -1 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.v4 SET j = -1 WHERE id = 1;
+--echo # UPDATE works (as view is SUID and public).
+UPDATE mysqlpub.v4 SET j = -1 WHERE id = 0;
+--echo # But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+--echo # and SELECT ACL on underlying tables.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v4;
+
+--echo # Same test for case when we only read from private table.
+--connection default
+EXPLAIN UPDATE mysqlpub.v6 SET k = -1 WHERE id = 1;
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.v6 SET k = -1 WHERE id = 1;
+UPDATE mysqlpub.v6 SET k = -1 WHERE id = 0;
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v6;
+
+
+--echo #
+--echo # B.4.6) UPDATE on multi-table non-SUID view which is converted to
+--echo #        multi-UPDATE
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpub.v5 SET j = -1 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.v5 SET j = -1 WHERE id = 1;
+--echo # UPDATE is blocked.
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE mysqlpub.v5 SET j = -1 WHERE id = 0;
+
+--echo # Same test for case when we only read from private table.
+--connection default
+EXPLAIN UPDATE mysqlpub.v7 SET k = -1 WHERE id = 1;
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.v7 SET k = -1 WHERE id = 1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE mysqlpub.v7 SET k = -1 WHERE id = 0;
+
+--echo #
+--echo # B.4.7) UPDATE on a broken view.
+
+--echo # EXPLAIN and UPDATE by superuser fail.
+--connection default
+--error ER_VIEW_INVALID
+EXPLAIN UPDATE mysqlpub.v_broken SET j = -1 WHERE id = 1;
+--error ER_VIEW_INVALID
+UPDATE mysqlpub.v_broken SET j = -1 WHERE id = 1;
+--echo # EXPLAIN and UPDATE by EXPLAIN-only user fail as well.
+--connection con_expl
+--error ER_VIEW_INVALID
+EXPLAIN UPDATE mysqlpub.v_broken SET j = -1 WHERE id = 1;
+--error ER_VIEW_INVALID
+UPDATE mysqlpub.v_broken SET j = -1 WHERE id = 1;
+
+--echo #
+--echo # B.5) UPDATE calling stored function.
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN UPDATE mysqlpub.t3 SET k = -1 WHERE id = mysqlpriv.f1();
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN UPDATE mysqlpub.t3 SET k = -1 WHERE id = mysqlpriv.f1();
+--echo # UPDATE is blocked.
+--error ER_PROCACCESS_DENIED_ERROR
+UPDATE mysqlpub.t3 SET k = -1 WHERE id = mysqlpriv.f1();
+
+--echo #
+--echo # B.6) UPDATE and I_S and P_S tables.
+--echo #
+--echo # Implementations of I_S and P_S abuse privilege checking to make I_S
+--echo # tables read-only and prohibit some operations on P_S tables.
+
+--echo #
+--echo # B.6.1) Direct UPDATE on I_S.
+
+--echo # Both UPDATE and EXPLAIN UPDATE on I_S table should fail for superuser.
+--connection default
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN UPDATE information_schema.tables SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.tables SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN UPDATE information_schema.tables SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.tables SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+
+--echo #
+--echo # B.6.2) UPDATE on I_S through a view.
+
+--echo # Both UPDATE and EXPLAIN UPDATE on I_S through a view should fail
+--echo # for superuser.
+--connection default
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN UPDATE mysqlpub.v_i_s SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE mysqlpub.v_i_s SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN UPDATE mysqlpub.v_i_s SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE mysqlpub.v_i_s SET row_format = 'Fixed' WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+
+--echo #
+--echo # B.6.3) UPDATE on read-only P_S table.
+
+--echo # Both UPDATE and EXPLAIN UPDATE on P_S.metadata_locks should fail
+--echo # for superuser.
+--connection default
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN UPDATE performance_schema.metadata_locks SET lock_duration = 'EXPLICIT' WHERE object_schema = 'mysqlpriv' AND object_name = 't1'; 
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.metadata_locks SET lock_duration = 'EXPLICIT' WHERE object_schema = 'mysqlpriv' AND object_name = 't1'; 
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN UPDATE performance_schema.metadata_locks SET lock_duration = 'EXPLICIT' WHERE object_schema = 'mysqlpriv' AND object_name = 't1'; 
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.metadata_locks SET lock_duration = 'EXPLICIT' WHERE object_schema = 'mysqlpriv' AND object_name = 't1'; 
+
+--echo #
+--echo # C) INSERT and friends.
+--echo #
+
+--echo #
+--echo # C.1) Simple INSERT
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpriv.t1 VALUES (23, -1);
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpriv.t1 VALUES (23, -1);
+--echo # However, INSERT itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpriv.t1 VALUES (23, -1);
+
+--echo #
+--echo # C.2) INSERT ... SELECT
+--echo #
+--echo # Both the case when private table is being inserted into:
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+--echo # However, INSERT itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+--echo #
+--echo # And the case when it is only being read from:
+--connection default
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+--echo # However, INSERT itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+
+--echo #
+--echo # C.3) REPLACE
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN REPLACE INTO mysqlpriv.t1 VALUES (23, -1);
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN REPLACE INTO mysqlpriv.t1 VALUES (23, -1);
+--echo # However, REPLACE itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+REPLACE INTO mysqlpriv.t1 VALUES (23, -1);
+
+--echo #
+--echo # C.4) REPLACE ... SELECT
+--echo #
+--echo # Both the case when private table is being changed:
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN REPLACE INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN REPLACE INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+--echo # However, REPLACE itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+REPLACE INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3;
+--echo #
+--echo # And the case when it is only being read from:
+--connection default
+EXPLAIN REPLACE INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN REPLACE INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+--echo # However, REPLACE itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+REPLACE INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1;
+
+--echo #
+--echo # C.5) INSERT ... ON DUPLICATE KEY UPDATE
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpriv.t1 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpriv.t1 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+--echo # However, INSERT ON DUPLICATE KEY UPDATE itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpriv.t1 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+
+--echo #
+--echo # C.6) INSERT ... SELECT ON DUPLICATE KEY UPDATE
+--echo #
+--echo # Again we test both the case when we change private table and when
+--echo # it is only read only.
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3 ON DUPLICATE KEY UPDATE j = -1;
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1 ON DUPLICATE KEY UPDATE k = -1;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3 ON DUPLICATE KEY UPDATE j = -1;
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1 ON DUPLICATE KEY UPDATE k = -1;
+--echo # However, INSERT ON DUPLICATE KEY UPDATE itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpriv.t1 SELECT * FROM mysqlpub.t3 ON DUPLICATE KEY UPDATE j = -1;
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.t1 ON DUPLICATE KEY UPDATE k = -1;
+
+--echo #
+--echo # C.7) INSERT with unknown field
+--echo #
+--echo # Lack privileges on the table affects the error we throw in such cases.
+
+--echo # EXPLAIN from superuser fails with error indicating field name.
+--connection default
+--error ER_BAD_FIELD_ERROR
+EXPLAIN INSERT INTO mysqlpriv.t1 SET id = 23, no_such_field = -1;
+--echo # EXPLAIN from EXPLAIN-only user fails with the same error indicating field name.
+--connection con_expl
+--error ER_BAD_FIELD_ERROR
+EXPLAIN INSERT INTO mysqlpriv.t1 SET id = 23, no_such_field = -1;
+--echo # INSERT by EXPLAIN-only user is blocked with access denied error.
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpriv.t1 SET id = 23, no_such_field = -1;
+
+--echo #
+--echo # C.8) INSERT and views
+--echo #
+--echo # C.8.1) INSERT on view in private database
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpriv.v0 VALUES (23, -1);
+--echo # EXPLAIN by EXPLAIN-only user works as well. INSERT is blocked.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpriv.v0 VALUES (23, -1);
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpriv.v0 VALUES (23, -1);
+
+--echo # Rinse and repeat for INSERT ... SELECT which only reads from private
+--echo # view.
+--connection default
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.v0;
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.v0;
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqlpub.t3 SELECT * FROM mysqlpriv.v0;
+
+
+--echo #
+--echo # C.8.2) INSERT INTO view in public database, referencing private table
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpub.v1 VALUES (23, -1);
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpub.v1 VALUES (23, -1);
+--echo # INSERT works (as view is SUID and public).
+--echo # But it is a no-op to simplify testing.
+INSERT IGNORE INTO mysqlpub.v1 VALUES (1, 0);
+--echo # But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+--echo # and SELECT ACL on underlying tables.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v1;
+
+--echo # Let us run similar test for REPLACE
+--connection default
+EXPLAIN REPLACE INTO mysqlpub.v1 VALUES (1, 0);
+--connection con_expl
+EXPLAIN REPLACE INTO mysqlpub.v1 VALUES (1, 0);
+REPLACE INTO mysqlpub.v1 VALUES (1, 0);
+
+--echo #
+--echo # C.8.3) INSERT into view in public database, referencing private view
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpub.v2 VALUES (23, -1);
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpub.v2 VALUES (23, -1);
+--echo # INSERT works (as view is SUID and public). But we made it no-op.
+INSERT IGNORE INTO mysqlpub.v2 VALUES (1, -1);
+--echo # SHOW CREATE VIEW is blocked.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v2;
+
+--echo # Let us repeat the test for INSERT ON DUPLICATE KEY UPDATE
+--connection default
+EXPLAIN INSERT INTO mysqlpub.v2 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpub.v2 VALUES (23, -1) ON DUPLICATE KEY UPDATE j = -1;
+INSERT INTO mysqlpub.v2 VALUES (1, 0) ON DUPLICATE KEY UPDATE j = 0;
+
+--echo #
+--echo # C.8.4) INSERT into non-SUID view in public database, referencing
+--echo #        private table
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpub.v3 VALUES (23, -1);
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpub.v3 VALUES (23, -1);
+--echo # Both INSERT and SHOW CREATE VIEW are blocked.
+--error ER_VIEW_INVALID
+INSERT INTO mysqlpub.v3 VALUES (23, -1);
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v3;
+
+--echo #
+--echo # C.8.5) INSERT INTO a broken view.
+
+--echo # EXPLAIN and INSERT by superuser fail.
+--connection default
+--error ER_VIEW_INVALID
+EXPLAIN INSERT INTO mysqlpub.v_broken VALUES (23, -1);
+--error ER_VIEW_INVALID
+INSERT INTO mysqlpub.v_broken VALUES (23, -1);
+--echo # EXPLAIN and INSERT by EXPLAIN-only user fail as well.
+--connection con_expl
+--error ER_VIEW_INVALID
+EXPLAIN INSERT INTO mysqlpub.v_broken VALUES (23, -1);
+--error ER_VIEW_INVALID
+INSERT INTO mysqlpub.v_broken VALUES (23, -1);
+
+--echo #
+--echo # C.9) INSERT calling stored function.
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN INSERT INTO mysqlpub.t3 VALUES (mysqlpriv.f1(), 0);
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN INSERT INTO mysqlpub.t3 VALUES (mysqlpriv.f1(), 0);
+--echo # INSERT is blocked.
+--error ER_PROCACCESS_DENIED_ERROR
+INSERT INTO mysqlpub.t3 VALUES (mysqlpriv.f1(), 0);
+
+--echo #
+--echo # C.10) INSERT and I_S and P_S tables.
+--echo #
+--echo # EXPLAIN_PLAN privilege should not allow "updates" to I_S/
+--echo # some P_S tables.
+
+--echo #
+--echo # C.10.1) Direct INSERT into I_S.
+
+--echo # Both INSERT and EXPLAIN INSERT into I_S table should fail for
+--echo # superuser.
+--connection default
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO information_schema.tables (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.tables (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO information_schema.tables (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.tables (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+
+--echo #
+--echo # C.10.2) INSERT into I_S through a view.
+
+--echo # Both INSERT and EXPLAIN INSERT into I_S through a view should fail
+--echo # for superuser.
+--connection default
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO mysqlpub.v_i_s (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO mysqlpub.v_i_s (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO mysqlpub.v_i_s (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+--error ER_DBACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO mysqlpub.v_i_s (table_schema, table_name) VALUES ('mysqlpriv', 't100');
+
+--echo #
+--echo # C.10.3) INSERT into read-only P_S table.
+
+--echo # Both INSERT and EXPLAIN INSERT into P_S.metadata_locks should fail
+--echo # for superuser.
+--connection default
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO performance_schema.metadata_locks (object_schema, object_name) VALUES ('mysqlpriv', 't100'); 
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.metadata_locks (object_schema, object_name) VALUES ('mysqlpriv', 't100'); 
+--echo # Ditto for EXPLAIN-only user.
+--connection con_expl
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO performance_schema.metadata_locks (object_schema, object_name) VALUES ('mysqlpriv', 't100'); 
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.metadata_locks (object_schema, object_name) VALUES ('mysqlpriv', 't100'); 
+
+--echo #
+--echo # D) SELECT.
+--echo #
+
+--echo #
+--echo # D.1) Trivial SELECT
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN SELECT * FROM mysqlpriv.t1 WHERE id = 1;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN SELECT * FROM mysqlpriv.t1 WHERE id = 1;
+--echo # SELECT itself should not be allowed (even though user might deduce
+--echo # the same information from EXPLAIN results).
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqlpriv.t1 WHERE id = 1;
+
+--echo #
+--echo # D.2) More complex SELECTs involving private and public tables.
+
+--echo # EXPLAINs from superuser work as expected.
+--connection default
+EXPLAIN SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+EXPLAIN SELECT * FROM mysqlpriv.t1 NATURAL JOIN mysqlpub.t3;
+EXPLAIN SELECT * FROM mysqlpub.t3 WHERE (SELECT COUNT(*) FROM mysqlpriv.t1 WHERE mysqlpriv.t1.id = mysqlpub.t3.id);
+EXPLAIN SELECT * FROM mysqlpriv.t1 WHERE id IN (SELECT id FROM mysqlpub.t3);
+--echo # EXPLAINs from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+EXPLAIN SELECT * FROM mysqlpriv.t1 NATURAL JOIN mysqlpub.t3;
+EXPLAIN SELECT * FROM mysqlpub.t3 WHERE (SELECT COUNT(*) FROM mysqlpriv.t1 WHERE mysqlpriv.t1.id = mysqlpub.t3.id);
+EXPLAIN SELECT * FROM mysqlpriv.t1 WHERE id IN (SELECT id FROM mysqlpub.t3);
+--echo # SELECTs themselves should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqlpriv.t1 JOIN mysqlpriv.t2 ON id = a WHERE id = 1 ;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqlpriv.t1 NATURAL JOIN mysqlpub.t3;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqlpub.t3 WHERE (SELECT COUNT(*) FROM mysqlpriv.t1 WHERE mysqlpriv.t1.id = mysqlpub.t3.id);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqlpriv.t1 WHERE id IN (SELECT id FROM mysqlpub.t3);
+
+--echo #
+--echo # D.3) SELECT with INTO clause.
+
+--echo # EXPLAINs from superuser work as expected.
+--connection default
+EXPLAIN SELECT j INTO @a FROM mysqlpriv.t1 WHERE id = 1;
+EXPLAIN SELECT * INTO OUTFILE '../../tmp/t1.txt' FROM mysqlpriv.t1;
+EXPLAIN SELECT * INTO DUMPFILE '../../tmp/t3.txt' FROM mysqlpub.t3;
+--echo # EXPLAINs from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN SELECT j INTO @a FROM mysqlpriv.t1 WHERE id = 1;
+EXPLAIN SELECT * INTO OUTFILE '../../tmp/t1.txt' FROM mysqlpriv.t1;
+EXPLAIN SELECT * INTO DUMPFILE '../../tmp/t3.txt' FROM mysqlpub.t3;
+--echo # SELECTs themselves should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT j INTO @a FROM mysqlpriv.t1 WHERE id = 1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * INTO OUTFILE '../../tmp/t1.txt' FROM mysqlpriv.t1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * INTO DUMPFILE '../../tmp/t3.txt' FROM mysqlpub.t3;
+
+--echo #
+--echo # D.4) TABLE form of SELECT.
+
+--echo # EXPLAIN from superuser works as expected.
+--connection default
+EXPLAIN TABLE mysqlpriv.t1 ORDER BY j, id;
+--echo # EXPLAIN from user with only EXPLAIN_PLAN ACL should work too.
+--connection con_expl
+EXPLAIN TABLE mysqlpriv.t1 ORDER BY j, id;
+--echo # TABLE itself should not be allowed.
+--error ER_TABLEACCESS_DENIED_ERROR
+TABLE mysqlpriv.t1 ORDER BY j, id;
+
+--echo #
+--echo # D.5) SELECT with unknown field
+--echo #
+--echo # Lack privileges on the table affects the error we throw in such cases.
+
+--echo # EXPLAIN from superuser fails with error indicating field name.
+--connection default
+--error ER_BAD_FIELD_ERROR
+EXPLAIN SELECT no_such_field FROM mysqlpriv.t1 WHERE id = 1;
+--echo # EXPLAIN from EXPLAIN-only user fails with the same error indicating field name.
+--connection con_expl
+--error ER_BAD_FIELD_ERROR
+EXPLAIN SELECT no_such_field FROM mysqlpriv.t1 WHERE id = 1;
+--echo # SELECT by EXPLAIN-only user is blocked with access denied error.
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT no_such_field FROM mysqlpriv.t1 WHERE id = 1;
+
+--echo #
+--echo # D.6) SELECT and views
+--echo #
+--echo # D.6.1) SELECT on view in private database
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN SELECT * FROM mysqlpriv.v0 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well. SELECT is blocked
+--echo # (though the same info is visible in EXPLAIN output).
+--connection con_expl
+EXPLAIN SELECT * FROM mysqlpriv.v0 WHERE id = 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqlpriv.v0 WHERE id = 1;
+
+--echo #
+--echo # D.6.2) SELECT on view in public database, referencing private table
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN SELECT * FROM mysqlpub.v1 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN SELECT * FROM mysqlpub.v1 WHERE id = 1;
+--echo # SELECT works (as view is SUID and public).
+SELECT * FROM mysqlpub.v1 WHERE id = 1;
+--echo # But SHOW CREATE VIEW is blocked as we miss SHOW VIEW ACL on the view
+--echo # and SELECT ACL on underlying tables.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v1;
+
+--echo #
+--echo # D.6.3) SELECT on view in public database, referencing private view
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN SELECT * FROM mysqlpub.v2 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN SELECT * FROM mysqlpub.v2 WHERE id = 1;
+--echo # SELECT works (as view is SUID and public).
+SELECT * FROM mysqlpub.v2 WHERE id = 1;
+--echo # SHOW CREATE VIEW is blocked.
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v2;
+
+--echo #
+--echo # D.6.4) SELECT on non-SUID view in public database, referencing
+--echo #        private table
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN SELECT * FROM mysqlpub.v3 WHERE id = 1;
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN SELECT * FROM mysqlpub.v3 WHERE id = 1;
+--echo # Both SELECT and SHOW CREATE VIEW are blocked.
+--error ER_VIEW_INVALID
+SELECT * FROM mysqlpub.v3 WHERE id = 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqlpub.v3;
+
+--echo #
+--echo # D.6.5) SELECT on a broken view.
+
+--echo # EXPLAIN and SELECT by superuser fail.
+--connection default
+--error ER_VIEW_INVALID
+EXPLAIN SELECT * FROM mysqlpub.v_broken WHERE id = 1;
+--error ER_VIEW_INVALID
+SELECT * FROM mysqlpub.v_broken WHERE id = 1;
+--echo # EXPLAIN and SELECT by EXPLAIN-only user fail as well.
+--connection con_expl
+--error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
+EXPLAIN SELECT * FROM mysqlpub.v_broken WHERE id = 1;
+--error ER_VIEW_INVALID
+SELECT * FROM mysqlpub.v_broken WHERE id = 1;
+
+--echo #
+--echo # D.7) SELECT calling stored function.
+
+--echo # EXPLAIN by superuser works as expected.
+--connection default
+EXPLAIN SELECT * FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+--echo # EXPLAIN by EXPLAIN-only user works as well.
+--connection con_expl
+EXPLAIN SELECT * FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+--echo # SELECT is blocked.
+--error ER_PROCACCESS_DENIED_ERROR
+SELECT * FROM mysqlpub.t3 WHERE id = mysqlpriv.f1();
+
+--echo #
+--echo # D.8) SELECT and I_S and P_S tables.
+--echo #
+--echo # Reading from all I_S tables and some of P_S tables is always allowed.
+
+--echo #
+--echo # D.8.1) Direct SELECT on I_S.
+
+--echo # Both SELECT and EXPLAIN SELECT on I_S table should succeed for all
+--echo # users. Suppress results and warnings to make test more future proof.
+--connection default
+--disable_warnings
+--disable_result_log
+EXPLAIN SELECT table_name FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--enable_result_log
+--enable_warnings
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--connection con_expl
+--disable_warnings
+--disable_result_log
+EXPLAIN SELECT table_name FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--enable_result_log
+--enable_warnings
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+
+--echo #
+--echo # D.8.2) SELECT on I_S through a view.
+
+--echo # Both SELECT and EXPLAIN SELECT on I_S through a view should work
+--echo # for all users. Suppress results and warnings to make test more
+--echo # future proof.
+--connection default
+--disable_warnings
+--disable_result_log
+EXPLAIN SELECT table_name FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--enable_result_log
+--enable_warnings
+SELECT table_name FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--connection con_expl
+--disable_warnings
+--disable_result_log
+EXPLAIN SELECT table_name FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+--enable_result_log
+--enable_warnings
+SELECT table_name FROM mysqlpub.v_i_s WHERE table_schema = 'mysqlpriv' AND table_name = 't1';
+
+--echo #
+--echo # D.8.3) SELECT on world readable P_S table.
+
+--echo # Both SELECT and EXPLAIN SELECT on P_S.session_variables should
+--echo # succeed for all users.
+--connection default
+EXPLAIN SELECT COUNT(*) FROM performance_schema.session_variables WHERE variable_name='character_set_connection';
+SELECT COUNT(*) FROM performance_schema.session_variables WHERE variable_name='character_set_connection';
+--connection con_expl
+EXPLAIN SELECT COUNT(*) FROM performance_schema.session_variables WHERE variable_name='character_set_connection';
+SELECT COUNT(*) FROM performance_schema.session_variables WHERE variable_name='character_set_connection';
+
+--echo #
+--echo # E) EXPLAIN ANALYZE
+--echo #
+--echo # EXPLAIN ANALYZE should be blocked for EXPLAIN-only user as it
+--echo # might disclose too much info.
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN ANALYZE SELECT * FROM mysqlpriv.t1 WHERE id = 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN ANALYZE DELETE FROM mysqlpriv.t1 WHERE id = 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN ANALYZE INSERT INTO mysqlpriv.t1 VALUES (23, -1);
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN ANALYZE UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 1;
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN ANALYZE SELECT * FROM mysqlpub.v1 WHERE id = 1;
+
+--echo #
+--echo # F) EXPLAIN FOR CONNECTION
+--echo #
+--echo # EXPLAIN_PLAN and PROCESS privileges should be enough to run
+--echo # EXPLAIN FOR CONNECTION against other users.
+--echo #
+--connection default
+--echo # SESSION_VARIABLES_ADMIN is needed by explain_other.inc
+GRANT PROCESS, SESSION_VARIABLES_ADMIN ON *.* TO expl_user@localhost;
+
+--echo # Create connection to run EXPLAIN and DML statements in, since
+--echo # explain_other.inc helper script uses predefined connection names.
+--connect (ce,localhost,expl_user,,,,,)
+--connect (cq, localhost, root,,)
+
+--let $point= before_join_exec
+--let $query= SELECT * FROM mysqlpriv.t1 WHERE id = 1
+--let $err= 0
+--source include/explain_other.inc
+
+--let $point= planned_single_delete
+--let $query= DELETE FROM mysqlpriv.t1 WHERE id = 0
+--let $err= 0
+--source include/explain_other.inc
+
+--let $point= planned_single_update
+--let $query= UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 0
+--let $err= 0
+--source include/explain_other.inc
+
+--let $point= planned_single_insert
+--let $query= INSERT INTO mysqlpriv.t1 VALUES (23, -1)
+--let $err= 0
+--source include/explain_other.inc
+
+--connection default
+--echo #
+--echo # With only PROCESS privilege, but without EXPLAIN_PLAN and other
+--echo # global privileges for DML, EXPLAIN FOR CONNECTION should not work.
+REVOKE EXPLAIN_PLAN ON *.* FROM expl_user@localhost;
+
+--echo # Reconnect to ensure global privilege update takes effect.
+--connection ce
+--disconnect ce
+--source include/wait_until_disconnected.inc
+--connect (ce,localhost,expl_user,,,,,)
+
+--let $point= before_join_exec
+--let $query= SELECT * FROM mysqlpriv.t1 WHERE id = 1
+--let $err= ER_ACCESS_DENIED_ERROR
+--source include/explain_other.inc
+
+--let $point= planned_single_delete
+--let $query= DELETE FROM mysqlpriv.t1 WHERE id = 0
+--let $err= ER_ACCESS_DENIED_ERROR
+--source include/explain_other.inc
+
+--let $point= planned_single_update
+--let $query= UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 0
+--let $err= ER_ACCESS_DENIED_ERROR
+--source include/explain_other.inc
+
+--let $point= planned_single_insert
+--let $query= INSERT IGNORE INTO mysqlpriv.t1 VALUES (23, -1)
+--let $err= ER_ACCESS_DENIED_ERROR
+--source include/explain_other.inc
+
+--echo #
+--echo # Same for case when we have EXPLAIN_PLAN, but no PROCESS.
+GRANT EXPLAIN_PLAN ON *.* TO expl_user@localhost;
+REVOKE PROCESS ON *.* FROM expl_user@localhost;
+
+--echo # Reconnect to ensure global privilege update takes effect.
+--connection ce
+--disconnect ce
+--source include/wait_until_disconnected.inc
+--connect (ce,localhost,expl_user,,,,,)
+
+--let $point= before_join_exec
+--let $query= SELECT * FROM mysqlpriv.t1 WHERE id = 1
+--let $err= ER_ACCESS_DENIED_ERROR
+--source include/explain_other.inc
+
+--let $point= planned_single_delete
+--let $query= DELETE FROM mysqlpriv.t1 WHERE id = 0
+--let $err= ER_ACCESS_DENIED_ERROR
+--source include/explain_other.inc
+
+--let $point= planned_single_update
+--let $query= UPDATE mysqlpriv.t1 SET j = -1 WHERE id = 0
+--let $err= ER_ACCESS_DENIED_ERROR
+--source include/explain_other.inc
+
+--let $point= planned_single_insert
+--let $query= INSERT IGNORE INTO mysqlpriv.t1 VALUES (23, -1)
+--let $err= ER_ACCESS_DENIED_ERROR
+--source include/explain_other.inc
+
+--connection ce
+--disconnect ce
+--source include/wait_until_disconnected.inc
+
+--connection cq
+--disconnect cq
+--source include/wait_until_disconnected.inc
+--connection default
+
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM expl_user@localhost;
+
+
+--echo #
+--echo # II. Demonstrate that EXPLAIN_PLAN privilege is correctly handled
+--echo #     by SHOW GRANTS statement/logical backup tool like mysqlpump.
+--echo # 
+SHOW GRANTS FOR expl_user@localhost;
+
+--echo # Dump information about expl_user using mysqlpump tool.
+--exec $MYSQL_PUMP --include-users=expl_user --exclude-databases=% >$MYSQLTEST_VARDIR/tmp/mysqlpump_expl_user.sql
+
+DROP USER expl_user@localhost;
+
+--echo # Restore information about expl_user from the dump.
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/mysqlpump_expl_user.sql
+
+--echo # Check that grants were correctly preserved.
+SHOW GRANTS FOR expl_user@localhost;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlpump_expl_user.sql
+
+
+--echo #
+--echo # III. Test which simulates upgrade from versions without
+--echo #      EXPLAIN_PLAN support.
+--echo #
+
+--echo # Simulate older version of privilege tables by dropping expl_user
+--echo # and revoking EXPLAIN_PLAN from root.
+DROP USER expl_user@localhost;
+REVOKE EXPLAIN_PLAN ON *.* FROM root@localhost;
+
+--echo # Upgrade!
+--let $test_error_log = $MYSQL_TMP_DIR/percona_explain_priv.err
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
+
+--echo # Root user should not have EXPLAIN_PLAN privilege.
+SHOW GRANTS FOR root@localhost;
+
+--echo # However it should be possible for it to grant this privilege to others.
+
+CREATE USER expl_user@localhost;
+GRANT EXPLAIN_PLAN ON *.* TO expl_user@localhost;
+SHOW GRANTS FOR expl_user@localhost;
+
+--echo # And of course run EXPLAIN statements for DML.
+EXPLAIN DELETE FROM mysqlpriv.t1 WHERE id = 1;
+
+--echo # Restore EXPLAIN_PLAN status for root.
+GRANT EXPLAIN_PLAN ON *.* TO root@localhost;
+SHOW GRANTS FOR root@localhost;
+
+
+--echo #
+--echo # Clean-up.
+--disable_connect_log
+DROP DATABASE mysqlpriv;
+DROP DATABASE mysqlpub;
+DROP USER broken_view_user@localhost;
+DROP USER expl_user@localhost;
+
+--source include/mysql_upgrade_cleanup.inc

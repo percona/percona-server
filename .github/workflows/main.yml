@@ -1,0 +1,319 @@
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - '*'
+    paths-ignore:
+    - doc
+    - build-ps
+    - man
+    - mysql-test
+    - packaging
+    - policy
+    - scripts
+    - support-files
+  pull_request:
+    branches:
+    - '*'
+    paths-ignore:
+    - doc
+    - build-ps
+    - man
+    - mysql-test
+    - packaging
+    - policy
+    - scripts
+    - support-files
+
+jobs:
+  BiDiScan:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 32
+    - name: Run BiDiScan
+      run: |
+        git fetch origin 8.0
+        CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/8.0 -- . | tr '\n' ' ')
+
+        if [ -z "${CHANGED_FILES}" ]; then
+            echo --- No changed files
+        else
+            python ${GITHUB_WORKSPACE}/scripts/find_unicode_control.py -p bidi -v ${CHANGED_FILES}
+        fi
+  compileServer:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          #- name: macOS 12 Debug
+          #  imageName: 'macOS-12'
+          #  Compiler: clang
+          #  BuildType: Debug
+          #  INVERTED: ON
+          - name: clang-14 Release [Ubuntu 20.04 Focal]
+            imageName: ubuntu-20.04
+            Compiler: clang
+            CompilerVer: 14
+            BuildType: RelWithDebInfo
+          - name: clang-14 Release [Ubuntu 22.04 Jammy]
+            imageName: cirun-ubuntu-22.04--${{ github.run_id }}-${{ github.run_number }}
+            Compiler: clang
+            CompilerVer: 14
+            BuildType: RelWithDebInfo
+    runs-on: ${{ matrix.imageName }}
+    timeout-minutes: 240
+    env:
+      UBUNTU_CODE_NAME: focal
+      BOOST_VERSION: boost_1_77_0
+      BOOST_DIR: ${{ github.workspace }}/mount/boost
+      USE_CCACHE: 1
+      CCACHE_DIR: ${{ github.workspace }}/mount/ccache
+      CCACHE_COMPRESS: 1
+      CCACHE_COMPRESSLEVEL: 9
+      CCACHE_CPP2: 1
+      CCACHE_MAXSIZE: 2G
+      PARENT_BRANCH: "8.0"
+      MOUNT_POINT: /data
+      MOUNT_DIR: ${{ github.workspace }}/mount
+      REPO_DIR: ${{ github.workspace }}/mount/repo
+      BUILD_DIR: ${{ github.workspace }}/mount/build
+    steps:
+    - name: '*** Mount disk'
+      run: |
+        lsblk
+        lsblk -f
+        df -Th
+        if [[ "${{ matrix.imageName }}" == "ubuntu-20.04" ]]; then
+          mkdir -p $REPO_DIR
+        else
+          sudo mkfs -t xfs /dev/nvme1n1
+          sudo mkdir $MOUNT_POINT
+          sudo mount /dev/nvme1n1 $MOUNT_POINT
+          ln -s $MOUNT_POINT $MOUNT_DIR
+          sudo chown runnerx:runnerx $MOUNT_DIR
+          mkdir -p $REPO_DIR
+          ls -l $MOUNT_DIR
+          ls -l /data
+        fi
+        df -Th
+
+    - name: '*** Install Build Dependencies'
+      run: |
+        INVERTED=${{ matrix.INVERTED }}
+        [[ -z "$INVERTED" ]] && INVERTED=OFF
+        echo "INVERTED=$INVERTED" >> $GITHUB_ENV
+
+        uname -r
+        df -Th
+
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          SELECTED_CC=${{ matrix.Compiler }}-${{ matrix.CompilerVer }}
+          if [[ "${{ matrix.Compiler }}" == "clang" ]]; then
+            SELECTED_CXX=clang++-${{ matrix.CompilerVer }}
+            PACKAGES="$SELECTED_CC $PACKAGES"
+          else
+            SELECTED_CXX=g++-${{ matrix.CompilerVer }}
+            PACKAGES="$SELECTED_CXX $PACKAGES"
+          fi
+        else
+          REAL_COMPILER_VER=`${{ matrix.Compiler }} --version | grep -o "clang version.*" | awk '{print $3}'`
+          SELECTED_CC=${{ matrix.Compiler }}
+          SELECTED_CXX=clang++
+        fi
+
+        echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX BuildType=${{ matrix.BuildType }} INVERTED=$INVERTED imageName=${{ matrix.imageName }} OS_NAME=${{ runner.os }}
+        echo --- Configure required LLVM and Ubuntu Toolchain repositories
+        if [[ "${{ runner.os }}" == "Linux" ]] && [[ "$SELECTED_CC" == "clang"* ]]; then
+          PACKAGES="llvm-${{ matrix.CompilerVer }}-dev $PACKAGES"
+          curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
+          echo "deb http://apt.llvm.org/${{ env.UBUNTU_CODE_NAME }}/ llvm-toolchain-${{ env.UBUNTU_CODE_NAME }}-${{ matrix.CompilerVer }} main" | sudo tee -a /etc/apt/sources.list > /dev/null
+        fi
+
+        echo --- Update list of packages and download dependencies
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
+          sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
+          PACKAGES_TO_INSTALL="g++ unzip ca-certificates pkg-config dpkg-dev make cmake cmake-curses-gui ccache bison"
+          PACKAGES_LIBS="libjson-perl libudev-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+          PACKAGES_LIBS_INVERTED="libevent-dev libreadline-dev liblz4-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev"
+          sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES $PACKAGES_TO_INSTALL $PACKAGES_LIBS || exit 1;
+          if [[ "${{ env.INVERTED }}" != "ON" ]]; then
+            sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_LIBS_INVERTED || exit 1;
+          fi
+          if [[ "${{ matrix.Compiler }}" == "clang" ]]; then
+            REAL_COMPILER_VER=`$SELECTED_CC --version | grep -o "clang version.*" | awk '{print $3}'`
+          else
+            REAL_COMPILER_VER=`$SELECTED_CC --version | head -1 | awk '{print $4}'`
+          fi
+        else
+           brew update
+           brew install ccache protobuf lz4 rapidjson openssl@1.1 || brew link --overwrite python
+        fi
+
+        UPDATE_TIME=$SECONDS
+        echo --- Packages updated in $UPDATE_TIME seconds.
+
+        IMAGE_NAME=${{ matrix.imageName }}
+        echo "IMAGE_NAME=${IMAGE_NAME%%--*}" >> $GITHUB_ENV
+        echo "REAL_COMPILER_VER=${REAL_COMPILER_VER%%-*}" >> $GITHUB_ENV
+        echo "SELECTED_CC=$SELECTED_CC" >> $GITHUB_ENV
+        echo "SELECTED_CXX=$SELECTED_CXX" >> $GITHUB_ENV
+        echo "UPDATE_TIME=$UPDATE_TIME" >> $GITHUB_ENV
+    - name: '*** Download/upload ccached files'
+      uses: actions/cache@v3
+      with:
+        key: ccache|${{ env.PARENT_BRANCH }}|${{ env.IMAGE_NAME }}-${{ matrix.Compiler }}-${{ env.REAL_COMPILER_VER }}-${{ matrix.BuildType }}|INVERTED=${{ env.INVERTED }}|${{ github.sha }}
+        restore-keys: ccache|${{ env.PARENT_BRANCH }}|${{ env.IMAGE_NAME }}-${{ matrix.Compiler }}-${{ env.REAL_COMPILER_VER }}-${{ matrix.BuildType }}|INVERTED=${{ env.INVERTED }}
+        path: ${{ env.CCACHE_DIR }}
+      continue-on-error: true
+    - name: '*** Download/upload ${{ env.BOOST_VERSION }} libraries'
+      uses: actions/cache@v3
+      with:
+        key: ${{ env.BOOST_VERSION }}
+        restore-keys: ${{ env.BOOST_VERSION }}
+        path: ${{ env.BOOST_DIR }}
+      continue-on-error: true
+    - name: '*** git checkout'
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 32
+        path: mount/repo
+    - name: '*** Update git submodules'
+      run: |
+        ls -l $MOUNT_POINT
+        ls -l $REPO_DIR
+        cd $REPO_DIR
+        df -Th
+        git submodule sync
+        git submodule update --init --force --depth=256
+        git submodule
+    - name: '*** System and compiler info'
+      run: |
+        echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) REAL_COMPILER_VER=${{ env.REAL_COMPILER_VER }} BuildType=${{ matrix.BuildType }}"
+        $SELECTED_CC -v
+        $SELECTED_CXX -v
+        ccache --version
+        ccache -p
+        ccache --zero-stats
+        df -Th
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          cat /proc/cpuinfo
+        fi
+    - name: '*** cmake -DCMAKE_BUILD_TYPE=${{ matrix.BuildType }}'
+      run: |
+        echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX REAL_COMPILER_VER=${{ env.REAL_COMPILER_VER }} BuildType=${{ matrix.BuildType }} INVERTED=${{ env.INVERTED }} imageName=${{ matrix.imageName }} OS_NAME=${{ runner.os }}
+        echo --- Set cmake parameters
+        COMPILE_OPT+=(
+          -DCMAKE_C_FLAGS_DEBUG=-g1
+          -DCMAKE_CXX_FLAGS_DEBUG=-g1
+        )
+
+        CMAKE_OPT="
+          -DCMAKE_BUILD_TYPE=${{ matrix.BuildType }}
+          -DBUILD_CONFIG=mysql_release
+          -DDOWNLOAD_BOOST=1
+          -DWITH_BOOST=${{ env.BOOST_DIR }}
+          -DCMAKE_C_COMPILER=$SELECTED_CC
+          -DCMAKE_CXX_COMPILER=$SELECTED_CXX
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DWITH_ROCKSDB=ON
+          -DWITH_KEYRING_VAULT=ON
+          -DWITH_KEYRING_VAULT_TEST=ON
+          -DWITH_PAM=ON
+        "
+
+        if [[ ( "${{ matrix.Compiler }}" == "gcc" ) && ( $(bc <<< "${{ matrix.CompilerVer }} < 8.1") -eq 1 ) ]]; then
+          CMAKE_OPT+="
+            -DWITH_ROUTER=OFF
+          "
+        fi
+
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          CMAKE_OPT+="
+            -DMYSQL_MAINTAINER_MODE=OFF
+            -DWITH_TOKUDB=OFF
+            -DWITH_PROTOBUF=system
+            -DWITH_SYSTEM_LIBS=ON
+            -DWITH_ICU=/usr/local/opt/icu4c
+            -DWITH_SSL=/usr/local/opt/openssl@1.1
+            -DWITH_FIDO=bundled
+            -DWITH_ZLIB=bundled
+            -DWITH_PERCONA_AUTHENTICATION_LDAP=OFF
+          "
+        else
+          CMAKE_OPT+="
+            -DMYSQL_MAINTAINER_MODE=ON
+            -DWITH_TOKUDB=ON
+            -DWITH_CURL=system
+            -DWITH_MECAB=system
+            -DWITH_RAPIDJSON=bundled
+            -DWITH_SSL=system
+            -DWITH_LIBEVENT=bundled
+            -DWITH_PROTOBUF=bundled
+            -DWITH_ZLIB=bundled
+          "
+          if [[ "${{ env.INVERTED }}" != "ON" ]]; then
+            CMAKE_OPT+="
+              -DWITH_READLINE=system
+              -DWITH_ICU=system
+              -DWITH_LZ4=bundled
+              -DWITH_NUMA=ON
+            "
+          else
+            CMAKE_OPT+="
+              -DWITH_EDITLINE=bundled
+              -DWITH_ICU=bundled
+              -DWITH_LZ4=bundled
+              -DWITH_NUMA=OFF
+              -DWITH_ARCHIVE_STORAGE_ENGINE=OFF
+              -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF
+              -DWITH_EXAMPLE_STORAGE_ENGINE=ON
+              -DWITH_FEDERATED_STORAGE_ENGINE=OFF
+              -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON
+              -DWITH_INNODB_MEMCACHED=ON
+            "
+          fi
+        fi
+
+        echo --- CMAKE_OPT=\"$CMAKE_OPT\"
+        echo --- COMPILE_OPT=\"${COMPILE_OPT[@]}\"
+        mkdir $BUILD_DIR; cd $BUILD_DIR
+        cmake $REPO_DIR $CMAKE_OPT "${COMPILE_OPT[@]}" || exit 1
+        rm -f ${{ env.BOOST_DIR }}/${{ env.BOOST_VERSION }}.tar.gz
+
+        CMAKE_TIME=$SECONDS
+        echo --- CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
+        cmake -L .
+
+        echo "CMAKE_TIME=$CMAKE_TIME" >> $GITHUB_ENV
+    - name: '*** Compile'
+      run: |
+        ls -l $MOUNT_POINT
+        ls -l $REPO_DIR
+        ls -l $BUILD_DIR
+        df -Th
+        cd $BUILD_DIR
+        make -j$(nproc --all) || exit 1
+        ccache --show-stats
+
+        BUILD_TIME=$SECONDS
+        echo --- Total time $(($BUILD_TIME + $UPDATE_TIME + $CMAKE_TIME)) seconds. Build time $BUILD_TIME seconds. CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
+        df -Th
+    - name: '*** Run MTR'
+      run: |
+        ls -l $MOUNT_POINT
+        ls -l $REPO_DIR
+        ls -l $BUILD_DIR
+        cd $BUILD_DIR
+        NPROC=`nproc --all`
+        echo "Start testing with $NPROC threads"
+        mysql-test/mysql-test-run.pl 1st --parallel=$NPROC --junit-output=result.xml --mysqld-env=LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libeatmydata.so --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
+        echo "Finished testing with $NPROC threads"
+    - name: 'Upload Artifact'
+      uses: actions/upload-artifact@v3
+      with:
+        name: MTR results
+        path: $REPO_DIR/result.xml

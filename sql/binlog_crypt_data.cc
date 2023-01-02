@@ -25,8 +25,9 @@
 #include <sstream>
 #include "log.h"
 #include "mysql/service_mysql_keyring.h"
-#include "system_key.h"
 #endif
+
+#define PERCONA_BINLOG_KEY_NAME "percona_binlog"
 
 Binlog_crypt_data::Binlog_crypt_data() noexcept
     : key_length(0), key(nullptr), enabled(false), scheme(0) {}
@@ -70,37 +71,8 @@ Binlog_crypt_data &Binlog_crypt_data::operator=(Binlog_crypt_data b) noexcept {
   return *this;
 }
 
-bool Binlog_crypt_data::load_latest_binlog_key() {
-  free_key(key, key_length);
-  bool error = false;
-#ifdef MYSQL_SERVER
-  char *system_key_type = nullptr;
-  size_t system_key_len = 0;
-  uchar *system_key = nullptr;
-
-  DBUG_EXECUTE_IF("binlog_encryption_error_on_key_fetch", { return true; });
-
-  if (my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, nullptr,
-                   reinterpret_cast<void **>(&system_key), &system_key_len) ||
-      (system_key == nullptr &&
-       (my_key_generate(PERCONA_BINLOG_KEY_NAME, "AES", nullptr, 16) ||
-        my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, nullptr,
-                     reinterpret_cast<void **>(&system_key), &system_key_len) ||
-        system_key == nullptr)))
-    return true;
-
-  assert(strncmp(system_key_type, "AES", 3) == 0);
-  my_free(system_key_type);
-
-  error = (parse_system_key(system_key, system_key_len, &key_version, &key,
-                            &key_length) == reinterpret_cast<uchar *>(NullS));
-  my_free(system_key);
-#endif
-  return error;
-}
-
-bool Binlog_crypt_data::init_with_loaded_key(
-    uint sch, const uchar *nonce [[maybe_unused]]) noexcept {
+bool Binlog_crypt_data::init_with_loaded_key(uint sch, const uchar *nonce
+                                             [[maybe_unused]]) noexcept {
   scheme = sch;
 #ifdef MYSQL_SERVER
   assert(key != nullptr);

@@ -70,8 +70,15 @@ ELSE()
   )
 ENDIF()
 
+
 # This is a strong requirement coming from RocksDB. No conditional checks here.
-add_definitions(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4 -DZSTD)
+ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4 -DZSTD)
+
+IF (ROCKSDB_CUSTOM_NAMESPACE)
+  ADD_DEFINITIONS(-DROCKSDB_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
+  ADD_DEFINITIONS(-DROCKSDB_CUSTOM_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
+ENDIF()
+
 IF (WITH_UBSAN)
   ADD_DEFINITIONS(-DROCKSDB_UBSAN_RUN)
 ENDIF()
@@ -81,40 +88,37 @@ ENDIF()
 IF (WITH_JEMALLOC)
   ADD_DEFINITIONS(-DROCKSDB_JEMALLOC)
 ENDIF()
-
-IF (ROCKSDB_CUSTOM_NAMESPACE)
-  ADD_DEFINITIONS(-DROCKSDB_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
-  ADD_DEFINITIONS(-DROCKSDB_CUSTOM_NAMESPACE=${ROCKSDB_CUSTOM_NAMESPACE})
+IF (WITH_NUMA)
+  ADD_DEFINITIONS(-DNUMA)
 ENDIF()
 
-include(compiler_features)
-
-IF (NOT HAVE_THREAD_LOCAL)
-  MESSAGE(FATAL_ERROR "No '__thread' support found. Not building MyRocks")
+IF (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  ADD_DEFINITIONS(-DOS_LINUX)
 ENDIF()
 
-IF (HAVE_SSE42)
-  MESSAGE(STATUS "MyRocks: SSE42 support found")
-  IF (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
-    # Suppress the '#error "AES/PCLMUL instructions not enabled"' bug in gcc-4.8.x or lower at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56298
-    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2 -mpclmul") # use Fast_CRC32
-  ELSE()
-    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2") # use Fast_CRC32
+IF (CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_OPTIONS(-fno-builtin-memcmp)
+ENDIF()
+
+
+INCLUDE(compiler_features)
+
+IF (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+  IF (NOT ROCKSDB_BUILD_ARCH)
+    IF (ROCKSDB_DISABLE_MARCH_NATIVE)
+      # Intel Westmere is oldest CPU that supports SSE 4.2 and PCLMUL instruction sets
+      SET(ROCKSDB_BUILD_ARCH "westmere")
+    ELSE()
+      SET(ROCKSDB_BUILD_ARCH "native")
+    ENDIF()
   ENDIF()
-  IF (HAVE_PCLMUL)
-    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-mpclmul") # use crc32c_3way instead of Fast_CRC32
-  ENDIF()
-ELSE()
-  IF (ALLOW_NO_SSE42)
-    MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
-  ELSE()
-    MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks")
-  ENDIF()
+
+  # CMAKE_CXX_FLAGS are used by CHECK_CXX_SOURCE_RUNS called from ROCKSDB_SET_DEFINTIONS()
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${ROCKSDB_BUILD_ARCH}")
+  MESSAGE(STATUS "MyRocks build architecture: -march=${ROCKSDB_BUILD_ARCH}")
 ENDIF()
 
-IF (HAVE_AVX2 AND NOT ROCKSDB_DISABLE_AVX2)
-  add_compile_flags(${ROCKSDB_ROOT}/table/block_based/filter_policy.cc COMPILE_FLAGS "-mavx2")
-ENDIF()
+ROCKSDB_SET_DEFINTIONS()  # sets HAVE_URING, HAVE_MEMKIND, HAVE_ALIGNED_NEW
 
 IF (HAVE_URING AND ROCKSDB_USE_IO_URING)
   SET(rocksdb_static_libs ${rocksdb_static_libs} ${URING_LIBRARY})
@@ -125,25 +129,12 @@ IF (HAVE_MEMKIND AND ROCKSDB_USE_MEMKIND)
 ENDIF()
 
 IF (HAVE_ALIGNED_NEW AND NOT ROCKSDB_DISABLE_ALIGNED_NEW)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -faligned-new")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -faligned-new")
 ENDIF()
 
-IF (CMAKE_COMPILER_IS_GNUCXX)
-  add_compile_options(-fno-builtin-memcmp)
-ENDIF()
-
-IF (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64" AND NOT ROCKSDB_DISABLE_MARCH_NATIVE)
-  add_compile_options(-march=native)
-ENDIF()
-
-IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  add_definitions(-DOS_LINUX)
-ENDIF()
-
-ROCKSDB_SET_DEFINTIONS()
-get_directory_property(COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
-list(SORT COMPILE_DEFINITIONS)
-message(STATUS "MyRocks compile definitions: ${COMPILE_DEFINITIONS}")
+GET_DIRECTORY_PROPERTY(COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
+LIST(SORT COMPILE_DEFINITIONS)
+MESSAGE(STATUS "MyRocks compile definitions: ${COMPILE_DEFINITIONS}")
 
 
 # Suppress warnings for clang-13 or newer

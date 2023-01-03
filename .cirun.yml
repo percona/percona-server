@@ -2,15 +2,16 @@ runners:
   - name: "EC2-runner"
     cloud: "aws"
     instance_type:
-      - "c5ad.4xlarge"  # 16 vCPUs, 32 GB, 600 SSD, 0.688 USD/H
-      - "c5d.4xlarge"  # 16 vCPUs, 32 GB, 400 SSD, 0.768 USD/H
-      - "c6id.4xlarge"  # 16 vCPUs, 32 GB, 950 SSD, 0.806 USD/H
-#      - "c6a.4xlarge"  # 16 vCPUs, 32 GB, no SSD, 0.612 USD/H
-#      - "c5a.4xlarge"  # 16 vCPUs, 32 GB, no SSD, 0.616 USD/H
-#      - "c5.4xlarge"  # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
-#      - "c6i.4xlarge"  # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
+    #  - "c5ad.4xlarge"  # 16 vCPUs, 32 GB, 600 SSD, 0.688 USD/H
+    #  - "c5d.4xlarge"  # 16 vCPUs, 32 GB, 400 SSD, 0.768 USD/H
+    #  - "c6id.4xlarge"  # 16 vCPUs, 32 GB, 950 SSD, 0.806 USD/H
+      - "c6a.4xlarge"  # 16 vCPUs, 32 GB, no SSD, 0.612 USD/H
+      - "c5a.4xlarge"  # 16 vCPUs, 32 GB, no SSD, 0.616 USD/H
+      - "c5.4xlarge"  # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
+      - "c6i.4xlarge"  # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202212*"
-    machine_image: "ami-06878d265978313ca"  # Ubuntu Server 22.04 LTS (HVM), SSD Volume Type, x86_64
+    # machine_image: "ami-06878d265978313ca"  # Ubuntu Server 22.04 LTS (HVM), SSD Volume Type, x86_64
+    machine_image: ami-0b9cb137638d44e27  # Ubuntu 22.04.1 x86_64 gcc-11 clang-14 clang-15 EBS 30 GB
     region: "us-east-1"
     preemptible: true
     labels:

@@ -52,52 +52,38 @@ jobs:
           #  Compiler: clang
           #  BuildType: Debug
           #  INVERTED: ON
-          - name: clang-14 Release [Ubuntu 20.04 Focal]
+          - name: clang-14 Debug [Ubuntu 20.04 Focal]
             imageName: ubuntu-20.04
             Compiler: clang
             CompilerVer: 14
-            BuildType: RelWithDebInfo
-          - name: clang-14 Release [Ubuntu 22.04 Jammy]
+            BuildType: Debug
+          - name: clang-14 Debug [Ubuntu 22.04 Jammy]
             imageName: cirun-ubuntu-22.04--${{ github.run_id }}-${{ github.run_number }}
             Compiler: clang
             CompilerVer: 14
-            BuildType: RelWithDebInfo
+            BuildType: Debug
     runs-on: ${{ matrix.imageName }}
     timeout-minutes: 240
     env:
       UBUNTU_CODE_NAME: focal
       BOOST_VERSION: boost_1_77_0
-      BOOST_DIR: ${{ github.workspace }}/mount/boost
+      BOOST_DIR: ${{ github.workspace }}/boost
       USE_CCACHE: 1
-      CCACHE_DIR: ${{ github.workspace }}/mount/ccache
+      CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_COMPRESS: 1
       CCACHE_COMPRESSLEVEL: 9
       CCACHE_CPP2: 1
       CCACHE_MAXSIZE: 2G
       PARENT_BRANCH: "8.0"
-      MOUNT_POINT: /data
-      MOUNT_DIR: ${{ github.workspace }}/mount
-      REPO_DIR: ${{ github.workspace }}/mount/repo
-      BUILD_DIR: ${{ github.workspace }}/mount/build
+      REPO_DIR: ${{ github.workspace }}/repo
+      BUILD_DIR: ${{ github.workspace }}/build
     steps:
-    - name: '*** Mount disk'
+    - name: '*** Disk info'
       run: |
         lsblk
         lsblk -f
         df -Th
-        if [[ "${{ matrix.imageName }}" == "ubuntu-20.04" ]]; then
-          mkdir -p $REPO_DIR
-        else
-          sudo mkfs -t xfs /dev/nvme1n1
-          sudo mkdir $MOUNT_POINT
-          sudo mount /dev/nvme1n1 $MOUNT_POINT
-          ln -s $MOUNT_POINT $MOUNT_DIR
-          sudo chown runnerx:runnerx $MOUNT_DIR
-          mkdir -p $REPO_DIR
-          ls -l $MOUNT_DIR
-          ls -l /data
-        fi
-        df -Th
+        mkdir -p $REPO_DIR
 
     - name: '*** Install Build Dependencies'
       run: |
@@ -135,8 +121,8 @@ jobs:
         if [[ "${{ runner.os }}" == "Linux" ]]; then
           sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
           sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
-          PACKAGES_TO_INSTALL="g++ unzip ca-certificates pkg-config dpkg-dev make cmake cmake-curses-gui ccache bison"
-          PACKAGES_LIBS="libjson-perl libudev-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+          PACKAGES_TO_INSTALL="g++ unzip zstd ca-certificates pkg-config dpkg-dev make cmake cmake-curses-gui ccache bison perl gawk"
+          PACKAGES_LIBS="libxml-simple-perl libjson-perl libudev-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
           PACKAGES_LIBS_INVERTED="libevent-dev libreadline-dev liblz4-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev"
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES $PACKAGES_TO_INSTALL $PACKAGES_LIBS || exit 1;
           if [[ "${{ env.INVERTED }}" != "ON" ]]; then
@@ -179,10 +165,10 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 32
-        path: mount/repo
+        path: repo
     - name: '*** Update git submodules'
       run: |
-        ls -l $MOUNT_POINT
+        ls -l $GITHUB_WORKSPACE
         ls -l $REPO_DIR
         cd $REPO_DIR
         df -Th
@@ -291,7 +277,7 @@ jobs:
         echo "CMAKE_TIME=$CMAKE_TIME" >> $GITHUB_ENV
     - name: '*** Compile'
       run: |
-        ls -l $MOUNT_POINT
+        ls -l $GITHUB_WORKSPACE
         ls -l $REPO_DIR
         ls -l $BUILD_DIR
         df -Th
@@ -304,16 +290,16 @@ jobs:
         df -Th
     - name: '*** Run MTR'
       run: |
-        ls -l $MOUNT_POINT
+        ls -l $GITHUB_WORKSPACE
         ls -l $REPO_DIR
         ls -l $BUILD_DIR
         cd $BUILD_DIR
         NPROC=`nproc --all`
         echo "Start testing with $NPROC threads"
-        mysql-test/mysql-test-run.pl 1st --parallel=$NPROC --junit-output=result.xml --mysqld-env=LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libeatmydata.so --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
+        mysql-test/mysql-test-run.pl 1st --parallel=$NPROC --junit-output=$GITHUB_WORKSPACE/result.xml --mysqld-env=LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libeatmydata.so --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
         echo "Finished testing with $NPROC threads"
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@v3
       with:
         name: MTR results
-        path: $REPO_DIR/result.xml
+        path: ${{ github.workspace }}/result.xml

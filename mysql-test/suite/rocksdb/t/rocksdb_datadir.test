@@ -9,6 +9,12 @@ let $rdb_ddir = $MYSQLTEST_VARDIR/.rocksdb_datadir.test;
 let $sql_file = $MYSQLTEST_VARDIR/rocksdb_datadir.sql;
 let $rdb_plugin_load = $ROCKSDB_LOAD_PATH;
 
+let $is_dynamic_plugin = `select plugin_library='ha_rocksdb.so' from information_schema.plugins where plugin_name='RocksDB'`;
+
+if ($is_dynamic_plugin == 1) {
+  --skip "skipping test since bootstrap (initialize) does not support plugin-load."
+}
+
 --write_file $sql_file
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;

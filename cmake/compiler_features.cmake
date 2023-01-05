@@ -52,119 +52,6 @@ function (CHECK_VARIABLE_DEFINED VARIABLE PARAM_OUT)
 endfunction (CHECK_VARIABLE_DEFINED)
 
 
-function (CHECK_SSE42_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "--std=c++11 -Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <nmmintrin.h>
-  int main() {
-    auto x = _mm_crc32_u32(0, 0);
-    return 0;
-  }
-  " HAVE_SSE42)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_SSE42} PARENT_SCOPE)
-endfunction (CHECK_SSE42_SUPPORT)
-
-
-function (CHECK_PCLMUL_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "--std=c++11 -Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <wmmintrin.h>
-  int main() {
-    const auto a = _mm_set_epi64x(0, 0);
-    const auto b = _mm_set_epi64x(0, 0);
-    const auto c = _mm_clmulepi64_si128(a, b, 0x00);
-    auto d = _mm_cvtsi128_si64(c);
-    return 0;
-  }
-  " HAVE_PCLMUL)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_PCLMUL} PARENT_SCOPE)
-endfunction (CHECK_PCLMUL_SUPPORT)
-
-
-function (CHECK_AVX2_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "--std=c++11 -Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <immintrin.h>
-  int main() {
-    const auto a = _mm256_setr_epi32(0, 1, 2, 3, 4, 7, 6, 5);
-    const auto b = _mm256_permutevar8x32_epi32(a, a);
-    return 0;
-  }
-  " HAVE_AVX2)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_AVX2} PARENT_SCOPE)
-endfunction (CHECK_AVX2_SUPPORT)
-
-
-# The list of avx512f supported functions is at
-# https://github.com/gcc-mirror/gcc/blob/master/gcc/config/i386/avx512fintrin.h
-function (CHECK_AVX512F_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "-Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <immintrin.h>
-  #if !defined(__AVX512F__)
-  #error __AVX512F__ not defined
-  #endif
-  int main() {
-    __m512 zmm0 asm(\"zmm0\");
-    asm volatile(\"vmovdqu64 %zmm0, %zmm1\");
-    return 0;
-  }
-  " HAVE_AVX512F)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_AVX512F} PARENT_SCOPE)
-endfunction (CHECK_AVX512F_SUPPORT)
-
-
-function (CHECK_ARMV8_CRC_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "-Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #if !defined(__APPLE__)
-    #include <sys/auxv.h>
-    #include <asm/hwcap.h>
-  #else
-    #include <sys/sysctl.h>
-  #endif
-  int main(int argc, char *argv[]) {
-  #if !defined(__APPLE__)
-    return (getauxval(AT_HWCAP) & HWCAP_CRC32) != HWCAP_CRC32;
-  #else
-    int r;
-    size_t l = sizeof(r);
-    if (sysctlbyname(\"hw.optional.armv8_crc32\", &r, &l, NULL, 0) == -1) return 1;
-    return r != 1;
-  #endif
-  }
-  " HAVE_ARMV8_CRC)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_ARMV8_CRC} PARENT_SCOPE)
-endfunction (CHECK_ARMV8_CRC_SUPPORT)
-
-
-function (CHECK_ARMV8_CRYPTO_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "-Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #if !defined(__APPLE__)
-    #include <sys/auxv.h>
-    #include <asm/hwcap.h>
-  #else
-    #include <sys/sysctl.h>
-  #endif
-  int main(int argc, char *argv[]) {
-  #if !defined(__APPLE__)
-    return (getauxval(AT_HWCAP) & HWCAP_PMULL) != HWCAP_PMULL;
-  #else
-    return false;
-  #endif
-  }
-  " HAVE_ARMV8_CRYPTO)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_ARMV8_CRYPTO} PARENT_SCOPE)
-endfunction (CHECK_ARMV8_CRYPTO_SUPPORT)
-
-
 function (CHECK_ALIGNED_NEW_SUPPORT PARAM_OUT)
   set(CMAKE_REQUIRED_FLAGS "-faligned-new -Wno-error")
   CHECK_CXX_SOURCE_RUNS("
@@ -308,19 +195,8 @@ function (CHECK_SYNC_FILE_RANGE_WRITE_SUPPORT PARAM_OUT)
 endfunction (CHECK_SYNC_FILE_RANGE_WRITE_SUPPORT)
 
 
-function (ROCKSDB_SET_X86_DEFINTIONS CHECK_COMPILER_ONLY)
-  if (CHECK_COMPILER_ONLY)
-    CHECK_VARIABLE_DEFINED(__SSE4_2__  HAVE_SSE42)
-    CHECK_VARIABLE_DEFINED(__PCLMUL__  HAVE_PCLMUL)
-    CHECK_VARIABLE_DEFINED(__AVX2__    HAVE_AVX2)
-    CHECK_VARIABLE_DEFINED(__AVX512F__ HAVE_AVX512F)
-  else()
-    CHECK_SSE42_SUPPORT  (HAVE_SSE42)
-    CHECK_PCLMUL_SUPPORT (HAVE_PCLMUL)
-    CHECK_AVX2_SUPPORT   (HAVE_AVX2)
-    CHECK_AVX512F_SUPPORT(HAVE_AVX512F)
-  endif()
-
+macro (ROCKSDB_SET_X86_DEFINTIONS)
+  CHECK_VARIABLE_DEFINED(__SSE4_2__ HAVE_SSE42)
   if (HAVE_SSE42)
     add_definitions(-DHAVE_SSE42)
   else()
@@ -331,28 +207,23 @@ function (ROCKSDB_SET_X86_DEFINTIONS CHECK_COMPILER_ONLY)
     ENDIF()
   endif()
 
+  CHECK_VARIABLE_DEFINED(__PCLMUL__ HAVE_PCLMUL)
   if (HAVE_PCLMUL)
     add_definitions(-DHAVE_PCLMUL)
   endif()
 
+  CHECK_VARIABLE_DEFINED(__AVX2__ HAVE_AVX2)
   if (HAVE_AVX2 AND NOT ROCKSDB_DISABLE_AVX2)
     add_definitions(-DHAVE_AVX2)
   endif()
 
-  if (HAVE_AVX512F)
-    MESSAGE(STATUS "avx512f found")
-  endif()
-endfunction (ROCKSDB_SET_X86_DEFINTIONS)
+  CHECK_VARIABLE_DEFINED(__AVX512F__ HAVE_AVX512F)
+endmacro (ROCKSDB_SET_X86_DEFINTIONS)
 
 
-function (ROCKSDB_SET_ARM64_DEFINTIONS CHECK_COMPILER_ONLY)
-  if (CHECK_COMPILER_ONLY)
-    CHECK_VARIABLE_DEFINED(__ARM_FEATURE_CRC32  HAVE_ARMV8_CRC)
-    CHECK_VARIABLE_DEFINED(__ARM_FEATURE_CRYPTO HAVE_ARMV8_CRYPTO)
-  else()
-    CHECK_ARMV8_CRC_SUPPORT   (HAVE_ARMV8_CRC)
-    CHECK_ARMV8_CRYPTO_SUPPORT(HAVE_ARMV8_CRYPTO)
-  endif()
+macro (ROCKSDB_SET_ARM64_DEFINTIONS)
+  CHECK_VARIABLE_DEFINED(__ARM_FEATURE_CRC32  HAVE_ARMV8_CRC)
+  CHECK_VARIABLE_DEFINED(__ARM_FEATURE_CRYPTO HAVE_ARMV8_CRYPTO)
 
   IF (NOT HAVE_ARMV8_CRC OR NOT HAVE_ARMV8_CRYPTO)
     IF (ALLOW_NO_ARMV8A_CRC_CRYPTO)
@@ -361,10 +232,10 @@ function (ROCKSDB_SET_ARM64_DEFINTIONS CHECK_COMPILER_ONLY)
       MESSAGE(FATAL_ERROR "No ARMv8-A+crc+crypto support found. Not building MyRocks. Set ALLOW_NO_ARMV8A_CRC_CRYPTO to build MyRocks with slow CRC32.")
     ENDIF()
   ENDIF()
-endfunction (ROCKSDB_SET_ARM64_DEFINTIONS)
+endmacro (ROCKSDB_SET_ARM64_DEFINTIONS)
 
 
-MACRO(ROCKSDB_SET_DEFINTIONS)
+macro (ROCKSDB_SET_DEFINTIONS)
   CHECK_ALIGNED_NEW_SUPPORT(HAVE_ALIGNED_NEW)
   if (HAVE_ALIGNED_NEW AND NOT ROCKSDB_DISABLE_ALIGNED_NEW)
     add_definitions(-DHAVE_ALIGNED_NEW)
@@ -442,4 +313,4 @@ MACRO(ROCKSDB_SET_DEFINTIONS)
   if (HAVE_AUXV_GETAUXVAL AND NOT ROCKSDB_DISABLE_AUXV_GETAUXVAL)
     add_definitions(-DROCKSDB_AUXV_GETAUXVAL_PRESENT)
   endif()
-ENDMACRO()
+endmacro()

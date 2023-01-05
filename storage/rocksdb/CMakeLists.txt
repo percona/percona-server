@@ -1,4 +1,4 @@
-# TODO: Copyrights
+SET (ROCKSDB_DYNAMIC_PLUGIN 1)
 
 # by default MyRocks is not built
 IF (NOT DEFINED WITH_ROCKSDB)
@@ -307,7 +307,7 @@ SET(ROCKSDB_SOURCES
   sql_dd.cc sql_dd.h
 )
 
-IF(WITH_FB_TSAN)
+IF(WITH_FB_TSAN OR ROCKSDB_DYNAMIC_PLUGIN)
   SET(PIC_EXT "_pic")
 ELSE()
   SET(PIC_EXT "")
@@ -322,9 +322,13 @@ IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
   SET(rocksdb_static_libs ${rocksdb_static_libs} "-lrt")
 ENDIF()
 
-MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
-  LINK_LIBRARIES ${rocksdb_static_libs}
-)
+IF (ROCKSDB_DYNAMIC_PLUGIN)
+  MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT
+    MODULE_ONLY LINK_LIBRARIES ${rocksdb_static_libs})
+ELSE()
+  MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT
+    STATIC_ONLY LINK_LIBRARIES ${rocksdb_static_libs})
+ENDIF()
 
 IF (NOT HAVE_EXTERNAL_ROCKSDB)
   # TODO: read this file list from src.mk:TOOL_SOURCES

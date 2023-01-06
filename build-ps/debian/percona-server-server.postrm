@@ -28,7 +28,7 @@ place_upstart_job_back () {
 }
 
 get_pcount () {
-	PSCOUNT=$(ps -ef | grep "/usr/sbin/mysqld" | wc -l)
+	PSCOUNT=$(ps -C mysqld --no-headers | wc -l)
 	echo "${PSCOUNT}"
 }
 
@@ -38,7 +38,7 @@ server_stop () {
 	while :; do
 		COUNT=$(( COUNT+1 ))
 		echo -n .
-		if [ "${PSCOUNT}" -eq 1 ];
+		if [ "${PSCOUNT}" -eq 0 ];
 		then
 			echo
 			break

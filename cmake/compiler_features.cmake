@@ -17,81 +17,25 @@
 # Functions to detect features supported by compiler
 
 include(CheckCXXSourceRuns)
+include(CheckCXXSourceCompiles)
 include(CheckCXXSymbolExists)
 
 
-function (CHECK_SSE42_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "--std=c++11 -Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <nmmintrin.h>
-  int main() {
-    auto x = _mm_crc32_u32(0, 0);
-    return 0;
-  }
-  " HAVE_SSE42)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_SSE42})
-endfunction (CHECK_SSE42_SUPPORT)
-
-
-function (CHECK_PCLMUL_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "--std=c++11 -Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <wmmintrin.h>
-  int main() {
-    const auto a = _mm_set_epi64x(0, 0);
-    const auto b = _mm_set_epi64x(0, 0);
-    const auto c = _mm_clmulepi64_si128(a, b, 0x00);
-    auto d = _mm_cvtsi128_si64(c);
-    return 0;
-  }
-  " HAVE_PCLMUL)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_PCLMUL})
-endfunction (CHECK_PCLMUL_SUPPORT)
-
-
-function (CHECK_AVX2_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "--std=c++11 -Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <immintrin.h>
-  int main() {
-    const auto a = _mm256_setr_epi32(0, 1, 2, 3, 4, 7, 6, 5);
-    const auto b = _mm256_permutevar8x32_epi32(a, a);
-    return 0;
-  }
-  " HAVE_AVX2)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_AVX2})
-endfunction (CHECK_AVX2_SUPPORT)
-
-
-function (CHECK_BMI_SUPPORT PARAM_OUT)
+# usage: CHECK_VARIABLE_DEFINED(__AVX2__ HAVE_AVX2)
+# it depends on -march=ARCH
+function (CHECK_VARIABLE_DEFINED VARIABLE PARAM_OUT)
   set(CMAKE_REQUIRED_FLAGS "-Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <immintrin.h>
-  int main(int argc, char *argv[]) {
-    int a = (int)_tzcnt_u64(argc);
+  CHECK_CXX_SOURCE_COMPILES("
+  #if !defined(${VARIABLE})
+  #error ${VARIABLE} not defined
+  #endif
+  int main() {
     return 0;
   }
-  " HAVE_BMI)
+  " CHECK_VARIABLE_DEFINED_${VARIABLE})
   unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_BMI})
-endfunction (CHECK_BMI_SUPPORT)
-
-
-function (CHECK_LZCNT_SUPPORT PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "-Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  #include <immintrin.h>
-  int main(int argc, char *argv[]) {
-    int a = (int)_lzcnt_u64(argc);
-    return 0;
-  }
-  " HAVE_LZCNT)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_LZCNT})
-endfunction (CHECK_LZCNT_SUPPORT)
+  set(${PARAM_OUT} ${CHECK_VARIABLE_DEFINED_${VARIABLE}} PARENT_SCOPE)
+endfunction (CHECK_VARIABLE_DEFINED)
 
 
 function (CHECK_ALIGNED_NEW_SUPPORT PARAM_OUT)
@@ -237,8 +181,8 @@ function (CHECK_SYNC_FILE_RANGE_WRITE_SUPPORT PARAM_OUT)
 endfunction (CHECK_SYNC_FILE_RANGE_WRITE_SUPPORT)
 
 
-MACRO(ROCKSDB_SET_DEFINTIONS)
-  CHECK_SSE42_SUPPORT(HAVE_SSE42)
+macro (ROCKSDB_SET_X86_DEFINTIONS)
+  CHECK_VARIABLE_DEFINED(__SSE4_2__ HAVE_SSE42)
   if (HAVE_SSE42)
     add_definitions(-DHAVE_SSE42)
   else()
@@ -249,26 +193,21 @@ MACRO(ROCKSDB_SET_DEFINTIONS)
     ENDIF()
   endif()
 
-  CHECK_PCLMUL_SUPPORT(HAVE_PCLMUL)
-  IF (HAVE_PCLMUL)
+  CHECK_VARIABLE_DEFINED(__PCLMUL__ HAVE_PCLMUL)
+  if (HAVE_PCLMUL)
     add_definitions(-DHAVE_PCLMUL)
-  ENDIF ()
+  endif()
 
-  CHECK_AVX2_SUPPORT(HAVE_AVX2)
+  CHECK_VARIABLE_DEFINED(__AVX2__ HAVE_AVX2)
   if (HAVE_AVX2 AND NOT ROCKSDB_DISABLE_AVX2)
     add_definitions(-DHAVE_AVX2)
   endif()
 
-  CHECK_BMI_SUPPORT(HAVE_BMI)
-  if (HAVE_BMI)
-    add_definitions(-DHAVE_BMI)
-  endif()
+  CHECK_VARIABLE_DEFINED(__AVX512F__ HAVE_AVX512F)
+endmacro (ROCKSDB_SET_X86_DEFINTIONS)
 
-  CHECK_LZCNT_SUPPORT(HAVE_LZCNT)
-  if (HAVE_LZCNT)
-    add_definitions(-DHAVE_LZCNT)
-  endif()
 
+macro (ROCKSDB_SET_DEFINTIONS)
   CHECK_ALIGNED_NEW_SUPPORT(HAVE_ALIGNED_NEW)
   if (HAVE_ALIGNED_NEW AND NOT ROCKSDB_DISABLE_ALIGNED_NEW)
     add_definitions(-DHAVE_ALIGNED_NEW)
@@ -346,4 +285,4 @@ MACRO(ROCKSDB_SET_DEFINTIONS)
   if (HAVE_AUXV_GETAUXVAL AND NOT ROCKSDB_DISABLE_AUXV_GETAUXVAL)
     add_definitions(-DROCKSDB_AUXV_GETAUXVAL_PRESENT)
   endif()
-ENDMACRO()
+endmacro()

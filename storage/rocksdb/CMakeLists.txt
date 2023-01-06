@@ -98,15 +98,19 @@ IF (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
   IF (NOT ROCKSDB_BUILD_ARCH)
     IF (ROCKSDB_DISABLE_MARCH_NATIVE)
       # Intel Westmere is oldest CPU that supports SSE 4.2 and PCLMUL instruction sets
+      # the compiled binary will also work on "core2" and "nehalem" because "sse4.2" and "pclmul" are checked on runtime
       SET(ROCKSDB_BUILD_ARCH "westmere")
     ELSE()
       SET(ROCKSDB_BUILD_ARCH "native")
     ENDIF()
+    MESSAGE(STATUS "MyRocks x86_64 build architecture: -march=${ROCKSDB_BUILD_ARCH}")
+  ELSE()
+    MESSAGE(STATUS "MyRocks x86_64 build architecture: -march=${ROCKSDB_BUILD_ARCH}. If the enforced processor architecture is newer than the processor architecture of this build machine, the created binary may crash if executed on this machine.")
   ENDIF()
 
-  # CMAKE_CXX_FLAGS are used by CHECK_CXX_SOURCE_RUNS called from ROCKSDB_SET_DEFINTIONS()
+  # CMAKE_CXX_FLAGS are used by CHECK_CXX_SOURCE_COMPILES called from ROCKSDB_SET_X86_DEFINTIONS()
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${ROCKSDB_BUILD_ARCH}")
-  MESSAGE(STATUS "MyRocks build architecture: -march=${ROCKSDB_BUILD_ARCH}")
+  ROCKSDB_SET_X86_DEFINTIONS()
 ENDIF()
 
 ROCKSDB_SET_DEFINTIONS()  # sets HAVE_URING, HAVE_MEMKIND, HAVE_ALIGNED_NEW

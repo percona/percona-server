@@ -7,6 +7,7 @@ env:  # Global defaults
   PARENT_BRANCH: 8.0
   MOUNT_POINT: "/data"
   WORKING_DIR: "${MOUNT_POINT}/cirrus-ci-build"
+  RESULTS_FILE: "MTR_results"
 
 # https://cirrus-ci.org/guide/tips-and-tricks/#sharing-configuration-between-tasks
 filter_template: &FILTER_TEMPLATE
@@ -26,8 +27,8 @@ script_template: &SCRIPT_TEMPLATE
   install_dependencies_script: |
     cd $WORKING_DIR
     export DEBIAN_FRONTEND=noninteractive
-    export PACKAGES_TO_INSTALL="unzip ca-certificates git pkg-config dpkg-dev make git cmake cmake-curses-gui ccache bison"
-    export PACKAGES_LIBS="libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+    export PACKAGES_TO_INSTALL="unzip ca-certificates git pkg-config dpkg-dev make git cmake cmake-curses-gui ccache bison npm"
+    export PACKAGES_LIBS="libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
     export PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
     apt update
     apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF g++
@@ -89,9 +90,13 @@ script_template: &SCRIPT_TEMPLATE
       MTR_TESTS="main.1st"
     fi
     echo "Start testing with $NTHREADS/$NPROC threads; MTR_TESTS=$MTR_TESTS"
-    mysql-test/mysql-test-run.pl $MTR_TESTS --parallel=$NTHREADS --mysqld-env=LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libeatmydata.so --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
+    mysql-test/mysql-test-run.pl $MTR_TESTS --parallel=$NTHREADS --junit-output=$CIRRUS_WORKING_DIR/${RESULTS_FILE}.xml --mysqld-env=LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libeatmydata.so --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
     echo "Finished testing with $NTHREADS/$NPROC threads"
     df -Th
+    npm install -g xunit-viewer
+    xunit-viewer --results $CIRRUS_WORKING_DIR/${RESULTS_FILE}.xml --output $CIRRUS_WORKING_DIR/${RESULTS_FILE}.html
+  html_artifacts:
+    path: ${RESULTS_FILE}.html
 
 task:
   << : *FILTER_TEMPLATE
@@ -121,7 +126,7 @@ task:
 task:
   << : *FILTER_TEMPLATE
   aws_credentials: ENCRYPTED[!92ac22d2430cf40dfcec42f739513a65c8b368c822cb397e95f799d41c0ba4498c3a1c337ab14a25cc47b2d4b53c46c5!]
-  only_if: $CIRRUS_REPO_FULL_NAME == "inikep/percona-server"
+  only_if: $CIRRUS_BRANCH =~ '.*cirrus.*'
   ec2_instance:
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202212*"
     image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20221206
@@ -149,33 +154,4 @@ task:
     sudo mount /dev/nvme1n1 $MOUNT_POINT
     sudo mkdir -p $WORKING_DIR
     df -Th
-  << : *SCRIPT_TEMPLATE
-
-task:
-  << : *FILTER_TEMPLATE
-  aws_credentials: ENCRYPTED[!92ac22d2430cf40dfcec42f739513a65c8b368c822cb397e95f799d41c0ba4498c3a1c337ab14a25cc47b2d4b53c46c5!]
-  only_if: $CIRRUS_REPO_FULL_NAME == "DISABLED-inikep/percona-server"
-  eks_container:
-    image: ubuntu:jammy
-    cpu: 15.4
-    memory: 28000Mi
-    region: us-east-1
-    architecture: arm64 # defautls to amd64
-    cluster_name: cirrus-ci
-  matrix:
-    - name: gcc Debug ubuntu:jammy
-      env:
-        SELECTED_CC: gcc
-        SELECTED_CXX: g++
-        BUILD_TYPE: Debug
-    - name: gcc RelWithDebInfo ubuntu:jammy
-      env:
-        SELECTED_CC: gcc
-        SELECTED_CXX: g++
-        BUILD_TYPE: RelWithDebInfo
-  mount_disk_script: |
-    lsblk
-    lsblk -f
-    df -Th
-    mkdir -p $WORKING_DIR
   << : *SCRIPT_TEMPLATE

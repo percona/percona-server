@@ -1,10 +1,18 @@
 # InnoDB transparent tablespace data encryption
 # This test case will test basic encryption support features.
 
+CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
+
+DROP TABLE t1;
+
 # Restart the server with keyring loaded
 --let $restart_parameters = $KEYRING2_RESTART_PARAM
 --let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -12,7 +20,7 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
 # Create a table with encryption
-eval CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="$encryption_type" ENGINE = InnoDB;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(0, "aaaaa");
@@ -47,7 +55,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 DROP TABLE t1;
 
 # Crash/recovery test.
-eval CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="$encryption_type" ENGINE = InnoDB;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
@@ -78,7 +86,7 @@ SET block_encryption_mode = 'aes-256-cbc';
 --disable_warnings
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
-eval CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = '$encryption_type' ENGINE = InnoDB;
+CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = 'Y' ENGINE = InnoDB;
 --enable_warnings
 #
 INSERT INTO tde_db.t1 VALUES(0, 'abc');
@@ -132,11 +140,6 @@ DROP TABLE not_encrypted2;
 
 
 # Cleanup
-
---let $restart_parameters = $keyring2_restart_param
---let $do_not_echo_parameters = 1
---source include/restart_mysqld.inc
-
 --remove_file $MYSQL_TMP_DIR/keyring_query_log
 --remove_file $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

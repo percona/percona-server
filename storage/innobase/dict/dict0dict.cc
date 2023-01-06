@@ -55,7 +55,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef UNIV_HOTBACKUP
 #include "clone0api.h"
-#include "fil0crypt.h"
 #include "mysqld.h"  // system_charset_info
 #include "que0types.h"
 #include "row0sel.h"
@@ -711,7 +710,8 @@ This function must not be called concurrently on the same table object.
 static void dict_table_autoinc_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
-  table->autoinc_mutex = ut::new_withkey<AutoIncMutex>(UT_NEW_THIS_FILE_PSI_KEY);
+  table->autoinc_mutex =
+      ut::new_withkey<AutoIncMutex>(UT_NEW_THIS_FILE_PSI_KEY);
   ut_a(table->autoinc_mutex != nullptr);
   mutex_create(LATCH_ID_AUTOINC, table->autoinc_mutex);
 
@@ -6304,22 +6304,6 @@ static bool dict_is_mysql_plugin_space_encrypted(
   return FSP_FLAGS_GET_ENCRYPTION(space->flags);
 }
 
-/** @return true if default_table_encryption is ON or ONLINE_TO_KEYRING */
-static bool dict_should_be_keyring_encrypted() {
-  /* We cannot use srv_default_encryption here because it is
-  set by server using fix_default_table_encryption() handlerton API
-  after InnoDB initialization is done and we need the variable
-  as part of InnoDB initialization. So we directly use the server
-  global variable structure */
-
-  enum_default_table_encryption default_enc =
-      static_cast<enum_default_table_encryption>(
-          global_system_variables.default_table_encryption);
-
-  return (default_enc == DEFAULT_TABLE_ENC_ON ||
-          default_enc == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING);
-}
-
 /** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded
 into Fil_system cache
 @return tuple <0> success - true if no error
@@ -6416,10 +6400,14 @@ static std::tuple<bool, bool> dict_mysql_ibd_page_0_has_encryption_flag_set() {
 bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
                                          space_id_t mysql_plugin_space,
                                          bool &encrypt_mysql) {
+  enum_default_table_encryption default_enc =
+      static_cast<enum_default_table_encryption>(
+          global_system_variables.default_table_encryption);
+
   bool success = false;
   switch (dict_init_mode) {
     case DICT_INIT_CREATE_FILES:
-      encrypt_mysql = dict_should_be_keyring_encrypted();
+      encrypt_mysql = (default_enc == DEFAULT_TABLE_ENC_ON);
       return true;
     case DICT_INIT_UPGRADE_57_FILES:
       encrypt_mysql = dict_is_mysql_plugin_space_encrypted(mysql_plugin_space);

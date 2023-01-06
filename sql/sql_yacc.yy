@@ -1391,7 +1391,6 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> TABLE_STATS_SYM 1305
 %token<lexer.keyword> THREAD_STATS_SYM 1306
 %token<lexer.keyword> USER_STATS_SYM 1307
-%token<lexer.keyword> ENCRYPTION_KEY_ID_SYM 1308
 
 /*
    Tokens from Percona Server 8.0
@@ -2174,7 +2173,6 @@ void warn_about_deprecated_binary(THD *thd)
         ts_option_undo_buffer_size
         ts_option_wait
         ts_option_encryption
-        ts_option_encryption_key_id
         ts_option_engine_attribute
 
 %type <explain_format_type> opt_explain_format_type
@@ -5947,7 +5945,6 @@ tablespace_option:
         | ts_option_comment
         | ts_option_file_block_size
         | ts_option_encryption
-        | ts_option_encryption_key_id
         | ts_option_engine_attribute
         ;
 
@@ -5978,7 +5975,6 @@ alter_tablespace_option:
         | ts_option_engine
         | ts_option_wait
         | ts_option_encryption
-        | ts_option_encryption_key_id
         | ts_option_engine_attribute
         ;
 
@@ -6164,20 +6160,6 @@ ts_option_encryption:
           ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
             $$= NEW_PTN PT_alter_tablespace_option_encryption($3);
-          }
-        ;
-
-ts_option_encryption_key_id:
-          ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
-          {
-            if ($3 >= UINT_MAX32)
-            {
-              my_error(ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE, MYF(0), $3,
-                       UINT_MAX32 - 1);
-              MYSQL_YYABORT;
-            }
-
-            $$= NEW_PTN PT_alter_tablespace_option_encryption_key_id($3);
           }
         ;
 
@@ -6783,17 +6765,6 @@ create_table_option:
         | ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
             $$= NEW_PTN PT_create_encryption_option($3);
-	        }
-        | ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
-          {
-            if ($3 >= UINT_MAX32)
-            {
-              my_error(ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE, MYF(0), $3,
-                       UINT_MAX32 - 1);
-              MYSQL_YYABORT;
-            }
-
-            $$= NEW_PTN PT_create_encryption_key_id_option($3);
           }
         | AUTO_INC opt_equal ulonglong_num
           {
@@ -15461,7 +15432,6 @@ ident_keywords_unambiguous:
         | DYNAMIC_SYM
         | EFFECTIVE_SYM
         | ENABLE_SYM
-        | ENCRYPTION_KEY_ID_SYM
         | ENCRYPTION_SYM
         | ENDS_SYM
         | ENFORCED_SYM
@@ -16363,40 +16333,11 @@ alter_instance_action:
           {
             if (is_identifier($2, "INNODB"))
             {
-              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR, 0);
+              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR);
             }
             else if (is_identifier($2, "BINLOG"))
             {
-              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR, 0);
-            }
-            else
-            {
-              YYTHD->syntax_error_at(@2);
-              MYSQL_YYABORT;
-            }
-          }
-          | ROTATE_SYM ident_or_text SYSTEM_SYM KEY_SYM ulong_num
-          {
-            if (is_identifier($2, "INNODB"))
-            {
-              if ($5 > UINT_MAX32 - 1)
-              {
-                my_error(ER_SYSTEM_KEY_ROTATION_MAX_KEY_ID_EXCEEDED, MYF(0));
-                MYSQL_YYABORT;
-              }
-              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_SYSTEM_KEY, EMPTY_CSTR, $5);
-            }
-            else
-            {
-              YYTHD->syntax_error_at(@2);
-              MYSQL_YYABORT;
-            }
-          }
-          | ROTATE_SYM ident_or_text SYSTEM_SYM KEY_SYM
-          {
-            if (is_identifier($2, "REDO"))
-            {
-              $$= NEW_PTN PT_alter_instance(ROTATE_REDO_SYSTEM_KEY, EMPTY_CSTR, 0);
+              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR);
             }
             else
             {
@@ -16406,17 +16347,17 @@ alter_instance_action:
           }
         | RELOAD TLS_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"), 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"));
           }
         | RELOAD TLS_SYM NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"), 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"));
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5), 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5));
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5), 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
           }
         | ENABLE_SYM ident ident
           {
@@ -16431,7 +16372,7 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR, 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR);
           }
         | DISABLE_SYM ident ident
           {
@@ -16446,10 +16387,10 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR, 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
           }
         | RELOAD KEYRING_SYM {
-            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR, 0);
+            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR);
           }
         ;
 

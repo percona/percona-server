@@ -9160,7 +9160,10 @@ static bool create_table_impl(
 
   @returns true on failure, false on success.
 */
+
+extern bool srv_sys_tablespace_encrypt;
 static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
+  DBUG_TRACE;
   // Study if this table uses general tablespaces and if any one is encrypted.
   bool uses_general_tablespace = false;
   bool uses_encrypted_tablespace = false;
@@ -9196,17 +9199,10 @@ static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
   /*
     Stop if table's uses general tablespace and the requested encryption
     type does not match the general tablespace encryption type.
-    We allow to create table inside encrypted tablespace when ONLINE_TO_KEYRING
-    is specified. This table will be created in encrypted tablespace - which we
-    aim for and can be rotated to Keyring (given encryption threads are ON).
   */
   bool requested_type = dd::is_encrypted(create_info->encrypt_type);
-
   if ((uses_general_tablespace || uses_system_tablespace) &&
-      ((requested_type != uses_encrypted_tablespace) &&
-       (!uses_encrypted_tablespace ||
-        global_system_variables.default_table_encryption !=
-            DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING))) {
+      ((requested_type != uses_encrypted_tablespace))) {
     my_error(ER_INVALID_ENCRYPTION_REQUEST, MYF(0),
              requested_type ? "'encrypted'" : "'unencrypted'",
              uses_encrypted_tablespace ? "'encrypted'" : "'unencrypted'");
@@ -15448,16 +15444,6 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
     /* Table has an autoincrement, copy value to new table */
     table->file->info(HA_STATUS_AUTO);
     create_info->auto_increment_value = table->file->stats.auto_increment_value;
-  }
-
-  // Encryption was changed to not KEYRING and ALTER does not contain
-  // encryption_key_id mark encryption_key_id as not set then
-  if (used_fields & HA_CREATE_USED_ENCRYPT &&
-      0 != strncmp(create_info->encrypt_type.str, "KEYRING",
-                   create_info->encrypt_type.length) &&
-      !(used_fields & HA_CREATE_USED_ENCRYPTION_KEY_ID)) {
-    create_info->used_fields &= ~(HA_CREATE_USED_ENCRYPTION_KEY_ID);
-    create_info->was_encryption_key_id_set = false;
   }
 
   if (prepare_fields_and_keys(thd, src_table, table, create_info, alter_info,

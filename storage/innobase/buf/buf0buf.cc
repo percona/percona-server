@@ -54,9 +54,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0stats_bg.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
-#include "scope_guard.h"
 #include "log0buf.h"
 #include "log0chkp.h"
+#include "scope_guard.h"
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
@@ -72,7 +72,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0checksum.h"
 #include "buf0dump.h"
 #include "dict0dict.h"
-#include "fil0crypt.h"
 #include "log0recv.h"
 #include "os0thread-create.h"
 #include "page0zip.h"
@@ -5726,11 +5725,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
     space_id_t read_space_id;
     bool is_wrong_page_id [[maybe_unused]] = false;
 
-    fil_space_t *space = fil_space_acquire_for_io(bpage->id.space());
-    if (!space) {
-      return false;
-    }
-
     if (bpage->size.is_compressed()) {
       frame = bpage->zip.data;
       buf_pool->n_pend_unzip.fetch_add(1);
@@ -5866,7 +5860,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
           so we will mark it later in upper layer */
 
           buf_read_page_handle_error(bpage);
-          fil_space_release_for_io(space);
           return (false);
         }
       }
@@ -5899,7 +5892,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       ibuf_merge_or_delete_for_page(block, bpage->id, &bpage->size,
                                     update_ibuf_bitmap);
     }
-    fil_space_release_for_io(space);
   }
 
   bool has_LRU_mutex = false;

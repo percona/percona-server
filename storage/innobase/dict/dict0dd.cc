@@ -3639,8 +3639,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   if (dd_tab->table().options().exists("encrypt_type")) {
     dd_tab->table().options().get("encrypt_type", &encrypt);
     if (!Encryption::is_none(encrypt.c_str())) {
-      ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0 ||
-            innobase_strcasecmp(encrypt.c_str(), "keyring") == 0);
+      ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
       is_encrypted = true;
     }
   }
@@ -4732,14 +4731,9 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
 
   /* Try to open the tablespace.  We set the 2nd param (fix_dict) to
   false because we do not have an x-lock on dict_operation_lock */
-
-  Keyring_encryption_info keyring_encryption_info;
-
-  dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space,
-                             expected_fsp_flags, space_name, filepath, true,
-                             false, keyring_encryption_info);
-
-  table->keyring_encryption_info = keyring_encryption_info;
+  dberr_t err =
+      fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, expected_fsp_flags,
+                   space_name, filepath, true, false);
 
   if (err == DB_SUCCESS) {
     /* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
@@ -7013,15 +7007,11 @@ bool dd_tablespace_update_cache(THD *thd) {
     const dd::Properties &p = t->se_private_data();
     uint32_t id;
     uint32_t flags = 0;
-    bool is_enc_in_progress{false};
 
     /* There should be exactly one file name associated
     with each InnoDB tablespace, except innodb_system */
     fail = p.get(dd_space_key_strings[DD_SPACE_ID], &id) ||
            p.get(dd_space_key_strings[DD_SPACE_FLAGS], &flags) ||
-           (p.exists(dd_space_key_strings[DD_SPACE_ONLINE_ENC_PROGRESS]) &&
-            p.get(dd_space_key_strings[DD_SPACE_ONLINE_ENC_PROGRESS],
-                  &is_enc_in_progress)) ||
            (t->files().size() != 1 &&
             strcmp(t->name().c_str(), dict_sys_t::s_sys_space_name) != 0);
 
@@ -7068,15 +7058,13 @@ bool dd_tablespace_update_cache(THD *thd) {
 
       const char *filename = f->filename().c_str();
 
-      Keyring_encryption_info keyring_encryption_info;
       /* If the user tablespace is not in cache, load the
       tablespace now, with the name from dictionary */
 
       /* It's safe to pass space_name in tablename charset
       because filename is already in filename charset. */
-      dberr_t err = fil_ibd_open(is_enc_in_progress, purpose, id, flags,
-                                 space_name, filename, false, false,
-                                 keyring_encryption_info);
+      dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name,
+                                 filename, false, false);
       switch (err) {
         case DB_SUCCESS:
           break;
@@ -7211,18 +7199,6 @@ static bool dd_update_tablespace_props(
   return (false);
 }
 
-bool dd_set_online_encryption(THD *thd, const char *space_name,
-                              volatile bool *is_space_being_removed) {
-  auto update_func = [](dd::Tablespace *dd_space) {
-    dd_space->se_private_data().set(
-        dd_space_key_strings[DD_SPACE_ONLINE_ENC_PROGRESS], true);
-    return false;
-  };
-
-  return dd_update_tablespace_props(thd, space_name, is_space_being_removed,
-                                    update_func);
-}
-
 bool dd_set_encryption_flag(THD *thd, const char *space_name,
                             volatile bool *is_space_being_removed) {
   auto update_func = [](dd::Tablespace *dd_space) {
@@ -7235,30 +7211,6 @@ bool dd_set_encryption_flag(THD *thd, const char *space_name,
     dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
                                     dd_space_flags);
     dd_space->options().set("encryption", "Y");
-    return false;
-  };
-
-  return dd_update_tablespace_props(thd, space_name, is_space_being_removed,
-                                    update_func);
-}
-
-bool dd_clear_encryption_flag(THD *thd, const char *space_name,
-                              volatile bool *is_space_being_removed,
-                              bool clear_online_encryption) {
-  auto update_func = [clear_online_encryption](dd::Tablespace *dd_space) {
-    uint32_t dd_space_flags;
-    if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
-                                        &dd_space_flags))
-      return true;
-
-    dd_space_flags &= ~(1U << FSP_FLAGS_POS_ENCRYPTION);
-    dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                    dd_space_flags);
-    dd_space->options().set("encryption", "N");
-    if (clear_online_encryption) {
-      dd_space->se_private_data().set(
-          dd_space_key_strings[DD_SPACE_ONLINE_ENC_PROGRESS], false);
-    }
     return false;
   };
 

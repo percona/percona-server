@@ -53,8 +53,6 @@ direct reference to server header and global variable */
 #include "trx0sys.h"
 #include "ut0new.h"
 
-#include "fil0crypt.h"
-
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
 
@@ -543,7 +541,7 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
 
   /* Check the contents of the first page of the first datafile. */
   for (int retry = 0; retry < 2; ++retry) {
-    err = it->validate_first_page(it->m_space_id, flushed_lsn, false).error;
+    err = it->validate_first_page(it->m_space_id, flushed_lsn, false);
 
     if (err != DB_SUCCESS &&
         (retry == 1 || it->open_or_create(srv_read_only_mode) != DB_SUCCESS ||
@@ -571,18 +569,6 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   Update the flags of system tablespace to indicate the presence
   of SDI */
   set_flags(it->flags());
-
-  fil_space_crypt_t *crypt_data =
-      fil_space_read_crypt_data(page_size_t(it->m_flags), it->get_first_page());
-
-  if (crypt_data) {
-    keyring_encryption_info.page0_has_crypt_data = true;
-    keyring_encryption_info.keyring_encryption_min_key_version =
-        crypt_data->min_key_version;
-    keyring_encryption_info.type = crypt_data->type;
-    keyring_encryption_info.private_version = crypt_data->private_version;
-    fil_space_destroy_crypt_data(&crypt_data);
-  }
 
   it->close();
 
@@ -906,9 +892,9 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
 
       /* Create the tablespace entry for the multi-file
       tablespace in the tablespace manager. */
-      space = fil_space_create(
-          name(), space_id(), flags(),
-          is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE, nullptr);
+      space =
+          fil_space_create(name(), space_id(), flags(),
+                           is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
     }
 
     ut_ad(fil_validate());

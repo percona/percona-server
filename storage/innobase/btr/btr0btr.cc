@@ -4565,7 +4565,7 @@ bool btr_validate_index(
   }
 
   if (dict_index_is_spatial(index)) {
-    return btr_validate_spatial_index(index, trx);
+    return (btr_validate_spatial_index(index, trx));
   }
 
   mtr_t mtr;

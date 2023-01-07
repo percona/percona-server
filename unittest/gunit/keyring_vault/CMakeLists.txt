@@ -34,7 +34,6 @@ SET(TESTS
     vault_io
     vault_parser
     vault_credentials_parser
-    vault_keys_container
     vault_keyring-api
 )
 

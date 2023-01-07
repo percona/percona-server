@@ -1,14 +1,4 @@
-[write_committed]
-loose-rocksdb_write_policy=write_committed
+[drop_table_with_compact_range]
 
-[write_prepared]
-loose-rocksdb_write_policy=write_prepared
-loose-rocksdb_commit_time_batch_for_recovery=on
-
-[write_unprepared]
-loose-rocksdb_write_policy=write_unprepared
-loose-rocksdb_write_batch_flush_threshold=1
-
-[write_committed_with_delete_range]
-loose-rocksdb_write_policy=write_committed
+[drop_table_with_delete_range]
 loose-rocksdb_enable_delete_range_for_drop_index = ON

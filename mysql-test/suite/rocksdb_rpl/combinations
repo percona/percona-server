@@ -1,16 +1,5 @@
-[row-write-committed]
+[row]
 binlog-format=row
-loose-rocksdb_write_policy=write_committed
-
-[row-write-prepared]
-binlog-format=row
-loose-rocksdb_write_policy=write_prepared
-loose-rocksdb_commit_time_batch_for_recovery=on
-
-[row-write-unprepared]
-binlog-format=row
-loose-rocksdb_write_policy=write_unprepared
-loose-rocksdb_write_batch_flush_threshold=1
 
 [stmt]
 binlog-format=statement

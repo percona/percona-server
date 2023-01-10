@@ -1833,6 +1833,8 @@ MYSQL_CHECK_LDAP_DLLS()
 # Percona LDAP Simple / LDAP SASL authentication plugins
 OPTION(WITH_PERCONA_AUTHENTICATION_LDAP "Build with Percona LDAP Simple / LDAP SASL authentication plugins" ON)
 
+OPTION(WITH_PERCONA_AUTHENTICATION_FIDO "Build with Percona FIDO authentication plugin" ON)
+
 # Add Windows specific jemalloc DLL
 IF(WIN32)
   MYSQL_CHECK_WIN_JEMALLOC()

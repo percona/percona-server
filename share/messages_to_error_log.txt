@@ -7539,7 +7539,7 @@ OBSOLETE_ER_IB_MSG_668
   eng "Cannot continue operation. ib_logfiles are too small for innodb_thread_concurrency %lu. The combined size of ib_logfiles should be bigger than 200 kB * innodb_thread_concurrency. To get mysqld to start up, set innodb_thread_concurrency in my.cnf to a lower value, for example, to 8. After an ERROR-FREE shutdown of mysqld you can adjust the size of ib_logfiles. %s"
 
 OBSOLETE_ER_IB_MSG_669
-  eng "Redo log was encrypted, but keyring is not loaded."
+  eng "Redo log was encrypted, but keyring plugin is not loaded."
 
 OBSOLETE_ER_IB_MSG_670
   eng "Read redo log encryption metadata successful."
@@ -7548,7 +7548,7 @@ OBSOLETE_ER_IB_MSG_671
   eng "Can't set redo log tablespace encryption metadata."
 
 OBSOLETE_ER_IB_MSG_672
-  eng "Cannot read the encryption information in log file header, please check if keyring loaded and the key file exists."
+  eng "Cannot read the encryption information in log file header, please check if keyring plugin loaded and the key file exists."
 
 OBSOLETE_ER_IB_MSG_673
   eng "Can't set redo log tablespace to be encrypted in read-only mode."
@@ -11465,7 +11465,7 @@ ER_IB_MSG_UNDO_ENCRYPTION_INFO_LOADED
   eng "Encryption key is loaded for undo tablespace '%s'."
 
 ER_IB_WRN_ENCRYPTION_INFO_SIZE_MISMATCH
-  eng "Ignoring encryption INFO size in redo log: %zu, expected: %zu, %u, %u or %u"
+  eng "Ignoring encryption INFO size in redo log: %zu, expected: %zu"
 
 ER_INVALID_AUTHENTICATION_POLICY
   eng "Option --authentication-policy is set to an invalid value. Please check if the specified authentication plugins are valid."

@@ -1,21 +1,22 @@
 env:  # Global defaults
-  CCACHE_SIZE: "500M"
-  CCACHE_DIR: "${MOUNT_POINT}/ccache_dir"
-  CCACHE_NOHASHDIR: "1"  # Debug info might contain a stale path if the build dir changes, but this is fine
   PARENT_BRANCH: 8.0
   MOUNT_POINT: "/data"
+  CCACHE_SIZE: "500M"
+  CCACHE_NOHASHDIR: "1"  # Debug info might contain a stale path if the build dir changes, but this is fine
+  CCACHE_DIR: "${MOUNT_POINT}/ccache_dir"
   WORKING_DIR: "${MOUNT_POINT}/cirrus-ci-build"
   RESULTS_FILE: "MTR_results"
+  BUILD_PARAMS_TYPE: normal
 
 # https://cirrus-ci.org/guide/tips-and-tricks/#sharing-configuration-between-tasks
 filter_template: &FILTER_TEMPLATE
-  skip: $CIRRUS_REPO_FULL_NAME == "percona/percona-server" && $CIRRUS_PR == ""  # for "percona/percona-server" test only PRs. https://cirrus-ci.org/guide/writing-tasks/#conditional-task-execution
   stateful: false  # https://cirrus-ci.org/guide/writing-tasks/#stateful-tasks
   timeout_in: 60m  # https://cirrus-ci.org/faq/#instance-timed-out
 
 script_template: &SCRIPT_TEMPLATE
   system_info_script: |
     uname -r
+    uname -i
     df -Th
     free -m
     pwd
@@ -23,15 +24,14 @@ script_template: &SCRIPT_TEMPLATE
     nproc --all
     cat /proc/cpuinfo
   install_dependencies_script: |
-    cd $WORKING_DIR
     export DEBIAN_FRONTEND=noninteractive
-    export PACKAGES_TO_INSTALL="unzip ca-certificates git pkg-config dpkg-dev make git cmake cmake-curses-gui ccache bison npm"
-    export PACKAGES_LIBS="libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
-    export PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
+    PACKAGES_TO_INSTALL="lz4 unzip ca-certificates git pkg-config dpkg-dev make cmake cmake-curses-gui ccache bison npm"
+    PACKAGES_LIBS="libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+    PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
     apt update
-    apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF g++
+    apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF $SELECTED_CXX
   compiler_info_script: |
-    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE BUILD_PARAMS_TYPE=$BUILD_PARAMS_TYPE"
     $SELECTED_CC -v
     $SELECTED_CXX -v
     ccache --version
@@ -39,33 +39,56 @@ script_template: &SCRIPT_TEMPLATE
     ccache --zero-stats
     df -Th
   clone_script: |
-    cd $WORKING_DIR
-    if [ -z "$CIRRUS_PR" ]; then
-      git clone --recursive --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $WORKING_DIR
-      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    if [ -d "$WORKING_DIR" ]; then
+      cd $WORKING_DIR
+      git fetch origin
+      if [[ "${CIRRUS_REPO_FULL_NAME}" != "percona/percona-server" ]]; then
+        git remote add forked_repo https://github.com/${CIRRUS_REPO_FULL_NAME}.git
+        git fetch forked_repo
+      fi
+      if [ -n "$CIRRUS_PR" ]; then
+        git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      fi
     else
-      git clone --recursive https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $WORKING_DIR
-      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
-      git reset --hard $CIRRUS_CHANGE_IN_REPO
+      mkdir -p $WORKING_DIR
+      cd $WORKING_DIR
+      if [ -z "$CIRRUS_PR" ]; then
+        git clone --recursive --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $WORKING_DIR
+      else
+        git clone --recursive https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $WORKING_DIR
+        git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      fi
     fi
+    git reset --hard $CIRRUS_CHANGE_IN_REPO
     git submodule update --init
     git submodule
     df -Th
   ccache_cache:
     folder: "$CCACHE_DIR"
-    fingerprint_key: "$PARENT_BRANCH-$CIRRUS_OS-$BUILD_TYPE"
+    fingerprint_key: "$PARENT_BRANCH-$OS_TYPE-$SELECTED_CC-$BUILD_TYPE-$BUILD_PARAMS_TYPE"
     reupload_on_changes: true
   cmake_script: |
-    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE BUILD_PARAMS_TYPE=$BUILD_PARAMS_TYPE"
     cd $WORKING_DIR; mkdir bin; cd bin
-    export OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release"
-    export OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-    export OPTIONS_COMPONENTS="-DWITH_ROCKSDB=ON -DWITH_KEYRING_VAULT=ON -DWITH_KEYRING_VAULT_TEST=ON -DWITH_PAM=ON -DWITH_ROUTER=ON -DWITH_UNIT_TESTS=ON"
-    export OPTIONS_LIBS="-DWITH_SYSTEM_LIBS=ON -DWITH_ZLIB=bundled"
-    cmake .. $OPTIONS_BUILD $OPTIONS_COMPILER $OPTIONS_COMPONENTS $OPTIONS_LIBS
+    OPTIONS_DEBUG="-DCMAKE_C_FLAGS_DEBUG=-g1 -DCMAKE_CXX_FLAGS_DEBUG=-g1"
+    OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release"
+    OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+    OPTIONS_COMPONENTS="-DWITH_ROCKSDB=ON -DWITH_COREDUMPER=ON -DWITH_KEYRING_VAULT=ON -DWITH_KEYRING_VAULT_TEST=ON -DWITH_PAM=ON"
+    OPTIONS_LIBS="-DWITH_MECAB=system -DWITH_NUMA=ON -DWITH_READLINE=system -DWITH_SYSTEM_LIBS=ON -DWITH_ZLIB=bundled"
+    OPTIONS_INVERTED="-DWITH_NDB=ON -DWITH_NDBCLUSTER=ON -DWITH_NDB_JAVA=OFF -DWITH_ROUTER=OFF -DWITH_UNIT_TESTS=OFF -DWITH_NUMA=OFF"
+    OPTIONS_LIBS_BUNDLED="-DWITH_EDITLINE=bundled -DWITH_FIDO=bundled -DWITH_ICU=bundled -DWITH_LIBEVENT=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled -DWITH_RAPIDJSON=bundled -DWITH_ZLIB=bundled -DWITH_ZSTD=bundled"
+    OPTIONS_SE_INVERTED="-DWITH_ARCHIVE_STORAGE_ENGINE=OFF -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF -DWITH_EXAMPLE_STORAGE_ENGINE=ON -DWITH_FEDERATED_STORAGE_ENGINE=OFF -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON -DWITH_INNODB_MEMCACHED=ON"
+    if [[ "$BUILD_PARAMS_TYPE" == "normal" ]]; then
+      SELECTED_OPTIONS="$OPTIONS_DEBUG $OPTIONS_BUILD $OPTIONS_COMPILER $OPTIONS_COMPONENTS $OPTIONS_LIBS"
+    else
+      SELECTED_OPTIONS="$OPTIONS_DEBUG $OPTIONS_BUILD $OPTIONS_COMPILER $OPTIONS_COMPONENTS $OPTIONS_INVERTED $OPTIONS_LIBS_BUNDLED $OPTIONS_SE_INVERTED"
+    fi
+    echo "SELECTED_OPTIONS=$SELECTED_OPTIONS"
+    cmake .. $SELECTED_OPTIONS
     cmake -L .
+    df -Th
   compile_script: |
-    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE BUILD_PARAMS_TYPE=$BUILD_PARAMS_TYPE"
     cd $WORKING_DIR/bin
     NPROC=`nproc --all`
     NTHREADS=$(( $NPROC > 16 ? 16 : $NPROC ))
@@ -83,7 +106,8 @@ script_template: &SCRIPT_TEMPLATE
       MTR_TESTS="main.1st"
     fi
     echo "Start testing with $NTHREADS/$NPROC threads; MTR_TESTS=$MTR_TESTS"
-    mysql-test/mysql-test-run.pl $MTR_TESTS --parallel=$NTHREADS --junit-output=$CIRRUS_WORKING_DIR/${RESULTS_FILE}.xml --mysqld-env=LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libeatmydata.so --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
+    LIBEATMYDATA=`whereis libeatmydata.so`
+    mysql-test/mysql-test-run.pl $MTR_TESTS --parallel=$NTHREADS --junit-output=$CIRRUS_WORKING_DIR/${RESULTS_FILE}.xml --mysqld-env=LD_PRELOAD=${LIBEATMYDATA##* } --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
     echo "Finished testing with $NTHREADS/$NPROC threads"
     df -Th
     npm install -g xunit-viewer
@@ -91,20 +115,25 @@ script_template: &SCRIPT_TEMPLATE
   html_artifacts:
     path: ${RESULTS_FILE}.html
 
+
 task:
   << : *FILTER_TEMPLATE
+  # don't run on percona/percona-server/8.0 as we have nightly cron builds for "8.0" branch
+  only_if: "$CIRRUS_CRON != '' || ($CIRRUS_REPO_FULL_NAME != 'percona/percona-server' || $CIRRUS_BRANCH != '8.0') && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
   arm_container:
     image: ubuntu:jammy
     cpu: 8
     memory: 32G
     greedy: true
+  env:
+    OS_TYPE: ubuntu-22.04-arm64
   matrix:
-    - name: gcc Debug ubuntu:jammy
+    - name: (arm64) gcc Debug [Ubuntu 22.04 Jammy]
       env:
         SELECTED_CC: gcc
         SELECTED_CXX: g++
         BUILD_TYPE: Debug
-    - name: gcc RelWithDebInfo ubuntu:jammy
+    - name: (arm64) gcc RelWithDebInfo [Ubuntu 22.04 Jammy]
       env:
         SELECTED_CC: gcc
         SELECTED_CXX: g++
@@ -113,27 +142,68 @@ task:
     lsblk
     lsblk -f
     df -Th
-    mkdir -p $WORKING_DIR
   << : *SCRIPT_TEMPLATE
+
+
+task:
+  << : *FILTER_TEMPLATE
+  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
+  # run only on "percona/percona-server" but not on "8.0" as we have nightly cron builds for "8.0" branch
+  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.0' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  ec2_instance:
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202302*"
+    image: ami-0e5872bad32cd6a9d # Ubuntu 22.04.1 x86-64 with percona-server gcc-12 gcc-11 gcc-10 gcc-9 clang-15 clang-14 clang-13 node-12
+    type: c6a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.612 USD/H
+    #type: c5a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.616 USD/H
+    #type: c5.4xlarge   # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
+    #type: c6i.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
+    region: us-east-1
+    architecture: amd64 # defautls to amd64
+    spot: true
+  env:
+    OS_TYPE: ubuntu-22.04-x86_64
+  matrix:
+    - name: (x86_64) gcc-12 Debug INVERTED [Ubuntu 22.04 Jammy]
+      env:
+        SELECTED_CC: gcc-12
+        SELECTED_CXX: g++-12
+        BUILD_TYPE: Debug
+        BUILD_PARAMS_TYPE: inverted
+    - name: (x86_64) gcc-12 RelWithDebInfo INVERTED [Ubuntu 22.04 Jammy]
+      skip: $CIRRUS_PR != ""  # skip PRs
+      env:
+        SELECTED_CC: gcc-12
+        SELECTED_CXX: g++-12
+        BUILD_TYPE: RelWithDebInfo
+        BUILD_PARAMS_TYPE: inverted
+  mount_disk_script: |
+    lsblk
+    lsblk -f
+  << : *SCRIPT_TEMPLATE
+
 
 task:
   << : *FILTER_TEMPLATE
   aws_credentials: ENCRYPTED[!92ac22d2430cf40dfcec42f739513a65c8b368c822cb397e95f799d41c0ba4498c3a1c337ab14a25cc47b2d4b53c46c5!]
-  only_if: $CIRRUS_BRANCH =~ '.*cirrus.*'
+  # run only on "inikep/percona-server" when a branch name contains "cirrus-arm"
+  only_if: "$CIRRUS_BRANCH =~ '.*cirrus-arm.*' && $CIRRUS_REPO_FULL_NAME == 'inikep/percona-server' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')" # we have nightly cron builds for "8.0" branch
   ec2_instance:
-    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202212*"
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202212*"
     image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20221206
     # image: ami-0e2b332e63c56bcb5  # Ubuntu Server 22.04 LTS ARM 64-bit
     type: c6gd.4xlarge  # 16 vCPUs, 32 GB, 950 GB SSD, 0.6144 USD/H
     region: us-east-1
     architecture: arm64 # defautls to amd64
+    spot: true
+  env:
+    OS_TYPE: ubuntu-22.04-arm64
   matrix:
-    - name: gcc Debug ubuntu:jammy
+    - name: (arm64) gcc Debug [Ubuntu 22.04 Jammy]
       env:
         SELECTED_CC: gcc
         SELECTED_CXX: g++
         BUILD_TYPE: Debug
-    - name: gcc RelWithDebInfo ubuntu:jammy
+    - name: (arm64) gcc RelWithDebInfo [Ubuntu 22.04 Jammy]
       env:
         SELECTED_CC: gcc
         SELECTED_CXX: g++
@@ -145,6 +215,5 @@ task:
     sudo mkfs -t xfs /dev/nvme1n1
     sudo mkdir $MOUNT_POINT
     sudo mount /dev/nvme1n1 $MOUNT_POINT
-    sudo mkdir -p $WORKING_DIR
     df -Th
   << : *SCRIPT_TEMPLATE

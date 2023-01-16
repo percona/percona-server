@@ -202,7 +202,7 @@ auth_pam           plugin_output_directory  no  AUTH_PAM
 auth_pam_compat    plugin_output_directory  no  AUTH_PAM_COMPAT
 authentication_ldap_simple          plugin_output_directory  no  AUTH_LDAP             authentication_ldap_simple
 authentication_ldap_sasl          plugin_output_directory  no  AUTH_LDAP_SASL             authentication_ldap_sasl
-keyring_vault      plugin_output_directory  no  KEYRING_VAULT_PLUGIN keyring_vault
+component_keyring_vault         plugin_output_directory  yes  KEYRING_VAULT_COMPONENT  component_keyring_vault
 test_udf_wrappers  plugin_output_directory  no  TEST_UDF_WRAPPERS_LIB
 procfs             plugin_output_directory  no  PROCFS_PLUGIN procfs
 component_binlog_utils_udf          plugin_output_directory  no  BINLOG_UTILS_UDF_LIB

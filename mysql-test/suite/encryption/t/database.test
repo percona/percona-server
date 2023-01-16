@@ -266,6 +266,30 @@ DROP DATABASE db1;
 --let alter_encryption='k'
 --source ./alter_database.inc
 
+--echo # PS-6775 : Remove KEYRING_ON option from default_table_encryption.
+
+# The DEFAULT ENCRYPTION='KEYRING' or DEFAULT ENCRYPTION='KEYRING_ON'
+# was never implemented. Double check this is true.
+
+--echo `````````````````````````````````````````````````````````
+--echo # Invalid encryption option - KEYRING
+--connection default
+--error 1525
+CREATE DATABASE db_keyring_encryption DEFAULT ENCRYPTION='KEYRING';
+CREATE DATABASE db_keyring_alter;
+--error 1525
+ALTER DATABASE db_keyring_alter DEFAULT ENCRYPTION='KEYRING';
+
+--echo `````````````````````````````````````````````````````````
+--echo # Invalid encryption option - KEYRING_ON
+--error 1525
+CREATE DATABASE db_keyring_encryption DEFAULT ENCRYPTION='KEYRING_ON';
+--error 1525
+ALTER DATABASE db_keyring_alter DEFAULT ENCRYPTION='KEYRING_ON';
+DROP DATABASE db_keyring_alter;
+
+--echo # End of PS-6775
+
 --echo # Cleanup
 disconnect con1;
 connection default;

@@ -2394,3 +2394,236 @@ SHOW CREATE TABLE t1;
 # expecting the new lower value again, 100001
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+--echo #
+--echo # PS-8577: ALTER TABLE ... AUTO_INCREMENT=1 does not work as expected,
+--echo #
+--echo # Test case which is similar to one from the bug report.
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (3);
+ALTER TABLE t1 MODIFY id INT NOT NULL AUTO_INCREMENT;
+--echo # Use maximum existing value from auto-increment column + 1 as new
+--echo # auto-increment value if someone tries to set this parameter too low.
+ALTER TABLE t1 AUTO_INCREMENT = 1;
+SHOW CREATE TABLE t1;
+--echo # As result the below INSERT should not cause duplicate key errors
+--echo # (like it has happened before the fix).
+INSERT INTO t1 VALUES (), (), ();
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Case when column was created as auto-increment from the start
+--echo # worked as expected even before the fix.
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT);
+INSERT INTO t2 VALUES (3);
+ALTER TABLE t2 AUTO_INCREMENT = 1;
+SHOW CREATE TABLE t2;
+INSERT INTO t2 VALUES (), (), ();
+SELECT * FROM t2;
+DROP TABLE t2;
+
+--echo #
+--echo # Versions of the first test case with explicit ALGORITHM clause.
+--echo #
+--echo # Case with ALGORITHM=INPLACE failed before the fix.
+CREATE TABLE t3 (id INT PRIMARY KEY);
+INSERT INTO t3 VALUES (3);
+ALTER TABLE t3 MODIFY id INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE t3 AUTO_INCREMENT = 1, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t3;
+INSERT INTO t3 VALUES (), (), ();
+SELECT * FROM t3;
+DROP TABLE t3;
+
+--echo #
+--echo # But case with ALGORITHM=COPY worked as expected.
+CREATE TABLE t4 (id INT PRIMARY KEY);
+INSERT INTO t4 VALUES (3);
+ALTER TABLE t4 MODIFY id INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE t4 AUTO_INCREMENT = 1, ALGORITHM=COPY;
+SHOW CREATE TABLE t4;
+INSERT INTO t4 VALUES (), (), ();
+SELECT * FROM t4;
+DROP TABLE t4;
+
+--echo #
+--echo # Test scenarios involving import of tablespace which were also
+--echo # affected by the same problem.
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--disable_query_log
+CALL mtr.add_suppression("\\[Warning\\] .* Reading max\\(auto_inc_col\\) = .* for table .*, because there was an IMPORT without cfg file.");
+--enable_query_log
+CREATE TABLE t5 (id INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t5 VALUES (3);
+--echo # Flush the table and put IBD/CFG files aside for later import.
+FLUSH TABLE t5 FOR EXPORT;
+--copy_file $MYSQLD_DATADIR/test/t5.ibd $MYSQLD_DATADIR/t5.ibd_back
+--copy_file $MYSQLD_DATADIR/test/t5.cfg $MYSQLD_DATADIR/t5.cfg_back
+UNLOCK TABLES;
+
+--echo # Import tablespace with .CFG into new table and try set
+--echo # too low auto-increment value for it after that.
+CREATE TABLE t6(id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t6 DISCARD TABLESPACE;
+--echo # Copy and then import IBD and CFG file saved earlier.
+--copy_file $MYSQLD_DATADIR/t5.ibd_back $MYSQLD_DATADIR/test/t6.ibd
+--copy_file $MYSQLD_DATADIR/t5.cfg_back $MYSQLD_DATADIR/test/t6.cfg
+ALTER TABLE t6 IMPORT TABLESPACE;
+--echo # The below ALTER TABLE should adjust auto-increment value
+--echo # taking maximum already used value into account, so later
+--echo # INSERT doesn't fail (unlike before the fix).
+ALTER TABLE t6 AUTO_INCREMENT = 1;
+SHOW CREATE TABLE t6;
+INSERT INTO t6 VALUES (), (), ();
+SELECT * FROM t6;
+DROP TABLE t6;
+
+--echo # Test import of tablespace without .CFG which was affected as well.
+CREATE TABLE t7(id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t7 DISCARD TABLESPACE;
+--echo # Copy and then import only IBD saved earlier.
+--copy_file $MYSQLD_DATADIR/t5.ibd_back $MYSQLD_DATADIR/test/t7.ibd
+ALTER TABLE t7 IMPORT TABLESPACE;
+ALTER TABLE t7 AUTO_INCREMENT = 1;
+SHOW CREATE TABLE t7;
+INSERT INTO t7 VALUES (), (), ();
+SELECT * FROM t7;
+DROP TABLE t7;
+
+--echo # Clean up.
+DROP TABLE t5;
+--remove_file $MYSQLD_DATADIR/t5.cfg_back
+--remove_file $MYSQLD_DATADIR/t5.ibd_back
+
+
+--echo #
+--echo # Additional test coverage showing how AUTO_INCREMENT option is handled
+--echo # by InnoDB export and import.
+--echo #
+
+--echo #
+--echo # 1) Start from a trivial case when AUTO_INCREMENT option value
+--echo #    matches the max value used in column (plus one).
+CREATE TABLE t_exp (id INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t_exp VALUES (1), (2), (3);
+SHOW CREATE TABLE t_exp;
+--echo # Flush the table and put IBD/CFG files aside for the import.
+FLUSH TABLE t_exp FOR EXPORT;
+--copy_file $MYSQLD_DATADIR/test/t_exp.ibd $MYSQLD_DATADIR/t_exp.ibd_back
+--copy_file $MYSQLD_DATADIR/test/t_exp.cfg $MYSQLD_DATADIR/t_exp.cfg_back
+UNLOCK TABLES;
+
+CREATE TABLE t_imp (id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t_imp DISCARD TABLESPACE;
+--echo # Copy and then import IBD and CFG file saved earlier.
+--copy_file $MYSQLD_DATADIR/t_exp.ibd_back $MYSQLD_DATADIR/test/t_imp.ibd
+--copy_file $MYSQLD_DATADIR/t_exp.cfg_back $MYSQLD_DATADIR/test/t_imp.cfg
+ALTER TABLE t_imp IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp;
+INSERT INTO t_imp VALUES (), (), ();
+SELECT * FROM t_imp;
+DROP TABLE t_imp;
+
+CREATE TABLE t_imp_no_cfg (id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t_imp_no_cfg DISCARD TABLESPACE;
+--echo # Copy and then import only IBD file saved earlier.
+--copy_file $MYSQLD_DATADIR/t_exp.ibd_back $MYSQLD_DATADIR/test/t_imp_no_cfg.ibd
+ALTER TABLE t_imp_no_cfg IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_no_cfg;
+INSERT INTO t_imp_no_cfg VALUES (), (), ();
+SELECT * FROM t_imp_no_cfg;
+DROP TABLE t_imp_no_cfg;
+
+--echo #
+--echo # 2) Case when value of AUTO_INCREMENT option is higher than
+--echo #    max value used in column.
+ALTER TABLE t_exp AUTO_INCREMENT = 10;
+
+--echo # Flush the table and put IBD/CFG files aside for the import.
+FLUSH TABLE t_exp FOR EXPORT;
+--copy_file $MYSQLD_DATADIR/test/t_exp.ibd $MYSQLD_DATADIR/t_exp_10.ibd_back
+--copy_file $MYSQLD_DATADIR/test/t_exp.cfg $MYSQLD_DATADIR/t_exp_10.cfg_back
+UNLOCK TABLES;
+
+CREATE TABLE t_imp_10 (id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t_imp_10 DISCARD TABLESPACE;
+--echo # Copy and then import IBD and CFG file saved earlier.
+--copy_file $MYSQLD_DATADIR/t_exp_10.ibd_back $MYSQLD_DATADIR/test/t_imp_10.ibd
+--copy_file $MYSQLD_DATADIR/t_exp_10.cfg_back $MYSQLD_DATADIR/test/t_imp_10.cfg
+ALTER TABLE t_imp_10 IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_10;
+INSERT INTO t_imp_10 VALUES (), (), ();
+SELECT * FROM t_imp_10;
+DROP TABLE t_imp_10;
+
+--echo # Note that import without CFG loses original AUTO_INCREMENT value
+--echo # from the exported table (since at the moment we use value of
+--echo # AUTO_INCREMENT option stored in CFG during import).
+CREATE TABLE t_imp_10_no_cfg (id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t_imp_10_no_cfg DISCARD TABLESPACE;
+--echo # Copy and then import only IBD file saved earlier.
+--copy_file $MYSQLD_DATADIR/t_exp_10.ibd_back $MYSQLD_DATADIR/test/t_imp_10_no_cfg.ibd
+ALTER TABLE t_imp_10_no_cfg IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_10_no_cfg;
+INSERT INTO t_imp_10_no_cfg VALUES (), (), ();
+SELECT * FROM t_imp_10_no_cfg;
+DROP TABLE t_imp_10_no_cfg;
+
+--echo #
+--echo # 3) Case when AUTO_INCREMENT option is set for table being imported
+--echo #    into. This option value is ignored in both with CFG and sans
+--echo #    CFG cases.
+CREATE TABLE t_imp_into_15 (id INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT = 15;
+ALTER TABLE t_imp_into_15 DISCARD TABLESPACE;
+--echo # Copy and then import IBD and CFG file saved earlier.
+--copy_file $MYSQLD_DATADIR/t_exp.ibd_back $MYSQLD_DATADIR/test/t_imp_into_15.ibd
+--copy_file $MYSQLD_DATADIR/t_exp.cfg_back $MYSQLD_DATADIR/test/t_imp_into_15.cfg
+ALTER TABLE t_imp_into_15 IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_into_15;
+INSERT INTO t_imp_into_15 VALUES (), (), ();
+SELECT * FROM t_imp_into_15;
+DROP TABLE t_imp_into_15;
+
+CREATE TABLE t_imp_into_15_no_cfg (id INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT = 15;
+ALTER TABLE t_imp_into_15_no_cfg DISCARD TABLESPACE;
+--echo # Copy and then import only IBD file saved earlier.
+--copy_file $MYSQLD_DATADIR/t_exp.ibd_back $MYSQLD_DATADIR/test/t_imp_into_15_no_cfg.ibd
+ALTER TABLE t_imp_into_15_no_cfg IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_into_15_no_cfg;
+INSERT INTO t_imp_into_15_no_cfg VALUES (), (), ();
+SELECT * FROM t_imp_into_15_no_cfg;
+DROP TABLE t_imp_into_15_no_cfg;
+
+--echo # Repeat for cases when both source and target of import have
+--echo # non-trivial value of AUTO_INCREMENT option. Again in both
+--echo # cases target table option is ignored.
+CREATE TABLE t_imp_into_20 (id INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT = 20;
+ALTER TABLE t_imp_into_20 DISCARD TABLESPACE;
+--echo # Copy and then import IBD and CFG file saved earlier.
+--copy_file $MYSQLD_DATADIR/t_exp_10.ibd_back $MYSQLD_DATADIR/test/t_imp_into_20.ibd
+--copy_file $MYSQLD_DATADIR/t_exp_10.cfg_back $MYSQLD_DATADIR/test/t_imp_into_20.cfg
+ALTER TABLE t_imp_into_20 IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_into_20;
+INSERT INTO t_imp_into_20 VALUES (), (), ();
+SELECT * FROM t_imp_into_20;
+DROP TABLE t_imp_into_20;
+
+--echo # In sans CFG case the AUTO_INCREMENT value is based on max used
+--echo # column value from exported table.
+CREATE TABLE t_imp_into_20_no_cfg (id INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT = 20;
+ALTER TABLE t_imp_into_20_no_cfg DISCARD TABLESPACE;
+--echo # Copy and then import only IBD file saved earlier.
+--copy_file $MYSQLD_DATADIR/t_exp_10.ibd_back $MYSQLD_DATADIR/test/t_imp_into_20_no_cfg.ibd
+ALTER TABLE t_imp_into_20_no_cfg IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_into_20_no_cfg;
+INSERT INTO t_imp_into_20_no_cfg VALUES (), (), ();
+SELECT * FROM t_imp_into_20_no_cfg;
+DROP TABLE t_imp_into_20_no_cfg;
+
+--echo # Clean up.
+--remove_file $MYSQLD_DATADIR/t_exp.cfg_back
+--remove_file $MYSQLD_DATADIR/t_exp.ibd_back
+--remove_file $MYSQLD_DATADIR/t_exp_10.cfg_back
+--remove_file $MYSQLD_DATADIR/t_exp_10.ibd_back
+DROP TABLE t_exp;

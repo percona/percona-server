@@ -2081,3 +2081,354 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
+#
+# PS-8577: ALTER TABLE ... AUTO_INCREMENT=1 does not work as expected,
+#
+# Test case which is similar to one from the bug report.
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (3);
+ALTER TABLE t1 MODIFY id INT NOT NULL AUTO_INCREMENT;
+# Use maximum existing value from auto-increment column + 1 as new
+# auto-increment value if someone tries to set this parameter too low.
+ALTER TABLE t1 AUTO_INCREMENT = 1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# As result the below INSERT should not cause duplicate key errors
+# (like it has happened before the fix).
+INSERT INTO t1 VALUES (), (), ();
+SELECT * FROM t1;
+id
+3
+4
+5
+6
+DROP TABLE t1;
+#
+# Case when column was created as auto-increment from the start
+# worked as expected even before the fix.
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT);
+INSERT INTO t2 VALUES (3);
+ALTER TABLE t2 AUTO_INCREMENT = 1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES (), (), ();
+SELECT * FROM t2;
+id
+3
+4
+5
+6
+DROP TABLE t2;
+#
+# Versions of the first test case with explicit ALGORITHM clause.
+#
+# Case with ALGORITHM=INPLACE failed before the fix.
+CREATE TABLE t3 (id INT PRIMARY KEY);
+INSERT INTO t3 VALUES (3);
+ALTER TABLE t3 MODIFY id INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE t3 AUTO_INCREMENT = 1, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t3 VALUES (), (), ();
+SELECT * FROM t3;
+id
+3
+4
+5
+6
+DROP TABLE t3;
+#
+# But case with ALGORITHM=COPY worked as expected.
+CREATE TABLE t4 (id INT PRIMARY KEY);
+INSERT INTO t4 VALUES (3);
+ALTER TABLE t4 MODIFY id INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE t4 AUTO_INCREMENT = 1, ALGORITHM=COPY;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t4 VALUES (), (), ();
+SELECT * FROM t4;
+id
+3
+4
+5
+6
+DROP TABLE t4;
+#
+# Test scenarios involving import of tablespace which were also
+# affected by the same problem.
+CREATE TABLE t5 (id INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t5 VALUES (3);
+# Flush the table and put IBD/CFG files aside for later import.
+FLUSH TABLE t5 FOR EXPORT;
+UNLOCK TABLES;
+# Import tablespace with .CFG into new table and try set
+# too low auto-increment value for it after that.
+CREATE TABLE t6(id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t6 DISCARD TABLESPACE;
+# Copy and then import IBD and CFG file saved earlier.
+ALTER TABLE t6 IMPORT TABLESPACE;
+# The below ALTER TABLE should adjust auto-increment value
+# taking maximum already used value into account, so later
+# INSERT doesn't fail (unlike before the fix).
+ALTER TABLE t6 AUTO_INCREMENT = 1;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t6 VALUES (), (), ();
+SELECT * FROM t6;
+id
+3
+4
+5
+6
+DROP TABLE t6;
+# Test import of tablespace without .CFG which was affected as well.
+CREATE TABLE t7(id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t7 DISCARD TABLESPACE;
+# Copy and then import only IBD saved earlier.
+ALTER TABLE t7 IMPORT TABLESPACE;
+Warnings:
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t7.cfg', will attempt to import without schema verification
+ALTER TABLE t7 AUTO_INCREMENT = 1;
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t7 VALUES (), (), ();
+SELECT * FROM t7;
+id
+3
+4
+5
+6
+DROP TABLE t7;
+# Clean up.
+DROP TABLE t5;
+#
+# Additional test coverage showing how AUTO_INCREMENT option is handled
+# by InnoDB export and import.
+#
+#
+# 1) Start from a trivial case when AUTO_INCREMENT option value
+#    matches the max value used in column (plus one).
+CREATE TABLE t_exp (id INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t_exp VALUES (1), (2), (3);
+SHOW CREATE TABLE t_exp;
+Table	Create Table
+t_exp	CREATE TABLE `t_exp` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Flush the table and put IBD/CFG files aside for the import.
+FLUSH TABLE t_exp FOR EXPORT;
+UNLOCK TABLES;
+CREATE TABLE t_imp (id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t_imp DISCARD TABLESPACE;
+# Copy and then import IBD and CFG file saved earlier.
+ALTER TABLE t_imp IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp;
+Table	Create Table
+t_imp	CREATE TABLE `t_imp` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_imp VALUES (), (), ();
+SELECT * FROM t_imp;
+id
+1
+2
+3
+4
+5
+6
+DROP TABLE t_imp;
+CREATE TABLE t_imp_no_cfg (id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t_imp_no_cfg DISCARD TABLESPACE;
+# Copy and then import only IBD file saved earlier.
+ALTER TABLE t_imp_no_cfg IMPORT TABLESPACE;
+Warnings:
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t_imp_no_cfg.cfg', will attempt to import without schema verification
+SHOW CREATE TABLE t_imp_no_cfg;
+Table	Create Table
+t_imp_no_cfg	CREATE TABLE `t_imp_no_cfg` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_imp_no_cfg VALUES (), (), ();
+SELECT * FROM t_imp_no_cfg;
+id
+1
+2
+3
+4
+5
+6
+DROP TABLE t_imp_no_cfg;
+#
+# 2) Case when value of AUTO_INCREMENT option is higher than
+#    max value used in column.
+ALTER TABLE t_exp AUTO_INCREMENT = 10;
+# Flush the table and put IBD/CFG files aside for the import.
+FLUSH TABLE t_exp FOR EXPORT;
+UNLOCK TABLES;
+CREATE TABLE t_imp_10 (id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t_imp_10 DISCARD TABLESPACE;
+# Copy and then import IBD and CFG file saved earlier.
+ALTER TABLE t_imp_10 IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_10;
+Table	Create Table
+t_imp_10	CREATE TABLE `t_imp_10` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_imp_10 VALUES (), (), ();
+SELECT * FROM t_imp_10;
+id
+1
+2
+3
+10
+11
+12
+DROP TABLE t_imp_10;
+# Note that import without CFG loses original AUTO_INCREMENT value
+# from the exported table (since at the moment we use value of
+# AUTO_INCREMENT option stored in CFG during import).
+CREATE TABLE t_imp_10_no_cfg (id INT AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t_imp_10_no_cfg DISCARD TABLESPACE;
+# Copy and then import only IBD file saved earlier.
+ALTER TABLE t_imp_10_no_cfg IMPORT TABLESPACE;
+Warnings:
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t_imp_10_no_cfg.cfg', will attempt to import without schema verification
+SHOW CREATE TABLE t_imp_10_no_cfg;
+Table	Create Table
+t_imp_10_no_cfg	CREATE TABLE `t_imp_10_no_cfg` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_imp_10_no_cfg VALUES (), (), ();
+SELECT * FROM t_imp_10_no_cfg;
+id
+1
+2
+3
+4
+5
+6
+DROP TABLE t_imp_10_no_cfg;
+#
+# 3) Case when AUTO_INCREMENT option is set for table being imported
+#    into. This option value is ignored in both with CFG and sans
+#    CFG cases.
+CREATE TABLE t_imp_into_15 (id INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT = 15;
+ALTER TABLE t_imp_into_15 DISCARD TABLESPACE;
+# Copy and then import IBD and CFG file saved earlier.
+ALTER TABLE t_imp_into_15 IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_into_15;
+Table	Create Table
+t_imp_into_15	CREATE TABLE `t_imp_into_15` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_imp_into_15 VALUES (), (), ();
+SELECT * FROM t_imp_into_15;
+id
+1
+2
+3
+4
+5
+6
+DROP TABLE t_imp_into_15;
+CREATE TABLE t_imp_into_15_no_cfg (id INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT = 15;
+ALTER TABLE t_imp_into_15_no_cfg DISCARD TABLESPACE;
+# Copy and then import only IBD file saved earlier.
+ALTER TABLE t_imp_into_15_no_cfg IMPORT TABLESPACE;
+Warnings:
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t_imp_into_15_no_cfg.cfg', will attempt to import without schema verification
+SHOW CREATE TABLE t_imp_into_15_no_cfg;
+Table	Create Table
+t_imp_into_15_no_cfg	CREATE TABLE `t_imp_into_15_no_cfg` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_imp_into_15_no_cfg VALUES (), (), ();
+SELECT * FROM t_imp_into_15_no_cfg;
+id
+1
+2
+3
+4
+5
+6
+DROP TABLE t_imp_into_15_no_cfg;
+# Repeat for cases when both source and target of import have
+# non-trivial value of AUTO_INCREMENT option. Again in both
+# cases target table option is ignored.
+CREATE TABLE t_imp_into_20 (id INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT = 20;
+ALTER TABLE t_imp_into_20 DISCARD TABLESPACE;
+# Copy and then import IBD and CFG file saved earlier.
+ALTER TABLE t_imp_into_20 IMPORT TABLESPACE;
+SHOW CREATE TABLE t_imp_into_20;
+Table	Create Table
+t_imp_into_20	CREATE TABLE `t_imp_into_20` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_imp_into_20 VALUES (), (), ();
+SELECT * FROM t_imp_into_20;
+id
+1
+2
+3
+10
+11
+12
+DROP TABLE t_imp_into_20;
+# In sans CFG case the AUTO_INCREMENT value is based on max used
+# column value from exported table.
+CREATE TABLE t_imp_into_20_no_cfg (id INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT = 20;
+ALTER TABLE t_imp_into_20_no_cfg DISCARD TABLESPACE;
+# Copy and then import only IBD file saved earlier.
+ALTER TABLE t_imp_into_20_no_cfg IMPORT TABLESPACE;
+Warnings:
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t_imp_into_20_no_cfg.cfg', will attempt to import without schema verification
+SHOW CREATE TABLE t_imp_into_20_no_cfg;
+Table	Create Table
+t_imp_into_20_no_cfg	CREATE TABLE `t_imp_into_20_no_cfg` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_imp_into_20_no_cfg VALUES (), (), ();
+SELECT * FROM t_imp_into_20_no_cfg;
+id
+1
+2
+3
+4
+5
+6
+DROP TABLE t_imp_into_20_no_cfg;
+# Clean up.
+DROP TABLE t_exp;

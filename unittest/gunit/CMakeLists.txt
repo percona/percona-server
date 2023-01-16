@@ -368,6 +368,7 @@ ADD_DEPENDENCIES(sqlgunitlib GenError)
 SET_TARGET_PROPERTIES(sqlgunitlib
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
+TARGET_LINK_LIBRARIES(sqlgunitlib ext::zlib)
 
 MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ADD_TEST merge_small_tests
@@ -448,6 +449,7 @@ ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(components/mysql_server)
 ADD_SUBDIRECTORY(components/keyring_common)
+ADD_SUBDIRECTORY(components/keyring_vault)
 ADD_SUBDIRECTORY(xplugin)
 ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(libmysqlgcs)

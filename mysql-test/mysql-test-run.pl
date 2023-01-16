@@ -3334,6 +3334,7 @@ sub environment_setup {
   $ENV{'MYSQL_TMP_DIR'}       = $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}    = $opt_vardir;
   $ENV{'USE_RUNNING_SERVER'}  = using_extern();
+  $ENV{'MTR_REPEAT'}          = $opt_repeat;
 
   if (IS_WINDOWS) {
     $ENV{'SECURE_LOAD_PATH'}      = $glob_mysql_test_dir . "\\std_data";

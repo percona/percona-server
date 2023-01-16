@@ -53,4 +53,18 @@ inline Config_reader::Config_reader(std::string config_file_path)
   file_stream.close();
 }
 
+bool Config_reader::has_element(const std::string &element_name) {
+  return !valid_ || !data_.HasMember(element_name);
+}
+
+bool Config_reader::is_number(const std::string &element_name) {
+  return !valid_ || !data_.HasMember(element_name) ||
+         !data_[element_name].IsNumber();
+}
+
+bool Config_reader::is_string(const std::string &element_name) {
+  return !valid_ || !data_.HasMember(element_name) ||
+         !data_[element_name].IsString();
+}
+
 }  // namespace keyring_common::config

@@ -556,7 +556,7 @@ mkdir debug
            -DWITH_FIDO=none \
 %endif
            -DWITH_ENCRYPTION_UDF=ON \
-           -DWITH_KEYRING_VAULT=ON \
+           -DWITH_COMPONENT_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -611,7 +611,7 @@ mkdir release
            -DWITH_FIDO=none \
 %endif
            -DWITH_ENCRYPTION_UDF=ON \
-           -DWITH_KEYRING_VAULT=ON \
+           -DWITH_COMPONENT_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}

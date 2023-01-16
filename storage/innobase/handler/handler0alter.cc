@@ -6680,8 +6680,15 @@ static void innobase_rename_or_enlarge_columns_cache(
     we expect the next value allocated from 201, but not 150.
 
     We could only search the tree to know current max counter
-    in the table and compare. */
-    if (ctx->max_autoinc <= max_value_table) {
+    in the table and compare.
+
+    If persisted auto-increment value is 0, it can't be trusted.
+    It might be an indication that auto-increment column just has
+    been added to the table by modifying existing column, so
+    the real maximum value in it has not been persisted yet.
+    This situation can also occur if table has been recently imported.
+    So we do index search in this case as well. */
+    if (max_value_table == 0 || ctx->max_autoinc <= max_value_table) {
       dberr_t err;
       dict_index_t *index;
 

@@ -1040,6 +1040,22 @@ db1	YES
 DROP DATABASE db1;
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
+# PS-6775 : Remove KEYRING_ON option from default_table_encryption.
+`````````````````````````````````````````````````````````
+# Invalid encryption option - KEYRING
+CREATE DATABASE db_keyring_encryption DEFAULT ENCRYPTION='KEYRING';
+ERROR HY000: Incorrect argument (should be Y or N) value: 'KEYRING'
+CREATE DATABASE db_keyring_alter;
+ALTER DATABASE db_keyring_alter DEFAULT ENCRYPTION='KEYRING';
+ERROR HY000: Incorrect argument (should be Y or N) value: 'KEYRING'
+`````````````````````````````````````````````````````````
+# Invalid encryption option - KEYRING_ON
+CREATE DATABASE db_keyring_encryption DEFAULT ENCRYPTION='KEYRING_ON';
+ERROR HY000: Incorrect argument (should be Y or N) value: 'KEYRING_ON'
+ALTER DATABASE db_keyring_alter DEFAULT ENCRYPTION='KEYRING_ON';
+ERROR HY000: Incorrect argument (should be Y or N) value: 'KEYRING_ON'
+DROP DATABASE db_keyring_alter;
+# End of PS-6775
 # Cleanup
 DROP USER u1@localhost;
 SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

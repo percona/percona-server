@@ -1767,12 +1767,18 @@ void srv_export_innodb_status(void) {
     export_vars.innodb_buffer_pool_pages_old += buf_pool->LRU_old_len;
   }
 
-  export_vars.innodb_checkpoint_age =
-      (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
+  if (!srv_read_only_mode) {
+    export_vars.innodb_checkpoint_age =
+        (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
 
-  log_limits_mutex_enter(*log_sys);
-  export_vars.innodb_checkpoint_max_age = log_free_check_capacity(*log_sys);
-  log_limits_mutex_exit(*log_sys);
+    log_limits_mutex_enter(*log_sys);
+    export_vars.innodb_checkpoint_max_age = log_free_check_capacity(*log_sys);
+    log_limits_mutex_exit(*log_sys);
+  } else {
+    export_vars.innodb_checkpoint_age = 0;
+    export_vars.innodb_checkpoint_max_age = 0;
+  }
+
   ibuf_export_ibuf_status(&export_vars.innodb_ibuf_free_list,
                           &export_vars.innodb_ibuf_segment_size);
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);

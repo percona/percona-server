@@ -12598,7 +12598,7 @@ static int read_stats_from_ssts(
     }
   }
 
-  int num_sst = 0;
+  int num_sst [[maybe_unused]] = 0;
   for (const auto &it : props) {
     std::vector<Rdb_index_stats> sst_stats;
     Rdb_tbl_prop_coll::read_stats_from_tbl_props(it.second, &sst_stats);

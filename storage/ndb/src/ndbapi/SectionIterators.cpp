@@ -418,7 +418,7 @@ createSignalChain(NdbApiSignal*& poolHead, int length, int bias)
   NdbApiSignal* chainHead= NULL;
   NdbApiSignal* chainTail= NULL;
   int pos= 0;
-  int signals= 0;
+  int signals [[maybe_unused]] = 0;
 
   while (pos < length)
   {

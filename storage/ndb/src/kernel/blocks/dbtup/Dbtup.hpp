@@ -3361,7 +3361,7 @@ private:
                         Tablerec* regTabPtr);
 
   void ndbmtd_buffer_suma_trigger(Signal* signal, Uint32 len,
-                                  LinearSectionPtr ptr[]);
+                                  LinearSectionPtr ptr[3]);
   void flush_ndbmtd_suma_buffer(Signal*);
 
   struct SumaTriggerBuffer
@@ -3960,7 +3960,7 @@ private:
 #endif
 
   void expand_tuple(KeyReqStruct*,
-                    Uint32 sizes[4],
+                    Uint32 sizes[2],
                     Tuple_header *org, 
 		    const Tablerec*,
                     bool disk,

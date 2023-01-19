@@ -125,12 +125,8 @@ bool set_fips_mode(const int fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
   @retval non-zero: FIPS is supported.
 */
 int test_ssl_fips_mode(char err_string[OPENSSL_ERROR_LENGTH]) {
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  int ret = EVP_default_properties_is_fips_enabled(nullptr);
-#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   unsigned test_fips_mode = get_fips_mode() == 0 ? 1 : 0;
   int ret = set_fips_mode_inner(test_fips_mode);
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   unsigned long err = (ret == 0) ? ERR_get_error() : 0;
 
   if (err != 0) {

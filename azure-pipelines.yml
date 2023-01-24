@@ -484,6 +484,12 @@ jobs:
       "
 
 
+      if [[ ( "$(Compiler)" == "clang" ) && ( $(bc <<< "$(CompilerVer) < 7") -eq 1 ) ]]; then
+        CMAKE_OPT+="
+          -DWITH_ROUTER=OFF
+        "
+      fi
+
       if [[ "$OS_NAME" == "Darwin" ]]; then
         CMAKE_OPT+="
           -DMYSQL_MAINTAINER_MODE=OFF

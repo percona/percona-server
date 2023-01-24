@@ -3,4 +3,5 @@
 #
 CREATE DATABASE transforms;
 FLUSH BINARY LOGS;
+ERROR HY000: Operation not allowed when innodb_force_recovery > 0.
 DROP DATABASE transforms;

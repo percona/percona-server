@@ -21,8 +21,9 @@ SET GLOBAL general_log = ON;
 --let $file=$MYSQLTEST_VARDIR/tmp/dump.sql
 
 --error 1
---exec $MYSQL_DUMP --lock-for-backup --lock-all-tables >$file
+--exec $MYSQL_DUMP --lock-for-backup --lock-all-tables test >$file
 
+--echo #
 --echo # Check that --lock-for-backup is converted to --lock-all-tables if
 --echo # --single-transaction is not specified
 
@@ -32,6 +33,7 @@ SELECT argument FROM mysql.general_log WHERE argument != '';
 
 TRUNCATE TABLE mysql.general_log;
 
+--echo #
 --echo # Check that --lock-for-backup --single-transaction uses LOCK TABLES FOR
 --echo # BACKUP
 
@@ -41,13 +43,81 @@ SELECT argument FROM mysql.general_log WHERE argument != '';
 
 TRUNCATE TABLE mysql.general_log;
 
+--echo #
 --echo # Check that --source-data does not disable --lock-for-backup
+--echo #
 
 --exec $MYSQL_DUMP --lock-for-backup --single-transaction --source-data test >$file
 
 SELECT argument FROM mysql.general_log WHERE argument != '';
 
 TRUNCATE TABLE mysql.general_log;
+
+
+--echo ########################################################################
+--echo # mysqldump tests without --lock-for-backup
+--echo ########################################################################
+
+--echo #
+--echo # Check --lock-all-tables
+--echo #
+
+--exec $MYSQL_DUMP --lock-all-tables test >>$file
+
+SELECT argument FROM mysql.general_log WHERE argument != '';
+
+TRUNCATE TABLE mysql.general_log;
+
+--echo #
+--echo # Check --single-transaction
+--echo #
+
+--exec $MYSQL_DUMP --single-transaction test >>$file
+
+SELECT argument FROM mysql.general_log WHERE argument != '';
+
+TRUNCATE TABLE mysql.general_log;
+
+--echo #
+--echo # Check --single-transaction --source-data
+--echo #
+
+--exec $MYSQL_DUMP --single-transaction --source-data test >>$file
+
+SELECT argument FROM mysql.general_log WHERE argument != '';
+
+TRUNCATE TABLE mysql.general_log;
+
+--echo #
+--echo # Check --single-transaction --flush-logs
+--echo #
+
+--exec $MYSQL_DUMP --single-transaction --flush-logs test >>$file
+
+SELECT argument FROM mysql.general_log WHERE argument != '';
+
+TRUNCATE TABLE mysql.general_log;
+
+--echo #
+--echo # Check --source-data
+--echo #
+
+--exec $MYSQL_DUMP --source-data test >>$file
+
+SELECT argument FROM mysql.general_log WHERE argument != '';
+
+TRUNCATE TABLE mysql.general_log;
+
+--echo #
+--echo # Check no options provided
+--echo #
+
+--exec $MYSQL_DUMP test >>$file
+
+SELECT argument FROM mysql.general_log WHERE argument != '';
+
+TRUNCATE TABLE mysql.general_log;
+
 
 --remove_file $file
 

@@ -644,7 +644,7 @@ DEFINE_METHOD(Binlog_iterator_service_get_status, FileStorage::get,
 
   // update the file cursor (and get the event size, which we can disregard
   // here)
-  auto [cursor_update_ret, event_size] = ctx.update_cursor();
+  auto cursor_update_ret = std::get<0>(ctx.update_cursor());
   if (cursor_update_ret != kBinlogIteratorGetOk) return cursor_update_ret;
 
   // read the event

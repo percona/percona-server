@@ -360,6 +360,7 @@ inline handlerton *OptimizerTestBase::EnableSecondaryEngine(
   hton->secondary_engine_modify_access_path_cost = nullptr;
   hton->secondary_engine_check_optimizer_request = nullptr;
   for (const auto &[name, table] : m_fake_tables) {
+    (void)name;
     table->file->ht = hton;
     static_cast<Fake_TABLE_SHARE *>(table->s)->set_secondary_engine(true);
     ON_CALL(table->mock_handler, table_type())

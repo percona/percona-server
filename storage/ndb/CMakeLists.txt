@@ -21,6 +21,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# older gcc doesn't support "#include <charconv>"
+IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.1)
+  MESSAGE(WARNING "Skips building NDB for gcc older than 8.1")
+  RETURN()
+ENDIF()
+
 # Add both MySQL and NDB cmake repositories to search path
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake

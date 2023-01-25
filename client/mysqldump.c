@@ -246,6 +246,12 @@ static HASH processed_compression_dictionaries;
 static LIST *skipped_keys_list = NULL;
 static LIST *alter_constraints_list = NULL;
 
+typedef struct st_my_gtid_array
+{
+    my_ulonglong num_rows;
+    char** gtid_array;
+}MY_GTID_ARRAY;
+
 static struct my_option my_long_options[] =
 {
   {"all-databases", 'A',
@@ -665,6 +671,7 @@ char check_if_ignore_table(const char *table_name, char *table_type);
 static char *primary_key_fields(const char *table_name, const my_bool desc);
 static my_bool get_view_structure(char *table, char* db);
 static my_bool dump_all_views_in_db(char *database);
+static int get_gtid_mode(MYSQL* mysql);
 static int dump_all_tablespaces();
 static int dump_tablespaces_for_tables(char *db, char **table_names, int tables);
 static int dump_tablespaces_for_databases(char** databases);
@@ -6737,6 +6744,68 @@ static int replace(DYNAMIC_STRING *ds_str,
   return 0;
 }
 
+/**
+  This function will store the value for GTID_EXECUTED in the parameter
+  gtid_executed.
+
+  @param[in]  mysql          connection to the server
+
+  @param[out] gtid_executed  the result of the query will be stored
+                             in this parameter
+
+  @retval     FALSE          if query was successfully executed
+
+  @retval     TRUE           failed
+*/
+static my_bool get_gtids_executed(MYSQL* mysql, MYSQL_RES** gtid_executed)
+{
+    if (mysql_query_with_error_report(mysql, gtid_executed,
+        "SELECT @@GLOBAL.GTID_EXECUTED"))
+        return TRUE;
+
+    return FALSE;
+}
+
+
+/**
+  This function checks if GTIDs are enabled on the server.
+
+  @param[in]          mysql         the connection to the server
+
+  @retval             1             if GTIDs are enabled on the server
+
+  @retval             0             if GTIDs are disabled on the server
+
+  @retval	      EX_MYSQLERR   error, query execution failed
+
+*/
+static int get_gtid_mode(MYSQL* mysql)
+{
+    char* gtid_mode_val = 0;
+    int gtid_mode = 0;
+    MYSQL_RES* gtid_mode_res;
+    MYSQL_ROW gtid_mode_row;
+
+    /*
+      Check if the server has the knowledge of GTIDs(pre mysql-5.6)
+      or if the gtid_mode is ON or OFF.
+    */
+    if (mysql_query_with_error_report(mysql, &gtid_mode_res,
+        "SHOW VARIABLES LIKE 'gtid_mode'"))
+        return EX_MYSQLERR;
+
+    gtid_mode_row = mysql_fetch_row(gtid_mode_res);
+
+    /*
+      gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
+      get the gtid_mode value from the second column.
+    */
+    gtid_mode_val = gtid_mode_row ? (char*)gtid_mode_row[1] : NULL;
+    gtid_mode = (gtid_mode_val && strcmp(gtid_mode_val, "OFF")) ? 1 : 0;
+    mysql_free_result(gtid_mode_res);
+
+    return gtid_mode;
+}
 
 /**
   This function sets the session binlog in the dump file.
@@ -6776,16 +6845,32 @@ static void set_session_binlog()
   @param[in]  mysql_con     connection to the server
   @param[in]  ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
 
+  @param[in]  gtid_array    Set of GTIDs executed on the server
+
+  @param[in]  gtid_executed_provided   If TRUE, it means that result of
+                                       SELECT @@GLOBAL.GTID_EXECUTED has
+                                       been provided in gtid_array.
+
   @retval     FALSE         succesfully printed GTID_PURGED sets
                              in the dump file.
+
   @retval     TRUE          failed.
 
 */
 
+<<<<<<< HEAD
 static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
+||||||| c4f63caa8d9
+static my_bool add_set_gtid_purged(MYSQL *mysql_con)
+=======
+static my_bool add_set_gtid_purged(MYSQL *mysql_con,
+                                   MY_GTID_ARRAY *gtid_array,
+                                   my_bool gtid_executed_provided)
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
 {
-  MYSQL_RES  *gtid_purged_res;
+  MYSQL_RES* gtid_purged_res;
   MYSQL_ROW  gtid_set;
+<<<<<<< HEAD
   ulonglong  num_sets, idx;
   int        value_idx= 1;
   int        capture_raw_gtid_executed= TRUE;
@@ -6808,7 +6893,13 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
               "\nThe value provided for GTID_PURGED may be inaccurate!"
               "\nTo overcome this issue, start mysqldump with "
               "--lock-all-tables.\n");
+||||||| c4f63caa8d9
+  ulonglong  num_sets, idx;
+=======
+  ulonglong  num_sets, idx = 0;
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
 
+<<<<<<< HEAD
       fprintf(md_result_file,
               "\n\n--"
               "\n-- WARNING: Server does not support consistent snapshot of "
@@ -6834,9 +6925,24 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
       return TRUE;
     }
   }
+||||||| c4f63caa8d9
+  /* query to get the GTID_EXECUTED */
+  if (mysql_query_with_error_report(mysql_con, &gtid_purged_res,
+                  "SELECT @@GLOBAL.GTID_EXECUTED"))
+    return TRUE;
+=======
+  /* query to get the GTID_EXECUTED, if not fetched previously */
+  if (!gtid_executed_provided)
+  {
+      if (get_gtids_executed(mysql_con, &gtid_purged_res))
+          return TRUE;
+      num_sets = mysql_num_rows(gtid_purged_res);
+  }
+  else
+      num_sets = gtid_array->num_rows;
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
 
-  /* Proceed only if gtid_purged_res is non empty */
-  if ((num_sets= mysql_num_rows(gtid_purged_res)) > 0)
+  if (num_sets > 0)
   {
     gtid_executed_buffer_inited= 1;
     init_dynamic_string_checked(&gtid_executed_buffer, "", 1024, 1024);
@@ -6854,15 +6960,52 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
     dynstr_append_checked(&gtid_executed_buffer, "SET @@GLOBAL.GTID_PURGED='");
 
     /* formatting is not required, even for multiple gtid sets */
+<<<<<<< HEAD
     for (idx= 0; idx< num_sets; idx++)
+||||||| c4f63caa8d9
+    for (idx= 0; idx< num_sets-1; idx++)
+=======
+    for(idx = 0 ; idx < num_sets ; idx++)
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
     {
+<<<<<<< HEAD
       gtid_set= mysql_fetch_row(gtid_purged_res);
       dynstr_append_checked(&gtid_executed_buffer, (char *)gtid_set[value_idx]);
+||||||| c4f63caa8d9
+      gtid_set= mysql_fetch_row(gtid_purged_res);
+      fprintf(md_result_file,"%s,", (char*)gtid_set[0]);
+=======
+      char* gtid_set_string = NULL;
+      if(gtid_executed_provided)
+	  gtid_set_string = gtid_array->gtid_array[idx];
+      else
+      {
+	  gtid_set = mysql_fetch_row(gtid_purged_res);
+	  gtid_set_string = (char *)gtid_set[0];
+      }
+      fprintf(md_result_file, "%s", gtid_set_string);
+
+      if(idx < num_sets - 1)
+	  fprintf(md_result_file, ",");
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
     }
+<<<<<<< HEAD
     /* for the last set close the SET expression */
     dynstr_append_checked(&gtid_executed_buffer, "';\n");
+||||||| c4f63caa8d9
+    /* for the last set */
+    gtid_set= mysql_fetch_row(gtid_purged_res);
+    /* close the SET expression */
+    fprintf(md_result_file,"%s';\n", (char*)gtid_set[0]);
+=======
+
+    /* close set expression */
+    fprintf(md_result_file, "';\n");
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
   }
-  mysql_free_result(gtid_purged_res);
+
+  if(!gtid_executed_provided)
+      mysql_free_result(gtid_purged_res);
 
   return FALSE;  /*success */
 }
@@ -6877,7 +7020,12 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
   session binlog is restored if disabled previously.
 
   @param[in]          mysql_con     the connection to the server
+<<<<<<< HEAD
   @param[in]		  ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
+||||||| c4f63caa8d9
+=======
+
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
   @param[in]          flag          If FALSE, just disable binlog and not
                                     set the gtid purged as it will be set
                                     at a later point of time.
@@ -6885,50 +7033,39 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
                                     restore the session binlog if disabled
                                     previously.
 
+  @param[in]          gtid_array    Set of GTIDs executed on the server
+
+  @param[in]          gtid_executed_provided   If TRUE, it means that the
+                                               result of the query
+                                               SELECT @@GLOBAL.GTID_EXECUTED
+                                               has been provided in gtid_array
+
   @retval             FALSE         successful according to the value
                                     of opt_set_gtid_purged.
+
   @retval             TRUE          fail.
 */
 
+<<<<<<< HEAD
 static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool ftwrl_done,
                                        my_bool flag)
+||||||| c4f63caa8d9
+static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool flag)
+=======
+static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool flag,
+                                       MY_GTID_ARRAY *gtid_array,
+                                       my_bool gtid_executed_provided)
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
 {
-  MYSQL_RES   *gtid_mode_res;
-  MYSQL_ROW   gtid_mode_row;
-  char *gtid_mode_val= 0;
-  static int  gtid_mode= -1;
-  char buf[32], query[64];
+  int gtid_mode = 0;
 
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
     return FALSE;  /* nothing to be done */
 
-  /*
-     Set gtid_mode, by fetching gtid_mode from server, if its not
-     yet populated. gtid_mode is set to -1 if gtid_mode is not yet
-     fetched from the server.
-  */
-  if (gtid_mode < 0)
-  {
-    /*
-      Check if the server has the knowledge of GTIDs(pre mysql-5.6)
-      or if the gtid_mode is ON or OFF.
-    */
-    my_snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
-                quote_for_like("gtid_mode", buf));
+  gtid_mode = get_gtid_mode(mysql_con);
 
-    if (mysql_query_with_error_report(mysql_con, &gtid_mode_res, query))
-      return TRUE;
-
-    gtid_mode_row = mysql_fetch_row(gtid_mode_res);
-
-    /*
-       gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
-       get the gtid_mode value from the second column.
-    */
-    gtid_mode_val = gtid_mode_row ? (char*)gtid_mode_row[1] : NULL;
-    gtid_mode= (gtid_mode_val && strcmp(gtid_mode_val, "OFF")) ? 1 : 0;
-    mysql_free_result(gtid_mode_res);
-  }
+  if(gtid_mode == EX_MYSQLERR)
+    return TRUE;
 
   if (gtid_mode)
   {
@@ -6956,7 +7093,29 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool ftwrl_done,
                        "--all-databases --triggers --routines --events. \n");
       }
 
+<<<<<<< HEAD
       fputs(gtid_executed_buffer.str, md_result_file);
+||||||| c4f63caa8d9
+      if (add_set_gtid_purged(mysql_con))
+        return TRUE;
+=======
+      if (!opt_lock_all_tables && !opt_master_data && !opt_single_transaction)
+      {
+          fprintf(stderr, "Warning: A dump from a server that has GTIDs "
+                          "enabled will by default include the GTIDs "
+                          "of all transactions, even those that were "
+                          "executed during its extraction and might "
+                          "not be represented in the dumped data. "
+                          "This might result in an inconsistent data dump. \n"
+                          "In order to ensure a consistent backup of the "
+                          "database, pass --single-transaction or "
+                          "--lock-all-tables or --master-data. \n");
+      }
+
+      if (add_set_gtid_purged(mysql_con, gtid_array,
+          gtid_executed_provided))
+        return TRUE;
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
     }
   }
   else /* gtid_mode is off */
@@ -7359,6 +7518,10 @@ static int execute_sql_file(const char *sql_file)
 
 int main(int argc, char **argv)
 {
+  MY_GTID_ARRAY* gtid_arr = NULL;
+  my_bool single_trans_with_gtid_enabled = FALSE;
+  my_ulonglong idx = 0;
+  int server_has_gtid_enabled = 0;
   char bin_log_name[FN_REFLEN];
   int exit_code, md_result_fd;
   int has_consistent_binlog_pos= 0;
@@ -7419,6 +7582,7 @@ int main(int argc, char **argv)
   if (opt_slave_data && do_stop_slave_sql(mysql))
     goto err;
 
+<<<<<<< HEAD
   if (opt_single_transaction && opt_master_data)
   {
     /*
@@ -7456,6 +7620,15 @@ int main(int argc, char **argv)
     ftwrl_done = TRUE;
   }
   else if (opt_lock_for_backup && do_lock_tables_for_backup(mysql))
+||||||| c4f63caa8d9
+  if ((opt_lock_all_tables || opt_master_data ||
+       (opt_single_transaction && flush_logs)) &&
+      do_flush_tables_read_lock(mysql))
+=======
+  if ((opt_lock_all_tables || opt_master_data ||
+       opt_single_transaction) &&
+      do_flush_tables_read_lock(mysql))
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
     goto err;
 
   /*
@@ -7463,7 +7636,7 @@ int main(int argc, char **argv)
     this causes implicit commit starting mysql-5.5.
   */
   if (opt_lock_all_tables || opt_master_data ||
-      (opt_single_transaction && flush_logs) ||
+      opt_single_transaction ||
       opt_delete_master_logs)
   {
     if (flush_logs || opt_delete_master_logs)
@@ -7486,19 +7659,80 @@ int main(int argc, char **argv)
       goto err;
   }
 
+<<<<<<< HEAD
   if (has_session_variables_like(mysql, "rocksdb_skip_fill_cache"))
     mysql_query_with_error_report(mysql, 0,
                                   "SET SESSION rocksdb_skip_fill_cache=1");
 
+||||||| c4f63caa8d9
+=======
+  /* Start the transaction */
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
   if (opt_single_transaction && start_transaction(mysql))
     goto err;
+
+  /* check if server has GTIDs enabled */
+  if((server_has_gtid_enabled = get_gtid_mode(mysql)) == EX_MYSQLERR)
+      goto err;
+
+  single_trans_with_gtid_enabled =
+      (server_has_gtid_enabled && opt_single_transaction &&
+          (opt_set_gtid_purged_mode != SET_GTID_PURGED_OFF));
+
+
+  if (single_trans_with_gtid_enabled)
+  {
+      /*
+      * If the dump was started with --single-transaction
+      * and GTIDs are enabled on the server, then we fetch the
+      * GTID_EXECUTED first, and pass them over
+      */
+      MYSQL_RES* gtid_executed = NULL;
+      if(get_gtids_executed(mysql, &gtid_executed))
+          goto err;
+
+      /* we've to perform a deep copy of gtid_executed into our struct */
+      gtid_arr = (MY_GTID_ARRAY*)malloc(sizeof(MY_GTID_ARRAY));
+
+      if(!gtid_arr)
+          die(EX_MYSQLERR, "Couldn't allocate memory");
+
+      gtid_arr->num_rows = mysql_num_rows(gtid_executed);
+      gtid_arr->gtid_array = (char**)my_malloc(PSI_NOT_INSTRUMENTED,
+                                     sizeof(char *)*(gtid_arr->num_rows),
+                                     MYF(0));
+
+      if(!(gtid_arr->gtid_array))
+          die(EX_MYSQLERR, "Couldn't allocate memory");
+
+      /* store the gtids in to the gtid_array */
+      for (idx = 0; idx < gtid_arr->num_rows; idx++)
+      {
+          MYSQL_ROW current_gtid_row = NULL;
+          current_gtid_row = mysql_fetch_row(gtid_executed);
+
+          gtid_arr->gtid_array[idx] = my_strdup(PSI_NOT_INSTRUMENTED,
+                                      ((char*)current_gtid_row[0]),
+                                      MYF(0));
+      }
+
+      /* done with gtid_executed */
+      mysql_free_result(gtid_executed);
+  }
 
   /* Add 'STOP SLAVE to beginning of dump */
   if (opt_slave_apply && add_stop_slave())
     goto err;
 
   /* Process opt_set_gtid_purged and add SET disable binlog if required. */
+<<<<<<< HEAD
   if (process_set_gtid_purged(mysql, ftwrl_done, FALSE))
+||||||| c4f63caa8d9
+  if (process_set_gtid_purged(mysql, FALSE))
+=======
+  if (process_set_gtid_purged(mysql, FALSE, gtid_arr,
+      single_trans_with_gtid_enabled))
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
     goto err;
 
 
@@ -7580,7 +7814,14 @@ int main(int argc, char **argv)
     goto err;
 
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
+<<<<<<< HEAD
    if (process_set_gtid_purged(mysql, ftwrl_done, TRUE))
+||||||| c4f63caa8d9
+   if (process_set_gtid_purged(mysql, TRUE))
+=======
+   if (process_set_gtid_purged(mysql, TRUE, gtid_arr,
+       single_trans_with_gtid_enabled))
+>>>>>>> dfd205093504c86fdf098e959149465daf00ceb2^
      goto err;
 
   /* add 'START SLAVE' to end of dump */
@@ -7605,6 +7846,17 @@ int main(int argc, char **argv)
       first_error= EX_MYSQLERR;
     goto err;
   }
+
+  /* get rid of gtid_arr */
+  if (single_trans_with_gtid_enabled)
+  {
+      for (idx = 0; idx < gtid_arr->num_rows; idx++)
+          my_free(gtid_arr->gtid_array[idx]);
+
+      my_free(gtid_arr->gtid_array);
+      free(gtid_arr);
+  }
+
   /* everything successful, purge the old logs files */
   if (opt_delete_master_logs && purge_bin_logs_to(mysql, bin_log_name))
     goto err;

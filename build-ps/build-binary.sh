@@ -162,7 +162,8 @@ TOKUDB_BACKUP_VERSION="${MYSQL_VERSION}${MYSQL_VERSION_EXTRA}"
 # Build information
 if test -e "$SOURCEDIR/Docs/INFO_SRC"
 then
-    REVISION="$(cd "$SOURCEDIR"; grep '^short: ' Docs/INFO_SRC |sed -e 's/short: //')"
+    REVISION="$(cd "$SOURCEDIR"; grep '^commit: ' Docs/INFO_SRC |sed -e 's/commit: //')"
+    REVISION=${REVISION::8}
 elif [ -n "$(which git)" -a -d "$SOURCEDIR/.git" ];
 then
     REVISION="$(git rev-parse --short HEAD)"

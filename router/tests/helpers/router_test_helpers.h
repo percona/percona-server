@@ -35,6 +35,12 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/attribute.h"
 
+#ifdef HAVE_DEBUG_EXTNAME
+#define MYSQLD_BIN "mysqld-debug"
+#else
+#define MYSQLD_BIN "mysqld"
+#endif
+
 #define SKIP_GIT_TESTS(COND)                                       \
   if (COND) {                                                      \
     std::cout << "[  SKIPPED ] Tests using Git repository skipped" \

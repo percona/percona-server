@@ -303,13 +303,6 @@ our @DEFAULT_SUITES = qw(
   rocksdb_sys_vars
   rocksdb_stress
   rpl_encryption
-  tokudb
-  tokudb_add_index
-  tokudb_alter_table
-  tokudb_bugs
-  tokudb_parts
-  tokudb_perfschema
-  tokudb_rpl
 
   audit_null
   engines/iuds

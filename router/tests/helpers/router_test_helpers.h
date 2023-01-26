@@ -35,6 +35,12 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/attribute.h"
 
+#ifdef HAVE_DEBUG_EXTNAME
+#define MYSQLD_BIN "mysqld-debug"
+#else
+#define MYSQLD_BIN "mysqld"
+#endif
+
 #define HARNESS_TEST_THROW_LIKE_(statement, expected_exception,                \
                                  expected_message, fail)                       \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_                                                \

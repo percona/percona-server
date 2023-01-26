@@ -282,7 +282,7 @@ class SharedServer {
 
   void initialize_server() {
     auto bindir = process_manager().get_origin();
-    auto mysqld = bindir.join("mysqld");
+    auto mysqld = bindir.join(MYSQLD_BIN);
 
     if (!mysqld.exists()) {
       mysqld_failed_to_start_ = true;
@@ -328,7 +328,7 @@ class SharedServer {
 
     auto &proc =
         process_manager()
-            .spawner(bindir.join("mysqld").str())
+            .spawner(bindir.join(MYSQLD_BIN).str())
 #ifdef _WIN32
             // on windows, mysqld has no notify-socket
             .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
@@ -570,7 +570,7 @@ class SharedServer {
   }
 
  private:
-  TempDirectory mysqld_dir_{"mysqld"};
+  TempDirectory mysqld_dir_{MYSQLD_BIN};
 
   integration_tests::Procs procs_;
   TcpPortPool &port_pool_;

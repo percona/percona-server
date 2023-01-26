@@ -451,7 +451,10 @@ TAPTEST(NdbGetInAddr)
     if (ipv6)
     {
       NdbTCP_set_preferred_IP_version(6);
-      CHECK("localhost", 0, "::1");
+      if (can_resolve_hostname("ip6-localhost"))
+        CHECK("ip6-localhost", 0, "::1");
+      else
+        CHECK("localhost", 0, "::1");
     }
     NdbTCP_set_preferred_IP_version(4);
   }

@@ -340,9 +340,12 @@ static bool can_resolve_hostname(const char *name) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
 
-  struct addrinfo *ai_list;
+  struct addrinfo *ai_list = nullptr;
   int err = getaddrinfo(name, nullptr, &hints, &ai_list);
-  freeaddrinfo(ai_list);
+
+  if (ai_list != nullptr) {
+    freeaddrinfo(ai_list);
+  }
 
   if (err) {
     fprintf(stderr, "> '%s' -> error: %d '%s'\n", name, err, gai_strerror(err));
@@ -373,7 +376,10 @@ TAPTEST(NdbGetInAddr) {
     CHECK("localhost", 0, "127.0.0.1");
     if (ipv6) {
       NdbTCP_set_preferred_IP_version(6);
-      CHECK("localhost", 0, "::1");
+      if (can_resolve_hostname("ip6-localhost"))
+        CHECK("ip6-localhost", 0, "::1");
+      else
+        CHECK("localhost", 0, "::1");
     }
     NdbTCP_set_preferred_IP_version(4);
   }

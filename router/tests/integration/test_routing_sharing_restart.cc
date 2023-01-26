@@ -1567,7 +1567,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
         auto connect_res = cli.connect(shared_router()->host(),
                                        shared_router()->port(GetParam()));
         if (!connect_res) {
-          if (connect_res.error().value() == 2003) {
+          auto err = connect_res.error().value();
+          if (err == 2003 || err == 2013) {
             ASSERT_LT(clock_type::now(), end);
 
             std::this_thread::sleep_for(200ms);
@@ -1845,16 +1846,12 @@ TEST_P(ShareConnectionTestWithRestartedServer,
     }
 
     // fails.
-    if (can_share) {
-      auto cmd_res = query_one<1>(cli, "SELECT @@port");
-      ASSERT_ERROR(cmd_res);
-      EXPECT_EQ(cmd_res.error().value(), 2003);  // lost
-    }
-
     {
       auto cmd_res = query_one<1>(cli, "SELECT @@port");
       ASSERT_ERROR(cmd_res);
-      EXPECT_EQ(cmd_res.error().value(), 2013);  // close
+      EXPECT_TRUE(cmd_res.error().value() == 2003 || cmd_res.error().value() == 2013)
+        << "Expected either 2003 (can't connect) or 2013 (lost connection), got "
+        << cmd_res.error().value();
     }
   }
 

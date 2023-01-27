@@ -946,7 +946,7 @@ if (`SELECT $PS_PROTOCOL > 0`)
   --replace_regex /13/<commit_count>/
   call p_verify_status_increment(13, 4, 4, 4);
 }
-alter table t3 add column (b int), algorithm=instant;
+alter table t3 add column (b int);
 
 if (!$have_debug)
 {

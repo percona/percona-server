@@ -516,6 +516,7 @@ install_deps() {
         fi
         if [ "x$RHEL" = "x9" ]; then
             yum -y install libtirpc-devel
+            yum -y install gflags-devel
         else
             yum -y install MySQL-python
         fi

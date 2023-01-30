@@ -18,6 +18,7 @@
 #include "./rdb_index_merge.h"
 
 /* MySQL header files */
+#include "mysqld_error.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "sql/table.h"
@@ -163,9 +164,9 @@ int Rdb_index_merge::add(const rocksdb::Slice &key, const rocksdb::Slice &val) {
       add is too large for the buffer.
     */
     if (m_offset_tree.empty()) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
-                      "Current value of rocksdb_merge_buf_size=%llu is too "
-                      "small. At least %u bytes required.",
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Current value of rocksdb_merge_buf_size=%" PRIu64
+                      " is too small. At least %u bytes required.",
                       m_rec_buf_unsorted->m_total_size, total_offset);
       return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
@@ -181,9 +182,9 @@ int Rdb_index_merge::add(const rocksdb::Slice &key, const rocksdb::Slice &val) {
     const uint data_size = RDB_MERGE_CHUNK_LEN + RDB_MERGE_KEY_DELIMITER +
                            RDB_MERGE_VAL_DELIMITER + key.size() + val.size();
     if (data_size > m_rec_buf_unsorted->m_total_size) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
-                      "Current value of rocksdb_merge_buf_size=%llu is too "
-                      "small. At least %u bytes required.",
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Current value of rocksdb_merge_buf_size=%" PRIu64
+                      " is too small. At least %u bytes required.",
                       m_rec_buf_unsorted->m_total_size, data_size);
       return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }

@@ -4036,7 +4036,13 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       sctx->set_master_access(acl_user->access, *(mpvio.restrictions));
       assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
 
-      if (acl_user->user != nullptr) {
+      std::vector<std::string> external_roles;
+      if (strlen(mpvio.auth_info.external_roles) > 0) {
+        boost::algorithm::split(external_roles, mpvio.auth_info.external_roles,
+                                boost::is_any_of(","));
+      }
+
+      if (acl_user->user != nullptr && !external_roles.empty()) {
         // Adding external roles
         Acl_cache_lock_guard acl_cache_lock2(thd,
                                              Acl_cache_lock_mode::WRITE_MODE);
@@ -4045,10 +4051,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                                 std::string(acl_user->host.get_host()));
         if (g_external_roles.find(u) != g_external_roles.end())
           g_external_roles[u].clear();
-        std::vector<std::string> roles;
-        boost::algorithm::split(roles, mpvio.auth_info.external_roles,
-                                boost::is_any_of(","));
-        for (const auto &role : roles) {
+        for (const auto &role : external_roles) {
           ACL_USER *acl_role = find_acl_user("", role.c_str(), false);
           if (acl_role != nullptr && acl_role->user != nullptr) {
             grant_role(acl_role, acl_user, false);

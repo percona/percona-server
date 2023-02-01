@@ -33,5 +33,10 @@ leak:/usr/bin/sed
 leak:/usr/bin/python2.7
 leak:/usr/bin/python3.8
 leak:/usr/bin/python3.9
+leak:/usr/bin/python3.10
 leak:/usr/bin/grep
 leak:/usr/bin/ps
+
+# The following line is needed to suppress memory leaks coming from standard /usr/bin/grep
+# utility on Ubuntu 22.04 Jammy
+leak:re_compile_internal

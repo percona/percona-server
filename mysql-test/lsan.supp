@@ -58,3 +58,7 @@ leak:sasl_client_add_plugin
 
 # The GSS API plugin for SASL has leaks.
 leak:gss_acquire_cred_from
+
+# The following line is needed to suppress memory leaks coming from standard /usr/bin/grep
+# utility on Ubuntu 22.04 Jammy
+leak:re_compile_internal

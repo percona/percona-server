@@ -515,7 +515,11 @@ class vtoken_lock_cleanup {
  public:
   vtoken_lock_cleanup() = default;
   ~vtoken_lock_cleanup() {
-    if (activated.is_set()) mysql_rwlock_destroy(&LOCK_vtoken_hash);
+    if (activated.is_set()) {
+      // m_psi is freed by cleanup_performance_schema()/cleanup_instruments()
+      LOCK_vtoken_hash.m_psi = nullptr;
+      mysql_rwlock_destroy(&LOCK_vtoken_hash);
+    }
   }
   void activate() { activated.set(true); }
 

@@ -681,6 +681,9 @@ static inline buf_page_t *buf_page_alloc_descriptor(void) {
   UNIV_MEM_ALLOC(bpage, sizeof *bpage);
   /* This is required for valgrind to work correctly. */
   bpage->m_space = nullptr;
+#ifdef UNIV_DEBUG
+  bpage->buf_fix_count.store(0);
+#endif
 
   return (bpage);
 }

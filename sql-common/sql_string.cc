@@ -371,6 +371,7 @@ bool String::copy(const char *str, size_t arg_length,
   if (alloc(new_length)) return true;
   m_length = copy_and_convert(m_ptr, new_length, to_cs, str, arg_length,
                               from_cs, errors);
+  m_ptr[m_length] = 0;
   m_charset = to_cs;
   return false;
 }

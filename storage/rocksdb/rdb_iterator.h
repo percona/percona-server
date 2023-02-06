@@ -94,7 +94,10 @@ class Rdb_iterator_base : public Rdb_iterator {
 
   rocksdb::Slice value() override { return m_scan_it->value(); }
 
-  void reset() override { release_scan_iterator(); }
+  void reset() override {
+    release_scan_iterator();
+    m_valid = false;
+  }
 
   void set_ignore_killed(bool flag) { m_ignore_killed = flag; }
 
@@ -136,6 +139,7 @@ class Rdb_iterator_base : public Rdb_iterator {
   Rdb_iterator_base(Rdb_iterator_base &&) = delete;
   Rdb_iterator_base &operator=(const Rdb_iterator_base &) = delete;
   Rdb_iterator_base &operator=(Rdb_iterator_base &&) = delete;
+  bool m_valid;
 };
 
 class Rdb_iterator_partial : public Rdb_iterator_base {
@@ -146,7 +150,7 @@ class Rdb_iterator_partial : public Rdb_iterator_base {
   Rdb_iterator_base m_iterator_pk;
   Rdb_converter m_converter;
 
-  bool m_valid;
+  bool m_partial_valid;
   bool m_materialized;
 
   enum class Iterator_position {

@@ -74,6 +74,7 @@ inline void net_server_ext_init(NET_SERVER *ns) {
   ns->m_after_header = nullptr;
   ns->compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
   ns->timeout_on_full_packet = false;
+  ns->max_interval_packet = 0;
 }
 
 #endif

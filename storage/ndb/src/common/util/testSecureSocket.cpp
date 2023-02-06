@@ -37,6 +37,7 @@
 #include "portlib/NdbTCP.h"
 #include "portlib/NdbTick.h"
 #include "portlib/ndb_sockaddr.h"
+#include "scope_guard.h"
 #include "unittest/mytap/tap.h"
 #include "util/NdbSocket.h"
 #include "util/SocketClient.hpp"
@@ -958,6 +959,11 @@ int run_client(const char *server_host) {
       new BigWritevTest(plain_socket, "plain big writev"),
       new BigWritevTest(tls_socket, " TLS  big writev")};
 
+  auto tests_guard = create_scope_guard([&tests, &client]() {
+    for (auto *t : tests) delete t;
+    client.disconnect();
+  });
+
   /* Print list of tests and exit */
   if (opt_list) {
     for (int t = 1; t <= (int)tests.size(); t++) {
@@ -982,9 +988,6 @@ int run_client(const char *server_host) {
     if (t >= opt_start_test_number && t <= opt_end_test_number)
       rft = tests[t - 1]->run(t);
 
-  for (ClientTest *t : tests) delete t;
-
-  client.disconnect();
   return rft;
 }
 

@@ -161,6 +161,13 @@ public:
   int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen)
   {
     buf_len+= slen;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    size_t new_reminder_len = buf_len % MY_AES_BLOCK_SIZE;
+    size_t reminder_from = (slen < new_reminder_len ? new_reminder_len - slen : 0);
+    size_t reminder_n = new_reminder_len - reminder_from;
+    assert(reminder_n <= slen);
+    memcpy(remainder + reminder_from, src + slen - reminder_n, reminder_n);
+#endif
     return MyEncryptionCTX::update(src, slen, dst, dlen);
   }
 
@@ -169,7 +176,11 @@ public:
     buf_len %= MY_AES_BLOCK_SIZE;
     if (buf_len)
     {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      uchar *buf= remainder;
+#else
       uchar *buf= EVP_CIPHER_CTX_buf_noconst(ctx);
+#endif
       /*
         Not much we can do, block ciphers cannot encrypt data that aren't
         a multiple of the block length. At least not without padding.
@@ -199,6 +210,9 @@ private:
   const uchar *key;
   uint klen, buf_len;
   uchar oiv[MY_AES_BLOCK_SIZE];
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  uchar remainder[MY_AES_BLOCK_SIZE];
+#endif
 };
 
 

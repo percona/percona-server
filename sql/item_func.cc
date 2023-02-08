@@ -1796,7 +1796,8 @@ longlong Item_func_plus::int_op()
 {
   longlong val0= args[0]->val_int();
   longlong val1= args[1]->val_int();
-  longlong res= val0 + val1;
+  longlong res = static_cast<unsigned long long>(val0) +
+                 static_cast<unsigned long long>(val1);
   bool     res_unsigned= FALSE;
 
   if ((null_value= args[0]->null_value || args[1]->null_value))
@@ -1928,7 +1929,8 @@ longlong Item_func_minus::int_op()
 {
   longlong val0= args[0]->val_int();
   longlong val1= args[1]->val_int();
-  longlong res= val0 - val1;
+  longlong res = static_cast<unsigned long long>(val0) -
+                 static_cast<unsigned long long>(val1);
   bool     res_unsigned= FALSE;
 
   if ((null_value= args[0]->null_value || args[1]->null_value))
@@ -2294,8 +2296,8 @@ longlong Item_func_int_div::val_int()
   val0_negative= !args[0]->unsigned_flag && val0 < 0;
   val1_negative= !args[1]->unsigned_flag && val1 < 0;
   res_negative= val0_negative != val1_negative;
-  uval0= (ulonglong) (val0_negative ? -val0 : val0);
-  uval1= (ulonglong) (val1_negative ? -val1 : val1);
+  uval0 = (ulonglong)(val0_negative && val0 != LLONG_MIN ? -val0 : val0);
+  uval1 = (ulonglong)(val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res= uval0 / uval1;
   if (res_negative)
   {
@@ -2346,8 +2348,8 @@ longlong Item_func_mod::int_op()
   */
   val0_negative= !args[0]->unsigned_flag && val0 < 0;
   val1_negative= !args[1]->unsigned_flag && val1 < 0;
-  uval0= (ulonglong) (val0_negative ? -val0 : val0);
-  uval1= (ulonglong) (val1_negative ? -val1 : val1);
+  uval0= (ulonglong) (val0_negative && val0 != LLONG_MIN ? -val0 : val0);
+  uval1= (ulonglong) (val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res= uval0 % uval1;
   return check_integer_overflow(val0_negative ? -(longlong) res : res,
                                 !val0_negative);
@@ -2439,6 +2441,11 @@ longlong Item_func_neg::int_op()
       !args[0]->unsigned_flag &&
       !unsigned_flag)
     return raise_integer_overflow();
+  // Avoid doing '-value' below, it is undefined.
+  if (value == LLONG_MIN &&
+      args[0]->unsigned_flag &&
+      !unsigned_flag)
+    return LLONG_MIN;
   return check_integer_overflow(-value, !args[0]->unsigned_flag && value < 0);
 }
 

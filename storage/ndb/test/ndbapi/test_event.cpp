@@ -934,7 +934,7 @@ int runEventApplier(NDBT_Context *ctx, NDBT_Step *step) {
             goto end;
           }
           trans->close();
-          NdbSleep_MilliSleep(100);  // sleep before retying
+          NdbSleep_MilliSleep(100);  // sleep before retrying
         } while (1);
       }
       Uint32 stop_gci_hi = ctx->getProperty("LastGCI_hi", ~(Uint32)0);
@@ -1125,7 +1125,7 @@ int runEventListenerCheckProgressUntilStopped(NDBT_Context *ctx,
   CHK(pOp != NULL, "Event operation creation failed");
   CHK(pOp->execute() == 0, "execute operation execution failed");
 
-  // Syncronise event listening and error injection
+  // Synchronise event listening and error injection
   ctx->setProperty("Inject_error", (Uint32)0);
   ctx->setProperty("Found_inconsistency", (Uint32)0);
 
@@ -1449,7 +1449,7 @@ static int copy_events(Ndb *ndb) {
     // (res==1 && pOp==NULL) means empty epochs
     if (pOp == NULL) {
       if (r == 0) {
-        // Empty epoch preceeding regular epochs. Continue consuming.
+        // Empty epoch preceding regular epochs. Continue consuming.
         continue;
       }
       // Empty epoch after regular epochs. We are done.
@@ -1628,7 +1628,7 @@ static int createEventOperations(Ndb *ndb, NDBT_Context *ctx) {
   DBUG_ENTER("createEventOperations");
   int i;
 
-  // creat all event ops
+  // create all event ops
   for (i = 0; pTabs[i]; i++) {
     char buf[1024];
     sprintf(buf, "%s_EVENT", pTabs[i]->getName());
@@ -3488,7 +3488,7 @@ int runTryGetEvent(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-// Waits until the event buffer is filled upto fill_percent
+// Waits until the event buffer is filled up to fill_percent
 // or #retries exhaust.
 bool wait_to_fill_buffer(Ndb *ndb, Uint32 fill_percent) {
   Ndb::EventBufferMemoryUsage mem_usage;
@@ -3742,7 +3742,7 @@ int runPollBCInconsistency(NDBT_Context *ctx, NDBT_Step *step) {
 
   Uint64 current_gci = 0, poll_gci = 0;
 
-  // Syncronise event listening and error injection
+  // Synchronise event listening and error injection
   ctx->setProperty("Inject_error", (Uint32)0);
   ctx->setProperty("Found_inconsistency", (Uint32)0);
 
@@ -4220,8 +4220,8 @@ int runInsertDeleteAfterClusterFailure(NDBT_Context *ctx, NDBT_Step *step) {
 
 /**
  * Test the production and consumption of gap epochs
- * (having evnt type TE_OUT_OF_MEMORY) wth of a slow
- * listenenr causing event buffer to overflow (runTardyEventListener())
+ * (having event type TE_OUT_OF_MEMORY) wth of a slow
+ * listener causing event buffer to overflow (runTardyEventListener())
  */
 
 // Collect statistics
@@ -4239,7 +4239,7 @@ class ConsumptionStatistics {
 
   Uint64 gap_epoch[totalGaps];  // Store the gap epochs consumed
 
-  /** consumed_epochs[0] : #epochs the event buffer can accomodate
+  /** consumed_epochs[0] : #epochs the event buffer can accommodate
    * before the first overflow.
    * consumed_epochs[1-5] : Consumed epochs between each gaps.
    */
@@ -4257,14 +4257,14 @@ ConsumptionStatistics::ConsumptionStatistics()
 }
 
 void ConsumptionStatistics::print() {
-  /* Buffer capacity : #epochs event buffer can accomodate.
+  /* Buffer capacity : #epochs event buffer can accommodate.
    * The test fills the event buffer twice.
    * The buffer capacity of the first and the second rounds
    * should be comparable, with a small difference due to
    * timimg of transactions and epochs. However,
    * considering the different machine/platforms the test will
    * be run on, the difference is not intended to be used as
-   * a test succees/failure criteria.
+   * a test success/failure criteria.
    * Instead both values are written out for manual inspection.
    */
   if (consumedGaps == 0)
@@ -4386,7 +4386,7 @@ bool consume_buffer(NDBT_Context *ctx, Ndb *ndb, NdbEventOperation *pOp,
 /**
  * Test: Emulate a tardy consumer as follows :
  * Fill the event buffer to 100% initially, in order to accelerate
- * the gap occurence.
+ * the gap occurrence.
  * Then let the consumer to consume and free the buffer a little
  *   more than free_percent (60), such that buffering resumes again.
  *   Fill 100%. Repeat this consume/fill until 'n' gaps are
@@ -4813,7 +4813,7 @@ int runGetLogEventPretty(NDBT_Context *ctx, NDBT_Step *step) {
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};
-  ndb_native_socket_t fd = ndb_mgm_listen_event(mgmd.handle(), filter);
+  socket_t fd= ndb_mgm_listen_event(mgmd.handle(), filter);
   ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
   if (!ndb_socket_valid(my_fd)) {

@@ -320,8 +320,6 @@ enum latch_level_t {
 
   SYNC_TRX_I_S_RWLOCK,
 
-  SYNC_RECV_WRITER,
-
   /** Level is varying. Only used with buffer pool page locks, which
   do not have a fixed level, but instead have their level set after
   the page is locked; see e.g.  ibuf_bitmap_get_map_page(). */
@@ -453,13 +451,6 @@ enum latch_id_t {
   LATCH_ID_BUF_CHUNK_MAP_LATCH,
   LATCH_ID_SYNC_DEBUG_MUTEX,
   LATCH_ID_MASTER_KEY_ID_MUTEX,
-  LATCH_ID_FIL_CRYPT_MUTEX,
-  LATCH_ID_FIL_CRYPT_STAT_MUTEX,
-  LATCH_ID_FIL_CRYPT_DATA_MUTEX,
-  LATCH_ID_FIL_CRYPT_THREADS_MUTEX,
-  LATCH_ID_FIL_CRYPT_THREADS_SET_CNT_MUTEX,
-  LATCH_ID_FIL_CRYPT_LIST_MUTEX,
-  LATCH_ID_FIL_CRYPT_START_ROTATE_MUTEX,
   LATCH_ID_FILE_OPEN,
   LATCH_ID_CLONE_SYS,
   LATCH_ID_CLONE_TASK,
@@ -937,7 +928,7 @@ inline mysql_pfs_key_t sync_latch_get_pfs_key(latch_id_t id) {
 /** String representation of the filename and line number where the
 latch was created
 @param[in]      id              Latch ID
-@param[in]      created         Filename and line number where it was crated
+@param[in]      created         Filename and line number where it was created
 @return the string representation */
 std::string sync_mutex_to_string(latch_id_t id, const std::string &created);
 
@@ -1085,7 +1076,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
     Plugin in this case is I_S which is sharing the latch vector
     of InnoDB and so there could be lock conflicts. Ideally
     the Plugin should use a difference namespace latch vector
-    as it doesn't have any depedency with SE latching protocol.
+    as it doesn't have any dependency with SE latching protocol.
 
     Added check that will allow thread to hold I_S latches */
 
@@ -1138,7 +1129,7 @@ struct dict_sync_check : public sync_check_functor_t {
     if (!m_dict_mutex_allowed ||
         (level != SYNC_DICT && level != SYNC_UNDO_SPACES &&
          level != SYNC_FTS_CACHE && level != SYNC_DICT_OPERATION &&
-         level != SYNC_RECV_WRITER && level != SYNC_NO_ORDER_CHECK)) {
+         level != SYNC_NO_ORDER_CHECK)) {
       m_result = true;
 #ifdef UNIV_NO_ERR_MSGS
       ib::error()

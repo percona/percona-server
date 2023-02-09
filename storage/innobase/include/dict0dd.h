@@ -153,7 +153,7 @@ enum dd_partition_keys {
   /** Row format for this partition */
   DD_PARTITION_ROW_FORMAT,
   /** Columns before first instant ADD COLUMN.
-  This is necessary for each partition because differnet partition
+  This is necessary for each partition because different partition
   may have different instant column numbers, especially, for a
   newly truncated partition, it can have no instant columns.
   So partition level one should be always >= table level one. */
@@ -182,10 +182,6 @@ enum dd_space_keys {
   DD_SPACE_VERSION,
   /** Current state attribute */
   DD_SPACE_STATE,
-  /** Space is partially or fully encrypted with encryption threads
-  To check whehter it is fully encrypted - check the encryption
-  space flag  it will be set if space is fully encrypted. */
-  DD_SPACE_ONLINE_ENC_PROGRESS,
   /** Sentinel */
   DD_SPACE__LAST
 };
@@ -219,8 +215,7 @@ static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 /** InnoDB private key strings for dd::Tablespace.
 @see dd_space_keys */
 const char *const dd_space_key_strings[DD_SPACE__LAST] = {
-    "flags",         "id",    "discard",          "server_version",
-    "space_version", "state", "online_encryption"};
+    "flags", "id", "discard", "server_version", "space_version", "state"};
 
 /** InnoDB private value strings for key string "state" in dd::Tablespace.
 @see dd_space_state_values */
@@ -348,7 +343,7 @@ The decode/encode are necessary because that the default values would b
 kept as InnoDB format stream, which is in fact byte stream. However,
 to store them in the DD se_private_data, it requires text(char).
 So basically, the encode will change the byte stream into char stream,
-by spliting every byte into two chars, for example, 0xFF, would be splitted
+by splitting every byte into two chars, for example, 0xFF, would be split
 into 0x0F and 0x0F. So the final storage space would be double. For the
 decode, it's the converse process, combining two chars into one byte. */
 class DD_instant_col_val_coder {
@@ -1232,14 +1227,14 @@ operation.
 @param[in]      dd_space_id     dd tablespace id
 @param[in]      is_system_cs    true, if space name is in system characters set.
                                 While renaming during bootstrap we have it
-                                in system cs. Othwerwise, in file system cs.
+                                in system cs. Otherwise, in file system cs.
 @param[in]      new_space_name  dd_tablespace name
 @param[in]      new_path        new data file path
 @retval DB_SUCCESS on success. */
 dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
                              const char *new_space_name, const char *new_path);
 
-/** Create metadata for specified tablespace, acquiring exlcusive MDL first
+/** Create metadata for specified tablespace, acquiring exclusive MDL first
 @param[in,out]  dd_client       data dictionary client
 @param[in,out]  dd_space_name   dd tablespace name
 @param[in]      space_id        InnoDB tablespace ID
@@ -1548,48 +1543,6 @@ the dictionary.
 @return true if it does. */
 bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table);
 
-bool dd_is_table_in_encrypted_tablespace(const char *name);
-
-/* Sets tablespace's DD online encryption flag.
-@param[in] Thread       THD
-@param[in] space_name   name of the space for which DD encryption flag is to be
-@param[in] *is_space_being_removed - whether space is being removed */
-bool dd_set_online_encryption(THD *thd, const char *space_name,
-                              volatile bool *is_space_being_removed);
-
-/* Clear tablespace's DD online encryption flag.
-@param[in] Thread       THD
-@param[in] space_name   name of the space for which DD encryption flag is to be
-@param[in] *is_space_being_removed - whether space is being removed */
-bool dd_clear_online_encryption(THD *thd, const char *space_name,
-                                volatile bool *is_space_being_removed);
-
-/* Sets tablespace's DD encryption flag.
-@param[in] Thread       THD
-@param[in] space_name   name of the space for which DD encryption flag is to be
-@param[in] *is_space_being_removed - whether space is being removed
-set */
-bool dd_set_encryption_flag(THD *thd, const char *space_name,
-                            volatile bool *is_space_being_removed);
-
-/* Clears tablespace's DD encryption flag.
-@param[in] Thread       THD
-@param[in] space_name   name of the space for which DD encryption flag is to be
-@param[in] *is_space_being_removed - whether space is being removed
-@param[in] clear_online_encryption - true if DD's online_encryption should be
-           set to N
-cleared */
-bool dd_clear_encryption_flag(THD *thd, const char *space_name,
-                              volatile bool *is_space_being_removed,
-                              bool clear_online_encryption);
-
-/* If mysql_ibd's DD encryption flag is different from the encryption flag in
- * space_flag   the mysql_ibd's encryption flag will be set to the
- * one from space_flags.
-@param[in] Thread       THD
-@param[in] space_flags  with correct encryption flag */
-bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd, uint32_t space_flags);
-
 /** Parse the default value from dd::Column::se_private to dict_col_t
 @param[in]      se_private_data dd::Column::se_private
 @param[in,out]  col             InnoDB column object
@@ -1610,7 +1563,7 @@ void fill_dict_dropped_columns(const dd::Table *dd_table,
 
 /** Check if given column is renamed during ALTER.
 @param[in]      ha_alter_info   alter info
-@param[in]      old_name        colmn old name
+@param[in]      old_name        column old name
 @param[out]     new_name        column new name
 @return true if column is renamed, false otherwise. */
 bool is_renamed(const Alter_inplace_info *ha_alter_info, const char *old_name,

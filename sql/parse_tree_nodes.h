@@ -397,6 +397,7 @@ class PT_limit_clause : public Parse_tree_node {
       : limit_options(limit_options_arg) {}
 
   bool contextualize(Parse_context *pc) override;
+  friend class PT_query_expression;
 };
 
 class PT_cross_join;
@@ -647,9 +648,8 @@ class PT_group : public Parse_tree_node {
 class PT_order : public Parse_tree_node {
   typedef Parse_tree_node super;
 
-  PT_order_list *order_list;
-
  public:
+  PT_order_list *order_list;
   explicit PT_order(PT_order_list *order_list_arg)
       : order_list(order_list_arg) {}
 
@@ -741,7 +741,7 @@ class PT_locking_clause_list : public Parse_tree_node {
 
 class PT_query_expression_body : public Parse_tree_node {
  public:
-  virtual bool is_union() const = 0;
+  virtual bool is_set_operation() const = 0;
 
   /**
     True if this query expression can absorb an extraneous order by/limit
@@ -1430,7 +1430,7 @@ class PT_query_specification : public PT_query_primary {
             opt_having_clause == nullptr && opt_window_clause == nullptr);
   }
 
-  bool is_union() const override { return false; }
+  bool is_set_operation() const override { return false; }
 
   bool can_absorb_order_and_limit(bool, bool) const override { return true; }
 
@@ -1455,7 +1455,7 @@ class PT_table_value_constructor : public PT_query_primary {
   bool has_into_clause() const override { return false; }
   bool has_trailing_into_clause() const override { return false; }
 
-  bool is_union() const override { return false; }
+  bool is_set_operation() const override { return false; }
 
   bool can_absorb_order_and_limit(bool, bool) const override { return true; }
 
@@ -1476,7 +1476,7 @@ class PT_explicit_table : public PT_query_specification {
       : super(options_arg, item_list_arg, from_clause_arg, nullptr) {}
 };
 
-class PT_query_expression final : public PT_query_primary {
+class PT_query_expression final : public PT_query_expression_body {
  public:
   PT_query_expression(PT_with_clause *with_clause,
                       PT_query_expression_body *body, PT_order *order,
@@ -1495,7 +1495,7 @@ class PT_query_expression final : public PT_query_primary {
 
   bool contextualize(Parse_context *pc) override;
 
-  bool is_union() const override { return m_body->is_union(); }
+  bool is_set_operation() const override { return m_body->is_set_operation(); }
 
   bool has_into_clause() const override { return m_body->has_into_clause(); }
   bool has_trailing_into_clause() const override {
@@ -1504,7 +1504,7 @@ class PT_query_expression final : public PT_query_primary {
   }
 
   bool can_absorb_order_and_limit(bool order, bool limit) const override {
-    if (m_body->is_union()) {
+    if (m_body->is_set_operation()) {
       return false;
     }
     if (m_order == nullptr && m_limit == nullptr) {
@@ -1565,7 +1565,7 @@ class PT_query_expression final : public PT_query_primary {
     to the rules. If the `<query expression body>` can absorb the clauses,
     they are simply contextualized into the current Query_block. If not, we
     have to create the "fake" Query_block unless there is one already
-    (Query_expression::new_union_query() is known to do this.)
+    (Query_expression::new_set_operation_query() is known to do this.)
 
     @see PT_query_expression::can_absorb_order_and_limit()
   */
@@ -1581,8 +1581,8 @@ class PT_query_expression final : public PT_query_primary {
   After the removal of the `... <locking_clause> <into_clause>` syntax
   PT_locking will disappear.
 */
-class PT_locking final : public PT_query_primary {
-  using super = PT_query_primary;
+class PT_locking final : public PT_query_expression_body {
+  using super = PT_query_expression_body;
 
  public:
   PT_locking(PT_query_expression_body *qe,
@@ -1594,7 +1594,9 @@ class PT_locking final : public PT_query_primary {
             m_locking_clauses->contextualize(pc));
   }
 
-  bool is_union() const override { return m_query_expression->is_union(); }
+  bool is_set_operation() const override {
+    return m_query_expression->is_set_operation();
+  }
 
   bool has_into_clause() const override {
     return m_query_expression->has_into_clause();
@@ -1621,14 +1623,14 @@ class PT_locking final : public PT_query_primary {
 class PT_subquery : public Parse_tree_node {
   typedef Parse_tree_node super;
 
-  PT_query_primary *qe;
+  PT_query_expression_body *qe;
   POS pos;
   Query_block *query_block;
 
  public:
   bool m_is_derived_table;
 
-  PT_subquery(POS p, PT_query_primary *query_expression)
+  PT_subquery(POS p, PT_query_expression_body *query_expression)
       : qe(query_expression),
         pos(p),
         query_block(nullptr),
@@ -1639,19 +1641,21 @@ class PT_subquery : public Parse_tree_node {
   Query_block *value() { return query_block; }
 };
 
-class PT_union : public PT_query_expression_body {
+class PT_set_operation : public PT_query_expression_body {
+  using super = PT_query_expression_body;
+
  public:
-  PT_union(PT_query_expression_body *lhs, const POS &lhs_pos, bool is_distinct,
-           PT_query_primary *rhs, bool is_rhs_in_parentheses = false)
+  PT_set_operation(PT_query_expression_body *lhs, bool is_distinct,
+                   PT_query_expression_body *rhs,
+                   bool is_rhs_in_parentheses = false)
       : m_lhs(lhs),
-        m_lhs_pos(lhs_pos),
         m_is_distinct(is_distinct),
         m_rhs(rhs),
         m_is_rhs_in_parentheses{is_rhs_in_parentheses} {}
 
-  bool contextualize(Parse_context *pc) override;
-
-  bool is_union() const override { return true; }
+  void merge_descendants(Parse_context *pc, Query_term_set_op *setop,
+                         QueryLevel &ql);
+  bool is_set_operation() const override { return true; }
 
   bool has_into_clause() const override {
     return m_lhs->has_into_clause() || m_rhs->has_into_clause();
@@ -1665,13 +1669,38 @@ class PT_union : public PT_query_expression_body {
   bool is_table_value_constructor() const override { return false; }
   PT_insert_values_list *get_row_value_list() const override { return nullptr; }
 
- private:
+ protected:
+  bool contextualize_setop(Parse_context *pc, Query_term_type setop_type,
+                           Surrounding_context context);
   PT_query_expression_body *m_lhs;
-  POS m_lhs_pos;
   bool m_is_distinct;
-  PT_query_primary *m_rhs;
+  PT_query_expression_body *m_rhs;
   PT_into_destination *m_into;
   const bool m_is_rhs_in_parentheses;
+};
+
+class PT_union : public PT_set_operation {
+  using super = PT_set_operation;
+
+ public:
+  using PT_set_operation::PT_set_operation;
+  bool contextualize(Parse_context *pc) override;
+};
+
+class PT_except : public PT_set_operation {
+  using super = PT_set_operation;
+
+ public:
+  using PT_set_operation::PT_set_operation;
+  bool contextualize(Parse_context *pc) override;
+};
+
+class PT_intersect : public PT_set_operation {
+  using super = PT_set_operation;
+
+ public:
+  using PT_set_operation::PT_set_operation;
+  bool contextualize(Parse_context *pc) override;
 };
 
 class PT_select_stmt : public Parse_tree_root {
@@ -1704,8 +1733,6 @@ class PT_select_stmt : public Parse_tree_root {
         m_qe{qe},
         m_into{into},
         m_has_trailing_locking_clauses{has_trailing_locking_clauses} {}
-
-  PT_select_stmt(PT_query_expression *qe) : PT_select_stmt(qe, nullptr) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
@@ -1858,7 +1885,7 @@ class PT_insert final : public Parse_tree_root {
   List<String> *const opt_use_partition;
   PT_item_list *const column_list;
   PT_insert_values_list *row_value_list;
-  PT_query_primary *insert_query_expression;
+  PT_query_expression_body *insert_query_expression;
   const char *const opt_values_table_alias;
   Create_col_name_list *const opt_values_column_list;
   PT_item_list *const opt_on_duplicate_column_list;
@@ -1870,7 +1897,7 @@ class PT_insert final : public Parse_tree_root {
             Table_ident *table_ident_arg, List<String> *opt_use_partition_arg,
             PT_item_list *column_list_arg,
             PT_insert_values_list *row_value_list_arg,
-            PT_query_primary *insert_query_expression_arg,
+            PT_query_expression_body *insert_query_expression_arg,
             const LEX_CSTRING &opt_values_table_alias_arg,
             Create_col_name_list *opt_values_column_list_arg,
             PT_item_list *opt_on_duplicate_column_list_arg,
@@ -2015,8 +2042,9 @@ class PT_alter_instance final : public Parse_tree_root {
 
  public:
   explicit PT_alter_instance(
-      enum alter_instance_action_enum alter_instance_action, const LEX_CSTRING &channel, uint key_id)
-      : sql_cmd(alter_instance_action, channel, key_id) {}
+      enum alter_instance_action_enum alter_instance_action,
+      const LEX_CSTRING &channel)
+      : sql_cmd(alter_instance_action, channel) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 };
@@ -2357,27 +2385,6 @@ class PT_traceable_create_table_option : public PT_create_table_option {
   }
 };
 
-template <typename Option_type, Option_type HA_CREATE_INFO::*Property,
-          ulong Property_flag>
-class PT_traceable_create_table_option_encryption_key_id
-    : public PT_create_table_option {
-  typedef PT_create_table_option super;
-
-  const Option_type value;
-
- public:
-  explicit PT_traceable_create_table_option_encryption_key_id(Option_type value)
-      : value(value) {}
-
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
-    pc->create_info->*Property = value;
-    pc->create_info->used_fields |= Property_flag;
-    pc->create_info->was_encryption_key_id_set = true;
-    return false;
-  }
-};
-
 #define TYPE_AND_REF(x) decltype(x), &x
 
 /**
@@ -2442,11 +2449,6 @@ typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::compress),
 typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::encrypt_type), HA_CREATE_USED_ENCRYPT>
     PT_create_encryption_option;
-
-typedef PT_traceable_create_table_option_encryption_key_id<
-    TYPE_AND_REF(HA_CREATE_INFO::encryption_key_id),
-    HA_CREATE_USED_ENCRYPTION_KEY_ID>
-    PT_create_encryption_key_id_option;
 
 /**
   Node for the @SQL{AUTO_INCREMENT [=] @B{@<integer@>}} table option
@@ -2819,7 +2821,7 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
   const Mem_root_array<PT_create_table_option *> *opt_create_table_options;
   PT_partition *opt_partitioning;
   On_duplicate on_duplicate;
-  PT_query_primary *opt_query_expression;
+  PT_query_expression_body *opt_query_expression;
   Table_ident *opt_like_clause;
 
   HA_CREATE_INFO m_create_info;
@@ -2849,7 +2851,7 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
       const Mem_root_array<PT_table_element *> *opt_table_element_list,
       const Mem_root_array<PT_create_table_option *> *opt_create_table_options,
       PT_partition *opt_partitioning, On_duplicate on_duplicate,
-      PT_query_primary *opt_query_expression)
+      PT_query_expression_body *opt_query_expression)
       : PT_table_ddl_stmt_base(mem_root),
         m_opt_hints(opt_hints),
         is_temporary(is_temporary),
@@ -4740,14 +4742,15 @@ class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
                         bool no_write_to_binlog,
                         Mem_root_array<Table_ident *> *table_list,
                         Sql_cmd_analyze_table::Histogram_command command,
-                        int num_buckets, List<String> *columns)
+                        int num_buckets, List<String> *columns, LEX_STRING data)
       : PT_table_ddl_stmt_base(mem_root),
         m_opt_hints(opt_hints),
         m_no_write_to_binlog(no_write_to_binlog),
         m_table_list(table_list),
         m_command(command),
         m_num_buckets(num_buckets),
-        m_columns(columns) {}
+        m_columns(columns),
+        m_data{data} {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
@@ -4758,6 +4761,7 @@ class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
   const Sql_cmd_analyze_table::Histogram_command m_command;
   const int m_num_buckets;
   List<String> *m_columns;
+  const LEX_STRING m_data;
 };
 
 class PT_check_table_stmt final : public PT_table_ddl_stmt_base {
@@ -5068,24 +5072,6 @@ typedef PT_alter_tablespace_option<
 typedef PT_alter_tablespace_option<decltype(Tablespace_options::encryption),
                                    &Tablespace_options::encryption>
     PT_alter_tablespace_option_encryption;
-
-class PT_alter_tablespace_option_encryption_key_id final
-    : public PT_alter_tablespace_option_base {
-  typedef PT_alter_tablespace_option_base super;
-
- public:
-  explicit PT_alter_tablespace_option_encryption_key_id(EncryptionKeyId value)
-      : m_value(value) {}
-
-  bool contextualize(Alter_tablespace_parse_context *pc) override {
-    pc->Tablespace_options::encryption_key_id.was_encryption_key_id_set = true;
-    pc->Tablespace_options::encryption_key_id.id = m_value;
-    return super::contextualize(pc);
-  }
-
- private:
-  const EncryptionKeyId m_value;
-};
 
 class PT_alter_tablespace_option_nodegroup final
     : public PT_alter_tablespace_option_base /* purecov: inspected */

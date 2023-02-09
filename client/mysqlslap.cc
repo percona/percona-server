@@ -124,6 +124,9 @@ TODO:
 #ifdef _WIN32
 #define srandom srand
 #define random rand
+#define RANDOM_FORMAT "%d"
+#else
+#define RANDOM_FORMAT "%ld"
 #endif
 
 #if defined(_WIN32)
@@ -307,7 +310,7 @@ static long int timedif(struct timeval a, struct timeval b) {
 }
 
 #ifdef _WIN32
-static int gettimeofday(struct timeval *tp, void *tzp) {
+static int gettimeofday(struct timeval *tp, void *) {
   unsigned int ticks;
   ticks = GetTickCount();
   tp->tv_usec = ticks * 1000;
@@ -922,8 +925,8 @@ static statement *build_update_string(void) {
 
   if (num_int_cols)
     for (col_count = 1; col_count <= num_int_cols; col_count++) {
-      if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d = %ld", col_count,
-                   random()) > HUGE_STRING_LENGTH) {
+      if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d = " RANDOM_FORMAT,
+                   col_count, random()) > HUGE_STRING_LENGTH) {
         fprintf(stderr, "Memory Allocation error in creating update\n");
         exit(1);
       }
@@ -1011,7 +1014,7 @@ static statement *build_insert_string(void) {
 
   if (num_int_cols)
     for (col_count = 1; col_count <= num_int_cols; col_count++) {
-      if (snprintf(buf, HUGE_STRING_LENGTH, "%ld", random()) >
+      if (snprintf(buf, HUGE_STRING_LENGTH, RANDOM_FORMAT, random()) >
           HUGE_STRING_LENGTH) {
         fprintf(stderr, "Memory Allocation error in creating insert\n");
         exit(1);
@@ -1667,7 +1670,7 @@ static int run_scheduler(stats *sptr, statement *stmts, uint concur,
 }
 
 extern "C" void *run_task(void *p) {
-  ulonglong counter = 0, queries;
+  ulonglong queries;
   ulonglong detach_counter;
   unsigned int commit_counter;
   MYSQL *mysql;
@@ -1777,7 +1780,8 @@ extern "C" void *run_task(void *p) {
             fprintf(stderr, "%s: Error when storing result: %d %s\n",
                     my_progname, mysql_errno(mysql), mysql_error(mysql));
           else {
-            while ((row = mysql_fetch_row(result))) counter++;
+            while ((row = mysql_fetch_row(result)))
+              ;
             mysql_free_result(result);
           }
         }

@@ -1437,8 +1437,6 @@ bug30435_5k.txt
 cat_file.txt
 charset_utf8.txt
 crl-certificate-readme.txt
-keys2.txt
-keys3.txt
 loaddata1.dat
 loaddata2.dat
 loaddata3.dat
@@ -1465,8 +1463,6 @@ bug30435_5k.txt
 cat_file.txt
 charset_utf8.txt
 crl-certificate-readme.txt
-keys2.txt
-keys3.txt
 loaddata1.dat
 loaddata2.dat
 loaddata3.dat

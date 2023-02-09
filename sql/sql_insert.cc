@@ -1331,7 +1331,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
                             &update_field_list, &update_value_list, duplicates);
     if (result == nullptr) return true; /* purecov: inspected */
 
-    if (unit->is_union()) {
+    if (unit->is_set_operation()) {
       /*
         Update values may not have references to SELECT tables, so it is
         safe to resolve them before the query expression.
@@ -1380,7 +1380,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   if (duplicates == DUP_UPDATE) {
     if (select_insert) {
-      if (!unit->is_union() && !select->is_grouped()) {
+      if (!unit->is_set_operation() && !select->is_grouped()) {
         /*
           Make one context out of the two separate name resolution contexts:
           the INSERT table and the tables in the SELECT part,
@@ -1402,7 +1402,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       table_list->next_name_resolution_table = next_name_resolution_table;
     }
 
-    if (!unit->is_union() && resolve_update_expressions(thd)) return true;
+    if (!unit->is_set_operation() && resolve_update_expressions(thd))
+      return true;
   }
 
   if (insert_table->triggers) {
@@ -1416,7 +1417,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     if (insert_table->triggers->mark_fields(TRG_EVENT_INSERT)) return true;
   }
 
-  if (!unit->is_union() && select->apply_local_transforms(thd, false))
+  if (!unit->is_set_operation() && select->apply_local_transforms(thd, false))
     return true; /* purecov: inspected */
 
   if (select_insert) {
@@ -2348,11 +2349,11 @@ bool Query_result_insert::start_execution(THD *thd) {
   return false;
 }
 
-void Query_result_insert::cleanup(THD *thd) {
+void Query_result_insert::cleanup() {
   DBUG_TRACE;
   // table_list and table may be out of synch:
-  if (thd->lex->insert_table_leaf != nullptr &&
-      thd->lex->insert_table_leaf->table == nullptr)
+  if (current_thd->lex->insert_table_leaf != nullptr &&
+      current_thd->lex->insert_table_leaf->table == nullptr)
     table = nullptr;
   if (table != nullptr) {
     table->next_number_field = nullptr;
@@ -2361,7 +2362,7 @@ void Query_result_insert::cleanup(THD *thd) {
   }
   info.cleanup();
   update.cleanup();
-  thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
+  current_thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
 }
 
 bool Query_result_insert::send_data(THD *thd,

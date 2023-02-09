@@ -449,9 +449,10 @@ bool is_valid_log_name(const char *name, size_t len) {
 
 static File mysql_file_real_name_reopen(File file,
 #ifdef HAVE_PSI_FILE_INTERFACE
-                                        PSI_file_key log_file_key,
+                                        PSI_file_key log_file_key
+                                        [[maybe_unused]],
 #endif
-                                        int open_flags,
+                                        int open_flags [[maybe_unused]],
                                         const char *opened_file_name,
                                         char *real_file_name) {
   assert(file);
@@ -1858,13 +1859,13 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
         assert(sp_sql_command != -1);
         if (sp_sql_command == SQLCOM_CALL) return false;
       } else
-	 return false;
+        return false;
     } else if (thd->lex->sql_command == SQLCOM_EXECUTE) {
       Prepared_statement *stmt;
       LEX_CSTRING *name = &thd->lex->prepared_stmt_name;
-      if ((stmt = thd->stmt_map.find_by_name(*name)) != NULL && stmt->lex &&
-          stmt->lex->sql_command == SQLCOM_CALL)
-	 return false;
+      if ((stmt = thd->stmt_map.find_by_name(*name)) != NULL && stmt->m_lex &&
+          stmt->m_lex->sql_command == SQLCOM_CALL)
+        return false;
     }
   }
 

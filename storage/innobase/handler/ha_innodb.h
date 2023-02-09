@@ -265,15 +265,6 @@ class ha_innobase : public handler {
 
   ha_rows estimate_rows_upper_bound() override;
 
-  /** Adjust encryption options.
-  @param[in,out]  create_info Additional create information.
-  @param[in,out]  table_def dd::Table object object to be modified.*/
-  void adjust_encryption_options(HA_CREATE_INFO *create_info,
-                                 dd::Table *table_def) noexcept;
-
-  void adjust_encryption_key_id(HA_CREATE_INFO *create_info,
-                                dd::Properties *options) noexcept;
-
   void update_create_info(HA_CREATE_INFO *create_info) override;
 
   /** Get storage-engine private data for a data dictionary table.
@@ -687,7 +678,7 @@ class ha_innobase : public handler {
   /** the size of upd_buf in bytes */
   ulint m_upd_buf_size;
 
-  /** Flags that specificy the handler instance (table) capability. */
+  /** Flags that specify the handler instance (table) capability. */
   Table_flags m_int_table_flags;
 
   /** this is set to 1 when we are starting a table scan but have
@@ -989,31 +980,13 @@ class create_table_info_t {
   @return true if successful. */
   static bool normalize_table_name(char *norm_name, const char *name);
 
-  /** If master key encryption is requested, check for master key availability
+  /** If encryption is requested, check for master key availability
   and set the encryption flag in table flags
   @param[in,out]	table	table object
   @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
-  dberr_t enable_master_key_encryption(dict_table_t *table);
-
-  /** If keyring encryption is requested, check for tablespace's key
-  availability and set the encryption flag in table flags
-  @param[in,out] table table object
-  @param[in,out] rotated_keys_encryption_option contains appropriate
-                 FIL_ENCRYPTION_(ON/DEFAULT/OFF)
-  @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
-  dberr_t enable_keyring_encryption(
-      dict_table_t *table, fil_encryption_t &keyring_encryption_option);
+  dberr_t enable_encryption(dict_table_t *table);
 
  private:
-  /** Check if encryption key exists or can be created
-  in keyring
-  @param[in] encryption_key_id key to fetch/create
-  @return DB_UNSUPPORTED error
-          DB_SUCCESS     success */
-
-  MY_NODISCARD dberr_t
-  check_tablespace_key(const EncryptionKeyId encryption_key_id);
-
   /** Parses the table name into normal name and either temp path or
   remote path if needed.*/
   int parse_table_name(const char *name);
@@ -1402,6 +1375,10 @@ bool innobase_build_index_translation(const TABLE *table,
 
 uint innodb_force_index_records_in_range(THD *thd);
 uint innodb_records_in_range(THD *thd);
+
+/** Free InnoDB session specific data.
+@param[in,out]	thd	MySQL thread handler. */
+void thd_free_innodb_session(THD *thd) noexcept;
 
 /** Drop the statistics for a specified table, and mark it as discard
 after DDL

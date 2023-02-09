@@ -982,7 +982,7 @@ static void ndb_index_stat_free(Ndb_index_stat *st) {
   Ndb_index_stat *st_head = 0;
   Ndb_index_stat *st_tail = 0;
   Ndb_index_stat *st_loop = share->index_stat_list;
-  uint found = 0;
+  uint found [[maybe_unused]] = 0;
   while (st_loop != 0) {
     if (st == st_loop) {
       // Unlink entry from NDB_SHARE and request it to be released
@@ -2274,7 +2274,7 @@ static int ndb_index_stat_wait_query(Ndb_index_stat *st,
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   int err = 0;
-  uint count = 0;
+  uint count [[maybe_unused]] = 0;
   struct timespec abstime;
   glob.wait_stats++;
   glob.query_count++;
@@ -2289,7 +2289,7 @@ static int ndb_index_stat_wait_query(Ndb_index_stat *st,
       break;
     }
     if (st->error.code != 0) {
-      /* An error has accured now or before */
+      /* An error has occured now or before */
       err = NdbIndexStat::MyHasError;
       glob.query_error++;
       break;
@@ -2339,7 +2339,7 @@ static int ndb_index_stat_wait_analyze(Ndb_index_stat *st,
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   int err = 0;
-  uint count = 0;
+  uint count [[maybe_unused]] = 0;
   struct timespec abstime;
   glob.wait_update++;
   glob.analyze_count++;
@@ -2489,7 +2489,7 @@ int ha_ndbcluster::ndb_index_stat_get_rir(uint inx, key_range *min_key,
      * being too skeewed such that it does not represent the real data.
      */
     if (stats.records / fragments <= 1) {
-      // Too few rows for a single fragment sample to be usefull at all
+      // Too few rows for a single fragment sample to be useful at all
       DBUG_PRINT("index_stat",
                  ("Too few rows in: %s", m_index[inx].index->getName()));
       return NdbIndexStat::NoIndexStats;
@@ -2546,7 +2546,7 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
      * being too skeewed such that it does not represent the real data.
      */
     if (stats.records / fragments <= 1) {
-      // Too few rows for a single fragment sample to be usefull at all
+      // Too few rows for a single fragment sample to be useful at all
       DBUG_PRINT("index_stat",
                  ("Too few rows in: %s", m_index[inx].index->getName()));
       return NdbIndexStat::NoIndexStats;
@@ -2587,7 +2587,7 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
           /**
            * The records per key calculation assumes independence between
            * distribution of data and key columns. This is true as long as
-           * the key parts don't set the entire partion key. In this case
+           * the key parts don't set the entire partition key. In this case
            * the records per key as calculated by one fragment is the
            * records per key also for the entire table since different
            * fragments will have its own set of unique key values in this

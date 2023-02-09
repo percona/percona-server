@@ -106,8 +106,6 @@ enum use_secondary_engine {
 enum enum_default_table_encryption {
   DEFAULT_TABLE_ENC_OFF = 0,
   DEFAULT_TABLE_ENC_ON = 1,
-  DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING = 2,
-  DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED = 3
 };
 
 /* Bits for different SQL modes modes (including ANSI mode) */
@@ -603,15 +601,15 @@ struct System_variables {
   uint32_t immediate_server_version;
 
   /**
-    @sa Sys_var_print_identified_with_as_hex
-  */
-  bool print_identified_with_as_hex;
-
-  /**
     Used to determine if the database or tablespace should be encrypted by
     default.
   */
   ulong default_table_encryption;
+
+  /**
+    @sa Sys_var_print_identified_with_as_hex
+  */
+  bool print_identified_with_as_hex;
 
   /**
     @sa Sys_var_show_create_table_skip_secondary_engine

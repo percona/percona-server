@@ -1047,7 +1047,7 @@ retry:
           pcur->m_btr_cur.rtr_info);
 
       if (!page_is_leaf(buf_block_get_frame(cur_block))) {
-        /* Page got splitted and promoted (only for
+        /* Page got split and promoted (only for
         root page it is possible).  Release the
         page and ask for a re-search */
         mtr_commit(mtr);
@@ -2956,7 +2956,7 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
       const auto dfield = dtuple_get_nth_v_field(vrow, col->v_pos);
 
       /* If this is a partitioned table, it might request
-      InnoDB to fill out virtual column data for serach
+      InnoDB to fill out virtual column data for search
       index key values while other non key columns are also
       getting selected. The non-key virtual columns may
       not be materialized and we should skip them. */
@@ -3934,7 +3934,7 @@ static dberr_t row_search_traverse(bool moves_up, ulint match_mode,
 }
 
 /** Searches for rows in the database using cursor.
-Function is for temporary tables that are not shared accross connections
+Function is for temporary tables that are not shared across connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
@@ -4011,6 +4011,16 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
     if (prebuilt->m_temp_read_shared && !prebuilt->m_temp_tree_modified) {
       if (!mtr->is_active()) {
         mtr_start(mtr);
+
+        if (!pcur->m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
+              return hint != nullptr &&
+                     buf_page_optimistic_get(
+                         RW_NO_LATCH, hint, pcur->m_modify_clock,
+                         Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
+            })) {
+          /* block was relocated */
+          goto block_relocated;
+        }
       }
 
       /* This is an intrinsic table shared read, so we
@@ -4025,6 +4035,7 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
       }
 
     } else if (index->last_sel_cur->invalid || prebuilt->m_temp_tree_modified) {
+    block_relocated:
       /* Index tree has changed and so active cached cursor is no more valid.
       Re-set it based on the last selected position. */
       index->last_sel_cur->release();
@@ -4180,6 +4191,9 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
     pcur->m_old_rec = dict_index_copy_rec_order_prefix(
         index, rec, &pcur->m_old_n_fields, &pcur->m_old_rec_buf,
         &pcur->m_buf_size);
+
+    pcur->m_block_when_stored.store(pcur->get_block());
+    pcur->m_modify_clock = pcur->get_block()->get_modify_clock(IF_DEBUG(true));
 
     break;
   }
@@ -4538,6 +4552,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
   } else if (prebuilt->table->ibd_file_missing) {
     return DB_TABLESPACE_NOT_FOUND;
+
   } else if (!prebuilt->index_usable) {
     return DB_MISSING_HISTORY;
 

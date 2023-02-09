@@ -155,8 +155,6 @@ class SysTablespace : public Tablespace {
                                        page_no_t *sum_new_sizes,
                                        lsn_t *flush_lsn);
 
-  Keyring_encryption_info keyring_encryption_info;
-
  private:
   /** Check the tablespace header for this tablespace.
   @param[out]   flushed_lsn     value stored at offset FIL_PAGE_FILE_FLUSH_LSN

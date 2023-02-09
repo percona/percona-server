@@ -352,16 +352,8 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   bool encrypt_schema = false;
   if (create_info->encrypt_type.str) {
     encrypt_schema = dd::is_encrypted(create_info->encrypt_type);
-    if (global_system_variables.default_table_encryption ==
-        DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING) {
-      my_error(encrypt_schema ? ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
-                              : ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH,
-               MYF(0));
-      return true;
-    }
   } else {
-    encrypt_schema =
-        thd->variables.default_table_encryption == DEFAULT_TABLE_ENC_ON;
+    encrypt_schema = thd->variables.default_table_encryption;
   }
   if (opt_table_encryption_privilege_check &&
       encrypt_schema != thd->variables.default_table_encryption &&
@@ -378,7 +370,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   const char *lock_db_name = db;
   if (lower_case_table_names == 2) {
     my_stpcpy(name_buf, db);
-    my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
+    my_casedn_str(&my_charset_utf8mb3_tolower_ci, name_buf);
     lock_db_name = name_buf;
   }
   if (lock_schema_name(thd, lock_db_name)) return true;
@@ -527,25 +519,13 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   /*
     Check if user has permission to alter database, if encryption type
     provided differ from global 'default_table_encryption' setting.
-    Also check if user doesn't try to alter encryption when
-    default_table_encryption = ONLINE_TO_KEYRING.
   */
-  if (create_info->encrypt_type.str) {
-    if (opt_table_encryption_privilege_check &&
-        dd::is_encrypted(create_info->encrypt_type) !=
-            thd->variables.default_table_encryption &&
-        check_table_encryption_admin_access(thd)) {
-      my_error(ER_CANNOT_SET_DATABASE_ENCRYPTION, MYF(0));
-      return true;
-    }
-    if (global_system_variables.default_table_encryption ==
-        DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING) {
-      bool encrypt_schema = dd::is_encrypted(create_info->encrypt_type);
-      my_error(encrypt_schema ? ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
-                              : ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH,
-               MYF(0));
-      return true;
-    }
+  if (create_info->encrypt_type.str && opt_table_encryption_privilege_check &&
+      dd::is_encrypted(create_info->encrypt_type) !=
+          thd->variables.default_table_encryption &&
+      check_table_encryption_admin_access(thd)) {
+    my_error(ER_CANNOT_SET_DATABASE_ENCRYPTION, MYF(0));
+    return true;
   }
 
   if (lock_schema_name(thd, db)) return true;
@@ -1462,7 +1442,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   }
 
   if (!force_switch && !(db_access & DB_OP_ACLS) &&
-      check_grant_db(thd, new_db_file_name.str)) {
+      check_grant_db(thd, new_db_file_name.str, true)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str, new_db_file_name.str);
     query_logger.general_log_print(

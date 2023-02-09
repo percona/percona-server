@@ -1891,7 +1891,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Encryption of local checkpoint and table space files.",
     ConfigInfo::CI_USED,
-    0,
+    CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
     "0",
     "0",
@@ -4459,7 +4459,7 @@ ConfigInfo::getDefaultString(const Properties * section,
   {
     /*
       Default value for enum are stored as int internally
-      but also stores the orignal string, use different
+      but also stores the original string, use different
       key to get at the default value as string
      */
     return getInfoString(section, fname, "DefaultString");
@@ -4634,7 +4634,7 @@ ConfigInfo::get_enum_values(const Properties * section, const char* fname,
   Properties::Iterator it(values);
   Vector<const char*> enum_names;
   const char* fill = nullptr;
-  unsigned cnt = 0;
+  unsigned cnt [[maybe_unused]] = 0;
   for (const char* name = it.first(); name != NULL; name = it.next())
   {
     Uint32 val;
@@ -5753,7 +5753,7 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
    * Uint32 noOfMetaTables = noOfTables + noOfOrderedIndexes + 
    *                         noOfUniqueHashIndexes + 2
    * 2 is the number of the SysTables.
-   * So must check that the sum does't exceed the max value of Uint32.
+   * So must check that the sum doesn't exceed the max value of Uint32.
    */
   Uint32 noOfTables = 0,
          noOfOrderedIndexes = 0,
@@ -5919,7 +5919,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
 }
 
 /**
- * Connection rule: Check varius constraints
+ * Connection rule: Check various constraints
  */
 static bool
 checkConnectionConstraints(InitConfigFileParser::Context & ctx, const char *){
@@ -6567,7 +6567,7 @@ static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&,
   }
 
   /**
-   * Auto-assign nodegroups if user didnt
+   * Auto-assign nodegroups if user didn't
    */
   Uint32 next_ng = 0;
   for (;ng_cnt[next_ng] >= replicas; next_ng++);
@@ -6924,7 +6924,6 @@ static bool saveSectionsInConfigValues(
     // Estimate size of Properties when saved as ConfigValues
     // and expand ConfigValues to that size in order to avoid
     // the need of allocating memory and copying from new to old
-    Uint32 keys = 0;
     Uint64 data_sz [[maybe_unused]] = 0;
     for (const char * name = it.first(); name != 0; name = it.next())
     {
@@ -6936,13 +6935,9 @@ static bool saveSectionsInConfigValues(
         const Properties* tmp;
         require(ctx.m_config->get(name, &tmp) != 0);
 
-        keys += 2; // openSection(key + no)
-        keys += 1; // CFG_TYPE_OF_SECTION
-
         Properties::Iterator it2(tmp);
         for (const char * name2 = it2.first(); name2 != 0; name2 = it2.next())
         {
-          keys++;
           require(tmp->getTypeOf(name2, &pt) != 0);
           switch(pt){
           case PropertiesType_char:

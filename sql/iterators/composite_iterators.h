@@ -78,7 +78,7 @@ class FilterIterator final : public RowIterator {
  public:
   FilterIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
                  Item *condition)
-      : RowIterator(thd), m_source(move(source)), m_condition(condition) {}
+      : RowIterator(thd), m_source(std::move(source)), m_condition(condition) {}
 
   bool Init() override { return m_source->Init(); }
 
@@ -123,7 +123,7 @@ class LimitOffsetIterator final : public RowIterator {
                       ha_rows limit, ha_rows offset, bool count_all_rows,
                       bool reject_multiple_rows, ha_rows *skipped_rows)
       : RowIterator(thd),
-        m_source(move(source)),
+        m_source(std::move(source)),
         m_limit(limit),
         m_offset(offset),
         m_count_all_rows(count_all_rows),
@@ -326,8 +326,8 @@ class NestedLoopIterator final : public RowIterator {
                      unique_ptr_destroy_only<RowIterator> source_inner,
                      JoinType join_type, bool pfs_batch_mode)
       : RowIterator(thd),
-        m_source_outer(move(source_outer)),
-        m_source_inner(move(source_inner)),
+        m_source_outer(std::move(source_outer)),
+        m_source_inner(std::move(source_inner)),
         m_join_type(join_type),
         m_pfs_batch_mode(pfs_batch_mode) {
     assert(m_source_outer != nullptr);
@@ -394,7 +394,7 @@ class CacheInvalidatorIterator final : public RowIterator {
                            unique_ptr_destroy_only<RowIterator> source_iterator,
                            const std::string &name)
       : RowIterator(thd),
-        m_source_iterator(move(source_iterator)),
+        m_source_iterator(std::move(source_iterator)),
         m_name(name) {}
 
   bool Init() override {
@@ -459,6 +459,18 @@ struct QueryBlock {
   /// presumed already to be filled out. This is the case iff
   /// there's a windowing iterator earlier in the chain.
   bool copy_items;
+
+  /// The number of operands (i.e. blocks) involved in the set operation:
+  /// used for INTERSECT to determine if a value is present in all operands
+  ulonglong m_total_operands{0};
+  /// The current operand (i.e. block) number, starting at zero. We use this
+  /// for INTERSECT and EXCEPT materialization operand.
+  ulonglong m_operand_idx{0};
+  /// Used for EXCEPT computation: the index of the first operand involved in
+  /// a N-ary except operation which has DISTINCT. This is significant for
+  /// calculating whether to set the counter to zero or just decrement it
+  /// when we see a right side operand.
+  uint m_first_distinct{0};
 
   /// If copy_items is true, used for copying the Field objects
   /// into the temporary table row. Otherwise unused.

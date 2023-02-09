@@ -69,7 +69,6 @@
 #include "template_utils.h"
 
 using std::make_pair;
-using std::move;
 using std::pair;
 
 static inline pair<uchar *, key_part_map> FindKeyBufferAndMap(
@@ -109,10 +108,9 @@ int ConstIterator::Read() {
 }
 
 EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
-                             bool use_order, ha_rows *examined_rows)
+                             ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(ref),
-      m_use_order(use_order),
       m_examined_rows(examined_rows) {}
 
 /**
@@ -134,8 +132,7 @@ EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
 
 bool EQRefIterator::Init() {
   if (!table()->file->inited) {
-    assert(!m_use_order);  // Don't expect sort req. for single row.
-    int error = table()->file->ha_index_init(m_ref->key, m_use_order);
+    int error = table()->file->ha_index_init(m_ref->key, /*sorted=*/false);
     if (error) {
       PrintError(error);
       return true;
@@ -591,7 +588,7 @@ bool DynamicRangeIterator::Init() {
   // two different read sets, to be used once the access strategy is chosen
   // here.
   if (qck) {
-    m_iterator = move(qck);
+    m_iterator = std::move(qck);
     // If the range optimizer chose index merge scan or a range scan with
     // covering index, use the read set without base columns. Otherwise we use
     // the read set with base columns included.

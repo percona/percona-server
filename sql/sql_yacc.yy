@@ -233,6 +233,16 @@ int yylex(void *yylval, void *yythd);
       MYSQL_YYABORT;                                                    \
   } while(0)
 
+#define CONTEXTUALIZE_VIEW(x)                           \
+  do                                                    \
+  {                                                     \
+    std::remove_reference<decltype(*x)>::type::context_t pc(YYTHD, Select); \
+    if (YYTHD->is_error() ||                                            \
+        (YYTHD->lex->will_contextualize && (x)->contextualize(&pc)))    \
+      MYSQL_YYABORT;                                                    \
+    if (pc.finalize_query_expression())                                 \
+      MYSQL_YYABORT;                                                    \
+  } while(0)
 
 /**
   Item::itemize() function call wrapper
@@ -1369,6 +1379,8 @@ void warn_about_deprecated_binary(THD *thd)
 
 %token<lexer.keyword> GTID_ONLY_SYM 1199                       /* MYSQL */
 
+%token                INTERSECT_SYM                        1200 /* SQL-1992-R */
+
 /*
    Tokens from Percona Server 5.7 and older
 */
@@ -1379,7 +1391,6 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> TABLE_STATS_SYM 1305
 %token<lexer.keyword> THREAD_STATS_SYM 1306
 %token<lexer.keyword> USER_STATS_SYM 1307
-%token<lexer.keyword> ENCRYPTION_KEY_ID_SYM 1308
 
 /*
    Tokens from Percona Server 8.0
@@ -1414,6 +1425,8 @@ void warn_about_deprecated_binary(THD *thd)
 */
 %right UNIQUE_SYM KEY_SYM
 
+%left UNION_SYM EXCEPT_SYM
+%left INTERSECT_SYM
 %left CONDITIONLESS_JOIN
 %left   JOIN_SYM INNER_SYM CROSS STRAIGHT_JOIN NATURAL LEFT RIGHT ON_SYM USING
 %left   SET_VAR
@@ -1493,7 +1506,6 @@ void warn_about_deprecated_binary(THD *thd)
         trg_action_time trg_event
         view_check_option
         signed_num
-        opt_num_buckets
         opt_ignore_unknown_user
 
 
@@ -1800,8 +1812,6 @@ void warn_about_deprecated_binary(THD *thd)
 %type <table_reference> table_reference esc_table_reference
         table_factor single_table single_table_parens table_function
 
-%type <query_expression_body> query_expression_body
-
 %type <bipartite_name> lvalue_variable rvalue_system_variable
 
 %type <option_value_following_option_type> option_value_following_option_type
@@ -1834,10 +1844,14 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <select_var_list> select_var_list
 
-%type <query_primary>
+%type <query_expression_body_opt_parens> query_expression_body
+
+%type <query_expression_body>
         as_create_query_expression
-        query_expression_or_parens
         query_expression_parens
+        query_expression_with_opt_locking_clauses
+
+%type <query_primary>
         query_primary
         query_specification
 
@@ -2102,6 +2116,7 @@ void warn_about_deprecated_binary(THD *thd)
 %type <jt_column_type> jt_column_type
 
 %type <acl_type> opt_acl_type
+%type <histogram_param> opt_histogram_update_param
 %type <histogram> opt_histogram
 
 %type <lex_cstring_list> column_list opt_column_list
@@ -2158,7 +2173,6 @@ void warn_about_deprecated_binary(THD *thd)
         ts_option_undo_buffer_size
         ts_option_wait
         ts_option_encryption
-        ts_option_encryption_key_id
         ts_option_engine_attribute
 
 %type <explain_format_type> opt_explain_format_type
@@ -5931,7 +5945,6 @@ tablespace_option:
         | ts_option_comment
         | ts_option_file_block_size
         | ts_option_encryption
-        | ts_option_encryption_key_id
         | ts_option_engine_attribute
         ;
 
@@ -5962,7 +5975,6 @@ alter_tablespace_option:
         | ts_option_engine
         | ts_option_wait
         | ts_option_encryption
-        | ts_option_encryption_key_id
         | ts_option_engine_attribute
         ;
 
@@ -6151,20 +6163,6 @@ ts_option_encryption:
           }
         ;
 
-ts_option_encryption_key_id:
-          ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
-          {
-            if ($3 >= UINT_MAX32)
-            {
-              my_error(ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE, MYF(0), $3,
-                       UINT_MAX32 - 1);
-              MYSQL_YYABORT;
-            }
-
-            $$= NEW_PTN PT_alter_tablespace_option_encryption_key_id($3);
-          }
-        ;
-
 ts_option_engine_attribute:
           ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
           {
@@ -6243,8 +6241,8 @@ size_number:
   | as_create_query_expression
 
   as_create_query_expression ::=
-    AS query_expression_or_parens
-  | query_expression_or_parens
+    AS query_expression_with_opt_locking_clauses
+  | query_expression_with_opt_locking_clauses
 
 */
 
@@ -6293,8 +6291,8 @@ opt_duplicate_as_qe:
         ;
 
 as_create_query_expression:
-          AS query_expression_or_parens { $$ = $2; }
-        | query_expression_or_parens    { $$ = $1; }
+          AS query_expression_with_opt_locking_clauses { $$ = $2; }
+        | query_expression_with_opt_locking_clauses    { $$ = $1; }
         ;
 
 /*
@@ -6767,17 +6765,6 @@ create_table_option:
         | ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
             $$= NEW_PTN PT_create_encryption_option($3);
-	        }
-        | ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
-          {
-            if ($3 >= UINT_MAX32)
-            {
-              my_error(ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE, MYF(0), $3,
-                       UINT_MAX32 - 1);
-              MYSQL_YYABORT;
-            }
-
-            $$= NEW_PTN PT_create_encryption_key_id_option($3);
           }
         | AUTO_INC opt_equal ulonglong_num
           {
@@ -9657,14 +9644,24 @@ analyze_table_stmt:
           ANALYZE_SYM opt_no_write_to_binlog table_or_tables table_list
           opt_histogram
           {
-            $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $1, $2, $4,
-                                              $5.command, $5.num_buckets,
-                                              $5.columns);
+            if ($5.param) {
+              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $1, $2, $4,
+                                                $5.command, $5.param->num_buckets,
+                                                $5.columns, $5.param->data);
+            } else {
+              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $1, $2, $4,
+                                                $5.command, 0,
+                                                $5.columns, {nullptr, 0});
+            }
           }
         ;
 
-opt_num_buckets:
-          /* empty */ { $$= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS; }
+opt_histogram_update_param:
+          /* empty */
+          {
+            $$.num_buckets= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS;
+            $$.data= { nullptr, 0 };
+          }
         | WITH NUM BUCKETS_SYM
           {
             int error;
@@ -9678,7 +9675,13 @@ opt_num_buckets:
               MYSQL_YYABORT;
             }
 
-            $$= num;
+            $$.num_buckets= num;
+            $$.data= { nullptr, 0 };
+          }
+        | USING DATA_SYM TEXT_STRING_literal
+          {
+            $$.num_buckets= 0;
+            $$.data= $3;
           }
         ;
 
@@ -9687,21 +9690,23 @@ opt_histogram:
           {
             $$.command= Sql_cmd_analyze_table::Histogram_command::NONE;
             $$.columns= nullptr;
-            $$.num_buckets= 0;
+            $$.param= nullptr;
           }
-        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list opt_num_buckets
+        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list opt_histogram_update_param
           {
             $$.command=
               Sql_cmd_analyze_table::Histogram_command::UPDATE_HISTOGRAM;
             $$.columns= $4;
-            $$.num_buckets= $5;
+            $$.param= NEW_PTN YYSTYPE::Histogram_param($5);
+            if ($$.param == nullptr)
+              MYSQL_YYABORT; // OOM
           }
         | DROP HISTOGRAM_SYM ON_SYM ident_string_list
           {
             $$.command=
               Sql_cmd_analyze_table::Histogram_command::DROP_HISTOGRAM;
             $$.columns= $4;
-            $$.num_buckets= 0;
+            $$.param = nullptr;
           }
         ;
 
@@ -9914,10 +9919,6 @@ select_stmt:
             $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2),
                                         nullptr, true);
           }
-        | query_expression_parens
-          {
-            $$ = NEW_PTN PT_select_stmt($1);
-          }
         | select_stmt_with_into
         ;
 
@@ -9970,10 +9971,6 @@ select_stmt_with_into:
           {
             $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2), $3);
           }
-        | query_expression_parens into_clause
-          {
-            $$ = NEW_PTN PT_select_stmt($1, $2);
-          }
         ;
 
 /**
@@ -10013,77 +10010,46 @@ query_expression:
           opt_order_clause
           opt_limit_clause
           {
-            $$ = NEW_PTN PT_query_expression($1, $2, $3);
+            $$ = NEW_PTN PT_query_expression($1.body, $2, $3);
           }
         | with_clause
           query_expression_body
           opt_order_clause
           opt_limit_clause
           {
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
-          }
-        | query_expression_parens
-          order_clause
-          opt_limit_clause
-          {
-            $$= NEW_PTN PT_query_expression($1, $2, $3);
-          }
-        | with_clause
-          query_expression_parens
-          order_clause
-          opt_limit_clause
-          {
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
-          }
-        | query_expression_parens
-          limit_clause
-          {
-            $$ = NEW_PTN PT_query_expression($1, nullptr, $2);
-          }
-        | with_clause
-          query_expression_parens
-          limit_clause
-          {
-            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, $3);
-          }
-        | with_clause
-          query_expression_parens
-          {
-            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, nullptr);
+            $$= NEW_PTN PT_query_expression($1, $2.body, $3, $4);
           }
         ;
 
 query_expression_body:
           query_primary
           {
-            $$ = $1;
+            $$ = {$1, false};
           }
-        | query_expression_body UNION_SYM union_option query_primary
+        | query_expression_parens %prec SUBQUERY_AS_EXPR
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4);
+            $$ = {$1, true};
           }
-        | query_expression_parens UNION_SYM union_option query_primary
+        | query_expression_body UNION_SYM union_option query_expression_body
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4);
+            $$ = {NEW_PTN PT_union($1.body, $3, $4.body, $4.is_parenthesized),
+                  false};
           }
-        | query_expression_body UNION_SYM union_option query_expression_parens
+        | query_expression_body EXCEPT_SYM union_option query_expression_body
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4, true);
+            $$ = {NEW_PTN PT_except($1.body, $3, $4.body, $4.is_parenthesized),
+                  false};
           }
-        | query_expression_parens UNION_SYM union_option query_expression_parens
+        | query_expression_body INTERSECT_SYM union_option query_expression_body
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4, true);
+            $$ = {NEW_PTN PT_intersect($1.body, $3, $4.body, $4.is_parenthesized),
+                  false};
           }
         ;
 
-
 query_expression_parens:
-          '(' query_expression_parens ')' { $$= $2; }
-        | '(' query_expression')' { $$= $2; }
-        | '(' query_expression locking_clause_list')'
-          {
-            $$ = NEW_PTN PT_locking($2, $3);
-          }
+          '(' query_expression_parens ')'                       { $$ = $2; }
+        | '(' query_expression_with_opt_locking_clauses')'      { $$ = $2; }
         ;
 
 query_primary:
@@ -13390,17 +13356,17 @@ insert_from_constructor:
         ;
 
 insert_query_expression:
-          query_expression_or_parens
+          query_expression_with_opt_locking_clauses
           {
             $$.column_list= NEW_PTN PT_item_list;
             $$.insert_query_expression= $1;
           }
-        | '(' ')' query_expression_or_parens
+        | '(' ')' query_expression_with_opt_locking_clauses
           {
             $$.column_list= NEW_PTN PT_item_list;
             $$.insert_query_expression= $3;
           }
-        | '(' fields ')' query_expression_or_parens
+        | '(' fields ')' query_expression_with_opt_locking_clauses
           {
             $$.column_list= $2;
             $$.insert_query_expression= $4;
@@ -13429,13 +13395,12 @@ insert_values:
           }
         ;
 
-query_expression_or_parens:
+query_expression_with_opt_locking_clauses:
           query_expression                      { $$ = $1; }
         | query_expression locking_clause_list
           {
             $$ = NEW_PTN PT_locking($1, $2);
           }
-        | query_expression_parens               { $$ = $1; }
         ;
 
 value_or_values:
@@ -14214,9 +14179,11 @@ opt_explain_analyze_type:
                 $$= Explain_format_type::TREE_WITH_EXECUTE;
                 break;
               case Explain_format_type::JSON:
-                my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                         "FORMAT=JSON with EXPLAIN ANALYZE");
-                MYSQL_YYABORT;
+                // Without hypergraph, we don't support JSON format. But in the
+                // parser we don't know whether hypergraph optimizer is on. So
+                // we defer raising the error here.
+                $$= Explain_format_type::JSON_WITH_EXECUTE;
+                break;
               default:
                 my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                          "FORMAT=TRADITIONAL with EXPLAIN ANALYZE");
@@ -15465,7 +15432,6 @@ ident_keywords_unambiguous:
         | DYNAMIC_SYM
         | EFFECTIVE_SYM
         | ENABLE_SYM
-        | ENCRYPTION_KEY_ID_SYM
         | ENCRYPTION_SYM
         | ENDS_SYM
         | ENFORCED_SYM
@@ -16367,40 +16333,11 @@ alter_instance_action:
           {
             if (is_identifier($2, "INNODB"))
             {
-              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR, 0);
+              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR);
             }
             else if (is_identifier($2, "BINLOG"))
             {
-              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR, 0);
-            }
-            else
-            {
-              YYTHD->syntax_error_at(@2);
-              MYSQL_YYABORT;
-            }
-          }
-          | ROTATE_SYM ident_or_text SYSTEM_SYM KEY_SYM ulong_num
-          {
-            if (is_identifier($2, "INNODB"))
-            {
-              if ($5 > UINT_MAX32 - 1)
-              {
-                my_error(ER_SYSTEM_KEY_ROTATION_MAX_KEY_ID_EXCEEDED, MYF(0));
-                MYSQL_YYABORT;
-              }
-              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_SYSTEM_KEY, EMPTY_CSTR, $5);
-            }
-            else
-            {
-              YYTHD->syntax_error_at(@2);
-              MYSQL_YYABORT;
-            }
-          }
-          | ROTATE_SYM ident_or_text SYSTEM_SYM KEY_SYM
-          {
-            if (is_identifier($2, "REDO"))
-            {
-              $$= NEW_PTN PT_alter_instance(ROTATE_REDO_SYSTEM_KEY, EMPTY_CSTR, 0);
+              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR);
             }
             else
             {
@@ -16410,17 +16347,17 @@ alter_instance_action:
           }
         | RELOAD TLS_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"), 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"));
           }
         | RELOAD TLS_SYM NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"), 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"));
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5), 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5));
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5), 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
           }
         | ENABLE_SYM ident ident
           {
@@ -16435,7 +16372,7 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR, 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR);
           }
         | DISABLE_SYM ident ident
           {
@@ -16450,10 +16387,10 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR, 0);
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
           }
         | RELOAD KEYRING_SYM {
-            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR, 0);
+            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR);
           }
         ;
 
@@ -17666,7 +17603,7 @@ view_tail:
         ;
 
 view_query_block:
-          query_expression_or_parens view_check_option
+          query_expression_with_opt_locking_clauses view_check_option
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
@@ -17690,7 +17627,7 @@ view_query_block:
             Query_block * const save_query_block= Select;
             save_query_block->table_list.save_and_clear(&save_list);
 
-            CONTEXTUALIZE($1);
+            CONTEXTUALIZE_VIEW($1);
 
             /*
               The following work only with the local list, the global list

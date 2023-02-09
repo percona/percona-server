@@ -300,13 +300,13 @@ class Thd_mem_cnt {
   Thd_mem_cnt() {}
   ~Thd_mem_cnt() {
     assert(!m_enabled);
-    assert(mem_counter == 0 && glob_mem_counter == 0);
+    assert(glob_mem_counter == 0);
   }
   void set_thd(THD *thd) { m_thd = thd; }
   void enable() { m_enabled = true; }
   void disable();
 
-  bool alloc_cnt(size_t size);
+  void alloc_cnt(size_t size);
   void free_cnt(size_t size);
   int reset();
   void flush();
@@ -376,9 +376,6 @@ typedef struct rpl_event_coordinates {
 #define THD_SENTRY_GONE 0xdeadbeef
 
 #define THD_CHECK_SENTRY(thd) assert(thd->dbug_sentry == THD_SENTRY_MAGIC)
-
-int lock_keyrings(THD *thd);
-int unlock_keyrings(THD *thd);
 
 class Query_arena {
  private:
@@ -2686,17 +2683,17 @@ class THD : public MDL_context_owner,
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong statement_id_counter;
   ulong rand_saved_seed1, rand_saved_seed2;
-  my_thread_t real_id; /* For debugging */
-                       /**
-                         This counter is 32 bit because of the client protocol.
-                     
-                         @note It is not meant to be used for my_thread_self(), see @c real_id for
-                         this.
-                     
-                         @note Set to reserved_thread_id on initialization. This is a magic
-                         value that is only to be used for temporary THDs not present in
-                         the global THD list.
-                       */
+  my_thread_t real_id;
+  /**
+    This counter is 32 bit because of the client protocol.
+
+    @note It is not meant to be used for my_thread_self(), see @c real_id for
+    this.
+
+    @note Set to reserved_thread_id on initialization. This is a magic
+    value that is only to be used for temporary THDs not present in
+    the global THD list.
+  */
  private:
   my_thread_id m_thread_id;
 
@@ -4969,6 +4966,13 @@ class THD : public MDL_context_owner,
   PS_PARAM *bind_parameter_values;
   /** the number of elements in parameters */
   unsigned long bind_parameter_values_count;
+
+ private:
+  bool is_rpl_stmt_event_format_used;
+
+ public:
+  void check_rpl_stmt_event_format_used();
+  bool get_rpl_stmt_event_format_used() const;
 
  public:
   /**

@@ -28,7 +28,6 @@
 ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc mysql_server_mock_schema.h
                    COMMAND json_schema_embedder
                      ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_mock_schema.js
-                     mysql_server_mock_schema.cc
                      mysql_server_mock_schema.h
                      "SqlQueryJsonSchema"
                    DEPENDS mysql_server_mock_schema.js)
@@ -57,6 +56,11 @@ SET(MOCK_SERVER_HTTP_CLIENT_SRCS
     mock_server_rest_client.cc)
 
 # disable compiler warnings in duktape
+MY_CHECK_CXX_COMPILER_WARNING("-Wunused-function" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Werror" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
@@ -138,7 +142,6 @@ add_harness_plugin(mock_server
   mysql_server_mock.cc
   classic_mock_session.cc
   x_mock_session.cc
-  mysql_server_mock_schema.cc
   duk_module_shim.cc
   duk_node_fs.c
   mock_server_plugin.cc

@@ -142,7 +142,7 @@ struct File_reader : private ut::Non_copyable {
   /** Pointer current offset within file buffer. */
   const byte *m_ptr{};
 
-  /** Auxilliary buffer for records that span across pages. */
+  /** Auxiliary buffer for records that span across pages. */
   byte *m_aux_buf{};
 
   /** IO buffer size in bytes. */

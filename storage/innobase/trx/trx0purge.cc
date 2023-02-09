@@ -1139,7 +1139,7 @@ void add_space_to_construction_list(space_id_t space_id) {
 /** Clear the s_under_construction vector. */
 void clear_construction_list() { s_under_construction.clear(); }
 
-/** Is an undo tablespace under constuction at the moment.
+/** Is an undo tablespace under construction at the moment.
 @param[in]      space_id        space id to check
 @return true if marked for truncate, else false. */
 bool is_under_construction(space_id_t space_id) {
@@ -2310,7 +2310,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
   Purge_groups_t purge_groups(n_purge_threads, heap);
   purge_groups.init();
 
-  for (ulint i = 0; n_pages_handled < batch_size; ++i) {
+  while (n_pages_handled < batch_size) {
     /* Track the max {trx_id, undo_no} for truncating the
     UNDO logs once we have purged the records. */
 

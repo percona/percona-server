@@ -81,6 +81,7 @@ SET(MAN1_NDB
   ndb_print_sys_file.1
   ndb_redo_log_reader.1
   ndb_restore.1
+  ndb_secretsfile_reader.1
   ndb_select_all.1
   ndb_select_count.1
   ndb_show_tables.1
@@ -112,7 +113,7 @@ IF(WITH_ROUTER)
     )
 ENDIF()
 
-IF(WITH_NDBCLUSTER)
+IF(WITH_NDB)
   INSTALL(FILES ${MAN1_NDB}
     DESTINATION ${INSTALL_MANDIR}/man1 COMPONENT ManPages)
   INSTALL(FILES ${MAN8_NDB}

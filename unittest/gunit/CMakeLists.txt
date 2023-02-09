@@ -308,17 +308,15 @@ SET(SERVER_TESTS
   wild_case_compare
   ha_info_iterator
   xid_extract
+  log_event_status_size
 )
-
-DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
-  copy_info-t.cc
-  dd_schema-t.cc
-  opt_range-t.cc
-  regexp_engine-t.cc
-  )
 
 IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
   ADD_COMPILE_FLAGS(regexp_engine-t.cc COMPILE_FLAGS "-Wno-restrict")
+ENDIF()
+
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8)
+  ADD_COMPILE_FLAGS(hypergraph_optimizer-t.cc connect_joins-t.cc COMPILE_FLAGS "-Wno-unused-variable")
 ENDIF()
 
 IF(WIN32)

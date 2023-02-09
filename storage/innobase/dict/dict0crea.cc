@@ -59,14 +59,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "ut0vec.h"
 
-#include "fil0crypt.h"  //dla FIL_ENCRYPTION_KEY_DEFAULT
 #include "fil0fil.h"
 #include "sql/sql_zip_dict.h"
 
-dberr_t dict_build_table_def(
-    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
-    fil_encryption_t mode,
-    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
+dberr_t dict_build_table_def(dict_table_t *table,
+                             const HA_CREATE_INFO *create_info, trx_t *trx) {
   std::string db_name;
   std::string tbl_name;
   dict_name::get_table(table->name.m_name, db_name, tbl_name);
@@ -96,8 +93,7 @@ dberr_t dict_build_table_def(
     dict_table_assign_new_id(table);
   }
 
-  dberr_t err = dict_build_tablespace_for_table(table, create_info, trx, mode,
-                                                keyring_encryption_key_id);
+  dberr_t err = dict_build_tablespace_for_table(table, create_info, trx);
 
   return (err);
 }
@@ -105,11 +101,8 @@ dberr_t dict_build_table_def(
 /** Builds a tablespace to store various objects.
 @param[in,out]  trx             DD transaction
 @param[in,out]  tablespace      Tablespace object describing what to build.
-@param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code. */
-dberr_t dict_build_tablespace(
-    trx_t *trx, Tablespace *tablespace, fil_encryption_t mode,
-    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
+dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -161,8 +154,7 @@ dberr_t dict_build_tablespace(
              : FIL_IBD_FILE_INITIAL_SIZE;
 
   err = fil_ibd_create(space, tablespace->name(), datafile->filepath(),
-                       tablespace->flags(), size, mode,
-                       keyring_encryption_key_id);
+                       tablespace->flags(), size);
 
   DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
                     crash_injection_after_create_counter++);
@@ -206,11 +198,9 @@ static ibt::Tablespace *determine_session_temp_tblsp(
   bool encrypted = false;
   switch (srv_default_table_encryption) {
     case DEFAULT_TABLE_ENC_ON:
-    case DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING:
       encrypted = true;
       break;
     case DEFAULT_TABLE_ENC_OFF:
-    case DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED:
       if (srv_tmp_tablespace_encrypt) {
         encrypted = true;
       }
@@ -240,10 +230,9 @@ static ibt::Tablespace *determine_session_temp_tblsp(
   return (tblsp);
 }
 
-dberr_t dict_build_tablespace_for_table(
-    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
-    fil_encryption_t mode,
-    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
+dberr_t dict_build_tablespace_for_table(dict_table_t *table,
+                                        const HA_CREATE_INFO *create_info,
+                                        trx_t *trx) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -255,12 +244,6 @@ dberr_t dict_build_tablespace_for_table(
 
   needs_file_per_table =
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE);
-
-  if (mode == FIL_ENCRYPTION_ON ||
-      (mode == FIL_ENCRYPTION_DEFAULT &&
-       srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING)) {
-    DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
-  }
 
   if (needs_file_per_table) {
     /* Temporary table would always reside in the same
@@ -337,7 +320,7 @@ dberr_t dict_build_tablespace_for_table(
                   srv_page_size)
                : FIL_IBD_FILE_INITIAL_SIZE;
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
-                         size, mode, keyring_encryption_key_id);
+                         size);
 
     ut::free(filepath);
 
@@ -843,7 +826,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 variable.
 @return TRUE if all OK */
 static bool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
-                                         void *user_arg) /*!< in: int32 id */
+                                        void *user_arg) /*!< in: int32 id */
 {
   sel_node_t *node = static_cast<sel_node_t *>(row);
   dfield_t *dfield = que_node_get_val(node->select_list);

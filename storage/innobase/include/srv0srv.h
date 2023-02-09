@@ -176,18 +176,6 @@ struct srv_stats_t {
 
   /** Number of times page 0 is read from tablespace */
   ulint_ctr_64_t page0_read;
-
-  /** Number of encryption_get_latest_key_version calls */
-  ulint_ctr_64_t n_key_requests;
-
-  /** Number of spaces in keyrotation list */
-  ulint_ctr_64_t key_rotation_list_length;
-
-  /* Number of pages encrypted */
-  ulint_ctr_64_t pages_encrypted;
-
-  /* Number of pages decrypted */
-  ulint_ctr_64_t pages_decrypted;
 };
 
 /** Structure which keeps shared future objects for InnoDB background
@@ -289,11 +277,6 @@ struct Srv_threads {
   waiting procedure used in the pre_dd_shutdown. */
   os_event_t m_shutdown_cleanup_dbg;
 #endif /* UNIV_DEBUG */
-  /** true if tablespace alter encrypt thread is created */
-  bool m_ts_alter_encrypt_thread_active;
-
-  /** No of key rotation threads started */
-  size_t m_crypt_threads_n = 0;
 
   /** When the master thread notices that shutdown has started (by noticing
   srv_shutdown_state >= SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS), it exits
@@ -396,7 +379,7 @@ extern FILE *srv_monitor_file;
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 extern ib_mutex_t srv_misc_tmpfile_mutex;
-/* Temporary file for miscellanous diagnostic output */
+/* Temporary file for miscellaneous diagnostic output */
 extern FILE *srv_misc_tmpfile;
 #endif /* !UNIV_HOTBACKUP */
 
@@ -457,8 +440,6 @@ extern ulong srv_rollback_segments;
 /** Maximum size of undo tablespace. */
 extern unsigned long long srv_max_undo_tablespace_size;
 
-extern uint srv_n_fil_crypt_threads_requested;
-
 /** Rate at which UNDO records should be purged. */
 extern ulong srv_purge_rseg_truncate_frequency;
 
@@ -471,15 +452,8 @@ extern bool srv_undo_log_encrypt;
 /** Enable or disable encryption of temporary tablespace.*/
 extern bool srv_tmp_tablespace_encrypt;
 
-enum srv_sys_tablespace_encrypt_enum {
-  SYS_TABLESPACE_ENCRYPT_OFF = 0,
-  SYS_TABLESPACE_ENCRYPT_ON = 1,
-  SYS_TABLESPACE_RE_ENCRYPTING_TO_KEYRING = 2
-};
-
 /** Enable this option to encrypt system tablespace at bootstrap. */
-extern ulong srv_sys_tablespace_encrypt;
-
+extern bool srv_sys_tablespace_encrypt;
 
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
@@ -894,6 +868,8 @@ extern bool srv_cmp_per_index_enabled;
 
 extern enum_default_table_encryption srv_default_table_encryption;
 
+extern ulong srv_encrypt_tables;
+
 /** Number of times secondary index lookup triggered cluster lookup */
 extern std::atomic<ulint> srv_sec_rec_cluster_reads;
 /** Number of times prefix optimization avoided triggering cluster lookup */
@@ -936,7 +912,6 @@ extern mysql_pfs_key_t log_write_notifier_thread_key;
 extern mysql_pfs_key_t log_flush_notifier_thread_key;
 extern mysql_pfs_key_t page_flush_coordinator_thread_key;
 extern mysql_pfs_key_t page_flush_thread_key;
-extern mysql_pfs_key_t recv_writer_thread_key;
 extern mysql_pfs_key_t srv_error_monitor_thread_key;
 extern mysql_pfs_key_t srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t srv_master_thread_key;
@@ -1118,7 +1093,7 @@ void srv_wake_purge_thread_if_not_active(void);
  and wakes up the master thread if it is suspended (not sleeping). Used
  in the MySQL interface. Note that there is a small chance that the master
  thread stays suspended (we do not protect our operation with the kernel
- mutex, for performace reasons). */
+ mutex, for performance reasons). */
 void srv_active_wake_master_thread_low(void);
 static inline void srv_active_wake_master_thread() {
   if (!srv_read_only_mode) {
@@ -1285,13 +1260,17 @@ struct export_var_t {
   char innodb_buffer_pool_load_status[OS_FILE_MAX_PATH +
                                       128];   /*!< Buf pool load status */
   char innodb_buffer_pool_resize_status[512]; /*!< Buf pool resize status */
-  ulint innodb_buffer_pool_pages_total;       /*!< Buffer pool size */
-  ulint innodb_buffer_pool_pages_data;        /*!< Data pages */
-  ulint innodb_buffer_pool_bytes_data;        /*!< File bytes used */
-  ulint innodb_buffer_pool_pages_dirty;       /*!< Dirty data pages */
-  ulint innodb_buffer_pool_bytes_dirty;       /*!< File bytes modified */
-  ulint innodb_buffer_pool_pages_misc;        /*!< Miscellanous pages */
-  ulint innodb_buffer_pool_pages_free;        /*!< Free pages */
+  uint32_t
+      innodb_buffer_pool_resize_status_code; /*!< Buf pool resize status code */
+  uint32_t innodb_buffer_pool_resize_status_progress; /*!< Buf pool resize
+                                                     status progess */
+  ulint innodb_buffer_pool_pages_total;               /*!< Buffer pool size */
+  ulint innodb_buffer_pool_pages_data;                /*!< Data pages */
+  ulint innodb_buffer_pool_bytes_data;                /*!< File bytes used */
+  ulint innodb_buffer_pool_pages_dirty;               /*!< Dirty data pages */
+  ulint innodb_buffer_pool_bytes_dirty; /*!< File bytes modified */
+  ulint innodb_buffer_pool_pages_misc;  /*!< Miscellaneous pages */
+  ulint innodb_buffer_pool_pages_free;  /*!< Free pages */
 #ifdef UNIV_DEBUG
   ulint innodb_buffer_pool_pages_latched; /*!< Latched pages */
 #endif                                    /* UNIV_DEBUG */
@@ -1403,21 +1382,6 @@ struct export_var_t {
 
   fragmentation_stats_t innodb_fragmentation_stats; /*!< Fragmentation
                                            statistics */
-
-  int64_t innodb_pages_encrypted; /*!< Number of pages
-                                  encrypted */
-  int64_t innodb_pages_decrypted; /*!< Number of pages
-                                  decrypted */
-
-  /* Current redo log encryption key versison for keyring encryption */
-  int64_t innodb_redo_key_version;
-  ulint innodb_encryption_rotation_pages_read_from_cache;
-  ulint innodb_encryption_rotation_pages_read_from_disk;
-  ulint innodb_encryption_rotation_pages_modified;
-  ulint innodb_encryption_rotation_pages_flushed;
-  ulint innodb_encryption_rotation_estimated_iops;
-  int64_t innodb_encryption_key_requests;
-  int64_t innodb_key_rotation_list_length;
 };
 
 #ifndef UNIV_HOTBACKUP

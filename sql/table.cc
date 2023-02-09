@@ -543,7 +543,6 @@ void TABLE_SHARE::destroy() {
 
   DBUG_TRACE;
   DBUG_PRINT("info", ("db: %s table: %s", db.str, table_name.str));
-
   if (ha_share) {
     delete ha_share;
     ha_share = nullptr;
@@ -1729,6 +1728,21 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str,
                  share->table_name.str);
         goto err;
+      } else if (!tmp_plugin && name.length == 7 &&
+                 !strncmp(name.str, "ndbinfo", name.length)) {
+        /*
+          When upgrading from MySQL Cluster 7.5 or 7.6, both MySQL 5.7 based,
+          there may be FRM files for ndbinfo tables. If server is not compiled
+          with ndbinfo storage engine or it is not enabled the table can not be
+          created.  This is not a critical failure since ndbinfo tables are
+          read only tables returning rows on demand about the current state of
+          Ndb cluster and not row data is kept on file.  If ndbinfo engine
+          later is enabled it will create its tables again.
+        */
+        DBUG_PRINT("info", ("ignoring ndbinfo table '%s.%s'", share->db.str,
+                            share->table_name.str));
+        error = 9;
+        goto err;
       } else if (!tmp_plugin) {
         /* purecov: begin inspected */
         error = 8;
@@ -1864,18 +1878,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         goto err;
       }
       next_chunk += 2 + share->encrypt_type.length;
-    }
-
-    if (next_chunk + strlen("ENCRYPTION_KEY_ID") +
-                4  // + 4 for encryption_key_id value, ENCRYPTION_KEY_ID is used
-                   // here as a marker
-            <= buff_end &&
-        strncmp(reinterpret_cast<char *>(next_chunk), "ENCRYPTION_KEY_ID",
-                strlen("ENCRYPTION_KEY_ID")) == 0) {
-      share->encryption_key_id =
-          uint4korr(next_chunk + strlen("ENCRYPTION_KEY_ID"));
-      share->was_encryption_key_id_set = true;
-      next_chunk += 4 + strlen("ENCRYPTION_KEY_ID");
     }
   }
   share->key_block_size = uint2korr(head + 62);
@@ -3502,6 +3504,14 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
       my_error(ER_NOT_FORM_FILE, MYF(0), buff);
       LogErr(ERROR_LEVEL, ER_SERVER_NOT_FORM_FILE, buff);
       break;
+    case 9:
+      /*
+        Report no error. No harm not creating the table. Used when ndbinfo
+        plugin is not available when migrating FRM files from 5.7. These
+        tables are unusable without plugin, and will be recreated without loss
+        if plugin is later enabled.
+      */
+      break;
   }
 } /* open_table_error */
 
@@ -3578,10 +3588,6 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table) {
   create_info->tablespace = share->tablespace;
   create_info->compress = share->compress;
   create_info->encrypt_type = share->encrypt_type;
-  create_info->was_encryption_key_id_set = share->was_encryption_key_id_set;
-  if (create_info->was_encryption_key_id_set) {
-    create_info->encryption_key_id = share->encryption_key_id;
-  }
   create_info->explicit_encryption = share->explicit_encryption;
   create_info->secondary_engine = share->secondary_engine;
 }
@@ -4377,28 +4383,6 @@ bool TABLE::fill_item_list(mem_root_deque<Item *> *item_list) const {
     item_list->push_back(item);
   }
   return false;
-}
-
-/**
-  Reset an existing list of Item_field items to point to the
-  Fields of this table.
-
-  SYNPOSIS
-    TABLE::reset_item_list()
-      item_list          a non-empty list with Item_fields
-
-    This is a counterpart of fill_item_list used to redirect
-    Item_fields to the fields of a newly created table.
-*/
-
-void TABLE::reset_item_list(const mem_root_deque<Item *> &item_list) const {
-  auto it = item_list.begin();
-  uint i = 0;
-  for (Field **ptr = visible_field_ptr(); *ptr; ptr++, i++) {
-    Item_field *item_field = down_cast<Item_field *>(*it++);
-    assert(item_field != nullptr);
-    item_field->reset_field(*ptr);
-  }
 }
 
 /**
@@ -7907,10 +7891,15 @@ void TABLE::disable_logical_diffs_for_current_row(const Field *field) const {
 
   @retval  true   Error
   @retval  false  Success
+
+  @retval  0      Sucess
+  @retval  -1     Error
+  @retval  -2     Less severe error, file can safely be ignored (used for
+                  ndbinfo tables when ndbinfo storage engine is not enabled)
 */
-static bool read_frm_file(THD *thd, TABLE_SHARE *share,
-                          FRM_context *frm_context, const std::string &table,
-                          bool is_fix_view_cols_and_deps) {
+static int read_frm_file(THD *thd, TABLE_SHARE *share, FRM_context *frm_context,
+                         const std::string &table,
+                         bool is_fix_view_cols_and_deps) {
   File file;
   uchar head[64];
   char path[FN_REFLEN + 1];
@@ -7921,7 +7910,7 @@ static bool read_frm_file(THD *thd, TABLE_SHARE *share,
 
   if ((file = mysql_file_open(key_file_frm, path, O_RDONLY, MYF(0))) < 0) {
     LogErr(ERROR_LEVEL, ER_CANT_OPEN_FRM_FILE, path);
-    return true;
+    return -1;
   }
 
   if (mysql_file_read(file, head, 64, MYF(MY_NABP))) {
@@ -7943,7 +7932,7 @@ static bool read_frm_file(THD *thd, TABLE_SHARE *share,
       */
       if (is_fix_view_cols_and_deps) {
         mysql_file_close(file, MYF(MY_WME));
-        return false;
+        return 0;
       }
       int error;
       root_ptr = THR_MALLOC;
@@ -7953,6 +7942,9 @@ static bool read_frm_file(THD *thd, TABLE_SHARE *share,
       error = open_binary_frm(thd, share, frm_context, head, file);
 
       *root_ptr = old_root;
+      if (error == 9) {
+        goto ignore_file;
+      }
       if (error) {
         LogErr(ERROR_LEVEL, ER_CANT_READ_FRM_FILE, path);
         goto err;
@@ -7988,18 +7980,21 @@ static bool read_frm_file(THD *thd, TABLE_SHARE *share,
 
   // Close file and return
   mysql_file_close(file, MYF(MY_WME));
-  return false;
+  return 0;
 
 err:
   mysql_file_close(file, MYF(MY_WME));
-  return true;
+  return -1;
+
+ignore_file:
+  mysql_file_close(file, MYF(MY_WME));
+  return -2;
 }
 
-bool create_table_share_for_upgrade(THD *thd, const char *path,
-                                    TABLE_SHARE *share,
-                                    FRM_context *frm_context,
-                                    const char *db_name, const char *table_name,
-                                    bool is_fix_view_cols_and_deps) {
+int create_table_share_for_upgrade(THD *thd, const char *path,
+                                   TABLE_SHARE *share, FRM_context *frm_context,
+                                   const char *db_name, const char *table_name,
+                                   bool is_fix_view_cols_and_deps) {
   DBUG_TRACE;
 
   init_tmp_table_share(thd, share, db_name, 0, table_name, path, nullptr);
@@ -8010,12 +8005,13 @@ bool create_table_share_for_upgrade(THD *thd, const char *path,
   mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data, &share->LOCK_ha_data,
                    MY_MUTEX_INIT_FAST);
 
-  if (read_frm_file(thd, share, frm_context, table_name,
-                    is_fix_view_cols_and_deps)) {
+  int r = read_frm_file(thd, share, frm_context, table_name,
+                        is_fix_view_cols_and_deps);
+  if (r != 0) {
     free_table_share(share);
-    return true;
+    return r;
   }
-  return false;
+  return 0;
 }
 
 void TABLE::blobs_need_not_keep_old_value() {

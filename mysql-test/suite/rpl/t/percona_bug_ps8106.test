@@ -9,7 +9,7 @@
 
 --connection slave
 SET @replica_parallel_workers_save = @@global.replica_parallel_workers;
-SET GLOBAL replica_parallel_workers = 0;
+SET GLOBAL replica_parallel_workers = 1;
 --source include/start_slave.inc
 
 --connection master

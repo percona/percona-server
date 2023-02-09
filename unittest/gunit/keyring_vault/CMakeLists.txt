@@ -34,7 +34,6 @@ SET(TESTS
     vault_io
     vault_parser
     vault_credentials_parser
-    vault_keys_container
     vault_keyring-api
 )
 
@@ -43,8 +42,6 @@ LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
-  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_keys_container.cc
-  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_key_adapter.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_keys_list.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_key.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_io.cc
@@ -68,10 +65,6 @@ SET(ALL_KEYRING_VAULT_TESTS)
 FOREACH(test ${TESTS})
   LIST(APPEND ALL_KEYRING_VAULT_TESTS ${test}-t.cc)
 ENDFOREACH()
-
-DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
-  ${ALL_KEYRING_VAULT_TESTS}
-)
 
 MYSQL_ADD_EXECUTABLE(merge_keyring_vault_tests-t
   ${ALL_KEYRING_VAULT_TESTS}

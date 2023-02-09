@@ -88,7 +88,7 @@ static uint buf_flush_lsn_scan_factor = 3;
 static lsn_t buf_flush_sync_lsn = 0;
 
 #ifdef UNIV_DEBUG
-/** Get the lsn upto which data pages are to be synchronously flushed.
+/** Get the lsn up to which data pages are to be synchronously flushed.
 @return target lsn for the requested flush_sync */
 lsn_t get_flush_sync_lsn() noexcept { return buf_flush_sync_lsn; }
 #endif /* UNIV_DEBUG */
@@ -134,7 +134,7 @@ struct page_cleaner_slot_t {
   /*!< number of requested pages
   for the slot */
   /* These values are updated during state==PAGE_CLEANER_STATE_FLUSHING,
-  and commited with state==PAGE_CLEANER_STATE_FINISHED.
+  and committed with state==PAGE_CLEANER_STATE_FINISHED.
   The consistency is protected by the 'state' */
   ulint n_flushed_list;
   /*!< number of flushed pages
@@ -2034,8 +2034,8 @@ static bool buf_flush_start(buf_pool_t *buf_pool, buf_flush_t flush_type) {
 /** End a buffer flush batch for LRU or flush list
 @param[in]      buf_pool        buffer pool instance
 @param[in]      flush_type      BUF_FLUSH_LRU or BUF_FLUSH_LIST
-@param[in]     flushed_page_count      number of dirty pages whose writes have been
-queued by this flush. */
+@param[in]     flushed_page_count      number of dirty pages whose writes have
+been queued by this flush. */
 static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type,
                           ulint flushed_page_count) {
   mutex_enter(&buf_pool->flush_state_mutex);
@@ -2555,10 +2555,9 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   switch (
       static_cast<srv_cleaner_lsn_age_factor_t>(srv_cleaner_lsn_age_factor)) {
     case SRV_CLEANER_LSN_AGE_FACTOR_LEGACY:
-      return (
-          static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
-                              (lsn_age_factor * sqrt(lsn_age_factor))) /
-                             7.5));
+      return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
+                                  (lsn_age_factor * sqrt(lsn_age_factor))) /
+                                 7.5));
     case SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT:
       return (static_cast<ulint>(
           ((srv_max_io_capacity / srv_io_capacity) *
@@ -2568,9 +2567,6 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
       ut_error;
   }
 }
-
-/// TODO MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST, flush_tm /
-/// flush_pass);
 
 /** Set page flush target based on LSN change and checkpoint age.
 @param[in]  sync_flush            true iff this is sync flush mode
@@ -2893,8 +2889,8 @@ void buf_flush_page_cleaner_init() {
   ut_a(buf_flush_page_cleaner_is_active());
 
   for (size_t i = 0; i < srv_threads.m_lru_managers_n; ++i) {
-    srv_threads.m_lru_managers[i] =
-        os_thread_create(buf_lru_manager_thread_key, i, buf_lru_manager_thread, i);
+    srv_threads.m_lru_managers[i] = os_thread_create(
+        buf_lru_manager_thread_key, i, buf_lru_manager_thread, i);
     srv_threads.m_lru_managers[i].start();
   }
 
@@ -3541,8 +3537,19 @@ static void buf_flush_page_coordinator_thread() {
   ut_ad(buf_flush_active_lru_managers() == 0);
 
   bool success;
+  bool are_any_read_ios_still_underway;
 
   do {
+    /* If there are any read operations pending, they can result in the ibuf
+    merges and a dirtying page after the read is completed. If there are any
+    IO reads running before we run the flush loop, we risk having some dirty
+    pages after flushing reports n_flushed == 0. The ibuf change merging on
+    page results in dirtying the page and is followed by decreasing the
+    n_pend_reads counter, thus it's safe to check it before flush loop and
+    have guarantees if it was seen with value of 0. These reads could be issued
+    in the previous stage(s), the srv_master thread on shutdown tasks clear the
+    ibuf unless it's the fast shutdown. */
+    are_any_read_ios_still_underway = buf_get_n_pending_read_ios() > 0;
     pc_request(ULINT_MAX, LSN_MAX);
 
     while (pc_flush_slot() > 0) {
@@ -3555,7 +3562,7 @@ static void buf_flush_page_coordinator_thread() {
 
     buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
 
-  } while (!success || n_flushed > 0 || buf_get_n_pending_read_ios() > 0 ||
+  } while (!success || n_flushed > 0 || are_any_read_ios_still_underway ||
            buf_get_flush_list_len(nullptr) > 0);
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -3895,8 +3902,7 @@ Flush_observer::Flush_observer(space_id_t space_id, trx_t *trx,
       m_flushed(srv_buf_pool_instances),
       m_removed(srv_buf_pool_instances),
       m_estimate(),
-      m_lsn(log_get_lsn(*log_sys)),
-      m_number_of_pages_flushed(0) {
+      m_lsn(log_get_lsn(*log_sys)) {
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
   ib::info(ER_IB_MSG_130) << "Flush_observer : ID= " << m_id
                           << ", space_id=" << space_id << ", trx_id="
@@ -3935,7 +3941,6 @@ void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *) {
 
 void Flush_observer::notify_remove(buf_pool_t *buf_pool, buf_page_t *) {
   m_removed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
-  m_number_of_pages_flushed.fetch_add(1, std::memory_order_seq_cst);
 }
 
 void Flush_observer::flush() {

@@ -86,7 +86,7 @@ In versions < 4.1.x:
 
 In versions >= 4.1.x:
 
-Note that contary to what we planned in the 1990's, there will only be one
+Note that contrary to what we planned in the 1990's, there will only be one
 insert buffer tree, and that is in the system tablespace of InnoDB.
 
 1. The first field is the space id.
@@ -468,7 +468,7 @@ void ibuf_init_at_db_start(void) {
   ibuf = static_cast<ibuf_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(ibuf_t)));
 
-  /* At startup we intialize ibuf to have a maximum of
+  /* At startup we initialize ibuf to have a maximum of
   CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
   buffer pool size. Once ibuf struct is initialized this
   value is updated with the user supplied size by calling
@@ -2053,7 +2053,7 @@ static ulint ibuf_get_merge_page_nos_func(bool contract, const rec_t *rec,
   prev_space_id = 0;
 
   /* Go backwards from the first rec until we reach the border of the
-  'merge area', or the page start or the limit of storeable pages is
+  'merge area', or the page start or the limit of storable pages is
   reached */
 
   while (!page_rec_is_infimum(rec) && UNIV_LIKELY(n_pages < limit)) {
@@ -2417,7 +2417,7 @@ ulint ibuf_merge_in_background(bool full) {
     mutex_enter(&ibuf_mutex);
 
     /* If the ibuf->size is more than half the max_size
-    then we make more agreesive contraction.
+    then we make more aggressive contraction.
     +1 is to avoid division by zero. */
     if (ibuf->size > ibuf->max_size / 2) {
       ulint diff = ibuf->size - ibuf->max_size / 2;
@@ -4023,17 +4023,15 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
       update_ibuf_bitmap = false;
     } else {
       page_t *bitmap_page;
-      ulint bitmap_bits = 0;
+      ulint bitmap_bits;
 
       ibuf_mtr_start(&mtr);
 
       bitmap_page =
           ibuf_bitmap_get_map_page(page_id, *page_size, UT_LOCATION_HERE, &mtr);
 
-      if (bitmap_page) {
-        bitmap_bits = ibuf_bitmap_page_get_bits(
-            bitmap_page, page_id, *page_size, IBUF_BITMAP_BUFFERED, &mtr);
-      }
+      bitmap_bits = ibuf_bitmap_page_get_bits(bitmap_page, page_id, *page_size,
+                                              IBUF_BITMAP_BUFFERED, &mtr);
 
       ibuf_mtr_commit(&mtr);
 

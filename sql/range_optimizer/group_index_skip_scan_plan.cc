@@ -70,7 +70,6 @@ struct MEM_ROOT;
 
 using std::max;
 using std::min;
-using std::move;
 
 static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
                       uint key_length, Quick_ranges *range_array);
@@ -91,7 +90,7 @@ void trace_basic_info_group_index_skip_scan(THD *thd, const AccessPath *path,
   trace_object->add("min_aggregate", !param->min_functions.empty())
       .add("max_aggregate", !param->max_functions.empty())
       .add("distinct_aggregate", param->have_agg_distinct)
-      .add("rows", path->num_output_rows)
+      .add("rows", path->num_output_rows())
       .add("cost", path->cost);
 
   const KEY_PART_INFO *key_part = param->index_info->key_part;
@@ -995,7 +994,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   AccessPath *path = new (param->return_mem_root) AccessPath;
   path->type = AccessPath::GROUP_INDEX_SKIP_SCAN;
   path->cost = best_read_cost.total_cost();
-  path->num_output_rows = best_records;
+  path->set_num_output_rows(best_records);
 
   // Extract the list of MIN and MAX functions; join->sum_funcs will change
   // after temporary table setup, so it needs to be done before the iterator
@@ -1024,9 +1023,9 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   p->used_key_part = param->key[best_param_idx];
   p->real_key_parts = real_key_parts;
   p->max_used_key_length = max_used_key_length;
-  p->prefix_ranges = move(prefix_ranges);
-  p->key_infix_ranges = move(key_infix_ranges);
-  p->min_max_ranges = move(min_max_ranges);
+  p->prefix_ranges = std::move(prefix_ranges);
+  p->key_infix_ranges = std::move(key_infix_ranges);
+  p->min_max_ranges = std::move(min_max_ranges);
   if (cost_est < best_read_cost.total_cost() && is_agg_distinct) {
     trace_group.add("index_scan", true);
     path->cost = 0.0;

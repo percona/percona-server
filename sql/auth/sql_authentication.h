@@ -23,6 +23,7 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
+#include <map>
 #include <openssl/rsa.h>
 #include <stddef.h>
 #include <sys/types.h>

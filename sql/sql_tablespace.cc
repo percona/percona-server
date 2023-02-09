@@ -110,9 +110,7 @@ st_alter_tablespace::st_alter_tablespace(
       wait_until_completed{opts.wait_until_completed},
       ts_comment{opts.ts_comment.str},
       encryption{opts.encryption.str},
-      explicit_encryption{opts.encryption.str != nullptr},
-      encryption_key_id{opts.encryption_key_id.was_encryption_key_id_set,
-                        opts.encryption_key_id.id} {
+      explicit_encryption{opts.encryption.str != nullptr} {
   if (opts.autoextend_size.has_value()) {
     autoextend_size = opts.autoextend_size.value();
   }
@@ -491,24 +489,12 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
     encrypt_tablespace = dd::is_encrypted(m_options->encryption);
     encrypt_type = dd::make_string_type(m_options->encryption);
   } else {
-    encrypt_tablespace =
-        thd->variables.default_table_encryption == DEFAULT_TABLE_ENC_ON ||
-        global_system_variables.default_table_encryption ==
-            DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING;
-    // We set encrypt_type, which is later assigned to tablespace's DD
-    // encryption option to Y for online KEYRING encryption. This field is
-    // designed so the user could check if given table is encrypted or not. The
-    // details on how it is encrypted (KEYRING in this case) are left in SE.
+    encrypt_tablespace = thd->variables.default_table_encryption;
     encrypt_type = encrypt_tablespace ? "Y" : "N";
   }
 
-  // check if default has been overwrriten. Note that ENCRYPTION='KEYRING' will
-  // be blocked by Innodb for tablespaces.
-  if (opt_table_encryption_privilege_check && m_options->encryption.str &&
-      (((encrypt_type == "Y" || encrypt_type == "y") &&
-        thd->variables.default_table_encryption != DEFAULT_TABLE_ENC_ON) ||
-       ((encrypt_type == "N" || encrypt_type == "n") &&
-        thd->variables.default_table_encryption == DEFAULT_TABLE_ENC_ON)) &&
+  if (opt_table_encryption_privilege_check &&
+      encrypt_tablespace != thd->variables.default_table_encryption &&
       check_table_encryption_admin_access(thd)) {
     my_error(ER_CANNOT_SET_TABLESPACE_ENCRYPTION, MYF(0));
     return true;
@@ -800,9 +786,9 @@ static bool set_table_encryption_type(THD *thd, const dd::Tablespace &ts,
 
   // If the source tablespace encryption type is same as request type.
   dd::String_type source_tablespace_encryption;
-  if (ts.options().exists("encryption"))
+  if (ts.options().exists("encryption")) {
     (void)ts.options().get("encryption", &source_tablespace_encryption);
-  else
+  } else
     source_tablespace_encryption = "N";
   if (dd::is_encrypted(source_tablespace_encryption) == is_request_to_encrypt)
     return false;

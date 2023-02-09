@@ -50,7 +50,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "clone0api.h"
 #include "dict0dd.h"
-#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
@@ -147,7 +146,6 @@ void meb_print_page_header(const page_t *page) {
 //#ifndef UNIV_HOTBACKUP
 PSI_memory_key mem_log_recv_page_hash_key;
 PSI_memory_key mem_log_recv_space_hash_key;
-PSI_memory_key mem_log_recv_crypt_data_hash_key;
 //#endif /* !UNIV_HOTBACKUP */
 
 /** true when recv_init_crash_recovery() has been called. */
@@ -200,17 +198,6 @@ ulint recv_n_pool_free_frames;
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
 static lsn_t recv_max_page_lsn;
-
-#ifndef UNIV_HOTBACKUP
-#ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t recv_writer_thread_key;
-#endif /* UNIV_PFS_THREAD */
-
-static bool recv_writer_is_active() {
-  return srv_thread_is_active(srv_threads.m_recv_writer);
-}
-
-#endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
 
@@ -401,12 +388,11 @@ void recv_sys_create() {
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*recv_sys)));
 
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
-  mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
   recv_sys->spaces = nullptr;
 }
 
-/** Resize the recovery parsing buffer upto log_buffer_size */
+/** Resize the recovery parsing buffer up to log_buffer_size */
 static bool recv_sys_resize_buf() {
   ut_ad(recv_sys->buf_len <= srv_log_buffer_size);
 
@@ -500,11 +486,6 @@ void recv_sys_close() {
   call_destructor(&recv_sys->saved_recs);
 
   mutex_free(&recv_sys->mutex);
-
-#ifndef UNIV_HOTBACKUP
-  ut_ad(!recv_writer_is_active());
-#endif /* !UNIV_HOTBACKUP */
-  mutex_free(&recv_sys->writer_mutex);
 
   ut::free(recv_sys);
   recv_sys = nullptr;
@@ -648,10 +629,6 @@ void recv_sys_init() {
   recv_sys->metadata_recover =
       ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY);
 
-  using CryptDatas = recv_sys_t::CryptDatas;
-  recv_sys->crypt_datas = ut::new_withkey<CryptDatas>(
-      ut::make_psi_memory_key(mem_log_recv_space_hash_key));
-
   mutex_exit(&recv_sys->mutex);
 }
 
@@ -787,64 +764,11 @@ void MetadataRecover::store() {
   mutex_exit(&dict_persist->mutex);
 }
 
-/** recv_writer thread tasked with flushing dirty pages from the buffer
-pools. */
-static void recv_writer_thread() {
-  ut_ad(!srv_read_only_mode);
-
-  /* The code flow is as follows:
-  Step 1: In recv_recovery_from_checkpoint_start().
-  Step 2: This recv_writer thread is started.
-  Step 3: In recv_recovery_from_checkpoint_finish().
-  Step 4: Wait for recv_writer thread to complete.
-  Step 5: Assert that recv_writer thread is not active anymore.
-
-  It is possible that the thread that is started in step 2,
-  becomes active only after step 4 and hence the assert in
-  step 5 fails.  So mark this thread active only if necessary. */
-  mutex_enter(&recv_sys->writer_mutex);
-
-  if (!recv_recovery_on) {
-    mutex_exit(&recv_sys->writer_mutex);
-    return;
-  }
-  mutex_exit(&recv_sys->writer_mutex);
-
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-    ut_a(srv_shutdown_state_matches([](auto state) {
-      return state == SRV_SHUTDOWN_NONE || state == SRV_SHUTDOWN_EXIT_THREADS;
-    }));
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    mutex_enter(&recv_sys->writer_mutex);
-
-    if (!recv_recovery_on) {
-      mutex_exit(&recv_sys->writer_mutex);
-      break;
-    }
-
-    if (log_test != nullptr) {
-      mutex_exit(&recv_sys->writer_mutex);
-      continue;
-    }
-
-    /* Flush pages from end of LRU if required */
-    os_event_reset(recv_sys->flush_end);
-    recv_sys->flush_type = BUF_FLUSH_LRU;
-    os_event_set(recv_sys->flush_start);
-    os_event_wait(recv_sys->flush_end);
-
-    mutex_exit(&recv_sys->writer_mutex);
-  }
-}
-
 #endif /* !UNIV_HOTBACKUP */
 
 /** Frees the recovery system. */
 void recv_sys_free() {
   if (!recv_sys) return;
-  if (!recv_sys->crypt_datas) return;
 
   mutex_enter(&recv_sys->mutex);
 
@@ -880,13 +804,6 @@ void recv_sys_free() {
     ut::delete_(recv_sys->keys);
     recv_sys->keys = nullptr;
   }
-
-  for (auto &crypt_data : *recv_sys->crypt_datas) {
-    ut::delete_(crypt_data.second);
-  }
-
-  ut::delete_(recv_sys->crypt_datas);
-  recv_sys->crypt_datas = nullptr;
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -1160,19 +1077,13 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
     return;
   }
 
+  bool found;
   const page_id_t page_id(recv_addr->space, recv_addr->page_no);
 
-  fil_space_t *space = fil_space_acquire_for_io_with_load(recv_addr->space);
-  const page_size_t page_size(space->flags);
+  const page_size_t page_size =
+      fil_space_get_page_size(recv_addr->space, &found);
 
-  if (space && space->is_space_encrypted) {
-    /* found space that cannot be decrypted, abort processing REDO */
-    recv_sys->found_corrupt_log = true;
-    fil_space_release_for_io(space);
-    return;
-  }
-
-  if (!space || recv_sys->missing_ids.find(recv_addr->space) !=
+  if (!found || recv_sys->missing_ids.find(recv_addr->space) !=
                     recv_sys->missing_ids.end()) {
     /* Tablespace was discarded or dropped after changes were
     made to it. Or, we have ignored redo log for this tablespace
@@ -1215,10 +1126,6 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
     }
 
     mutex_enter(&recv_sys->mutex);
-  }
-
-  if (space) {
-    fil_space_release_for_io(space);
   }
 }
 
@@ -1644,20 +1551,12 @@ static inline bool check_encryption(page_no_t page_no, space_id_t space_id,
   information as of today. Ideally we should have a separate redo type. */
   if (offset == encryption_offset) {
     auto len = mach_read_from_2(start + 2);
-    ut_ad(len == Encryption::INFO_SIZE ||
-          len == KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 ||
-          len == KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 ||
-          len == KERYING_ENCRYPTION_INFO_MAX_SIZE);
+    ut_ad(len == Encryption::INFO_SIZE);
 
-    if (len != Encryption::INFO_SIZE &&
-        len != KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 &&
-        len != KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 && 
-        len != KERYING_ENCRYPTION_INFO_MAX_SIZE) {
+    if (len != Encryption::INFO_SIZE) {
       /* purecov: begin inspected */
       ib::warn(ER_IB_WRN_ENCRYPTION_INFO_SIZE_MISMATCH, size_t{len},
-               Encryption::INFO_SIZE, KERYING_ENCRYPTION_INFO_MAX_SIZE_V1,
-               KERYING_ENCRYPTION_INFO_MAX_SIZE_V2,
-               KERYING_ENCRYPTION_INFO_MAX_SIZE);
+               Encryption::INFO_SIZE);
       return false;
       /* purecov: end */
     }
@@ -1745,7 +1644,7 @@ static byte *recv_parse_or_apply_log_rec_body(
 
     case MLOG_INDEX_LOAD:
 #ifdef UNIV_HOTBACKUP
-      // While scaning redo logs during a backup operation a
+      // While scanning redo logs during a backup operation a
       // MLOG_INDEX_LOAD type redo log record indicates, that a DDL
       // (create index, alter table...) is performed with
       // 'algorithm=inplace'. The affected tablespace must be re-copied
@@ -1766,41 +1665,13 @@ static byte *recv_parse_or_apply_log_rec_body(
 #ifdef UNIV_HOTBACKUP
       if (recv_recovery_on && meb_is_space_loaded(space_id)) {
 #endif /* UNIV_HOTBACKUP */
-        /* For encrypted tablespace, we need to get the
-        encryption key information before the page 0 is
-        recovered. Otherwise, redo will not find the key
-        to decrypt the data pages. */
-
+        /* For encrypted tablespace, we need to get the encryption key
+        information before the page 0 is recovered. Otherwise, redo will not
+        find the key to decrypt the data pages. */
         if (page_no == 0 && !applying_redo &&
+            !fsp_is_system_or_temp_tablespace(space_id) &&
             /* For cloned db header page has the encryption information. */
             !recv_sys->is_cloned_db) {
-          byte *ptr_copy = ptr;
-          ptr_copy += 2;  // skip offset
-          ulint len = mach_read_from_2(ptr_copy);
-          ptr_copy += 2;
-          if (end_ptr < ptr_copy + len) return nullptr;
-
-          if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V1,
-                     Encryption::MAGIC_SIZE) == 0 &&
-              !recv_sys->apply_log_recs) {
-            return (fil_parse_write_crypt_data_v1(space_id, ptr, end_ptr, len,
-                                                  start_lsn));
-          } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V2,
-                            Encryption::MAGIC_SIZE) == 0 &&
-                     !recv_sys->apply_log_recs) {
-            return (fil_parse_write_crypt_data_v2(space_id, ptr, end_ptr, len,
-                                                  start_lsn));
-          } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V3,
-                            Encryption::MAGIC_SIZE) == 0 &&
-                     !recv_sys->apply_log_recs) {
-            return (fil_parse_write_crypt_data_v3(
-                space_id, ptr, end_ptr, len, recv_needed_recovery, start_lsn));
-          }
-
-          if (fsp_is_system_or_temp_tablespace(space_id)) {
-            break;
-          }
-
           ut_ad(LSN_MAX != start_lsn);
           return fil_tablespace_redo_encryption(ptr, end_ptr, space_id,
                                                 start_lsn);
@@ -1974,9 +1845,7 @@ static byte *recv_parse_or_apply_log_rec_body(
             redo log been written with something
             older than InnoDB Plugin 1.0.4. */
             ut_ad(
-                0
-                /* fil_crypt_rotate_page() writes this */
-                || offs == FIL_PAGE_SPACE_ID ||
+                0 ||
                 offs == IBUF_TREE_SEG_HEADER + IBUF_HEADER + FSEG_HDR_SPACE ||
                 offs == IBUF_TREE_SEG_HEADER + IBUF_HEADER + FSEG_HDR_PAGE_NO ||
                 offs == PAGE_BTR_IBUF_FREE_LIST + PAGE_HEADER /* flst_init */
@@ -2851,7 +2720,7 @@ void recv_recover_page_func(
 
     if (recv->start_lsn >= page_lsn
 #ifndef UNIV_HOTBACKUP
-        && undo::is_active(recv_addr->space, false)
+        && undo::is_active(recv_addr->space)
 #endif /* !UNIV_HOTBACKUP */
     ) {
 
@@ -3298,8 +3167,8 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
     /* Avoid parsing if we have the record saved already. */
     if (!recv_sys->get_saved_rec(i, space_id, page_no, type, body, len)) {
-      len = recv_parse_log_rec(
-          &type, ptr, end_ptr, &space_id, &page_no, false, &body);
+      len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, false,
+                               &body);
     }
 
     if (recv_sys->found_corrupt_log &&
@@ -3883,19 +3752,7 @@ static dberr_t recv_init_crash_recovery() {
   ib::info(ER_IB_MSG_726);
   ib::info(ER_IB_MSG_727);
 
-  dberr_t err = recv_sys->dblwr->recover();
-
-  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    /* Spawn the background thread to flush dirty pages
-    from the buffer pools. */
-
-    srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, 0, recv_writer_thread);
-
-    srv_threads.m_recv_writer.start();
-  }
-
-  return err;
+  return recv_sys->dblwr->recover();
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4166,12 +4023,6 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 }
 
 MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
-  /* Make sure that the recv_writer thread is done. This is
-  required because it grabs various mutexes and we want to
-  ensure that when we enable sync_order_checks there is no
-  mutex currently held by any thread. */
-  mutex_enter(&recv_sys->writer_mutex);
-
   /* Restore state. */
   if (recv_sys->is_meb_db) dblwr::g_mode = recv_sys->dblwr_state;
 
@@ -4180,21 +4031,6 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
 
   /* Now wait for currently in progress batches to finish. */
   buf_flush_wait_LRU_batch_end();
-
-  mutex_exit(&recv_sys->writer_mutex);
-
-  uint32_t count = 0;
-
-  while (recv_writer_is_active()) {
-    ++count;
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (count >= 600) {
-      ib::info(ER_IB_MSG_738);
-      count = 0;
-    }
-  }
 
   MetadataRecover *metadata;
 

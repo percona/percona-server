@@ -74,7 +74,6 @@ Data dictionary interface */
 #include "sql/mysqld.h"  // lower_case_file_system
 #include "sql_base.h"
 #include "sql_table.h"
-#include "thd_raii.h"
 #endif /* !UNIV_HOTBACKUP */
 
 const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
@@ -320,7 +319,7 @@ THD *dd_thd_for_undo(const trx_t *trx) {
 @return true if MDL is necessary, otherwise false */
 bool dd_mdl_for_undo(const trx_t *trx) {
   /* Try best to find a valid THD for checking, in case in background
-  rollback thread, trx doens't hold a mysql_thd */
+  rollback thread, trx doesn't hold a mysql_thd */
   THD *thd = dd_thd_for_undo(trx);
 
   /* There are four cases for the undo to check here:
@@ -566,7 +565,7 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
       const bool is_part = dd_table_is_partitioned(*dd_table);
 
       /* Verify facts between dd_table and facts we know
-      1) Partiton table or not
+      1) Partition table or not
       2) Table ID matches or not
       3) Table in InnoDB */
       bool same_name = not_table == is_part &&
@@ -1672,9 +1671,9 @@ bool is_dropped(const Alter_inplace_info *ha_alter_info,
 
 void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
                            dd::Table &new_table, const dd::Table &old_table,
-                           dict_table_t *dict_table) {
+                           dict_table_t *old_dict_table) {
   bool first_row_version = false;
-  if (dict_table && !dict_table->has_row_versions()) {
+  if (old_dict_table && !old_dict_table->has_row_versions()) {
     first_row_version = true;
   }
 
@@ -1685,20 +1684,18 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
   for (const auto old_col : old_table.columns()) {
     if (old_col->is_se_hidden() && !is_system_column(old_col->name().c_str()) &&
         (strcmp(old_col->name().c_str(), FTS_DOC_ID_COL_NAME) != 0)) {
-      /* Must be an alredy dropped column. */
+      /* Must be an already dropped column. */
       ut_ad(dd_column_is_dropped(old_col));
       continue;
     }
 
     dd::Column *new_col = nullptr;
     std::string new_name;
-    IF_DEBUG(bool renamed = false;)
 
     /* Skip the dropped column */
     if (is_dropped(ha_alter_info, old_col->name().c_str())) {
       continue;
     } else if (is_renamed(ha_alter_info, old_col->name().c_str(), new_name)) {
-      IF_DEBUG(renamed = true;)
       new_col = const_cast<dd::Column *>(
           dd_find_column(&new_table, new_name.c_str()));
     } else {
@@ -1716,14 +1713,11 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
     }
 
     /* If this is first time table is getting row version, add physical pos */
-    if (dict_table && !new_col->is_virtual() && first_row_version) {
-      dict_col_t *col = dict_table->get_col_by_name(new_col->name().c_str());
-      if (col == nullptr) {
-        ut_ad(renamed);
-        col = dict_table->get_col_by_name(old_col->name().c_str());
-      }
-
-      ut_ad(col != nullptr);
+    if (old_dict_table && !new_col->is_virtual() && first_row_version) {
+      /* Even the renamed column would have same phy_pos as old column */
+      dict_col_t *col =
+          old_dict_table->get_col_by_name(old_col->name().c_str());
+      ut_a(col != nullptr);
       new_col->se_private_data().set(s, col->get_phy_pos());
     }
   }
@@ -1813,7 +1807,6 @@ void dd_clear_instant_part(dd::Partition &dd_part) {
 bool dd_instant_columns_consistent(const dd::Table &dd_table) {
   bool found = false;
   size_t n_non_instant_cols = 0;
-  size_t n_version_add_cols = 0;
   size_t n_instant_add_cols = 0;
   size_t n_version_drop_cols = 0;
   for (auto column : dd_table.columns()) {
@@ -1826,9 +1819,7 @@ bool dd_instant_columns_consistent(const dd::Table &dd_table) {
         column->se_private_data().exists(
             dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
       found = true;
-      if (dd_column_is_added(column)) {
-        n_version_add_cols++;
-      } else {
+      if (!dd_column_is_added(column)) {
         /* In upgraded table, Instant ADD column with no v_added */
         ut_ad(dd_table_is_upgraded_instant(dd_table));
         n_instant_add_cols++;
@@ -1985,7 +1976,15 @@ void dd_drop_instant_columns(
 
 #ifdef UNIV_DEBUG
   auto validate_column = [&](Field *column) {
-    if (dd_find_column(new_dd_table, column->field_name) == nullptr) {
+    /* Valid cases are :
+    1. Column is not present in the new table definition
+    2. Column is present but it is a virtual column being added
+    2. Column is present but it is a stored column being added
+    3. Column is present and is not being added, it is a renamed column */
+
+    auto dd_col = dd_find_column(new_dd_table, column->field_name);
+    /* Virtual columns are not part of cols_to_add so they are checked here. */
+    if (dd_col == nullptr || dd_col->is_virtual()) {
       return true;
     }
 
@@ -3214,7 +3213,7 @@ static void dd_fill_instant_columns_default(const dd::Table &dd_table,
     if (dd_table_is_upgraded_instant(dd_table)) {
       /* In instant v1, when a partition is added into table, it won't have any
       instant columns eg :
-      - t1 (c1, c2) with partiton p0, p1.
+      - t1 (c1, c2) with partition p0, p1.
       - INSTANT ADD c3
       - For p0 and p1, n_instant_cols = 2;
       - ADD NEW Partition p2.
@@ -3639,8 +3638,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   if (dd_tab->table().options().exists("encrypt_type")) {
     dd_tab->table().options().get("encrypt_type", &encrypt);
     if (!Encryption::is_none(encrypt.c_str())) {
-      ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0 ||
-            innobase_strcasecmp(encrypt.c_str(), "keyring") == 0);
+      ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
       is_encrypted = true;
     }
   }
@@ -4732,14 +4730,9 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
 
   /* Try to open the tablespace.  We set the 2nd param (fix_dict) to
   false because we do not have an x-lock on dict_operation_lock */
-
-  Keyring_encryption_info keyring_encryption_info;
-
-  dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space,
-                             expected_fsp_flags, space_name, filepath, true,
-                             false, keyring_encryption_info);
-
-  table->keyring_encryption_info = keyring_encryption_info;
+  dberr_t err =
+      fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, expected_fsp_flags,
+                   space_name, filepath, true, false);
 
   if (err == DB_SUCCESS) {
     /* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
@@ -4880,7 +4873,7 @@ template void dd_get_and_save_space_name<dd::Partition>(dict_table_t *,
 @param[in]      norm_name       Table Name
 @param[in]      dd_table        Global DD table or partition object
 @param[in]      thd             thread THD
-@param[in,out]  fk_list         stack of table names which neet to load
+@param[in,out]  fk_list         stack of table names which need to load
 @return ptr to dict_table_t filled, otherwise, nullptr */
 template <typename Table>
 dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
@@ -7013,15 +7006,11 @@ bool dd_tablespace_update_cache(THD *thd) {
     const dd::Properties &p = t->se_private_data();
     uint32_t id;
     uint32_t flags = 0;
-    bool is_enc_in_progress{false};
 
     /* There should be exactly one file name associated
     with each InnoDB tablespace, except innodb_system */
     fail = p.get(dd_space_key_strings[DD_SPACE_ID], &id) ||
            p.get(dd_space_key_strings[DD_SPACE_FLAGS], &flags) ||
-           (p.exists(dd_space_key_strings[DD_SPACE_ONLINE_ENC_PROGRESS]) &&
-            p.get(dd_space_key_strings[DD_SPACE_ONLINE_ENC_PROGRESS],
-                  &is_enc_in_progress)) ||
            (t->files().size() != 1 &&
             strcmp(t->name().c_str(), dict_sys_t::s_sys_space_name) != 0);
 
@@ -7068,15 +7057,13 @@ bool dd_tablespace_update_cache(THD *thd) {
 
       const char *filename = f->filename().c_str();
 
-      Keyring_encryption_info keyring_encryption_info;
       /* If the user tablespace is not in cache, load the
       tablespace now, with the name from dictionary */
 
       /* It's safe to pass space_name in tablename charset
       because filename is already in filename charset. */
-      dberr_t err = fil_ibd_open(is_enc_in_progress, purpose, id, flags,
-                                 space_name, filename, false, false,
-                                 keyring_encryption_info);
+      dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name,
+                                 filename, false, false);
       switch (err) {
         case DB_SUCCESS:
           break;
@@ -7138,199 +7125,6 @@ bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
     ut_d(ut_error);
     ut_o(return false);
   }
-}
-
-/* Updates tablespace's DD flags.
-@param[in] Thread       THD
-@param[in] space_name   name of the space that DD flags are to be updated
-@param[in] is_space_being_removed - pass by pointer as this can check outside
-this function
-@param[in] update       function object that will be invoked for updating DD
-flags
-@return false on success */
-static bool dd_update_tablespace_props(
-    THD *thd, const char *space_name, volatile bool *is_space_being_removed,
-    std::function<bool(dd::Tablespace *)> update) {
-  Disable_autocommit_guard autocommit_guard(thd);
-  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-  dd::Tablespace *dd_space = nullptr;
-
-  const unsigned long int lock_wait_timeout = 20;
-  unsigned long int waited_so_far_for_lock = 0;
-
-  auto handle_timeout_or_space_drop = [&]() {
-    if (*is_space_being_removed ||
-        waited_so_far_for_lock > thd->variables.lock_wait_timeout) {
-      dd::commit_or_rollback_tablespace_change(
-          thd, dd_space, true);  // need to unlock tablespace mdl
-      if (waited_so_far_for_lock > thd->variables.lock_wait_timeout) {
-        my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
-      }
-      return true;
-    }
-    return false;
-  };
-
-  while (dd::acquire_exclusive_tablespace_mdl(thd, space_name,
-                                              lock_wait_timeout)) {
-    waited_so_far_for_lock += lock_wait_timeout;
-    if (handle_timeout_or_space_drop()) {
-      return true;
-    }
-  }
-
-  waited_so_far_for_lock = 0;
-
-  while (
-      client->acquire_for_modification<dd::Tablespace>(space_name, &dd_space)) {
-    if (handle_timeout_or_space_drop()) {
-      return true;
-    }
-    std::this_thread::sleep_for(std::chrono::microseconds(lock_wait_timeout));
-    waited_so_far_for_lock += lock_wait_timeout;
-  }
-
-  if (dd_space == nullptr || update(dd_space)) {
-    dd::commit_or_rollback_tablespace_change(thd, dd_space, true);
-    return true;
-  }
-
-  waited_so_far_for_lock = 0;
-  /* Pass 'true' for 'release_mdl_on_commit' parameter because we want
-  transactional locks to be released only in case of successful commit */
-  while (dd::commit_or_rollback_tablespace_change(thd, dd_space, false, true)) {
-    if (handle_timeout_or_space_drop()) {
-      return true;
-    }
-    std::this_thread::sleep_for(std::chrono::microseconds(lock_wait_timeout));
-    waited_so_far_for_lock += lock_wait_timeout;
-  }
-
-  return (false);
-}
-
-bool dd_set_online_encryption(THD *thd, const char *space_name,
-                              volatile bool *is_space_being_removed) {
-  auto update_func = [](dd::Tablespace *dd_space) {
-    dd_space->se_private_data().set(
-        dd_space_key_strings[DD_SPACE_ONLINE_ENC_PROGRESS], true);
-    return false;
-  };
-
-  return dd_update_tablespace_props(thd, space_name, is_space_being_removed,
-                                    update_func);
-}
-
-bool dd_set_encryption_flag(THD *thd, const char *space_name,
-                            volatile bool *is_space_being_removed) {
-  auto update_func = [](dd::Tablespace *dd_space) {
-    uint32_t dd_space_flags;
-    if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
-                                        &dd_space_flags))
-      return true;
-
-    dd_space_flags |= (1U << FSP_FLAGS_POS_ENCRYPTION);
-    dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                    dd_space_flags);
-    dd_space->options().set("encryption", "Y");
-    return false;
-  };
-
-  return dd_update_tablespace_props(thd, space_name, is_space_being_removed,
-                                    update_func);
-}
-
-bool dd_clear_encryption_flag(THD *thd, const char *space_name,
-                              volatile bool *is_space_being_removed,
-                              bool clear_online_encryption) {
-  auto update_func = [clear_online_encryption](dd::Tablespace *dd_space) {
-    uint32_t dd_space_flags;
-    if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
-                                        &dd_space_flags))
-      return true;
-
-    dd_space_flags &= ~(1U << FSP_FLAGS_POS_ENCRYPTION);
-    dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                    dd_space_flags);
-    dd_space->options().set("encryption", "N");
-    if (clear_online_encryption) {
-      dd_space->se_private_data().set(
-          dd_space_key_strings[DD_SPACE_ONLINE_ENC_PROGRESS], false);
-    }
-    return false;
-  };
-
-  return dd_update_tablespace_props(thd, space_name, is_space_being_removed,
-                                    update_func);
-}
-
-static bool dd_get_tablespace_flags(THD *thd, const char *space_name,
-                                    uint32_t &dd_space_flags) {
-  const dd::Tablespace *dd_space = nullptr;
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  return thd->dd_client()->acquire(space_name, &dd_space) ||
-         dd_space == nullptr ||
-         dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
-                                         &dd_space_flags);
-}
-
-/* Sets tablespace's DD flags.
-@param[in] Thread       THD
-@param[in] space_name   name of the space for which DD flags are to be set
-@param[in] space_flags  DD flags that are to be assigned to space
-@param[in] is_space_being_removed - pass by pointer as this can check outside
-this function */
-static bool dd_set_flags(THD *thd, const char *space_name,
-                         const uint32_t dd_space_flags,
-                         volatile bool *is_space_being_removed) {
-  auto set_flags = [dd_space_flags](dd::Tablespace *dd_space) {
-    uint32_t current_dd_space_flags;
-    if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
-                                        &current_dd_space_flags))
-      return true;
-
-    // currently we are using this function only for correcting encryption flag
-    ut_ad(current_dd_space_flags == dd_space_flags ||
-          FSP_FLAGS_GET_ENCRYPTION(current_dd_space_flags) !=
-              FSP_FLAGS_GET_ENCRYPTION(dd_space_flags));
-
-    dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                    dd_space_flags);
-    return false;
-  };
-  return dd_update_tablespace_props(thd, space_name, is_space_being_removed,
-                                    set_flags);
-}
-
-bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd,
-                                                uint32_t space_flags) {
-  uint32_t dd_space_flags;
-  if (dd_get_tablespace_flags(thd, dict_sys_t::s_dd_space_name,
-                              dd_space_flags)) {
-    return true;
-  }
-  if (FSP_FLAGS_GET_ENCRYPTION(dd_space_flags) ==
-      FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-    return false;
-  }
-  // exclude encryption flag from validation
-  dd_space_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
-  space_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
-  if (dd_space_flags != space_flags) {
-    // this should not happen - some other flags other than encryption flag are
-    // mismatched
-    ib::error(ER_IB_MSG_394)
-        << "Flags read from mysql.ibd file (" << space_flags
-        << ") are different from the flags read from DD (" << dd_space_flags
-        << ") This comparission does *not* include the encryption flag.";
-    return true;
-  }
-  bool is_space_being_removed{false};
-  return dd_set_flags(thd, dict_sys_t::s_dd_space_name, space_flags,
-                      &is_space_being_removed);
 }
 
 void dict_table_t::get_table_name(std::string &schema,

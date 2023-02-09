@@ -30,7 +30,7 @@ class RplEventCtxTest : public ::testing::Test {
   void SetUp() final {
     // Save global settings.
     m_charset = system_charset_info;
-    system_charset_info = &my_charset_utf8_bin;
+    system_charset_info = &my_charset_utf8mb3_bin;
     EXPECT_TRUE(system_charset_info != nullptr);
   }
 

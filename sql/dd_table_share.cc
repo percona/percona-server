@@ -747,15 +747,9 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   if (table_options.exists("encrypt_type"))
     table_options.get("encrypt_type", &share->encrypt_type, &share->mem_root);
 
-  if (table_options.exists("encryption_key_id")) {
-    share->was_encryption_key_id_set = true;
-    table_options.get("encryption_key_id", &share->encryption_key_id);
-  }
-
   if (table_options.exists("explicit_encryption")) {
     table_options.get("explicit_encryption", &share->explicit_encryption);
   }
-
   return false;
 }
 

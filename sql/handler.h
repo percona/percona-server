@@ -44,7 +44,6 @@
 
 #include <mysql/components/services/page_track_service.h>
 #include "ft_global.h"  // ft_hints
-#include "keyring_encryption_key_info.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
@@ -831,8 +830,6 @@ struct st_handler_tablename {
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO 1
 
-#define HA_CREATE_USED_ENCRYPTION_KEY_ID (1L << 28)
-
 /*
   These structures are used to pass information from a set of SQL commands
   on add/drop/change tablespace definitions to the proper hton.
@@ -891,7 +888,6 @@ class st_alter_tablespace {
   const char *ts_comment = nullptr;
   const char *encryption = nullptr;
   bool explicit_encryption{false};
-  KeyringEncryptionKeyIdInfo encryption_key_id;
 
   bool is_tablespace_command() {
     return ts_cmd_type == CREATE_TABLESPACE ||
@@ -952,6 +948,12 @@ enum enum_schema_tables : int {
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
+enum ha_ddl_type : int {
+  HA_INVALID_DDL,
+  HA_ALTER_DDL,
+  HA_TRUNCATE_DDL,
+  HA_RENAME_DDL
+};
 
 /** Clone start operation mode */
 enum Ha_clone_mode {
@@ -1640,9 +1642,6 @@ enum class Tablespace_type {
   SPACE_TYPE_IMPLICIT
 };
 
-using is_tablespace_keyring_pre_v3_encrypted_t =
-    bool (*)(const dd::Tablespace &space, int &error);
-
 /**
   Get the tablespace type from the SE.
 
@@ -2052,6 +2051,40 @@ typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
                                      ha_notification_type notification_type);
 
 /**
+  Notify/get permission from storage engine before or after execution of
+  RENAME TABLE operation on the table identified by the MDL key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table which is going to be
+                            or was RENAMEd.
+  @param notification_type  Indicates whether this is pre-RENAME TABLE or
+                            post-RENAME TABLE notification.
+  @param old_db_name
+  @param old_table_name
+  @param new_db_name
+  @param new_table_name
+*/
+typedef bool (*notify_rename_table_t)(THD *thd, const MDL_key *mdl_key,
+                                      ha_notification_type notification_type,
+                                      const char *old_db_name,
+                                      const char *old_table_name,
+                                      const char *new_db_name,
+                                      const char *new_table_name);
+
+/**
+  Notify/get permission from storage engine before or after execution of
+  TRUNCATE TABLE operation on the table identified by the MDL key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table which is going to be
+                            or was TRUNCATEd.
+  @param notification_type  Indicates whether this is pre-TRUNCATE TABLE or
+                            post-TRUNCATE TABLE notification.
+*/
+typedef bool (*notify_truncate_table_t)(THD *thd, const MDL_key *mdl_key,
+                                        ha_notification_type notification_type);
+
+/**
   @brief
   Initiate master key rotation
 
@@ -2078,14 +2111,6 @@ using fix_tablespaces_empty_uuid_t = bool (*)(void);
  @param value for innodb's copy of default_table_encryption
 */
 using fix_default_table_encryption_t = bool (*)(ulong, bool);
-
-/**
- @brief
- This is used by encryption threads. It checks if requested
- encryption is compliant with current encryption used in
- innodb.
-*/
-using check_mk_keyring_exclusions_t = bool (*)(THD *, longlong);
 
 using compression_dict_data_vec_t =
     std::vector<std::pair<std::string, std::string>>;
@@ -2452,7 +2477,15 @@ enum class SecondaryEngineFlag : SecondaryEngineFlags {
   // If this flag is set, aggregation (GROUP BY and DISTINCT) do not require
   // ordered inputs and create unordered outputs. This is typically the case
   // if they are implemented using hash-based techniques.
-  AGGREGATION_IS_UNORDERED = 2
+  AGGREGATION_IS_UNORDERED = 2,
+
+  /// This flag can be set to signal that a secondary storage engine will not
+  /// use MySQL's executor (see JOIN::override_executor_func). In this case, it
+  /// doesn't need MySQL's execution data structures, like internal temporary
+  /// tables, filesort objects or iterators. If the flag is set,
+  /// FinalizePlanForQueryBlock() will not make any changes to the plan, and
+  /// CreateIteratorFromAccessPath() will not be called.
+  USE_EXTERNAL_EXECUTOR = 3,
 };
 
 /// Creates an empty bitmap of access path types. This is the base
@@ -2466,6 +2499,10 @@ constexpr SecondaryEngineFlags MakeSecondaryEngineFlags(
   return (uint64_t{1} << static_cast<int>(flag1)) |
          MakeSecondaryEngineFlags(rest...);
 }
+
+/// Returns the handlerton of the secondary engine that is used in the session,
+/// or nullptr if a secondary engine is not used.
+const handlerton *SecondaryEngineHandlerton(const THD *thd);
 
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
@@ -2662,8 +2699,6 @@ struct handlerton {
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
   get_tablespace_type_by_name_t get_tablespace_type_by_name;
-  is_tablespace_keyring_pre_v3_encrypted_t
-      is_tablespace_keyring_pre_v3_encrypted;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
@@ -2733,10 +2768,11 @@ struct handlerton {
   replace_native_transaction_in_thd_t replace_native_transaction_in_thd;
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
+  notify_rename_table_t notify_rename_table;
+  notify_truncate_table_t notify_truncate_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
   fix_default_table_encryption_t fix_default_table_encryption;
-  check_mk_keyring_exclusions_t check_mk_keyring_exclusions;
   upgrade_get_compression_dict_data_t upgrade_get_compression_dict_data;
   redo_log_set_state_t redo_log_set_state;
 
@@ -2911,23 +2947,38 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
 constexpr const decltype(
     handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 18};
 
+/** Whether the secondary engine supports DDLs. No meaning if the engine is not
+ * secondary. */
+#define HTON_SECONDARY_ENGINE_SUPPORTS_DDL (1 << 19)
+
+/** Start of Percona specific HTON_* defines */
+
+/**
+  Engine supports secondary clustered keys.
+*/
+#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 29)
+
+/**
+  Engine supports compressed columns.
+*/
+#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 30)
+
 /**
    Set if the storage engine supports 'online' backups. This means that there
    exists a way to create a consistent copy of its tables without blocking
    updates to them. If so, statements that update such tables will not be
    affected by an active LOCK TABLES FOR BACKUP.
 */
-#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 19)
+#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 31)
 
-/**
-  Engine supports secondary clustered keys.
-*/
-#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 20)
+/** End of Percona specific HTON_* defines */
 
-/**
-  Engine supports compressed columns.
-*/
-#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 21)
+
+inline bool secondary_engine_supports_ddl(const handlerton *hton) {
+  assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
+
+  return (hton->flags & HTON_SECONDARY_ENGINE_SUPPORTS_DDL) != 0;
+}
 
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
@@ -3042,8 +3093,6 @@ struct HA_CREATE_INFO {
   and ignored by the Server layer. */
 
   LEX_STRING encrypt_type{nullptr, 0};
-  EncryptionKeyId encryption_key_id{FIL_DEFAULT_ENCRYPTION_KEY};
-  bool was_encryption_key_id_set{false};
   // explicit_encryption should be true if table was originally created with
   // ENCRYPTION clause. We keep it separate from used_fields &
   // HA_CREATE_USED_ENCRYPT which can indicate whether current ALTER used
@@ -7323,6 +7372,9 @@ handler *get_new_handler(TABLE_SHARE *share, bool partitioned, MEM_ROOT *alloc,
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                          bool no_substitute, bool report_error);
 
+bool ha_secondary_engine_supports_ddl(
+    THD *thd, const LEX_CSTRING &secondary_engine) noexcept;
+
 /**
   Get default handlerton, if handler supplied is null.
 
@@ -7477,7 +7529,7 @@ int ha_rollback_trans(THD *thd, bool all);
                        coordinated transactions as found in the internal
                        transaction coordinator state.
 
-  @return 0 if recovery was successfull, non-zero otherwise.
+  @return 0 if recovery was successful, non-zero otherwise.
 */
 int ha_recover(Xid_commit_list *commit_list = nullptr,
                Xa_state_list *xa_state_list = nullptr);
@@ -7565,8 +7617,11 @@ bool ha_is_storage_engine_disabled(handlerton *se_engine);
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
                              ha_notification_type notification_type,
                              bool *victimized);
-bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
-                           ha_notification_type notification_type);
+bool ha_notify_table_ddl(THD *thd, const MDL_key *mdl_key,
+                         ha_notification_type notification_type,
+                         ha_ddl_type ddl_type, const char *old_db_name,
+                         const char *old_table_name, const char *new_db_name,
+                         const char *new_table_name);
 
 std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);

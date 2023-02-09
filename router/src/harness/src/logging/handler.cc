@@ -132,9 +132,6 @@ std::string Handler::format(const Record &record) const {
 
 void Handler::handle(const Record &record) { do_log(record); }
 
-// satisfy ODR
-constexpr const char *StreamHandler::kDefaultName;
-
 ////////////////////////////////////////////////////////////////
 // class StreamHandler
 
@@ -158,9 +155,6 @@ NullHandler::NullHandler(bool format_messages, LogLevel level,
     : Handler(format_messages, level, timestamp_precision) {}
 
 void NullHandler::do_log(const Record & /*record*/) {}
-
-// satisfy ODR
-constexpr const char *NullHandler::kDefaultName;
 
 ////////////////////////////////////////////////////////////////
 // class FileHandler
@@ -281,7 +275,7 @@ void FileHandler::reopen(const std::string dst) {  // namespace logging
   }
 #endif
 
-  // After reopening the logfile, is it safe to throw earlier execptions
+  // After reopening the logfile, is it safe to throw earlier exceptions
   if (eptr) {
     std::rethrow_exception(eptr);
   }
@@ -298,9 +292,6 @@ void FileHandler::do_log(const Record &record) {
     has_logged(true);
   }
 }
-
-// satisfy ODR
-constexpr const char *FileHandler::kDefaultName;
 
 FileHandler::~FileHandler() = default;
 

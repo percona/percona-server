@@ -257,8 +257,6 @@ static uint safe_strlen(const char *s, uint max_len) {
   return end == nullptr ? max_len : static_cast<uint>(end - s);
 }
 
-constexpr uint PFS_instr_name::max_length;
-
 void PFS_instr_name::set(PFS_class_type class_type, const char *name,
                          uint max_length_arg) {
   // Copy the given name to the member.
@@ -1043,6 +1041,18 @@ static void init_instr_class(PFS_instr_class *klass, const char *name,
   memset(klass, 0, sizeof(PFS_instr_class));
   klass->m_name.set(class_type, name, name_length);
   klass->m_flags = flags;
+  klass->m_enforced_flags = 0;
+
+  /*
+    For memory instruments,
+    if memory quotas are suggested by default
+    by the instrumentation (in the code),
+    then enforce memory quotas (in runtime)
+  */
+  if (klass->m_flags & PSI_FLAG_MEM_COLLECT) {
+    klass->m_enforced_flags |= PSI_FLAG_MEM_COLLECT;
+  }
+
   klass->m_volatility = volatility;
   klass->m_enabled = true;
   klass->m_timed = true;

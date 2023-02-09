@@ -94,10 +94,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "ut0crc32.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "fil0crypt.h"
 #include "ha_innodb.h"
 #include "sql/handler.h"
-#include "system_key.h"
 #include "ut0mem.h"
 
 #ifdef UNIV_HOTBACKUP
@@ -199,7 +197,7 @@ unsigned long long srv_max_undo_tablespace_size;
 bool srv_tmp_tablespace_encrypt;
 
 /** Option to enable encryption of system tablespace. */
-ulong srv_sys_tablespace_encrypt;
+bool srv_sys_tablespace_encrypt;
 
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
@@ -574,6 +572,8 @@ ulong srv_purge_batch_size = 20;
 
 enum_default_table_encryption srv_default_table_encryption;
 
+ulong srv_encrypt_tables = 0;
+
 /* Internal setting for "innodb_stats_method". Decides how InnoDB treats
 NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
@@ -697,7 +697,7 @@ FILE *srv_monitor_file;
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 ib_mutex_t srv_misc_tmpfile_mutex;
-/** Temporary file for miscellanous diagnostic output */
+/** Temporary file for miscellaneous diagnostic output */
 FILE *srv_misc_tmpfile;
 
 #ifndef UNIV_HOTBACKUP
@@ -1686,16 +1686,11 @@ void srv_export_innodb_status(void) {
   ulint LRU_len;
   ulint free_len;
   ulint flush_list_len;
-  fil_crypt_stat_t crypt_stat;
   ulint i;
 
   buf_get_total_stat(&stat);
   buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
   buf_get_total_list_size_in_bytes(&buf_pools_list_size);
-
-  if (!srv_read_only_mode) {
-    fil_crypt_total_stat(&crypt_stat);
-  }
 
   mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1752,13 +1747,16 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_buffer_pool_pages_free = free_len;
 
-#ifdef UNIV_DEBUG
-  export_vars.innodb_buffer_pool_pages_latched = buf_get_latched_pages_number();
-#endif /* UNIV_DEBUG */
   export_vars.innodb_buffer_pool_pages_total = buf_pool_get_n_pages();
 
   export_vars.innodb_buffer_pool_pages_misc =
       buf_pool_get_n_pages() - LRU_len - free_len;
+
+  export_vars.innodb_buffer_pool_resize_status_code =
+      buf_pool_resize_status_code.load();
+
+  export_vars.innodb_buffer_pool_resize_status_progress =
+      buf_pool_resize_status_progress.load();
 
   export_vars.innodb_buffer_pool_pages_made_young = stat.n_pages_made_young;
   export_vars.innodb_buffer_pool_pages_made_not_young =
@@ -1769,6 +1767,20 @@ void srv_export_innodb_status(void) {
     export_vars.innodb_buffer_pool_pages_old += buf_pool->LRU_old_len;
   }
 
+  if (!srv_read_only_mode) {
+    export_vars.innodb_checkpoint_age =
+        (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
+
+    log_limits_mutex_enter(*log_sys);
+    export_vars.innodb_checkpoint_max_age = log_free_check_capacity(*log_sys);
+    log_limits_mutex_exit(*log_sys);
+  } else {
+    export_vars.innodb_checkpoint_age = 0;
+    export_vars.innodb_checkpoint_max_age = 0;
+  }
+
+  ibuf_export_ibuf_status(&export_vars.innodb_ibuf_free_list,
+                          &export_vars.innodb_ibuf_segment_size);
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);
   export_vars.innodb_lsn_flushed = log_sys->flushed_to_disk_lsn;
   export_vars.innodb_lsn_last_checkpoint = log_sys->last_checkpoint_lsn;
@@ -1880,9 +1892,6 @@ void srv_export_innodb_status(void) {
   }
   undo::spaces->s_unlock();
 
-  export_vars.innodb_pages_decrypted = srv_stats.pages_decrypted;
-  export_vars.innodb_pages_encrypted = srv_stats.pages_encrypted;
-
   export_vars.innodb_n_merge_blocks_encrypted =
       srv_stats.n_merge_blocks_encrypted;
 
@@ -1938,22 +1947,6 @@ void srv_export_innodb_status(void) {
 
   thd_get_fragmentation_stats(current_thd,
                               &export_vars.innodb_fragmentation_stats);
-
-  if (!srv_read_only_mode) {
-    export_vars.innodb_encryption_rotation_pages_read_from_cache =
-        crypt_stat.pages_read_from_cache;
-    export_vars.innodb_encryption_rotation_pages_read_from_disk =
-        crypt_stat.pages_read_from_disk;
-    export_vars.innodb_encryption_rotation_pages_modified =
-        crypt_stat.pages_modified;
-    export_vars.innodb_encryption_rotation_pages_flushed =
-        crypt_stat.pages_flushed;
-    export_vars.innodb_encryption_rotation_estimated_iops =
-        crypt_stat.estimated_iops;
-    export_vars.innodb_encryption_key_requests = srv_stats.n_key_requests;
-    export_vars.innodb_key_rotation_list_length =
-        srv_stats.key_rotation_list_length;
-  }
 
   mutex_exit(&srv_innodb_monitor_mutex);
 }

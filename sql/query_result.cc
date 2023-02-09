@@ -147,6 +147,11 @@ bool sql_exchange::escaped_given(void) {
   Handling writing to file
 ************************************************************************/
 
+bool Query_result_to_file::check_supports_cursor() const {
+  my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
+  return true;
+}
+
 bool Query_result_to_file::send_eof(THD *thd) {
   bool error = (end_io_cache(&cache) != 0);
   if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error()) error = true;
@@ -158,7 +163,7 @@ bool Query_result_to_file::send_eof(THD *thd) {
   return error;
 }
 
-void Query_result_to_file::cleanup(THD *) {
+void Query_result_to_file::cleanup() {
   DBUG_TRACE;
   DBUG_PRINT("print_select_into_flush_stats",
              ("[select_to_file][flush_count] %03lu\n", cache.disk_writes));
@@ -648,10 +653,10 @@ err:
   return true;
 }
 
-void Query_result_export::cleanup(THD *thd) {
-  thd->set_sent_row_count(row_count);
-  thd->sent_row_count_2 = row_count;
-  Query_result_to_file::cleanup(thd);
+void Query_result_export::cleanup() {
+  current_thd->set_sent_row_count(row_count);
+  current_thd->sent_row_count_2 = row_count;
+  Query_result_to_file::cleanup();
 }
 
 /***************************************************************************
@@ -712,7 +717,7 @@ bool Query_dumpvar::prepare(THD *, const mem_root_deque<Item *> &list,
   return false;
 }
 
-bool Query_dumpvar::check_simple_query_block() const {
+bool Query_dumpvar::check_supports_cursor() const {
   my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
   return true;
 }

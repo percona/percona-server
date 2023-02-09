@@ -99,7 +99,6 @@ mysql_pfs_key_t recalc_pool_mutex_key;
 mysql_pfs_key_t page_cleaner_mutex_key;
 mysql_pfs_key_t purge_sys_pq_mutex_key;
 mysql_pfs_key_t recv_sys_mutex_key;
-mysql_pfs_key_t recv_writer_mutex_key;
 mysql_pfs_key_t temp_space_rseg_mutex_key;
 mysql_pfs_key_t undo_space_rseg_mutex_key;
 mysql_pfs_key_t trx_sys_rseg_mutex_key;
@@ -227,7 +226,7 @@ const char *sync_basename(const char *filename) {
 /** String representation of the filename and line number where the
 latch was created
 @param[in]      id              Latch ID
-@param[in]      created         Filename and line number where it was crated
+@param[in]      created         Filename and line number where it was created
 @return the string representation */
 std::string sync_mutex_to_string(latch_id_t id, const std::string &created) {
   std::ostringstream msg;

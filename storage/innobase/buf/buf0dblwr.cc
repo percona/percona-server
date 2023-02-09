@@ -32,7 +32,6 @@ Atomic writes handling. */
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
-#include "fil0crypt.h"
 #include "log0chkp.h"
 #include "os0enc.h"
 #include "os0thread-create.h"
@@ -1142,7 +1141,7 @@ class Batch_segment : public Segment {
 
 /** Reduced doublewrite implementation. Uses separate
 .bdblwr files and can coexist with regular doublewrite buffer
-implemenation */
+implementation */
 class Reduced_double_write : public Double_write {
  public:
   /** Constructor
@@ -2021,7 +2020,7 @@ class Reduced_batch_deserializer {
   /** Deserialize page and call Functor f for each page_entry found
   from reduced dblwr page
   @param[in]   f       Functor to process page entry from dblwr page
-  @return DB_SUCCESS on sucess, others of checksum or parsing failures */
+  @return DB_SUCCESS on success, others of checksum or parsing failures */
   template <typename F>
   dberr_t deserialize(F &f) {
     auto page = m_buf->begin();
@@ -2446,16 +2445,13 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
 
   fil_space_t *space = bpage->get_space();
   if (space->encryption_op_in_progress == Encryption::Progress::DECRYPTION ||
-      (!space->is_encrypted() && (space->crypt_data == nullptr ||
-                                  space->crypt_data->max_key_version ==
-                                      ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED))) {
+      !space->is_encrypted()) {
     return nullptr;
   }
 
   /* Don't encrypt pages of system tablespace upto TRX_SYS_PAGE(including). The
   doublewrite buffer header is on TRX_SYS_PAGE */
-  if (fsp_is_system_tablespace(space_id) && space->crypt_data == nullptr &&
-      page_no <= FSP_TRX_SYS_PAGE_NO) {
+  if (fsp_is_system_tablespace(space_id) && page_no <= FSP_TRX_SYS_PAGE_NO) {
     return nullptr;
   }
 
@@ -2496,12 +2492,6 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
   space->get_encryption_info(type.get_encryption_info());
   type.encryption_algorithm(Encryption::AES);
   page_size_t page_size(space->flags);
-
-  if (page_size.is_compressed()) {
-    type.mark_page_zip_compressed();
-    type.set_zip_page_physical_size(page_size.physical());
-    ut_ad(page_size.physical() > 0);
-  }
 
   auto e_block = os_file_encrypt_page(type, frame, n);
 
@@ -2972,9 +2962,7 @@ static bool is_dblwr_page_corrupted(const byte *page, fil_space_t *space,
 
   BlockReporter dblwr_page(true, page, page_size, is_checksum_disabled);
 
-  if (dblwr_page.is_encrypted() || (space->crypt_data != nullptr &&
-                                    space->crypt_data->max_key_version !=
-                                        ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED)) {
+  if (dblwr_page.is_encrypted()) {
     Encryption en;
     IORequest req_type;
     size_t z_page_size;

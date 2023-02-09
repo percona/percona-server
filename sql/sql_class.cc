@@ -166,12 +166,13 @@ void Thd_mem_cnt::disable() {
    global memory counter.
 
    @param size   amount of memory allocated.
-
-   @returns true if memory consumption is controlled
 */
-bool Thd_mem_cnt::alloc_cnt(size_t size) {
+void Thd_mem_cnt::alloc_cnt(size_t size) {
+  mem_counter += size;
+  max_conn_mem = std::max(max_conn_mem, mem_counter);
+
   if (!m_enabled) {
-    return false;
+    return;
   }
 
   assert(!opt_initialize && m_thd != nullptr);
@@ -179,21 +180,18 @@ bool Thd_mem_cnt::alloc_cnt(size_t size) {
          !is_error_mode());
   assert(m_thd->is_killable);
 
-  mem_counter += size;
-  max_conn_mem = std::max(max_conn_mem, mem_counter);
-
 #ifndef NDEBUG
   if (is_error_mode() && fail_on_alloc(m_thd)) {
     m_thd->is_mem_cnt_error_issued = true;
-    return generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
-                          mem_counter);
+    generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
+                   mem_counter);
   }
 #endif
 
   if (mem_counter > m_thd->variables.conn_mem_limit) {
 #ifndef NDEBUG
     // Used for testing the entering to idle state
-    // after successful statement execution(see mem_cnt_common_debug.test).
+    // after successful statement execution (see mem_cnt_common_debug.test).
     if (!DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_session", 1, 0))
 #endif
       (void)generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
@@ -221,16 +219,13 @@ bool Thd_mem_cnt::alloc_cnt(size_t size) {
     if (global_conn_mem_counter_save > global_conn_mem_limit_save) {
 #ifndef NDEBUG
       // Used for testing the entering to idle state
-      // after successful statement execution(see mem_cnt_common_debug.test).
-      if (DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_global", 1, 0))
-        return true;
+      // after successful statement execution (see mem_cnt_common_debug.test).
+      if (DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_global", 1, 0)) return;
 #endif
       (void)generate_error(ER_DA_GLOBAL_CONN_LIMIT, global_conn_mem_limit_save,
                            global_conn_mem_counter_save);
     }
   }
-
-  return true;
 }
 
 /**
@@ -239,12 +234,12 @@ bool Thd_mem_cnt::alloc_cnt(size_t size) {
    @param size   amount of memory freed.
 */
 void Thd_mem_cnt::free_cnt(size_t size) {
-  if (!m_enabled) {
-    return;
+  if (mem_counter >= size) {
+    mem_counter -= size;
+  } else {
+    /* Freeing memory allocated by another. */
+    mem_counter = 0;
   }
-
-  assert(mem_counter >= size);
-  mem_counter -= size;
 }
 
 /**
@@ -723,7 +718,8 @@ THD::THD(bool enable_plugins)
       m_is_plugin_fake_ddl(false),
       m_inside_system_variable_global_update(false),
       bind_parameter_values(nullptr),
-      bind_parameter_values_count(0) {
+      bind_parameter_values_count(0),
+      is_rpl_stmt_event_format_used(true) {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -1772,7 +1768,7 @@ void THD::store_globals() {
   */
   set_my_thread_var_id(m_thread_id);
 #endif
-  real_id = my_thread_self();  // For debugging
+  real_id = my_thread_self();
 
   vio_set_thread_id(net.vio, real_id);
 }
@@ -1782,6 +1778,8 @@ void THD::store_globals() {
   store_global call for this thread.
 */
 void THD::restore_globals() {
+  // Remove reference to specific OS thread.
+  real_id = 0;
   /*
     Assert that thread_stack is initialized: it's necessary to be able
     to track stack overrun.
@@ -2078,6 +2076,14 @@ void THD::shutdown_active_vio() {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (active_vio) {
+#ifdef USE_PPOLL_IN_VIO
+    // Vio::thread_id may not be correct if the THD has been
+    // associated with a different OS thread since the Vio object was
+    // created. So we store the current THD::real_id here so that
+    // vio_shutdown() will not try to send SIGALRM to an incorrect, or
+    // invalid thread id.
+    active_vio->thread_id = real_id;
+#endif /* USE_PPOLL_IN_VIO */
     vio_shutdown(active_vio, SHUT_RDWR);
     active_vio = nullptr;
     m_SSL = nullptr;
@@ -2096,6 +2102,14 @@ void THD::shutdown_clone_vio() {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (clone_vio != nullptr) {
+#ifdef USE_PPOLL_IN_VIO
+    // Vio::thread_id may not be correct if the THD has been
+    // associated with a different OS thread since the Vio object was
+    // created. So we store the current THD::real_id here so that
+    // vio_shutdown() will not try to send SIGALRM to an incorrect, or
+    // invalid thread id.
+    clone_vio->thread_id = real_id;
+#endif /* USE_PPOLL_IN_VIO */
     vio_shutdown(clone_vio, SHUT_RDWR);
     clone_vio = nullptr;
   }
@@ -2191,7 +2205,7 @@ Prepared_statement_map::Prepared_statement_map()
       m_last_found_statement(nullptr) {}
 
 int Prepared_statement_map::insert(Prepared_statement *statement) {
-  st_hash.emplace(statement->id, unique_ptr<Prepared_statement>(statement));
+  st_hash.emplace(statement->id(), unique_ptr<Prepared_statement>(statement));
   if (statement->name().str) {
     names_hash.emplace(to_string(statement->name()), statement);
   }
@@ -2217,7 +2231,7 @@ int Prepared_statement_map::insert(Prepared_statement *statement) {
 
 err_max:
   if (statement->name().str) names_hash.erase(to_string(statement->name()));
-  st_hash.erase(statement->id);
+  st_hash.erase(statement->id());
   return 1;
 }
 
@@ -2236,7 +2250,7 @@ Prepared_statement *Prepared_statement_map::find_by_name(
 }
 
 Prepared_statement *Prepared_statement_map::find(ulong id) {
-  if (m_last_found_statement == nullptr || id != m_last_found_statement->id) {
+  if (m_last_found_statement == nullptr || id != m_last_found_statement->id()) {
     Prepared_statement *stmt = find_or_nullptr(st_hash, id);
     if (stmt && stmt->name().str) return nullptr;
     m_last_found_statement = stmt;
@@ -2248,7 +2262,7 @@ void Prepared_statement_map::erase(Prepared_statement *statement) {
   if (statement == m_last_found_statement) m_last_found_statement = nullptr;
   if (statement->name().str) names_hash.erase(to_string(statement->name()));
 
-  st_hash.erase(statement->id);
+  st_hash.erase(statement->id());
   mysql_mutex_lock(&LOCK_prepared_stmt_count);
   assert(prepared_stmt_count > 0);
   prepared_stmt_count--;
@@ -3234,6 +3248,23 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const {
           !is_current_stmt_binlog_disabled());
 }
 
+void THD::check_rpl_stmt_event_format_used() {
+  for (TABLE_LIST *table = lex->query_tables; table;
+       table = table->next_global) {
+    if (!table->is_placeholder() && table->table != NULL &&
+        table->table->file != NULL) {
+      if (!table->table->file->rpl_can_handle_stm_event()) {
+        is_rpl_stmt_event_format_used = false;
+        return;
+      }
+    }
+  }
+}
+
+bool THD::get_rpl_stmt_event_format_used() const {
+  return is_rpl_stmt_event_format_used;
+}
+
 bool THD::Query_plan::is_single_table_plan() const {
   assert_plan_is_locked_if_other();
   return lex->m_sql_cmd->is_single_table_plan();
@@ -3297,72 +3328,6 @@ bool THD::sql_parser() {
     return true;
   }
   return false;
-}
-
-static bool lock_keyring(THD *thd, plugin_ref plugin, void *arg);
-
-class KeyringsLocker {
- public:
-  static KeyringsLocker &get_instance() {
-    static KeyringsLocker instance;
-    return instance;
-  }
-
-  ~KeyringsLocker() { mysql_mutex_destroy(&mutex); }
-
-  int lock_keyrings(THD *thd) {
-    mysql_mutex_lock(&mutex);
-
-    uint number_of_keyrings_locked = locked_keyring_plugins.size();
-    if (number_of_keyrings_locked > 0) {
-      mysql_mutex_unlock(&mutex);
-      return number_of_keyrings_locked;  // keyrings were already locked
-    }
-    plugin_foreach(thd, lock_keyring, MYSQL_KEYRING_PLUGIN, this);
-
-    number_of_keyrings_locked = locked_keyring_plugins.size();
-
-    mysql_mutex_unlock(&mutex);
-    return number_of_keyrings_locked;
-  }
-
-  int unlock_keyrings(THD *thd) {
-    mysql_mutex_lock(&mutex);
-
-    for (LockedKeyringsPlugins::reverse_iterator riter =
-             locked_keyring_plugins.rbegin();
-         riter != locked_keyring_plugins.rend(); ++riter) {
-      plugin_unlock(thd, *riter);
-      locked_keyring_plugins.pop_back();
-    }
-
-    mysql_mutex_unlock(&mutex);
-    return 0;
-  }
-
-  // esentialy I am using this vector as a stack, but I did not want to import
-  // stack.h just for this usage
-  typedef std::vector<plugin_ref> LockedKeyringsPlugins;
-  LockedKeyringsPlugins locked_keyring_plugins;
-
- private:
-  KeyringsLocker() { mysql_mutex_init(0, &mutex, MY_MUTEX_INIT_FAST); }
-  mysql_mutex_t mutex;
-};
-
-static bool lock_keyring(THD *thd, plugin_ref plugin, void *arg) {
-  KeyringsLocker *keyrings_locker = reinterpret_cast<KeyringsLocker *>(arg);
-  plugin = plugin_lock(thd, &plugin);
-  if (plugin) keyrings_locker->locked_keyring_plugins.push_back(plugin);
-  return false;
-}
-
-int lock_keyrings(THD *thd) {
-  return KeyringsLocker::get_instance().lock_keyrings(thd);
-}
-
-int unlock_keyrings(THD *thd) {
-  return KeyringsLocker::get_instance().unlock_keyrings(thd);
 }
 
 bool THD::is_one_phase_commit() {

@@ -51,7 +51,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 class MetadataRecover;
 class PersistentTableMetadata;
-struct fil_space_crypt_t;
 
 /** Calculates the new value for lsn when more data is added to the log. */
 lsn_t recv_calc_lsn_on_data_add(
@@ -543,19 +542,11 @@ struct recv_sys_t {
   state field in each recv_addr struct */
   ib_mutex_t mutex;
 
-  /** mutex coordinating flushing between recv_writer_thread and
-  the recovery thread. */
-  ib_mutex_t writer_mutex;
-
   /** event to activate page cleaner threads */
   os_event_t flush_start;
 
   /** event to signal that the page cleaner has finished the request */
   os_event_t flush_end;
-
-  /** type of the flush request. BUF_FLUSH_LRU: flush end of LRU,
-  keeping free blocks.  BUF_FLUSH_LIST: flush all of blocks. */
-  buf_flush_t flush_type;
 
 #else  /* !UNIV_HOTBACKUP */
   bool apply_file_operations;
@@ -649,19 +640,6 @@ struct recv_sys_t {
 
   /** Encryption Key information per tablespace ID */
   Encryption_Keys *keys;
-
-  /** Map of crypt_data harvested during processing the redo logs. If crypt_data
-   * exists in redo log and the space it belongs to, does not yet exist in the
-   * system (create for the space exists only in redo) - we put the crypt_data
-   * into this map. Later when redo for creating the space gets proceed and
-   * space gets opened in open_for_recovery we assign the crypt_data from this
-   * map to this newly created space */
-  using CryptDatas =
-      std::unordered_map<space_id_t, fil_space_crypt_t *, std::hash<space_id_t>,
-                         std::equal_to<space_id_t>>;
-  CryptDatas *crypt_datas;
-
-  void set_corrupt_log() { found_corrupt_log = true; }
 
   /** Tablespace IDs that were ignored during redo log apply. */
   Missing_Ids missing_ids;

@@ -1010,7 +1010,7 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
       const auto mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
       const auto mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
 
-      /* len should be between size calcualted base on mbmaxlen and mbminlen
+      /* len should be between size calculated base on mbmaxlen and mbminlen
        */
       ut_a(len <= fixed_len);
       ut_a(!mbmaxlen || len >= mbminlen * (fixed_len / mbmaxlen));
@@ -1239,6 +1239,9 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
 
     if (err != DB_SUCCESS) {
       set_error(err);
+      err = m_btr_load->finish(err);
+      ut::delete_(m_btr_load);
+      m_btr_load = nullptr;
       return get_error();
     }
   }
@@ -1732,7 +1735,6 @@ dberr_t Builder::btree_build() noexcept {
   Merge_cursor cursor(this, &dup, m_local_stage);
   const auto io_buffer_size = m_ctx.load_io_buffer_size(m_thread_ctxs.size());
 
-  size_t total_files{};
   uint64_t total_rows{};
   dberr_t err{DB_SUCCESS};
 
@@ -1750,7 +1752,6 @@ dberr_t Builder::btree_build() noexcept {
 
     ut_a(thread_ctx->m_n_recs == thread_ctx->m_file.m_n_recs);
 
-    ++total_files;
     total_rows += thread_ctx->m_n_recs;
   }
 

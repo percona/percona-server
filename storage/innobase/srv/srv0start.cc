@@ -62,7 +62,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "data0type.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
-#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "fsp0sysspace.h"
@@ -201,8 +200,6 @@ mysql_pfs_key_t trx_recovery_rollback_thread_key;
 mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 mysql_pfs_key_t parallel_rseg_init_thread_key;
 #endif /* UNIV_PFS_THREAD */
-
-int unlock_keyrings(THD *thd);
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Array of all InnoDB stage events for monitoring activities via
@@ -389,38 +386,19 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   offset = fsp_header_get_encryption_offset(space_page_size);
   ut_ad(offset);
 
-  fil_space_crypt_t *crypt_data = space->crypt_data;
-
-  if (crypt_data == nullptr) {
-    crypt_data = fil_space_read_crypt_data(space_page_size, first_page);
-    space->crypt_data = crypt_data;
-  }
-
-  if (is_space_keyring_pre_v3_encrypted(space)) {
-    ib::error(ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
-    return (DB_FAIL);
-  }
-
   /* Return if the encryption metadata is empty. */
   if (!Encryption::is_encrypted_with_v3(first_page + offset) &&
       !(srv_is_upgrade_mode &&
         memcmp(first_page + offset, Encryption::KEY_MAGIC_V2,
-               Encryption::MAGIC_SIZE) == 0) &&
-      (crypt_data == nullptr || crypt_data->min_key_version == 0)) {
+               Encryption::MAGIC_SIZE) == 0)) {
     ut::aligned_free(first_page);
     return (DB_SUCCESS);
   }
 
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
-
   Encryption_key e_key{key, iv};
-
-  if (crypt_data) {
-    fsp_flags_set_encryption(space->flags);
-    err = fil_set_encryption(space->id, Encryption::KEYRING, NULL,
-                             crypt_data->iv);
-  } else if (fsp_header_get_encryption_key(space->flags, e_key, first_page)) {
+  if (fsp_header_get_encryption_key(space->flags, e_key, first_page)) {
     fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
     ut_ad(err == DB_SUCCESS);
@@ -638,8 +616,7 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
     /* Load the tablespace into InnoDB's internal data structures.
     Set the compressed page size to 0 (non-compressed) */
     flags = fsp_flags_init(univ_page_size, false, false, false, false);
-    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE,
-                             nullptr);
+    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
     ut_a(space != nullptr);
     ut_ad(fil_validate());
 
@@ -1461,10 +1438,6 @@ void srv_shutdown_exit_threads() {
         /* Wakeup purge threads. */
         srv_purge_wakeup();
       }
-
-      if (srv_threads.m_crypt_threads_n) {
-        os_event_set(fil_crypt_threads_event);
-      }
     }
 
     if (srv_start_state_is_set(SRV_START_STATE_IO)) {
@@ -1575,18 +1548,7 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
   fil_space_t *space = fil_space_get(TRX_SYS_SPACE);
   dberr_t err = DB_SUCCESS;
 
-  // Fail startup if sys space is encrypted with crypt_data v1 or v2.
-  // This should only happen on upgrade.
-  if (srv_sys_space.keyring_encryption_info.page0_has_crypt_data &&
-      srv_sys_space.keyring_encryption_info.type != CRYPT_SCHEME_UNENCRYPTED &&
-      (srv_sys_space.keyring_encryption_info.private_version == 1 ||
-       srv_sys_space.keyring_encryption_info.private_version == 2)) {
-    ib::error(ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
-    return (DB_ERROR);
-  }
-
-  if (create_new_db &&
-      srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
+  if (create_new_db && srv_sys_tablespace_encrypt) {
     fsp_flags_set_encryption(space->flags);
     srv_sys_space.set_flags(space->flags);
 
@@ -1596,29 +1558,14 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
     const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
     const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
 
-    if (srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
-      if (srv_sys_tablespace_encrypt != SYS_TABLESPACE_ENCRYPT_ON) {
-        return (DB_SUCCESS);
-      }
-
-      ib::error()
-          << "The system tablespace was (or is) encrypted with keyring. "
-             "Since then the system tablespace encryption is governed by "
-             "encryption threads. Use them to encrypt/decrypt system "
-             "tablespace. ";
-      return (DB_ERROR);
-    }
-
-    if (is_encrypted &&
-        srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_OFF) {
+    if (is_encrypted && !srv_sys_tablespace_encrypt) {
       ib::error() << "The system tablespace is encrypted but"
                   << " --innodb_sys_tablespace_encrypt is"
                   << " OFF. Enable the option and start server";
       return (DB_ERROR);
     }
 
-    if (!is_encrypted &&
-        srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
+    if (!is_encrypted && srv_sys_tablespace_encrypt) {
       ib::error() << "The system tablespace is not encrypted but"
                   << " --innodb_sys_tablespace_encrypt is"
                   << " ON. This instance was not bootstrapped"
@@ -1627,8 +1574,7 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
       return (DB_ERROR);
     }
 
-    if (is_encrypted &&
-        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+    if (is_encrypted) {
       fsp_flags_set_encryption(space->flags);
       srv_sys_space.set_flags(space->flags);
 
@@ -2285,21 +2231,20 @@ dberr_t srv_start(bool create_new_db) {
       table before checkpoint. And because DD is not fully up yet, the table
       can be opened by internal APIs. */
 
-        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
-        if (space == nullptr) {
-          Keyring_encryption_info keyring_encryption_info;
-          dberr_t error = fil_ibd_open(
-              true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
-              predefined_flags, dict_sys_t::s_dd_space_name,
-              dict_sys_t::s_dd_space_file_name, true, false,
-              keyring_encryption_info);
-          if (error != DB_SUCCESS) {
-            ib::error(ER_IB_MSG_1142);
-            return (srv_init_abort(DB_ERROR));
-          }
-        } else {
-          fil_space_release(space);
+      fil_space_t *space =
+          fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
+      if (space == nullptr) {
+        dberr_t error =
+            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
+                         predefined_flags, dict_sys_t::s_dd_space_name,
+                         dict_sys_t::s_dd_space_file_name, true, false);
+        if (error != DB_SUCCESS) {
+          ib::error(ER_IB_MSG_1142);
+          return (srv_init_abort(DB_ERROR));
         }
+      } else {
+        fil_space_release(space);
+      }
 
       dict_persist->table_buffer =
           ut::new_withkey<DDTableBuffer>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -2502,10 +2447,6 @@ dberr_t srv_start(bool create_new_db) {
     err = srv_undo_tablespaces_init(false);
 
     if (err != DB_SUCCESS && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-      return (srv_init_abort(err));
-    }
-
-    if (err != DB_SUCCESS) {
       return (srv_init_abort(err));
     }
 
@@ -2885,10 +2826,6 @@ void srv_start_threads(bool bootstrap) {
   /* Create the thread that will optimize the FTS sub-system. */
   fts_optimize_init();
 
-  fil_system_acquire();
-  fil_crypt_threads_init();
-  fil_system_release();
-
   srv_start_state_set(SRV_START_STATE_STAT);
 }
 
@@ -3005,7 +2942,6 @@ void srv_pre_dd_shutdown() {
     srv_shutdown_set_state(SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS);
     srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);
     srv_shutdown_set_state(SRV_SHUTDOWN_DD);
-    unlock_keyrings(NULL);
     return;
   }
 
@@ -3068,18 +3004,6 @@ void srv_pre_dd_shutdown() {
   /* Since this point we do not expect accesses to DD coming from InnoDB. */
   ut_d(trx_sys_before_pre_dd_shutdown_validate());
 
-  for (;;) {
-    const auto threads_count = srv_threads.m_crypt_threads_n;
-    if (threads_count == 0) {
-      break;
-    }
-    ib::info(ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD)
-        << "Waiting for"
-           " keyring encryption threads"
-           " to exit";
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-  }
-
   srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);
 
   for (uint32_t count = 1; srv_purge_threads_active(); ++count) {
@@ -3090,11 +3014,6 @@ void srv_pre_dd_shutdown() {
     std::this_thread::sleep_for(
         std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
-
-  if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-    fil_crypt_threads_cleanup();
-  }
-
   switch (trx_purge_state()) {
     case PURGE_STATE_INIT:
     case PURGE_STATE_EXIT:
@@ -3105,8 +3024,6 @@ void srv_pre_dd_shutdown() {
     case PURGE_STATE_STOP:
       ut_d(ut_error);
   }
-
-  unlock_keyrings(NULL);
 
   /* After this phase plugins are asked to be shut down, in which case they
   will be marked as DELETED. Note: we cannot leave any transaction in the THD,

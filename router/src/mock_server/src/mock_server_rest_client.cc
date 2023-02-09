@@ -22,6 +22,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// enable using Rapidjson library with std::string
+#define RAPIDJSON_HAS_STDSTRING 1
+
 #include "my_rapidjson_size_t.h"
 
 #include "mysqlrouter/mock_server_rest_client.h"
@@ -33,11 +36,6 @@
 #include <cstring>
 #include <stdexcept>
 #include <thread>
-
-/* static */ constexpr std::chrono::milliseconds
-    MockServerRestClient::kMockServerMaxRestEndpointStepTime;
-/* static */ constexpr std::chrono::milliseconds
-    MockServerRestClient::kMockServerDefaultRestEndpointTimeout;
 
 MockServerRestClient::MockServerRestClient(const uint16_t http_port,
                                            const std::string &http_hostname)
@@ -113,10 +111,9 @@ int MockServerRestClient::get_int_global(const std::string &global_name) {
   const auto json_payload = get_globals_as_json_string();
 
   rapidjson::Document json_doc;
-  json_doc.Parse(json_payload.data(), json_payload.size());
+  json_doc.Parse(json_payload);
 
-  const auto it = json_doc.FindMember(
-      rapidjson::Value{global_name.data(), global_name.size()});
+  const auto it = json_doc.FindMember(global_name);
 
   if (it == json_doc.MemberEnd()) {
     throw std::runtime_error(std::string("Json payload does not have value: ") +
@@ -135,10 +132,9 @@ bool MockServerRestClient::get_bool_global(const std::string &global_name) {
   const auto json_payload = get_globals_as_json_string();
 
   rapidjson::Document json_doc;
-  json_doc.Parse(json_payload.data(), json_payload.size());
+  json_doc.Parse(json_payload);
 
-  const auto it = json_doc.FindMember(
-      rapidjson::Value{global_name.data(), global_name.size()});
+  const auto it = json_doc.FindMember(global_name);
 
   if (it == json_doc.MemberEnd()) {
     throw std::runtime_error(std::string("Json payload does not have value: ") +

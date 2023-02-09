@@ -52,7 +52,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
@@ -385,7 +384,7 @@ static void column_zip_set_alloc(void *stream, mem_heap_t *heap) noexcept {
 @param[in]      lenlen          bytes used to store the length of data
 @param[in]      dict_data       optional dictionary data used for compression
 @param[in]      dict_data_len   optional dictionary data length
-@param[in]      compress_heap
+@param[in]      prebuilt        use prebuilt->compress only here
 @return pointer to the compressed data */
 byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
                           const byte *dict_data, ulint dict_data_len,
@@ -515,12 +514,14 @@ const byte *row_decompress_column(const byte *data, ulint *len,
                              &reserved);
 
   if (reserved != default_zip_column_reserved_value) {
-    ib::fatal(UT_LOCATION_HERE) << "unsupported compressed BLOB header format\n";
+    ib::fatal(UT_LOCATION_HERE)
+        << "unsupported compressed BLOB header format\n";
   }
 
   if (alg != default_zip_column_algorithm_value) {
-    ib::fatal(UT_LOCATION_HERE) << "unsupported 'algorithm' value in the compressed BLOB "
-                   "header\n";
+    ib::fatal(UT_LOCATION_HERE)
+        << "unsupported 'algorithm' value in the compressed BLOB "
+           "header\n";
   }
 
   ut_a(lenlen < 4);
@@ -600,12 +601,14 @@ const byte *row_decompress_column(const byte *data, ulint *len,
       ib::fatal(UT_LOCATION_HERE) << "zlib buf error, this shouldn't happen\n";
       break;
     default:
-      ib::fatal(UT_LOCATION_HERE) << "failed to decompress column, error: " << err << '\n';
+      ib::fatal(UT_LOCATION_HERE)
+          << "failed to decompress column, error: " << err << '\n';
   }
 
   if (err == Z_OK) {
     if (buf_len != uncomp_len) {
-      ib::fatal(UT_LOCATION_HERE) << "failed to decompress blob column, may be corrupted\n";
+      ib::fatal(UT_LOCATION_HERE)
+          << "failed to decompress blob column, may be corrupted\n";
     }
     *len = buf_len;
     return buf;
@@ -846,10 +849,10 @@ byte *row_mysql_store_col_in_innobase_format(
     bool need_compression,
     /*!< in: if the data need to be
     compressed*/
-    const byte *dict_data,    /*!< in: optional compression
-                              dictionary data */
-    ulint dict_data_len,      /*!< in: optional compression
-                              dictionary data length */
+    const byte *dict_data,      /*!< in: optional compression
+                                dictionary data */
+    ulint dict_data_len,        /*!< in: optional compression
+                                dictionary data length */
     mem_heap_t **compress_heap) /*!< in: compress_heap */
 {
   const byte *ptr = mysql_data;
@@ -1230,7 +1233,7 @@ handle_new_error:
 
 /* Maximum size of the buffer needed for conversion of INTs from
 little endian format to big endian format in an index. An index
-can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
+can have maximum 16 columns (MAX_REF_PARTS) in it. Therefore
 Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
 Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
 constexpr uint32_t MAX_SRCH_KEY_VAL_BUFFER = 2 * 8 * MAX_REF_PARTS;
@@ -1923,7 +1926,7 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
 
   /* Step-5: If error is encountered while inserting entries to any
   of the index then entries inserted to previous indexes are removed
-  explicity. Automatic rollback is not in action as UNDO logs are
+  explicitly. Automatic rollback is not in action as UNDO logs are
   turned-off. */
   if (err != DB_SUCCESS) {
     node->entry = UT_LIST_GET_FIRST(node->entry_list);
@@ -2328,7 +2331,7 @@ static dberr_t row_fts_update_or_delete(
 /** Initialize the Doc ID system for FK table with FTS index */
 static void init_fts_doc_id_for_ref(
     dict_table_t *table, /*!< in: table */
-    ulint *depth)        /*!< in: recusive call depth */
+    ulint *depth)        /*!< in: recursive call depth */
 {
   dict_foreign_t *foreign;
 
@@ -2430,7 +2433,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
 typedef std::vector<btr_pcur_t, ut::allocator<btr_pcur_t>> cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
-Function will maintain cursor to the entries to invoke explicity rollback
+Function will maintain cursor to the entries to invoke explicitly rollback
 just in case update action following delete fails.
 
 @param[in]      node            update node carrying information to delete.
@@ -3201,11 +3204,10 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
   trx->dict_operation_lock_mode = 0;
 }
 
-dberr_t row_create_table_for_mysql(
-    dict_table_t *&table, const char *compression,
-    const HA_CREATE_INFO *create_info, trx_t *trx, mem_heap_t *heap,
-    const fil_encryption_t mode,
-    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
+dberr_t row_create_table_for_mysql(dict_table_t *&table,
+                                   const char *compression,
+                                   const HA_CREATE_INFO *create_info,
+                                   trx_t *trx, mem_heap_t *heap) {
   dberr_t err;
 
   ut_ad(!dict_sys_mutex_own());
@@ -3234,8 +3236,7 @@ dberr_t row_create_table_for_mysql(
   }
 
   /* Assign table id and build table space. */
-  err = dict_build_table_def(table, create_info, trx, mode,
-                             keyring_encryption_key_id);
+  err = dict_build_table_def(table, create_info, trx);
   if (err != DB_SUCCESS) {
     trx->error_state = DB_SUCCESS;
     trx->op_info = "";
@@ -3421,7 +3422,7 @@ dberr_t row_create_index_for_mysql(
 
   /* For temp-table we avoid insertion into SYSTEM TABLES to
   maintain performance and so we have separate path that directly
-  just updates dictonary cache. */
+  just updates dictionary cache. */
   if (!table->is_temporary()) {
     /* Create B-tree */
     dict_build_index_def(table, index, trx);
@@ -3448,7 +3449,7 @@ dberr_t row_create_index_for_mysql(
 #endif
 
     /* add index to dictionary cache and also free index object.
-    We allow instrinsic table to violate the size limits because
+    We allow intrinsic table to violate the size limits because
     they are used by optimizer for all record formats. */
     err = dict_index_add_to_cache(table, index, FIL_NULL,
                                   !table->is_intrinsic() && trx_is_strict(trx));
@@ -3573,7 +3574,7 @@ func_exit:
 
 /** Drops a table for MySQL as a background operation. MySQL relies on Unix
  in ALTER TABLE to the fact that the table handler does not remove the
- table before all handles to it has been removed. Furhermore, the MySQL's
+ table before all handles to it has been removed. Furthermore, the MySQL's
  call to drop table must be non-blocking. Therefore we do the drop table
  as a background operation, which is taken care of by the master thread
  in srv0srv.cc.
@@ -3966,13 +3967,6 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
       table->flags2 |= DICT_TF2_DISCARDED;
 
       dict_table_change_id_in_cache(table, new_id);
-
-      /* Reset the root page numbers. */
-
-      for (auto index : table->indexes) {
-        index->page = FIL_NULL;
-        index->space = FIL_NULL;
-      }
 
       /* Set SDI tables that ibd is missing */
       {
@@ -5265,7 +5259,7 @@ bool row_prebuilt_t::can_prefetch_records() const {
 }
 
 bool row_prebuilt_t::skip_concurrency_ticket() const {
-  /* Since there are no locks on instrinsic tables, we should skip
+  /* Since there are no locks on intrinsic tables, we should skip
   this for intrinsic temporary tables. */
 
   /* When InnoDB uses DD APIs, it leaves InnoDB and re-inters InnoDB again.

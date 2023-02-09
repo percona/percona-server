@@ -1260,7 +1260,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
 
 exit:
   if (table_list->is_view()) {
-    table_list->view_query()->cleanup(thd, true);
+    table_list->view_query()->cleanup(true);
     table_list->view_query()->destroy();
   }
   close_thread_tables(thd);
@@ -1297,7 +1297,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
                    sctx->master_access(dbname ? dbname : ""));
     }
   }
-  if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname)) {
+  if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname, true)) {
     thd->diff_access_denied_errors++;
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->host_or_ip().str, dbname);
@@ -2499,19 +2499,6 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
       if (uses_general_tablespace) packet->append(STRING_WITH_LEN(" */"));
     }
-
-    if (share->was_encryption_key_id_set) {
-      assert(share->encrypt_type.length == 0 ||
-             my_strcasecmp(system_charset_info, share->encrypt_type.str,
-                           "KEYRING") != 0 ||
-             share->encrypt_type.length == strlen("KEYRING"));
-
-      char *end;
-      packet->append(STRING_WITH_LEN(" ENCRYPTION_KEY_ID="));
-      end = longlong10_to_str(table->s->encryption_key_id, buff, 10);
-      packet->append(buff, static_cast<uint>(end - buff));
-    }
-
     table->file->append_create_info(packet);
     if (share->comment.length) {
       packet->append(STRING_WITH_LEN(" COMMENT="));
@@ -3359,24 +3346,41 @@ void free_status_vars() {
 }
 
 /**
+  Search for a status variable and gets its string value
+
+  Check if the supplied @ref SHOW_VAR contains the
+  status variable, diving into @ref SHOW_ARRAY arrays
+  and evaluating @ref SHOW_FUNC functions as needed.
+  Can be called recursively.
+  If a variable is found its string value is produced
+  by calling @ref get_one_variable.
+
+  Used in conjunction with @ref get_recursive_status_var
+
   @brief           Get the value of given status variable
 
   @param[in]       thd        thread handler
   @param[in]       list       list of SHOW_VAR objects in which function should
                               search
+  @param[in]       is_a_list  true if it's a list array that needs to be
+  iterated
   @param[in]       name       name of the status variable
   @param[in]       var_type   Variable type
   @param[in,out]   value      buffer in which value of the status variable
                               needs to be filled in
   @param[in,out]   length     filled with buffer length
+  @param[out]      charset    charset of the data returned
 
   @return          status
     @retval        false      if variable is not found in the list
     @retval        true       if variable is found in the list
 */
-
-bool get_status_var(THD *thd, SHOW_VAR *list, const char *name,
-                    char *const value, enum_var_type var_type, size_t *length) {
+static bool get_recursive_status_var_inner(THD *thd, SHOW_VAR *list,
+                                           bool is_a_list, const char *name,
+                                           char *const value,
+                                           enum_var_type var_type,
+                                           size_t *length,
+                                           const CHARSET_INFO **charset) {
   for (; list->name; list++) {
     int res = strcmp(list->name, name);
     if (res == 0) {
@@ -3388,10 +3392,57 @@ bool get_status_var(THD *thd, SHOW_VAR *list, const char *name,
       for (; list->type == SHOW_FUNC; list = &tmp)
         ((mysql_show_var_func)(list->value))(thd, &tmp, value);
 
-      get_one_variable(thd, list, var_type, list->type, nullptr, nullptr, value,
-                       length);
+      const char *ret = get_one_variable(
+          thd, list, var_type, list->type,
+          var_type == OPT_SESSION ? &thd->status_var : &global_status_var,
+          charset, value, length);
+      if (ret != value && *length != 0) memcpy(value, ret, *length + 1);
       return true;
+    } else if (list->type == SHOW_ARRAY && list->name &&
+               !strncmp(list->name, name, strlen(list->name))) {
+      // the variable name matches an array prefix: dive into it and skip the
+      // prefix and the underscore
+      if (get_recursive_status_var_inner(thd, (SHOW_VAR *)list->value, true,
+                                         name + strlen(list->name) + 1, value,
+                                         var_type, length, charset))
+        return true;
     }
+    if (!is_a_list) break;
+  }
+  return false;
+}
+
+/**
+  Get the string value of a status variable. A top level API
+
+  Takes the @ref LOCK_status lock and iterates over the
+  registered status variable array @ref all_status_vars
+  to evaluate the value of a named status variable by calling
+  @ref get_recursive_status_var_inner for each element in
+  @ref all_status_vars.
+
+  @brief           Get the value of given status variable
+
+  @param[in]       thd        thread handler
+  @param[in]       name       name of the status variable
+  @param[in]       var_type   Variable type
+  @param[in,out]   value      buffer in which value of the status variable
+                              needs to be filled in
+  @param[in,out]   length     filled with buffer length
+  @param[out]      charset    charset of the data returned
+
+  @return          status
+    @retval        false      if variable is not found in the list
+    @retval        true       if variable is found in the list
+*/
+bool get_recursive_status_var(THD *thd, const char *name, char *const value,
+                              enum_var_type var_type, size_t *length,
+                              const CHARSET_INFO **charset) {
+  MUTEX_LOCK(lock, status_vars_inited ? &LOCK_status : nullptr);
+  for (SHOW_VAR var : all_status_vars) {
+    if (get_recursive_status_var_inner(thd, &var, false, name, value, var_type,
+                                       length, charset))
+      return true;
   }
   return false;
 }
@@ -4161,7 +4212,7 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
 end:
-  lex->cleanup(thd, true);
+  lex->cleanup(true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);

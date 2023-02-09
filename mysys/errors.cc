@@ -140,6 +140,7 @@ const char *globerrs[GLOBERRS] = {
     "Unknown LDML tag: '%.*s'.",
     "Failed to reset before a secondary ignorable character %s.",
     "Stopped processing the '%s' directive in file %s at line %d.",
+    "pthread_kill(thread_id:%lu, signal:%s) returned '%s'.",
     "Can't create socket '%s' (Errcode: %d)",
     "File name '%s' is too long (max: %d)"};
 

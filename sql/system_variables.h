@@ -102,12 +102,40 @@ enum use_secondary_engine {
   SECONDARY_ENGINE_FORCED = 2
 };
 
+<<<<<<< HEAD
 // Values for default_table_encryption
 enum enum_default_table_encryption {
   DEFAULT_TABLE_ENC_OFF = 0,
   DEFAULT_TABLE_ENC_ON = 1,
 };
 
+||||||| a246bad76b9
+=======
+/**
+  Values for explain_format sysvar.
+
+  The value "TRADITIONAL_STRICT" is meant only to be used by the mtr test
+  suite. With hypergraph optimizer, if explain_format value is TRADITIONAL,
+  EXPLAIN without a format specifier prints in TREE format. The mtr tests were
+  written *before* this traditional-tree conversion was introduced. So mtr was
+  designed to just ignore the "format not supported with hypergraph" error when
+  a test runs an EXPLAIN without format specifier with --hypergraph. With the
+  conversion introduced, EXPLAIN without format specifier therefore would have
+  output in different formats with and without the mtr --hypergraph option.  In
+  order for the mtr tests to be able to continue to pass, mtr internally sets
+  explain_format to TRADITIONAL_STRICT so that these statements continue to
+  error out rather than print TREE format as they would do with TRADITIONAL
+  format. This is a temporary stuff.  Once all tests start using TREE format,
+  we will deprecate this value.
+*/
+enum class Explain_format_type : ulong {
+  TRADITIONAL = 0,
+  TRADITIONAL_STRICT = 1,
+  TREE = 2,
+  JSON = 3
+};
+
+>>>>>>> mysql-8.0.32
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT 1
 #define MODE_PIPES_AS_CONCAT 2
@@ -672,6 +700,13 @@ struct System_variables {
     @sa Sys_debug_sensitive_session_string
   */
   char *debug_sensitive_session_str;
+
+  /**
+    Used to specify the format in which the EXPLAIN statement should display
+    information if the FORMAT option is not explicitly specified.
+    @sa Sys_explain_format
+   */
+  Explain_format_type explain_format;
 };
 
 /**

@@ -1922,7 +1922,16 @@ void Fil_shard::validate() const {
 
     for (const auto &file : space->files) {
       ut_a(file.is_open || !file.n_pending_ios);
+<<<<<<< HEAD
 
+||||||| a246bad76b9
+
+      if (file.is_open) {
+        ++n_open;
+      }
+
+=======
+>>>>>>> mysql-8.0.32
       size += file.size;
     }
 
@@ -3296,7 +3305,7 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
   space->m_encryption_metadata.m_type = Encryption::NONE;
   space->encryption_op_in_progress = Encryption::Progress::NONE;
 
-  rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
+  rw_lock_create(fil_space_latch_key, &space->latch, LATCH_ID_FIL_SPACE);
 
   space->is_corrupt = false;
 

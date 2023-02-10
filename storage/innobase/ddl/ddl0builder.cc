@@ -28,6 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  DDL build index implementation.
 Created 2020-11-01 by Sunny Bains. */
 
+#include <debug_sync.h>
 #include "clone0api.h"
 #include "ddl0fts.h"
 #include "ddl0impl-builder.h"
@@ -1945,13 +1946,25 @@ dberr_t Builder::finalize(bool apply_log) noexcept {
   if (err == DB_SUCCESS) {
     write_redo(m_index);
 
+<<<<<<< HEAD
     if (apply_log) {
       DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_before");
+||||||| a246bad76b9
+    DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_before");
+=======
+    DEBUG_SYNC(m_ctx.thd(), "row_log_apply_before");
+>>>>>>> mysql-8.0.32
 
       err = row_log_apply(m_ctx.m_trx, m_index, m_ctx.m_table, m_local_stage);
 
+<<<<<<< HEAD
       DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_after");
     }
+||||||| a246bad76b9
+    DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_after");
+=======
+    DEBUG_SYNC(m_ctx.thd(), "row_log_apply_after");
+>>>>>>> mysql-8.0.32
   }
 
   if (err != DB_SUCCESS) {
@@ -2002,7 +2015,7 @@ dberr_t Builder::setup_sort() noexcept {
   ut_a(!is_skip_file_sort());
   ut_a(get_state() == State::SETUP_SORT);
 
-  DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "ddl_merge_sort_interrupt");
+  DEBUG_SYNC(m_ctx.thd(), "ddl_merge_sort_interrupt");
 
   const auto err = create_merge_sort_tasks();
 

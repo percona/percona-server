@@ -76,6 +76,7 @@ int main(int argc, char **argv) {
   keyinfo[0].seg[0].null_bit = 0;
   keyinfo[0].flag = HA_NOSAME;
 
+<<<<<<< HEAD
   memset(columndef, 0, 2 * sizeof(HP_COLUMNDEF));
   columndef[0].type = MYSQL_TYPE_STRING;
   columndef[0].offset = 1;
@@ -84,6 +85,10 @@ int main(int argc, char **argv) {
   columndef[1].offset = 7;
   columndef[1].length = 23;
 
+||||||| a246bad76b9
+  deleted = 0;
+=======
+>>>>>>> mysql-8.0.32
   memset(flags, 0, sizeof(flags));
 
   printf("- Creating heap-file\n");

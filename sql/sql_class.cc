@@ -3242,12 +3242,17 @@ bool THD::is_current_stmt_binlog_log_replica_updates_disabled() const {
           !mysql_bin_log.is_open());
 }
 
+bool THD::is_current_stmt_binlog_enabled_and_caches_empty() const {
+  return mysql_bin_log.is_current_stmt_binlog_enabled_and_caches_empty(this);
+}
+
 bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const {
   return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
           is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
 }
 
+<<<<<<< HEAD
 void THD::check_rpl_stmt_event_format_used() {
   for (TABLE_LIST *table = lex->query_tables; table;
        table = table->next_global) {
@@ -3265,6 +3270,24 @@ bool THD::get_rpl_stmt_event_format_used() const {
   return is_rpl_stmt_event_format_used;
 }
 
+||||||| a246bad76b9
+=======
+void THD::enable_low_level_commit_ordering() {
+  DBUG_TRACE;
+  m_is_low_level_commit_ordering_enabled = true;
+}
+
+void THD::disable_low_level_commit_ordering() {
+  DBUG_TRACE;
+  m_is_low_level_commit_ordering_enabled = false;
+}
+
+bool THD::is_low_level_commit_ordering_enabled() const {
+  DBUG_TRACE;
+  return m_is_low_level_commit_ordering_enabled;
+}
+
+>>>>>>> mysql-8.0.32
 bool THD::Query_plan::is_single_table_plan() const {
   assert_plan_is_locked_if_other();
   return lex->m_sql_cmd->is_single_table_plan();

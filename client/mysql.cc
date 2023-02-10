@@ -236,6 +236,7 @@ static const CHARSET_INFO *charset_info = &my_charset_latin1;
 static char *opt_fido_register_factor = nullptr;
 static char *opt_oci_config_file = nullptr;
 
+#include "authentication_kerberos_clientopt-vars.h"
 #include "caching_sha2_passwordopt-vars.h"
 #include "multi_factor_passwordopt-vars.h"
 #include "sslopt-vars.h"
@@ -1955,6 +1956,7 @@ static struct my_option my_long_options[] = {
      "is ~/.oci/config and %HOME/.oci/config on Windows.",
      &opt_oci_config_file, &opt_oci_config_file, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
+#include "authentication_kerberos_clientopt-longopts.h"
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -2081,6 +2083,8 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
       break;
 #include "sslopt-case.h"
 
+#include "authentication_kerberos_clientopt-case.h"
+
     case 'V':
       usage(1);
       exit(0);
@@ -2091,6 +2095,9 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
     case OPT_MYSQL_BINARY_AS_HEX:
       opt_binhex = (argument != disabled_my_option);
       opt_binary_as_hex_set_explicitly = true;
+      break;
+    case 'C':
+      CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
       break;
   }
   return false;
@@ -4762,6 +4769,15 @@ static bool init_connection_options(MYSQL *mysql) {
       return 1;
     }
   }
+
+#if defined(_WIN32)
+  char error[256]{0};
+  if (set_authentication_kerberos_client_mode(mysql, error, 255)) {
+    put_info(error, INFO_ERROR);
+    return 1;
+  }
+#endif
+
   return false;
 }
 

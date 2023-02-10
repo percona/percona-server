@@ -53,6 +53,55 @@ int main(int argc, const char **argv) {
     FILE *in_file;
     if (!(in_file = fopen(in_filename, "r")))
       throw_error("Failed to open input file", in_filename);
+<<<<<<< HEAD
+||||||| a246bad76b9
+    {
+      FILE *out_file;
+      if (!(out_file = fopen(out_filename, "w")))
+        throw_error("Failed to open output file", out_filename);
+
+      // write comment and 1st part of the array definition
+      if (!fprintf(
+              out_file,
+              "// This file was auto-generated during CMake build process, "
+              "using command:\n"
+              "//\n"
+              "//   %s %s %s %s %s\n"
+              "//\n"
+              "// (see " __FILE__ ")\n"
+              "#include \"%s\"\n"
+              "\n"
+              "constexpr const char %s::data_[];\n",
+              argv[0], in_filename, out_filename, hdr_filename, symbol_name,
+              hdr_filename, symbol_name))
+        throw_error("Failed writing output file", out_filename);
+      if (fclose(out_file))
+        throw_error("Failed closing output file", out_filename);
+    }
+=======
+    {
+      FILE *out_file;
+      if (!(out_file = fopen(out_filename, "w")))
+        throw_error("Failed to open output file", out_filename);
+
+      // write comment and 1st part of the array definition
+      if (!fprintf(
+              out_file,
+              "// This file was auto-generated during CMake build process, "
+              "using command:\n"
+              "//\n"
+              "//   %s %s %s %s %s\n"
+              "//\n"
+              "// (see " __FILE__ ")\n"
+              "#include \"%s\"\n"
+              "\n",
+              argv[0], in_filename, out_filename, hdr_filename, symbol_name,
+              hdr_filename))
+        throw_error("Failed writing output file", out_filename);
+      if (fclose(out_file))
+        throw_error("Failed closing output file", out_filename);
+    }
+>>>>>>> mysql-8.0.32
 
     FILE *hdr_file;
     if (!(hdr_file = fopen(hdr_filename, "w")))

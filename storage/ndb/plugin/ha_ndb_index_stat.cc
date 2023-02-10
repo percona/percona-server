@@ -982,16 +982,8 @@ static void ndb_index_stat_free(Ndb_index_stat *st) {
   Ndb_index_stat *st_head = nullptr;
   Ndb_index_stat *st_tail = nullptr;
   Ndb_index_stat *st_loop = share->index_stat_list;
-<<<<<<< HEAD
-  uint found [[maybe_unused]] = 0;
-  while (st_loop != 0) {
-||||||| a246bad76b9
-  uint found = 0;
-  while (st_loop != 0) {
-=======
   uint found [[maybe_unused]] = 0;
   while (st_loop != nullptr) {
->>>>>>> mysql-8.0.32
     if (st == st_loop) {
       // Unlink entry from NDB_SHARE and request it to be released
       DBUG_PRINT("index_stat", ("st %s stat free one", st->id));

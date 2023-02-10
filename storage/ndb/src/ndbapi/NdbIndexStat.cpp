@@ -260,14 +260,7 @@ int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
                            op->getNdbError().code));
       DBUG_RETURN(-1);
     }
-<<<<<<< HEAD
-    const char* dummy_out_ptr= NULL;
-||||||| a246bad76b9
-    cnt = 0;
-    const char* dummy_out_ptr= NULL;
-=======
     const char* dummy_out_ptr= nullptr;
->>>>>>> mysql-8.0.32
     while ((ret = op->nextResult(&dummy_out_ptr,
                                  true, forceSend)) == 0) {
       DBUG_PRINT("info", ("frag rows=%u in=%u before=%u after=%u [error=%d]",

@@ -1401,14 +1401,6 @@ dberr_t FTS::Inserter::insert(Builder *builder,
       if (err != DB_SUCCESS) {
         return err;
       }
-<<<<<<< HEAD
-
-||||||| a246bad76b9
-
-      ++i;
-
-=======
->>>>>>> mysql-8.0.32
       total_rows += file.m_n_recs;
     }
   }
@@ -1541,15 +1533,9 @@ dberr_t FTS::start_parse_threads(Builder *builder) noexcept {
     auto thd = create_internal_thd();
     ut_ad(current_thd == thd);
 
-<<<<<<< HEAD
-    parser->parse(builder, m_ctx.new_table()->space);
-||||||| a246bad76b9
-    parser->parse(builder);
-=======
     thd->push_diagnostics_area(&parser->da, false);
-    parser->parse(builder);
+    parser->parse(builder, m_ctx.new_table()->space);
     thd->pop_diagnostics_area();
->>>>>>> mysql-8.0.32
 
     destroy_internal_thd(current_thd);
     my_thread_end();

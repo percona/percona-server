@@ -6456,19 +6456,6 @@ static bool process_set_gtid_purged(MYSQL *mysql_con, bool ftwrl_done) {
               "--all-databases --triggers --routines --events. \n");
     }
 
-    if (!opt_single_transaction && !opt_lock_all_tables && !opt_master_data) {
-      fprintf(stderr,
-              "Warning: A dump from a server that has GTIDs "
-              "enabled will by default include the GTIDs "
-              "of all transactions, even those that were "
-              "executed during its extraction and might "
-              "not be represented in the dumped data. "
-              "This might result in an inconsistent data dump. \n"
-              "In order to ensure a consistent backup of the "
-              "database, pass --single-transaction or "
-              "--lock-all-tables or --master-data. \n");
-    }
-
     set_session_binlog(false);
     if (add_set_gtid_purged(mysql_con, ftwrl_done)) {
       mysql_free_result(gtid_mode_res);
@@ -6889,7 +6876,6 @@ int main(int argc, char **argv) {
 
   if (opt_slave_data && do_stop_slave_sql(mysql)) goto err;
 
-<<<<<<< HEAD
   if (opt_single_transaction && opt_master_data) {
     /*
       See if we can avoid FLUSH TABLES WITH READ LOCK with Binlog_snapshot_*
@@ -6925,22 +6911,14 @@ int main(int argc, char **argv) {
     if (do_flush_tables_read_lock(mysql)) goto err;
     ftwrl_done = true;
   } else if (opt_lock_for_backup && do_lock_tables_for_backup(mysql))
-||||||| a246bad76b9
-  if ((opt_lock_all_tables || opt_master_data ||
-       (opt_single_transaction && flush_logs)) &&
-      do_flush_tables_read_lock(mysql))
-=======
-  if ((opt_lock_all_tables || opt_master_data || opt_single_transaction) &&
-      do_flush_tables_read_lock(mysql))
->>>>>>> mysql-8.0.32
     goto err;
 
   /*
     Flush logs before starting transaction since
     this causes implicit commit starting mysql-5.5.
   */
-  if (opt_lock_all_tables || opt_master_data || opt_single_transaction ||
-      opt_delete_master_logs) {
+  if (opt_lock_all_tables || opt_master_data ||
+      (opt_single_transaction && flush_logs) || opt_delete_master_logs) {
     if (flush_logs || opt_delete_master_logs) {
       if (mysql_refresh(mysql, REFRESH_LOG)) {
         DB_error(mysql, "when doing refresh");
@@ -6957,15 +6935,11 @@ int main(int argc, char **argv) {
     if (get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name))) goto err;
   }
 
-<<<<<<< HEAD
   if (has_session_variables_like(mysql, "rocksdb_skip_fill_cache"))
     mysql_query_with_error_report(mysql, nullptr,
                                   "SET SESSION rocksdb_skip_fill_cache=1");
 
-||||||| a246bad76b9
-=======
   /* Start the transaction */
->>>>>>> mysql-8.0.32
   if (opt_single_transaction && start_transaction(mysql)) goto err;
 
   /* Add 'STOP SLAVE to beginning of dump */

@@ -3475,14 +3475,10 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
   if (likely(!result)) {
     update_index_stats(index);
   }
-||||||| a246bad76b9
-=======
   assert(inited == NONE);
->>>>>>> mysql-8.0.32
   return result;
 }
 

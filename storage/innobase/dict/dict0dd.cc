@@ -1807,12 +1807,7 @@ void dd_clear_instant_part(dd::Partition &dd_part) {
 bool dd_instant_columns_consistent(const dd::Table &dd_table) {
   bool found = false;
   size_t n_non_instant_cols = 0;
-<<<<<<< HEAD
-||||||| a246bad76b9
-  size_t n_version_add_cols = 0;
-=======
   size_t n_version_add_cols [[maybe_unused]] = 0;
->>>>>>> mysql-8.0.32
   size_t n_instant_add_cols = 0;
   size_t n_version_drop_cols = 0;
   for (auto column : dd_table.columns()) {
@@ -1825,7 +1820,9 @@ bool dd_instant_columns_consistent(const dd::Table &dd_table) {
         column->se_private_data().exists(
             dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
       found = true;
-      if (!dd_column_is_added(column)) {
+      if (dd_column_is_added(column)) {
+        n_version_add_cols++;
+      } else {
         /* In upgraded table, Instant ADD column with no v_added */
         ut_ad(dd_table_is_upgraded_instant(dd_table));
         n_instant_add_cols++;

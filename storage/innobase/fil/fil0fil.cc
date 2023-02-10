@@ -1922,16 +1922,6 @@ void Fil_shard::validate() const {
 
     for (const auto &file : space->files) {
       ut_a(file.is_open || !file.n_pending_ios);
-<<<<<<< HEAD
-
-||||||| a246bad76b9
-
-      if (file.is_open) {
-        ++n_open;
-      }
-
-=======
->>>>>>> mysql-8.0.32
       size += file.size;
     }
 

@@ -2213,26 +2213,8 @@ static void buf_pool_resize() {
   buf_resize_status(BUF_POOL_RESIZE_DISABLE_AHI,
                     "Disabling adaptive hash index.");
 
-<<<<<<< HEAD
-  rw_lock_s_lock(btr_search_latches[0], UT_LOCATION_HERE);
-  if (btr_search_enabled) {
-    rw_lock_s_unlock(btr_search_latches[0]);
-    btr_search_disabled = true;
-  } else {
-    rw_lock_s_unlock(btr_search_latches[0]);
-  }
-||||||| a246bad76b9
-  btr_search_s_lock_all(UT_LOCATION_HERE);
-  if (btr_search_enabled) {
-    btr_search_s_unlock_all();
-    btr_search_disabled = true;
-  } else {
-    btr_search_s_unlock_all();
-  }
-=======
   /* disable AHI if needed */
   const bool btr_search_was_enabled = btr_search_disable();
->>>>>>> mysql-8.0.32
 
   if (btr_search_was_enabled) {
     ib::info(ER_IB_MSG_60) << "disabled adaptive hash index.";
@@ -2649,16 +2631,8 @@ withdraw_retry:
   }
 
   /* enable AHI if needed */
-<<<<<<< HEAD
-  if (btr_search_disabled) {
-    btr_search_enable(true);
-||||||| a246bad76b9
-  if (btr_search_disabled) {
-    btr_search_enable();
-=======
   if (btr_search_was_enabled) {
     btr_search_enable();
->>>>>>> mysql-8.0.32
     ib::info(ER_IB_MSG_70) << "Re-enabled adaptive hash index.";
   }
 

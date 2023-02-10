@@ -190,7 +190,7 @@ delete)
 @param[in,out] thd  Session object
 @return TABLE* on success else nullptr */
 static TABLE *open_dictionary_table_write(THD *thd) {
-  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
+  Table_ref tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
                        STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
                        COMPRESSION_DICTIONARY_TABLE, TL_WRITE,
                        MDL_SHARED_NO_READ_WRITE);
@@ -221,7 +221,7 @@ static TABLE *open_dictionary_table_read(THD *thd) {
   assert(!thd->is_attachable_ro_transaction_active());
   thd->begin_attachable_ro_transaction();
 
-  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
+  Table_ref tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
                        STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
                        COMPRESSION_DICTIONARY_TABLE, TL_READ);
   tablelist.next_local = tablelist.next_global = nullptr;
@@ -230,7 +230,7 @@ static TABLE *open_dictionary_table_read(THD *thd) {
                 MYSQL_OPEN_IGNORE_FLUSH);
 
   uint counter;
-  TABLE_LIST *table_list = &tablelist;
+  Table_ref *table_list = &tablelist;
   if (::open_tables(thd, &table_list, &counter, flags)) {
     DBUG_LOG("zip_dict",
              "open_tables() on compression_dictionary table in read"
@@ -272,7 +272,7 @@ table mysql.compression_dictionary
 @return on success, a TABLE* object else nullptr on failure */
 
 static TABLE *open_dictionary_cols_table_write(THD *thd) {
-  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
+  Table_ref tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
                        STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
                        COMPRESSION_DICTIONARY_COLS_TABLE,
                        TL_WRITE_CONCURRENT_DEFAULT, MDL_SHARED_WRITE);

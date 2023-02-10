@@ -96,12 +96,7 @@
 #include "sql/visible_fields.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
-<<<<<<< HEAD
-||||||| a246bad76b9
-using std::move;
-=======
 
->>>>>>> mysql-8.0.32
 using std::vector;
 
 class Item_rollup_group_item;

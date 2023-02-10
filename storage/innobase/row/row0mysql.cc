@@ -125,6 +125,7 @@ applications.
 const uint srv_compressed_columns_zlib_strategy = Z_DEFAULT_STRATEGY;
 /** Compress the column if the data length exceeds this value. */
 ulong srv_compressed_columns_threshold = 96;
+
 /**
 Determine if zlib needs to compute adler32 value for the compressed data.
 This variables is similar to page_zip_zlib_wrap, but only used by

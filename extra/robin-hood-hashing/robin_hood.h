@@ -203,20 +203,6 @@ static Counts& counts() {
 #    define ROBIN_HOOD_PRIVATE_DEFINITION_HAS_NATIVE_WCHART() 1
 #endif
 
-<<<<<<< HEAD
-// workaround missing "is_trivially_copyable" in g++ < 5.0
-// See https://stackoverflow.com/a/31798726/48181
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ < 5
-#    define ROBIN_HOOD_IS_TRIVIALLY_COPYABLE(...) __has_trivial_copy(__VA_ARGS__)
-#else
-||||||| a246bad76b9
-// workaround missing "is_trivially_copyable" in g++ < 5.0
-// See https://stackoverflow.com/a/31798726/48181
-#if defined(__GNUC__) && __GNUC__ < 5
-#    define ROBIN_HOOD_IS_TRIVIALLY_COPYABLE(...) __has_trivial_copy(__VA_ARGS__)
-#else
-=======
->>>>>>> mysql-8.0.32
 #    define ROBIN_HOOD_IS_TRIVIALLY_COPYABLE(...) std::is_trivially_copyable<__VA_ARGS__>::value
 
 // helpers for C++ versions, see https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html

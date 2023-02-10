@@ -8675,13 +8675,7 @@ int xcom_client_get_leaders(connection_descriptor *fd, uint32_t group_id,
 
 #if 0
 /* Called when leader changes */
-<<<<<<< HEAD
-static xcom_election_cb election_cb [[maybe_unused]] = NULL;
-||||||| a246bad76b9
-static MY_ATTRIBUTE((unused)) xcom_election_cb election_cb = NULL;
-=======
 [[maybe_unused]] static xcom_election_cb election_cb = NULL;
->>>>>>> mysql-8.0.32
 
 void set_xcom_election_cb(xcom_election_cb x) { election_cb = x; }
 #endif

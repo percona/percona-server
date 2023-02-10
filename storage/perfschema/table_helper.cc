@@ -701,13 +701,7 @@ int PFS_object_row::make_row(PFS_program *pfs) {
 }
 
 int PFS_column_row::make_row(const MDL_key *mdl) {
-<<<<<<< HEAD
-  static_assert(MDL_key::NAMESPACE_END == 20,
-||||||| a246bad76b9
   static_assert(MDL_key::NAMESPACE_END == 19,
-=======
-  static_assert(MDL_key::NAMESPACE_END == 18,
->>>>>>> mysql-8.0.32
                 "Adjust performance schema when changing enum_mdl_namespace");
 
   bool with_schema = false;

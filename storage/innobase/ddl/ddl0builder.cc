@@ -1946,25 +1946,13 @@ dberr_t Builder::finalize(bool apply_log) noexcept {
   if (err == DB_SUCCESS) {
     write_redo(m_index);
 
-<<<<<<< HEAD
     if (apply_log) {
-      DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_before");
-||||||| a246bad76b9
-    DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_before");
-=======
-    DEBUG_SYNC(m_ctx.thd(), "row_log_apply_before");
->>>>>>> mysql-8.0.32
+      DEBUG_SYNC(m_ctx.thd(), "row_log_apply_before");
 
       err = row_log_apply(m_ctx.m_trx, m_index, m_ctx.m_table, m_local_stage);
 
-<<<<<<< HEAD
-      DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_after");
+      DEBUG_SYNC(m_ctx.thd(), "row_log_apply_after");
     }
-||||||| a246bad76b9
-    DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_after");
-=======
-    DEBUG_SYNC(m_ctx.thd(), "row_log_apply_after");
->>>>>>> mysql-8.0.32
   }
 
   if (err != DB_SUCCESS) {

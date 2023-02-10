@@ -28,25 +28,6 @@
 # filename=@ROUTER_INSTALL_LOGDIR@/mysqlrouter.log
 #
 
-<<<<<<< HEAD:storage/ndb/ndbapi-examples/ndbapi_async1/Makefile
-$(TARGET): $(OBJS)
-	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-
-$(TARGET).o: $(SRCS)
-	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
-
-clean:
-	rm -f *.o $(TARGET)
-||||||| a246bad76b9:storage/ndb/ndbapi-examples/ndbapi_async1/Makefile
-$(TARGET): $(OBJS)
-	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
-
-$(TARGET).o: $(SRCS)
-	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
-
-clean:
-	rm -f *.o $(TARGET)
-=======
 @ROUTER_INSTALL_LOGDIR@/mysqlrouter.log {
         create 600 mysqlrouter mysqlrouter
         notifempty
@@ -58,4 +39,3 @@ clean:
       /usr/bin/systemctl kill -s HUP mysqlrouter.service >/dev/null 2>&1 || true
     endscript
 }
->>>>>>> mysql-8.0.32:support-files/mysqlrouter-log-rotate-systemd.in

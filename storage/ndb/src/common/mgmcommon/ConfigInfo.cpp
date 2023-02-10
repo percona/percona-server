@@ -4634,16 +4634,8 @@ ConfigInfo::get_enum_values(const Properties * section, const char* fname,
   Properties::Iterator it(values);
   Vector<const char*> enum_names;
   const char* fill = nullptr;
-<<<<<<< HEAD
-  unsigned cnt [[maybe_unused]] = 0;
-  for (const char* name = it.first(); name != NULL; name = it.next())
-||||||| a246bad76b9
-  unsigned cnt = 0;
-  for (const char* name = it.first(); name != NULL; name = it.next())
-=======
   unsigned cnt [[maybe_unused]] = 0;
   for (const char* name = it.first(); name != nullptr; name = it.next())
->>>>>>> mysql-8.0.32
   {
     Uint32 val;
     values->get(name, &val);
@@ -6932,12 +6924,7 @@ static bool saveSectionsInConfigValues(
     // Estimate size of Properties when saved as ConfigValues
     // and expand ConfigValues to that size in order to avoid
     // the need of allocating memory and copying from new to old
-<<<<<<< HEAD
-||||||| a246bad76b9
-    Uint32 keys = 0;
-=======
     Uint32 keys [[maybe_unused]] = 0;
->>>>>>> mysql-8.0.32
     Uint64 data_sz [[maybe_unused]] = 0;
     for (const char * name = it.first(); name != nullptr; name = it.next())
     {
@@ -6949,9 +6936,13 @@ static bool saveSectionsInConfigValues(
         const Properties* tmp;
         require(ctx.m_config->get(name, &tmp) != 0);
 
+        keys += 2; // openSection(key + no)
+        keys += 1; // CFG_TYPE_OF_SECTION
+
         Properties::Iterator it2(tmp);
         for (const char * name2 = it2.first(); name2 != nullptr; name2 = it2.next())
         {
+          keys++;
           require(tmp->getTypeOf(name2, &pt) != 0);
           switch(pt){
           case PropertiesType_char:

@@ -991,8 +991,7 @@ static void btr_free_but_not_root(buf_block_t *block, mtr_log_t log_mode,
 
   bool ahi = false;
   if (is_ahi_allowed) {
-    ut_ad(mutex_own(&dict_sys->mutex));
-    ahi = btr_search_enabled;
+    ahi = btr_search_enabled.load();
   }
 
 leaf_loop:

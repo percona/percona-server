@@ -390,21 +390,6 @@ class StatementReaderBase {
   virtual std::chrono::microseconds server_greeting_exec_time() = 0;
 
   virtual void set_session_ssl_info(const SSL *ssl) = 0;
-<<<<<<< HEAD
-
-  StatementReaderBase() = default;
-  StatementReaderBase(const StatementReaderBase &) = default;
-  StatementReaderBase &operator=(const StatementReaderBase &) noexcept = default;
-  StatementReaderBase &operator=(StatementReaderBase &&) noexcept = default;
-  virtual ~StatementReaderBase() = default;
-||||||| a246bad76b9
-
-  MY_COMPILER_DIAGNOSTIC_PUSH()
-  MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated")
-  virtual ~StatementReaderBase() = default;
-  MY_COMPILER_DIAGNOSTIC_POP()
-=======
->>>>>>> mysql-8.0.32
 };
 
 }  // namespace server_mock

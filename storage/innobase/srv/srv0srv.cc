@@ -1570,16 +1570,8 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   fprintf(file,
           "Total large memory allocated " ULINTPF
           "\n"
-<<<<<<< HEAD
-          "Dictionary memory allocated " ULINTPF "\n",
-          os_total_large_mem_allocated.load(), dict_sys ? dict_sys->size : 0UL);
-||||||| a246bad76b9
-          "Dictionary memory allocated " ULINTPF "\n",
-          os_total_large_mem_allocated.load(), dict_sys->size);
-=======
           "Dictionary memory allocated %zu\n",
-          os_total_large_mem_allocated.load(), dict_sys->size);
->>>>>>> mysql-8.0.32
+          os_total_large_mem_allocated.load(), dict_sys ? dict_sys->size : 0UL);
 
   buf_print_io(file);
 

@@ -416,13 +416,7 @@ struct MDL_key {
     RESOURCE_GROUPS,
     FOREIGN_KEY,
     CHECK_CONSTRAINT,
-<<<<<<< HEAD
-    RESOURCE_GROUPS_GLOBAL,
     BACKUP_TABLES, /* Percona LOCK TABLES FOR BACKUP */
-||||||| a246bad76b9
-    RESOURCE_GROUPS_GLOBAL,
-=======
->>>>>>> mysql-8.0.32
     /* This should be the last ! */
     NAMESPACE_END
   };

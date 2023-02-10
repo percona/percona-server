@@ -924,12 +924,6 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
       COMPILE_FLAGS "-Wno-free-nonheap-object")
   ENDIF()
-  IF(MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
-    ADD_COMPILE_FLAGS(
-      ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-      ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-      COMPILE_FLAGS "-Wno-unused-but-set-variable")
-  ENDIF()
 ENDIF()
 
 IF(WIN32)
@@ -1030,16 +1024,12 @@ SET(BINLOG_SOURCE
   binlog_istream.cc
   binlog_ostream.cc
   binlog_reader.cc
-<<<<<<< HEAD
-  event_crypt.cc
-||||||| a246bad76b9
-=======
   changestreams/misc/replicated_columns_view.cc
   changestreams/misc/replicated_columns_view_with_gipk_on_source.cc
   changestreams/misc/column_filters/column_filter_inbound_func_indexes.cc
   changestreams/misc/column_filters/column_filter_inbound_gipk.cc
   changestreams/misc/column_filters/column_filter_outbound_func_indexes.cc
->>>>>>> mysql-8.0.32
+  event_crypt.cc
   log_event.cc
   rpl_commit_stage_manager.cc
   rpl_filter.cc

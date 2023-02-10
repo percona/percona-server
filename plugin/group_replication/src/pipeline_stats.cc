@@ -786,9 +786,9 @@ void Flow_control_module::flow_control_step(
       */
       leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION,
                         gcs_module->belongs_to_group());
-      leave_group_on_failure::leave(
-          leave_actions, ER_GRP_RPL_FLOW_CONTROL_TIMEOUT, PSESSION_USE_THREAD,
-          nullptr, exit_state_action_abort_log_message);
+      leave_group_on_failure::leave(leave_actions,
+                                    ER_GRP_RPL_FLOW_CONTROL_TIMEOUT, nullptr,
+                                    exit_state_action_abort_log_message);
       m_flow_control_time = 0;
       return;
     }

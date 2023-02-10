@@ -2815,11 +2815,6 @@ extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
 
-<<<<<<< HEAD
-#endif /* MYSQL_SERVER */
-
-||||||| a246bad76b9
-=======
 /// Returns true if the item is a conjunction.
 inline bool IsAnd(const Item *item) {
   return item->type() == Item::COND_ITEM &&
@@ -2849,5 +2844,6 @@ bool WalkConjunction(Item *condition, Func func) {
   }
 }
 
->>>>>>> mysql-8.0.32
+#endif /* MYSQL_SERVER */
+
 #endif /* ITEM_CMPFUNC_INCLUDED */

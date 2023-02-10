@@ -508,7 +508,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     */
     if (query_block->select_limit && query_block->select_limit->fixed &&
         query_block->select_limit->val_int() &&
-        !is_order_deterministic(&query_block->top_join_list, where_cond,
+        !is_order_deterministic(&query_block->m_table_nest, where_cond,
                                 order.order)) {
       thd->order_deterministic = false;
     }
@@ -3289,17 +3289,9 @@ bool JOIN::get_best_combination() {
   if (query_block->outer_join) make_outerjoin_info();
 
   // sjm is no longer needed, trash it. To reuse it, reset its members!
-<<<<<<< HEAD
-  for (TABLE_LIST *sj_nest : query_block->sj_nests) {
+  for (Table_ref *sj_nest : query_block->sj_nests) {
     TRASH(static_cast<void *>(&sj_nest->nested_join->sjm),
           sizeof(sj_nest->nested_join->sjm));
-||||||| a246bad76b9
-  for (TABLE_LIST *sj_nest : query_block->sj_nests) {
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
-=======
-  for (Table_ref *sj_nest : query_block->sj_nests) {
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
->>>>>>> mysql-8.0.32
   }
 
   return false;

@@ -3252,26 +3252,6 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const {
           !is_current_stmt_binlog_disabled());
 }
 
-<<<<<<< HEAD
-void THD::check_rpl_stmt_event_format_used() {
-  for (TABLE_LIST *table = lex->query_tables; table;
-       table = table->next_global) {
-    if (!table->is_placeholder() && table->table != NULL &&
-        table->table->file != NULL) {
-      if (!table->table->file->rpl_can_handle_stm_event()) {
-        is_rpl_stmt_event_format_used = false;
-        return;
-      }
-    }
-  }
-}
-
-bool THD::get_rpl_stmt_event_format_used() const {
-  return is_rpl_stmt_event_format_used;
-}
-
-||||||| a246bad76b9
-=======
 void THD::enable_low_level_commit_ordering() {
   DBUG_TRACE;
   m_is_low_level_commit_ordering_enabled = true;
@@ -3287,7 +3267,23 @@ bool THD::is_low_level_commit_ordering_enabled() const {
   return m_is_low_level_commit_ordering_enabled;
 }
 
->>>>>>> mysql-8.0.32
+void THD::check_rpl_stmt_event_format_used() {
+  for (Table_ref *table = lex->query_tables; table;
+       table = table->next_global) {
+    if (!table->is_placeholder() && table->table != NULL &&
+        table->table->file != NULL) {
+      if (!table->table->file->rpl_can_handle_stm_event()) {
+        is_rpl_stmt_event_format_used = false;
+        return;
+      }
+    }
+  }
+}
+
+bool THD::get_rpl_stmt_event_format_used() const {
+  return is_rpl_stmt_event_format_used;
+}
+
 bool THD::Query_plan::is_single_table_plan() const {
   assert_plan_is_locked_if_other();
   return lex->m_sql_cmd->is_single_table_plan();

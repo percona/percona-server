@@ -8301,7 +8301,18 @@ static Sys_var_bool Sys_persist_sensitive_variables_in_plaintext(
         GLOBAL_VAR(opt_persist_sensitive_variables_in_plaintext),
     CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);
-<<<<<<< HEAD
+
+static const char *explain_format_names[] = {
+    "TRADITIONAL", "TRADITIONAL_STRICT", "TREE", "JSON", NullS};
+static Sys_var_enum Sys_explain_format(
+    "explain_format",
+    "The default format in which the EXPLAIN statement displays information. "
+    "Valid values are TRADITIONAL (default), TREE, JSON and TRADITIONAL_STRICT."
+    " TRADITIONAL_STRICT is only used internally by the mtr test suite, and is "
+    "not meant to be used anywhere else.",
+    SESSION_VAR(explain_format), CMD_LINE(OPT_ARG), explain_format_names,
+    DEFAULT(static_cast<ulong>(Explain_format_type::TRADITIONAL)),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static const char *default_table_encryption_type_names[] = {"OFF", "ON",
                                                             nullptr};
@@ -8333,18 +8344,3 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
     default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));
-||||||| a246bad76b9
-=======
-
-static const char *explain_format_names[] = {
-    "TRADITIONAL", "TRADITIONAL_STRICT", "TREE", "JSON", NullS};
-static Sys_var_enum Sys_explain_format(
-    "explain_format",
-    "The default format in which the EXPLAIN statement displays information. "
-    "Valid values are TRADITIONAL (default), TREE, JSON and TRADITIONAL_STRICT."
-    " TRADITIONAL_STRICT is only used internally by the mtr test suite, and is "
-    "not meant to be used anywhere else.",
-    SESSION_VAR(explain_format), CMD_LINE(OPT_ARG), explain_format_names,
-    DEFAULT(static_cast<ulong>(Explain_format_type::TRADITIONAL)),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
->>>>>>> mysql-8.0.32

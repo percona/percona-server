@@ -991,9 +991,9 @@ static bool db_or_table_name_equals(const char *a, dd::String_type const &b) {
 
   @retval bool       True if cascade parent found.
 */
-static bool has_cascade_dependency(THD *thd, TABLE_LIST &table,
-                                   TABLE_LIST *table_list) {
-  assert(&table == const_cast<TABLE_LIST &>(table).updatable_base_table());
+static bool has_cascade_dependency(THD *thd, Table_ref &table,
+                                   Table_ref *table_list) {
+  assert(&table == const_cast<Table_ref &>(table).updatable_base_table());
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_obj = nullptr;
@@ -1006,7 +1006,7 @@ static bool has_cascade_dependency(THD *thd, TABLE_LIST &table,
       return true;
   }
   for (const dd::Foreign_key_parent *fk_p : table_obj->foreign_key_parents()) {
-    for (TABLE_LIST *curr = table_list; curr; curr = curr->next_local) {
+    for (Table_ref *curr = table_list; curr; curr = curr->next_local) {
       const bool same_table_name =
           db_or_table_name_equals(curr->table_name, fk_p->child_table_name());
       const bool same_db_name =

@@ -181,15 +181,9 @@ TABLE *open_ltable(THD *thd, Table_ref *table_list, thr_lock_type update,
    MYSQL_OPEN_IGNORE_KILLED | MYSQL_OPEN_GET_NEW_TABLE |            \
    MYSQL_OPEN_HAS_MDL_LOCK)
 
-<<<<<<< HEAD
 struct ORDER;
 
-bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
-||||||| a246bad76b9
-bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
-=======
 bool open_table(THD *thd, Table_ref *table_list, Open_table_context *ot_ctx);
->>>>>>> mysql-8.0.32
 
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                            const char *table_name,
@@ -317,9 +311,9 @@ bool open_temporary_tables(THD *thd, Table_ref *tl_list);
 bool open_temporary_table(THD *thd, Table_ref *tl);
 
 bool is_equal(const LEX_CSTRING *a, const LEX_CSTRING *b) noexcept;
-bool is_order_deterministic(const mem_root_deque<TABLE_LIST *> *join_list,
+bool is_order_deterministic(const mem_root_deque<Table_ref *> *join_list,
                             Item *cond, ORDER *order);
-bool is_order_deterministic(TABLE_LIST *table, Item *cond, ORDER *order);
+bool is_order_deterministic(Table_ref *table, Item *cond, ORDER *order);
 
 /* Functions to work with system tables. */
 bool open_trans_system_tables_for_read(THD *thd, Table_ref *table_list);

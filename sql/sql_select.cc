@@ -923,22 +923,10 @@ bool Sql_cmd_select::check_privileges(THD *thd) {
 
 bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
   // Check for all possible DML privileges
-<<<<<<< HEAD
-  const TABLE_LIST *const first_not_own_table = thd->lex->first_not_own_table();
-
-  for (TABLE_LIST *tr = lex->query_tables;
-       tr != nullptr && tr != first_not_own_table; tr = tr->next_global) {
-||||||| a246bad76b9
-
-  const TABLE_LIST *const first_not_own_table = thd->lex->first_not_own_table();
-  for (TABLE_LIST *tr = lex->query_tables; tr != first_not_own_table;
-       tr = tr->next_global) {
-=======
-
   const Table_ref *const first_not_own_table = thd->lex->first_not_own_table();
-  for (Table_ref *tr = lex->query_tables; tr != first_not_own_table;
-       tr = tr->next_global) {
->>>>>>> mysql-8.0.32
+
+  for (Table_ref *tr = lex->query_tables;
+       tr != nullptr && tr != first_not_own_table; tr = tr->next_global) {
     if (tr->is_internal())  // No privilege check required for internal tables
       continue;
     // Calculated wanted privilege based on how table/view is used:

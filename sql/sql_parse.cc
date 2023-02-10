@@ -3832,7 +3832,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
       if (thd->variables.binlog_ddl_skip_rewrite) {
         size_t table_count = 0;
-        for (TABLE_LIST *table = all_tables; table; table = table->next_local) {
+        for (Table_ref *table = all_tables; table; table = table->next_local) {
           ++table_count;
           if (table_count > 1) {
             /*

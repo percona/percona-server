@@ -917,7 +917,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     std::string tbl_list_str = "";
     if (thd->lex->query_tables != nullptr) {
       std::stringstream tbl_list;
-      for (TABLE_LIST *table = thd->lex->query_tables; table;
+      for (Table_ref *table = thd->lex->query_tables; table;
            table = table->next_global) {
         tbl_list << table->get_table_name() << ",";
       }

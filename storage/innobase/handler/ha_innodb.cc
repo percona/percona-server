@@ -21446,7 +21446,7 @@ static void innodb_adaptive_hash_index_update(
                       from check function */
 {
   if (*(bool *)save) {
-    btr_search_enable(true);
+    btr_search_enable();
   } else {
     btr_search_disable();
   }

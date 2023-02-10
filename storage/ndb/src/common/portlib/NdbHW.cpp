@@ -1744,12 +1744,7 @@ static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
   {
     hwinfo->cpu_data[i].online = 0;
   }
-<<<<<<< HEAD
-||||||| a246bad76b9
-  Uint32 cpu_online_count = 0;
-=======
 
->>>>>>> mysql-8.0.32
   char buf[1024];
   char * p = &buf[0];
   char * c = nullptr;

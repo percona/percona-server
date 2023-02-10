@@ -310,23 +310,13 @@ static void btr_search_await_no_reference(dict_table_t *table) {
   }
 }
 
-<<<<<<< HEAD
-void btr_search_disable(bool need_mutex) {
-  if (!dict_sys) return;
-
-  if (need_mutex) {
-    dict_sys_mutex_enter();
-||||||| a246bad76b9
-void btr_search_disable(bool need_mutex) {
-  if (need_mutex) {
-    dict_sys_mutex_enter();
-=======
 bool btr_search_disable() {
+  if (!dict_sys) return false;
+
   mutex_enter(&btr_search_enabled_mutex);
   if (!btr_search_enabled) {
     mutex_exit(&btr_search_enabled_mutex);
     return false;
->>>>>>> mysql-8.0.32
   }
 
   btr_search_x_lock_all(UT_LOCATION_HERE);
@@ -367,44 +357,19 @@ bool btr_search_disable() {
   return true;
 }
 
-/** Enable the adaptive hash search system
-@param[in]	need_dict_mutex	if true mutex is acquired and released
-                                by function */
-void btr_search_enable(bool need_dict_mutex) {
+void btr_search_enable() {
   os_rmb;
   /* Don't allow enabling AHI if buffer pool resize is happening.
   Ignore it silently. */
   if (srv_buf_pool_old_size != srv_buf_pool_size) return;
 
-<<<<<<< HEAD
-  if (need_dict_mutex) {
-    dict_sys_mutex_enter();
-  }
-  ut_ad(mutex_own(&dict_sys->mutex));
-
-  btr_search_x_lock_all(UT_LOCATION_HERE);
-||||||| a246bad76b9
-  btr_search_x_lock_all(UT_LOCATION_HERE);
-=======
   /* We need to synchronize with any threads that are in the middle of
   btr_search_disable() - they must first clear all structures before we can
   re-enable AHI again. */
   mutex_enter(&btr_search_enabled_mutex);
->>>>>>> mysql-8.0.32
   btr_search_enabled = true;
-<<<<<<< HEAD
-
-  if (need_dict_mutex) {
-    dict_sys_mutex_exit();
-  }
-
-  btr_search_x_unlock_all();
-||||||| a246bad76b9
-  btr_search_x_unlock_all();
-=======
   srv_btr_search_enabled = true;
   mutex_exit(&btr_search_enabled_mutex);
->>>>>>> mysql-8.0.32
 }
 
 btr_search_t *btr_search_info_create(mem_heap_t *heap) {

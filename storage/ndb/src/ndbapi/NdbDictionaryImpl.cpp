@@ -7373,8 +7373,10 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
   return -1;
 }
 
-void NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal *signal,
-                                            const LinearSectionPtr ptr[]) {
+void
+NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
+                                       const LinearSectionPtr ptr[3])
+{
   const ListTablesConf* const conf=
     CAST_CONSTPTR(ListTablesConf, signal->getDataPtr());
   if(!m_tx.checkRequestId(conf->senderData, "LIST_TABLES_CONF"))
@@ -7438,7 +7440,7 @@ void NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal *signal,
   }
 
   m_impl->theWaiter.signal(NO_WAIT);
- }
+}
 
 int
 NdbDictionaryImpl::forceGCPWait(int type)

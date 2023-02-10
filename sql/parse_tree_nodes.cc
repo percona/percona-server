@@ -1326,10 +1326,10 @@ bool PT_table_sequence_function::contextualize(Parse_context *pc) {
   auto ti = new (pc->mem_root) Table_ident(alias, stf);
   if (ti == nullptr) return true;
 
-  value = pc->select->add_table_to_list(pc->thd, ti, m_table_alias.str, 0,
+  m_table_ref = pc->select->add_table_to_list(pc->thd, ti, m_table_alias.str, 0,
                                         TL_READ, MDL_SHARED_READ);
-  if (value == nullptr) return true;
-  if (pc->select->add_joined_table(value)) return true;
+  if (m_table_ref == nullptr) return true;
+  if (pc->select->add_joined_table(m_table_ref)) return true;
 
   return false;
 }
@@ -2214,15 +2214,9 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
 
   Parse_context pc(thd, lex->current_query_block());
 
-<<<<<<< HEAD
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
-  TABLE_LIST *table = pc.select->add_table_to_list(
-||||||| a246bad76b9
-  TABLE_LIST *table = pc.select->add_table_to_list(
-=======
   Table_ref *table = pc.select->add_table_to_list(
->>>>>>> mysql-8.0.32
       thd, table_name, nullptr, TL_OPTION_UPDATING, TL_WRITE, MDL_SHARED);
   if (table == nullptr) return nullptr;
 

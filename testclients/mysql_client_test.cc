@@ -22624,30 +22624,14 @@ static void test_bug31691060_2() {
   rc = mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-<<<<<<< HEAD
-  while (mysql_stmt_fetch(stmt) == 0)
-    ;
-||||||| a246bad76b9
-  int count = 0;
-  while (mysql_stmt_fetch(stmt) == 0) count++;
-=======
   while (mysql_stmt_fetch(stmt) == 0) {
   }
->>>>>>> mysql-8.0.32
 
   mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-<<<<<<< HEAD
-  while (mysql_stmt_fetch(stmt) == 0)
-    ;
-||||||| a246bad76b9
-  count = 0;
-  while (mysql_stmt_fetch(stmt) == 0) count++;
-=======
   while (mysql_stmt_fetch(stmt) == 0) {
   }
->>>>>>> mysql-8.0.32
 
   rc = mysql_stmt_close(stmt);
 }
@@ -23313,7 +23297,7 @@ static void test_bug33535746() {
 
   mysql_stmt_bind_result(stmt, bind);
 
-  int row_count [[maybe_unused]] = 0;
+  int row_count = 0;
 
   while (!(rc = mysql_stmt_fetch(stmt))) row_count++;
 

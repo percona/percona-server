@@ -3013,16 +3013,8 @@ bool grant_reload(THD *thd, bool mdl_locked) {
       column_priv_hash =
           std::move(old_column_priv_hash); /* purecov: deadcode */
       memex.Clear();
-<<<<<<< HEAD
-      memex = std::move(old_mem); /* purecov: deadcode */
-    } else {                 // Reload successful
-||||||| a246bad76b9
-      memex = move(old_mem); /* purecov: deadcode */
-    } else {                 // Reload successful
-=======
       memex = std::move(old_mem); /* purecov: deadcode */
     } else {                      // Reload successful
->>>>>>> mysql-8.0.32
       old_column_priv_hash.reset();
       old_mem.Clear();
       grant_version++;

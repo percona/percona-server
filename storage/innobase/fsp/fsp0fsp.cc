@@ -3769,18 +3769,12 @@ bool fseg_free_step_not_header(
   buf_block_t *iblock = nullptr;
 
   inode = fseg_inode_get(header, space_id, page_size, mtr, &iblock);
-<<<<<<< HEAD
   SRV_CORRUPT_TABLE_CHECK(inode, {
     /* ignore the corruption */
     return (true);
   });
 
-  fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);
-||||||| a246bad76b9
-  fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);
-=======
   buf_block_reset_page_type_on_mismatch(*iblock, FIL_PAGE_INODE, *mtr);
->>>>>>> mysql-8.0.32
 
   descr = fseg_get_first_extent(inode, space_id, page_size, mtr);
 

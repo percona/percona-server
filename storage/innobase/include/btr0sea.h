@@ -133,24 +133,10 @@ void btr_search_sys_resize(ulint hash_size);
 void btr_search_sys_free();
 
 /** Disable the adaptive hash search system and empty the index.
-<<<<<<< HEAD
-@param[in]      need_mutex      Need to acquire dict_sys->mutex */
-void btr_search_disable(bool need_mutex);
-/** Enable the adaptive hash search system
-@param[in]	need_dict_mutex	if true mutex is acquired and released
-                                by function */
-void btr_search_enable(bool need_dict_mutex);
-||||||| a246bad76b9
-@param[in]      need_mutex      Need to acquire dict_sys->mutex */
-void btr_search_disable(bool need_mutex);
-/** Enable the adaptive hash search system. */
-void btr_search_enable();
-=======
 @returns true if the AHI system was enabled and became disabled. */
 bool btr_search_disable();
 /** Enable the adaptive hash search system. */
 void btr_search_enable();
->>>>>>> mysql-8.0.32
 
 /** Creates and initializes a search info struct.
 @param[in]      heap            heap where created.

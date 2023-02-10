@@ -1782,15 +1782,8 @@ extern "C" void *run_task(void *p) {
             fprintf(stderr, "%s: Error when storing result: %d %s\n",
                     my_progname, mysql_errno(mysql), mysql_error(mysql));
           else {
-<<<<<<< HEAD
-            while ((row = mysql_fetch_row(result)))
-              ;
-||||||| a246bad76b9
-            while ((row = mysql_fetch_row(result))) counter++;
-=======
             while (mysql_fetch_row(result)) {
             }
->>>>>>> mysql-8.0.32
             mysql_free_result(result);
           }
         }

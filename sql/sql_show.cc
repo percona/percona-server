@@ -3809,7 +3809,7 @@ static int send_thread_stats(THD *thd, const thread_stats_t &all_thread_stats,
   1 - error
 */
 
-static int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
+static int fill_schema_user_stats(THD *thd, Table_ref *tables,
                                   Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_user_stats");
 
@@ -3843,7 +3843,7 @@ static int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
 */
 
 static int fill_schema_client_stats(
-    THD *thd, TABLE_LIST *tables, Item *cond [[maybe_unused]]) noexcept {
+    THD *thd, Table_ref *tables, Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_client_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3862,7 +3862,7 @@ static int fill_schema_client_stats(
 }
 
 static int fill_schema_thread_stats(
-    THD *thd, TABLE_LIST *tables, Item *cond [[maybe_unused]]) noexcept {
+    THD *thd, Table_ref *tables, Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_thread_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3880,7 +3880,7 @@ static int fill_schema_thread_stats(
 }
 
 // Sends the global table stats back to the client.
-static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
+static int fill_schema_table_stats(THD *thd, Table_ref *tables,
                                    Item *cond [[maybe_unused]]) {
   DBUG_ENTER("fill_schema_table_stats");
 
@@ -3896,7 +3896,7 @@ static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
     const char *const table_schema = strsep(&table_full_name, ".");
     const TABLE_STATS *const table_stats = &it.second;
 
-    TABLE_LIST tmp_table;
+    Table_ref tmp_table;
     memset(reinterpret_cast<char *>(&tmp_table), 0, sizeof(tmp_table));
     tmp_table.table_name = table_full_name;
     tmp_table.db = table_schema;
@@ -3924,7 +3924,7 @@ static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
 }
 
 // Sends the global index stats back to the client.
-static int fill_schema_index_stats(THD *thd, TABLE_LIST *tables,
+static int fill_schema_index_stats(THD *thd, Table_ref *tables,
                                    Item *cond [[maybe_unused]]) {
   TABLE *const table = tables->table;
   DBUG_ENTER("fill_schema_index_stats");
@@ -3937,7 +3937,7 @@ static int fill_schema_index_stats(THD *thd, TABLE_LIST *tables,
     const char *const table_schema = strsep(&index_full_name, ".");
     const char *const table_name = strsep(&index_full_name, ".");
 
-    TABLE_LIST tmp_table;
+    Table_ref tmp_table;
     memset(reinterpret_cast<char *>(&tmp_table), 0, sizeof(tmp_table));
     tmp_table.table_name = table_name;
     tmp_table.db = table_schema;
@@ -4405,10 +4405,10 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
   THD *const m_client_thd;
   const Security_context *const m_sctx;
   bool m_failed;
-  const TABLE_LIST *const m_tables;
+  const Table_ref *const m_tables;
 
  public:
-  Fill_global_temporary_tables(THD *client_thd, TABLE_LIST *tables) noexcept
+  Fill_global_temporary_tables(THD *client_thd, Table_ref *tables) noexcept
       : m_client_thd(client_thd),
         m_sctx(client_thd->security_context()),
         m_failed(false),
@@ -4458,7 +4458,7 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
   bool failed() const noexcept { return m_failed; }
 };
 
-static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables,
+static int fill_global_temporary_tables(THD *thd, Table_ref *tables,
                                         Item *cond [[maybe_unused]]) {
   DBUG_ENTER("fill_global_temporary_tables");
 
@@ -4481,7 +4481,7 @@ static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables,
     @retval       0                        success
     @retval       1                        error
 */
-static int fill_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond) {
+static int fill_temporary_tables(THD *thd, Table_ref *tables, Item *cond) {
   DBUG_ENTER("fill_temporary_tables");
 
   if (thd->lex->option_type == OPT_GLOBAL)

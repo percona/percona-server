@@ -330,18 +330,8 @@ static bool table_def_shutdown_in_progress = false;
 
 static bool check_and_update_table_version(THD *thd, Table_ref *tables,
                                            TABLE_SHARE *table_share);
-<<<<<<< HEAD
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
-static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
-||||||| a246bad76b9
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
-                                  const dd::Table *table, TABLE *entry);
-static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
-=======
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
-                                  const dd::Table *table, TABLE *entry);
 static bool auto_repair_table(THD *thd, Table_ref *table_list);
->>>>>>> mysql-8.0.32
 static TABLE *find_temporary_table(THD *thd, const char *table_key,
                                    size_t table_key_length);
 static bool tdc_open_view(THD *thd, Table_ref *table_list,
@@ -10654,13 +10644,13 @@ inline Column_node *Const_ordered_table_node::get_const_column_node(
 
 class Join_node : public And_node {
  public:
-  Join_node(const mem_root_deque<TABLE_LIST *> *join_list, Item *cond,
+  Join_node(const mem_root_deque<Table_ref *> *join_list, Item *cond,
             const ORDER *order);
-  Join_node(const TABLE_LIST *table, Item *cond, const ORDER *order);
+  Join_node(const Table_ref *table, Item *cond, const ORDER *order);
   bool is_ordered() const;
 
  private:
-  void add_join_list(const mem_root_deque<TABLE_LIST *> *join_list);
+  void add_join_list(const mem_root_deque<Table_ref *> *join_list);
   Const_ordered_table_node *add_table(const TABLE *table);
   Const_ordered_table_node *get_const_ordered_table_node(const TABLE *table);
   Column_node *get_ordered_column_node(const Field *field);
@@ -10676,11 +10666,11 @@ class Join_node : public And_node {
 };
 
 inline void Join_node::add_join_list(
-    const mem_root_deque<TABLE_LIST *> *join_list) {
+    const mem_root_deque<Table_ref *> *join_list) {
   Item *join_cond = join_list->front()->join_cond();
   for (auto table : *join_list)
     if (table->nested_join)
-      add_join_list(&table->nested_join->join_list);
+      add_join_list(&table->nested_join->m_tables);
     else
       add_table(table->table);
   add_const_equi_columns(join_cond);
@@ -10694,7 +10684,7 @@ inline Const_ordered_table_node *Join_node::add_table(const TABLE *table) {
   return tableNode;
 }
 
-inline Join_node::Join_node(const mem_root_deque<TABLE_LIST *> *join_list,
+inline Join_node::Join_node(const mem_root_deque<Table_ref *> *join_list,
                             Item *cond, const ORDER *order) {
   assert(!join_list->empty());
   max_sort_length = current_thd->variables.max_sort_length;
@@ -10703,7 +10693,7 @@ inline Join_node::Join_node(const mem_root_deque<TABLE_LIST *> *join_list,
   add_const_equi_columns(cond);
 }
 
-inline Join_node::Join_node(const TABLE_LIST *table, Item *cond,
+inline Join_node::Join_node(const Table_ref *table, Item *cond,
                             const ORDER *order) {
   max_sort_length = current_thd->variables.max_sort_length;
   if (table->table) {
@@ -10818,7 +10808,7 @@ void Join_node::add_const_equi_columns(Item *cond) {
   if (is_cond_mult_equal(cond)) {
     auto equal = down_cast<Item_equal *>(cond);
 
-    if (equal->get_const()) {
+    if (equal->const_arg()) {
       for (Item_field &field : equal->get_fields()) {
         add_const_column(field.field);
       }
@@ -10873,7 +10863,7 @@ bool Join_node::is_ordered() const {
   @retval false not deterministic
   @retval true deterministic
  */
-bool is_order_deterministic(const mem_root_deque<TABLE_LIST *> *join_list,
+bool is_order_deterministic(const mem_root_deque<Table_ref *> *join_list,
                             Item *cond, ORDER *order) {
   /*
     join_list->is_empty() means this is a UNION with a global LIMIT,
@@ -10893,7 +10883,7 @@ bool is_order_deterministic(const mem_root_deque<TABLE_LIST *> *join_list,
   @retval false not deterministic
   @retval true deterministic
  */
-bool is_order_deterministic(TABLE_LIST *table, Item *cond, ORDER *order) {
+bool is_order_deterministic(Table_ref *table, Item *cond, ORDER *order) {
   if (order == NULL && cond == NULL) return false;
 
   Join_node root(table, cond, order);

@@ -8447,14 +8447,8 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
   */
   TABLE *table = this->m_table;
   uint event_type = this->get_general_type_code();
-<<<<<<< HEAD
-  MY_BITMAP *cols = &this->m_cols;
-  bool delete_update_lookup_condition = false;
-||||||| a246bad76b9
-  MY_BITMAP *cols = &this->m_cols;
-=======
   MY_BITMAP *cols = &this->m_local_cols;
->>>>>>> mysql-8.0.32
+  bool delete_update_lookup_condition = false;
   this->m_rows_lookup_algorithm = ROW_LOOKUP_NOT_NEEDED;
   this->m_key_index = MAX_KEY;
   this->m_key_info = nullptr;

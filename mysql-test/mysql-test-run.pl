@@ -899,19 +899,9 @@ sub main {
   @$completed = grep {$_->{name} ne "shutdown_report"} @$completed;
 
   if (@$completed != $num_tests) {
-<<<<<<< HEAD
     # Not all tests completed
-    mtr_report();
-    mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-||||||| a246bad76b9
-    # Not all tests completed, failure
-    mtr_report();
-    mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-=======
-    # Not all tests completed, failure
     mtr_print_line();
     mtr_report(int(@$completed), " of $num_tests test(s) completed.");
->>>>>>> mysql-8.0.32
     foreach (@tests_list) {
       $_->{key} = "$_" unless defined $_->{key};
     }

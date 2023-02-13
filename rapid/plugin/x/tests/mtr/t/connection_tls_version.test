@@ -7,6 +7,9 @@
 --source ../include/have_performance_schema_threads.inc
 --source ../include/xplugin_preamble.inc
 
+--let $restart_parameters= restart:--tls-version="TLSv1,TLSv1.1"
+--source include/restart_mysqld.inc
+
 call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([0-9]*\\)'");
 call mtr.add_suppression("Plugin mysqlx reported: '[0-9]*: Error during SSL handshake'");
 
@@ -102,6 +105,8 @@ EOF
 --source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST --tls-version=TLSv3                 $XTESTPARAMS 2>&1
 
+--let $restart_parameters=
+--source include/restart_mysqld.inc
 
 # Postamble
 --remove_file $xtest_file

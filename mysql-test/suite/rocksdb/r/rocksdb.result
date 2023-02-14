@@ -1597,20 +1597,16 @@ rocksdb_block_cache_add	#
 rocksdb_block_cache_add_failures	#
 rocksdb_block_cache_bytes_read	#
 rocksdb_block_cache_bytes_write	#
-rocksdb_block_cache_compressed_hit	#
-rocksdb_block_cache_compressed_miss	#
 rocksdb_block_cache_data_add	#
 rocksdb_block_cache_data_bytes_insert	#
 rocksdb_block_cache_data_hit	#
 rocksdb_block_cache_data_miss	#
 rocksdb_block_cache_filter_add	#
-rocksdb_block_cache_filter_bytes_evict	#
 rocksdb_block_cache_filter_bytes_insert	#
 rocksdb_block_cache_filter_hit	#
 rocksdb_block_cache_filter_miss	#
 rocksdb_block_cache_hit	#
 rocksdb_block_cache_index_add	#
-rocksdb_block_cache_index_bytes_evict	#
 rocksdb_block_cache_index_bytes_insert	#
 rocksdb_block_cache_index_hit	#
 rocksdb_block_cache_index_miss	#
@@ -1639,10 +1635,8 @@ rocksdb_manual_compactions_processed	#
 rocksdb_manual_compactions_running	#
 rocksdb_memtable_hit	#
 rocksdb_memtable_miss	#
-rocksdb_no_file_closes	#
 rocksdb_no_file_errors	#
 rocksdb_no_file_opens	#
-rocksdb_num_iterators	#
 rocksdb_number_block_not_compressed	#
 rocksdb_number_db_next	#
 rocksdb_number_db_next_found	#
@@ -1650,7 +1644,6 @@ rocksdb_number_db_prev	#
 rocksdb_number_db_prev_found	#
 rocksdb_number_db_seek	#
 rocksdb_number_db_seek_found	#
-rocksdb_number_deletes_filtered	#
 rocksdb_number_keys_read	#
 rocksdb_number_keys_updated	#
 rocksdb_number_keys_written	#
@@ -1690,7 +1683,6 @@ rocksdb_wal_group_syncs	#
 rocksdb_wal_synced	#
 rocksdb_write_other	#
 rocksdb_write_self	#
-rocksdb_write_timedout	#
 rocksdb_write_wal	#
 select VARIABLE_NAME from performance_schema.global_status where VARIABLE_NAME LIKE 'rocksdb%' and VARIABLE_NAME NOT LIKE '%num_get_for_update%';
 VARIABLE_NAME
@@ -1719,20 +1711,16 @@ rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
 rocksdb_block_cache_bytes_write
-rocksdb_block_cache_compressed_hit
-rocksdb_block_cache_compressed_miss
 rocksdb_block_cache_data_add
 rocksdb_block_cache_data_bytes_insert
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
 rocksdb_block_cache_filter_add
-rocksdb_block_cache_filter_bytes_evict
 rocksdb_block_cache_filter_bytes_insert
 rocksdb_block_cache_filter_hit
 rocksdb_block_cache_filter_miss
 rocksdb_block_cache_hit
 rocksdb_block_cache_index_add
-rocksdb_block_cache_index_bytes_evict
 rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
@@ -1761,10 +1749,8 @@ rocksdb_manual_compactions_processed
 rocksdb_manual_compactions_running
 rocksdb_memtable_hit
 rocksdb_memtable_miss
-rocksdb_no_file_closes
 rocksdb_no_file_errors
 rocksdb_no_file_opens
-rocksdb_num_iterators
 rocksdb_number_block_not_compressed
 rocksdb_number_db_next
 rocksdb_number_db_next_found
@@ -1772,7 +1758,6 @@ rocksdb_number_db_prev
 rocksdb_number_db_prev_found
 rocksdb_number_db_seek
 rocksdb_number_db_seek_found
-rocksdb_number_deletes_filtered
 rocksdb_number_keys_read
 rocksdb_number_keys_updated
 rocksdb_number_keys_written
@@ -1812,7 +1797,6 @@ rocksdb_wal_group_syncs
 rocksdb_wal_synced
 rocksdb_write_other
 rocksdb_write_self
-rocksdb_write_timedout
 rocksdb_write_wal
 # RocksDB-SE's status variables are global internally 
 #  but they are shown as both session and global, like InnoDB's status vars.
@@ -1843,20 +1827,16 @@ rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
 rocksdb_block_cache_bytes_write
-rocksdb_block_cache_compressed_hit
-rocksdb_block_cache_compressed_miss
 rocksdb_block_cache_data_add
 rocksdb_block_cache_data_bytes_insert
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
 rocksdb_block_cache_filter_add
-rocksdb_block_cache_filter_bytes_evict
 rocksdb_block_cache_filter_bytes_insert
 rocksdb_block_cache_filter_hit
 rocksdb_block_cache_filter_miss
 rocksdb_block_cache_hit
 rocksdb_block_cache_index_add
-rocksdb_block_cache_index_bytes_evict
 rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
@@ -1885,10 +1865,8 @@ rocksdb_manual_compactions_processed
 rocksdb_manual_compactions_running
 rocksdb_memtable_hit
 rocksdb_memtable_miss
-rocksdb_no_file_closes
 rocksdb_no_file_errors
 rocksdb_no_file_opens
-rocksdb_num_iterators
 rocksdb_number_block_not_compressed
 rocksdb_number_db_next
 rocksdb_number_db_next_found
@@ -1896,7 +1874,6 @@ rocksdb_number_db_prev
 rocksdb_number_db_prev_found
 rocksdb_number_db_seek
 rocksdb_number_db_seek_found
-rocksdb_number_deletes_filtered
 rocksdb_number_keys_read
 rocksdb_number_keys_updated
 rocksdb_number_keys_written
@@ -1936,7 +1913,6 @@ rocksdb_wal_group_syncs
 rocksdb_wal_synced
 rocksdb_write_other
 rocksdb_write_self
-rocksdb_write_timedout
 rocksdb_write_wal
 #
 # Fix issue #9: HA_ERR_INTERNAL_ERROR when running linkbench

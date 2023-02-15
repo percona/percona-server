@@ -37,7 +37,7 @@ inline std::string get_index_key(const Index_id index_id) {
   buf.resize(Rdb_key_def::INDEX_NUMBER_SIZE);
   rdb_netbuf_store_index(reinterpret_cast<uchar *>(buf.data()), index_id);
   return buf;
-};
+}
 
 /**
  * SstPartitioner is used in compaction to split output sst files.

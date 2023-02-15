@@ -5952,9 +5952,12 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   rocksdb::DBOptions loaded_db_opt;
   std::vector<rocksdb::ColumnFamilyDescriptor> loaded_cf_descs;
-  rocksdb::Status status =
-      LoadLatestOptions(dbpath, main_opts.env, &loaded_db_opt, &loaded_cf_descs,
-                        rocksdb_ignore_unknown_options);
+  rocksdb::ConfigOptions config_options;
+  config_options.ignore_unknown_options = rocksdb_ignore_unknown_options;
+  config_options.input_strings_escaped = true;
+  config_options.env = main_opts.env;
+  rocksdb::Status status = LoadLatestOptions(config_options, dbpath,
+                                             &loaded_db_opt, &loaded_cf_descs);
 
   // If we're starting from scratch and there are no options saved yet then this
   // is a valid case. Therefore we can't compare the current set of options to
@@ -5993,9 +5996,15 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   // This is the essence of the function - determine if it's safe to open the
   // database or not.
-  status = CheckOptionsCompatibility(dbpath, main_opts.env, main_opts,
-                                     loaded_cf_descs,
-                                     rocksdb_ignore_unknown_options);
+  rocksdb::ConfigOptions config_options_for_check(main_opts);
+  config_options_for_check.sanity_level =
+      rocksdb::ConfigOptions::kSanityLevelLooselyCompatible;
+  config_options_for_check.ignore_unknown_options =
+      rocksdb_ignore_unknown_options;
+  config_options_for_check.input_strings_escaped = true;
+  config_options_for_check.env = main_opts.env;
+  status = CheckOptionsCompatibility(config_options_for_check, dbpath,
+                                     main_opts, loaded_cf_descs);
 
   return status;
 }

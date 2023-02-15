@@ -200,14 +200,13 @@ int Handler::open(const char *table_name, int, uint, const dd::Table *) {
     if (m_opened_table) {
       ret = Result::OK;
       opened_table_validate();
+      info(HA_STATUS_VARIABLE);
     } else {
       ret = Result::NO_SUCH_TABLE;
     }
   } catch (std::bad_alloc &) {
     ret = Result::OUT_OF_MEM;
   }
-
-  info(HA_STATUS_VARIABLE);
 
   DBUG_PRINT("temptable_api", ("this=%p %s; return=%s", this, table_name,
                                result_to_string(ret)));

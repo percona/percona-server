@@ -106,7 +106,7 @@ send Mysqlx.Crud.Insert {
 Mysqlx.Error {
   severity: ERROR
   code: 3140
-  msg: "Invalid JSON text: \"Missing a name for object member.\" at position 1 in value for column \'mytable.j\'."
+  msg: "Invalid JSON text: \"Missing a name for object member.\" at position 1 in value for column \'mytable.j\' at row 1."
   sql_state: "22032"
 }
 

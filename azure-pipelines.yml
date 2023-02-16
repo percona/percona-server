@@ -244,21 +244,6 @@ jobs:
           CompilerVer: 6.0
           BuildType: Debug
 
-      clang-5 RelWithDebInfo [Ubuntu 18.04 Bionic]:
-        imageName: 'ubuntu-18.04'
-        UBUNTU_CODE_NAME: bionic
-        Compiler: clang
-        CompilerVer: 5.0
-        BuildType: RelWithDebInfo
-
-      clang-5 Debug [Ubuntu 18.04 Bionic]:
-        imageName: 'ubuntu-18.04'
-        UBUNTU_CODE_NAME: bionic
-        Compiler: clang
-        CompilerVer: 5.0
-        BuildType: Debug
-
-
       # gcc-5 and newer compilers
       gcc-12 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
@@ -340,30 +325,18 @@ jobs:
         BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-6 RelWithDebInfo [Ubuntu 18.04 Bionic]:
-          imageName: 'ubuntu-18.04'
+        gcc-6 RelWithDebInfo [Ubuntu 20.04 Focal]:
+          imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 6
           BuildType: RelWithDebInfo
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-6 Debug [Ubuntu 18.04 Bionic]:
-          imageName: 'ubuntu-18.04'
+        gcc-6 Debug [Ubuntu 20.04 Focal]:
+          imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 6
           BuildType: Debug
-
-      gcc-5 RelWithDebInfo [Ubuntu 18.04 Bionic]:
-        imageName: 'ubuntu-18.04'
-        Compiler: gcc
-        CompilerVer: 5
-        BuildType: RelWithDebInfo
-
-      gcc-5 Debug [Ubuntu 18.04 Bionic]:
-        imageName: 'ubuntu-18.04'
-        Compiler: gcc
-        CompilerVer: 5
-        BuildType: Debug
 
 
   steps:
@@ -502,6 +475,7 @@ jobs:
         -DWITH_KEYRING_VAULT=ON
         -DWITH_KEYRING_VAULT_TEST=ON
         -DWITH_PAM=ON
+        -DWITH_PACKAGE_FLAGS=OFF
       "
 
       if [[ "$OS_NAME" == "Darwin" ]]; then

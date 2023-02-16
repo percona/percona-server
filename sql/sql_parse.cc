@@ -5798,6 +5798,9 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
     FIXME: cleanup the dependencies in the code to simplify this.
   */
   mysql_reset_thd_for_next_command(thd);
+  // It is possible that rewritten query may not be empty (in case of
+  // multiqueries). So reset it.
+  thd->reset_rewritten_query();
   lex_start(thd);
 
   /* Declare userstat variables and start timer */
@@ -5816,7 +5819,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
   {
     LEX *lex= thd->lex;
     const char *found_semicolon;
-
+    size_t qlen = 0;
     bool err= thd->get_stmt_da()->is_error();
 
     if (!err)
@@ -5826,6 +5829,16 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
         err= invoke_post_parse_rewrite_plugins(thd, false);
 
       found_semicolon= parser_state->m_lip.found_semicolon;
+      qlen = found_semicolon ? (found_semicolon - thd->query().str)
+                            : thd->query().length;
+
+      /*
+        We set thd->query_length correctly to not log several queries, when we
+        execute only first. We set it to not see the ';' otherwise it would get
+        into binlog and Query_log_event::print() would give ';;' output.
+      */
+      if(!thd->is_error() && found_semicolon && (ulong)(qlen))
+        thd->set_query(thd->query().str, qlen - 1);
     }
 
     DEBUG_SYNC_C("sql_parse_before_rewrite");
@@ -5876,10 +5889,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
                                          thd->rewritten_query().length());
         else
         {
-          size_t qlen= found_semicolon
-            ? (found_semicolon - thd->query().str)
-            : thd->query().length;
-
           query_logger.general_log_write(thd, COM_QUERY,
                                          thd->query().str, qlen);
         }
@@ -5903,21 +5912,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
       else
 #endif
       {
-        if (! thd->is_error())
+        if (!thd->is_error())
         {
-          /*
-            Binlog logs a string starting from thd->query and having length
-            thd->query_length; so we set thd->query_length correctly (to not
-            log several statements in one event, when we executed only first).
-            We set it to not see the ';' (otherwise it would get into binlog
-            and Query_log_event::print() would give ';;' output).
-            This also helps display only the current query in SHOW
-            PROCESSLIST.
-          */
-          if (found_semicolon && (ulong) (found_semicolon - thd->query().str))
-            thd->set_query(thd->query().str,
-                           static_cast<size_t>(found_semicolon -
-                                               thd->query().str - 1));
           /* Actually execute the query */
           if (found_semicolon)
           {

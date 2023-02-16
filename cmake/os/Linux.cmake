@@ -29,6 +29,36 @@ INCLUDE(CheckCSourceRuns)
 SET(LINUX 1)
 SET(TARGET_OS_LINUX 1)
 
+# Use 'uname -r' and 'rpm -qf /' to figure out host system.
+# For Docker images we cannot trust uname, so use rpm instead.
+IF(UNIX)
+  FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin /sbin)
+  IF(MY_UNAME)
+    EXECUTE_PROCESS(COMMAND ${MY_UNAME} -s
+            OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE MY_UNAME_RESULT
+            )
+  ENDIF()
+  FIND_PROGRAM(MY_RPM rpm /bin /usr/bin)
+  IF(MY_RPM)
+    EXECUTE_PROCESS(COMMAND ${MY_RPM} -qf /
+            OUTPUT_VARIABLE MY_HOST_FILESYSTEM_NAME
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE MY_RPM_RESULT
+            )
+  ENDIF()
+ENDIF()
+
+IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
+  # Trust 'rpm -qf /' rather than 'uname -s'
+  STRING(REGEX MATCH "\\.el([6789])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
+
+  IF(CMAKE_MATCH_1)
+    SET(LINUX_RHEL 1)
+  ENDIF()
+ENDIF()
+
 IF(EXISTS "/etc/fedora-release")
   SET(LINUX_FEDORA 1)
   FILE(READ "/etc/fedora-release" FEDORA_RELEASE)
@@ -40,11 +70,14 @@ ENDIF()
 
 IF(EXISTS "/etc/os-release")
   FILE(READ "/etc/os-release" MY_OS_RELEASE)
-  IF(MY_OS_RELEASE MATCHES "Ubuntu" AND
-     MY_OS_RELEASE MATCHES "16.04")
-    SET(LINUX_UBUNTU_16_04 1)
+  IF(MY_OS_RELEASE MATCHES "Ubuntu")
+    SET(LINUX_UBUNTU 1)
+    IF(MY_OS_RELEASE MATCHES "16.04")
+      SET(LINUX_UBUNTU_16_04 1)
+    ENDIF()
   ENDIF()
   IF(MY_OS_RELEASE MATCHES "Debian")
+    SET(LINUX_DEBIAN 1)
     IF(MY_OS_RELEASE MATCHES "jessie")
       SET(LINUX_DEBIAN_8 1)
     ENDIF()
@@ -52,6 +85,18 @@ IF(EXISTS "/etc/os-release")
       SET(LINUX_DEBIAN_9 1)
     ENDIF()
   ENDIF()
+ENDIF()
+
+# Use dpkg-buildflags --get CPPFLAGS | CFLAGS | CXXFLAGS | LDFLAGS
+# to get flags for this platform.
+IF(LINUX_DEBIAN OR LINUX_UBUNTU)
+  SET(LINUX_DEB_PLATFORM 1)
+ENDIF()
+
+# Use CMAKE_C_FLAGS | CMAKE_CXX_FLAGS = rpm --eval %optflags
+# to get flags for this platform.
+IF(LINUX_FEDORA OR LINUX_RHEL)
+  SET(LINUX_RPM_PLATFORM 1)
 ENDIF()
 
 # We require at least GCC 4.4 or Clang 3.3.

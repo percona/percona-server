@@ -6784,7 +6784,7 @@ static void set_session_binlog()
 
 static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
 {
-  MYSQL_RES  *gtid_purged_res;
+  MYSQL_RES* gtid_purged_res;
   MYSQL_ROW  gtid_set;
   ulonglong  num_sets, idx;
   int        value_idx= 1;
@@ -6854,7 +6854,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
     dynstr_append_checked(&gtid_executed_buffer, "SET @@GLOBAL.GTID_PURGED='");
 
     /* formatting is not required, even for multiple gtid sets */
-    for (idx= 0; idx< num_sets; idx++)
+    for(idx = 0 ; idx < num_sets ; idx++)
     {
       gtid_set= mysql_fetch_row(gtid_purged_res);
       dynstr_append_checked(&gtid_executed_buffer, (char *)gtid_set[value_idx]);
@@ -6877,7 +6877,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
   session binlog is restored if disabled previously.
 
   @param[in]          mysql_con     the connection to the server
-  @param[in]		  ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
+  @param[in]          ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
   @param[in]          flag          If FALSE, just disable binlog and not
                                     set the gtid purged as it will be set
                                     at a later point of time.

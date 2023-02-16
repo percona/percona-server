@@ -192,7 +192,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 3140
-  msg: "Invalid JSON text: \"The document is empty.\" at position 0 in value for column \'test_coll._json_schema\'."
+  msg: "Invalid JSON text: \"The document is empty.\" at position 0 in value for column \'test_coll._json_schema\' at row 1."
   sql_state: "22032"
 }
 

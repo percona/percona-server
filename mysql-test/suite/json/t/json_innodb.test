@@ -291,3 +291,42 @@ INSERT INTO t VALUES (JSON_ARRAY('aaa'));
 UPDATE t SET j = JSON_REPLACE(j, '$[0]', REPEAT(CHAR(97), 3));
 SELECT j, JSON_TYPE(j->'$[0]') FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # PS-8626 "Inserting JSON data through LOAD DATA INFILE doesn't show failed record"
+--echo #
+--echo # Test for INSERT.
+CREATE TABLE t1 (t TEXT, j JSON);
+--error ER_INVALID_JSON_TEXT
+INSERT INTO t1 (j) VALUES
+  ('{"name": "b", "pets": \{"dog": 3, "chicken": 1} , "surname": "test"}'),
+  ('{"name": "a", "pets": \{"dog": 3, "chicken": 3} , "surname": "testfailed"'),
+  ('{"name": "q", "pets": \{"dog": 3, "chicken": 2} , "surname": "test"}');
+--echo #
+--echo # Test for UPDATE.
+INSERT INTO t1 (t) VALUES
+  ('{"name": "b", "pets": \{"dog": 3, "chicken": 1} , "surname": "test"}'),
+  ('{"name": "a", "pets": \{"dog": 3, "chicken": 3} , "surname": "testfailed"'),
+  ('{"name": "q", "pets": \{"dog": 3, "chicken": 2} , "surname": "test"}');
+--error ER_INVALID_JSON_TEXT
+UPDATE t1 SET j = t WHERE t LIKE '%testfailed%';
+--echo #
+--echo # Test for ALTER TABLE.
+--replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
+--error ER_INVALID_JSON_TEXT
+ALTER TABLE t1 ADD COLUMN gj JSON GENERATED ALWAYS AS (t) STORED;
+--echo #
+--echo # Test for SELECT.
+ALTER TABLE t1 ADD COLUMN gj JSON GENERATED ALWAYS AS (t) VIRTUAL;
+--error ER_INVALID_JSON_TEXT
+SELECT * FROM t1;
+--echo #
+--echo # Test for LOAD DATA (for which problem was reported originally).
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT t INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1' FROM t1
+TRUNCATE TABLE t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INVALID_JSON_TEXT
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1' INTO TABLE t1 (j)
+--remove_file $MYSQLTEST_VARDIR/tmp/t1
+DROP TABLE t1;

@@ -7589,7 +7589,7 @@ ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
    eng "%-.192s cannot be performed on channel '%-.192s'."
 
 ER_INVALID_JSON_TEXT 22032
-  eng "Invalid JSON text: \"%s\" at position %u in value for column '%-.200s'."
+  eng "Invalid JSON text: \"%s\" at position %u in value for column '%-.200s' at row %ld."
 
 # The last parameter is now always empty but kept for backward compatibility
 ER_INVALID_JSON_TEXT_IN_PARAM 22032

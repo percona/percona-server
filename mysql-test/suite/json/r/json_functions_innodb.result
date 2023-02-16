@@ -5331,7 +5331,7 @@ CREATE FUNCTION func_that_fails() RETURNS JSON
 LANGUAGE SQL DETERMINISTIC NO SQL
 RETURN '[not valid json]';
 SELECT JSON_EXTRACT(func_that_fails(), '$');
-ERROR 22032: Invalid JSON text: "Invalid value." at position 2 in value for column '.func_that_fails()'.
+ERROR 22032: Invalid JSON text: "Invalid value." at position 2 in value for column '.func_that_fails()' at row 1.
 DROP FUNCTION func_that_fails;
 create function get_types( input_value json )
 returns json
@@ -8724,7 +8724,7 @@ SET NAMES latin1;
 CREATE TABLE t (j JSON);
 INSERT INTO t VALUES ('{}');
 UPDATE t SET j='1', j='1111-11-11', j=('1' NOT BETWEEN j AND '1');
-ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 't.j'.
+ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 't.j' at row 1.
 SELECT * FROM t;
 j
 {}
@@ -9208,7 +9208,7 @@ CREATE TABLE t1(j JSON);
 CREATE TABLE t2(vc VARCHAR(10));
 CREATE FUNCTION f1(i INT) RETURNS INT RETURN i;
 INSERT INTO t1 SELECT f1(3);
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j' at row 1.
 INSERT INTO t2 SELECT f1(3);
 CREATE FUNCTION f2(vc VARCHAR(10)) RETURNS VARCHAR(10) RETURN vc;
 INSERT INTO t1 SELECT f2('[1,2,3]');

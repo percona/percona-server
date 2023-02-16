@@ -5,7 +5,7 @@
 CREATE TABLE t0(utf0k json) ENGINE=MEMORY;
 INSERT INTO t0 values('0');
 INSERT INTO t0 VALUES('DBMS stands for DataBase ...');
-ERROR 22032: Invalid JSON text: "Invalid value." at position 0 in value for column 't0.utf0k'.
+ERROR 22032: Invalid JSON text: "Invalid value." at position 0 in value for column 't0.utf0k' at row 1.
 SELECT * FROM t0;
 utf0k
 0

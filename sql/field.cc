@@ -7723,7 +7723,8 @@ type_conversion_status Field_json::store(const char *from, size_t length,
         s_err.append('.');
         s_err.append(err_field_name);
         my_error(ER_INVALID_JSON_TEXT, MYF(0), parse_err, err_offset,
-                 s_err.c_ptr_safe());
+                 s_err.c_ptr_safe(),
+                 current_thd->get_stmt_da()->current_row_for_condition());
       },
       JsonDepthErrorHandler));
 
@@ -7756,7 +7757,7 @@ type_conversion_status Field_json::unsupported_conversion() {
   s.append('.');
   s.append(field_name);
   my_error(ER_INVALID_JSON_TEXT, MYF(0), "not a JSON text, may need CAST", 0,
-           s.c_ptr_safe());
+           s.c_ptr_safe(), 1);
   return TYPE_ERR_BAD_VALUE;
 }
 

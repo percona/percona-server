@@ -151,7 +151,7 @@ Insert: bad doc (literal) no insert
 command ok
 
 0 rows affected
-Got expected error: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'coll.doc'. (code 3140)
+Got expected error: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'coll.doc' at row 1. (code 3140)
 doc
 0 rows affected
 
@@ -161,7 +161,7 @@ Insert: 2 doc (literal) one bad, no insert
 command ok
 
 0 rows affected
-Got expected error: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'coll.doc'. (code 3140)
+Got expected error: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'coll.doc' at row 1. (code 3140)
 doc
 0 rows affected
 
@@ -344,7 +344,7 @@ command ok
 Mysqlx.Error {
   severity: ERROR
   code: 3140
-  msg: "Invalid JSON text: \"not a JSON text, may need CAST\" at position 0 in value for column \'coll.doc\'."
+  msg: "Invalid JSON text: \"not a JSON text, may need CAST\" at position 0 in value for column \'coll.doc\' at row 1."
   sql_state: "22032"
 }
 

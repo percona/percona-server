@@ -1,3 +1,4 @@
+# restart:<hidden args>
 # Check what happens when we have not yet loaded keyring_udf or keyring_vault
 create function keyring_key_store returns integer soname 'keyring_udf.so';
 create function keyring_key_fetch returns string soname 'keyring_udf.so';

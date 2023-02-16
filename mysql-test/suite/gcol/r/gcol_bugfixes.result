@@ -1477,7 +1477,7 @@ ALTER TABLE t
 ADD COLUMN g1 JSON GENERATED ALWAYS AS (x),
 ADD COLUMN g2 JSON GENERATED ALWAYS AS (JSON_ARRAY(x));
 SELECT * FROM t;
-ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.g1'.
+ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.g1' at row 1.
 DROP TABLE t;
 #
 # Bug#32234773: UPDATE_GENERATED_READ_FIELDS:

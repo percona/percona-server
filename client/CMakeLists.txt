@@ -25,7 +25,7 @@ ADD_WSHADOW_WARNING()
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()
 
-INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${MY_READLINE_INCLUDE_DIR})
 
 ## Subdirectory with common client code.
 

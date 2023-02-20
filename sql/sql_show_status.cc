@@ -291,7 +291,7 @@ Query_block *build_show_session_variables(const POS &pos, THD *thd,
 
   DBUG_EXECUTE_IF("catch_show_gtid_mode", {
     String gtid_mode;
-    static const char *gm = "gtid\\_mode";
+    static const char *gm = "gtid_mode";
     unsigned int errors;
     gtid_mode.copy(gm, strlen(gm), &my_charset_latin1, wild->charset(),
                    &errors);

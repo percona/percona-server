@@ -764,7 +764,7 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT COUNT(*) FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'rocksdb\_skip\_fill\_cache'')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
- > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'gtid\_mode'')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'gtid_mode'')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNLOCK TABLES')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')

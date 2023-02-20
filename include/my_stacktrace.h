@@ -59,9 +59,6 @@ void my_write_core(int sig);
 #if HAVE_LIBCOREDUMPER
 void my_write_libcoredumper(int sig, char *path, time_t curr_time);
 #endif
-#ifdef __linux__
-void my_print_buildID();
-#endif
 
 /**
   Async-signal-safe utility functions used by signal handler routines.

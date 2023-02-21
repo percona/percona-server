@@ -324,20 +324,6 @@ jobs:
         CompilerVer: 7
         BuildType: Debug
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-6 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 6
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-6 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 6
-          BuildType: Debug
-
 
   steps:
   - script: |

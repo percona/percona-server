@@ -1,0 +1,143 @@
+env:  # Global defaults
+  PARENT_BRANCH: 5.7
+  MOUNT_POINT: "/data"
+  CCACHE_SIZE: "500M"
+  CCACHE_NOHASHDIR: "1"  # Debug info might contain a stale path if the build dir changes, but this is fine
+  CCACHE_DIR: "${MOUNT_POINT}/ccache_dir"
+  BOOST_DIR: "${MOUNT_POINT}/boost_dir"
+  BOOST_VERSION: "boost_1_59_0"
+  WORKING_DIR: "${MOUNT_POINT}/cirrus-ci-build"
+
+task:
+  stateful: false  # https://cirrus-ci.org/guide/writing-tasks/#stateful-tasks
+  timeout_in: 60m  # https://cirrus-ci.org/faq/#instance-timed-out
+  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
+  only_if: "$CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '5.7' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')" # we have nightly cron builds for 5.7
+  ec2_instance:
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-202302*"
+    #image: ami-0077c54d2f79f15ec  # Ubuntu 18.04.6 x86-64 with gcc-5.5 gcc-6.5 clang-5.0 node-12
+    image: ami-0bdaf37e2c9a412ed  # Ubuntu 18.04.6 x86-64 with percona-server gcc-5.5 gcc-6.5 clang-5.0 node-12
+    type: c6a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.612 USD/H
+    #type: c5a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.616 USD/H
+    #type: c5.4xlarge   # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
+    #type: c6i.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
+    region: us-east-1
+    architecture: amd64
+    spot: true
+  matrix:
+    - name: gcc-6 Debug [Ubuntu 18.04 Bionic]
+      skip: $CIRRUS_PR != ""  # skip PRs
+      env:
+        SELECTED_CC: gcc-6
+        SELECTED_CXX: g++-6
+        BUILD_TYPE: Debug
+    - name: gcc-6 RelWithDebInfo [Ubuntu 18.04 Bionic]
+      skip: $CIRRUS_PR != ""  # skip PRs
+      env:
+        SELECTED_CC: gcc-6
+        SELECTED_CXX: g++-6
+        BUILD_TYPE: RelWithDebInfo
+    - name: gcc-5 Debug [Ubuntu 18.04 Bionic]
+      env:
+        SELECTED_CC: gcc-5
+        SELECTED_CXX: g++-5
+        BUILD_TYPE: Debug
+    - name: gcc-5 RelWithDebInfo [Ubuntu 18.04 Bionic]
+      env:
+        SELECTED_CC: gcc-5
+        SELECTED_CXX: g++-5
+        BUILD_TYPE: RelWithDebInfo
+    - name: clang-5.0 Debug [Ubuntu 18.04 Bionic]
+      skip: $CIRRUS_PR != ""  # skip PRs
+      env:
+        SELECTED_CC: clang-5.0
+        SELECTED_CXX: clang++-5.0
+        BUILD_TYPE: Debug
+    - name: clang-5.0 RelWithDebInfo [Ubuntu 18.04 Bionic]
+      skip: $CIRRUS_PR != ""  # skip PRs
+      env:
+        SELECTED_CC: clang-5.0
+        SELECTED_CXX: clang++-5.0
+        BUILD_TYPE: RelWithDebInfo
+  disk_info_script: |
+    lsblk
+    lsblk -f
+    df -Th
+  system_info_script: |
+    uname -r
+    df -Th
+    free -m
+    pwd
+    ls -l ..
+    nproc --all
+    cat /proc/cpuinfo
+  install_dependencies_script: |
+    mkdir -p $WORKING_DIR
+    cd $WORKING_DIR
+    export DEBIAN_FRONTEND=noninteractive
+    export PACKAGES_TO_INSTALL="unzip ca-certificates git pkg-config dpkg-dev make git cmake cmake-curses-gui ccache bison cpp"
+    export PACKAGES_LIBS="libxml-simple-perl libeatmydata1 libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+    export PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
+    apt update
+    apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF
+  compiler_info_script: |
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    $SELECTED_CC -v
+    $SELECTED_CXX -v
+    ccache --version
+    ccache -p
+    ccache --zero-stats
+    df -Th
+  clone_script: |
+    cd $WORKING_DIR
+    git fetch origin
+    if [[ "${CIRRUS_REPO_FULL_NAME}" != "percona/percona-server" ]]; then
+      git remote add forked_repo https://github.com/${CIRRUS_REPO_FULL_NAME}.git
+      git fetch forked_repo
+    fi
+    if [ -n "$CIRRUS_PR" ]; then
+      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+    fi
+    git reset --hard $CIRRUS_CHANGE_IN_REPO
+    git submodule update --init
+    git submodule
+    df -Th
+  ccache_cache:
+    folder: "$CCACHE_DIR"
+    fingerprint_key: "$PARENT_BRANCH-$CIRRUS_OS-$SELECTED_CC-$BUILD_TYPE"
+    reupload_on_changes: true
+  boost_cache:
+    folder: "$BOOST_DIR"
+    fingerprint_key: "$BOOST_VERSION"
+    reupload_on_changes: true
+  cmake_script: |
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    cd $WORKING_DIR; mkdir bin; cd bin
+    export OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release -DDOWNLOAD_BOOST=1 -DWITH_BOOST=$BOOST_DIR"
+    export OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+    export OPTIONS_COMPONENTS="-DWITH_ROCKSDB=ON -DWITH_KEYRING_VAULT=ON -DWITH_KEYRING_VAULT_TEST=ON -DWITH_PAM=ON -DWITH_UNIT_TESTS=ON"
+    export OPTIONS_LIBS="-DWITH_CURL=system -DWITH_MECAB=system -DWITH_SSL=system -DWITH_LIBEVENT=system -DWITH_PROTOBUF=system -DWITH_READLINE=system -DWITH_LZ4=bundled -DWITH_ZLIB=bundled"
+    if [[ "$CIRRUS_OS" == "linux" ]] && [[ "$SELECTED_CC" == "clang-5.0" ]]; then
+        export COMPILE_OPT+=( '-DCMAKE_C_FLAGS=-isystem /usr/include/c++/7 -isystem /usr/include'
+                              '-DCMAKE_CXX_FLAGS=-isystem /usr/include/c++/7 -isystem /usr/include')
+    fi
+    cmake .. $OPTIONS_BUILD $OPTIONS_COMPILER $OPTIONS_COMPONENTS $OPTIONS_LIBS $OPTIONS_FLAGS "${COMPILE_OPT[@]}"
+    cmake -L .
+    rm -f $BOOST_DIR/$BOOST_VERSION.tar.gz
+  compile_script: |
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    cd $WORKING_DIR/bin
+    NPROC=`nproc --all`
+    echo "Using $NPROC threads"
+    make -j${NPROC}
+    ccache --show-stats
+    df -Th
+  mysql_test_run_script: |
+    cd $WORKING_DIR/bin
+    NPROC=`nproc --all`
+    NTHREADS=$(( $NPROC > 16 ? 16 : $NPROC ))
+    MTR_TESTS="main.1st"
+    echo "Start testing with $NTHREADS/$NPROC threads; MTR_TESTS=$MTR_TESTS"
+    mysql-test/mysql-test-run.pl $MTR_TESTS --parallel=$NTHREADS --mysqld-env=LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libeatmydata.so --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
+    echo "Finished testing with $NTHREADS/$NPROC threads"
+    df -Th

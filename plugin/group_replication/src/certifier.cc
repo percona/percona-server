@@ -1257,8 +1257,11 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
         precedes them), then "t" is stable and can be removed from
         the certification info.
         */
+
+      /* get the starttime in 1us unit */
+      ulonglong starttime = my_micro_time();
+
       Certification_info::iterator it = certification_info.begin();
-      stable_gtid_set_lock->wrlock();
 
       uint64 garbage_collector_counter =
           metrics_handler->get_certification_garbage_collector_count();
@@ -1268,35 +1271,80 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
         garbage_collector_counter = 0;
       });
 
+      /*
+        The goal of the following loop is to avoid locking for too long
+        transactions on servers that have a high rate of trx. Processing 1M
+        GTIDs in the original code blocked the transaction processing for about
+        1s.
+      */
       while (it != certification_info.end()) {
+        stable_gtid_set_lock->wrlock();
         uint64 write_set_counter = it->second->get_garbage_collect_counter();
 
-        /*
-           we need to clear gtid_set_ref if marked with UINT64_MAX or
-           subset_not_equals of stable_gtid_set
-        */
-        if (write_set_counter == UINT64_MAX ||
-            (write_set_counter < garbage_collector_counter &&
-             it->second->is_subset_not_equals(stable_gtid_set))) {
-          it->second->set_garbage_collect_counter(UINT64_MAX);
-          if (it->second->unlink() == 0) {
-            /*
-              Claim Gtid_set_ref used memory to
-              `thread/group_rpl/THD_certifier_broadcast` thread, since this is
-              thread that does release the memory.
-            */
-            it->second->claim_memory_ownership(true);
-            delete it->second;
+        /* Needs to increase the rate if it takes too long, add a chunk every 5s
+         */
+        ulonglong rate_multiplier = (my_micro_time() - starttime) / 5000000 + 1;
+
+        bool use_chunks = (get_certification_loop_chunk_size_var() > 0);
+        ulong chunk_size =
+            use_chunks
+                ? get_certification_loop_chunk_size_var() * rate_multiplier
+                : certification_info.size();
+
+        for (ulong i = 0; i < chunk_size; ++i) {
+          if (it == certification_info.end()) {
+            break;
           }
-          certification_info.erase(it++);
-        } else {
-          DBUG_EXECUTE_IF("group_replication_ci_rows_counter_high",
-                          { assert(write_set_counter > 0); });
-          it->second->set_garbage_collect_counter(garbage_collector_counter);
-          ++it;
+
+          /*
+             we need to clear gtid_set_ref if marked with UINT64_MAX or
+             subset_not_equals of stable_gtid_set
+          */
+          if (write_set_counter == UINT64_MAX ||
+              (write_set_counter < garbage_collector_counter &&
+               it->second->is_subset_not_equals(stable_gtid_set))) {
+            it->second->set_garbage_collect_counter(UINT64_MAX);
+            if (it->second->unlink() == 0) {
+              /*
+                Claim Gtid_set_ref used memory to
+                `thread/group_rpl/THD_certifier_broadcast` thread, since this is
+                thread that does release the memory.
+              */
+              it->second->claim_memory_ownership(true);
+              delete it->second;
+            }
+            certification_info.erase(it++);
+          } else {
+            DBUG_EXECUTE_IF("group_replication_ci_rows_counter_high",
+                            { assert(write_set_counter > 0); });
+            it->second->set_garbage_collect_counter(garbage_collector_counter);
+            ++it;
+          }
+        } /* for loop */
+
+        stable_gtid_set_lock->unlock();
+
+        /* Honor certification_loop_sleep_time if it is using chunks. */
+        if (use_chunks && get_certification_loop_sleep_time_var() > 0 &&
+            it != certification_info.end()) {
+          /* Save the key before we unlock and sleep */
+          auto saved_key{it->first};
+          /* Unlock the LOCK_certification_info */
+          mysql_mutex_unlock(&LOCK_certification_info);
+
+          /* Sleep for certification_loop_sleep_time microseconds */
+          my_sleep(get_certification_loop_sleep_time_var());
+
+          /* Re-acquire the locks and check if the saved key is still valid */
+          mysql_mutex_lock(&LOCK_certification_info);
+          if ((it = certification_info.find(saved_key)) ==
+              certification_info.end()) {
+            /* This may have been deleted already by another thread. Let's break
+             * here. */
+            break;
+          }
         }
-      }
-      stable_gtid_set_lock->unlock();
+      } /* while loop */
     }
 
     /*

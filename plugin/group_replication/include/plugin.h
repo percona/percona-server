@@ -249,6 +249,8 @@ const char *get_group_name_var();
 const char *get_view_change_uuid_var();
 ulong get_exit_state_action_var();
 ulong get_flow_control_mode_var();
+ulong get_certification_loop_sleep_time_var();
+ulong get_certification_loop_chunk_size_var();
 long get_flow_control_certifier_threshold_var();
 long get_flow_control_applier_threshold_var();
 long get_flow_control_min_quota_var();

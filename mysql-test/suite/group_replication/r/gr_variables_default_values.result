@@ -28,9 +28,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global/session group replication variables to default.
-# Curently there are 62 group replication variables.
+# Curently there are 64 group replication variables.
 #
-include/assert.inc [There are 62 GR variables at present.]
+include/assert.inc [There are 64 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;

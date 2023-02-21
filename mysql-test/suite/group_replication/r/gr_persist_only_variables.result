@@ -27,6 +27,8 @@ SET PERSIST_ONLY group_replication_auto_evict_timeout = @@GLOBAL.group_replicati
 SET PERSIST_ONLY group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
 SET PERSIST_ONLY group_replication_autorejoin_tries = @@GLOBAL.group_replication_autorejoin_tries;
 SET PERSIST_ONLY group_replication_bootstrap_group = @@GLOBAL.group_replication_bootstrap_group;
+SET PERSIST_ONLY group_replication_certification_loop_chunk_size = @@GLOBAL.group_replication_certification_loop_chunk_size;
+SET PERSIST_ONLY group_replication_certification_loop_sleep_time = @@GLOBAL.group_replication_certification_loop_sleep_time;
 SET PERSIST_ONLY group_replication_clone_threshold = @@GLOBAL.group_replication_clone_threshold;
 SET PERSIST_ONLY group_replication_communication_debug_options = @@GLOBAL.group_replication_communication_debug_options;
 SET PERSIST_ONLY group_replication_communication_max_message_size = @@GLOBAL.group_replication_communication_max_message_size;
@@ -83,7 +85,7 @@ SET PERSIST_ONLY group_replication_transaction_size_limit = @@GLOBAL.group_repli
 SET PERSIST_ONLY group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 SET PERSIST_ONLY group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
 
-include/assert.inc ['Expect 61 persisted variables.']
+include/assert.inc ['Expect 63 persisted variables.']
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
@@ -92,9 +94,9 @@ include/assert.inc ['Expect 61 persisted variables.']
 include/rpl/reconnect.inc
 include/gr_wait_for_member_state.inc
 
-include/assert.inc ['Expect 61 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 60 variables which last value was set through SET PERSIST.']
-include/assert.inc ['Expect 50 persisted variables with matching persisted and global values.']
+include/assert.inc ['Expect 63 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 62 variables which last value was set through SET PERSIST.']
+include/assert.inc ['Expect 52 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS.
@@ -105,6 +107,8 @@ RESET PERSIST IF EXISTS group_replication_auto_evict_timeout;
 RESET PERSIST IF EXISTS group_replication_auto_increment_increment;
 RESET PERSIST IF EXISTS group_replication_autorejoin_tries;
 RESET PERSIST IF EXISTS group_replication_bootstrap_group;
+RESET PERSIST IF EXISTS group_replication_certification_loop_chunk_size;
+RESET PERSIST IF EXISTS group_replication_certification_loop_sleep_time;
 RESET PERSIST IF EXISTS group_replication_clone_threshold;
 RESET PERSIST IF EXISTS group_replication_communication_debug_options;
 RESET PERSIST IF EXISTS group_replication_communication_max_message_size;

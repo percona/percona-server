@@ -94,7 +94,7 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection = default;
 --let $saved_group_replication_preemptive_garbage_collection_rows_threshold = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold;`
 
 # Total number of GR variables.
---let $total_gr_vars= 62
+--let $total_gr_vars= 64
 
 --echo #
 --echo # Test Unit#1

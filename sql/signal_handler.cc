@@ -142,10 +142,6 @@ void print_fatal_signal(int sig) {
   my_safe_printf_stderr("BuildID[sha1]=%s\n", server_build_id);
 #endif
 
-  my_safe_printf_stderr("\n");
-#ifdef __linux__
-  my_print_buildID();
-#endif
   my_safe_printf_stderr("Server Version: %s %s\n\n", server_version,
                         MYSQL_COMPILATION_COMMENT);
 

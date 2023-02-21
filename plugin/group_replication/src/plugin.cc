@@ -330,6 +330,14 @@ ulong get_exit_state_action_var() { return ov.exit_state_action_var; }
 
 ulong get_flow_control_mode_var() { return ov.flow_control_mode_var; }
 
+ulong get_certification_loop_sleep_time_var() {
+  return ov.certification_loop_sleep_time_var;
+}
+
+ulong get_certification_loop_chunk_size_var() {
+  return ov.certification_loop_chunk_size_var;
+}
+
 long get_flow_control_certifier_threshold_var() {
   return ov.flow_control_certifier_threshold_var;
 }
@@ -4708,6 +4716,39 @@ static MYSQL_SYSVAR_ULONG(
 );
 
 static MYSQL_SYSVAR_ULONG(
+    certification_loop_sleep_time,        /* name */
+    ov.certification_loop_sleep_time_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | no set default */
+    "The sleep time, in microseconds, the certifier garbage collection loop "
+    "allows client transactions to interleave."
+    "Default: 0.",
+    nullptr,                               /* check func. */
+    nullptr,                               /* update func. */
+    DEFAULT_CERTIFICATION_LOOP_SLEEP_TIME, /* default */
+    MIN_CERTIFICATION_LOOP_SLEEP_TIME,     /* min */
+    MAX_CERTIFICATION_LOOP_SLEEP_TIME,     /* max */
+    0                                      /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
+    certification_loop_chunk_size,        /* name */
+    ov.certification_loop_chunk_size_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | no set default */
+    "The size of the chunk that must be processed during the certifier garbage "
+    "collection after which the client transactions will be allowed to "
+    "interleave. "
+    "Default: 0.",
+    nullptr,                               /* check func. */
+    nullptr,                               /* update func. */
+    DEFAULT_CERTIFICATION_LOOP_CHUNK_SIZE, /* default */
+    MIN_CERTIFICATION_LOOP_CHUNK_SIZE,     /* min */
+    MAX_CERTIFICATION_LOOP_CHUNK_SIZE,     /* max */
+    0                                      /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
     compression_threshold,        /* name */
     ov.compression_threshold_var, /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
@@ -5397,7 +5438,9 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(paxos_single_leader),
     MYSQL_SYSVAR(preemptive_garbage_collection),
     MYSQL_SYSVAR(preemptive_garbage_collection_rows_threshold),
-    MYSQL_SYSVAR(auto_evict_timeout),
+    MYSQL_SYSVAR(auto_evict_timeout),            /* Added by Percona */
+    MYSQL_SYSVAR(certification_loop_sleep_time), /* Added by Percona */
+    MYSQL_SYSVAR(certification_loop_chunk_size), /* Added by Percona */
     nullptr,
 };
 

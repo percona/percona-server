@@ -12,8 +12,8 @@
    client_query_attributes.cc
    multi_factor_passwordopt-vars.cc
    ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
--  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
-+  LINK_LIBRARIES mysqlclient client_base ${MY_READLINE_LIBRARY}
+-  LINK_LIBRARIES perconaserverclient client_base ${MY_XLINE_LIBRARY}
++  LINK_LIBRARIES mysqlclient client_base ${MY_XLINE_LIBRARY}
    )
  
  IF(NOT WITHOUT_SERVER)

@@ -75,7 +75,11 @@
 
 # Setup cmake flags for RocksDB
 %if 0%{?rocksdb}
-  %global ROCKSDB_FLAGS -DWITH_ROCKSDB=1
+  %if 0%{?rhel} == 7
+    %global ROCKSDB_FLAGS -DWITH_ROCKSDB=1 -DALLOW_NO_SSE42=1
+  %else
+    %global ROCKSDB_FLAGS -DWITH_ROCKSDB=1
+  %endif
 %else
   %global ROCKSDB_FLAGS -DWITH_ROCKSDB=0
 %endif
@@ -100,14 +104,8 @@
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
 
-# Hack to support el5 where __isa_bits not defined. Note: supports i386 and x86_64 only, sorry.
-%if x%{?__isa_bits} == x
-%ifarch %{ix86}
-%global __isa_bits            32
-%endif
 %ifarch x86_64
 %global __isa_bits            64
-%endif
 %endif
 
 %global src_dir               %{src_base}-%{mysql_version}-%{percona_server_version}
@@ -388,6 +386,9 @@ mkdir debug
   cd debug
   # Attempt to remove any optimisation flags from the debug build
   optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-error /')
+%if 0%{?rhel} == 9
+  optflags=$(echo "%{optflags}" | sed -e 's:-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1::')
+%endif
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
@@ -793,7 +794,6 @@ fi
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
 %if 0%{?rhel} > 6
-#%ghost %config(noreplace) %{_sysconfdir}/my.cnf
 %ghost %{_sysconfdir}/my.cnf
 %endif
 

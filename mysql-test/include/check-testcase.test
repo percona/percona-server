@@ -27,7 +27,9 @@ if ($event_scheduler_running == 1)
 --source include/wait_condition.inc
 if (!$success)
 {
-  SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+  # For NDB tests CONNECTION_ID() can be different "before" and "after" the test,
+  # so replacing it with 0.
+  SELECT IF(ID != CONNECTION_ID(), ID, 0) AS FIXED_ID, USER, HOST, DB, COMMAND, STATE, INFO FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY FIXED_ID ASC;
 }
 
 # We want to ensure all slave configuration is restored. But SHOW

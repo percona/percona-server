@@ -387,7 +387,7 @@ mkdir debug
   # Attempt to remove any optimisation flags from the debug build
   optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-error /')
 %if 0%{?rhel} == 9
-  optflags=$(echo "%{optflags}" | sed -e 's:-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1::')
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-error /' -e 's:-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1::')
 %endif
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \

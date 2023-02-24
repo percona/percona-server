@@ -25,7 +25,7 @@ ADD_WSHADOW_WARNING()
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()
 
-INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${MY_XLINE_INCLUDE_DIR})
 
 ## Subdirectory with common client code.
 
@@ -48,7 +48,7 @@ MYSQL_ADD_EXECUTABLE(mysql
   client_query_attributes.cc
   multi_factor_passwordopt-vars.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
-  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
+  LINK_LIBRARIES perconaserverclient client_base ${MY_XLINE_LIBRARY}
   )
 
 IF(NOT WITHOUT_SERVER)

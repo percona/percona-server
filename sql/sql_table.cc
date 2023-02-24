@@ -18126,7 +18126,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     std::vector<dd::Index *> dd_disabled_sec_keys;
     bool err_remove_keys = false;
 
-    new_table->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
+    if (optimize_keys) new_table->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
     if (optimize_keys) {
       err_remove_keys = remove_secondary_keys(
           thd, create_info, new_table, alter_info,
@@ -18152,7 +18152,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                  table_def, &dd_disabled_sec_keys);
     }
 
-    new_table->file->ha_extra(HA_EXTRA_END_ALTER_COPY);
+    if (optimize_keys) new_table->file->ha_extra(HA_EXTRA_END_ALTER_COPY);
 
     if (err_copy || err_restore_keys) {
       goto err_new_table_cleanup;
@@ -19042,6 +19042,9 @@ static int copy_data_between_tables(
 
   set_column_static_defaults(to, create);
 
+  if (!expand_fast_index_creation) {
+    to->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
+  }
   while (!(error = iterator->Read())) {
     if (thd->killed) {
       thd->send_kill_message();
@@ -19146,6 +19149,10 @@ static int copy_data_between_tables(
   if (to->file->ha_end_bulk_insert() && error <= 0) {
     to->file->print_error(my_errno(), MYF(0));
     error = 1;
+  }
+
+  if (!expand_fast_index_creation) {
+    to->file->ha_extra(HA_EXTRA_END_ALTER_COPY);
   }
 
   DBUG_EXECUTE_IF("crash_copy_before_commit", DBUG_SUICIDE(););

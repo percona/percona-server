@@ -1948,7 +1948,7 @@ void perf_test(int sz, int run_time) {
   mem.dump(false);
 
   printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
-  fgets(buf, sizeof(buf), stdin);
+  [[maybe_unused]] auto io_result = fgets(buf, sizeof(buf), stdin);
 
   Vector<Chunk> chunks;
   Ndbd_mem_manager::AllocZone zone = Ndbd_mem_manager::NDB_ZONE_LE_32;
@@ -1956,7 +1956,7 @@ void perf_test(int sz, int run_time) {
   for (Uint32 i = 0; time(0) < stop; i++) {
     mem.dump(false);
     printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
-    fgets(buf, sizeof(buf), stdin);
+    io_result = fgets(buf, sizeof(buf), stdin);
     time_t stop = time(0) + run_time;
     for (Uint32 i = 0; time(0) < stop; i++) {
       // Case

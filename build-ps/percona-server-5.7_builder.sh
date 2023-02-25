@@ -408,7 +408,7 @@ install_deps() {
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
         apt-get -y install libcurl4-openssl-dev patchelf
-        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" -o "x${DIST}" = "xbullseye" -o "x${DIST}" = "xjammy"]; then
+        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" -o "x${DIST}" = "xbullseye" -o "x${DIST}" = "xjammy" ]; then
             apt-get -y install libeatmydata1
         fi
     fi
@@ -723,6 +723,11 @@ build_deb(){
     if [ ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy ]; then
         sed -i '28d' debian/control
         sed -i 's|libcurl4-openssl-dev,|libcurl4-openssl-dev|' debian/control
+    fi
+    if [ ${DEBIAN_VERSION} = jammy ]; then
+        sed -i 's|libjemalloc1 (>= 3.3.0)|libjemalloc2|' debian/control
+        sed -i 's|libjemalloc.so.1|libjemalloc.so.2|' scripts/*.sh
+        sed -i 's|libjemalloc1|libjemalloc2|' scripts/*.sh
     fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 

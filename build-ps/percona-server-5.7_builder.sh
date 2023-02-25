@@ -726,7 +726,8 @@ build_deb(){
     fi
     if [ ${DEBIAN_VERSION} = jammy ]; then
         sed -i 's|libjemalloc1 (>= 3.3.0)|libjemalloc2|' debian/control
-        sed -i 's|libjemalloc.so.1|libjemalloc.so.2|' scripts/ps_tokudb_admin.sh
+        sed -i 's|libjemalloc.so.1|libjemalloc.so.2|' scripts/*.sh
+        sed -i 's|libjemalloc1|libjemalloc2|' scripts/*.sh
     fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 

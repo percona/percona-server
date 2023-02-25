@@ -724,6 +724,9 @@ build_deb(){
         sed -i '28d' debian/control
         sed -i 's|libcurl4-openssl-dev,|libcurl4-openssl-dev|' debian/control
     fi
+    if [ ${DEBIAN_VERSION} = jammy ]; then
+        sed -i 's|libjemalloc1 (>= 3.3.0)|libjemalloc2|' debian/control
+    fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
     if [ ${ARCH} != "x86_64" ]; then

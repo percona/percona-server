@@ -383,7 +383,9 @@ fi
 
 %if 0%{?rhel} == 9
   pwd
-  ls -la
+  ls -la percona-server-@@TOKUDB_BACKUP_VERSION@@
+  ls -la percona-server-@@TOKUDB_BACKUP_VERSION@@/suite/tokudb/t/
+  sed -i 's:/usr/bin/env python2:usr/bin/env python:' percona-server-@@TOKUDB_BACKUP_VERSION@@/suite/tokudb/t/change_column_int_key.py
   sed -i 's:/usr/bin/env python2:usr/bin/env python:' percona-server-@@TOKUDB_BACKUP_VERSION@@/suite/tokudb/t/*
   sed -i 's:python2.7:python:' percona-server-@@TOKUDB_BACKUP_VERSION@@/suite/tokudb/t/*
   sed -i 's:python2:python:' percona-server-@@TOKUDB_BACKUP_VERSION@@/suite/tokudb/t/*

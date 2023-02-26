@@ -55,6 +55,7 @@
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
 %{?el8:                          %global systemd 1}
+%{?el9:                          %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -57}
 %{!?feature_set:                 %global feature_set community}
@@ -94,7 +95,7 @@
 %endif
 
 # Version for compat libs
-%if 0%{?rhel} > 6
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
 %global compatver             5.6.51
 %global percona_compatver     91.0
 %global compatlib             18
@@ -209,7 +210,7 @@ Requires(preun):  /sbin/chkconfig
 Requires(preun):  /sbin/service
 %endif
 
-%if 0%{?rhel} == 8
+%if 0%{?rhel} == 8 || 0%{?rhel} == 9
 Obsoletes:      mariadb-connector-c-config
 %endif
 
@@ -244,7 +245,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Test suite for the Percona Server
 Group:          Applications/Databases
 Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
-%if 0%{?rhel} == 8
+%if 0%{?rhel} == 8 || 0%{?rhel} == 9
 Requires:       perl(Getopt::Long)
 Requires:       perl(Memoize)
 Requires:       perl(Time::HiRes)
@@ -281,7 +282,7 @@ Group:          Applications/Databases
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Provides:       mysql-shared
-%if 0%{?rhel} > 6
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
 Requires(pre):  Percona-Server-shared-compat%{product_suffix}
 %endif
 
@@ -1112,6 +1113,9 @@ fi
 
 
 %changelog
+* Sun Feb 26 2022 Percona Development Team <info@percona.com> - 5.7.41-44
+- Release 5.7.41-44
+
 * Mon Feb 22 2021 Percona Development Team <info@percona.com> - 5.7.33-36
 - Release 5.7.33-36
 

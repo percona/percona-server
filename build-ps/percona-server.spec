@@ -1119,9 +1119,6 @@ fi
 
 
 %changelog
-* Sun Feb 26 2022 Percona Development Team <info@percona.com> - 5.7.41-44
-- Release 5.7.41-44
-
 * Mon Feb 22 2021 Percona Development Team <info@percona.com> - 5.7.33-36
 - Release 5.7.33-36
 

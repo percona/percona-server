@@ -382,7 +382,7 @@ fi
 %endif # 0%{?compatlib}
 
 %if 0%{?rhel} == 9
-  sed -i 's:/usr/bin/env python2:usr/bin/env python:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
+  sed -i 's:/usr/bin/env python2:/usr/bin/env python:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
   sed -i 's:python2.7:python:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
   sed -i 's:python2:python:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
 %endif

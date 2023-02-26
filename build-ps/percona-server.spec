@@ -381,6 +381,14 @@ fi
 %endif # 0%{?rhel} > 6
 %endif # 0%{?compatlib}
 
+%if 0%{?rhel} == 9
+  pwd
+  ls -la
+  sed -i 's:/usr/bin/env python2:usr/bin/env python:' suite/tokudb/t/*
+  sed -i 's:python2.7:python:' suite/tokudb/t/*
+  sed -i 's:python2:python:' suite/tokudb/t/*
+%endif
+
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
 (

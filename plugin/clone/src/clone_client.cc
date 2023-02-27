@@ -1045,10 +1045,10 @@ int Client::validate_remote_params() {
   }
 
   /* Build list of plugins from comma separated value of the variable
-  clone_exclude_plugins_match */
+  clone_exclude_plugins_list */
   std::vector<std::string> excl_plugins_vec;
-  if (clone_exclude_plugins_match != nullptr) {
-    std::string excl_plugins_str(clone_exclude_plugins_match);
+  if (clone_exclude_plugins_list != nullptr) {
+    std::string excl_plugins_str(clone_exclude_plugins_list);
     std::transform(excl_plugins_str.begin(), excl_plugins_str.end(),
                    excl_plugins_str.begin(), ::tolower);
 
@@ -1084,17 +1084,18 @@ int Client::validate_remote_params() {
 
     /* Plugin is not installed in recipient but active on donor. Check if this
     plugin can be exempted from matching with donor */
-    if (clone_exclude_plugins_match != nullptr) {
+    if (clone_exclude_plugins_list != nullptr) {
       std::string plugin_str(plugin_name);
       std::transform(plugin_str.begin(), plugin_str.end(), plugin_str.begin(),
                      ::tolower);
 
       if (std::find(excl_plugins_vec.begin(), excl_plugins_vec.end(),
                     plugin_str) != excl_plugins_vec.end()) {
-        char info_mesg[128];
-        snprintf(info_mesg, 128,
-                 "Plugin %s is not installed on recipient but ignored due to "
-                 "'clone_exclude_plugins_match'",
+        char info_mesg[256];
+        snprintf(info_mesg, 256,
+                 "Ignoring plugin %s installed on the source server but not on "
+                 "the recepient. The mismatch is ignored due to "
+                 "'clone_exclude_plugins_list'.",
                  plugin_name.c_str());
         LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
         continue;

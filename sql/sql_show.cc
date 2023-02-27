@@ -6049,6 +6049,32 @@ static bool acquire_mdl_for_table(THD *thd, const char *db_name,
 }
 
 /**
+  Helper to lookup Trigger object by trigger name in a TABLE_SHARE.
+
+  @param share TABLE_SHARE in which list of Trigger object lookup to
+               be performed.
+  @param name  Name of trigger to find.
+
+  @return Pointer to Trigger object, or nullptr if no trigger with such
+          name was found.
+*/
+
+static Trigger *find_trigger_in_share(TABLE_SHARE *share,
+                                      const LEX_STRING &name) {
+  Trigger *t;
+  List_iterator_fast<Trigger> it(*(share->triggers));
+
+  while ((t = it++) != nullptr) {
+    if (!my_strnncoll(dd::Trigger::name_collation(),
+                      pointer_cast<const uchar *>(t->get_trigger_name().str),
+                      t->get_trigger_name().length,
+                      pointer_cast<const uchar *>(name.str), name.length))
+      return t;
+  }
+  return nullptr;
+}
+
+/**
   SHOW CREATE TRIGGER high-level implementation.
 
   @param thd      Thread context.
@@ -6101,12 +6127,12 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name) {
     /* Perform closing actions and return error status. */
   }
 
-  if (!lst->table->triggers) {
+  if (!lst->table->s->triggers) {
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
     goto exit;
   }
 
-  trigger = lst->table->triggers->find_trigger(trg_name->m_name);
+  trigger = find_trigger_in_share(lst->table->s, trg_name->m_name);
 
   if (!trigger) {
     my_error(ER_TRG_CORRUPTED_FILE, MYF(0), trg_name->m_db.str,

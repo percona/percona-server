@@ -3219,6 +3219,18 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
+  /*
+    If table has triggers create Table_trigger_dispacher object with some
+    initial state. Do not finalize trigger parsing/loading until it is
+    really required.
+    We need to create Table_trigger_dispatcher now as some places in code
+    use TABLE::triggers != nullptr check to determine presence of triggers.
+  */
+  if (share->triggers != nullptr) {
+    outparam->triggers = Table_trigger_dispatcher::create(outparam);
+    if (outparam->triggers == nullptr) goto err;  // OOM
+  }
+
   /* The table struct is now initialized;  Open the table */
   error = 2;
   if (db_stat) {

@@ -95,6 +95,7 @@ class THD;
 class Table_cache_element;
 class Table_trigger_dispatcher;
 class Temp_table_param;
+class Trigger;
 class handler;
 class partition_info;
 enum enum_stats_auto_recalc : int;
@@ -1045,6 +1046,16 @@ struct TABLE_SHARE {
   Sql_check_constraint_share_list *check_constraint_share_list{nullptr};
 
   /**
+    List of trigger descriptions for the table loaded from the data-dictionary.
+    Nullptr - if table doesn't have triggers.
+
+    @note The purpose of Trigger objects in this list is to serve as template
+          for per-TABLE-object Trigger objects (and store static metadata).
+          They can't be used directly for execution of triggers.
+  */
+  List<Trigger> *triggers{nullptr};
+
+  /**
     Schema's read only mode - ON (true) or OFF (false). This is filled in
     when the share is initialized with meta data from DD. If the schema is
     altered, the tables and share are removed. This can be done since
@@ -1432,6 +1443,18 @@ struct TABLE {
     using them for linking TABLE objects in a list.
   */
   friend class Table_cache_element;
+
+  /**
+    Links for the LRU list of unused TABLE objects with fully loaded triggers
+    in the specific instance of Table_cache.
+  */
+  TABLE *triggers_lru_next{nullptr}, **triggers_lru_prev{nullptr};
+
+  /*
+    Give Table_cache access to the above two members to allow using them
+    for linking TABLE objects in a list.
+  */
+  friend class Table_cache;
 
  public:
   /**

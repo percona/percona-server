@@ -58,12 +58,12 @@ INSERT INTO t1 VALUES(30, 'clone row 3');
 --error ER_CLONE_PLUGIN_MATCH
 --eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY='$CLONED_DATADIR'
 
-SET GLOBAL clone_exclude_plugins_match='example';
+SET GLOBAL clone_exclude_plugins_list='example';
 --replace_result $CLONED_DATADIR CLONED_DATADIR $USER USER $HOST HOST $PORT PORT
 --error ER_CLONE_PLUGIN_MATCH
 --eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY='$CLONED_DATADIR'
 
-SET GLOBAL clone_exclude_plugins_match='example,audit_log';
+SET GLOBAL clone_exclude_plugins_list='example,audit_log';
 --replace_result $CLONED_DATADIR CLONED_DATADIR $USER USER $HOST HOST $PORT PORT
 --eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY='$CLONED_DATADIR'
 

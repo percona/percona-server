@@ -20,10 +20,10 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATADIR';
 ERROR HY000: Clone Donor plugin EXAMPLE is not active in Recipient.
-SET GLOBAL clone_exclude_plugins_match='example';
+SET GLOBAL clone_exclude_plugins_list='example';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATADIR';
 ERROR HY000: Clone Donor plugin audit_log is not active in Recipient.
-SET GLOBAL clone_exclude_plugins_match='example,audit_log';
+SET GLOBAL clone_exclude_plugins_list='example,audit_log';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATADIR';
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Couldn't load plugin named '.*' with soname '.*'.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't open shared library.*");

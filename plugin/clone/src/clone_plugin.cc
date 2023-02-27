@@ -89,9 +89,9 @@ uint clone_delay_after_data_drop;
 
 /** Clone system variable: list of plugins that will not be matched on
 recipient */
-char *clone_exclude_plugins_match;
+char *clone_exclude_plugins_list;
 
-/** List of plugins that cannot be excluded by clone_exclude_plugins_match */
+/** List of plugins that cannot be excluded by clone_exclude_plugins_list */
 static std::vector<std::string> disallow_list{"daemon_keyring_proxy_plugin",
                                               "binlog",
                                               "performance_schema",
@@ -532,15 +532,15 @@ static const char *val_strmake(MYSQL_THD thd,
   return val;
 }
 
-static bool plugin_is_ignorable(std::string &plugin_name) {
+static bool plugin_is_ignorable(std::string const &plugin_name) {
   return (std::find(disallow_list.begin(), disallow_list.end(), plugin_name) ==
           disallow_list.end());
 }
 
-static int clone_exclude_plugins_match_validate(MYSQL_THD thd,
-                                                SYS_VAR *var [[maybe_unused]],
-                                                void *save,
-                                                st_mysql_value *value) {
+static int clone_exclude_plugins_list_validate(MYSQL_THD thd,
+                                               SYS_VAR *var [[maybe_unused]],
+                                               void *save,
+                                               st_mysql_value *value) {
   const char *input = val_strmake(thd, value);
   std::stringstream exclude_list(input);
 
@@ -703,12 +703,12 @@ static MYSQL_SYSVAR_UINT(delay_after_data_drop, clone_delay_after_data_drop,
 /**  Remote cloning insists on the same list of plugins to be installed on
 recipient. These list of plugins are not required to be installed on recipient.
 */
-static MYSQL_SYSVAR_STR(exclude_plugins_match, clone_exclude_plugins_match,
+static MYSQL_SYSVAR_STR(exclude_plugins_list, clone_exclude_plugins_list,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Comma separated plugin names that are not installed "
                         "on recipient. Clone will not error out if these are "
                         "active on donor but not installed on recipient",
-                        clone_exclude_plugins_match_validate, nullptr, nullptr);
+                        clone_exclude_plugins_list_validate, nullptr, nullptr);
 
 /** Clone system variables */
 static SYS_VAR *clone_system_variables[] = {
@@ -726,7 +726,7 @@ static SYS_VAR *clone_system_variables[] = {
     MYSQL_SYSVAR(ssl_ca),
     MYSQL_SYSVAR(donor_timeout_after_network_failure),
     MYSQL_SYSVAR(delay_after_data_drop),
-    MYSQL_SYSVAR(exclude_plugins_match),
+    MYSQL_SYSVAR(exclude_plugins_list),
     nullptr};
 
 /** Declare clone plugin */

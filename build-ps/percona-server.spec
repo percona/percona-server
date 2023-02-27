@@ -385,6 +385,8 @@ fi
   sed -i 's:/usr/bin/env python2:/usr/bin/env python3:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
   sed -i 's:python2.7:python3:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
   sed -i 's:python2:python3:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
+  sed -i 's|libjemalloc.so.1|libjemalloc.so.2|' percona-server-@@TOKUDB_BACKUP_VERSION@@/scripts/*.sh
+  sed -i 's|libjemalloc1|libjemalloc2|' percona-server-@@TOKUDB_BACKUP_VERSION@@/scripts/*.sh
 %endif
 
 # Build debug versions of mysqld and libmysqld.a

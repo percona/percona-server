@@ -28,6 +28,13 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
       std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
 
   /**
+   * @brief Init log writer.
+   *
+   * @return true in case of success, false otherwise
+   */
+  bool init() noexcept override;
+
+  /**
    * @brief Open log writer.
    *
    * @return true in case of success, false otherwise

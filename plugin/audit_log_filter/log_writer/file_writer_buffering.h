@@ -1,4 +1,4 @@
-/* Copyright (c) 2022 Percona LLC and/or its affiliates. All rights reserved.
+/* Copyright (c) 2023 Percona LLC and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef AUDIT_LOG_FILTER_LOG_WRITER_FILE_BUFFER_H_INCLUDED
-#define AUDIT_LOG_FILTER_LOG_WRITER_FILE_BUFFER_H_INCLUDED
+#ifndef AUDIT_LOG_FILTER_LOG_WRITER_FILE_WRITER_BUFFERING_H_INCLUDED
+#define AUDIT_LOG_FILTER_LOG_WRITER_FILE_WRITER_BUFFERING_H_INCLUDED
+
+#include "file_writer_decorator_base.h"
 
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -30,53 +32,60 @@ namespace audit_log_filter::log_writer {
 
 enum class FileBufferState { COMPLETE, INCOMPLETE };
 
-using LogFileWriteFunc = std::function<void(const char *, size_t)>;
-
-class FileBuffer {
+class FileWriterBuffering final : public FileWriterDecoratorBase {
  public:
-  FileBuffer() = default;
-  FileBuffer(FileBuffer &other) = delete;
-  FileBuffer(FileBuffer &&other) = delete;
-  ~FileBuffer();
+  FileWriterBuffering(std::unique_ptr<FileWriterBase> file_writer, size_t size,
+                      bool drop_if_full);
+  FileWriterBuffering(FileWriterBuffering &other) = delete;
+  FileWriterBuffering(FileWriterBuffering &&other) = delete;
+  ~FileWriterBuffering() final;
 
   /**
    * @brief Init file write buffer.
    *
-   * @param size Buffer size in bytes
-   * @param drop_if_full Indicates if message should be dropped in case
-   *                     buffer is full
-   * @param write_func Callback function used to write data to a file
    * @return true in case of success, false otherwise
    */
-  bool init(size_t size, bool drop_if_full,
-            LogFileWriteFunc write_func) noexcept;
+  bool init() noexcept override;
 
   /**
-   * @brief Shutdown file write buffer.
-   */
-  void shutdown() noexcept;
-
-  /**
-   * @brief Write data to a buffer.
+   * @brief Prepare writer for work with newly opened log file.
    *
-   * @param buf Data to be written
-   * @param len Data length
+   * @return true in case of success, false otherwise
    */
-  void write(const char *buf, size_t len) noexcept;
+  bool open() noexcept override;
 
   /**
-   * @brief Flush buffer content to a file.
+   * @brief Finish working with currently active log file before
+   *        actually closing it.
    */
-  void flush() noexcept;
+  void close() noexcept override;
+
+  /**
+   * @brief Write file.
+   *
+   * @param record Log record
+   * @param size Log record size
+   */
+  void write(const char *record, size_t size) noexcept override;
 
   /**
    * @brief Check if flushing thread is stopped.
    *
    * @return true in case flushing thread is stopped, false otherwise
    */
-  inline bool check_flush_stopped() const noexcept;
+  [[nodiscard]] inline bool check_flush_stopped() const noexcept;
+
+  /**
+   * @brief Flush worker method used by flush thread.
+   */
+  void flush_worker() noexcept;
 
  private:
+  /**
+   * @brief Shutdown file write buffer.
+   */
+  void shutdown() noexcept;
+
   /**
    * @brief Pause flushing thread.
    */
@@ -88,14 +97,13 @@ class FileBuffer {
   void resume() noexcept;
 
  private:
-  char *m_buf{nullptr};
-  size_t m_size{0};
-  size_t m_write_pos{0};
-  size_t m_flush_pos{0};
-  pthread_t m_flush_worker_thread{0};
-  bool m_stop_flush_worker{false};
-  bool m_drop_if_full{false};
-  LogFileWriteFunc m_write_func;
+  const size_t m_size;
+  const bool m_drop_if_full;
+  char *m_buf;
+  size_t m_write_pos;
+  size_t m_flush_pos;
+  pthread_t m_flush_worker_thread;
+  bool m_stop_flush_worker;
   mysql_mutex_t m_mutex;
   mysql_cond_t m_flushed_cond;
   mysql_cond_t m_written_cond;
@@ -104,4 +112,4 @@ class FileBuffer {
 
 }  // namespace audit_log_filter::log_writer
 
-#endif  // AUDIT_LOG_FILTER_LOG_WRITER_FILE_BUFFER_H_INCLUDED
+#endif  // AUDIT_LOG_FILTER_LOG_WRITER_FILE_WRITER_BUFFERING_H_INCLUDED

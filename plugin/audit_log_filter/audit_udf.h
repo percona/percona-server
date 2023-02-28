@@ -16,8 +16,6 @@
 #ifndef AUDIT_LOG_FILTER_AUDIT_UDF_H_INCLUDED
 #define AUDIT_LOG_FILTER_AUDIT_UDF_H_INCLUDED
 
-#include "plugin/audit_log_filter/component_registry_service.h"
-
 #include <mysql/udf_registration_types.h>
 
 #include <functional>
@@ -37,8 +35,7 @@ struct UdfFuncInfo {
 
 class AuditUdf {
  public:
-  AuditUdf() = delete;
-  explicit AuditUdf(comp_registry_srv_t *comp_registry_srv);
+  AuditUdf() = default;
   ~AuditUdf();
 
   /**
@@ -373,13 +370,80 @@ class AuditUdf {
   static void audit_log_rotate_udf_deinit(UDF_INIT *initid);
 
   /**
-   * @brief Get pointer to a component registry service.
+   * @brief Init function for audit_log_encryption_password_get UDF.
    *
-   * @return Pointer to a component registry service
+   * @param udf Pointer to UDFs handler instance
+   * @param initid Pointer to UDF_INIT argument
+   * @param udf_args Pointer to the UDF arguments struct
+   * @param message Error message in case of error
+   * @retval false Success
+   * @retval true  Failure. Error in the message argument
    */
-  [[nodiscard]] comp_registry_srv_t *get_comp_registry_srv() const noexcept {
-    return m_comp_registry_srv;
-  }
+  static bool audit_log_encryption_password_get_udf_init(
+      AuditUdf *udf, UDF_INIT *initid, UDF_ARGS *udf_args,
+      char *message) noexcept;
+
+  /**
+   * @brief Main function for audit_log_encryption_password_get UDF.
+   *
+   * @param udf Pointer to UDFs handler instance
+   * @param initid Pointer to UDF_INIT argument
+   * @param udf_args Pointer to the UDF arguments struct
+   * @param result UDFs result buffer
+   * @param length Result length
+   * @param is_null Indicates a return value of NULL in the UDF
+   * @param error Indicates if there was an error
+   * @return Pointer to the result buffer
+   */
+  static char *audit_log_encryption_password_get_udf(
+      AuditUdf *udf, UDF_INIT *initid, UDF_ARGS *udf_args, char *result,
+      unsigned long *length, unsigned char *is_null,
+      unsigned char *error) noexcept;
+
+  /**
+   * @brief De-init function for audit_log_encryption_password_get UDF.
+   *
+   * @param initid Pointer to UDF_INIT argument
+   */
+  static void audit_log_encryption_password_get_udf_deinit(UDF_INIT *initid);
+
+  /**
+   * @brief Init function for audit_log_encryption_password_set UDF.
+   *
+   * @param udf Pointer to UDFs handler instance
+   * @param initid Pointer to UDF_INIT argument
+   * @param udf_args Pointer to the UDF arguments struct
+   * @param message Error message in case of error
+   * @retval false Success
+   * @retval true  Failure. Error in the message argument
+   */
+  static bool audit_log_encryption_password_set_udf_init(
+      AuditUdf *udf, UDF_INIT *initid, UDF_ARGS *udf_args,
+      char *message) noexcept;
+
+  /**
+   * @brief Main function for audit_log_encryption_password_set UDF.
+   *
+   * @param udf Pointer to UDFs handler instance
+   * @param initid Pointer to UDF_INIT argument
+   * @param udf_args Pointer to the UDF arguments struct
+   * @param result UDFs result buffer
+   * @param length Result length
+   * @param is_null Indicates a return value of NULL in the UDF
+   * @param error Indicates if there was an error
+   * @return Pointer to the result buffer
+   */
+  static char *audit_log_encryption_password_set_udf(
+      AuditUdf *udf, UDF_INIT *initid, UDF_ARGS *udf_args, char *result,
+      unsigned long *length, unsigned char *is_null,
+      unsigned char *error) noexcept;
+
+  /**
+   * @brief De-init function for audit_log_encryption_password_set UDF.
+   *
+   * @param initid Pointer to UDF_INIT argument
+   */
+  static void audit_log_encryption_password_set_udf_deinit(UDF_INIT *initid);
 
  private:
   /**
@@ -389,7 +453,7 @@ class AuditUdf {
    * @param charset_name Character set name, defaults to utf8mb4
    * @return true in case of success, false otherwise
    */
-  bool set_return_value_charset(
+  static bool set_return_value_charset(
       UDF_INIT *initid, const std::string &charset_name = "utf8mb4") noexcept;
 
   /**
@@ -399,11 +463,10 @@ class AuditUdf {
    * @param charset_name Character set name, defaults to utf8mb4
    * @return true in case of success, false otherwise
    */
-  bool set_args_charset(UDF_ARGS *udf_args,
-                        const std::string &charset_name = "utf8mb4") noexcept;
+  static bool set_args_charset(
+      UDF_ARGS *udf_args, const std::string &charset_name = "utf8mb4") noexcept;
 
  private:
-  comp_registry_srv_t *m_comp_registry_srv;
   std::vector<std::string> m_active_udf_names;
 };
 

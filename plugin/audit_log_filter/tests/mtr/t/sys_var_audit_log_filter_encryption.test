@@ -1,0 +1,12 @@
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL audit_log_filter_encryption=AES;
+SELECT @@global.audit_log_filter_encryption;
+
+--let $restart_parameters="restart: --audit-log-filter-encryption=AES"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter_encryption;
+
+# Restart with original value
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter_encryption;

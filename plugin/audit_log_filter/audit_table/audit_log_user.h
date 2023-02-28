@@ -28,8 +28,6 @@ class AuditLogUser : public AuditTableBase {
   using AuditUsersContainer =
       std::map<std::pair<std::string, std::string>, std::string>;
 
-  explicit AuditLogUser(comp_registry_srv_t *comp_registry_srv);
-
   /**
    * @brief Load user list.
    *

@@ -363,15 +363,15 @@
 
 --- libmysql/authentication_kerberos/CMakeLists.txt     2021-09-28 04:49:14.000000000 +0000
 +++ libmysql/authentication_kerberos/CMakeLists.txt     2021-09-28 09:24:09.917822028 +0000
-@@ -69,7 +69,7 @@
-   SET(KERBEROS_LIB  "")
+@@ -65,7 +65,7 @@
+   LIST(APPEND UTILITY "sspi_utility.cc")
  ENDIF()
- 
+
 -SET(MY_SQL "perconaserverclient")
 +SET(MY_SQL "mysqlclient")
- 
+
  DISABLE_MISSING_PROFILE_WARNING()
- 
+
 --- unittest/gunit/changestreams/CMakeLists.txt         2022-03-31 15:09:27.559009464 +0000
 +++ unittest/gunit/changestreams/CMakeLists.txt         2022-03-31 15:10:26.404854666 +0000
 @@ -36,7 +36,7 @@

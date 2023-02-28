@@ -17,7 +17,6 @@
 
 #include "plugin/audit_log_filter/audit_log_json_handler.h"
 #include "plugin/audit_log_filter/audit_psi_info.h"
-#include "plugin/audit_log_filter/sys_vars.h"
 
 #include "sql/mysqld.h"
 
@@ -34,9 +33,6 @@
 #include <vector>
 
 namespace audit_log_filter {
-
-AuditLogReader::AuditLogReader(comp_registry_srv_t *comp_registry_srv)
-    : m_comp_registry_srv{comp_registry_srv} {}
 
 auto AuditLogReader::get_log_file_handle(
     AuditLogReaderContext *reader_context) const noexcept {
@@ -68,7 +64,7 @@ bool AuditLogReader::init() noexcept {
   }
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", m_comp_registry_srv);
+      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
 
   MYSQL_THD thd;
 

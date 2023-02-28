@@ -852,7 +852,7 @@ void Partition_helper
 }
 
 
-inline void Partition_helper::set_auto_increment_if_higher()
+void Partition_helper::set_auto_increment_if_higher()
 {
   Field_num *field= static_cast<Field_num*>(m_table->found_next_number_field);
   ulonglong nr= (field->unsigned_flag || field->val_int() > 0)
@@ -1819,7 +1819,6 @@ err:
   @param[in]	rnd_init	True if called from rnd_init (else index_init).
 */
 
-inline
 void Partition_helper::set_partition_read_set()
 {
   /*

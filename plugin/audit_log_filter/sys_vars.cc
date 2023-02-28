@@ -18,14 +18,13 @@
 #include "plugin/audit_log_filter/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_log_reader.h"
 
-#include <mysql/components/services/dynamic_privilege.h>
-#include <mysql/components/services/security_context.h>
-
 #include "mysql/plugin.h"
 #include "sql/sql_class.h"
-#include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_plugin_var.h"
+
+#include <mysql/components/services/dynamic_privilege.h>
+#include <mysql/components/services/security_context.h>
 
 #include <syslog.h>
 #include <atomic>
@@ -34,8 +33,13 @@
 namespace audit_log_filter {
 namespace {
 
+/*
+ * Internally used variables
+ */
 std::atomic<uint64_t> record_id{0};
 LogBookmark log_bookmark;
+std::string encryption_password_id;
+bool log_encryption_enabled{false};
 
 /*
  * Status variables
@@ -169,6 +173,9 @@ char *log_syslog_ident = nullptr;
 const char default_log_syslog_ident[] = "percona-audit-event-filter";
 ulong log_syslog_facility = 0;
 ulong log_syslog_priority = 0;
+ulong log_compression_type = static_cast<ulong>(AuditLogCompressionType::None);
+ulong log_encryption_type = static_cast<ulong>(AuditLogEncryptionType::None);
+ulonglong log_password_history_keep_days = 0;
 
 /*
  * The audit_log_filter.file variable is used to specify the filename that’s
@@ -403,11 +410,9 @@ MYSQL_THDVAR_ULONG(
 int log_disabled_check_func(MYSQL_THD thd, SYS_VAR *var, void *save,
                             st_mysql_value *value) {
   my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
-      "mysql_thd_security_context",
-      get_audit_log_filter_instance()->get_comp_registry_srv());
+      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
   my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
-      "global_grants_check",
-      get_audit_log_filter_instance()->get_comp_registry_srv());
+      "global_grants_check", SysVars::get_comp_regystry_srv());
 
   bool has_audit_admin_grant = false;
   bool has_system_variables_admin_grant = false;
@@ -448,6 +453,83 @@ MYSQL_THDVAR_ULONG(
     nullptr, 32768UL, 32768UL, ULONG_MAX, 0UL);
 
 /*
+ * The audit_log_filter.compression variable specifies type of compression
+ * for the audit log file, possible values are:
+ * NONE - (default) no compression
+ * GZIP - GNU Zip compression.
+ */
+const char *audit_log_filter_compression_names[] = {"NONE", "GZIP", nullptr};
+TYPELIB audit_log_filter_compression_typelib = {
+    array_elements(audit_log_filter_compression_names) - 1,
+    "audit_log_filter_compression_typelib", audit_log_filter_compression_names,
+    nullptr};
+
+MYSQL_SYSVAR_ENUM(compression, log_compression_type,
+                  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                  "The type of compression for the audit log file.", nullptr,
+                  nullptr, static_cast<ulong>(AuditLogCompressionType::None),
+                  &audit_log_filter_compression_typelib);
+
+/*
+ * The audit_log_filter.encryption variable specifies type of encryption
+ * for the audit log file, possible values are:
+ * NONE - (default) no encryption
+ * AES - AES-256-CBC cipher encryption.
+ */
+const char *audit_log_filter_encryption_names[] = {"NONE", "AES", nullptr};
+TYPELIB audit_log_filter_encryption_typelib = {
+    array_elements(audit_log_filter_encryption_names) - 1,
+    "audit_log_filter_encryption_typelib", audit_log_filter_encryption_names,
+    nullptr};
+
+MYSQL_SYSVAR_ENUM(encryption, log_encryption_type,
+                  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                  "The type of encryption for the audit log file.", nullptr,
+                  nullptr, static_cast<ulong>(AuditLogEncryptionType::None),
+                  &audit_log_filter_encryption_typelib);
+
+int password_history_keep_days_check_func(MYSQL_THD thd, SYS_VAR *var,
+                                          void *save, st_mysql_value *value) {
+  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
+      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
+  my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
+      "global_grants_check", SysVars::get_comp_regystry_srv());
+
+  bool has_audit_admin_grant = false;
+
+  if (security_context_service.is_valid() && grants_check_service.is_valid()) {
+    Security_context_handle ctx;
+
+    if (!security_context_service->get(thd, &ctx)) {
+      has_audit_admin_grant = grants_check_service->has_global_grant(
+          ctx, STRING_WITH_LEN("AUDIT_ADMIN"));
+    }
+  }
+
+  if (!has_audit_admin_grant) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "AUDIT_ADMIN");
+    return 1;
+  }
+
+  return check_func_longlong(thd, var, save, value);
+}
+
+void password_history_keep_days_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr,
+                                            const void *save) {
+  const auto *val = static_cast<const ulonglong *>(save);
+  *static_cast<ulonglong *>(val_ptr) = *val;
+  get_audit_log_filter_instance()->on_encryption_password_prune_requested();
+}
+
+MYSQL_SYSVAR_ULONGLONG(
+    password_history_keep_days, log_password_history_keep_days,
+    PLUGIN_VAR_OPCMDARG,
+    "Indicates the number of days after which archived audit log encryption "
+    "passwords are removed.",
+    password_history_keep_days_check_func,
+    password_history_keep_days_update_func, 0UL, 0UL, ULLONG_MAX, 0UL);
+
+/*
  * Internally used as a storage for log reader context data.
  */
 MYSQL_THDVAR_STR(log_reader_context,
@@ -459,6 +541,9 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(handler),
                        MYSQL_SYSVAR(format),
                        MYSQL_SYSVAR(strategy),
+                       MYSQL_SYSVAR(compression),
+                       MYSQL_SYSVAR(encryption),
+                       MYSQL_SYSVAR(password_history_keep_days),
                        MYSQL_SYSVAR(buffer_size),
                        MYSQL_SYSVAR(rotate_on_size),
                        MYSQL_SYSVAR(max_size),
@@ -526,6 +611,26 @@ int SysVars::get_syslog_facility() noexcept {
 
 int SysVars::get_syslog_priority() noexcept {
   return audit_log_filter_syslog_priority_codes[log_syslog_priority];
+}
+
+AuditLogCompressionType SysVars::get_compression_type() noexcept {
+  return static_cast<AuditLogCompressionType>(log_compression_type);
+}
+
+AuditLogEncryptionType SysVars::get_encryption_type() noexcept {
+  return static_cast<AuditLogEncryptionType>(log_encryption_type);
+}
+
+void SysVars::set_log_encryption_enabled(bool is_enabled) noexcept {
+  log_encryption_enabled = is_enabled;
+}
+
+bool SysVars::get_log_encryption_enabled() noexcept {
+  return log_encryption_enabled;
+}
+
+ulonglong SysVars::get_password_history_keep_days() noexcept {
+  return log_password_history_keep_days;
 }
 
 void SysVars::set_session_filter_id(MYSQL_THD thd, ulong id) noexcept {
@@ -612,7 +717,8 @@ void SysVars::inc_direct_writes() noexcept {
 }
 
 #ifndef NDEBUG
-std::chrono::system_clock::time_point SysVars::get_debug_time_point() noexcept {
+std::chrono::system_clock::time_point
+SysVars::get_debug_time_point_for_rotation() noexcept {
   static auto debug_time_point = get_initial_debug_time_point();
 
   DBUG_EXECUTE_IF("audit_log_filter_reset_log_bookmark", {
@@ -625,6 +731,13 @@ std::chrono::system_clock::time_point SysVars::get_debug_time_point() noexcept {
   debug_time_point += std::chrono::minutes{1};
   return debug_time_point;
 }
+
+std::chrono::system_clock::time_point
+SysVars::get_debug_time_point_for_encryption() noexcept {
+  static auto debug_time_point = get_initial_debug_time_point();
+  debug_time_point += std::chrono::hours{24};
+  return debug_time_point;
+}
 #endif
 
 uint64_t SysVars::get_next_record_id() noexcept {
@@ -633,6 +746,21 @@ uint64_t SysVars::get_next_record_id() noexcept {
 
 void SysVars::init_record_id(uint64_t initial_record_id) noexcept {
   record_id.store(initial_record_id);
+}
+
+void SysVars::set_encryption_password_id(
+    const std::string &password_id) noexcept {
+  encryption_password_id = password_id;
+}
+
+std::string SysVars::get_encryption_password_id() noexcept {
+  return encryption_password_id;
+}
+
+decltype(get_component_registry_service().get())
+SysVars::get_comp_regystry_srv() noexcept {
+  static auto comp_registry_srv = get_component_registry_service();
+  return comp_registry_srv.get();
 }
 
 }  // namespace audit_log_filter

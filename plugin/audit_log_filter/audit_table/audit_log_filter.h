@@ -28,8 +28,6 @@ class AuditLogFilter : public AuditTableBase {
  public:
   using AuditRulesContainer = std::map<std::string, AuditRule>;
 
-  explicit AuditLogFilter(comp_registry_srv_t *comp_registry_srv);
-
   /**
    * @brief Load filtering rules list.
    *

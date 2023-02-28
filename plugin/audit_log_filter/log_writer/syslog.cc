@@ -26,6 +26,10 @@ LogWriterSyslog::LogWriter(
     std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter)
     : LogWriterBase{std::move(formatter)} {}
 
+bool LogWriterSyslog::init() noexcept {
+  return true;  // nothing to do
+}
+
 bool LogWriterSyslog::open() noexcept {
   openlog(SysVars::get_syslog_ident(), 0, SysVars::get_syslog_facility());
   return true;

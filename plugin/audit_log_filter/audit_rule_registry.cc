@@ -26,9 +26,6 @@ const std::string kDefaultUserName = "%";
 const std::string kDefaultHostName = "%";
 }  // namespace
 
-AuditRuleRegistry::AuditRuleRegistry(comp_registry_srv_t *comp_registry_srv)
-    : m_comp_registry_srv{comp_registry_srv} {}
-
 AuditRule *AuditRuleRegistry::get_rule(const std::string &rule_name) noexcept {
   if (m_audit_filter_rules.count(rule_name) == 0) {
     return nullptr;
@@ -57,8 +54,8 @@ bool AuditRuleRegistry::lookup_rule_name(const std::string &user_name,
 }
 
 bool AuditRuleRegistry::load() noexcept {
-  audit_table::AuditLogFilter audit_log_filter{m_comp_registry_srv};
-  audit_table::AuditLogUser audit_log_user{m_comp_registry_srv};
+  audit_table::AuditLogFilter audit_log_filter;
+  audit_table::AuditLogUser audit_log_user;
 
   auto users_result = audit_log_user.load_users(m_audit_users);
   auto filter_result = audit_log_filter.load_filters(m_audit_filter_rules);

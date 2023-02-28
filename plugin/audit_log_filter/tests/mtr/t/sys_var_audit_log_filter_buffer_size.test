@@ -8,7 +8,7 @@ call mtr.add_suppression("Failed to shutdown components infrastructure.");
 --source include/restart_mysqld.inc
 SELECT @@global.audit_log_filter_buffer_size;
 
-call mtr.add_suppression("Plugin audit_log_filter reported: 'Cannot open log writer, error: Cannot allocate memory'");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Failed to init log writer'");
 call mtr.add_suppression("Plugin 'audit_log_filter' init function returned error.");
 call mtr.add_suppression("Plugin 'audit_log_filter' registration as a AUDIT failed.");
 

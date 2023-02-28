@@ -16,7 +16,7 @@
 #include "plugin/audit_log_filter/event_field_action/print_service_comp.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
 
-#include "plugin/audit_log_filter/audit_log_filter.h"
+#include "plugin/audit_log_filter/sys_vars.h"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_audit_print_service_double_data_source.h>
@@ -52,7 +52,7 @@ bool EventFieldActionPrintServiceComp::apply(const AuditRecordFieldsList &fields
                                              AuditRecordVariant &audit_record,
                                              AuditRule *audit_rule
                                              [[maybe_unused]]) const noexcept {
-  auto *comp_reg_srv = get_audit_log_filter_instance()->get_comp_registry_srv();
+  auto *comp_reg_srv = SysVars::get_comp_regystry_srv();
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
       "mysql_current_thread_reader", comp_reg_srv);

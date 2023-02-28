@@ -18,8 +18,6 @@
 
 #include "plugin/audit_log_filter/event_filter_function/base.h"
 
-#include "plugin/audit_log_filter/component_registry_service.h"
-
 #include <string>
 
 namespace audit_log_filter::event_filter_function {
@@ -68,9 +66,6 @@ class EventFilterFunction<EventFilterFunctionType::QueryDigest>
    * @return SQL query digest string
    */
   [[nodiscard]] std::string get_query_digest() const noexcept;
-
- private:
-  comp_registry_srv_container_t m_comp_registry_srv;
 };
 
 using EventFilterFunctionQueryDigest =

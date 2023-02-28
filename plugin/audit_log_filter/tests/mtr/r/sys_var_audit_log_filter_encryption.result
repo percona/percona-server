@@ -1,0 +1,13 @@
+SET GLOBAL audit_log_filter_encryption=AES;
+ERROR HY000: Variable 'audit_log_filter_encryption' is a read only variable
+SELECT @@global.audit_log_filter_encryption;
+@@global.audit_log_filter_encryption
+NONE
+# restart: --audit-log-filter-encryption=AES
+SELECT @@global.audit_log_filter_encryption;
+@@global.audit_log_filter_encryption
+AES
+# restart:
+SELECT @@global.audit_log_filter_encryption;
+@@global.audit_log_filter_encryption
+NONE

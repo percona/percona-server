@@ -277,160 +277,6 @@
  ELSE()
    GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION libmysql VERSION)
    GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME libmysql OUTPUT_NAME)
---- storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile
-+++ storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(OBJS): $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/mgmapi  -I$(INCLUDE_DIR)/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile
-+++ storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(OBJS): $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/mgmapi  -I$(INCLUDE_DIR)/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_async/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_async/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(TARGET).o: $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_async1/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_async1/Makefile
-@@ -35,7 +35,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(TARGET).o: $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_blob/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_blob/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(TARGET).o: $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(OBJS): $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_event/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_event/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(TARGET).o: $(SRCS) Makefile
- 	$(CXX) $(CFLAGS) $(DEBUG) -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi -I$(TOP_SRCDIR)/include $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(OBJS): $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_retries/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_retries/Makefile
-@@ -35,7 +35,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(TARGET).o: $(SRCS)
- 	$(CXX) $(CFLAGS)  -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(OBJS): $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_scan/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_scan/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(TARGET).o: $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_simple/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_simple/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(TARGET).o: $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(OBJS): $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
---- storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile
-+++ storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile
-@@ -36,7 +36,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
- SYS_LIB = 
- 
- $(TARGET): $(OBJS)
--	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r $(SYS_LIB) -o $(TARGET)
-+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
- 
- $(OBJS): $(SRCS)
- 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 --- storage/ndb/test/run-test/CMakeLists.txt
 +++ storage/ndb/test/run-test/CMakeLists.txt
 @@ -47,7 +47,7 @@
@@ -517,15 +363,15 @@
 
 --- libmysql/authentication_kerberos/CMakeLists.txt     2021-09-28 04:49:14.000000000 +0000
 +++ libmysql/authentication_kerberos/CMakeLists.txt     2021-09-28 09:24:09.917822028 +0000
-@@ -69,7 +69,7 @@
-   SET(KERBEROS_LIB  "")
+@@ -65,7 +65,7 @@
+   LIST(APPEND UTILITY "sspi_utility.cc")
  ENDIF()
- 
+
 -SET(MY_SQL "perconaserverclient")
 +SET(MY_SQL "mysqlclient")
- 
+
  DISABLE_MISSING_PROFILE_WARNING()
- 
+
 --- unittest/gunit/changestreams/CMakeLists.txt         2022-03-31 15:09:27.559009464 +0000
 +++ unittest/gunit/changestreams/CMakeLists.txt         2022-03-31 15:10:26.404854666 +0000
 @@ -36,7 +36,7 @@

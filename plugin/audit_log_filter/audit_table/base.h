@@ -16,8 +16,6 @@
 #ifndef AUDIT_LOG_FILTER_AUDIT_TABLE_BASE_H_INCLUDED
 #define AUDIT_LOG_FILTER_AUDIT_TABLE_BASE_H_INCLUDED
 
-#include "plugin/audit_log_filter/component_registry_service.h"
-
 #include <mysql/components/services/table_access_service.h>
 
 #include <cstddef>
@@ -41,12 +39,7 @@ struct TableAccessContext {
   size_t table_ticket = 0;
   TA_table ta_table = nullptr;
 
-  comp_registry_srv_t *comp_registry_srv;
-
-  TableAccessContext() = delete;
-  explicit TableAccessContext(comp_registry_srv_t *comp_registry_srv_)
-      : comp_registry_srv{comp_registry_srv_} {}
-
+  TableAccessContext() = default;
   ~TableAccessContext();
 };
 
@@ -79,19 +72,10 @@ class HStringContainer {
 
 class AuditTableBase {
  public:
-  explicit AuditTableBase(comp_registry_srv_t *comp_registry_srv);
+  AuditTableBase() = default;
   virtual ~AuditTableBase() = default;
 
  protected:
-  /**
-   * @brief Get pointer to a component registry service.
-   *
-   * @return Pointer to a component registry service
-   */
-  [[nodiscard]] comp_registry_srv_t *get_comp_registry_srv() noexcept {
-    return m_comp_registry_srv;
-  }
-
   /**
    * @brief Open table.
    *
@@ -128,9 +112,6 @@ class AuditTableBase {
    * @return Number of table fields
    */
   [[nodiscard]] virtual size_t get_table_field_count() noexcept = 0;
-
- private:
-  comp_registry_srv_t *m_comp_registry_srv;
 };
 
 }  // namespace audit_log_filter::audit_table

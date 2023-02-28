@@ -1,4 +1,4 @@
-/* Copyright (c) 2022 Percona LLC and/or its affiliates. All rights reserved.
+/* Copyright (c) 2023 Percona LLC and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "plugin/audit_log_filter/log_writer/file_buffer.h"
+#include "plugin/audit_log_filter/log_writer/file_writer_buffering.h"
+
 #include "plugin/audit_log_filter/audit_psi_info.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
@@ -39,11 +40,11 @@ PSI_cond_info cond_key_list[] = {
 #endif
 
 void *buffer_flush_worker(void *arg) {
-  auto *buffer = static_cast<FileBuffer *>(arg);
+  auto *buffer = static_cast<FileWriterBuffering *>(arg);
 
   my_thread_init();
   while (!buffer->check_flush_stopped()) {
-    buffer->flush();
+    buffer->flush_worker();
   }
   my_thread_end();
 
@@ -51,16 +52,26 @@ void *buffer_flush_worker(void *arg) {
 }
 }  // namespace
 
-FileBuffer::~FileBuffer() {
+FileWriterBuffering::FileWriterBuffering(
+    std::unique_ptr<FileWriterBase> file_writer, size_t size, bool drop_if_full)
+    : FileWriterDecoratorBase(std::move(file_writer)),
+      m_size{size},
+      m_drop_if_full{drop_if_full},
+      m_buf{nullptr},
+      m_write_pos{0},
+      m_flush_pos{0},
+      m_flush_worker_thread{0},
+      m_stop_flush_worker{false} {}
+
+FileWriterBuffering::~FileWriterBuffering() {
   if (m_buf != nullptr) {
     shutdown();
   }
 }
 
-bool FileBuffer::init(size_t size, bool drop_if_full,
-                      LogFileWriteFunc write_func) noexcept {
+bool FileWriterBuffering::init() noexcept {
   m_buf = static_cast<char *>(
-      my_malloc(key_memory_audit_log_filter_buffer, size, MY_ZEROFILL));
+      my_malloc(key_memory_audit_log_filter_buffer, m_size, MY_ZEROFILL));
 
   if (m_buf == nullptr) {
     return false;
@@ -73,10 +84,6 @@ bool FileBuffer::init(size_t size, bool drop_if_full,
                       array_elements(cond_key_list));
 #endif /* HAVE_PSI_INTERFACE */
 
-  m_size = size;
-  m_drop_if_full = drop_if_full;
-  m_write_func = write_func;
-
   m_state = FileBufferState::COMPLETE;
   m_write_pos = 0;
   m_flush_pos = 0;
@@ -87,10 +94,24 @@ bool FileBuffer::init(size_t size, bool drop_if_full,
   mysql_cond_init(key_log_written_cond, &m_written_cond);
   pthread_create(&m_flush_worker_thread, nullptr, buffer_flush_worker, this);
 
-  return true;
+  return FileWriterDecoratorBase::init();
 }
 
-void FileBuffer::shutdown() noexcept {
+bool FileWriterBuffering::open() noexcept {
+  return FileWriterDecoratorBase::open();
+}
+
+void FileWriterBuffering::close() noexcept {
+  mysql_mutex_lock(&m_mutex);
+  while (m_flush_pos != m_write_pos) {
+    mysql_cond_wait(&m_flushed_cond, &m_mutex);
+  }
+  mysql_mutex_unlock(&m_mutex);
+
+  FileWriterDecoratorBase::close();
+}
+
+void FileWriterBuffering::shutdown() noexcept {
   m_stop_flush_worker = true;
 
   if (m_buf != nullptr) {
@@ -104,66 +125,20 @@ void FileBuffer::shutdown() noexcept {
   }
 }
 
-void FileBuffer::write(const char *buf, size_t len) noexcept {
-  if (len > m_size) {
-    if (!m_drop_if_full) {
-      /* pause flushing thread and write out one record bypassing the buffer */
-      pause();
-      m_write_func(buf, len);
-      resume();
-
-      SysVars::inc_buffer_bypassing_writes();
-    } else {
-      SysVars::inc_events_lost();
-      SysVars::update_event_max_drop_size(len);
-    }
-
-    return;
-  }
-
-  mysql_mutex_lock(&m_mutex);
-
-loop:
-  if (m_write_pos + len <= m_flush_pos + m_size) {
-    const size_t wrlen = std::min(len, m_size - (m_write_pos % m_size));
-    memcpy(m_buf + (m_write_pos % m_size), buf, wrlen);
-    if (wrlen < len) {
-      memcpy(m_buf, buf + wrlen, len - wrlen);
-    }
-    m_write_pos = m_write_pos + len;
-    assert(m_write_pos >= m_flush_pos);
-  } else {
-    if (!m_drop_if_full) {
-      SysVars::inc_write_waits();
-      mysql_cond_wait(&m_flushed_cond, &m_mutex);
-      goto loop;
-    }
-
-    SysVars::inc_events_lost();
-    SysVars::update_event_max_drop_size(len);
-  }
-
-  if (m_write_pos > m_flush_pos + m_size / 2) {
-    mysql_cond_signal(&m_written_cond);
-  }
-
-  mysql_mutex_unlock(&m_mutex);
-}
-
-void FileBuffer::pause() noexcept {
+void FileWriterBuffering::pause() noexcept {
   mysql_mutex_lock(&m_mutex);
   while (m_state == FileBufferState::INCOMPLETE) {
     mysql_cond_wait(&m_flushed_cond, &m_mutex);
   }
 }
 
-void FileBuffer::resume() noexcept { mysql_mutex_unlock(&m_mutex); }
+void FileWriterBuffering::resume() noexcept { mysql_mutex_unlock(&m_mutex); }
 
-bool FileBuffer::check_flush_stopped() const noexcept {
+bool FileWriterBuffering::check_flush_stopped() const noexcept {
   return m_stop_flush_worker && m_flush_pos == m_write_pos;
 }
 
-void FileBuffer::flush() noexcept {
+void FileWriterBuffering::flush_worker() noexcept {
   mysql_mutex_lock(&m_mutex);
 
   while (m_flush_pos == m_write_pos) {
@@ -179,14 +154,14 @@ void FileBuffer::flush() noexcept {
   if (m_flush_pos >= m_write_pos % m_size) {
     m_state = FileBufferState::INCOMPLETE;
     mysql_mutex_unlock(&m_mutex);
-    m_write_func(m_buf + m_flush_pos, m_size - m_flush_pos);
+    FileWriterDecoratorBase::write(m_buf + m_flush_pos, m_size - m_flush_pos);
     mysql_mutex_lock(&m_mutex);
     m_flush_pos = 0;
     m_write_pos %= m_size;
   } else {
     const size_t flushlen = m_write_pos - m_flush_pos;
     mysql_mutex_unlock(&m_mutex);
-    m_write_func(m_buf + m_flush_pos, flushlen);
+    FileWriterDecoratorBase::write(m_buf + m_flush_pos, flushlen);
     mysql_mutex_lock(&m_mutex);
     m_flush_pos += flushlen;
     m_state = FileBufferState::COMPLETE;
@@ -195,6 +170,52 @@ void FileBuffer::flush() noexcept {
   assert(m_write_pos >= m_flush_pos);
 
   mysql_cond_broadcast(&m_flushed_cond);
+  mysql_mutex_unlock(&m_mutex);
+}
+
+void FileWriterBuffering::write(const char *record, size_t size) noexcept {
+  if (size > m_size) {
+    if (!m_drop_if_full) {
+      /* pause flushing thread and write out one record bypassing the buffer */
+      pause();
+      FileWriterDecoratorBase::write(record, size);
+      resume();
+
+      SysVars::inc_direct_writes();
+    } else {
+      SysVars::inc_events_lost();
+      SysVars::update_event_max_drop_size(size);
+    }
+
+    return;
+  }
+
+  mysql_mutex_lock(&m_mutex);
+
+loop:
+  if (m_write_pos + size <= m_flush_pos + m_size) {
+    const size_t wrlen = std::min(size, m_size - (m_write_pos % m_size));
+    memcpy(m_buf + (m_write_pos % m_size), record, wrlen);
+    if (wrlen < size) {
+      memcpy(m_buf, record + wrlen, size - wrlen);
+    }
+    m_write_pos = m_write_pos + size;
+    assert(m_write_pos >= m_flush_pos);
+  } else {
+    if (!m_drop_if_full) {
+      SysVars::inc_write_waits();
+      mysql_cond_wait(&m_flushed_cond, &m_mutex);
+      goto loop;
+    }
+
+    SysVars::inc_events_lost();
+    SysVars::update_event_max_drop_size(size);
+  }
+
+  if (m_write_pos > m_flush_pos + m_size / 2) {
+    mysql_cond_signal(&m_written_cond);
+  }
+
   mysql_mutex_unlock(&m_mutex);
 }
 

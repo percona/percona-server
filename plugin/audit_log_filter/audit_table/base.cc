@@ -15,6 +15,7 @@
 
 #include "base.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
+#include "plugin/audit_log_filter/sys_vars.h"
 
 namespace audit_log_filter::audit_table {
 namespace {
@@ -29,7 +30,7 @@ TableAccessContext::~TableAccessContext() {
 
   if (ta_session != nullptr) {
     my_service<SERVICE_TYPE(table_access_factory_v1)> ta_factory_srv(
-        "table_access_factory_v1", comp_registry_srv);
+        "table_access_factory_v1", SysVars::get_comp_regystry_srv());
     ta_factory_srv->destroy(ta_session);
     ta_session = nullptr;
   }
@@ -37,12 +38,8 @@ TableAccessContext::~TableAccessContext() {
   thd = nullptr;
 }
 
-AuditTableBase::AuditTableBase(comp_registry_srv_t *comp_registry_srv)
-    : m_comp_registry_srv{comp_registry_srv} {}
-
 std::unique_ptr<TableAccessContext> AuditTableBase::open_table() noexcept {
-  auto ta_context =
-      std::make_unique<TableAccessContext>(get_comp_registry_srv());
+  auto ta_context = std::make_unique<TableAccessContext>();
 
   if (ta_context == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -51,11 +48,11 @@ std::unique_ptr<TableAccessContext> AuditTableBase::open_table() noexcept {
   }
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", get_comp_registry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
   my_service<SERVICE_TYPE(table_access_factory_v1)> ta_factory_srv(
-      "table_access_factory_v1", get_comp_registry_srv());
+      "table_access_factory_v1", SysVars::get_comp_regystry_srv());
   my_service<SERVICE_TYPE(table_access_v1)> table_access_srv(
-      "table_access_v1", get_comp_registry_srv());
+      "table_access_v1", SysVars::get_comp_regystry_srv());
 
   thd_reader_srv->get(&ta_context->thd);
 

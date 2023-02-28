@@ -16,11 +16,11 @@
 #ifndef AUDIT_LOG_FILTER_LOG_WRITER_FILE_HANDLE_H_INCLUDED
 #define AUDIT_LOG_FILTER_LOG_WRITER_FILE_HANDLE_H_INCLUDED
 
-#include "file_buffer.h"
 #include "mysql/plugin_audit.h"
 
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <vector>
 
 namespace audit_log_filter::log_writer {
@@ -51,21 +51,6 @@ class FileHandle {
   bool close_file() noexcept;
 
   /**
-   * @brief Initialize file write buffer.
-   *
-   * @param buffer_size Buffer size in bytes
-   * @param drop_if_full Indicates if messages should be dropped in case
-   *                     buffer is full
-   * @return true in case of success, false otherwise
-   */
-  bool init_buffer(size_t buffer_size, bool drop_if_full) noexcept;
-
-  /**
-   * @brief Close file close buffer.
-   */
-  void close_buffer() noexcept;
-
-  /**
    * @brief Write record to a file.
    *
    * @param record Log record
@@ -81,18 +66,23 @@ class FileHandle {
   void write_file(const char *record, size_t size) noexcept;
 
   /**
-   * @brief Write record to a buffer.
-   *
-   * @param record Log record
-   */
-  void write_buffer(const std::string &record) noexcept;
-
-  /**
    * @brief Get current file size in bytes.
    *
    * @return Current file size in bytes
    */
   [[nodiscard]] uint64_t get_file_size() const noexcept;
+
+  /**
+   * @brief Get current file path.
+   *
+   * @return Current log file path
+   */
+  [[nodiscard]] std::filesystem::path get_file_path() const noexcept;
+
+  /**
+   * @brief Flush data to a log file.
+   */
+  void flush() noexcept;
 
   /**
    * @brief Get total logs size in bytes.
@@ -111,18 +101,17 @@ class FileHandle {
    * @param file_path File path
    * @param expected_footer Expected log footer
    */
-  void remove_file_footer(const std::filesystem::path &file_path,
-                          const std::string &expected_footer) const noexcept;
+  static void remove_file_footer(const std::filesystem::path &file_path,
+                                 const std::string &expected_footer) noexcept;
 
   /**
    * @brief Rotate file.
    *
-   * @param working_dir_name Working directory name
-   * @param file_name File name
+   * @param current_file_path Current file path
    * @return Instance of std::error_code holding operation result
    */
-  static std::error_code rotate(const std::string &working_dir_name,
-                                const std::string &file_name) noexcept;
+  static std::error_code rotate(
+      const std::filesystem::path &current_file_path) noexcept;
 
   /**
    * @brief Get list of rotated log files which may be a subject for pruning.
@@ -142,10 +131,31 @@ class FileHandle {
    */
   static bool remove_file(const std::filesystem::path &path) noexcept;
 
+  /**
+   * @brief Find path to not rotated log file if any.
+   *
+   * @param working_dir_name Working directory name
+   * @param base_file_name Base file name
+   * @return Path to not rotated log file
+   */
+  static std::filesystem::path get_not_rotated_file_path(
+      const std::string &working_dir_name,
+      const std::string &base_file_name) noexcept;
+
+  /**
+   * @brief Get list of currently existent audit log file names.
+   *
+   * @param working_dir_name Working directory name
+   * @param file_name Base file name
+   * @return List of audit log file names
+   */
+  static std::vector<std::string> get_log_names_list(
+      const std::string &working_dir_name,
+      const std::string &file_name) noexcept;
+
  private:
   std::fstream m_file;
   std::filesystem::path m_path;
-  FileBuffer m_buffer;
   mysql_mutex_t m_lock;
 };
 

@@ -17,7 +17,6 @@
 #define AUDIT_LOG_FILTER_LOG_WRITER_BASE_H_INCLUDED
 
 #include "plugin/audit_log_filter/audit_record.h"
-#include "plugin/audit_log_filter/log_writer_strategy.h"
 
 #include <memory>
 #include <mutex>
@@ -35,12 +34,40 @@ enum class AuditLogHandlerType {
   TypesCount  // This item must be last in the list
 };
 
+enum class AuditLogStrategyType {
+  Asynchronous,
+  Performance,
+  Semisynchronous,
+  Synchronous,
+  // This item must be last in the list
+  StrategiesCount
+};
+
+enum class AuditLogCompressionType {
+  None,
+  Gzip,
+  TypesCount  // This item must be last in the list
+};
+
+enum class AuditLogEncryptionType {
+  None,
+  Aes,
+  TypesCount  // This item must be last in the list
+};
+
 class LogWriterBase {
  public:
   explicit LogWriterBase(
       std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
 
   virtual ~LogWriterBase() = default;
+
+  /**
+   * @brief Init log writer.
+   *
+   * @return true in case of success, false otherwise
+   */
+  virtual bool init() noexcept = 0;
 
   /**
    * @brief Open log writer.

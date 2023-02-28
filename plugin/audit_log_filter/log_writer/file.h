@@ -19,6 +19,7 @@
 #include "base.h"
 #include "file_handle.h"
 
+#include <mutex>
 #include <string>
 
 namespace audit_log_filter {
@@ -29,6 +30,10 @@ class FileWriterStrategyBase;
 
 namespace log_writer {
 
+class FileWriterBase;
+
+using FileWriterPtr = std::unique_ptr<FileWriterBase>;
+
 template <>
 class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
  public:
@@ -36,6 +41,13 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   explicit LogWriter<AuditLogHandlerType::File>(
       std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
   ~LogWriter<AuditLogHandlerType::File>() override;
+
+  /**
+   * @brief Init log writer.
+   *
+   * @return true in case of success, false otherwise
+   */
+  bool init() noexcept override;
 
   /**
    * @brief Open log writer.
@@ -96,8 +108,9 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   bool m_is_rotating;
   bool m_is_log_empty;
   bool m_is_opened;
+  FileWriterPtr m_file_writer{};
   FileHandle m_file_handle;
-  std::unique_ptr<log_writer_strategy::FileWriterStrategyBase> m_strategy;
+  std::recursive_mutex m_write_lock;
 };
 
 using LogWriterFile = LogWriter<AuditLogHandlerType::File>;

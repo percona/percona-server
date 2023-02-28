@@ -1,0 +1,60 @@
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
+
+SELECT audit_log_rotate();
+SELECT audit_log_rotate();
+SELECT audit_log_rotate();
+
+--let $with_compression = 0
+--let $with_encryption = 0
+--source check_logs_name_format.inc
+
+--echo #
+--echo # With compression
+--let $restart_parameters="restart: --audit-log-filter-compression=GZIP"
+--source include/restart_mysqld.inc
+
+--remove_files_wildcard $audit_filter_log_path test_audit_filter*
+
+SELECT audit_log_rotate();
+SELECT audit_log_rotate();
+SELECT audit_log_rotate();
+
+--let $with_compression = 1
+--let $with_encryption = 0
+--source check_logs_name_format.inc
+
+--echo #
+--echo # With encryption
+--let $restart_parameters="restart: --audit-log-filter-encryption=AES"
+--source include/restart_mysqld.inc
+
+--remove_files_wildcard $audit_filter_log_path test_audit_filter*
+
+SELECT audit_log_rotate();
+SELECT audit_log_rotate();
+SELECT audit_log_rotate();
+
+--let $with_compression = 0
+--let $with_encryption = 1
+--source check_logs_name_format.inc
+
+--echo #
+--echo # With compression and encryption
+--let $restart_parameters="restart: --audit-log-filter-compression=GZIP --audit-log-filter-encryption=AES"
+--source include/restart_mysqld.inc
+
+--remove_files_wildcard $audit_filter_log_path test_audit_filter*
+
+SELECT audit_log_rotate();
+SELECT audit_log_rotate();
+SELECT audit_log_rotate();
+
+--let $with_compression = 1
+--let $with_encryption = 1
+--source check_logs_name_format.inc
+
+--source suite/component_keyring_file/inc/teardown_component.inc

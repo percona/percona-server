@@ -16,8 +16,6 @@
 #ifndef AUDIT_LOG_FILTER_AUDIT_LOG_READER_H_INCLUDED
 #define AUDIT_LOG_FILTER_AUDIT_LOG_READER_H_INCLUDED
 
-#include "plugin/audit_log_filter/component_registry_service.h"
-
 #include "plugin/audit_log_filter/sys_vars.h"
 
 #include <map>
@@ -38,7 +36,7 @@ struct AuditLogReaderContext {
 
 class AuditLogReader {
  public:
-  explicit AuditLogReader(comp_registry_srv_t *comp_registry_srv);
+  AuditLogReader() = default;
 
   bool init() noexcept;
 
@@ -56,7 +54,6 @@ class AuditLogReader {
       AuditLogReaderContext *reader_context) const noexcept;
 
  private:
-  comp_registry_srv_t *m_comp_registry_srv;
   std::map<std::string, std::string> m_first_timestamp_to_file_map;
 };
 

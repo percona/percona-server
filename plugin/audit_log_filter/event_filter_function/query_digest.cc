@@ -15,6 +15,8 @@
 
 #include "plugin/audit_log_filter/event_filter_function/query_digest.h"
 
+#include "plugin/audit_log_filter/sys_vars.h"
+
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_string.h>
@@ -24,9 +26,7 @@ namespace audit_log_filter::event_filter_function {
 
 EventFilterFunction<EventFilterFunctionType::QueryDigest>::EventFilterFunction(
     FunctionArgsList args)
-    : EventFilterFunctionBase{std::move(args)} {
-  m_comp_registry_srv = get_component_registry_service();
-}
+    : EventFilterFunctionBase{std::move(args)} {}
 
 bool EventFilterFunctionQueryDigest::validate_args(
     const FunctionArgsList &args,
@@ -45,16 +45,18 @@ bool EventFilterFunctionQueryDigest::validate_args(
 }
 
 std::string EventFilterFunctionQueryDigest::get_query_digest() const noexcept {
-  my_service<SERVICE_TYPE(mysql_charset)> charset_srv(
-      "mysql_charset", m_comp_registry_srv.get());
+  auto *comp_registry_srv = SysVars::get_comp_regystry_srv();
+
+  my_service<SERVICE_TYPE(mysql_charset)> charset_srv("mysql_charset",
+                                                      comp_registry_srv);
   my_service<SERVICE_TYPE(mysql_string_factory)> string_factory_srv(
-      "mysql_string_factory", m_comp_registry_srv.get());
+      "mysql_string_factory", comp_registry_srv);
   my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_converter_srv(
-      "mysql_string_charset_converter", m_comp_registry_srv.get());
+      "mysql_string_charset_converter", comp_registry_srv);
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> current_thd_srv(
-      "mysql_current_thread_reader", m_comp_registry_srv.get());
+      "mysql_current_thread_reader", comp_registry_srv);
   my_service<SERVICE_TYPE(mysql_thd_attributes)> thd_attrs_srv(
-      "mysql_thd_attributes", m_comp_registry_srv.get());
+      "mysql_thd_attributes", comp_registry_srv);
 
   CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
 

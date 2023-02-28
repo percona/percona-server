@@ -24,6 +24,7 @@ PSI_memory_key key_memory_audit_log_filter_read_buffer;
 PSI_memory_key key_memory_audit_log_filter_accounts;
 PSI_memory_key key_memory_audit_log_filter_databases;
 PSI_memory_key key_memory_audit_log_filter_commands;
+PSI_memory_key key_memory_audit_log_filter_password_buffer;
 
 [[maybe_unused]] static PSI_memory_info all_audit_log_filter_memory[] = {
     {&key_memory_audit_log_filter_logger_handle,
@@ -41,6 +42,9 @@ PSI_memory_key key_memory_audit_log_filter_commands;
      PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
     {&key_memory_audit_log_filter_commands, "audit_log_filter_commands",
      PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_audit_log_filter_password_buffer,
+     "audit_log_filter_password_buffer", PSI_FLAG_ONLY_GLOBAL_STAT,
+     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
 };
 
 }  // namespace audit_log_filter

@@ -55,6 +55,7 @@
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
 %{?el8:                          %global systemd 1}
+%{?el9:                          %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -57}
 %{!?feature_set:                 %global feature_set community}
@@ -75,7 +76,11 @@
 
 # Setup cmake flags for RocksDB
 %if 0%{?rocksdb}
-  %global ROCKSDB_FLAGS -DWITH_ROCKSDB=1
+  %if 0%{?rhel} == 7
+    %global ROCKSDB_FLAGS -DWITH_ROCKSDB=1 -DALLOW_NO_SSE42=1
+  %else
+    %global ROCKSDB_FLAGS -DWITH_ROCKSDB=1
+  %endif
 %else
   %global ROCKSDB_FLAGS -DWITH_ROCKSDB=0
 %endif
@@ -90,7 +95,7 @@
 %endif
 
 # Version for compat libs
-%if 0%{?rhel} > 6
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
 %global compatver             5.6.51
 %global percona_compatver     91.0
 %global compatlib             18
@@ -100,14 +105,8 @@
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
 
-# Hack to support el5 where __isa_bits not defined. Note: supports i386 and x86_64 only, sorry.
-%if x%{?__isa_bits} == x
-%ifarch %{ix86}
-%global __isa_bits            32
-%endif
 %ifarch x86_64
 %global __isa_bits            64
-%endif
 %endif
 
 %global src_dir               %{src_base}-%{mysql_version}-%{percona_server_version}
@@ -211,7 +210,7 @@ Requires(preun):  /sbin/chkconfig
 Requires(preun):  /sbin/service
 %endif
 
-%if 0%{?rhel} == 8
+%if 0%{?rhel} == 8 || 0%{?rhel} == 9
 Obsoletes:      mariadb-connector-c-config
 %endif
 
@@ -246,7 +245,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Test suite for the Percona Server
 Group:          Applications/Databases
 Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
-%if 0%{?rhel} == 8
+%if 0%{?rhel} == 8 || 0%{?rhel} == 9
 Requires:       perl(Getopt::Long)
 Requires:       perl(Memoize)
 Requires:       perl(Time::HiRes)
@@ -283,7 +282,7 @@ Group:          Applications/Databases
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Provides:       mysql-shared
-%if 0%{?rhel} > 6
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
 Requires(pre):  Percona-Server-shared-compat%{product_suffix}
 %endif
 
@@ -382,12 +381,23 @@ fi
 %endif # 0%{?rhel} > 6
 %endif # 0%{?compatlib}
 
+%if 0%{?rhel} == 9
+  sed -i 's:/usr/bin/env python2:/usr/bin/env python3:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
+  sed -i 's:python2.7:python3:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
+  sed -i 's:python2:python3:' percona-server-@@TOKUDB_BACKUP_VERSION@@/mysql-test/suite/tokudb/t/*
+  sed -i 's|libjemalloc.so.1|libjemalloc.so.2|' percona-server-@@TOKUDB_BACKUP_VERSION@@/scripts/*.sh
+  sed -i 's|libjemalloc1|libjemalloc2|' percona-server-@@TOKUDB_BACKUP_VERSION@@/scripts/*.sh
+%endif
+
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
   optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-error /')
+%if 0%{?rhel} == 9
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-error -Wno-error=odr -Wno-error=free-nonheap-object /' -e 's:-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1::')
+%endif
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
@@ -793,7 +803,6 @@ fi
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
 %if 0%{?rhel} > 6
-#%ghost %config(noreplace) %{_sysconfdir}/my.cnf
 %ghost %{_sysconfdir}/my.cnf
 %endif
 

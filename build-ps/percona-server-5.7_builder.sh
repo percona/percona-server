@@ -288,6 +288,7 @@ get_sources(){
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/percona-server.spec
     sed -i "s:@@RPM_RELEASE@@:${RPM_RELEASE}:g" build-ps/percona-server.spec
     sed -i "s:@@BOOST_PACKAGE_NAME@@:${BOOST_PACKAGE_NAME}:g" build-ps/percona-server.spec
+    sed -i "s:@@TOKUDB_BACKUP_VERSION@@:${TOKUDB_VERSION}:g" build-ps/percona-server.spec
     cd ${WORKDIR}/percona-server
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
     
@@ -333,9 +334,16 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        add_percona_yum_repo
-        yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
-        percona-release enable tools testing
+        if [ "${RHEL}" -lt 9 ]; then
+            add_percona_yum_repo
+            yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+            percona-release enable tools testing
+        else
+            yum -y install yum-utils
+            yum-config-manager --enable ol9_codeready_builder
+            yum -y install zlib-devel
+            yum -y install epel-release
+        fi
         yum -y install patchelf
         if [ ${RHEL} -lt 8 ]; then
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
@@ -356,17 +364,22 @@ install_deps() {
                             yum -y install  devtoolset-2-gcc-c++ devtoolset-2-binutils libevent2-devel
                 fi
             elif [[ ${RHEL} = 7 ]]; then
+                yum -y install centos-release-scl
                 yum -y install devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
                 yum -y install devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
+                source /opt/rh/devtoolset-8/enable
             fi
         else
             yum -y install perl.x86_64
 	    yum -y install libarchive
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
-            yum -y install automake autoconf cmake jemalloc jemalloc-devel
+            yum -y install automake autoconf cmake
             yum -y install libcurl-devel openldap-devel selinux-policy-devel
             yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
             yum -y install rpcgen libtirpc-devel
+        fi
+        if [ "x$RHEL" = "x8" ]; then
+            yum -y install jemalloc jemalloc-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56  
@@ -396,7 +409,7 @@ install_deps() {
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
         apt-get -y install libcurl4-openssl-dev patchelf
-        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" -o "x${DIST}" = "xbullseye" ]; then
+        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" -o "x${DIST}" = "xbullseye" -o "x${DIST}" = "xjammy" ]; then
             apt-get -y install libeatmydata1
         fi
     fi
@@ -599,6 +612,10 @@ build_rpm(){
     build_mecab_lib
     build_mecab_dict
 
+    if [ ${RHEL} = 7 ]; then
+        source /opt/rh/devtoolset-8/enable
+    fi
+
     cd ${WORKDIR}
     #
     if [ ${ARCH} = x86_64 ]; then
@@ -700,13 +717,18 @@ build_deb(){
 
     cd ${DIRNAME}
     #
-    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster -o ${DEBIAN_VERSION} = bullseye ]; then
+    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster -o ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy ]; then
         rm -rf debian
         cp -r build-ps/ubuntu debian
     fi
-    if [ ${DEBIAN_VERSION} = bullseye ]; then
+    if [ ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy ]; then
         sed -i '28d' debian/control
         sed -i 's|libcurl4-openssl-dev,|libcurl4-openssl-dev|' debian/control
+    fi
+    if [ ${DEBIAN_VERSION} = jammy ]; then
+        sed -i 's|libjemalloc1 (>= 3.3.0)|libjemalloc2|' debian/control
+        sed -i 's|libjemalloc.so.1|libjemalloc.so.2|' scripts/*.sh
+        sed -i 's|libjemalloc1|libjemalloc2|' scripts/*.sh
     fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
@@ -716,7 +738,7 @@ build_deb(){
         mv debian/rules.notokudb debian/rules
         mv debian/control.notokudb debian/control
     else
-        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster -a ${DEBIAN_VERSION} != bullseye ]; then
+        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster -a ${DEBIAN_VERSION} != bullseye -a ${DEBIAN_VERSION} != jammy ]; then
             gcc47=$(which gcc-4.7 2>/dev/null || true)
             if [ -x "${gcc47}" ]; then
                 export CC=gcc-4.7
@@ -740,7 +762,7 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "bullseye" ]; then
+    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "jammy" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare  /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare -Wno-error /' debian/rules
     fi

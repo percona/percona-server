@@ -40,6 +40,7 @@ perl;
   my $search_tag = $ENV{'search_tag'};
   my $log_format = $ENV{'audit_filter_log_format'} || "xml";
   my $search_neg = 0;
+  my $events_count = 0;
 
   if ($search_tag =~ /^!/) {
     $search_neg = 1;
@@ -50,6 +51,8 @@ perl;
     or die "Could not open file '$full_log_name' $!";
 
   while (my $event = read_event($fh, $log_format)) {
+    $events_count++;
+
     if ($search_neg) {
       if ($event =~ /$search_tag/) {
         die "Tag '$search_tag' is not expected in event \n'$event'\n";
@@ -63,6 +66,9 @@ perl;
   }
 
   close($fh);
+
+  die "No events in file '$full_log_name'\n"
+    if ($events_count == 0 && !$search_neg);
 
   print $search_neg ? "No tag" : "Tag";
   print " $search_tag Ok\n";

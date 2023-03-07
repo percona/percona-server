@@ -1,6 +1,6 @@
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+audit_filter.<timestamp>.log
 #
 # Check wrong argument number
 SELECT audit_log_rotate("");

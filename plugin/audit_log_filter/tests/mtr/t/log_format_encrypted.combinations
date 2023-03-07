@@ -1,0 +1,10 @@
+[json_aes]
+audit_log_filter_format=JSON
+audit_log_filter_file=audit_filter.json.log
+audit_log_filter_encryption=AES
+
+[json_gzip_aes]
+audit_log_filter_format=JSON
+audit_log_filter_file=audit_filter.json.log
+audit_log_filter_compression=GZIP
+audit_log_filter_encryption=AES

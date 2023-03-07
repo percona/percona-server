@@ -9,11 +9,8 @@
 --echo # Create all simple filters
 SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
 SELECT audit_log_filter_set_filter('log_connection', '{"filter": {"class": {"name": "connection"}}}');
-SELECT audit_log_filter_set_filter('log_authorization', '{"filter": {"class": {"name": "authorization"}}}');
 SELECT audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}');
 SELECT audit_log_filter_set_filter('log_global_variable', '{"filter": {"class": {"name": "global_variable"}}}');
-SELECT audit_log_filter_set_filter('log_server_startup', '{"filter": {"class": {"name": "server_startup"}}}');
-SELECT audit_log_filter_set_filter('log_server_shutdown', '{"filter": {"class": {"name": "server_shutdown"}}}');
 SELECT audit_log_filter_set_filter('log_command', '{"filter": {"class": {"name": "command"}}}');
 SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
 SELECT audit_log_filter_set_filter('log_stored_program', '{"filter": {"class": {"name": "stored_program"}}}');
@@ -40,13 +37,6 @@ SELECT audit_log_filter_set_user('%', 'log_connection');
 --source check_all_events_with_tag.inc
 
 --echo #
---echo # Log 'authorization' events only
-SELECT audit_log_filter_set_user('%', 'log_authorization');
---source generate_audit_events.inc
---let $search_tag=<EVENT_CLASS_NAME>authorization</EVENT_CLASS_NAME>
---source check_all_events_with_tag.inc
-
---echo #
 --echo # Log 'table_access' events only
 SELECT audit_log_filter_set_user('%', 'log_table_access');
 --source generate_audit_events.inc
@@ -58,20 +48,6 @@ SELECT audit_log_filter_set_user('%', 'log_table_access');
 SELECT audit_log_filter_set_user('%', 'log_global_variable');
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>global_variable</EVENT_CLASS_NAME>
---source check_all_events_with_tag.inc
-
---echo #
---echo # Log 'server_startup' events only
-SELECT audit_log_filter_set_user('%', 'log_server_startup');
---source generate_audit_events.inc
---let $search_tag=<EVENT_CLASS_NAME>server_startup</EVENT_CLASS_NAME>
---source check_all_events_with_tag.inc
-
---echo #
---echo # Log 'server_shutdown' events only
-SELECT audit_log_filter_set_user('%', 'log_server_shutdown');
---source generate_audit_events.inc
---let $search_tag=<EVENT_CLASS_NAME>server_shutdown</EVENT_CLASS_NAME>
 --source check_all_events_with_tag.inc
 
 --echo #

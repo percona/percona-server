@@ -28,6 +28,8 @@ class LogRecordFormatterBase;
 
 namespace log_writer {
 
+struct FileRotationResult;
+
 enum class AuditLogHandlerType {
   File,
   Syslog,
@@ -103,8 +105,10 @@ class LogWriterBase {
 
   /**
    * @brief Rotate log file.
+   *
+   * @param result File rotation result
    */
-  virtual void rotate() noexcept {}
+  virtual void rotate(FileRotationResult *result [[maybe_unused]]) noexcept {}
 
   /**
    * @brief Prune outdated log files.

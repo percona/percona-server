@@ -99,10 +99,11 @@ UPDATE t1 SET id = 2 WHERE id = 1;
 query_attributes attr1 val1 attr2 val2 skipped_attr skipped_val;
 DELETE FROM t1;
 
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 --let $audit_filter_log_name=
---source validate_json_logs.inc
+--source validate_logs_format.inc
 
 --echo #
 --echo # Wrong format, missing "tag" or invalid format

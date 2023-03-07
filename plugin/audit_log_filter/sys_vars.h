@@ -61,11 +61,18 @@ class SysVars {
   static void validate() noexcept;
 
   /**
-   * @brief Get audit log filter file base name.
+   * @brief Get log file directory name.
+   *
+   * @return Log file directory name
+   */
+  [[nodiscard]] static const std::string &get_file_dir() noexcept;
+
+  /**
+   * @brief Get log file base name.
    *
    * @return Audit log filter file base name
    */
-  [[nodiscard]] static const char *get_file_name() noexcept;
+  [[nodiscard]] static const std::string &get_file_name() noexcept;
 
   /**
    * @brief Get audit log filter handler type.
@@ -189,6 +196,23 @@ class SysVars {
    *         are removed
    */
   [[nodiscard]] static ulonglong get_password_history_keep_days() noexcept;
+
+  /**
+   * @brief Get mean value of randomly generated iterations count used by
+   *        password based derivation routine.
+   *
+   * @return mean value of randomly generated PBKDF iterations count
+   */
+  [[nodiscard]] static int get_key_derivation_iter_count_mean() noexcept;
+
+  /**
+   * @brief Check if a 'time' field is enabled for JSON formatted logs.
+   *
+   * @return true in case 'time' field containing UNIX timestamp should be
+   *             added to log record,
+   *         false otherwise
+   */
+  [[nodiscard]] static bool get_format_unix_timestamp() noexcept;
 
   /**
    * @brief Set filter_id for a session.
@@ -350,19 +374,18 @@ class SysVars {
   static void init_record_id(uint64_t initial_record_id) noexcept;
 
   /**
-   * @brief Store ID of currently active encryption password
+   * @brief Store ID of currently active encryption options
    *
-   * @param password_id Encryption password ID
+   * @param options_id Encryption options ID
    */
-  static void set_encryption_password_id(
-      const std::string &password_id) noexcept;
+  static void set_encryption_options_id(const std::string &options_id) noexcept;
 
   /**
-   * @brief Get ID of currently active encryption password
+   * @brief Get ID of currently active encryption options
    *
-   * @return Encryption password ID
+   * @return Encryption options ID
    */
-  static std::string get_encryption_password_id() noexcept;
+  static std::string get_encryption_options_id() noexcept;
 
   /**
    * @brief Get component registry service instance.

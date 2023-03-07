@@ -337,7 +337,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return JSON formatted string
    */
   [[nodiscard]] std::string extra_attrs_to_string(
-      const ExtendedInfo &info) const noexcept;
+      const ExtendedInfo &info) const noexcept override;
 };
 
 using LogRecordFormatterJson = LogRecordFormatter<AuditLogFormatType::Json>;

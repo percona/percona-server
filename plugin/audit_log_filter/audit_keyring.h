@@ -16,6 +16,9 @@
 #ifndef AUDIT_LOG_FILTER_KEYRING_H_INCLUDED
 #define AUDIT_LOG_FILTER_KEYRING_H_INCLUDED
 
+#include "plugin/audit_log_filter/audit_encryption.h"
+
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,44 +33,46 @@ namespace audit_log_filter::audit_keyring {
 bool check_keyring_initialized() noexcept;
 
 /**
- * @brief Check/generate initial log encryption password.
+ * @brief Check/generate initial log encryption options
+ *        (password, salt and so on).
  *
- * @return true in case initial password exists or was generated successfully,
+ * @return true in case initial options exist or were generated successfully,
  *         false otherwise
  */
-bool check_generate_initial_password() noexcept;
+bool check_generate_initial_encryption_options() noexcept;
 
 /**
- * @brief Get log encryption password.
+ * @brief Get log encryption options.
  *
- * @param [out] password Encryption password
- * @return true in case password was fetched successfully,
- *         false otherwise
+ * @return Instance of encryption::EncryptionOptions corresponding to
+ *         newest options
  */
-bool get_encryption_password(std::string &password) noexcept;
+std::unique_ptr<encryption::EncryptionOptions>
+get_encryption_options() noexcept;
 
 /**
- * @brief Get log encryption password.
+ * @brief Get log encryption options.
  *
- * @param [in] password_id Encryption password ID
- * @param [out] password Encryption password
- * @return true in case password was fetched successfully,
- *         false otherwise
+ * @param [in] options_id Encryption options ID
+ * @return Instance of encryption::EncryptionOptions corresponding to
+ *         provided options_id
  */
-bool get_encryption_password(const std::string &password_id,
-                             std::string &password) noexcept;
+std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(
+    const std::string &options_id) noexcept;
 
 /**
- * @brief Set log encryption password.
+ * @brief Set log encryption options.
+ *
+ * Sets encryption options which consist of provided password and randomly
+ * generated salt and iterations count for PBKDF function.
  *
  * @param [in] password Encryption password
- * @return true in case password was set successfully,
- *         false otherwise
+ * @return true in case success, false otherwise
  */
-bool set_encryption_password(const std::string &password) noexcept;
+bool set_encryption_options(const std::string &password) noexcept;
 
 /**
- * @brief Remove outdated log encryption passwords.
+ * @brief Remove outdated log encryption options.
  *
  * @param [in] remove_after_days Number of days after which archived passwords
  *                               are removed
@@ -76,17 +81,19 @@ bool set_encryption_password(const std::string &password) noexcept;
  *                                is matched against these names to check if
  *                                password is still in use
  */
-void prune_encryption_passwords(
+void prune_encryption_options(
     uint64_t remove_after_days,
     const std::vector<std::string> &existing_log_names) noexcept;
 
 /**
- * @brief Extract timestamp from full keyring password ID.
+ * @brief Extract timestamp from full keyring options ID.
  *
- * @param password_id Keyring password ID
- * @return Password ID timestamp
+ * @param options_id Keyring options ID
+ * @return Options ID timestamp
  */
-std::string get_password_id_timestamp(const std::string &password_id) noexcept;
+std::string get_options_id_timestamp(const std::string &options_id) noexcept;
+
+std::string get_options_id_for_file_name(const std::string &file_name) noexcept;
 
 }  // namespace audit_log_filter::audit_keyring
 

@@ -22,6 +22,7 @@
 #include "mysql/plugin.h"
 
 #include <map>
+#include <shared_mutex>
 #include <string>
 
 namespace audit_log_filter {
@@ -62,14 +63,7 @@ class AuditRuleRegistry {
                         std::string &rule_name) noexcept;
 
  private:
-  /**
-   * @brief Create plugin configuration tables.
-   *
-   * @return true in case of success, false otherwise
-   */
-  bool init_audit_tables() noexcept;
-
- private:
+  std::shared_mutex m_registry_mutex;
   audit_table::AuditLogUser::AuditUsersContainer m_audit_users;
   audit_table::AuditLogFilter::AuditRulesContainer m_audit_filter_rules;
 };

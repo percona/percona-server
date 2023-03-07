@@ -17,6 +17,7 @@
 #include "plugin/audit_log_filter/audit_error_log.h"
 #include "plugin/audit_log_filter/audit_rule.h"
 
+#include <mutex>
 #include <string>
 #include <tuple>
 
@@ -27,6 +28,8 @@ const std::string kDefaultHostName = "%";
 }  // namespace
 
 AuditRule *AuditRuleRegistry::get_rule(const std::string &rule_name) noexcept {
+  std::shared_lock lock(m_registry_mutex);
+
   if (m_audit_filter_rules.count(rule_name) == 0) {
     return nullptr;
   }
@@ -38,6 +41,8 @@ AuditRule *AuditRuleRegistry::get_rule(const std::string &rule_name) noexcept {
 bool AuditRuleRegistry::lookup_rule_name(const std::string &user_name,
                                          const std::string &host_name,
                                          std::string &rule_name) noexcept {
+  std::shared_lock lock(m_registry_mutex);
+
   if (m_audit_users.count(std::make_pair(user_name, host_name)) != 0) {
     rule_name = m_audit_users[std::make_pair(user_name, host_name)];
     return true;
@@ -57,25 +62,21 @@ bool AuditRuleRegistry::load() noexcept {
   audit_table::AuditLogFilter audit_log_filter;
   audit_table::AuditLogUser audit_log_user;
 
-  auto users_result = audit_log_user.load_users(m_audit_users);
-  auto filter_result = audit_log_filter.load_filters(m_audit_filter_rules);
+  auto tmp_users = audit_table::AuditLogUser::AuditUsersContainer{};
+  auto tmp_rules = audit_table::AuditLogFilter::AuditRulesContainer{};
 
-  if (users_result == audit_table::TableResult::MissingTable &&
-      filter_result == audit_table::TableResult::MissingTable) {
-    return init_audit_tables();
+  const bool is_success =
+      (audit_log_filter.load_filters(tmp_rules) ==
+       audit_table::TableResult::Ok) &&
+      (audit_log_user.load_users(tmp_users) == audit_table::TableResult::Ok);
+
+  if (is_success) {
+    std::unique_lock lock(m_registry_mutex);
+    m_audit_users.swap(tmp_users);
+    m_audit_filter_rules.swap(tmp_rules);
   }
 
-  if (users_result != audit_table::TableResult::Ok ||
-      filter_result != audit_table::TableResult::Ok) {
-    m_audit_users.clear();
-    m_audit_filter_rules.clear();
-  }
-
-  return users_result == audit_table::TableResult::Ok &&
-         filter_result == audit_table::TableResult::Ok;
+  return is_success;
 }
-
-// TODO: implement
-bool AuditRuleRegistry::init_audit_tables() noexcept { return true; }
 
 }  // namespace audit_log_filter

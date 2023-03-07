@@ -1,3 +1,7 @@
+--disable_query_log
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+--enable_query_log
+
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL audit_log_filter_encryption=AES;
 SELECT @@global.audit_log_filter_encryption;

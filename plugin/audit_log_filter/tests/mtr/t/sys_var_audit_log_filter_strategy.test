@@ -1,6 +1,5 @@
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL audit_log_filter_strategy=ASYNCHRONOUS;
-SELECT @@global.audit_log_filter_strategy;
 
 call mtr.add_suppression("Failed to shutdown components infrastructure.");
 

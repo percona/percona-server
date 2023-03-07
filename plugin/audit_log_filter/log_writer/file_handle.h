@@ -31,6 +31,11 @@ struct PruneFileInfo {
   ulonglong age;
 };
 
+struct FileRotationResult {
+  int error_code;
+  std::string status_string;
+};
+
 using PruneFilesList = std::vector<PruneFileInfo>;
 
 class FileHandle {
@@ -108,10 +113,10 @@ class FileHandle {
    * @brief Rotate file.
    *
    * @param current_file_path Current file path
-   * @return Instance of std::error_code holding operation result
+   * @param result File rotation result
    */
-  static std::error_code rotate(
-      const std::filesystem::path &current_file_path) noexcept;
+  static void rotate(const std::filesystem::path &current_file_path,
+                     FileRotationResult *result) noexcept;
 
   /**
    * @brief Get list of rotated log files which may be a subject for pruning.

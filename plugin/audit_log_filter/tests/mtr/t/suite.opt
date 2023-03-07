@@ -1,6 +1,6 @@
 $AUDIT_LOG_FILTER_OPT
 $AUDIT_LOG_FILTER_LOAD
---audit_log_filter_file=test_audit_filter.log
 --audit_log_filter_prune_seconds=0
 --audit_log_filter_max_size=0
 --audit_log_filter_rotate_on_size=0
+--audit_log_filter_strategy=SYNCHRONOUS

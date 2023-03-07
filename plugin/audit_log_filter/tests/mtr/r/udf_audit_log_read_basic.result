@@ -15,27 +15,71 @@ ERROR HY000: audit_log_read UDF failed; Bad JSON format
 SELECT audit_log_read('{ "some_arg": 0 }');
 ERROR HY000: audit_log_read UDF failed; Wrong JSON argument
 #
-# Find records by a start timestamp
+# Check timestamp format
 SELECT audit_log_read('{"start": {"timestamp": 0}}');
 ERROR HY000: audit_log_read UDF failed; Wrong JSON argument: start timestamp is not a string
 SELECT audit_log_read('{"start": {"timestamp": ""}}');
 ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
+SELECT audit_log_read('{"start": {"timestamp": "not a timestamp"}}');
+ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10 10 00"}}');
+ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09T10:10:00"}}');
+ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
+SELECT audit_log_read('{"start": {"timestamp": " 2022-08-09  "}}');
+audit_log_read('{"start": {"timestamp": " 2022-08-09  "}}')
+[
+null
+]
+
+SELECT audit_log_read('{"start": {"timestamp": "  2022-08-09 10:10:00 "}}');
+audit_log_read('{"start": {"timestamp": "  2022-08-09 10:10:00 "}}')
+[
+null
+]
+
+SELECT audit_log_read('{"timestamp": 0, "id": 0}');
+ERROR HY000: audit_log_read UDF failed; Wrong JSON argument: bad bookmark format
+SELECT audit_log_read('{"timestamp": "", "id": 0}');
+ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
+SELECT audit_log_read('{"timestamp": "not a timestamp", "id": 0}');
+ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
+SELECT audit_log_read('{"timestamp": "2022-08-09 10 10 00", "id": 0}');
+ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
+SELECT audit_log_read('{"timestamp": "2022-08-09T10:10:00", "id": 0}');
+ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
+SELECT audit_log_read('{"timestamp": " 2022-08-09  ", "id": 0}');
+audit_log_read('{"timestamp": " 2022-08-09  ", "id": 0}')
+[
+null
+]
+
+SELECT audit_log_read('{"timestamp": "  2022-08-09 10:10:00 ", "id": 0}');
+audit_log_read('{"timestamp": "  2022-08-09 10:10:00 ", "id": 0}')
+[
+null
+]
+
+#
+# Find records by a start timestamp
 SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}}');
 audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}}')
+[
+null
+]
 
 SELECT audit_log_read('null');
 audit_log_read('null')
 OK
 #
 # Find records by a bookmark
-SELECT audit_log_read('{ "timestamp": 0, "id": 0 }');
-ERROR HY000: audit_log_read UDF failed; Wrong JSON argument: bad bookmark format
 SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": "" }');
 ERROR HY000: audit_log_read UDF failed; Wrong JSON argument: bad bookmark format
-SELECT audit_log_read('{ "timestamp": "", "id": 0 }');
-ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
 SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0 }');
 audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0 }')
+[
+null
+]
 
 SELECT audit_log_read('null');
 audit_log_read('null')
@@ -48,6 +92,9 @@ SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array
 ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad max_array_length format
 SELECT audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": 10 }');
 audit_log_read('{ "timestamp": "2022-08-09 10:10:00", "id": 0, "max_array_length": 10 }')
+[
+null
+]
 
 SELECT audit_log_read('null');
 audit_log_read('null')

@@ -6,20 +6,11 @@ OK
 SELECT audit_log_filter_set_filter('log_connection', '{"filter": {"class": {"name": "connection"}}}');
 audit_log_filter_set_filter('log_connection', '{"filter": {"class": {"name": "connection"}}}')
 OK
-SELECT audit_log_filter_set_filter('log_authorization', '{"filter": {"class": {"name": "authorization"}}}');
-audit_log_filter_set_filter('log_authorization', '{"filter": {"class": {"name": "authorization"}}}')
-OK
 SELECT audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}');
 audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}')
 OK
 SELECT audit_log_filter_set_filter('log_global_variable', '{"filter": {"class": {"name": "global_variable"}}}');
 audit_log_filter_set_filter('log_global_variable', '{"filter": {"class": {"name": "global_variable"}}}')
-OK
-SELECT audit_log_filter_set_filter('log_server_startup', '{"filter": {"class": {"name": "server_startup"}}}');
-audit_log_filter_set_filter('log_server_startup', '{"filter": {"class": {"name": "server_startup"}}}')
-OK
-SELECT audit_log_filter_set_filter('log_server_shutdown', '{"filter": {"class": {"name": "server_shutdown"}}}');
-audit_log_filter_set_filter('log_server_shutdown', '{"filter": {"class": {"name": "server_shutdown"}}}')
 OK
 SELECT audit_log_filter_set_filter('log_command', '{"filter": {"class": {"name": "command"}}}');
 audit_log_filter_set_filter('log_command', '{"filter": {"class": {"name": "command"}}}')
@@ -40,16 +31,13 @@ SELECT * FROM mysql.audit_log_filter;
 filter_id	name	filter
 1	log_general	{"filter": {"class": {"name": "general"}}}
 2	log_connection	{"filter": {"class": {"name": "connection"}}}
-3	log_authorization	{"filter": {"class": {"name": "authorization"}}}
-4	log_table_access	{"filter": {"class": {"name": "table_access"}}}
-5	log_global_variable	{"filter": {"class": {"name": "global_variable"}}}
-6	log_server_startup	{"filter": {"class": {"name": "server_startup"}}}
-7	log_server_shutdown	{"filter": {"class": {"name": "server_shutdown"}}}
-8	log_command	{"filter": {"class": {"name": "command"}}}
-9	log_query	{"filter": {"class": {"name": "query"}}}
-10	log_stored_program	{"filter": {"class": {"name": "stored_program"}}}
-11	log_authentication	{"filter": {"class": {"name": "authentication"}}}
-12	log_message	{"filter": {"class": {"name": "message"}}}
+3	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+4	log_global_variable	{"filter": {"class": {"name": "global_variable"}}}
+5	log_command	{"filter": {"class": {"name": "command"}}}
+6	log_query	{"filter": {"class": {"name": "query"}}}
+7	log_stored_program	{"filter": {"class": {"name": "stored_program"}}}
+8	log_authentication	{"filter": {"class": {"name": "authentication"}}}
+9	log_message	{"filter": {"class": {"name": "message"}}}
 SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
 SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
 #
@@ -65,12 +53,6 @@ audit_log_filter_set_user('%', 'log_connection')
 OK
 Tag <EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME> Ok
 #
-# Log 'authorization' events only
-SELECT audit_log_filter_set_user('%', 'log_authorization');
-audit_log_filter_set_user('%', 'log_authorization')
-OK
-Tag <EVENT_CLASS_NAME>authorization</EVENT_CLASS_NAME> Ok
-#
 # Log 'table_access' events only
 SELECT audit_log_filter_set_user('%', 'log_table_access');
 audit_log_filter_set_user('%', 'log_table_access')
@@ -82,18 +64,6 @@ SELECT audit_log_filter_set_user('%', 'log_global_variable');
 audit_log_filter_set_user('%', 'log_global_variable')
 OK
 Tag <EVENT_CLASS_NAME>global_variable</EVENT_CLASS_NAME> Ok
-#
-# Log 'server_startup' events only
-SELECT audit_log_filter_set_user('%', 'log_server_startup');
-audit_log_filter_set_user('%', 'log_server_startup')
-OK
-Tag <EVENT_CLASS_NAME>server_startup</EVENT_CLASS_NAME> Ok
-#
-# Log 'server_shutdown' events only
-SELECT audit_log_filter_set_user('%', 'log_server_shutdown');
-audit_log_filter_set_user('%', 'log_server_shutdown')
-OK
-Tag <EVENT_CLASS_NAME>server_shutdown</EVENT_CLASS_NAME> Ok
 #
 # Log 'command' events only
 SELECT audit_log_filter_set_user('%', 'log_command');

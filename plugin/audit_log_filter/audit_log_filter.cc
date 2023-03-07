@@ -27,6 +27,7 @@
 #include "plugin/audit_log_filter/log_writer/file_handle.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
+#include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/mysql_connection_attributes_iterator.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/security_context.h>
@@ -55,6 +56,50 @@ namespace audit_log_filter {
 namespace {
 
 AuditLogFilter *audit_log_filter = nullptr;
+
+bool init_abort_exempt_privilege() {
+  my_service<SERVICE_TYPE(dynamic_privilege_register)> reg_priv_srv(
+      "dynamic_privilege_register", SysVars::get_comp_regystry_srv());
+
+  if (reg_priv_srv.is_valid() && !reg_priv_srv->register_privilege(
+                                     STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"))) {
+    return true;
+  }
+
+  return false;
+}
+
+void deinit_abort_exempt_privilege() {
+  my_service<SERVICE_TYPE(dynamic_privilege_register)> reg_priv_srv(
+      "dynamic_privilege_register", SysVars::get_comp_regystry_srv());
+
+  if (reg_priv_srv.is_valid()) {
+    reg_priv_srv->unregister_privilege(STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"));
+  }
+}
+
+bool check_abort_exempt_privilege(MYSQL_THD thd) {
+  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_srv(
+      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
+  my_service<SERVICE_TYPE(global_grants_check)> grants_check_srv(
+      "global_grants_check", SysVars::get_comp_regystry_srv());
+
+  bool has_system_user_grant = false;
+  bool has_abort_exempt_grant = false;
+
+  if (security_context_srv.is_valid() && grants_check_srv.is_valid()) {
+    Security_context_handle ctx;
+
+    if (!security_context_srv->get(thd, &ctx)) {
+      has_system_user_grant = grants_check_srv->has_global_grant(
+          ctx, STRING_WITH_LEN("SYSTEM_USER"));
+      has_abort_exempt_grant = grants_check_srv->has_global_grant(
+          ctx, STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"));
+    }
+  }
+
+  return has_system_user_grant && has_abort_exempt_grant;
+}
 
 }  // namespace
 
@@ -144,7 +189,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   auto is_keyring_initialized = audit_keyring::check_keyring_initialized();
 
   if (is_keyring_initialized &&
-      !audit_keyring::check_generate_initial_password()) {
+      !audit_keyring::check_generate_initial_encryption_options()) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Failed to check/generate encryption password");
     return 1;
@@ -153,6 +198,12 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   SysVars::set_log_encryption_enabled(is_keyring_initialized &&
                                       SysVars::get_encryption_type() !=
                                           AuditLogEncryptionType::None);
+
+  if (!init_abort_exempt_privilege()) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failed to init AUDIT_ABORT_EXEMPT privilege");
+    return 1;
+  }
 
   auto audit_udf = std::make_unique<AuditUdf>();
 
@@ -225,7 +276,9 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
                          std::move(log_writer), std::move(log_reader));
 
   if (SysVars::get_log_disabled()) {
-    LogPluginErr(WARNING_LEVEL, ER_WARN_AUDIT_LOG_FILTER_DISABLED);
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Audit Log Filter is disabled. Enable it with "
+                    "audit_log_filter_disable = false.");
   } else {
     audit_log_filter->send_audit_start_event();
   }
@@ -247,6 +300,8 @@ int audit_log_filter_deinit(void *arg [[maybe_unused]]) {
 
   audit_log_filter->send_audit_stop_event();
   audit_log_filter->deinit();
+
+  deinit_abort_exempt_privilege();
 
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Uninstalled Audit Event Filter");
@@ -308,6 +363,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
 
   if (!m_audit_rules_registry->lookup_rule_name(user_name, user_host,
                                                 rule_name)) {
+    SysVars::set_session_filter_id(thd, 0);
     return 0;
   }
 
@@ -339,7 +395,8 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     return 0;
   }
 
-  if (filter_result == AuditAction::Block) {
+  if (filter_result == AuditAction::Block &&
+      !check_abort_exempt_privilege(thd)) {
     auto ev_name = std::visit(
         [](const auto &rec) -> std::string_view { return rec.event_class_name; },
         audit_record);
@@ -409,7 +466,7 @@ bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
   const bool is_flushed = m_audit_rules_registry->load();
 
   DBUG_EXECUTE_IF("audit_log_filter_rotate_after_audit_rules_flush",
-                  { m_log_writer->rotate(); });
+                  { m_log_writer->rotate(nullptr); });
 
   return is_flushed;
 }
@@ -420,18 +477,19 @@ void AuditLogFilter::on_audit_log_prune_requested() noexcept {
   }
 }
 
-void AuditLogFilter::on_audit_log_rotate_requested() noexcept {
+void AuditLogFilter::on_audit_log_rotate_requested(
+    log_writer::FileRotationResult *result) noexcept {
   if (m_is_active) {
-    m_log_writer->rotate();
+    m_log_writer->rotate(result);
   }
 }
 
 void AuditLogFilter::on_encryption_password_prune_requested() noexcept {
   if (m_is_active && SysVars::get_password_history_keep_days() > 0 &&
       audit_keyring::check_keyring_initialized()) {
-    audit_keyring::prune_encryption_passwords(
+    audit_keyring::prune_encryption_options(
         SysVars::get_password_history_keep_days(),
-        log_writer::FileHandle::get_log_names_list(mysql_data_home,
+        log_writer::FileHandle::get_log_names_list(SysVars::get_file_dir(),
                                                    SysVars::get_file_name()));
   }
 }

@@ -24,6 +24,7 @@ SET GLOBAL audit_log_filter_disable="str";
 
 --disable_query_log
 call mtr.add_suppression("Audit Log Filter is disabled. Enable it with audit_log_filter_disable = false.");
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
 --enable_query_log
 
 --let $restart_parameters="restart: --audit-log-filter-disable=ON"

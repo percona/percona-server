@@ -1,5 +1,0 @@
-[strategy_sync]
-audit_log_filter_strategy=SYNCHRONOUS
-
-[strategy_async]
-audit_log_filter_strategy=ASYNCHRONOUS

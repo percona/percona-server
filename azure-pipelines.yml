@@ -512,9 +512,17 @@ jobs:
         -DWITH_PAM=ON
       "
 
-      if [[ ( "$(Compiler)" == "gcc" ) && ( $(bc <<< "$(CompilerVer) < 8.1") -eq 1 ) ]]; then
+      function get_ver { printf "%03d%03d%03d%03d" $(echo "$1" | tr '.' ' '); }
+      if [[ ( "$(Compiler)" == "gcc" ) && ( 10#$(get_ver $REAL_COMPILER_VER) -lt 10#$(get_ver 8.1.0) ) ]]; then
         CMAKE_OPT+="
           -DWITH_ROUTER=OFF
+          -DWITH_PERCONA_AUDIT_LOG_FILTER=OFF
+        "
+      fi
+
+      if [[ ( "$(Compiler)" == "clang" ) && ( 10#$(get_ver $REAL_COMPILER_VER) -lt 10#$(get_ver 7.0.0) ) ]]; then
+        CMAKE_OPT+="
+          -DWITH_PERCONA_AUDIT_LOG_FILTER=OFF
         "
       fi
 

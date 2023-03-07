@@ -1,3 +1,4 @@
+--replace_regex /\d{8}T\d{6}/<timestamp>/
 SELECT audit_log_rotate();
 
 --echo #

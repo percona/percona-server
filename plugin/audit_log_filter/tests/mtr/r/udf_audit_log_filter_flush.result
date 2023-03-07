@@ -9,6 +9,13 @@ OK
 Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
 UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "table_access"}}}' WHERE name = 'filter_1';
 No tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME> Ok
+SET GLOBAL DEBUG='+d,audit_log_filter_fail_filters_flush';
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+ERROR: Could not reinitialize audit log filters
+Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
+No tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME> Ok
+SET GLOBAL DEBUG='-d,audit_log_filter_fail_filters_flush';
 SELECT audit_log_filter_flush();
 audit_log_filter_flush()
 OK

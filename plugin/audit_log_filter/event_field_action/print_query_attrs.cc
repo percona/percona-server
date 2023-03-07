@@ -25,6 +25,8 @@
 
 #include "sql/sql_class.h"
 
+#include <scope_guard.h>
+
 namespace audit_log_filter::event_field_action {
 
 EventFieldActionPrintQueryAttrs::EventFieldActionPrintQueryAttrs(
@@ -82,16 +84,23 @@ bool EventFieldActionPrintQueryAttrs::apply(const AuditRecordFieldsList &fields
   extended_info->attrs[m_tag_name] = {};
 
   bool is_null = false;
-  my_h_string attr_name;
-  my_h_string attr_value;
   char buff_attr_name[1024];
   char buff_attr_value[1024];
-  string_factory_srv->create(&attr_name);
-  string_factory_srv->create(&attr_value);
+
+  auto cleanup_iter =
+      create_scope_guard([&] { attrs_iterator_srv->release(iter); });
 
   do {
-    if (attrs_iterator_srv->get_name(iter, &attr_name) ||
-        isnull_srv->get(iter, &is_null)) {
+    my_h_string attr_name;
+
+    if (attrs_iterator_srv->get_name(iter, &attr_name)) {
+      return false;
+    }
+
+    auto cleanup_name =
+        create_scope_guard([&] { string_factory_srv->destroy(attr_name); });
+
+    if (isnull_srv->get(iter, &is_null)) {
       return false;
     }
 
@@ -100,23 +109,23 @@ bool EventFieldActionPrintQueryAttrs::apply(const AuditRecordFieldsList &fields
 
     if (std::find(m_attrs_list.cbegin(), m_attrs_list.cend(), buff_attr_name) !=
         m_attrs_list.cend()) {
-      if (!is_null && attr_string_srv->get(iter, &attr_value)) {
-        return false;
-      }
-
       if (!is_null) {
+        my_h_string attr_value;
+
+        if (attr_string_srv->get(iter, &attr_value)) {
+          return false;
+        }
+
         string_converter_srv->convert_to_buffer(attr_value, buff_attr_value,
                                                 sizeof(buff_attr_value), utf8);
+
+        string_factory_srv->destroy(attr_value);
       }
 
       extended_info->attrs[m_tag_name].emplace_back(
           buff_attr_name, (is_null ? "" : buff_attr_value));
     }
   } while (!attrs_iterator_srv->next(iter));
-
-  string_factory_srv->destroy(attr_name);
-  string_factory_srv->destroy(attr_value);
-  attrs_iterator_srv->release(iter);
 
   return true;
 }

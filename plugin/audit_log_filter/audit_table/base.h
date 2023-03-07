@@ -28,7 +28,7 @@ inline constexpr const size_t kAuditFieldLengthUserhost = 255;
 inline constexpr const size_t kAuditFieldLengthFiltername = 255;
 inline constexpr const size_t kAuditFieldLengthFilter = 1024;
 
-enum class TableResult { Ok, Fail, MissingTable, Found, NotFound };
+enum class TableResult { Ok, Fail, Found, NotFound };
 
 /**
  * @brief Wrapper class holding table access session details.

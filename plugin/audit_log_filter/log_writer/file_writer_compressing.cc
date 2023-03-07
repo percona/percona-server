@@ -49,6 +49,7 @@ bool FileWriterCompressing::open() noexcept {
 void FileWriterCompressing::close() noexcept {
   m_flush = Z_FINISH;
   do_deflate();
+  deflateEnd(&m_strm);
 
   FileWriterDecoratorBase::close();
 }
@@ -67,7 +68,7 @@ void FileWriterCompressing::do_deflate() noexcept {
     m_strm.avail_out = COMPRESSION_CHUNK;
     m_strm.next_out = m_out_buff;
 
-    int ret = deflate(&m_strm, m_flush);
+    [[maybe_unused]] int ret = deflate(&m_strm, m_flush);
     assert(ret != Z_STREAM_ERROR);
 
     size_t compressed_size = COMPRESSION_CHUNK - m_strm.avail_out;

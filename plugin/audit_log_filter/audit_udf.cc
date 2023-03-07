@@ -15,6 +15,8 @@
 
 #include "plugin/audit_log_filter/audit_udf.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
+
+#include "plugin/audit_log_filter/audit_encryption.h"
 #include "plugin/audit_log_filter/audit_keyring.h"
 #include "plugin/audit_log_filter/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_log_reader.h"
@@ -23,6 +25,7 @@
 #include "plugin/audit_log_filter/audit_table/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_user.h"
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
+#include "plugin/audit_log_filter/log_writer/file_handle.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
 #include "mysql/plugin.h"
@@ -34,6 +37,8 @@
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
+
+#include <boost/algorithm/string/trim.hpp>
 
 #include <cstring>
 #include <regex>
@@ -117,6 +122,57 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
   return user_info_data;
 }
 
+bool has_audit_admin_privilege(char *message) {
+  const auto *reg_srv = SysVars::get_comp_regystry_srv();
+
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", reg_srv);
+  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
+      "mysql_thd_security_context", reg_srv);
+  my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
+      "global_grants_check", reg_srv);
+
+  MYSQL_THD thd;
+  Security_context_handle ctx;
+
+  if (!security_context_service.is_valid() ||
+      !grants_check_service.is_valid() || thd_reader_srv->get(&thd) ||
+      security_context_service->get(thd, &ctx)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, "ERROR: Internal error");
+    return false;
+  }
+
+  if (!grants_check_service->has_global_grant(ctx,
+                                              STRING_WITH_LEN("AUDIT_ADMIN"))) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "AUDIT_ADMIN");
+    return false;
+  }
+
+  return true;
+}
+
+bool check_timestamp_valid(std::string &timestamp_str) {
+  boost::algorithm::trim(timestamp_str);
+
+  if (timestamp_str.empty()) {
+    return false;
+  }
+
+  const std::regex timestamp_full_regex(
+      R"(^\d{4}\-\d{2}\-\d{2} \d{2}:\d{2}:\d{2}$)");
+  if (std::regex_match(timestamp_str, timestamp_full_regex)) {
+    return true;
+  }
+
+  const std::regex timestamp_no_time_regex(R"(^\d{4}\-\d{2}\-\d{2}$)");
+  if (std::regex_match(timestamp_str, timestamp_no_time_regex)) {
+    timestamp_str += " 00:00:00";
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace
 
 AuditUdf::~AuditUdf() { deinit(); }
@@ -159,6 +215,10 @@ bool AuditUdf::audit_log_filter_set_filter_udf_init(AuditUdf *udf
                                                     UDF_INIT *initid,
                                                     UDF_ARGS *udf_args,
                                                     char *message) noexcept {
+  if (!has_audit_admin_privilege(message)) {
+    return true;
+  }
+
   if (udf_args->arg_count != 2) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Wrong argument list: "
@@ -279,6 +339,10 @@ bool AuditUdf::audit_log_filter_remove_filter_udf_init(AuditUdf *udf
                                                        UDF_INIT *initid,
                                                        UDF_ARGS *udf_args,
                                                        char *message) noexcept {
+  if (!has_audit_admin_privilege(message)) {
+    return true;
+  }
+
   if (udf_args->arg_count != 1) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Wrong argument list: "
@@ -382,6 +446,10 @@ bool AuditUdf::audit_log_filter_set_user_udf_init(AuditUdf *udf
                                                   UDF_INIT *initid,
                                                   UDF_ARGS *udf_args,
                                                   char *message) noexcept {
+  if (!has_audit_admin_privilege(message)) {
+    return true;
+  }
+
   if (udf_args->arg_count != 2) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Wrong argument list: "
@@ -510,6 +578,10 @@ bool AuditUdf::audit_log_filter_remove_user_udf_init(AuditUdf *udf
                                                      UDF_INIT *initid,
                                                      UDF_ARGS *udf_args,
                                                      char *message) noexcept {
+  if (!has_audit_admin_privilege(message)) {
+    return true;
+  }
+
   if (udf_args->arg_count != 1) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Wrong argument list: "
@@ -591,6 +663,10 @@ bool AuditUdf::audit_log_filter_flush_udf_init(AuditUdf *udf [[maybe_unused]],
                                                UDF_INIT *initid,
                                                UDF_ARGS *udf_args,
                                                char *message) noexcept {
+  if (!has_audit_admin_privilege(message)) {
+    return true;
+  }
+
   if (udf_args->arg_count != 0) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Wrong argument list: audit_log_filter_flush()");
@@ -668,9 +744,8 @@ bool AuditUdf::audit_log_read_udf_init(AuditUdf *udf [[maybe_unused]],
 }
 
 char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
-                                   UDF_INIT *initid [[maybe_unused]],
-                                   UDF_ARGS *udf_args, char *result,
-                                   unsigned long *length,
+                                   UDF_INIT *initid, UDF_ARGS *udf_args,
+                                   char *result, unsigned long *length,
                                    unsigned char *is_null,
                                    unsigned char *error) noexcept {
   /*
@@ -700,11 +775,11 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
   auto *log_reader = get_audit_log_filter_instance()->get_log_reader();
   auto *reader_context = SysVars::get_log_reader_context(thd);
-  auto reader_args = AuditLogReaderArgs{};
+  auto reader_args = std::make_unique<AuditLogReaderArgs>();
 
   if (udf_args->arg_count == 1 && udf_args->args != nullptr &&
       udf_args->args[0] != nullptr) {
-    // argument ether JSON null or JSON hash
+    // argument either JSON null or JSON hash
     rapidjson::Document json_doc;
     json_doc.Parse(udf_args->args[0]);
 
@@ -755,8 +830,8 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
           return result;
         }
 
-        reader_args.timestamp = json_doc["start"]["timestamp"].GetString();
-        reader_args.id = 0;
+        reader_args->timestamp = json_doc["start"]["timestamp"].GetString();
+        reader_args->id = 0;
       } else if (has_timestamp_tag) {
         if (!json_doc["timestamp"].IsString() || !json_doc["id"].IsUint64()) {
           my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
@@ -765,12 +840,12 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
           return result;
         }
 
-        reader_args.timestamp = json_doc["timestamp"].GetString();
-        reader_args.id = json_doc["id"].GetUint();
+        reader_args->timestamp = json_doc["timestamp"].GetString();
+        reader_args->id = json_doc["id"].GetUint();
       }
 
       if ((has_start_tag || has_timestamp_tag) &&
-          reader_args.timestamp.empty()) {
+          !check_timestamp_valid(reader_args->timestamp)) {
         my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
                  "Wrong JSON argument, bad timestamp format");
         *error = 1;
@@ -779,7 +854,8 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
       if (json_doc.HasMember("max_array_length")) {
         if (json_doc["max_array_length"].IsUint()) {
-          reader_args.max_array_length = json_doc["max_array_length"].GetUint();
+          reader_args->max_array_length =
+              json_doc["max_array_length"].GetUint();
         } else {
           my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
                    "Wrong JSON argument, bad max_array_length format");
@@ -788,7 +864,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
         }
       }
     } else if (json_doc.IsNull()) {
-      reader_args.close_read_sequence = true;
+      reader_args->close_read_sequence = true;
     } else {
       my_error(ER_UDF_ERROR, MYF(0), "audit_log_read", "Wrong argument format");
       *error = 1;
@@ -801,7 +877,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
   }
 
   if (udf_args->arg_count == 1) {
-    if (reader_args.close_read_sequence) {
+    if (reader_args->close_read_sequence) {
       if (reader_context != nullptr) {
         log_reader->close_reader_session(reader_context);
         SysVars::set_log_reader_context(thd, nullptr);
@@ -813,7 +889,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
       return result;
     }
 
-    bool is_new_session_request = !reader_args.timestamp.empty();
+    bool is_new_session_request = !reader_args->timestamp.empty();
 
     if ((reader_context == nullptr && !is_new_session_request) ||
         (reader_context != nullptr && is_new_session_request)) {
@@ -823,7 +899,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
     }
 
     if (is_new_session_request) {
-      reader_context = AuditLogReader::init_reader_session(reader_args);
+      reader_context = log_reader->init_reader_session(thd, reader_args.get());
 
       if (reader_context == nullptr) {
         my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
@@ -836,24 +912,48 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
     }
   }
 
-  auto read_buf_size = SysVars::get_read_buffer_size(thd);
-  initid->ptr = static_cast<char *>(my_malloc(
-      key_memory_audit_log_filter_read_buffer, read_buf_size, MY_ZEROFILL));
+  reader_context->batch_reader_args = std::move(reader_args);
 
-  if (!log_reader->read(reader_args, reader_context, initid->ptr,
-                        read_buf_size)) {
+  if (!AuditLogReader::read(reader_context)) {
+    if (reader_context != nullptr) {
+      log_reader->close_reader_session(reader_context);
+      SysVars::set_log_reader_context(thd, nullptr);
+      delete reader_context;
+    }
+
     my_error(ER_UDF_ERROR, MYF(0), "audit_log_read", "Could not read log");
     *error = 1;
     return result;
   }
 
+  reader_context->batch_reader_args.reset(nullptr);
+
+  initid->ptr = reader_context->audit_json_handler->get_result_buffer_ptr();
   *length = std::strlen(initid->ptr);
+
+  if (*length == 0) {
+    std::snprintf(initid->ptr, MYSQL_ERRMSG_SIZE, "[\nnull\n]");
+    *length = std::strlen(initid->ptr);
+  }
+
   return initid->ptr;
 }
 
-void AuditUdf::audit_log_read_udf_deinit(UDF_INIT *initid) {
-  if (initid != nullptr && initid->ptr != nullptr) {
-    my_free(initid->ptr);
+void AuditUdf::audit_log_read_udf_deinit(UDF_INIT *initid [[maybe_unused]]) {
+  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
+      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+
+  MYSQL_THD thd;
+
+  if (!thd_reader_srv->get(&thd)) {
+    auto *reader_context = SysVars::get_log_reader_context(thd);
+
+    if (reader_context != nullptr && reader_context->is_session_end) {
+      get_audit_log_filter_instance()->get_log_reader()->close_reader_session(
+          reader_context);
+      SysVars::set_log_reader_context(thd, nullptr);
+      delete reader_context;
+    }
   }
 }
 
@@ -911,26 +1011,7 @@ void AuditUdf::audit_log_read_bookmark_udf_deinit(UDF_INIT *) {}
 bool AuditUdf::audit_log_rotate_udf_init(AuditUdf *udf [[maybe_unused]],
                                          UDF_INIT *initid, UDF_ARGS *udf_args,
                                          char *message) noexcept {
-  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
-  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
-      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
-  my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
-      "global_grants_check", SysVars::get_comp_regystry_srv());
-
-  MYSQL_THD thd;
-  Security_context_handle ctx;
-
-  if (!security_context_service.is_valid() ||
-      !grants_check_service.is_valid() || thd_reader_srv->get(&thd) ||
-      security_context_service->get(thd, &ctx)) {
-    std::snprintf(message, MYSQL_ERRMSG_SIZE, "ERROR: Internal error");
-    return true;
-  }
-
-  if (!grants_check_service->has_global_grant(ctx,
-                                              STRING_WITH_LEN("AUDIT_ADMIN"))) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "AUDIT_ADMIN");
+  if (!has_audit_admin_privilege(message)) {
     return true;
   }
 
@@ -959,12 +1040,24 @@ char *AuditUdf::audit_log_rotate_udf(AuditUdf *udf [[maybe_unused]],
                                      char *result, unsigned long *length,
                                      unsigned char *is_null,
                                      unsigned char *error) noexcept {
-  get_audit_log_filter_instance()->on_audit_log_rotate_requested();
+  auto rotation_result = std::make_unique<log_writer::FileRotationResult>();
 
-  std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
-  *length = std::strlen(result);
+  get_audit_log_filter_instance()->on_audit_log_rotate_requested(
+      rotation_result.get());
+
+  if (rotation_result->error_code == 0) {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "%s",
+                  rotation_result->status_string.c_str());
+  } else {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Log rotation failed: '%s'",
+                    rotation_result->status_string.c_str());
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: Log rotation failed: '%s'",
+                  rotation_result->status_string.c_str());
+  }
+
   *is_null = 0;
   *error = 0;
+  *length = std::strlen(result);
 
   return result;
 }
@@ -1029,27 +1122,27 @@ char *AuditUdf::audit_log_encryption_password_get_udf(
   *is_null = 0;
   *error = 0;
 
-  std::string password_buffer;
-  bool is_success = false;
+  std::unique_ptr<encryption::EncryptionOptions> options;
 
   if (udf_args->arg_count == 1 && udf_args->args != nullptr &&
       udf_args->args[0] != nullptr) {
-    is_success = audit_keyring::get_encryption_password(udf_args->args[0],
-                                                        password_buffer);
+    options = audit_keyring::get_encryption_options(udf_args->args[0]);
   } else {
-    is_success = audit_keyring::get_encryption_password(password_buffer);
+    options = audit_keyring::get_encryption_options();
   }
 
-  if (!is_success) {
+  if (options == nullptr || !options->check_valid()) {
     my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_get_udf",
-             "Could not read password");
+             "Could not read options");
     *error = 1;
     return result;
   }
 
+  const auto options_json_str = options->to_json_string();
+
   initid->ptr =
       static_cast<char *>(my_malloc(key_memory_audit_log_filter_password_buffer,
-                                    kKeyringPasswordLength, MY_ZEROFILL));
+                                    options_json_str.length(), MY_ZEROFILL));
 
   if (initid->ptr == nullptr) {
     my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_get_udf",
@@ -1058,8 +1151,8 @@ char *AuditUdf::audit_log_encryption_password_get_udf(
     return result;
   }
 
-  memcpy(initid->ptr, password_buffer.c_str(), password_buffer.length());
-  *length = password_buffer.length();
+  memcpy(initid->ptr, options_json_str.c_str(), options_json_str.length());
+  *length = options_json_str.length();
 
   return initid->ptr;
 }
@@ -1125,9 +1218,9 @@ char *AuditUdf::audit_log_encryption_password_set_udf(
   *is_null = 0;
   *error = 0;
 
-  if (!audit_keyring::set_encryption_password(udf_args->args[0])) {
-    my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_get_udf",
-             "Could not set password");
+  if (!audit_keyring::set_encryption_options(udf_args->args[0])) {
+    my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_set_udf",
+             "ERROR: Could not set password");
     *error = 1;
     return result;
   }

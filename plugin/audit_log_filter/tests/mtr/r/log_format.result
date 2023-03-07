@@ -1,0 +1,18 @@
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_rotate();
+audit_log_rotate()
+<file_name>
+Rotated files Ok
+#
+# Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

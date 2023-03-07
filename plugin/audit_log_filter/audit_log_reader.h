@@ -16,22 +16,51 @@
 #ifndef AUDIT_LOG_FILTER_AUDIT_LOG_READER_H_INCLUDED
 #define AUDIT_LOG_FILTER_AUDIT_LOG_READER_H_INCLUDED
 
+#include "plugin/audit_log_filter/audit_encryption.h"
+#include "plugin/audit_log_filter/json_reader/audit_json_handler.h"
+#include "plugin/audit_log_filter/json_reader/audit_json_read_stream.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
+#include <deque>
 #include <map>
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace audit_log_filter {
 
 struct AuditLogReaderArgs {
-  std::string timestamp;
-  uint64_t id;
-  uint64_t max_array_length;
-  bool close_read_sequence;
+  std::string timestamp{};
+  uint64_t id{0};
+  uint64_t max_array_length{0};
+  bool close_read_sequence{false};
 };
 
 struct AuditLogReaderContext {
   LogBookmark next_event_bookmark;
+  std::unique_ptr<AuditLogReaderArgs> batch_reader_args;
+  std::unique_ptr<json_reader::AuditJsonHandler> audit_json_handler;
+  std::unique_ptr<json_reader::AuditJsonReadStream> audit_json_read_stream;
+  std::deque<FileInfo *> files_to_read;
+  FileInfo *current_file;
+  bool is_session_end{false};
+  bool is_batch_end{false};
+};
+
+struct FileInfo {
+  FileInfo(std::string name_, std::string encryption_options_id_,
+           bool is_compressed_, bool is_encrypted_)
+      : name{std::move(name_)},
+        encryption_options_id{std::move(encryption_options_id_)},
+        is_compressed{is_compressed_},
+        is_encrypted{is_encrypted_},
+        encryption_options{nullptr} {}
+  std::string name;
+  std::string encryption_options_id;
+  bool is_compressed;
+  bool is_encrypted;
+  std::unique_ptr<encryption::EncryptionOptions> encryption_options;
 };
 
 class AuditLogReader {
@@ -40,21 +69,19 @@ class AuditLogReader {
 
   bool init() noexcept;
 
-  bool read(const AuditLogReaderArgs &reader_args,
-            AuditLogReaderContext *reader_context, char *out_buff,
-            ulong out_buff_size) noexcept;
+  static bool read(AuditLogReaderContext *reader_context) noexcept;
 
-  static AuditLogReaderContext *init_reader_session(
-      const AuditLogReaderArgs &reader_args) noexcept;
+  AuditLogReaderContext *init_reader_session(
+      MYSQL_THD thd, const AuditLogReaderArgs *reader_args) noexcept;
 
   void close_reader_session(AuditLogReaderContext *reader_context) noexcept;
 
  private:
-  auto get_log_file_handle(
-      AuditLogReaderContext *reader_context) const noexcept;
+  void set_files_to_read_list(AuditLogReaderContext *reader_context) noexcept;
 
  private:
-  std::map<std::string, std::string> m_first_timestamp_to_file_map;
+  std::map<std::string, std::unique_ptr<FileInfo>>
+      m_first_timestamp_to_file_map;
 };
 
 }  // namespace audit_log_filter

@@ -30,4 +30,9 @@ std::string LogRecordFormatterCsv::make_timestamp(
   return "";
 }
 
+std::string LogRecordFormatterCsv::extra_attrs_to_string(
+    const ExtendedInfo &info [[maybe_unused]]) const noexcept {
+  return "";
+}
+
 }  // namespace audit_log_filter::log_record_formatter

@@ -1,0 +1,17 @@
+#
+# AUDIT_ADMIN privilege required to use any filtering function
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'%';
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_filter_set_user('%', 'log_all');
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_filter_remove_user('%');
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_filter_remove_filter('log_all');
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_filter_flush();
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+#
+# Cleanup
+DROP USER user1;

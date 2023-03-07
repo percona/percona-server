@@ -424,7 +424,12 @@ AuditRecordVariant get_audit_record(mysql_event_class_t event_class,
 
   return AuditRecordVariant{
       std::in_place_index<13>,
-      AuditRecordUnknown{kNameUnknown, kNameUnknown, event_class, event, {}}};
+      AuditRecordUnknown{
+          kNameUnknown,
+          kNameUnknown,
+          audit_filter_event_class_t::AUDIT_FILTER_INTERNAL_CLASS,
+          event,
+          {}}};
 }
 
 AuditRecordVariant get_audit_record(
@@ -455,6 +460,15 @@ AuditRecordVariant get_audit_record(
   }
 
   assert(false);
+
+  return AuditRecordVariant{
+      std::in_place_index<13>,
+      AuditRecordUnknown{
+          kNameUnknown,
+          kNameUnknown,
+          audit_filter_event_class_t::AUDIT_FILTER_INTERNAL_CLASS,
+          event,
+          {}}};
 }
 
 void update_connection_type_pseudo_to_numeric(std::string &type) {

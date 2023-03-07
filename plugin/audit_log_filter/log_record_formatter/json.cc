@@ -81,6 +81,13 @@ const std::string_view kAuditConnectionTypeNameShared{"shared_memory"};
 const std::string_view kAuditEventNameAuditStart{"audit"};
 const std::string_view kAuditEventNameAuditStop{"noaudit"};
 
+auto make_unix_timestamp(
+    const std::chrono::system_clock::time_point time_point) noexcept {
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+             time_point.time_since_epoch())
+      .count();
+}
+
 }  // namespace
 
 std::string_view LogRecordFormatterJson::event_subclass_to_string(
@@ -306,13 +313,19 @@ std::string_view LogRecordFormatterJson::shutdown_reason_to_string(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordGeneral &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::time_point{
-      std::chrono::seconds{audit_record.event->general_time}});
+  const auto time_now = std::chrono::system_clock::time_point{
+      std::chrono::seconds{audit_record.event->general_time}};
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "general",)"
          << "\n"
          << R"(    "event": ")"
@@ -356,12 +369,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordConnection &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "connection",)"
          << "\n"
          << R"(    "event": ")"
@@ -399,12 +418,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordTableAccess &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "table_access",)"
          << "\n"
          << R"(    "event": ")"
@@ -436,12 +461,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordGlobalVariable &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "global_variable",)"
          << "\n"
          << R"(    "event": ")"
@@ -468,12 +499,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordServerStartup &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "server_startup",)"
          << "\n"
          << R"(    "event": ")"
@@ -499,12 +536,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordServerShutdown &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "server_shutdown",)"
          << "\n"
          << R"(    "event": ")"
@@ -525,12 +568,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordCommand &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "command",)"
          << "\n"
          << R"(    "event": ")"
@@ -556,12 +605,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordQuery &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "query",)"
          << "\n"
          << R"(    "event": ")"
@@ -590,12 +645,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordStoredProgram &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "stored_program",)"
          << "\n"
          << R"(    "event": ")"
@@ -627,12 +688,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordAuthentication &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "authentication",)"
          << "\n"
          << R"(    "event": ")"
@@ -673,12 +740,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordMessage &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "message",)"
          << "\n"
          << R"(    "event": ")"
@@ -725,12 +798,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordStartAudit &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": ")"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "\",\n"
@@ -745,12 +824,18 @@ AuditRecordString LogRecordFormatterJson::apply(
 AuditRecordString LogRecordFormatterJson::apply(
     const AuditRecordStopAudit &audit_record) const noexcept {
   std::stringstream result;
-  const auto timestamp = make_timestamp(std::chrono::system_clock::now());
+  const auto time_now = std::chrono::system_clock::now();
+  const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
 
   result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n"
-         << R"(    "id": )" << rec_id << ",\n"
+         << R"(    "timestamp": ")" << timestamp << "\",\n";
+
+  if (SysVars::get_format_unix_timestamp()) {
+    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
+  }
+
+  result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": ")"
          << event_subclass_to_string(audit_record.event->event_subclass)
          << "\",\n"

@@ -183,10 +183,11 @@ void FileHandle::remove_file_footer(
   }
 }
 
-std::error_code FileHandle::rotate(
-    const std::filesystem::path &current_file_path) noexcept {
+void FileHandle::rotate(const std::filesystem::path &current_file_path,
+                        FileRotationResult *result) noexcept {
   if (!std::filesystem::exists(current_file_path)) {
-    return std::error_code{};
+    result->error_code = 0;
+    return;
   }
 
   std::time_t t =
@@ -199,8 +200,16 @@ std::error_code FileHandle::rotate(
 
   const auto filename_str = current_file_path.filename().string();
   auto first_ext_pos = filename_str.find_first_of('.');
-  const auto base_file_name_str = filename_str.substr(0, first_ext_pos);
-  const auto extensions_str = filename_str.substr(first_ext_pos);
+
+  std::string base_file_name_str;
+  std::string extensions_str;
+
+  if (first_ext_pos == std::string::npos) {
+    base_file_name_str = filename_str;
+  } else {
+    base_file_name_str = filename_str.substr(0, first_ext_pos);
+    extensions_str = filename_str.substr(first_ext_pos);
+  }
 
   std::stringstream new_file_name;
   new_file_name << base_file_name_str << "."
@@ -214,7 +223,13 @@ std::error_code FileHandle::rotate(
 
   std::filesystem::rename(current_file_path, new_file_path, ec);
 
-  return ec;
+  result->error_code = ec.value();
+
+  if (result->error_code == 0) {
+    result->status_string = new_file_name.str();
+  } else {
+    result->status_string = ec.message();
+  }
 }
 
 PruneFilesList FileHandle::get_prune_files(

@@ -12892,12 +12892,6 @@ ER_CONN_CONTROL_FAILED_CONN_THRESHOLD_REACHED_WITH_WARN
 ER_CONN_CONTROL_DELAYED_CONN_STATS
   eng "Delayed %llu connection attempts during last %llu seconds"
 
-ER_WARN_ADUIT_FILTER_MAX_SIZE_AND_PRUNE_SECONDS_LOG
-  eng "Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero. audit_log_filter_max_size takes precedence and audit_log_filter_prune_seconds is ignored"
-
-ER_WARN_AUDIT_LOG_FILTER_DISABLED
-  eng "Audit Log Filter is disabled. Enable it with audit_log_filter_disable = false."
-
 #
 # End of Percona Server 8.0 server error log messages
 #

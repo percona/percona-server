@@ -1,0 +1,47 @@
+SET @old_key_derivation_iterations_count_mean = @@global.audit_log_filter_key_derivation_iterations_count_mean;
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=DEFAULT;
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+600000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=1000;
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=10000;
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+10000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=999;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter_key_derivation_iterations_count_mean value: '999'
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=0;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter_key_derivation_iterations_count_mean value: '0'
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=-1;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter_key_derivation_iterations_count_mean value: '-1'
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=10000.5;
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_key_derivation_iterations_count_mean'
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean='str';
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_key_derivation_iterations_count_mean'
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean='';
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter_key_derivation_iterations_count_mean'
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean = @old_key_derivation_iterations_count_mean;

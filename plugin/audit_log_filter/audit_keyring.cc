@@ -20,7 +20,6 @@
 #include "plugin/audit_log_filter/sys_vars.h"
 
 #include <mysql/components/my_service.h>
-#include <mysql/components/services/keyring_generator.h>
 #include <mysql/components/services/keyring_keys_metadata_iterator.h>
 #include <mysql/components/services/keyring_metadata_query.h>
 #include <mysql/components/services/keyring_reader_with_status.h>
@@ -41,10 +40,13 @@
 namespace audit_log_filter::audit_keyring {
 namespace {
 inline constexpr const char *kAuthId = "audit_log";
-const std::string kPasswordKeyTimestampFormat{"%Y%m%dT%H%M%S"};
+const std::string kOptionsKeyTimestampFormat{"%Y%m%dT%H%M%S"};
 
-using PasswordIdListEl = std::pair<ulonglong, std::string>;
-using PasswordIdList = std::vector<PasswordIdListEl>;
+constexpr auto file_opt_id_pattern(R"(.*\.(\d{8}T\d{6}-\d+)\.enc)");
+constexpr auto keyring_opt_id_pattern(R"(.*\-(\d{8}T\d{6}\-\d+).*)");
+
+using OptionsIdListEl = std::pair<ulonglong, std::string>;
+using OptionsIdList = std::vector<OptionsIdListEl>;
 
 void get_random_string(std::string &str) {
   static const char alphanumerics[] =
@@ -60,7 +62,7 @@ void get_random_string(std::string &str) {
   }
 }
 
-bool get_keyring_password_key_list_sorted(PasswordIdList &list) {
+bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
   list.clear();
 
   my_service<SERVICE_TYPE(keyring_keys_metadata_iterator)> iterator_srv(
@@ -110,18 +112,20 @@ bool get_keyring_password_key_list_sorted(PasswordIdList &list) {
       break;
     }
 
-    std::smatch pieces_match;
-    ulonglong password_age_days = 0;
+    if (auth_id.find(kAuthId) != std::string::npos) {
+      std::smatch pieces_match;
 
-    if (std::regex_match(data_id, pieces_match, timestamp_regex)) {
-      std::tm tm{};
-      std::istringstream ss(pieces_match[1].str());
-      ss >> std::get_time(&tm, kPasswordKeyTimestampFormat.c_str());
-      tm.tm_isdst = -1;
-      password_age_days = (time_now - timelocal(&tm)) / (60 * 60 * 24);
+      if (std::regex_match(data_id, pieces_match, timestamp_regex)) {
+        std::tm tm{};
+        std::istringstream ss(pieces_match[1].str());
+        ss >> std::get_time(&tm, kOptionsKeyTimestampFormat.c_str());
+        tm.tm_isdst = -1;
+        ulonglong data_age_days = (time_now - timelocal(&tm)) / (60 * 60 * 24);
+
+        list.emplace_back(data_age_days, data_id);
+      }
     }
 
-    list.emplace_back(password_age_days, data_id);
     is_iter_valid = !iterator_srv->next(forward_iterator);
   }
 
@@ -132,24 +136,24 @@ bool get_keyring_password_key_list_sorted(PasswordIdList &list) {
   return true;
 }
 
-bool get_active_keyring_password_key(std::string &password_id) {
-  PasswordIdList id_list;
+bool get_active_keyring_options_key(std::string &options_id) {
+  OptionsIdList id_list;
 
-  if (!get_keyring_password_key_list_sorted(id_list)) {
+  if (!get_keyring_options_key_list_sorted(id_list)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to fetch password ids");
+                    "Failed to fetch options ids");
     return false;
   }
 
   if (!id_list.empty()) {
-    password_id = id_list.back().second;
+    options_id = id_list.back().second;
   }
 
   return true;
 }
 
-bool get_keyring_password(const std::string &password_id,
-                          std::string &password) {
+bool get_keyring_options(const std::string &options_id,
+                         std::string &options_json_str) {
   my_service<SERVICE_TYPE(keyring_reader_with_status)> reader_srv(
       "keyring_reader_with_status", SysVars::get_comp_regystry_srv());
 
@@ -161,7 +165,7 @@ bool get_keyring_password(const std::string &password_id,
 
   my_h_keyring_reader_object reader_object = nullptr;
 
-  if (reader_srv->init(password_id.c_str(), kAuthId, &reader_object)) {
+  if (reader_srv->init(options_id.c_str(), kAuthId, &reader_object)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to init keyring reader service");
     return false;
@@ -176,7 +180,7 @@ bool get_keyring_password(const std::string &password_id,
 
   if (reader_object == nullptr) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "No data found for key '%s'", password_id.c_str());
+                    "No data found for key '%s'", options_id.c_str());
     return false;
   }
 
@@ -212,12 +216,13 @@ bool get_keyring_password(const std::string &password_id,
     return true;
   }
 
-  password = reinterpret_cast<char *>(data_buffer.get());
+  options_json_str =
+      std::string{reinterpret_cast<char *>(data_buffer.get()), data_length};
 
   return true;
 }
 
-bool generate_keyring_password_id(std::string &password_id) {
+bool generate_keyring_options_id(std::string &options_id) {
   my_service<SERVICE_TYPE(keyring_reader_with_status)> reader_srv(
       "keyring_reader_with_status", SysVars::get_comp_regystry_srv());
 
@@ -262,13 +267,13 @@ bool generate_keyring_password_id(std::string &password_id) {
     reader_object = nullptr;
   }
 
-  password_id = id_prefix.str();
+  options_id = id_prefix.str();
 
   return true;
 }
 
-bool set_keyring_password(const std::string &password_id,
-                          const std::string &password) {
+bool set_keyring_options(const std::string &options_id,
+                         const std::string &options_json_str) {
   my_service<SERVICE_TYPE(keyring_writer)> writer_srv(
       "keyring_writer", SysVars::get_comp_regystry_srv());
 
@@ -279,9 +284,9 @@ bool set_keyring_password(const std::string &password_id,
   }
 
   if (writer_srv->store(
-          password_id.c_str(), kAuthId,
-          reinterpret_cast<const unsigned char *>(password.c_str()),
-          password.length() + 1, "AES")) {
+          options_id.c_str(), kAuthId,
+          reinterpret_cast<const unsigned char *>(options_json_str.c_str()),
+          options_json_str.length(), "SECRET")) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to store keyring data");
     return false;
@@ -290,17 +295,25 @@ bool set_keyring_password(const std::string &password_id,
   return true;
 }
 
-bool generate_keyring_password(std::string &password_id) {
-  if (!generate_keyring_password_id(password_id)) {
+bool generate_keyring_options(std::string &options_id) {
+  if (!generate_keyring_options_id(options_id)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to generate password ID");
+                    "Failed to generate options ID");
     return false;
   }
 
   std::string password;
   get_random_string(password);
 
-  return set_keyring_password(password_id, password);
+  const auto options = encryption::EncryptionOptions::generate(password);
+
+  if (!options->check_valid()) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to generate options");
+    return false;
+  }
+
+  return set_keyring_options(options_id, options->to_json_string());
 }
 
 }  // namespace
@@ -318,71 +331,80 @@ bool check_keyring_initialized() noexcept {
   return component_status->is_initialized();
 }
 
-bool check_generate_initial_password() noexcept {
-  std::string password_id;
+bool check_generate_initial_encryption_options() noexcept {
+  std::string options_id;
 
-  if (!get_active_keyring_password_key(password_id)) {
+  if (!get_active_keyring_options_key(options_id)) {
     return false;
   }
 
-  if (password_id.empty() && !generate_keyring_password(password_id)) {
+  if (options_id.empty() && !generate_keyring_options(options_id)) {
     return false;
   }
 
-  SysVars::set_encryption_password_id(password_id);
+  SysVars::set_encryption_options_id(options_id);
 
   return true;
 }
 
-bool get_encryption_password(std::string &password) noexcept {
-  password.clear();
-  std::string password_id;
+std::unique_ptr<encryption::EncryptionOptions>
+get_encryption_options() noexcept {
+  std::string options_id;
 
-  if (!get_active_keyring_password_key(password_id)) {
-    return false;
+  if (!get_active_keyring_options_key(options_id)) {
+    return {};
   }
 
-  return get_encryption_password(password_id, password);
+  return get_encryption_options(options_id);
 }
 
-bool get_encryption_password(const std::string &password_id,
-                             std::string &password) noexcept {
-  password.clear();
+std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(
+    const std::string &options_id) noexcept {
+  std::string options_json_str;
 
-  if (password_id.empty() || !get_keyring_password(password_id, password)) {
-    return false;
+  if (options_id.empty() ||
+      !get_keyring_options(options_id, options_json_str)) {
+    return {};
   }
 
-  return true;
+  return encryption::EncryptionOptions::from_json_string(options_json_str);
 }
 
-bool set_encryption_password(const std::string &password) noexcept {
-  std::string password_id;
+bool set_encryption_options(const std::string &password) noexcept {
+  std::string options_id;
 
-  if (!generate_keyring_password_id(password_id)) {
+  if (!generate_keyring_options_id(options_id)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to generate password ID");
+                    "Failed to generate options ID");
     return false;
   }
 
-  if (!set_keyring_password(password_id, password)) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to set password");
+  const auto options = encryption::EncryptionOptions::generate(password);
+
+  if (!options->check_valid()) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to generate options");
     return false;
   }
 
-  SysVars::set_encryption_password_id(password_id);
+  if (!set_keyring_options(options_id, options->to_json_string())) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to set options");
+    return false;
+  }
+
+  SysVars::set_encryption_options_id(options_id);
 
   return true;
 }
 
-void prune_encryption_passwords(
+void prune_encryption_options(
     uint64_t remove_after_days,
     const std::vector<std::string> &existing_log_names) noexcept {
-  PasswordIdList id_list;
+  OptionsIdList id_list;
 
-  if (!get_keyring_password_key_list_sorted(id_list)) {
+  if (!get_keyring_options_key_list_sorted(id_list)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to fetch password ids");
+                    "Failed to fetch options ids");
     return;
   }
 
@@ -399,23 +421,23 @@ void prune_encryption_passwords(
     return;
   }
 
-  const std::regex file_pwd_id_regex(R"(.*\.(\d{8}T\d{6}-\d+)\.enc)");
-  const std::regex keyring_pwd_id_regex(R"(.*\-(\d{8}T\d{6}\-\d+).*)");
+  const std::regex file_opt_id_regex(file_opt_id_pattern);
+  const std::regex keyring_opt_id_regex(keyring_opt_id_pattern);
 
-  std::unordered_set<std::string> used_password_ids;
+  std::unordered_set<std::string> used_opts_ids;
 
   for (const auto &file_name : existing_log_names) {
     std::smatch file_match;
-    if (std::regex_match(file_name, file_match, file_pwd_id_regex)) {
-      used_password_ids.insert(file_match[1].str());
+    if (std::regex_match(file_name, file_match, file_opt_id_regex)) {
+      used_opts_ids.insert(file_match[1].str());
     }
   }
 
   for (const auto &el : id_list) {
     std::smatch keyring_match;
-    if (!std::regex_match(el.second, keyring_match, keyring_pwd_id_regex) ||
-        used_password_ids.count(keyring_match[1].str())) {
-      // password_id is still used by some encrypted log
+    if (!std::regex_match(el.second, keyring_match, keyring_opt_id_regex) ||
+        used_opts_ids.count(keyring_match[1].str())) {
+      // options_id is still used by some encrypted log
       // or failed to match key_id
       continue;
     }
@@ -426,13 +448,27 @@ void prune_encryption_passwords(
 
     if (writer_srv->remove(el.second.c_str(), kAuthId)) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to remove password with ID: %s",
+                      "Failed to remove options with ID: %s",
                       el.second.c_str());
     }
   }
 }
 
-std::string get_password_id_timestamp(const std::string &password_id) noexcept {
-  return password_id.substr(strlen(kAuthId) + 1);
+std::string get_options_id_timestamp(const std::string &options_id) noexcept {
+  return options_id.substr(strlen(kAuthId) + 1);
 }
+
+std::string get_options_id_for_file_name(
+    const std::string &file_name) noexcept {
+  std::stringstream ss;
+  std::smatch file_match;
+  const std::regex opt_id_regex(file_opt_id_pattern);
+
+  if (std::regex_match(file_name, file_match, opt_id_regex)) {
+    ss << kAuthId << "-" << file_match[1].str();
+  }
+
+  return ss.str();
+}
+
 }  // namespace audit_log_filter::audit_keyring

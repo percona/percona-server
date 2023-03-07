@@ -10,7 +10,7 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 SELECT audit_log_rotate();
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
---source validate_xml_logs.inc
+--source validate_logs_format.inc
 
 --echo #
 --echo # Cleanup

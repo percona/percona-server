@@ -101,8 +101,10 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
 
   /**
    * @brief Rotate log file.
+   *
+   * @param result File rotation result
    */
-  void rotate() noexcept override;
+  void rotate(FileRotationResult *result) noexcept override;
 
  private:
   bool m_is_rotating;

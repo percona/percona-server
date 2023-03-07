@@ -232,7 +232,17 @@ class LogRecordFormatter<AuditLogFormatType::Csv>
    *
    * @return Escape rules
    */
-  const EscapeRulesContainer &get_escape_rules() const noexcept override;
+  [[nodiscard]] const EscapeRulesContainer &get_escape_rules()
+      const noexcept override;
+
+  /**
+   * @brief Get string representation of extra attributes
+   *        for audit log record.
+   * @param info Extended record info
+   * @return Formatted string
+   */
+  [[nodiscard]] std::string extra_attrs_to_string(
+      const ExtendedInfo &info) const noexcept override;
 };
 
 using LogRecordFormatterCsv = LogRecordFormatter<AuditLogFormatType::Csv>;

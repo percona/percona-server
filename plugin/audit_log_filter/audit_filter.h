@@ -16,13 +16,14 @@
 #ifndef AUDIT_LOG_FILTER_FILTER_H_INCLUDED
 #define AUDIT_LOG_FILTER_FILTER_H_INCLUDED
 
+#include "plugin/audit_log_filter/audit_action.h"
 #include "plugin/audit_log_filter/audit_record.h"
-#include "plugin/audit_log_filter/audit_rule.h"
-#include "plugin/audit_log_filter/audit_rule_registry.h"
 
 #include "mysql/plugin_audit.h"
 
 namespace audit_log_filter {
+
+class AuditRule;
 
 /**
  * Implements Audit Rule application logic

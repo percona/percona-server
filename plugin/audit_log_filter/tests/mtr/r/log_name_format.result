@@ -6,49 +6,49 @@
 # ----------------------------------------------------------------------
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 #
 # With compression
 # restart: --audit-log-filter-compression=GZIP
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 #
 # With encryption
 # restart: --audit-log-filter-encryption=AES
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 #
 # With compression and encryption
 # restart: --audit-log-filter-compression=GZIP --audit-log-filter-encryption=AES
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance

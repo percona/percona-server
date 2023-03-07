@@ -26,9 +26,9 @@
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
-#include "sql/mysqld.h"
-
 #include <filesystem>
+#include <memory>
+#include <numeric>
 #include <queue>
 
 namespace audit_log_filter::log_writer {
@@ -60,10 +60,10 @@ FileWriterPtr get_file_writer(FileHandle &file_handle) {
     writer = std::make_unique<FileWriterBuffering>(
         std::move(writer), SysVars::get_buffer_size(),
         strategy_type == AuditLogStrategyType::Performance);
+  }
 
-    if (!writer->init()) {
-      return nullptr;
-    }
+  if (!writer->init()) {
+    return nullptr;
   }
 
   return writer;
@@ -79,7 +79,21 @@ LogWriter<AuditLogHandlerType::File>::LogWriter(
       m_is_opened{false},
       m_file_writer{nullptr} {}
 
-LogWriter<AuditLogHandlerType::File>::~LogWriter() { do_close_file(); }
+LogWriter<AuditLogHandlerType::File>::~LogWriter() {
+  do_close_file();
+
+  const auto current_log_path = FileHandle::get_not_rotated_file_path(
+      SysVars::get_file_dir(), SysVars::get_file_name());
+  auto rotation_result = std::make_unique<log_writer::FileRotationResult>();
+  FileHandle::rotate(current_log_path, rotation_result.get());
+
+  if (rotation_result->error_code != 0) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to rotate audit filter log: %i, %s",
+                    rotation_result->error_code,
+                    rotation_result->status_string.c_str());
+  }
+}
 
 bool LogWriterFile::init() noexcept {
   m_file_writer = get_file_writer(m_file_handle);
@@ -90,13 +104,15 @@ bool LogWriterFile::open() noexcept {
   assert(m_file_writer != nullptr);
 
   const auto current_log_path = FileHandle::get_not_rotated_file_path(
-      mysql_data_home, SysVars::get_file_name());
-  auto ec = FileHandle::rotate(current_log_path);
+      SysVars::get_file_dir(), SysVars::get_file_name());
+  auto rotation_result = std::make_unique<log_writer::FileRotationResult>();
+  FileHandle::rotate(current_log_path, rotation_result.get());
 
-  if (ec.value() != 0) {
+  if (rotation_result->error_code != 0) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to rotate audit filter log: %i, %s", ec.value(),
-                    ec.message().c_str());
+                    "Failed to rotate audit filter log: %i, %s",
+                    rotation_result->error_code,
+                    rotation_result->status_string.c_str());
     return false;
   }
 
@@ -106,7 +122,7 @@ bool LogWriterFile::open() noexcept {
 bool LogWriterFile::close() noexcept { return do_close_file(); }
 
 bool LogWriterFile::do_open_file() noexcept {
-  auto file_path = std::filesystem::path{mysql_data_home} /
+  auto file_path = std::filesystem::path{SysVars::get_file_dir()} /
                    std::filesystem::path{SysVars::get_file_name()};
   if (SysVars::get_compression_type() != AuditLogCompressionType::None) {
     file_path += ".gz";
@@ -115,8 +131,8 @@ bool LogWriterFile::do_open_file() noexcept {
   if (SysVars::get_log_encryption_enabled()) {
     std::stringstream suffix;
     suffix << "."
-           << audit_keyring::get_password_id_timestamp(
-                  SysVars::get_encryption_password_id())
+           << audit_keyring::get_options_id_timestamp(
+                  SysVars::get_encryption_options_id())
                   .c_str()
            << ".enc";
     file_path += suffix.str();
@@ -138,7 +154,7 @@ bool LogWriterFile::do_open_file() noexcept {
   }
 
   SysVars::set_total_log_size(FileHandle::get_total_log_size(
-      mysql_data_home, SysVars::get_file_name()));
+      SysVars::get_file_dir(), SysVars::get_file_name()));
   SysVars::set_current_log_size(get_log_size());
 
   init_formatter();
@@ -188,7 +204,7 @@ void LogWriterFile::write(const std::string &record,
 
   if (file_size_limit > 0 && !m_is_rotating &&
       file_size_limit < get_log_size()) {
-    rotate();
+    rotate(nullptr);
     prune();
   }
 }
@@ -197,7 +213,7 @@ uint64_t LogWriterFile::get_log_size() const noexcept {
   return m_file_handle.get_file_size();
 }
 
-void LogWriterFile::rotate() noexcept {
+void LogWriterFile::rotate(FileRotationResult *result) noexcept {
   std::lock_guard<std::recursive_mutex> write_guard{m_write_lock};
 
   m_is_rotating = true;
@@ -205,12 +221,18 @@ void LogWriterFile::rotate() noexcept {
 
   do_close_file();
 
-  auto ec = FileHandle::rotate(current_log_path);
+  std::unique_ptr<FileRotationResult> local_result;
+  if (result == nullptr) {
+    local_result = std::make_unique<FileRotationResult>();
+    result = local_result.get();
+  }
 
-  if (ec.value() != 0) {
+  FileHandle::rotate(current_log_path, result);
+
+  if (result->error_code != 0) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to rotate audit filter log: %i, %s", ec.value(),
-                    ec.message().c_str());
+                    "Failed to rotate audit filter log: %i, %s",
+                    result->error_code, result->status_string.c_str());
   }
 
   do_open_file();
@@ -228,8 +250,8 @@ void LogWriterFile::prune() noexcept {
   const auto prune_seconds = SysVars::get_log_prune_seconds();
 
   if (log_max_size > 0) {
-    auto log_file_list =
-        FileHandle::get_prune_files(mysql_data_home, SysVars::get_file_name());
+    auto log_file_list = FileHandle::get_prune_files(SysVars::get_file_dir(),
+                                                     SysVars::get_file_name());
 
     ulonglong current_logs_size = std::accumulate(
         log_file_list.begin(), log_file_list.end(), 0,
@@ -259,8 +281,8 @@ void LogWriterFile::prune() noexcept {
       file_queue.pop();
     }
   } else if (prune_seconds > 0) {
-    auto log_file_list =
-        FileHandle::get_prune_files(mysql_data_home, SysVars::get_file_name());
+    auto log_file_list = FileHandle::get_prune_files(SysVars::get_file_dir(),
+                                                     SysVars::get_file_name());
 
     for (const auto &entry : log_file_list) {
       if (entry.age > prune_seconds) {
@@ -270,7 +292,7 @@ void LogWriterFile::prune() noexcept {
   }
 
   SysVars::set_total_log_size(FileHandle::get_total_log_size(
-      mysql_data_home, SysVars::get_file_name()));
+      SysVars::get_file_dir(), SysVars::get_file_name()));
 }
 
 }  // namespace audit_log_filter::log_writer

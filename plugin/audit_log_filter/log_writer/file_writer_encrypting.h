@@ -18,7 +18,7 @@
 
 #include "file_writer_decorator_base.h"
 
-#include <openssl/types.h>
+#include <openssl/evp.h>
 
 #include <memory>
 

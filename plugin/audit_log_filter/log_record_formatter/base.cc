@@ -19,6 +19,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <unordered_map>
 
 namespace audit_log_filter::log_record_formatter {
 namespace {

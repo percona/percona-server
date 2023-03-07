@@ -142,7 +142,7 @@ struct AuditRecordStopAudit {
 struct AuditRecordUnknown {
   std::string_view event_class_name;
   std::string_view event_subclass_name;
-  mysql_event_class_t event_class;
+  audit_filter_event_class_t event_class;
   const void *event;
   ExtendedInfo extended_info;
 };

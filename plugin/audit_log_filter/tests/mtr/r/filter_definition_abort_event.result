@@ -2,6 +2,12 @@ CREATE TABLE t1 (c1 INT);
 CREATE TABLE t2 (c2 INT);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '111';
+GRANT AUDIT_ADMIN ON *.* to 'user1'@'localhost';
+CREATE USER 'user2'@'localhost' IDENTIFIED BY '222';
+GRANT SYSTEM_USER ON *.* to 'user2'@'localhost';
+GRANT AUDIT_ABORT_EXEMPT ON *.* to 'user2'@'localhost';
 #
 # Check read-only access to a table
 SELECT audit_log_filter_set_filter('table_readonly', '{
@@ -31,17 +37,17 @@ SELECT audit_log_filter_set_user('%', 'table_readonly');
 audit_log_filter_set_user('%', 'table_readonly')
 OK
 INSERT INTO t1 VALUES (2);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 INSERT INTO t2 VALUES (2);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 UPDATE t1 SET c1 = 3 WHERE c1 = 2;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_UPDATE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_UPDATE';1).
 UPDATE t2 SET c2 = 3 WHERE c2 = 2;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_UPDATE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_UPDATE';1).
 DELETE FROM t1 WHERE c1 = 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_DELETE';1).
 DELETE FROM t2 WHERE c2 = 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_DELETE';1).
 SELECT * FROM t1;
 c1
 1
@@ -84,16 +90,16 @@ SELECT audit_log_filter_set_user('%', 'no_t1_access');
 audit_log_filter_set_user('%', 'no_t1_access')
 OK
 INSERT INTO t1 VALUES (2);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 INSERT INTO t2 VALUES (2);
 UPDATE t1 SET c1 = 3 WHERE c1 = 2;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_UPDATE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_UPDATE';1).
 UPDATE t2 SET c2 = 3 WHERE c2 = 2;
 DELETE FROM t1 WHERE c1 = 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_DELETE';1).
 DELETE FROM t2 WHERE c2 = 1;
 SELECT * FROM t1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_READ';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_READ';1).
 SELECT * FROM t2;
 c2
 3
@@ -125,10 +131,30 @@ OK
 SELECT audit_log_filter_set_user('%', 'abort_message');
 audit_log_filter_set_user('%', 'abort_message')
 OK
-INSTALL COMPONENT "file://component_audit_api_message_emit";
 SELECT audit_api_message_emit_udf('component_text', 'producer_text', 'message_text', 'key', 'value') AS 'Message';
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_MESSAGE_USER';1).
-UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_MESSAGE_USER';1).
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+#
+# Check user with AUDIT_ABORT_EXEMPT privilege is able to execute blocked statement
+DELETE FROM t1;
+DELETE FROM t2;
+SELECT audit_log_filter_set_user('user2@localhost', 'no_t1_access');
+audit_log_filter_set_user('user2@localhost', 'no_t1_access')
+OK
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (2);
+UPDATE t1 SET c1 = 3 WHERE c1 = 2;
+UPDATE t2 SET c2 = 3 WHERE c2 = 2;
+DELETE FROM t1 WHERE c1 = 1;
+DELETE FROM t2 WHERE c2 = 1;
+SELECT * FROM t1;
+c1
+3
+SELECT * FROM t2;
+c2
+3
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;
@@ -138,3 +164,6 @@ audit_log_filter_flush()
 OK
 DROP TABLE t1;
 DROP TABLE t2;
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+DROP USER 'user1'@'localhost';
+DROP USER 'user2'@'localhost';

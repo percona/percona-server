@@ -160,10 +160,13 @@ void AuditLogUser::index_scan_end(TableAccessContext *ta_context,
 TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
   container.clear();
 
+  DBUG_EXECUTE_IF("audit_log_filter_fail_filters_flush",
+                  { return TableResult::Fail; });
+
   auto ta_context = open_table();
 
   if (ta_context == nullptr) {
-    return TableResult::MissingTable;
+    return TableResult::Fail;
   }
 
   my_service<SERVICE_TYPE(mysql_charset)> charset_srv(

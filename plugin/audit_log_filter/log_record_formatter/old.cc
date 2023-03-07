@@ -386,4 +386,9 @@ void LogRecordFormatterOld::apply_debug_info(
   record_str.insert(tag_begin + insert_after_tag.length(), debug_info.str());
 }
 
+std::string LogRecordFormatterOld::extra_attrs_to_string(
+    const ExtendedInfo &info [[maybe_unused]]) const noexcept {
+  return "";
+}
+
 }  // namespace audit_log_filter::log_record_formatter

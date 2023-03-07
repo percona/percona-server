@@ -152,6 +152,16 @@ class LogRecordFormatter<AuditLogFormatType::Old>
   void apply_debug_info(std::string_view event_class_name,
                         std::string_view event_subclass_name,
                         std::string &record_str) noexcept override;
+
+ private:
+  /**
+   * @brief Get string representation of extra attributes
+   *        for audit log record.
+   * @param info Extended record info
+   * @return Formatted string
+   */
+  [[nodiscard]] std::string extra_attrs_to_string(
+      const ExtendedInfo &info) const noexcept override;
 };
 
 using LogRecordFormatterOld = LogRecordFormatter<AuditLogFormatType::Old>;

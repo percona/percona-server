@@ -229,6 +229,8 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads. */
 bool srv_use_native_aio = false;
 
+bool srv_use_native_uring = false;
+
 bool srv_numa_interleave = false;
 
 #ifdef UNIV_DEBUG

@@ -28,6 +28,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "os0file.h"
 
+#include "srv0shutdown.h"
+#include "unittest/gunit/thread_utils.h"
+
+using thread::Notification;
+using thread::Thread;
+
 extern bool srv_use_fdatasync;
 
 class os0file_t : public ::testing::Test {
@@ -128,6 +134,214 @@ class os0file_t : public ::testing::Test {
   pfs_os_file_t test_file;
   static constexpr char TEST_FILE_NAME[] = "os0file-t-temp.txt";
 };
+
+class AIO_worker_thread : public Thread {
+ public:
+  void set_segment(ulint segment) { m_segment = segment; }
+
+  void run() override;
+
+ private:
+  ulint m_segment;
+};
+
+void AIO_worker_thread::run() {
+  while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
+         !os_aio_all_slots_free()) {
+    fil_node_t *m1;
+    void *m2;
+    IORequest type;
+    auto db_err = os_aio_handler(m_segment, &m1, &m2, &type);
+    EXPECT_EQ(db_err, DB_SUCCESS);
+    if (m2 != nullptr) {
+      Notification *done = reinterpret_cast<Notification*>(m2);
+      done->notify();
+    }
+  }
+}
+
+extern bool srv_use_native_aio;
+extern bool srv_use_native_uring;
+
+class os0file_aio_t : public os0file_t {
+ protected:
+  void SetUp() override {
+    srv_shutdown_state.store(SRV_SHUTDOWN_NONE);
+
+    os_event_global_init();
+    sync_check_init(10);
+    os_create_block_cache();
+
+    srv_use_native_aio = false;
+    srv_use_native_uring = true;
+
+    bool init_success = os_aio_init(READER_THREADS, WRITER_THREADS);
+    EXPECT_TRUE(init_success);
+
+    os0file_t::SetUp();
+
+    for (ulint t = 0; t < 2 + READER_THREADS + WRITER_THREADS; ++t) {
+      m_thread[t].set_segment(t);
+      m_thread[t].start();
+    }
+  }
+
+  void TearDown() override {
+    srv_shutdown_state.store(SRV_SHUTDOWN_EXIT_THREADS);
+
+    for (ulint t = 0; t < 2 + READER_THREADS + WRITER_THREADS; ++t) {
+      m_thread[t].join();
+    }
+
+    os0file_t::TearDown();
+
+    os_aio_free();
+    sync_check_close();
+    os_event_global_destroy();
+  }
+
+protected:
+  AIO_worker_thread m_thread[10];
+
+  static constexpr ulint READER_THREADS = 4;
+  static constexpr ulint WRITER_THREADS = 4;
+  static constexpr ulint PENDING_IOS_PER_THREAD = 256;
+};
+
+TEST_F(os0file_aio_t, basic_write_read) {
+  static constexpr char TEST_DATA[] = "testdata42";
+  static constexpr size_t TEST_DATA_LEN = sizeof(TEST_DATA);
+  IORequest write_request(IORequest::WRITE);
+  char write_buffer[OS_FILE_LOG_BLOCK_SIZE];
+  Notification write_done;
+
+  memset(write_buffer, 0, sizeof(write_buffer));
+  memcpy(write_buffer, TEST_DATA, TEST_DATA_LEN);
+
+  auto write_err =
+        os_aio_func(write_request, AIO_mode::NORMAL, TEST_FILE_NAME,  test_file, write_buffer, 0, sizeof(write_buffer),
+                    false, nullptr, &write_done, 0, nullptr, false);
+  EXPECT_EQ(write_err, DB_SUCCESS);
+
+  write_done.wait_for_notification();
+
+  IORequest read_request(IORequest::READ);
+  char read_buffer[OS_FILE_LOG_BLOCK_SIZE];
+  Notification read_done;
+
+  auto read_err =
+        os_aio_func(read_request, AIO_mode::NORMAL, TEST_FILE_NAME,  test_file, read_buffer, 0, sizeof(read_buffer),
+                    false, nullptr, &read_done, 0, nullptr, false);
+  EXPECT_EQ(read_err, DB_SUCCESS);
+  read_done.wait_for_notification();
+
+  EXPECT_FALSE(memcmp(read_buffer, read_buffer, TEST_DATA_LEN));
+}
+
+TEST_F(os0file_aio_t, many_writes_reads) {
+  static constexpr int REQUESTS_NUMBER = WRITER_THREADS * PENDING_IOS_PER_THREAD + 10;
+
+  char *write_buffer[REQUESTS_NUMBER];
+  Notification write_done[REQUESTS_NUMBER];
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+    write_buffer[i] = new char [OS_FILE_LOG_BLOCK_SIZE];
+    memset(write_buffer[i], i & 0xFF, OS_FILE_LOG_BLOCK_SIZE);
+  }
+
+  auto begin = std::chrono::high_resolution_clock::now();
+  for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+    IORequest write_request(IORequest::WRITE);
+    auto write_err =
+          os_aio_func(write_request, AIO_mode::NORMAL, TEST_FILE_NAME,  test_file,
+                      write_buffer[i], i * OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE,
+                      false, nullptr, &(write_done[i]), 0, nullptr, false);
+    EXPECT_EQ(write_err, DB_SUCCESS);
+  }
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i)
+    write_done[i].wait_for_notification();
+
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::nanoseconds duration = end - begin;
+  std::cout << "Write duration total: " << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() << " ms" << std::endl;
+
+
+  char *read_buffer[REQUESTS_NUMBER];
+  Notification read_done[REQUESTS_NUMBER];
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i)
+    read_buffer[i] = new char [OS_FILE_LOG_BLOCK_SIZE];
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+    IORequest read_request(IORequest::READ);
+    auto read_err =
+          os_aio_func(read_request, AIO_mode::NORMAL, TEST_FILE_NAME,  test_file,
+                      read_buffer[i], i * OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE,
+                      false, nullptr, &(read_done[i]), 0, nullptr, false);
+    EXPECT_EQ(read_err, DB_SUCCESS);
+  }
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i)
+    read_done[i].wait_for_notification();
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+    char cmp_buffer[OS_FILE_LOG_BLOCK_SIZE];
+    memset(cmp_buffer, i & 0xFF, OS_FILE_LOG_BLOCK_SIZE);
+    read_done[i].wait_for_notification();
+    EXPECT_FALSE(memcmp(read_buffer[i], cmp_buffer, OS_FILE_LOG_BLOCK_SIZE));
+  }
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+    delete [] write_buffer[i];
+    delete [] read_buffer[i];
+  }
+}
+
+TEST_F(os0file_aio_t, buffered_reads) {
+  static constexpr int REQUESTS_NUMBER = PENDING_IOS_PER_THREAD + 10;
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+    IORequest write_request(IORequest::WRITE);
+    char write_buffer[OS_FILE_LOG_BLOCK_SIZE];
+    memset(write_buffer, i & 0xFF, OS_FILE_LOG_BLOCK_SIZE);
+
+    auto write_err =
+        os_file_write_func(write_request, TEST_FILE_NAME, test_file.m_file, write_buffer,
+                           i * OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE);
+    EXPECT_EQ(write_err, DB_SUCCESS);
+  }
+
+  char *read_buffer[REQUESTS_NUMBER];
+  Notification read_done[REQUESTS_NUMBER];
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i)
+    read_buffer[i] = new char [OS_FILE_LOG_BLOCK_SIZE];
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+    IORequest read_request(IORequest::READ);
+    auto read_err =
+          os_aio_func(read_request, AIO_mode::NORMAL, TEST_FILE_NAME,  test_file,
+                      read_buffer[i], i * OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE,
+                      false, nullptr, &(read_done[i]), 0, nullptr, true);
+    EXPECT_EQ(read_err, DB_SUCCESS);
+  }
+
+  os_aio_dispatch_read_array_submit();
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i)
+    read_done[i].wait_for_notification();
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+    char cmp_buffer[OS_FILE_LOG_BLOCK_SIZE];
+    memset(cmp_buffer, i & 0xFF, OS_FILE_LOG_BLOCK_SIZE);
+    read_done[i].wait_for_notification();
+    EXPECT_FALSE(memcmp(read_buffer[i], cmp_buffer, OS_FILE_LOG_BLOCK_SIZE));
+  }
+
+  for (int i = 0; i < REQUESTS_NUMBER; ++i)
+    delete [] read_buffer[i];
+}
 
 TEST_F(os0file_t, hundred_10_byte_writes_reads_flushes_with_fsync) {
   srv_use_fdatasync = false;

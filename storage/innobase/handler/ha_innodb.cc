@@ -5347,6 +5347,15 @@ static int innodb_init_params() {
     dblwr::g_mode = dblwr::Mode::OFF;
   }
 
+#ifdef LINUX_NATIVE_URING
+  if (srv_use_native_uring) {
+    ib::info(ER_IB_MSG_541) << "Using Linux uring AIO";
+    srv_use_native_aio = false;
+  }
+#else
+  srv_use_native_uring = false;
+#endif
+
 #ifdef LINUX_NATIVE_AIO
   if (srv_use_native_aio) {
     ib::info(ER_IB_MSG_541) << "Using Linux native AIO";
@@ -23944,6 +23953,12 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
                          "Use native AIO if supported on this platform.",
                          nullptr, nullptr, true);
 
+// TODO/FIXME/QQ: Should we simply have one variable for this?
+static MYSQL_SYSVAR_BOOL(use_native_uring, srv_use_native_uring,
+                         PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+                         "Use native io_uring if supported on this platform.",
+                         nullptr, nullptr, true);
+
 #ifdef HAVE_LIBNUMA
 static MYSQL_SYSVAR_BOOL(
     numa_interleave, srv_numa_interleave,
@@ -24425,6 +24440,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(show_locks_held),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(use_native_aio),
+    MYSQL_SYSVAR(use_native_uring),
 #ifdef HAVE_LIBNUMA
     MYSQL_SYSVAR(numa_interleave),
 #endif /* HAVE_LIBNUMA */

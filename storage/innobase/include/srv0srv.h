@@ -422,6 +422,7 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern bool srv_use_native_aio;
+extern bool srv_use_native_uring;
 extern bool srv_numa_interleave;
 
 /* The innodb_directories variable value. This a list of directories

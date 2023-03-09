@@ -78,6 +78,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #endif /* !UNIV_HOTBACKUP */
 #endif /* LINUX_NATIVE_AIO */
 
+#if defined(LINUX_NATIVE_URING)
+#if !defined(UNIV_HOTBACKUP)
+#include <liburing.h>
+#else /* !UNIV_HOTBACKUP */
+#undef LINUX_NATIVE_URING
+#endif /* !UNIV_HOTBACKUP */
+#endif /* LINUX_NATIVE_URING */
+
 #ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
 #include <fcntl.h>
 #include <linux/falloc.h>
@@ -355,11 +363,14 @@ struct Slot {
   /** length of the block to read or write */
   DWORD len{0};
 
-#elif defined(LINUX_NATIVE_AIO)
+#elif defined(LINUX_NATIVE_AIO) || defined(LINUX_NATIVE_URING)
+
+#if defined(LINUX_NATIVE_AIO)
   /** Linux control block for aio */
   struct iocb control;
+#endif /* LINUX_NATIVE_AIO */
 
-  /** AIO return code */
+  /** AIO/uring return code */
   int ret{0};
 
   /** bytes written/read. */
@@ -521,7 +532,7 @@ class AIO {
   @param[in]            should_buffer   should buffer the request
                                         rather than submit
   @return true on success. */
-  [[nodiscard]] bool linux_dispatch(Slot *slot, bool should_buffer);
+  [[nodiscard]] bool linux_dispatch_aio(Slot *slot, bool should_buffer);
 
   /** Accessor for an AIO event
   @param[in]    index   Index into the array
@@ -555,6 +566,13 @@ class AIO {
   @return true if supported, false otherwise. */
   [[nodiscard]] static bool is_linux_native_aio_supported();
 #endif /* LINUX_NATIVE_AIO */
+
+#if defined(LINUX_NATIVE_URING)
+  [[nodiscard]] bool linux_dispatch_uring(Slot *slot, bool should_buffer);
+
+  static dberr_t uring_handler(ulint global_segment, fil_node_t **m1, void **m2,
+                               IORequest *type);
+#endif /* LINUX_NATIVE_URING */
 
 #ifdef WIN_ASYNC_IO
   /** Wakes up all async i/o threads in the array in Windows async I/O at
@@ -599,7 +617,9 @@ class AIO {
 
     return (&(*m_handles)[segment * slots_per_segment()]);
   }
+#endif /* _WIN32 */
 
+#if defined(_WIN32) || defined(LINUX_NATIVE_URING)
   /** @return true if no slots are reserved */
   [[nodiscard]] bool is_empty() const {
     ut_ad(is_mutex_owned());
@@ -710,6 +730,10 @@ class AIO {
   [[nodiscard]] dberr_t init_linux_native_aio();
 #endif /* LINUX_NATIVE_AIO */
 
+#if defined(LINUX_NATIVE_URING)
+  [[nodiscard]] dberr_t init_linux_native_uring();
+#endif /* LINUX_NATIVE_URING */
+
   /** Submit buffered AIO requests on the array to the kernel.
   (low level function).
   @param[in] acquire_mutex specifies whether to lock array mutex
@@ -776,11 +800,19 @@ class AIO {
   is n_slots. It is divided into n_segments segments. Pending requests
   on each segment are buffered separately. */
   struct iocb **m_pending;
+#endif /* LINUX_NATIV_AIO */
 
+#if defined(LINUX_NATIVE_URING)
+  io_uring *m_uring;
+
+  SysMutex *m_uring_mutex;
+#endif /* LINUX_NATIV_URING */
+
+#if defined(LINUX_NATIVE_AIO) || defined(LINUX_NATIVE_URING)
   /** Array of length n_segments. Each element counts the number of not
   submitted aio request on that segment. */
   ulint *m_count;
-#endif /* LINUX_NATIV_AIO */
+#endif /* LINUX_NATIVE_AIO || LINUX_NATIVE_URING */
 
   /** The aio arrays for non-ibuf i/o and ibuf i/o. These are NULL when the
   module has not yet been initialized. */
@@ -814,6 +846,10 @@ static constexpr std::chrono::milliseconds OS_AIO_IO_SETUP_RETRY_SLEEP{500};
 /** number of attempts before giving up on io_setup(). */
 static const int OS_AIO_IO_SETUP_RETRY_ATTEMPTS = 5;
 #endif /* LINUX_NATIVE_AIO */
+#if defined(LINUX_NATIVE_URING)
+/** timeout for io_uring_wait_cqe_timeout() call = 500ms. */
+static constexpr uint64_t OS_URING_WAIT_TIMEOUT = 500000000UL;
+#endif /* LINUX_NATIVE_URING */
 
 /** Array of events used in simulated AIO */
 static os_event_t *os_aio_segment_wait_events = nullptr;
@@ -1610,10 +1646,15 @@ void AIO::release(Slot *slot) {
 
   ResetEvent(slot->handle);
 
-#elif defined(LINUX_NATIVE_AIO)
+#elif defined(LINUX_NATIVE_AIO) || defined(LINUX_NATIVE_URING)
 
+#if defined(LINUX_NATIVE_AIO)
   if (srv_use_native_aio) {
     memset(&slot->control, 0x0, sizeof(slot->control));
+  }
+#endif /* LINUX_NATIVE_AIO */
+
+  if (srv_use_native_aio || srv_use_native_uring) {
     slot->ret = 0;
     slot->n_bytes = 0;
   } else {
@@ -2607,6 +2648,37 @@ void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex
 void AIO::os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex
                                                           [[maybe_unused]],
                                                           const AIO *arr) {
+#if defined(LINUX_NATIVE_URING)
+  if (srv_use_native_uring) {
+    /*
+      Submit requests that were added to ring buffers but have not been
+      passed to OS yet for all segments that have them.
+    */
+    for (ulint i = 0; i < arr->m_n_segments; i++) {
+      mutex_enter(&arr->m_uring_mutex[i]);
+      while (arr->m_count[i] != 0) {
+        int res = io_uring_submit(&arr->m_uring[i]);
+        if (res < 0) {
+          mutex_exit(&arr->m_uring_mutex[i]);
+          /* Treat error during submission as fatal. */
+          // QQ/TODO/FIXME: Can we do something better?
+          const char *errmsg = strerror(-res);
+          ib::fatal(UT_LOCATION_HERE)
+              << "Trying to sumbit " << arr->m_count[i] << " IO requests "
+              << "io_uring_submit() returned error " << -res << ": "
+              << (errmsg ? errmsg : "<unknown>");
+          break;
+        }
+        // QQ: What about 0 return value is it possible?
+        // RocksDB treat any return value other than full number
+        // of requests as error...
+        arr->m_count[i] -= res;
+        // TODO/FIXME: handle srv_stats.n_aio_submitted ?
+      }
+      mutex_exit(&arr->m_uring_mutex[i]);
+    }
+  }
+#endif
   if (!srv_use_native_aio) {
     return;
   }
@@ -2674,7 +2746,7 @@ void os_aio_dispatch_read_array_submit() {
 @param[in]      should_buffer   should buffer the request
 rather than submit
 @return true on success. */
-bool AIO::linux_dispatch(Slot *slot, bool should_buffer) {
+bool AIO::linux_dispatch_aio(Slot *slot, bool should_buffer) {
   ut_ad(slot);
   ut_a(slot->is_reserved);
   ut_ad(slot->type.validate());
@@ -2892,6 +2964,91 @@ bool AIO::is_linux_native_aio_supported() {
 }
 
 #endif /* LINUX_NATIVE_AIO */
+#if defined(LINUX_NATIVE_URING)
+/** Dispatch an AIO request to the kernel.
+@param[in,out]  slot            an already reserved slot
+@param[in]      should_buffer   should buffer the request
+rather than submit
+@return true on success. */
+bool AIO::linux_dispatch_uring(Slot *slot, bool should_buffer) {
+  ut_ad(slot);
+  ut_a(slot->is_reserved);
+  ut_ad(slot->type.validate());
+
+  ulint slots_per_segment = m_slots.size() / m_n_segments;
+  ulint uring_index = slot->pos / slots_per_segment;
+
+  /*
+    By design it is not safe to get SQEs and submit them concurrently
+    for the same ring from multiple threads. So we use mutex to make
+    it safe.
+
+    QQ: Should we use AIO::mutex instead? It is acquired and released
+        right prior to this call.
+  */
+  mutex_enter(&m_uring_mutex[uring_index]);
+
+  /* Get an SQE and fill it in. */
+  struct io_uring_sqe *sqe = io_uring_get_sqe(&m_uring[uring_index]);
+
+  if (slot->type.is_read()) {
+    io_uring_prep_read(sqe, slot->file.m_file, slot->ptr, slot->len,
+                       slot->offset);
+  } else {
+    ut_ad(slot->type.is_write());
+    io_uring_prep_write(sqe, slot->file.m_file, slot->ptr, slot->len,
+                        slot->offset);
+  }
+  io_uring_sqe_set_data(sqe, slot);
+
+  ++m_count[uring_index];
+
+  if (should_buffer) {
+    /*
+      We were asked to postpone submission of request to OS.
+      Just add request to the ring queue in this case.
+    */
+    ut_ad(this == s_reads || this == s_ibuf);
+
+    if (m_count[uring_index] < slots_per_segment) {
+      mutex_exit(&m_uring_mutex[uring_index]);
+      return true;
+    }
+
+    /* However, if segment/ring is full, submit all queued requests to OS. */
+
+    // TODO/FIXME: handle srv_stats.n_aio_submitted somehow...
+  }
+
+  do {
+    /* Finally, submit the request */
+    int ret = io_uring_submit(&m_uring[uring_index]);
+
+    /*
+      io_uring_submit() returns number of successfully queued requests
+      or -errno.
+    */
+
+    if (ret < 0) {
+      // TODO/FIXME/QQ: Smarter error handling? What about m_count?
+      errno = -ret;
+      mutex_exit(&m_uring_mutex[uring_index]);
+      return false;
+    }
+
+    // QQ: What if ret == 0? Is it possible at all?
+    // RocksDB treats any return value less than number submitted as error
+    // OTOH: See: IORING_SETUP_SUBMIT_ALL
+
+    m_count[uring_index] -= ret;
+
+  } while (m_count[uring_index]);
+
+  mutex_exit(&m_uring_mutex[uring_index]);
+
+  return true;
+}
+#endif /* LINUX_NATIVE_URING */
 
 /** Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
@@ -2954,6 +3111,7 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
       return OS_FILE_PATH_ERROR;
     case EAGAIN:
       if (srv_use_native_aio) {
+        // TODO/FIXME: Investigate this case for uring
         return OS_FILE_AIO_RESOURCES_RESERVED;
       }
       break;
@@ -5062,7 +5220,7 @@ void AIO::simulated_put_read_threads_to_sleep() {
   background threads too eagerly to allow for coalescing during
   readahead requests. */
 
-  if (srv_use_native_aio) {
+  if (srv_use_native_aio || srv_use_native_uring) {
     /* We do not use simulated AIO: do nothing */
 
     return;
@@ -6285,23 +6443,29 @@ bool os_file_check_mode(const char *name, bool read_only) {
 
 dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
                        IORequest *request) {
-  dberr_t err;
+  dberr_t err = DB_ERROR; /* Eliminate compiler warning */
 
-  if (srv_use_native_aio) {
+  if (srv_use_native_aio || srv_use_native_uring) {
     srv_set_io_thread_op_info(segment, "native aio handle");
 
 #ifdef WIN_ASYNC_IO
 
     err = os_aio_windows_handler(segment, m1, m2, request);
 
-#elif defined(LINUX_NATIVE_AIO)
+#elif defined(LINUX_NATIVE_AIO) || defined(LINUX_NATIVE_URING)
 
-    err = os_aio_linux_handler(segment, m1, m2, request);
+#if defined(LINUX_NATIVE_AIO)
+    if (srv_use_native_aio)
+      err = os_aio_linux_handler(segment, m1, m2, request);
+#endif
+
+#if defined(LINUX_NATIVE_URING)
+    if (srv_use_native_uring)
+      err = AIO::uring_handler(segment, m1, m2, request);
+#endif
+
 #else
     ut_error;
-
-    err = DB_ERROR; /* Eliminate compiler warning */
-
 #endif /* WIN_ASYNC_IO */
 
   } else {
@@ -6326,12 +6490,20 @@ AIO::AIO(latch_id_t id, ulint n, ulint segments)
       ,
       m_aio_ctx(),
       m_events(m_slots.size()),
-      m_pending(nullptr),
-      m_count(nullptr)
+      m_pending(nullptr)
 #elif defined(_WIN32)
       ,
       m_handles()
 #endif /* LINUX_NATIVE_AIO */
+#if defined(LINUX_NATIVE_URING)
+      ,
+      m_uring(nullptr),
+      m_uring_mutex(nullptr)
+#endif /* LINUX_NATIVE_URING */
+#if defined(LINUX_NATIVE_AIO) || defined(LINUX_NATIVE_URING)
+      ,
+      m_count(nullptr)
+#endif /* LINUX_NATIVE_AIO || LINUX_NATIVE_URING */
 {
   ut_a(n > 0);
   ut_a(m_n_segments > 0);
@@ -6367,13 +6539,15 @@ dberr_t AIO::init_slots() {
 
     (*m_handles)[i] = over->hEvent;
 
-#elif defined(LINUX_NATIVE_AIO)
-
+#elif defined(LINUX_NATIVE_AIO) || defined(LINUX_NATIVE_URING)
+    // QQ: This looks redundant with logic in reserve_slot()?
     slot.ret = 0;
 
     slot.n_bytes = 0;
 
+#if defined(LINUX_NATIVE_AIO)
     memset(&slot.control, 0x0, sizeof(slot.control));
+#endif /* LINUX_NATIVE_AIO */
 
 #endif /* WIN_ASYNC_IO */
   }
@@ -6419,6 +6593,37 @@ dberr_t AIO::init_linux_native_aio() {
   return (DB_SUCCESS);
 }
 #endif /* LINUX_NATIVE_AIO */
+#ifdef LINUX_NATIVE_URING
+dberr_t AIO::init_linux_native_uring() {
+  ut_a(m_uring == nullptr);
+
+  m_uring = static_cast<io_uring *>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, m_n_segments * sizeof(*m_uring)));
+  m_count = static_cast<ulint *>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, m_n_segments * sizeof(ulint)));
+
+  if (m_uring == nullptr || m_count == nullptr) {
+    return (DB_OUT_OF_MEMORY);
+  }
+
+  io_uring *ring = m_uring;
+  ulint max_events = slots_per_segment();
+
+  for (ulint i = 0; i < m_n_segments; ++i, ++ring) {
+    if (io_uring_queue_init(max_events, ring, 0)) return (DB_IO_ERROR);
+    // TODO/FIXME: Check queue size. Check necessary properties...
+  }
+
+  m_uring_mutex = ut::new_arr_withkey<SysMutex>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                ut::Count{m_n_segments});
+
+  for (ulint i = 0; i < m_n_segments; ++i) {
+    mutex_create(LATCH_ID_OS_AIO_URING, &m_uring_mutex[i]);
+  }
+
+  return (DB_SUCCESS);
+}
+#endif /* LINUX_NATIVE_URING */
 
 /** Initialise the array */
 dberr_t AIO::init() {
@@ -6440,6 +6645,16 @@ dberr_t AIO::init() {
     }
 
 #endif /* LINUX_NATIVE_AIO */
+  }
+  if (srv_use_native_uring) {
+#ifdef LINUX_NATIVE_URING
+    dberr_t err = init_linux_native_uring();
+
+    if (err != DB_SUCCESS) {
+      return (err);
+    }
+
+#endif /* LINUX_NATIVE_URING */
   }
 
   return (init_slots());
@@ -6509,6 +6724,18 @@ AIO::~AIO() {
     ut::free(m_count);
   }
 #endif /* LINUX_NATIVE_AIO */
+
+#if defined(LINUX_NATIVE_URING)
+  if (srv_use_native_uring) {
+    io_uring *ring = m_uring;
+    for (ulint i = 0; i < m_n_segments; ++i, ++ring) io_uring_queue_exit(ring);
+    ut::free(m_uring);
+    // TODO/FIXME: Add debug code?
+    ut::free(m_count);
+    for (ulint i = 0; i < m_n_segments; ++i) mutex_destroy(&m_uring_mutex[i]);
+    ut::delete_arr(m_uring_mutex);
+  }
+#endif /* LINUX_NATIVE_URING */
 
   m_slots.clear();
 }
@@ -6811,14 +7038,16 @@ void os_aio_wake_all_threads_at_shutdown() {
 
   AIO::wake_at_shutdown();
 
-#elif defined(LINUX_NATIVE_AIO)
+#elif defined(LINUX_NATIVE_AIO) || defined(LINUX_URING_AIO)
 
   /* When using native AIO interface the io helper threads
   wait on io_getevents with a timeout value of 500ms. At
   each wake up these threads check the server status.
-  No need to do anything to wake them up. */
+  No need to do anything to wake them up.
 
-  if (srv_use_native_aio) {
+  Same logic applies for io_uring case. */
+
+  if (srv_use_native_aio || srv_use_native_uring) {
     return;
   }
 
@@ -6896,7 +7125,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
 
     release();
 
-    if (!srv_use_native_aio) {
+    if (!srv_use_native_aio && !srv_use_native_uring) {
       /* If the handler threads are suspended,
       wake them so that we get more slots */
 
@@ -6924,7 +7153,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     ut_error;
   };
   size_t free_index;
-  if (srv_use_native_aio) {
+  if (srv_use_native_aio || srv_use_native_uring) {
     /* We assume the m_slots.size() cannot be changed during runtime. */
     ut_a(m_last_slot_used < m_slots.size());
     /* We iterate through slots starting with the last used and then trying next
@@ -6997,12 +7226,12 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   slot->buf_block = nullptr;
   slot->encrypt_log_buf = nullptr;
 
-  if (!srv_use_native_aio) {
+  if (!srv_use_native_aio && !srv_use_native_uring) {
     slot->buf_block = const_cast<file::Block *>(e_block);
   }
 
-  if (srv_use_native_aio && offset > 0 && type.is_write() &&
-      type.is_compressed()) {
+  if ((srv_use_native_aio || srv_use_native_uring) && offset > 0 &&
+      type.is_write() && type.is_compressed()) {
     ulint compressed_len = len;
 
     ut_ad(!type.is_log());
@@ -7030,8 +7259,8 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   /* We do encryption after compression, since if we do encryption
   before compression, the encrypted data will cause compression fail
   or low compression rate. */
-  if (srv_use_native_aio && offset > 0 && type.is_write() &&
-      (type.is_encrypted() || e_block != nullptr)) {
+  if ((srv_use_native_aio || srv_use_native_uring) && offset > 0 &&
+      type.is_write() && (type.is_encrypted() || e_block != nullptr)) {
     file::Block *encrypted_block = nullptr;
     byte *encrypt_log_buf;
 
@@ -7096,8 +7325,8 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
 
     ResetEvent(slot->handle);
   }
-#elif defined(LINUX_NATIVE_AIO)
-
+#else
+#if defined(LINUX_NATIVE_AIO)
   /* If we are not using native AIO skip this part. */
   if (srv_use_native_aio) {
     off_t aio_offset;
@@ -7124,6 +7353,16 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     slot->ret = 0;
   }
 #endif /* LINUX_NATIVE_AIO */
+#if defined(LINUX_NATIVE_URING)
+  /* QQ: Added this mostly to keep in sync with AIO case. Taking into
+   * account that these members are reset in release this looks like
+   * unnecessary. Should we remove it? */
+  if (srv_use_native_uring) {
+    slot->n_bytes = 0;
+    slot->ret = 0;
+  }
+#endif /* LINUX_NATIVE_URING */
+#endif /* WIN_ASYNC_IO */
 
   release();
 
@@ -7133,7 +7372,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
 /** Wakes up a simulated AIO I/O handler thread if it has something to do.
 @param[in]      global_segment  The number of the segment in the AIO arrays */
 void AIO::wake_simulated_handler_thread(ulint global_segment) {
-  ut_ad(!srv_use_native_aio);
+  ut_ad(!srv_use_native_aio && !srv_use_native_uring);
 
   AIO *array{};
 
@@ -7147,7 +7386,7 @@ for a local segment in the AIO array.
 @param[in]      global_segment  The number of the segment in the AIO arrays
 @param[in]      segment         The local segment in the AIO array */
 void AIO::wake_simulated_handler_thread(ulint global_segment, ulint segment) {
-  ut_ad(!srv_use_native_aio);
+  ut_ad(!srv_use_native_aio && !srv_use_native_uring);
 
   ulint n = slots_per_segment();
   ulint offset = segment * n;
@@ -7175,7 +7414,7 @@ void AIO::wake_simulated_handler_thread(ulint global_segment, ulint segment) {
 
 /** Wakes up simulated aio i/o-handler threads if they have something to do. */
 void os_aio_simulated_wake_handler_threads() {
-  if (srv_use_native_aio) {
+  if (srv_use_native_aio || srv_use_native_uring) {
     /* We do not use simulated aio: do nothing */
 
     return;
@@ -7356,6 +7595,191 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
 }
 #endif /* WIN_ASYNC_IO */
 
+#if defined(LINUX_NATIVE_URING)
+
+dberr_t AIO::uring_handler(ulint global_segment, fil_node_t **m1, void **m2,
+                           IORequest *type) {
+  AIO *array{};
+
+  const ulint segment = get_array_and_local_segment(array, global_segment);
+
+  /* Starting point of the segment we will be working on. */
+  const ulint start_pos = segment * array->slots_per_segment();
+
+  /* End point. */
+  const ulint end_pos = start_pos + array->slots_per_segment();
+
+  for (;;) {
+    srv_set_io_thread_op_info(segment, "wait io_uring aio");
+
+    io_uring_cqe *cqe;
+
+    __kernel_timespec timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = OS_URING_WAIT_TIMEOUT;
+
+    auto ret =
+        io_uring_wait_cqe_timeout(&array->m_uring[segment], &cqe, &timeout);
+
+    if (ret == 0) {
+      ut_ad(cqe != nullptr);
+
+      auto slot = reinterpret_cast<Slot *>(io_uring_cqe_get_data(cqe));
+
+      /* Some sanity checks. */
+      ut_a(slot != nullptr);
+      ut_a(slot->is_reserved);
+
+      /* We are not scribbling previous segment. */
+      ut_a(slot->pos >= start_pos);
+
+      /* We have not overstepped to next segment. */
+      ut_a(slot->pos < end_pos);
+
+      /** If write of the page is compressed (compression is enabled, it is not
+      the first page, it is not a redolog, not a doublewrite buffer) and punch
+      holes are enabled, call AIOHandler::io_complete to check if hole punching
+      is needed.
+      Keep in sync with os_aio_windows_handler(). */
+      if (slot->offset > 0 && !slot->skip_punch_hole &&
+          slot->type.is_compression_enabled() && !slot->type.is_log() &&
+          slot->type.is_write() && slot->type.is_compressed() &&
+          slot->type.punch_hole() && !slot->type.is_dblwr()) {
+        slot->err = AIOHandler::io_complete(slot);
+      } else {
+        slot->err = DB_SUCCESS;
+      }
+
+      /* We handle error after punch hole handling in case of Linux AIO,
+       * which looks totally weird to be honest. TODO/FIXME investigate. */
+
+      /*
+        Retrieve error code and number of bytes written/read from CQE.
+
+        Note that unlike in Linux Native AIO case, Uring handler doesn't
+        employ Slot::io_already_done. Also it seems that there is no good
+        reason to acquire lock to update Slot::ret and Slot::n_bytes. They
+        can be updated by different thread only during slot reservation
+        which can't happen concurrently for this slot at this point.
+
+        QQ: Do we really need to use the former in case of uring?
+      */
+      if (cqe->res < 0) {
+        /* failure */
+        slot->n_bytes = 0;
+        slot->ret = cqe->res;
+      } else {
+        /* success */
+        slot->n_bytes = cqe->res;
+        slot->ret = 0;
+      }
+
+      io_uring_cqe_seen(&array->m_uring[segment], cqe);
+
+      dberr_t err = DB_IO_ERROR;
+
+      if (slot->ret == 0) {
+        err = AIOHandler::post_io_processing(slot);
+      } else {
+        errno = -slot->ret;
+        /* os_file_handle_error does tell us if we should retry
+        this IO. As it stands now, we don't do this retry when
+        reaping requests from a different context than
+        the dispatcher. This non-retry logic is the same for
+        Windows and Linux native AIO.
+        We should probably look into this to transparently
+        re-submit the IO. */
+        os_file_handle_error(slot->name, "Linux aio");
+        err = DB_IO_ERROR;
+      }
+
+      /* DB_FAIL indicates partial IO, we should resubmit request for
+      remaining bytes to read/write. */
+      if (err == DB_FAIL) {
+        slot->len -= slot->n_bytes;
+        slot->ptr += slot->n_bytes;
+        slot->offset += slot->n_bytes;
+
+        /* Resetting the bytes read/written */
+        slot->n_bytes = 0;
+
+        mutex_enter(&array->m_uring_mutex[segment]);
+        /* Get an SQE and fill it in. */
+        struct io_uring_sqe *sqe = io_uring_get_sqe(&array->m_uring[segment]);
+        if (slot->type.is_read()) {
+          io_uring_prep_read(sqe, slot->file.m_file, slot->ptr, slot->len,
+                             slot->offset);
+        } else {
+          ut_ad(slot->type.is_write());
+          io_uring_prep_write(sqe, slot->file.m_file, slot->ptr, slot->len,
+                              slot->offset);
+        }
+        io_uring_sqe_set_data(sqe, slot);
+
+        ++array->m_count[segment];
+
+        do {
+          /* Finally, submit the request */
+          int ret = io_uring_submit(&array->m_uring[segment]);
+
+          if (ret < 0) {
+            mutex_exit(&array->m_uring_mutex[segment]);
+            /* Treat error during submission as fatal. */
+            const char *errmsg = strerror(-ret);
+            ib::fatal(UT_LOCATION_HERE)
+                << "Trying to sumbit " << array->m_count[segment] << " IO "
+                << "requests io_uring_submit() returned error " << -ret << ": "
+                << (errmsg ? errmsg : "<unknown>");
+            continue;
+          }
+          array->m_count[segment] -= ret;
+        } while (array->m_count[segment]);
+        mutex_exit(&array->m_uring_mutex[segment]);
+
+        continue;
+      }
+
+      *m1 = slot->m1;
+      *m2 = slot->m2;
+      *type = slot->type;
+
+      array->release_with_mutex(slot);
+
+      if (err == DB_IO_NO_PUNCH_HOLE) {
+        if (!type->is_dblwr()) {
+          fil_no_punch_hole(*m1);
+          err = DB_SUCCESS;
+        }
+      }
+
+      return err;
+    }
+
+    if (srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS &&
+        !buf_flush_page_cleaner_is_active()) {
+      array->acquire();
+      bool no_more_work = array->is_empty();
+      array->release();
+
+      if (no_more_work) {
+        /* There is no completed request. If there is
+        no pending request at all, and the system is
+        being shut down, exit. */
+
+        *m1 = nullptr;
+        *m2 = nullptr;
+
+        return (DB_SUCCESS);
+      }
+
+      continue;
+    }
+  }
+  return DB_SUCCESS;
+}
+
+#endif /* LINUX_NATIVE_URING */
+
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
                     bool read_only, fil_node_t *m1, void *m2,
@@ -7414,33 +7838,49 @@ try_again:
   if (type.is_read()) {
     trx_stats::bump_io_read(trx, n);
 
-    if (srv_use_native_aio) {
+    if (srv_use_native_aio || srv_use_native_uring) {
       ++os_n_file_reads;
 
       os_bytes_read_since_printout += n;
 #ifdef WIN_ASYNC_IO
       ret = ReadFile(file.m_file, slot->ptr, slot->len, &slot->n_bytes,
                      &slot->control);
-#elif defined(LINUX_NATIVE_AIO)
-      if (!array->linux_dispatch(slot, should_buffer)) {
+#else
+#if defined(LINUX_NATIVE_AIO)
+      if (srv_use_native_aio &&
+          !array->linux_dispatch_aio(slot, should_buffer)) {
         goto err_exit;
       }
+#endif
+#if defined(LINUX_NATIVE_URING)
+      if (srv_use_native_uring &&
+          !array->linux_dispatch_uring(slot, should_buffer)) {
+        goto err_exit;
+      }
+#endif
 #endif /* WIN_ASYNC_IO */
     } else if (type.is_wake()) {
       AIO::wake_simulated_handler_thread(
           AIO::get_segment_no_from_slot(array, slot));
     }
   } else if (type.is_write()) {
-    if (srv_use_native_aio) {
+    if (srv_use_native_aio || srv_use_native_uring) {
       ++os_n_file_writes;
 
 #ifdef WIN_ASYNC_IO
       ret = WriteFile(file.m_file, slot->ptr, slot->len, &slot->n_bytes,
                       &slot->control);
-#elif defined(LINUX_NATIVE_AIO)
-      if (!array->linux_dispatch(slot, false)) {
+#else
+#if defined(LINUX_NATIVE_AIO)
+      if (srv_use_native_aio && !array->linux_dispatch_aio(slot, false)) {
         goto err_exit;
       }
+#endif
+#if defined(LINUX_NATIVE_URING)
+      if (srv_use_native_uring && !array->linux_dispatch_uring(slot, false)) {
+        goto err_exit;
+      }
+#endif
 #endif /* WIN_ASYNC_IO */
 
     } else if (type.is_wake()) {
@@ -7463,9 +7903,10 @@ try_again:
   /* AIO request was queued successfully! */
   return (DB_SUCCESS);
 
-#if defined LINUX_NATIVE_AIO || defined WIN_ASYNC_IO
+#if defined LINUX_NATIVE_AIO || defined LINUX_NATIVE_URING || \
+    defined WIN_ASYNC_IO
 err_exit:
-#endif /* LINUX_NATIVE_AIO || WIN_ASYNC_IO */
+#endif /* LINUX_NATIVE_AIO || LINUX_NATIVE_URING || WIN_ASYNC_IO */
 
   array->release_with_mutex(slot);
   if (os_file_handle_error(name, type.is_read() ? "aio read" : "aio write")) {

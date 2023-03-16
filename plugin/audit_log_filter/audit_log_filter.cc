@@ -144,7 +144,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   auto is_keyring_initialized = audit_keyring::check_keyring_initialized();
 
   if (is_keyring_initialized &&
-      !audit_keyring::check_generate_initial_password()) {
+      !audit_keyring::check_generate_initial_encryption_options()) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Failed to check/generate encryption password");
     return 1;
@@ -429,7 +429,7 @@ void AuditLogFilter::on_audit_log_rotate_requested() noexcept {
 void AuditLogFilter::on_encryption_password_prune_requested() noexcept {
   if (m_is_active && SysVars::get_password_history_keep_days() > 0 &&
       audit_keyring::check_keyring_initialized()) {
-    audit_keyring::prune_encryption_passwords(
+    audit_keyring::prune_encryption_options(
         SysVars::get_password_history_keep_days(),
         log_writer::FileHandle::get_log_names_list(mysql_data_home,
                                                    SysVars::get_file_name()));

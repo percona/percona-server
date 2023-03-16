@@ -191,6 +191,14 @@ class SysVars {
   [[nodiscard]] static ulonglong get_password_history_keep_days() noexcept;
 
   /**
+   * @brief Get mean value of randomly generated iterations count used by
+   *        password based derivation routine.
+   *
+   * @return mean value of randomly generated PBKDF iterations count
+   */
+  [[nodiscard]] static int get_key_derivation_iter_count_mean() noexcept;
+
+  /**
    * @brief Set filter_id for a session.
    *
    * @param thd MYSQL_THD for current session
@@ -350,19 +358,18 @@ class SysVars {
   static void init_record_id(uint64_t initial_record_id) noexcept;
 
   /**
-   * @brief Store ID of currently active encryption password
+   * @brief Store ID of currently active encryption options
    *
-   * @param password_id Encryption password ID
+   * @param password_id Encryption options ID
    */
-  static void set_encryption_password_id(
-      const std::string &password_id) noexcept;
+  static void set_encryption_options_id(const std::string &options_id) noexcept;
 
   /**
-   * @brief Get ID of currently active encryption password
+   * @brief Get ID of currently active encryption options
    *
-   * @return Encryption password ID
+   * @return Encryption options ID
    */
-  static std::string get_encryption_password_id() noexcept;
+  static std::string get_encryption_options_id() noexcept;
 
   /**
    * @brief Get component registry service instance.

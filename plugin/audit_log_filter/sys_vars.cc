@@ -38,7 +38,7 @@ namespace {
  */
 std::atomic<uint64_t> record_id{0};
 LogBookmark log_bookmark;
-std::string encryption_password_id;
+std::string encryption_options_id;
 bool log_encryption_enabled{false};
 
 /*
@@ -176,6 +176,8 @@ ulong log_syslog_priority = 0;
 ulong log_compression_type = static_cast<ulong>(AuditLogCompressionType::None);
 ulong log_encryption_type = static_cast<ulong>(AuditLogEncryptionType::None);
 ulonglong log_password_history_keep_days = 0;
+int key_derivation_iter_count_mean = 0;
+const int default_key_derivation_iter_count_mean = 600000;
 
 /*
  * The audit_log_filter.file variable is used to specify the filename that’s
@@ -530,6 +532,20 @@ MYSQL_SYSVAR_ULONGLONG(
     password_history_keep_days_update_func, 0UL, 0UL, ULLONG_MAX, 0UL);
 
 /*
+ * The audit_log_filter.key_derivation_iterations_count_mean variable specifies
+ * the mean value of number of iterations used by password based derivation
+ * routine while calculating encryption key and iv values. Actual iterations
+ * count is calculated as random number which deviates not more than 10% from
+ * this value.
+ */
+MYSQL_SYSVAR_INT(key_derivation_iterations_count_mean,
+                 key_derivation_iter_count_mean, PLUGIN_VAR_OPCMDARG,
+                 "Mean value of randomly generated iterations count used by "
+                 "password based derivation routine.",
+                 nullptr, nullptr, default_key_derivation_iter_count_mean, 1000,
+                 INT_MAX, 0);
+
+/*
  * Internally used as a storage for log reader context data.
  */
 MYSQL_THDVAR_STR(log_reader_context,
@@ -544,6 +560,7 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(compression),
                        MYSQL_SYSVAR(encryption),
                        MYSQL_SYSVAR(password_history_keep_days),
+                       MYSQL_SYSVAR(key_derivation_iterations_count_mean),
                        MYSQL_SYSVAR(buffer_size),
                        MYSQL_SYSVAR(rotate_on_size),
                        MYSQL_SYSVAR(max_size),
@@ -631,6 +648,10 @@ bool SysVars::get_log_encryption_enabled() noexcept {
 
 ulonglong SysVars::get_password_history_keep_days() noexcept {
   return log_password_history_keep_days;
+}
+
+int SysVars::get_key_derivation_iter_count_mean() noexcept {
+  return key_derivation_iter_count_mean;
 }
 
 void SysVars::set_session_filter_id(MYSQL_THD thd, ulong id) noexcept {
@@ -748,13 +769,13 @@ void SysVars::init_record_id(uint64_t initial_record_id) noexcept {
   record_id.store(initial_record_id);
 }
 
-void SysVars::set_encryption_password_id(
-    const std::string &password_id) noexcept {
-  encryption_password_id = password_id;
+void SysVars::set_encryption_options_id(
+    const std::string &options_id) noexcept {
+  encryption_options_id = options_id;
 }
 
-std::string SysVars::get_encryption_password_id() noexcept {
-  return encryption_password_id;
+std::string SysVars::get_encryption_options_id() noexcept {
+  return encryption_options_id;
 }
 
 decltype(get_component_registry_service().get())

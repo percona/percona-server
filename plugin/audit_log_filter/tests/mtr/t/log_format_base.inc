@@ -11,7 +11,11 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 SELECT audit_log_rotate();
 
 if (`SELECT @@global.audit_log_filter_encryption = 'AES'`) {
---let $encryption_password = `SELECT audit_log_encryption_password_get()`
+--let $encryption_options = `SELECT audit_log_encryption_password_get()`
+--let $encryption_password = `SELECT JSON_EXTRACT('$encryption_options', '$.password')`
+--let $encryption_iterations = `SELECT JSON_EXTRACT('$encryption_options', '$.iterations')`
+--let $encryption_salt = `SELECT JSON_EXTRACT('$encryption_options', '$.salt')`
+
 --source decrypt_rotated_log.inc
 }
 

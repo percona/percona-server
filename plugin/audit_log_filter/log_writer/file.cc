@@ -115,8 +115,8 @@ bool LogWriterFile::do_open_file() noexcept {
   if (SysVars::get_log_encryption_enabled()) {
     std::stringstream suffix;
     suffix << "."
-           << audit_keyring::get_password_id_timestamp(
-                  SysVars::get_encryption_password_id())
+           << audit_keyring::get_options_id_timestamp(
+                  SysVars::get_encryption_options_id())
                   .c_str()
            << ".enc";
     file_path += suffix.str();

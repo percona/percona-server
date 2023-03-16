@@ -15,6 +15,8 @@
 
 #include "plugin/audit_log_filter/audit_udf.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
+
+#include "plugin/audit_log_filter/audit_encryption.h"
 #include "plugin/audit_log_filter/audit_keyring.h"
 #include "plugin/audit_log_filter/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_log_reader.h"
@@ -1029,27 +1031,27 @@ char *AuditUdf::audit_log_encryption_password_get_udf(
   *is_null = 0;
   *error = 0;
 
-  std::string password_buffer;
-  bool is_success = false;
+  encryption::EncryptionOptions options;
 
   if (udf_args->arg_count == 1 && udf_args->args != nullptr &&
       udf_args->args[0] != nullptr) {
-    is_success = audit_keyring::get_encryption_password(udf_args->args[0],
-                                                        password_buffer);
+    options = audit_keyring::get_encryption_options(udf_args->args[0]);
   } else {
-    is_success = audit_keyring::get_encryption_password(password_buffer);
+    options = audit_keyring::get_encryption_options();
   }
 
-  if (!is_success) {
+  if (!options.check_valid()) {
     my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_get_udf",
-             "Could not read password");
+             "Could not read options");
     *error = 1;
     return result;
   }
 
+  const auto options_json_str = options.to_json_string();
+
   initid->ptr =
       static_cast<char *>(my_malloc(key_memory_audit_log_filter_password_buffer,
-                                    kKeyringPasswordLength, MY_ZEROFILL));
+                                    options_json_str.length(), MY_ZEROFILL));
 
   if (initid->ptr == nullptr) {
     my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_get_udf",
@@ -1058,8 +1060,8 @@ char *AuditUdf::audit_log_encryption_password_get_udf(
     return result;
   }
 
-  memcpy(initid->ptr, password_buffer.c_str(), password_buffer.length());
-  *length = password_buffer.length();
+  memcpy(initid->ptr, options_json_str.c_str(), options_json_str.length());
+  *length = options_json_str.length();
 
   return initid->ptr;
 }
@@ -1125,8 +1127,8 @@ char *AuditUdf::audit_log_encryption_password_set_udf(
   *is_null = 0;
   *error = 0;
 
-  if (!audit_keyring::set_encryption_password(udf_args->args[0])) {
-    my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_get_udf",
+  if (!audit_keyring::set_encryption_options(udf_args->args[0])) {
+    my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_set_udf",
              "Could not set password");
     *error = 1;
     return result;

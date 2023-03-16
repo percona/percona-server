@@ -37,7 +37,11 @@ const size_t kEncryptChunkSize = 1024 * 1024;
 FileWriterEncrypting::FileWriterEncrypting(
     std::unique_ptr<FileWriterBase> file_writer)
     : FileWriterDecoratorBase(std::move(file_writer)),
-      m_cipher{EVP_aes_256_cbc()} {}
+      m_cipher{EVP_aes_256_cbc()},
+      m_ctx{nullptr},
+      m_key{nullptr},
+      m_iv{nullptr},
+      m_out_buff{nullptr} {}
 
 FileWriterEncrypting::~FileWriterEncrypting() {
   if (m_ctx != nullptr) {
@@ -71,19 +75,34 @@ bool FileWriterEncrypting::init() noexcept {
 }
 
 bool FileWriterEncrypting::open() noexcept {
-  std::string keyring_key_id = SysVars::get_encryption_password_id();
-  std::string keyring_password;
+  std::string keyring_key_id = SysVars::get_encryption_options_id();
+  const auto options = audit_keyring::get_encryption_options(keyring_key_id);
 
-  if (!audit_keyring::get_encryption_password(keyring_key_id,
-                                              keyring_password)) {
+  if (!options.check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to fetch password for id %s",
+                    "Failed to fetch options for id %s",
                     keyring_key_id.c_str());
     return false;
   }
 
+  const auto &keyring_password = options.get_password();
+  const auto keyring_iterations = options.get_iterations();
+  const auto &keyring_salt = options.get_salt();
+
   if (keyring_password.empty()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Empty password for id %s",
+                    keyring_key_id.c_str());
+    return false;
+  }
+
+  if (keyring_iterations < 1) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Bad iterations count for id %s", keyring_key_id.c_str());
+    return false;
+  }
+
+  if (keyring_salt.empty()) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Empty salt for id %s",
                     keyring_key_id.c_str());
     return false;
   }
@@ -92,10 +111,10 @@ bool FileWriterEncrypting::open() noexcept {
   unsigned char tmp_key_iv[kEvpKeyLength + EVP_MAX_IV_LENGTH];
   auto ik_len = EVP_CIPHER_get_key_length(m_cipher);
   auto iv_len = EVP_CIPHER_get_iv_length(m_cipher);
-  const int iterations = 1;
 
   if (!PKCS5_PBKDF2_HMAC(keyring_password.data(), keyring_password.size(),
-                         nullptr, 0, iterations, EVP_sha256(), ik_len + iv_len,
+                         keyring_salt.data(), keyring_salt.size(),
+                         keyring_iterations, EVP_sha256(), ik_len + iv_len,
                          tmp_key_iv)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "PKCS5_PBKDF2_HMAC error: %s",
@@ -117,6 +136,8 @@ bool FileWriterEncrypting::open() noexcept {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "EVP_EncryptInit error: %s",
                     ERR_error_string(ERR_peek_error(), nullptr));
     ERR_clear_error();
+    EVP_CIPHER_CTX_free(m_ctx);
+    m_ctx = nullptr;
     return false;
   }
 

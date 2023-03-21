@@ -1,0 +1,24 @@
+CREATE TABLE `tb1` (
+`col1` varchar(8) NOT NULL
+);
+INSERT INTO `tb1`(col1) VALUES ('20211114');
+CREATE PROCEDURE `stored_proc1`()
+BEGIN
+WITH t_dataset_info as (
+SELECT col1 as yyyymmdd FROM tb1 WHERE col1 = (SELECT max(col1) FROM tb1 )
+)
+SELECT a.yyyymmdd as yyyymmdd
+FROM (
+SELECT a.yyyymmdd FROM t_dataset_info a
+WHERE a.yyyymmdd = (SELECT max(a.yyyymmdd) FROM t_dataset_info a WHERE a.yyyymmdd <= '20220131')
+) a;
+END|
+SET optimizer_switch="derived_merge=off";
+call stored_proc1();
+yyyymmdd
+20211114
+call stored_proc1();
+yyyymmdd
+20211114
+DROP PROCEDURE `stored_proc1`;
+DROP TABLE tb1;

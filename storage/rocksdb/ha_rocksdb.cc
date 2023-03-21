@@ -5662,7 +5662,6 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
             } else {
               internal_cache_count++;
             }
-            cache_set.insert(bbt_opt->block_cache_compressed.get());
           }
         }
       }
@@ -14565,8 +14564,6 @@ struct rocksdb_status_counters_t {
   uint64_t bloom_filter_prefix_useful;
   uint64_t number_reseeks_iteration;
   uint64_t get_updates_since_calls;
-  uint64_t block_cache_compressed_miss;
-  uint64_t block_cache_compressed_hit;
   uint64_t wal_synced;
   uint64_t wal_bytes;
   uint64_t write_self;
@@ -14635,8 +14632,6 @@ DEF_SHOW_FUNC(bloom_filter_prefix_checked, BLOOM_FILTER_PREFIX_CHECKED)
 DEF_SHOW_FUNC(bloom_filter_prefix_useful, BLOOM_FILTER_PREFIX_USEFUL)
 DEF_SHOW_FUNC(number_reseeks_iteration, NUMBER_OF_RESEEKS_IN_ITERATION)
 DEF_SHOW_FUNC(get_updates_since_calls, GET_UPDATES_SINCE_CALLS)
-DEF_SHOW_FUNC(block_cache_compressed_miss, BLOCK_CACHE_COMPRESSED_MISS)
-DEF_SHOW_FUNC(block_cache_compressed_hit, BLOCK_CACHE_COMPRESSED_HIT)
 DEF_SHOW_FUNC(wal_synced, WAL_FILE_SYNCED)
 DEF_SHOW_FUNC(wal_bytes, WAL_FILE_BYTES)
 DEF_SHOW_FUNC(write_self, WRITE_DONE_BY_SELF)
@@ -14886,8 +14881,6 @@ static SHOW_VAR rocksdb_status_vars[] = {
     DEF_STATUS_VAR(bloom_filter_prefix_useful),
     DEF_STATUS_VAR(number_reseeks_iteration),
     DEF_STATUS_VAR(get_updates_since_calls),
-    DEF_STATUS_VAR(block_cache_compressed_miss),
-    DEF_STATUS_VAR(block_cache_compressed_hit),
     DEF_STATUS_VAR(wal_synced),
     DEF_STATUS_VAR(wal_bytes),
     DEF_STATUS_VAR(write_self),

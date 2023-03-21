@@ -205,7 +205,7 @@ int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
     bool forceSend = true;
     const Uint32 codeWords= 1;
     Uint32 codeSpace[ codeWords ];
-    NdbInterpretedCode code(NULL, // No table
+    NdbInterpretedCode code(nullptr, // No table
                             &codeSpace[0],
                             codeWords);
     if ((code.interpret_exit_last_row() != 0) ||
@@ -216,7 +216,7 @@ int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
       DBUG_RETURN(-1);
     }
 
-    NdbIndexScanOperation* op= NULL;
+    NdbIndexScanOperation* op= nullptr;
     NdbScanOperation::ScanOptions options;
     NdbOperation::GetValueSpec extraGet;
 
@@ -227,7 +227,7 @@ int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
     /* Read RECORDS_IN_RANGE pseudo column */
     extraGet.column= NdbDictionary::Column::RECORDS_IN_RANGE;
     extraGet.appStorage= (void*) out;
-    extraGet.recAttr= NULL;
+    extraGet.recAttr= nullptr;
 
     options.extraGetValues= &extraGet;
     options.numExtraGetValues= 1;
@@ -239,7 +239,7 @@ int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
     Uint32 emptyMask[keyBitmaskWords];
     memset(&emptyMask[0], 0, keyBitmaskWords << 2);
 
-    if (NULL == 
+    if (nullptr == 
         (op= trans->scanIndex(key_record,
                               result_record,
                               NdbOperation::LM_CommittedRead,
@@ -260,7 +260,7 @@ int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
                            op->getNdbError().code));
       DBUG_RETURN(-1);
     }
-    const char* dummy_out_ptr= NULL;
+    const char* dummy_out_ptr= nullptr;
     while ((ret = op->nextResult(&dummy_out_ptr,
                                  true, forceSend)) == 0) {
       DBUG_PRINT("info", ("frag rows=%u in=%u before=%u after=%u [error=%d]",
@@ -384,7 +384,7 @@ void
 NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
 {
   NdbMutex_Lock(m_impl.m_query_mutex);
-  const NdbIndexStatImpl::Cache* c = 0;
+  const NdbIndexStatImpl::Cache* c = nullptr;
   switch (type) {
   case CacheBuild:
     c = m_impl.m_cacheBuild;
@@ -403,7 +403,7 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
   info.m_save_time = 0;
   info.m_sort_time = 0;
   info.m_ref_count = 0;
-  while (c != 0)
+  while (c != nullptr)
   {
     info.m_count += 1;
     info.m_valid += c->m_valid;
@@ -450,8 +450,8 @@ NdbIndexStat::read_stat(Ndb* ndb)
 NdbIndexStat::Bound::Bound(const NdbIndexStat* is, void* buffer)
 {
   DBUG_ENTER("NdbIndexStat::Bound::Bound");
-  require(is != 0 && is->m_impl.m_indexSet);
-  require(buffer != 0);
+  require(is != nullptr && is->m_impl.m_indexSet);
+  require(buffer != nullptr);
   Uint8* buf = (Uint8*)buffer;
   // bound impl
   Uint8* buf1 = buf;
@@ -476,7 +476,7 @@ NdbIndexStat::add_bound(Bound& bound_f, const void* value)
   NdbIndexStatImpl::Bound& bound =
     *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
   Uint32 len_out;
-  if (value == 0)
+  if (value == nullptr)
   {
     m_impl.setError(UsageError, __LINE__);
     DBUG_RETURN(-1);
@@ -584,7 +584,7 @@ NdbIndexStat::convert_range(Range& range_f,
 NdbIndexStat::Stat::Stat(void* buffer)
 {
   DBUG_ENTER("NdbIndexStat::Stat::Stat");
-  require(buffer != 0);
+  require(buffer != nullptr);
   Uint8* buf = (Uint8*)buffer;
   // stat impl
   Uint8* buf1 = buf;
@@ -626,7 +626,7 @@ NdbIndexStat::get_empty(const Stat& stat_f, bool* empty)
   DBUG_ENTER("NdbIndexStat::get_empty");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  require(empty != 0);
+  require(empty != nullptr);
   *empty = stat.m_value.m_empty;
   DBUG_PRINT("index_stat", ("empty:%d", *empty));
   DBUG_VOID_RETURN;
@@ -652,7 +652,7 @@ NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
   double x = stat.m_value.m_rir;
   if (x < 1.0)
     x = 1.0;
-  require(rir != 0);
+  require(rir != nullptr);
   *rir = x;
 #ifndef NDEBUG
   char buf[100];
@@ -725,7 +725,7 @@ NdbIndexStat::get_rule(const Stat& stat_f, char* buffer)
   DBUG_ENTER("NdbIndexStat::get_rule");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  require(buffer != 0);
+  require(buffer != nullptr);
   BaseString::snprintf(buffer, RuleBufferBytes, "%s/%s/%s",
                        stat.m_rule[0], stat.m_rule[1], stat.m_rule[2]);
   DBUG_VOID_RETURN;
@@ -773,7 +773,7 @@ bool
 NdbIndexStat::has_listener() const
 {
   DBUG_ENTER("NdbIndexStat::has_listener");
-  if (m_impl.m_eventOp != 0)
+  if (m_impl.m_eventOp != nullptr)
     DBUG_RETURN(true);
   DBUG_RETURN(false);
 }

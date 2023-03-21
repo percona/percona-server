@@ -119,6 +119,7 @@ std::optional<std::vector<uint8_t>> CachingSha2Password::scramble(
     std::string_view nonce, std::string_view password) {
   return impl::scramble(nonce, password, EVP_sha256(), false);
 }
+
 // clear_text_password
 
 std::optional<std::vector<uint8_t>> ClearTextPassword::scramble(

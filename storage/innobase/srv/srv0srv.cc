@@ -1541,9 +1541,10 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   }
 
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_s_lock(btr_search_latches[i], UT_LOCATION_HERE);
-    ha_print_info(file, btr_search_sys->hash_tables[i]);
-    rw_lock_s_unlock(btr_search_latches[i]);
+    auto &part = btr_search_sys->parts[i];
+    rw_lock_s_lock(&part.latch, UT_LOCATION_HERE);
+    ha_print_info(file, part.hash_table);
+    rw_lock_s_unlock(&part.latch);
   }
 
   fprintf(file, "%.2f hash searches/s, %.2f non-hash searches/s\n",
@@ -1569,7 +1570,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   fprintf(file,
           "Total large memory allocated " ULINTPF
           "\n"
-          "Dictionary memory allocated " ULINTPF "\n",
+          "Dictionary memory allocated %zu\n",
           os_total_large_mem_allocated.load(), dict_sys ? dict_sys->size : 0UL);
 
   buf_print_io(file);
@@ -1766,7 +1767,6 @@ void srv_export_innodb_status(void) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
     export_vars.innodb_buffer_pool_pages_old += buf_pool->LRU_old_len;
   }
-
   if (!srv_read_only_mode) {
     export_vars.innodb_checkpoint_age =
         (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);

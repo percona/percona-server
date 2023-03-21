@@ -41,7 +41,7 @@ class THD;
 typedef int64 query_id_t;
 
 extern ST_FIELD_INFO query_profile_statistics_info[];
-int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item *);
+int fill_query_profile_statistics_info(THD *thd, Table_ref *tables, Item *);
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 #define PROFILE_NONE (uint)0
@@ -275,7 +275,7 @@ class PROFILING {
   bool enabled_getrusage() const noexcept;
 
   /* ... from INFORMATION_SCHEMA.PROFILING ... */
-  int fill_statistics_info(THD *thd, TABLE_LIST *tables);
+  int fill_statistics_info(THD *thd, Table_ref *tables);
   void cleanup();
 
   int print_current(IO_CACHE *log_file) const noexcept;

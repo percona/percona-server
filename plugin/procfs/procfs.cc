@@ -375,7 +375,7 @@ static void fill_view_row(THD *thd, TABLE *table, const char *fname, char *buf,
   bytes_read += sz;
 }
 
-static int fill_view(THD *thd, TABLE_LIST *tables, Item *cond) {
+static int fill_view(THD *thd, Table_ref *tables, Item *cond) {
   if (!thd->security_context()
            ->has_global_grant(PRIVILEGE_NAME, strlen(PRIVILEGE_NAME))
            .first) {

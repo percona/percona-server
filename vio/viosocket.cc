@@ -591,8 +591,14 @@ int vio_cancel(Vio *vio, int how) {
 #ifndef NDEBUG
 
 #ifdef _WIN32
+#ifdef _WIN64
 #define SOCKET_PRINTF_FORMAT "%llu"
 #else
+#define SOCKET_PRINTF_FORMAT "%lu"
+#endif
+
+#else  // _WIN32
+
 #define SOCKET_PRINTF_FORMAT "%d"
 #endif
 

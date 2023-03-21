@@ -863,8 +863,6 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
     if (!log_index_versioned_fields(instant_fields_to_log, log_ptr, f, index)) {
       return false;
     }
-  } else {
-    ut_ad(!is_versioned);
   }
 
   if (size == 0) {
@@ -1100,6 +1098,10 @@ static void update_instant_info(instant_fields_list_t f, dict_index_t *index) {
     if (is_dropped) {
       col->set_version_dropped(field.v_dropped);
       n_dropped++;
+      if (col->is_nullable()) {
+        ut_a(index->n_nullable > 0);
+        --index->n_nullable;
+      }
     }
 
     if (is_added) {
@@ -1273,6 +1275,9 @@ byte *mlog_parse_index(byte *ptr, const byte *end_ptr, dict_index_t **index) {
     ind->row_versions = true;
   }
 
+  ind->n_fields = n - n_dropped;
+  ind->n_total_fields = n;
+
   /* For upgraded table from v1, set following */
   if (inst_cols > 0) {
     ind->instant_cols = true;
@@ -1281,8 +1286,6 @@ byte *mlog_parse_index(byte *ptr, const byte *end_ptr, dict_index_t **index) {
     ind->set_instant_nullable(new_n_nullable);
   }
 
-  ind->n_fields = n - n_dropped;
-  ind->n_total_fields = n;
   table->is_system_table = false;
 
   if (is_instant || is_versioned) {

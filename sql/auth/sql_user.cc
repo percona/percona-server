@@ -267,7 +267,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   bool hide_password_hash = false;
 
   DBUG_TRACE;
-  TABLE_LIST table_list("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY);
+  Table_ref table_list("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY);
   if (are_both_users_same) {
     hide_password_hash =
         check_table_access(thd, SELECT_ACL, &table_list, false, UINT_MAX, true);
@@ -525,7 +525,7 @@ static bool auth_verify_password_history(
     THD *thd, LEX_CSTRING *user, LEX_CSTRING *host, uint32 password_history,
     long password_reuse_interval, st_mysql_auth *auth, const char *cleartext,
     unsigned int cleartext_length, const char *cred_hash,
-    unsigned int cred_hash_length, TABLE_LIST *history_table,
+    unsigned int cred_hash_length, Table_ref *history_table,
     ulong what_to_set) {
   TABLE *table = history_table->table;
   uchar user_key[MAX_KEY_LENGTH];
@@ -578,9 +578,9 @@ static bool auth_verify_password_history(
   }
 
   /* find the first matching record by the first 2 fields of a key */
-  error = table->file->ha_index_read_idx_map(
-      table->record[0], 0, user_key, (key_part_map)((1L << 0) | (1L << 1)),
-      HA_READ_KEY_EXACT);
+  error = table->file->ha_index_read_map(table->record[0], user_key,
+                                         (key_part_map)((1L << 0) | (1L << 1)),
+                                         HA_READ_KEY_EXACT);
 
   /* fetch the current day */
   MYSQL_TIME tm_now;
@@ -720,7 +720,7 @@ end:
   @retval false success
 */
 
-static bool handle_password_history_table(THD *thd, TABLE_LIST *tables,
+static bool handle_password_history_table(THD *thd, Table_ref *tables,
                                           bool drop, LEX_USER *user_from,
                                           LEX_USER *user_to,
                                           bool *row_existed) {
@@ -770,9 +770,9 @@ static bool handle_password_history_table(THD *thd, TABLE_LIST *tables,
   }
 
   /* find the first matching record by host/user key prefix */
-  error = table->file->ha_index_read_idx_map(
-      table->record[0], 0, user_key, (key_part_map)((1L << 0) | (1L << 1)),
-      HA_READ_KEY_EXACT);
+  error = table->file->ha_index_read_map(table->record[0], user_key,
+                                         (key_part_map)((1L << 0) | (1L << 1)),
+                                         HA_READ_KEY_EXACT);
 
   /* iterate over the password history rows for the user */
   while (!error) {
@@ -1245,7 +1245,7 @@ error:
 
 bool set_and_validate_user_attributes(
     THD *thd, LEX_USER *Str, acl_table::Pod_user_what_to_update &what_to_set,
-    bool is_privileged_user, bool is_role, TABLE_LIST *history_table,
+    bool is_privileged_user, bool is_role, Table_ref *history_table,
     bool *history_check_done, const char *cmd,
     Userhostpassword_list &generated_passwords, I_multi_factor_auth **i_mfa) {
   bool user_exists = false;
@@ -1911,7 +1911,7 @@ bool set_and_validate_user_attributes(
 bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
                      const char *current_password,
                      bool retain_current_password) {
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   TABLE *table;
   LEX_USER *combo = nullptr;
   std::set<LEX_USER *> users;
@@ -2336,7 +2336,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     @retval < 0  System error (OOM, error from storage engine).
 */
 
-static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
+static int handle_grant_data(THD *thd, Table_ref *tables, bool drop,
                              LEX_USER *user_from, LEX_USER *user_to,
                              bool on_drop_role_priv) {
   int result = 0;
@@ -2662,7 +2662,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   String wrong_users;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator<LEX_USER> user_list(list);
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   bool transactional_tables;
   acl_table::Pod_user_what_to_update what_to_update;
   bool is_anonymous_user = false;
@@ -2954,7 +2954,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
   String wrong_users;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator<LEX_USER> user_list(list);
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
   bool transactional_tables;
   std::set<LEX_USER *> audit_users;
@@ -3112,7 +3112,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
   LEX_USER *tmp_user_from;
   LEX_USER *tmp_user_to;
   List_iterator<LEX_USER> user_list(list);
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   std::unique_ptr<Security_context> orig_sctx = nullptr;
   bool transactional_tables;
   DBUG_TRACE;
@@ -3308,7 +3308,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   String wrong_users;
   LEX_USER *user_from, *tmp_user_from;
   List_iterator<LEX_USER> user_list(list);
-  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  Table_ref tables[ACL_TABLES::LAST_ENTRY];
   bool transactional_tables;
   bool is_privileged_user = false;
   std::set<LEX_USER *> extra_users;

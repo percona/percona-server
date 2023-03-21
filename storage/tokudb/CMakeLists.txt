@@ -1,3 +1,5 @@
+RETURN()  # Disable TokuDB
+
 # Copyright (c) 2017, Percona and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -23,11 +25,9 @@ IF (NOT DEFINED WITH_TOKUDB)
   ENDIF ()
 ENDIF ()
 
-SET (WITH_TOKUDB 0)
-
 IF (NOT WITH_TOKUDB)
-#  MESSAGE (STATUS "Not building with TokuDB storage engine, you must specify -DWITH_TOKUDB=1|ON|FORCE to cmake in order to build with TokuDB.")
-#  RETURN ()
+  MESSAGE (STATUS "Not building with TokuDB storage engine, you must specify -DWITH_TOKUDB=1|ON|FORCE to cmake in order to build with TokuDB.")
+  RETURN ()
 ELSE ()
   MESSAGE (STATUS "Building with TokuDB storage engine = " ${WITH_TOKUDB})
   IF (WITH_TOKUDB STREQUAL "FORCE")
@@ -117,24 +117,24 @@ IF (WITH_VALGRIND)
     SET(USE_VALGRIND "ON")
 ENDIF ()
 
-#ADD_SUBDIRECTORY(${TOKU_FT_DIR_NAME})
-#INCLUDE_DIRECTORIES(${TOKU_FT_DIR_NAME})
-#INCLUDE_DIRECTORIES(${TOKU_FT_DIR_NAME}/portability)
-#INCLUDE_DIRECTORIES(${TOKU_FT_DIR_NAME}/util)
-#INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/${TOKU_FT_DIR_NAME})
-#INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/${TOKU_FT_DIR_NAME}/buildheader)
-#INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/${TOKU_FT_DIR_NAME}/portability)
-#
-#
-#SET(TOKUDB_PLUGIN_DYNAMIC "ha_tokudb")
-#SET(TOKUDB_SOURCES
-#    ha_tokudb.cc
-#    tokudb_background.cc
-#    tokudb_information_schema.cc
-#    tokudb_sysvars.cc
-#    tokudb_thread.cc
-#    tokudb_dir_cmd.cc)
-#MYSQL_ADD_PLUGIN(tokudb ${TOKUDB_SOURCES} STORAGE_ENGINE MODULE_ONLY
-#    LINK_LIBRARIES tokufractaltree_static tokuportability_static ${ZLIB_LIBRARY} stdc++)
-#SET(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -flto -fuse-linker-plugin")
-#SET(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO} -flto -fuse-linker-plugin")
+ADD_SUBDIRECTORY(${TOKU_FT_DIR_NAME})
+INCLUDE_DIRECTORIES(${TOKU_FT_DIR_NAME})
+INCLUDE_DIRECTORIES(${TOKU_FT_DIR_NAME}/portability)
+INCLUDE_DIRECTORIES(${TOKU_FT_DIR_NAME}/util)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/${TOKU_FT_DIR_NAME})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/${TOKU_FT_DIR_NAME}/buildheader)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/${TOKU_FT_DIR_NAME}/portability)
+
+
+SET(TOKUDB_PLUGIN_DYNAMIC "ha_tokudb")
+SET(TOKUDB_SOURCES
+    ha_tokudb.cc
+    tokudb_background.cc
+    tokudb_information_schema.cc
+    tokudb_sysvars.cc
+    tokudb_thread.cc
+    tokudb_dir_cmd.cc)
+MYSQL_ADD_PLUGIN(tokudb ${TOKUDB_SOURCES} STORAGE_ENGINE MODULE_ONLY
+    LINK_LIBRARIES tokufractaltree_static tokuportability_static ${ZLIB_LIBRARY} stdc++)
+SET(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -flto -fuse-linker-plugin")
+SET(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO} -flto -fuse-linker-plugin")

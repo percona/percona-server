@@ -118,7 +118,7 @@ CBOR_EXPORT void cbor_mark_negint(cbor_item_t *item);
  * @return **new** positive integer or `NULL` on memory allocation failure. The
  * value is not initialized
  */
-CBOR_EXPORT cbor_item_t *cbor_new_int8(void);
+CBOR_EXPORT cbor_item_t *cbor_new_int8();
 
 /** Allocates new integer with 2B width
  *
@@ -127,7 +127,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_int8(void);
  * @return **new** positive integer or `NULL` on memory allocation failure. The
  * value is not initialized
  */
-CBOR_EXPORT cbor_item_t *cbor_new_int16(void);
+CBOR_EXPORT cbor_item_t *cbor_new_int16();
 
 /** Allocates new integer with 4B width
  *
@@ -136,7 +136,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_int16(void);
  * @return **new** positive integer or `NULL` on memory allocation failure. The
  * value is not initialized
  */
-CBOR_EXPORT cbor_item_t *cbor_new_int32(void);
+CBOR_EXPORT cbor_item_t *cbor_new_int32();
 
 /** Allocates new integer with 8B width
  *
@@ -145,7 +145,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_int32(void);
  * @return **new** positive integer or `NULL` on memory allocation failure. The
  * value is not initialized
  */
-CBOR_EXPORT cbor_item_t *cbor_new_int64(void);
+CBOR_EXPORT cbor_item_t *cbor_new_int64();
 
 /** Constructs a new positive integer
  *

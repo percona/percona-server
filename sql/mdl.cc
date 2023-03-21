@@ -136,7 +136,6 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
     {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME},
-    {0, "Waiting for global resource groups lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for table backup lock", 0, PSI_DOCUMENT_ME}};
 
 #ifdef HAVE_PSI_INTERFACE
@@ -1299,7 +1298,8 @@ extern "C" {
   is unused - i.e. doesn't have any locks on both "fast" and "slow" paths
   and is not marked as deleted.
 */
-static int mdl_lock_match_unused(const uchar *arg) {
+static int mdl_lock_match_unused(const uchar *arg,
+                                 void *match_arg [[maybe_unused]]) {
   const MDL_lock *lock = (const MDL_lock *)arg;
   /*
     It is OK to check MDL_lock::m_fast_path_state non-atomically here
@@ -1338,7 +1338,7 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
     high enough, there is a good chance for this technique to succeed.
   */
   MDL_lock *lock = static_cast<MDL_lock *>(lf_hash_random_match(
-      &m_locks, pins, &mdl_lock_match_unused, ctx->get_random()));
+      &m_locks, pins, &mdl_lock_match_unused, ctx->get_random(), nullptr));
 
   if (lock == nullptr || lock == MY_LF_ERRPTR) {
     /*
@@ -1503,7 +1503,7 @@ bool MDL_context::fix_pins() {
   Note that initialization and allocation are split into two
   calls. This is to allow flexible memory management of lock
   requests. Normally a lock request is stored in statement memory
-  (e.g. is a member of struct TABLE_LIST), but we would also like
+  (e.g. is a member of class Table_ref), but we would also like
   to allow allocation of lock requests in other memory roots,
   for example in the grant subsystem, to lock privilege tables.
 

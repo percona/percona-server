@@ -271,9 +271,9 @@ time_t                  MYSQL_TYPE_DATETIME
  INFORMATION_SCHEMA.innodb_trx
  @return 0 on success */
 static int trx_i_s_common_fill_table(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *);            /*!< in: condition (not used) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *);           /*!< in: condition (not used) */
 
 /** Unbind a dynamic INFORMATION_SCHEMA table.
  @return 0 on success */
@@ -753,11 +753,12 @@ struct st_mysql_plugin i_s_innodb_trx = {
  INFORMATION_SCHEMA.innodb_trx
  @return 0 on success */
 static int trx_i_s_common_fill_table(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (not used) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (not used) */
 {
   const char *table_name;
+  int ret [[maybe_unused]];
   trx_i_s_cache_t *cache;
 
   DBUG_TRACE;
@@ -787,10 +788,15 @@ static int trx_i_s_common_fill_table(
                             << TRX_I_S_MEM_LIMIT << " bytes";
   }
 
+  ret = 0;
+
   trx_i_s_cache_start_read(cache);
 
   if (innobase_strcasecmp(table_name, "innodb_trx") == 0) {
-    fill_innodb_trx_from_cache(cache, thd, tables->table);
+    if (fill_innodb_trx_from_cache(cache, thd, tables->table) != 0) {
+      ret = 1;
+    }
+
   } else {
     ib::error(ER_IB_MSG_600) << "trx_i_s_common_fill_table() was"
                                 " called to fill unknown table: "
@@ -799,15 +805,21 @@ static int trx_i_s_common_fill_table(
                                 " This function only knows how to fill"
                                 " innodb_trx, innodb_locks and"
                                 " innodb_lock_waits tables.";
+
+    ret = 1;
   }
 
   trx_i_s_cache_end_read(cache);
 
+#if 0
+        return ret;
+#else
   /* if this function returns something else than 0 then a
   deadlock occurs between the mysqld server and mysql client,
   see http://bugs.mysql.com/29900 ; when that bug is resolved
   we can enable the return ret above */
   return 0;
+#endif
 }
 
 /* Fields of the dynamic table information_schema.innodb_cmp.
@@ -866,9 +878,9 @@ static ST_FIELD_INFO i_s_cmp_fields_info[] = {
 /** Fill the dynamic table information_schema.innodb_cmp or
  innodb_cmp_reset.
  @return 0 on success, 1 on failure */
-static int i_s_cmp_fill_low(THD *thd,           /*!< in: thread */
-                            TABLE_LIST *tables, /*!< in/out: tables to fill */
-                            Item *,             /*!< in: condition (ignored) */
+static int i_s_cmp_fill_low(THD *thd,          /*!< in: thread */
+                            Table_ref *tables, /*!< in/out: tables to fill */
+                            Item *,            /*!< in: condition (ignored) */
                             bool reset) /*!< in: true=reset cumulated counts */
 {
   TABLE *table = (TABLE *)tables->table;
@@ -919,18 +931,18 @@ static int i_s_cmp_fill_low(THD *thd,           /*!< in: thread */
 
 /** Fill the dynamic table information_schema.innodb_cmp.
  @return 0 on success, 1 on failure */
-static int i_s_cmp_fill(THD *thd,           /*!< in: thread */
-                        TABLE_LIST *tables, /*!< in/out: tables to fill */
-                        Item *cond)         /*!< in: condition (ignored) */
+static int i_s_cmp_fill(THD *thd,          /*!< in: thread */
+                        Table_ref *tables, /*!< in/out: tables to fill */
+                        Item *cond)        /*!< in: condition (ignored) */
 {
   return (i_s_cmp_fill_low(thd, tables, cond, false));
 }
 
 /** Fill the dynamic table information_schema.innodb_cmp_reset.
  @return 0 on success, 1 on failure */
-static int i_s_cmp_reset_fill(THD *thd,           /*!< in: thread */
-                              TABLE_LIST *tables, /*!< in/out: tables to fill */
-                              Item *cond) /*!< in: condition (ignored) */
+static int i_s_cmp_reset_fill(THD *thd,          /*!< in: thread */
+                              Table_ref *tables, /*!< in/out: tables to fill */
+                              Item *cond)        /*!< in: condition (ignored) */
 {
   return (i_s_cmp_fill_low(thd, tables, cond, true));
 }
@@ -1142,10 +1154,10 @@ static ST_FIELD_INFO i_s_cmp_per_index_fields_info[] = {
  information_schema.innodb_cmp_per_index_reset.
  @return 0 on success, 1 on failure */
 static int i_s_cmp_per_index_fill_low(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *,             /*!< in: condition (ignored) */
-    bool reset)         /*!< in: true=reset cumulated counts */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *,            /*!< in: condition (ignored) */
+    bool reset)        /*!< in: true=reset cumulated counts */
 {
   TABLE *table = tables->table;
   Field **fields = table->field;
@@ -1246,9 +1258,9 @@ err:
 /** Fill the dynamic table information_schema.innodb_cmp_per_index.
  @return 0 on success, 1 on failure */
 static int i_s_cmp_per_index_fill(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *cond)         /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *cond)        /*!< in: condition (ignored) */
 {
   return (i_s_cmp_per_index_fill_low(thd, tables, cond, false));
 }
@@ -1256,9 +1268,9 @@ static int i_s_cmp_per_index_fill(
 /** Fill the dynamic table information_schema.innodb_cmp_per_index_reset.
  @return 0 on success, 1 on failure */
 static int i_s_cmp_per_index_reset_fill(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *cond)         /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *cond)        /*!< in: condition (ignored) */
 {
   return (i_s_cmp_per_index_fill_low(thd, tables, cond, true));
 }
@@ -1456,7 +1468,7 @@ innodb_cmpmem_reset.
 @param[in,out]  tables  tables to fill
 @param[in]      reset   true=reset cumulated counts
 @return 0 on success, 1 on failure */
-static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, bool reset) {
+static int i_s_cmpmem_fill_low(THD *thd, Table_ref *tables, bool reset) {
   int status = 0;
   TABLE *table = (TABLE *)tables->table;
 
@@ -1525,9 +1537,9 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, bool reset) {
 
 /** Fill the dynamic table information_schema.innodb_cmpmem.
  @return 0 on success, 1 on failure */
-static int i_s_cmpmem_fill(THD *thd,           /*!< in: thread */
-                           TABLE_LIST *tables, /*!< in/out: tables to fill */
-                           Item *)             /*!< in: condition (ignored) */
+static int i_s_cmpmem_fill(THD *thd,          /*!< in: thread */
+                           Table_ref *tables, /*!< in/out: tables to fill */
+                           Item *)            /*!< in: condition (ignored) */
 {
   return (i_s_cmpmem_fill_low(thd, tables, false));
 }
@@ -1535,9 +1547,9 @@ static int i_s_cmpmem_fill(THD *thd,           /*!< in: thread */
 /** Fill the dynamic table information_schema.innodb_cmpmem_reset.
  @return 0 on success, 1 on failure */
 static int i_s_cmpmem_reset_fill(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   return (i_s_cmpmem_fill_low(thd, tables, true));
 }
@@ -2065,9 +2077,9 @@ static int i_s_metrics_fill(
 /** Function to fill information schema metrics tables.
  @return 0 on success */
 static int i_s_metrics_fill_table(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (not used) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (not used) */
 {
   DBUG_TRACE;
 
@@ -2166,9 +2178,9 @@ static ST_FIELD_INFO i_s_stopword_fields_info[] = {
 
 /** Fill the dynamic table information_schema.innodb_ft_default_stopword.
  @return 0 on success, 1 on failure */
-static int i_s_stopword_fill(THD *thd,           /*!< in: thread */
-                             TABLE_LIST *tables, /*!< in/out: tables to fill */
-                             Item *) /*!< in: condition (not used) */
+static int i_s_stopword_fill(THD *thd,          /*!< in: thread */
+                             Table_ref *tables, /*!< in/out: tables to fill */
+                             Item *)            /*!< in: condition (not used) */
 {
   Field **fields;
   ulint i = 0;
@@ -2279,7 +2291,7 @@ static ST_FIELD_INFO i_s_fts_doc_fields_info[] = {
  @return 0 on success, 1 on failure */
 static int i_s_fts_deleted_generic_fill(
     THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
+    Table_ref *tables,  /*!< in/out: tables to fill */
     bool being_deleted) /*!< in: BEING_DELTED table */
 {
   Field **fields;
@@ -2365,9 +2377,9 @@ static int i_s_fts_deleted_generic_fill(
 /** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
  @return 0 on success, 1 on failure */
 static int i_s_fts_deleted_fill(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   DBUG_TRACE;
 
@@ -2446,9 +2458,9 @@ struct st_mysql_plugin i_s_innodb_ft_deleted = {
 /** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
  @return 0 on success, 1 on failure */
 static int i_s_fts_being_deleted_fill(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   DBUG_TRACE;
 
@@ -2581,7 +2593,7 @@ static ST_FIELD_INFO i_s_fts_index_fields_info[] = {
 static int i_s_fts_index_cache_fill_one_index(
     fts_index_cache_t *index_cache, /*!< in: FTS index cache */
     THD *thd,                       /*!< in: thread */
-    TABLE_LIST *tables)             /*!< in/out: tables to fill */
+    Table_ref *tables)              /*!< in/out: tables to fill */
 {
   TABLE *table = (TABLE *)tables->table;
   Field **fields;
@@ -2671,9 +2683,9 @@ static int i_s_fts_index_cache_fill_one_index(
 /** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED
  @return 0 on success, 1 on failure */
 static int i_s_fts_index_cache_fill(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   dict_table_t *user_table;
   fts_cache_t *cache;
@@ -2921,7 +2933,7 @@ static void i_s_fts_index_table_free_one_fetch(
 static int i_s_fts_index_table_fill_one_fetch(
     CHARSET_INFO *index_charset, /*!< in: FTS index charset */
     THD *thd,                    /*!< in: thread */
-    TABLE_LIST *tables,          /*!< in/out: tables to fill */
+    Table_ref *tables,           /*!< in/out: tables to fill */
     ib_vector_t *words,          /*!< in: words fetched */
     fts_string_t *conv_str,      /*!< in: string for conversion*/
     bool has_more)               /*!< in: has more to fetch */
@@ -3019,7 +3031,7 @@ static int i_s_fts_index_table_fill_one_fetch(
 static int i_s_fts_index_table_fill_one_index(
     dict_index_t *index, /*!< in: FTS index */
     THD *thd,            /*!< in: thread */
-    TABLE_LIST *tables)  /*!< in/out: tables to fill */
+    Table_ref *tables)   /*!< in/out: tables to fill */
 {
   ib_vector_t *words;
   mem_heap_t *heap;
@@ -3095,9 +3107,9 @@ func_exit:
 /** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
  @return 0 on success, 1 on failure */
 static int i_s_fts_index_table_fill(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   dict_table_t *user_table;
   dict_index_t *index;
@@ -3239,10 +3251,9 @@ static const char *fts_config_key[] = {
 
 /** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
  @return 0 on success, 1 on failure */
-static int i_s_fts_config_fill(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+static int i_s_fts_config_fill(THD *thd,          /*!< in: thread */
+                               Table_ref *tables, /*!< in/out: tables to fill */
+                               Item *) /*!< in: condition (ignored) */
 {
   Field **fields;
   TABLE *table = (TABLE *)tables->table;
@@ -3467,8 +3478,8 @@ typedef std::vector<temp_table_info_t, ut::allocator<temp_table_info_t>>
  @return 0 on success, 1 on failure */
 static int i_s_innodb_temp_table_info_fill(
     THD *thd,                      /*!< in: thread */
-    TABLE_LIST *tables,            /*!< in/out: tables
-                                   to fill */
+    Table_ref *tables,             /*!< in/out: tables
+                                    to fill */
     const temp_table_info_t *info) /*!< in: temp-table
                                    information */
 {
@@ -3515,9 +3526,9 @@ static void innodb_temp_table_populate_cache(const dict_table_t *table,
  stats for temp-tables to INNODB_TEMP_TABLE_INFO.
  @return 0 on success, 1 on failure */
 static int i_s_innodb_temp_table_info_fill_table(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   int status = 0;
 
@@ -3870,7 +3881,7 @@ static ST_FIELD_INFO i_s_innodb_buffer_stats_fields_info[] = {
  @return 0 on success, 1 on failure */
 static int i_s_innodb_stats_fill(
     THD *thd,                    /*!< in: thread */
-    TABLE_LIST *tables,          /*!< in/out: tables to fill */
+    Table_ref *tables,           /*!< in/out: tables to fill */
     const buf_pool_info_t *info) /*!< in: buffer pool
                                  information */
 {
@@ -3967,9 +3978,9 @@ static int i_s_innodb_stats_fill(
  pool stats to information schema  table: I_S_INNODB_BUFFER_POOL_STATS
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_stats_fill_table(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   int status = 0;
   buf_pool_info_t *pool_info;
@@ -4230,7 +4241,7 @@ static ST_FIELD_INFO i_s_innodb_buffer_page_fields_info[] = {
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_page_fill(
     THD *thd,                          /*!< in: thread */
-    TABLE_LIST *tables,                /*!< in/out: tables to fill */
+    Table_ref *tables,                 /*!< in/out: tables to fill */
     const buf_page_info_t *info_array, /*!< in: array cached page
                                        info */
     ulint num_page)                    /*!< in: number of page info
@@ -4533,10 +4544,10 @@ static void i_s_innodb_buffer_page_get_info(
       block = reinterpret_cast<const buf_block_t *>(bpage);
       frame = block->frame;
       /* Note: this may be a false positive, that
-      is, block->index will not always be set to
-      NULL when the last adaptive hash index
+      is, block->ahi.index will not always be set to
+      nullptr when the last adaptive hash index
       reference is dropped. */
-      page_info->hashed = (block->index != nullptr);
+      page_info->hashed = (block->ahi.index.load() != nullptr);
     } else {
       ut_ad(page_info->zip_ssize);
       frame = bpage->zip.data;
@@ -4557,7 +4568,7 @@ static void i_s_innodb_buffer_page_get_info(
  @return 0 on success, 1 on failure */
 static int i_s_innodb_fill_buffer_pool(
     THD *thd,             /*!< in: thread */
-    TABLE_LIST *tables,   /*!< in/out: tables to fill */
+    Table_ref *tables,    /*!< in/out: tables to fill */
     buf_pool_t *buf_pool, /*!< in: buffer pool to scan */
     const ulint pool_id)  /*!< in: buffer pool id */
 {
@@ -4629,9 +4640,9 @@ static int i_s_innodb_fill_buffer_pool(
  dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_page_fill_table(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   int status = 0;
 
@@ -4878,7 +4889,7 @@ static ST_FIELD_INFO i_s_innodb_buf_page_lru_fields_info[] = {
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buf_page_lru_fill(
     THD *thd,                          /*!< in: thread */
-    TABLE_LIST *tables,                /*!< in/out: tables to fill */
+    Table_ref *tables,                 /*!< in/out: tables to fill */
     const buf_page_info_t *info_array, /*!< in: array cached page
                                        info */
     ulint num_page)                    /*!< in: number of page info
@@ -5038,7 +5049,7 @@ and fetch information to INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU.
 @param[in]      buf_pool        buffer pool to scan
 @param[in]      pool_id         buffer pool id
 @return 0 on success, 1 on failure */
-static int i_s_innodb_fill_buffer_lru(THD *thd, TABLE_LIST *tables,
+static int i_s_innodb_fill_buffer_lru(THD *thd, Table_ref *tables,
                                       buf_pool_t *buf_pool,
                                       const ulint pool_id) {
   int status = 0;
@@ -5100,9 +5111,9 @@ exit:
  dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buf_page_lru_fill_table(
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (ignored) */
+    THD *thd,          /*!< in: thread */
+    Table_ref *tables, /*!< in/out: tables to fill */
+    Item *)            /*!< in: condition (ignored) */
 {
   int status = 0;
 
@@ -5395,7 +5406,7 @@ information_schema.innodb_tables table with related table information
 @param[in]      thd             thread
 @param[in,out]  tables          tables to fill
 @return 0 on success */
-static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
+static int i_s_innodb_tables_fill_table(THD *thd, Table_ref *tables, Item *) {
   btr_pcur_t pcur;
   const rec_t *rec;
   mem_heap_t *heap;
@@ -5696,7 +5707,7 @@ related information
 @param[in]      thd             thread
 @param[in,out]  tables          tables to fill
 @return 0 on success */
-static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
+static int i_s_innodb_tables_fill_table_stats(THD *thd, Table_ref *tables,
                                               Item *) {
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -5940,7 +5951,7 @@ information_schema.innodb_indexes table with related index information
 @param[in]      thd             thread
 @param[in,out]  tables          tables to fill
 @return 0 on success */
-static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
+static int i_s_innodb_indexes_fill_table(THD *thd, Table_ref *tables, Item *) {
   btr_pcur_t pcur;
   const rec_t *rec;
   mem_heap_t *heap;
@@ -6260,7 +6271,7 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
   return 0;
 }
 
-static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
+static void process_rows(THD *thd, Table_ref *tables, const rec_t *rec,
                          dict_table_t *dd_table, btr_pcur_t &pcur, mtr_t &mtr,
                          mem_heap_t *heap, bool is_partition) {
   ut_ad(dict_sys_mutex_own());
@@ -6363,7 +6374,7 @@ collected by scanning INNODB_COLUMNS table.
 @param[in]      thd             thread
 @param[in,out]  tables          tables to fill
 @return 0 on success */
-static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
+static int i_s_innodb_columns_fill_table(THD *thd, Table_ref *tables, Item *) {
   btr_pcur_t pcur;
   const rec_t *rec;
   mem_heap_t *heap;
@@ -6543,7 +6554,7 @@ param[in]       thd             thread
 param[in,out]   tables          tables to fill
 param[in]       item            condition (not used)
 @return 0 on success */
-static int i_s_innodb_virtual_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
+static int i_s_innodb_virtual_fill_table(THD *thd, Table_ref *tables, Item *) {
   btr_pcur_t pcur;
   const rec_t *rec;
   mem_heap_t *heap;
@@ -6949,7 +6960,7 @@ information and fill the INFORMATION_SCHEMA.INNODB_TABLESPACES table.
 @param[in]      thd             thread
 @param[in,out]  tables          tables to fill
 @return 0 on success */
-static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
+static int i_s_innodb_tablespaces_fill_table(THD *thd, Table_ref *tables,
                                              Item *) {
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -7149,7 +7160,7 @@ INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
 @param[in]      thd     thread
 @param[in,out]  tables  tables to fill
 @return 0 on success */
-static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
+static int i_s_innodb_cached_indexes_fill_table(THD *thd, Table_ref *tables,
                                                 Item * /* not used */) {
   MDL_ticket *mdl = nullptr;
   dict_table_t *dd_indexes;
@@ -7386,8 +7397,7 @@ table. Iterate over the in-memory structure and fill the table
 @param[in]      thd             thread
 @param[in,out]  tables          tables to fill
 @return 0 on success */
-static int i_s_innodb_session_temp_tablespaces_fill(THD *thd,
-                                                    TABLE_LIST *tables,
+static int i_s_innodb_session_temp_tablespaces_fill(THD *thd, Table_ref *tables,
                                                     Item *) {
   DBUG_TRACE;
 

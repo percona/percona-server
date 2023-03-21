@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # This script tests how setting `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option on `CHANGE
-# MASTER TO ...` is accepted or rejected and how it impacts PFS tables.
+# REPLICATION SOURCE TO ...` is accepted or rejected and how it impacts PFS tables.
 #
 # ==== Requirements ====
 #
@@ -71,7 +71,14 @@ CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 --let $assert_cond = 1 = $count
 --source include/assert.inc
 
-RESET SLAVE ALL;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'GENERATE'`
+--let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to GENERATE
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+RESET REPLICA ALL;
 
 --echo #
 --echo # 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for a replication setup
@@ -107,11 +114,11 @@ RESET SLAVE ALL;
 --error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'OFF'`
 --let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF

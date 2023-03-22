@@ -1,5 +1,3 @@
---source include/have_rocksdb.inc
-
 DELIMITER |;
 CREATE PROCEDURE `sproc`()
 BEGIN

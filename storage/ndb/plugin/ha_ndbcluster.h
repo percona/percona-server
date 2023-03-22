@@ -159,6 +159,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int index_last(uchar *buf) override;
   int index_next_same(uchar *buf, const uchar *key, uint keylen) override;
   int index_read_last(uchar *buf, const uchar *key, uint key_len) override;
+  bool has_gap_locks() const noexcept override { return true; }
   int rnd_init(bool scan) override;
   int rnd_end() override;
   int rnd_next(uchar *buf) override;
@@ -388,12 +389,11 @@ class ha_ndbcluster : public handler, public Partition_handler {
       TABLE *altered_table, Alter_inplace_info *ha_alter_info) override;
 
  private:
-  static bool inplace_parse_comment(NdbDictionary::Table *new_tab,
-                                    const NdbDictionary::Table *old_tab,
-                                    HA_CREATE_INFO *create_info, THD *thd,
-                                    Ndb *ndb, const char **unsupported_reason,
-                                    bool &max_rows_changed,
-                                    bool *partition_balance_in_comment = NULL);
+  static bool inplace_parse_comment(
+      NdbDictionary::Table *new_tab, const NdbDictionary::Table *old_tab,
+      HA_CREATE_INFO *create_info, THD *thd, Ndb *ndb,
+      const char **unsupported_reason, bool &max_rows_changed,
+      bool *partition_balance_in_comment = nullptr);
 
  public:
   bool prepare_inplace_alter_table(TABLE *altered_table,
@@ -491,7 +491,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool check_if_pushable(int type,  // NdbQueryOperationDef::Type,
                          uint idx = MAX_KEY) const;
   bool check_is_pushed() const;
-  int create_pushed_join(const NdbQueryParamValue *keyFieldParams = NULL,
+  int create_pushed_join(const NdbQueryParamValue *keyFieldParams = nullptr,
                          uint paramCnt = 0);
 
   int ndb_pk_update_row(THD *thd, const uchar *old_data, uchar *new_data);
@@ -699,13 +699,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
    public:
     // Save the commit count for source table during copying ALTER,
-    // returns false on success and true on error
-    bool save_commit_count(Thd_ndb *thd_ndb,
-                           const NdbDictionary::Table *ndbtab);
+    // returns 0 on success, handler error otherwise
+    int save_commit_count(Thd_ndb *thd_ndb, const NdbDictionary::Table *ndbtab);
     // Check commit count for source table during copying ALTER,
-    // returns false on success and true on error
-    bool check_saved_commit_count(Thd_ndb *thd_ndb,
-                                  const NdbDictionary::Table *ndbtab) const;
+    // returns 0 on success, handler error otherwise
+    int check_saved_commit_count(Thd_ndb *thd_ndb,
+                                 const NdbDictionary::Table *ndbtab) const;
   } copying_alter;
 
   /* State for setActiveHook() callback for reading blob data. */

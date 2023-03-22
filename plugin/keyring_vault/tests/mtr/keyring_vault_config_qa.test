@@ -33,6 +33,7 @@ if (!$vault_conf_mount_point_directory)
 --disable_query_log
 call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("Plugin keyring_vault reported: 'Could not read secret_mount_point from the configuration file.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not read credentials file content.'");
 call mtr.add_suppression("Function 'keyring_vault' already exists");
 call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
 

@@ -53,7 +53,7 @@ static int MDL_and_TDC(THD *thd, const char *db, const char *table,
   thd->lex->query_block->add_table_to_list(thd, &table_ident, NULL, 1,
                                            TL_UNLOCK, MDL_EXCLUSIVE, 0, 0, 0);
   /* The lock will be released at the end of mysq_execute_command() */
-  error = lock_table_names(thd, thd->lex->query_block->table_list.first, NULL,
+  error = lock_table_names(thd, thd->lex->query_block->m_table_list.first, NULL,
                            thd->variables.lock_wait_timeout, 0);
   if (error) {
     if (cb.set_error)

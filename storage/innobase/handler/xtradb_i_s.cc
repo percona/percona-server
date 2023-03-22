@@ -100,7 +100,7 @@ static ST_FIELD_INFO xtradb_read_view_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-static int xtradb_read_view_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
+static int xtradb_read_view_fill_table(THD *thd, Table_ref *tables, Item *) {
   DBUG_ENTER("xtradb_read_view_fill_table");
 
   /* deny access to non-superusers */

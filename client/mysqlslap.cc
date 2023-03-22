@@ -786,6 +786,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case OPT_ENABLE_CLEARTEXT_PLUGIN:
       using_opt_enable_cleartext_plugin = true;
       break;
+    case 'C':
+      CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
+      break;
   }
   return false;
 }
@@ -1675,7 +1678,6 @@ extern "C" void *run_task(void *p) {
   unsigned int commit_counter;
   MYSQL *mysql;
   MYSQL_RES *result;
-  MYSQL_ROW row;
   statement *ptr;
   thread_context *con = (thread_context *)p;
 
@@ -1780,8 +1782,8 @@ extern "C" void *run_task(void *p) {
             fprintf(stderr, "%s: Error when storing result: %d %s\n",
                     my_progname, mysql_errno(mysql), mysql_error(mysql));
           else {
-            while ((row = mysql_fetch_row(result)))
-              ;
+            while (mysql_fetch_row(result)) {
+            }
             mysql_free_result(result);
           }
         }

@@ -211,11 +211,34 @@ SUBPARTITIONS 2
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (2000) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15), ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15);
 Warnings:
 Warning	3958	Failed to delete sdi for test.t1 in test/t1#p#p0#sp#p0sp0 due to missing record.
 # Search log file for warning.
 Occurrences of 'sdi_delete failed' in the input file: 1
 # Stop the server and do cleanup.
 # Restart the server with default options.
+# restart:
+#
+# Bug#34607401: unhelpful 8.0.28->8.0.30 "Data Dictionary initialization
+#               failed."
+#
+# Copy the zipped 8.0.28 data directory and unzip it.
+# Shutdown the server
+# Start the server with the 8.0.28 data directory
+# Without the patch, the upgrade fails.
+CALL max_exec_time_10pov10();
+a
+1
+Warnings:
+Warning	1064	Unsupported MAX_EXECUTION_TIME near ') */ `a` from t1; end' at line 2
+CALL invalid_hint();
+a
+1
+Warnings:
+Warning	1064	Optimizer hint syntax error near 'abc */ `a` from t1; end' at line 2
+# Shutdown the server
+# Check for errors in the error log.
+Pattern "\[ERROR\]" not found
+# Cleanup
 # restart:

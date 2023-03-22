@@ -3870,7 +3870,6 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
       false,  // RESOURCE_GROUPS
       false,  // FOREIGN_KEY
       false,  // CHECK_CONSTRAINT
-      false,  // RESOURCE_GROUPS_GLOBAL
       false   // BACKUP_TABLES
   };
   static_assert(

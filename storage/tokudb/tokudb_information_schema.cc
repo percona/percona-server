@@ -83,7 +83,7 @@ int trx_callback(DB_TXN *txn,
   return error;
 }
 
-int trx_fill_table(THD *thd, TABLE_LIST *tables, TOKUDB_UNUSED(Item *cond)) {
+int trx_fill_table(THD *thd, Table_ref *tables, TOKUDB_UNUSED(Item *cond)) {
   TOKUDB_DBUG_ENTER("");
   int error;
 
@@ -186,7 +186,7 @@ int lock_waits_callback(DB *db, uint64_t requesting_txnid, const DBT *left_key,
   return error;
 }
 
-int lock_waits_fill_table(THD *thd, TABLE_LIST *tables,
+int lock_waits_fill_table(THD *thd, Table_ref *tables,
                           TOKUDB_UNUSED(Item *cond)) {
   TOKUDB_DBUG_ENTER("");
   int error;
@@ -298,7 +298,7 @@ int locks_callback(DB_TXN *txn, iterate_row_locks_callback iterate_locks,
   return error;
 }
 
-int locks_fill_table(THD *thd, TABLE_LIST *tables, TOKUDB_UNUSED(Item *cond)) {
+int locks_fill_table(THD *thd, Table_ref *tables, TOKUDB_UNUSED(Item *cond)) {
   TOKUDB_DBUG_ENTER("");
   int error;
 
@@ -414,7 +414,7 @@ cleanup:
   return error;
 }
 
-int file_map_fill_table(THD *thd, TABLE_LIST *tables,
+int file_map_fill_table(THD *thd, Table_ref *tables,
                         TOKUDB_UNUSED(Item *cond)) {
   TOKUDB_DBUG_ENTER("");
   int error;
@@ -574,7 +574,7 @@ cleanup:
   return error;
 }
 
-int fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables,
+int fractal_tree_info_fill_table(THD *thd, Table_ref *tables,
                                  TOKUDB_UNUSED(Item *cond)) {
   TOKUDB_DBUG_ENTER("");
   int error;
@@ -818,7 +818,7 @@ cleanup:
   return error;
 }
 
-int fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables,
+int fractal_tree_block_map_fill_table(THD *thd, Table_ref *tables,
                                       TOKUDB_UNUSED(Item *cond)) {
   TOKUDB_DBUG_ENTER("");
   int error;
@@ -938,7 +938,7 @@ int report_background_job_status(TABLE *table, THD *thd) {
   return error;
 }
 
-int background_job_status_fill_table(THD *thd, TABLE_LIST *tables,
+int background_job_status_fill_table(THD *thd, Table_ref *tables,
                                      TOKUDB_UNUSED(Item *cond)) {
   TOKUDB_DBUG_ENTER("");
   int error;

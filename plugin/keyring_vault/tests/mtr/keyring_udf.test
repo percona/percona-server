@@ -1,6 +1,18 @@
 --source include/have_keyring_vault_plugin.inc
 --source include/have_keyring_udf_plugin.inc
 
+# The test must be able to load two plugins from different locations at the same time. To do so we
+# copy both binaries to MYSQLTEST_VARDIR and use this location as --plugin-dir option value.
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/$KEYRING_VAULT_PLUGIN
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/$KEYRING_UDF
+--copy_file $KEYRING_VAULT_PLUGIN_DIR/$KEYRING_VAULT_PLUGIN $MYSQLTEST_VARDIR/$KEYRING_VAULT_PLUGIN
+--copy_file $KEYRING_UDF_DIR/$KEYRING_UDF $MYSQLTEST_VARDIR/$KEYRING_UDF
+--let $do_not_echo_parameters = 1
+--let $restart_parameters = restart: --plugin-dir=$MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
 --let $vault_conf_mount_point_uuid = `SELECT UUID()`
 
 --source parse_combination.inc
@@ -42,7 +54,7 @@ call mtr.add_suppression("for being a mount point successful - identified kv-v2 
 
 --echo # Re-starting mysql server with keyring_vault plugin.
 --let $do_not_echo_parameters = 1
---let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1
+--let $restart_parameters = restart: --plugin-dir=$MYSQLTEST_VARDIR $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1
 --source include/restart_mysqld.inc
 
 --echo # Check what happens when we have not yet loaded keyring_udf
@@ -99,7 +111,7 @@ drop function keyring_key_generate;
 
 --echo # Re-starting mysql server with keyring_vault plugin.
 --let $do_not_echo_parameters=1
---let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring-vault-config=$conf_file1
+--let $restart_parameters = restart: --plugin-dir=$MYSQLTEST_VARDIR $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring-vault-config=$conf_file1
 --source include/restart_mysqld.inc
 
 --replace_regex /\.dll/.so/
@@ -190,3 +202,7 @@ if (!$vault_conf_mount_point_directory)
 # Removing .conf files
 --remove_file $conf_file1
 --remove_file $conf_file2
+
+# Delete copied plugins
+--remove_file $MYSQLTEST_VARDIR/$KEYRING_VAULT_PLUGIN
+--remove_file $MYSQLTEST_VARDIR/$KEYRING_UDF

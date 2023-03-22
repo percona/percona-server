@@ -56,19 +56,7 @@
 
 #if HAVE_LIBCOREDUMPER
 #include <coredumper/coredumper.h>
-#endif
-// my_print_buildID
-#ifdef __linux__
-#include <elf.h>
-#include <sys/stat.h>
 #include "my_io.h"
-#include "my_sys.h"
-#include "mysql/service_mysql_alloc.h"
-#if defined(__x86_64__)
-#define ElfW(type) Elf64_##type
-#else
-#define ElfW(type) Elf32_##type
-#endif
 #endif
 
 #include "my_thread.h"
@@ -265,68 +253,6 @@ static void my_demangle_symbols(char **addrs, int n) {
 }
 
 #endif /* HAVE_ABI_CXA_DEMANGLE */
-#ifdef __linux__
-void my_print_buildID() {
-  int readlink_bytes;
-  char proc_path[FN_REFLEN];
-  char mysqld_path[PATH_MAX + 1] = {0};
-  FILE *mysqld;
-  struct stat statbuf;
-  ElfW(Ehdr) *ehdr = 0;
-  ElfW(Phdr) *phdr = 0;
-  ElfW(Nhdr) *nhdr = 0;
-  unsigned char *build_id;
-  char buff[3];
-  uint i;
-  uint bytes_read;
-  snprintf(proc_path, sizeof(proc_path), "/proc/%d/exe", getpid());
-  readlink_bytes = readlink(proc_path, mysqld_path, sizeof(mysqld_path));
-  if (readlink_bytes < 1) {
-    my_safe_printf_stderr("Error reading process path\n");
-    return;
-  }
-  if (!(mysqld = fopen(mysqld_path, "r"))) {
-    my_safe_printf_stderr("Error opening mysql binary\n");
-    return;
-  }
-  if (fstat(fileno(mysqld), &statbuf) < 0) {
-    my_safe_printf_stderr("Error running fstat on mysql binary\n");
-    fclose(mysqld);
-    return;
-  }
-  ehdr = (ElfW(Ehdr) *)my_mmap(0, statbuf.st_size, PROT_READ | PROT_WRITE,
-                               MAP_PRIVATE, fileno(mysqld), 0);
-  phdr = (ElfW(Phdr) *)(ehdr->e_phoff + (size_t)ehdr);
-  while (phdr->p_type != PT_NOTE) {
-    ++phdr;
-  }
-  nhdr = (ElfW(Nhdr) *)(phdr->p_offset + (size_t)ehdr);
-  bytes_read = sizeof(ElfW(Nhdr));
-  while (nhdr->n_type != NT_GNU_BUILD_ID) {
-    nhdr = (ElfW(Nhdr) *)((size_t)nhdr + sizeof(ElfW(Nhdr)) + nhdr->n_namesz +
-                          nhdr->n_descsz);
-    bytes_read += nhdr->n_namesz + nhdr->n_descsz;
-    if (bytes_read > phdr->p_filesz) {
-      my_safe_printf_stderr("Build ID: Not Available \n");
-      fclose(mysqld);
-      return;
-    }
-  }
-  build_id =
-      (unsigned char *)my_malloc(PSI_NOT_INSTRUMENTED, nhdr->n_descsz, MYF(0));
-  memcpy(build_id, (void *)((size_t)nhdr + sizeof(ElfW(Nhdr)) + nhdr->n_namesz),
-         nhdr->n_descsz);
-  my_safe_printf_stderr("Build ID: ");
-  for (i = 0; i < nhdr->n_descsz; ++i) {
-    snprintf(buff, sizeof(buff), "%02hhx", build_id[i]);
-    my_safe_printf_stderr("%s", buff);
-  }
-  my_free(build_id);
-  fclose(mysqld);
-  my_safe_printf_stderr("\n");
-}
-#endif /* __linux__ */
-
 void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
 #if defined(__FreeBSD__)
   static char procname_buffer[2048];
@@ -535,13 +461,19 @@ void my_print_stacktrace(const uchar * /* stack_bottom */,
   /*Prepare stackframe for the first StackWalk64 call*/
   frame.AddrFrame.Mode = frame.AddrPC.Mode = frame.AddrStack.Mode =
       AddrModeFlat;
-#if (defined _M_X64)
+#if (defined _M_IX86)
+  machine = IMAGE_FILE_MACHINE_I386;
+  frame.AddrFrame.Offset = context.Ebp;
+  frame.AddrPC.Offset = context.Eip;
+  frame.AddrStack.Offset = context.Esp;
+#elif (defined _M_X64)
   machine = IMAGE_FILE_MACHINE_AMD64;
   frame.AddrFrame.Offset = context.Rbp;
   frame.AddrPC.Offset = context.Rip;
   frame.AddrStack.Offset = context.Rsp;
 #else
   /*There is currently no need to support IA64*/
+  /* Warning C4068: unknown pragma 'error' */
 #pragma error("unsupported architecture")
 #endif
 

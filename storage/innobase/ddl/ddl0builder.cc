@@ -28,6 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  DDL build index implementation.
 Created 2020-11-01 by Sunny Bains. */
 
+#include <debug_sync.h>
 #include "clone0api.h"
 #include "ddl0fts.h"
 #include "ddl0impl-builder.h"
@@ -1946,11 +1947,11 @@ dberr_t Builder::finalize(bool apply_log) noexcept {
     write_redo(m_index);
 
     if (apply_log) {
-      DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_before");
+      DEBUG_SYNC(m_ctx.thd(), "row_log_apply_before");
 
       err = row_log_apply(m_ctx.m_trx, m_index, m_ctx.m_table, m_local_stage);
 
-      DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_after");
+      DEBUG_SYNC(m_ctx.thd(), "row_log_apply_after");
     }
   }
 
@@ -2002,7 +2003,7 @@ dberr_t Builder::setup_sort() noexcept {
   ut_a(!is_skip_file_sort());
   ut_a(get_state() == State::SETUP_SORT);
 
-  DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "ddl_merge_sort_interrupt");
+  DEBUG_SYNC(m_ctx.thd(), "ddl_merge_sort_interrupt");
 
   const auto err = create_merge_sort_tasks();
 

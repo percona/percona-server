@@ -303,13 +303,6 @@ our @DEFAULT_SUITES = qw(
   rocksdb_sys_vars
   rocksdb_stress
   rpl_encryption
-  tokudb
-  tokudb_add_index
-  tokudb_alter_table
-  tokudb_bugs
-  tokudb_parts
-  tokudb_perfschema
-  tokudb_rpl
 
   audit_null
   engines/iuds
@@ -900,8 +893,8 @@ sub main {
 
   if (@$completed != $num_tests) {
     # Not all tests completed
-    mtr_report();
-    mtr_report("Only ", int(@$completed), " of $num_tests completed.");
+    mtr_print_line();
+    mtr_report(int(@$completed), " of $num_tests test(s) completed.");
     foreach (@tests_list) {
       $_->{key} = "$_" unless defined $_->{key};
     }
@@ -913,10 +906,15 @@ sub main {
       }
     }
     if (int(@not_completed) <= 100) {
-      mtr_error("Not all tests completed:", join(" ", @not_completed));
+      mtr_report("Not all tests completed:", join(" ", @not_completed));
     } else {
-      mtr_error("Not all tests completed:", join(" ", @not_completed[0...49]), "... and", int(@not_completed)-50, "more");
+      mtr_report("Not all tests completed:", join(" ", @not_completed[0...49]), "... and", int(@not_completed)-50, "more");
     }
+    mtr_report();
+    if(int(@$completed)) {
+      mtr_report_stats("In completed tests", $completed);
+    }
+    mtr_error("No test(s) completed");
   }
 
   mark_time_used('init');
@@ -6437,6 +6435,11 @@ sub mysqld_arguments ($$$) {
     # Turn on logging to file
     mtr_add_arg($args, "--log-output=file");
   }
+
+  # Force this initial explain_format value, so that tests don't fail with
+  # --hypergraph due to implicit conversion from TRADITIONAL to TREE. Check the
+  # definition of enum Explain_format_type for more details.
+  mtr_add_arg($args, "--explain-format=TRADITIONAL_STRICT");
 
   # Indicate to mysqld it will be debugged in debugger
   if ($glob_debugger) {

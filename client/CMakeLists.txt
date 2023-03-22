@@ -25,7 +25,7 @@ ADD_WSHADOW_WARNING()
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()
 
-INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${MY_XLINE_INCLUDE_DIR})
 
 ## Subdirectory with common client code.
 
@@ -48,7 +48,7 @@ MYSQL_ADD_EXECUTABLE(mysql
   client_query_attributes.cc
   multi_factor_passwordopt-vars.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
-  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
+  LINK_LIBRARIES perconaserverclient client_base ${MY_XLINE_LIBRARY}
   )
 
 IF(NOT WITHOUT_SERVER)
@@ -255,6 +255,14 @@ MYSQL_ADD_EXECUTABLE(mysqlbinlog
   DEPENDENCIES GenError
   LINK_LIBRARIES ${MYSQLBINLOG_LIBRARIES}
   )
+
+# __builtin_strncpy specified bound depends on the length of the source argument
+# mysqlbinlog.cc:2169:22: note: length computed here
+IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND
+    MY_COMPILER_IS_GNU AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 11)
+  MY_TARGET_LINK_OPTIONS(mysqlbinlog "-Wno-stringop-truncation")
+ENDIF()
 
 IF(WITH_JSON_BINLOG_LIBRARY)
   IF(APPLE)

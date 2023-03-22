@@ -319,12 +319,15 @@
 
 #endif
 
+#include <chrono>
+#include <future>
 #include <queue>
 #include <tuple>
 
 /* Defines and constants */
 
 #define SYS_STRERROR_SIZE 512
+#define XCOM_SEND_APP_WAIT_TIMEOUT 20
 
 /* Avoid printing the warning of protocol version mismatch too often */
 #define PROTOVERSION_WARNING_TIMEOUT 600.0 /** Every 10 minutes */
@@ -1070,10 +1073,10 @@ static xcom_state_change_cb xcom_comms_cb = nullptr;
 static xcom_state_change_cb xcom_exit_cb = nullptr;
 static xcom_state_change_cb xcom_expel_cb = nullptr;
 static xcom_input_try_pop_cb xcom_try_pop_from_input_cb = nullptr;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_begin_cb = nullptr;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_restart_cb = nullptr;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_init_cb = nullptr;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_end_cb = nullptr;
+[[maybe_unused]] static xcom_recovery_cb recovery_begin_cb = nullptr;
+[[maybe_unused]] static xcom_recovery_cb recovery_restart_cb = nullptr;
+[[maybe_unused]] static xcom_recovery_cb recovery_init_cb = nullptr;
+[[maybe_unused]] static xcom_recovery_cb recovery_end_cb = nullptr;
 
 void set_xcom_run_cb(xcom_state_change_cb x) { xcom_run_cb = x; }
 void set_xcom_exit_cb(xcom_state_change_cb x) { xcom_exit_cb = x; }
@@ -4129,7 +4132,7 @@ struct fp_name {
   { f, #f }
 
 /* List of fp, name pairs */
-static struct fp_name MY_ATTRIBUTE((unused)) oblist[] = {
+[[maybe_unused]] static struct fp_name oblist[] = {
     NAME(x_fetch), NAME(x_execute), NAME(x_terminate), {nullptr, nullptr}};
 #undef NAME
 
@@ -8262,12 +8265,24 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
   pax_msg *rp = nullptr;
 
   do {
-    retval = (int)xcom_send_client_app_data(fd, a, force);
-    memset(p, 0, sizeof(*p)); /* before return so caller can free p */
-    if (retval < 0) {
+    std::packaged_task<void()> send_client_app_data_task([&]() {
+      retval = (int)xcom_send_client_app_data(fd, a, force);
+      if (retval >= 0) rp = socket_read_msg(fd, p);
+    });
+
+    auto send_client_app_data_result = send_client_app_data_task.get_future();
+    std::thread(std::move(send_client_app_data_task)).detach();
+
+    std::future_status request_status = send_client_app_data_result.wait_for(
+        std::chrono::seconds(XCOM_SEND_APP_WAIT_TIMEOUT));
+    if ((retval < 0) || request_status == std::future_status::timeout) {
+      memset(p, 0, sizeof(*p)); /* before return so caller can free p */
+      G_INFO(
+          "Client sent negotiation request for protocol failed. Please check "
+          "the remote node log for more details.")
       return SEND_REQUEST_FAILED;
     }
-    rp = socket_read_msg(fd, p);
+
     if (rp) {
       client_reply_code cli_err = rp->cli_err;
       switch (cli_err) {
@@ -8660,7 +8675,7 @@ int xcom_client_get_leaders(connection_descriptor *fd, uint32_t group_id,
 
 #if 0
 /* Called when leader changes */
-static xcom_election_cb election_cb [[maybe_unused]] = NULL;
+[[maybe_unused]] static xcom_election_cb election_cb = NULL;
 
 void set_xcom_election_cb(xcom_election_cb x) { election_cb = x; }
 #endif

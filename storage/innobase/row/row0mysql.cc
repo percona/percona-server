@@ -125,6 +125,7 @@ applications.
 const uint srv_compressed_columns_zlib_strategy = Z_DEFAULT_STRATEGY;
 /** Compress the column if the data length exceeds this value. */
 ulong srv_compressed_columns_threshold = 96;
+
 /**
 Determine if zlib needs to compute adler32 value for the compressed data.
 This variables is similar to page_zip_zlib_wrap, but only used by
@@ -3369,17 +3370,15 @@ dberr_t row_create_index_for_mysql(
   dberr_t err;
   ulint i;
   ulint len;
-  char *table_name;
   char *index_name;
   dict_table_t *table = nullptr;
   THD *thd = current_thd;
 
   trx->op_info = "creating index";
 
-  /* Copy the table name because we may want to drop the
-  table later, after the index object is freed (inside
-  que_run_threads()) and thus index->table_name is not available. */
-  table_name = mem_strdup(index->table_name);
+  /* Copy the index name because we may want destroy the index
+     in dict_index_add_to_cache_w_vcol, or in dict_index_add_to_cache
+  */
   index_name = mem_strdup(index->name);
 
   auto is_fts = (index->type == DICT_FTS);
@@ -3389,7 +3388,7 @@ dberr_t row_create_index_for_mysql(
   }
 
   if (table == nullptr) {
-    table = dd_table_open_on_name(thd, nullptr, table_name, false,
+    table = dd_table_open_on_name(thd, nullptr, index->table_name, false,
                                   DICT_ERR_IGNORE_NONE);
   } else {
     table->acquire();
@@ -3498,7 +3497,6 @@ error_handling:
   trx->op_info = "";
   trx->dict_operation = TRX_DICT_OP_NONE;
 
-  ut::free(table_name);
   ut::free(index_name);
 
   return (err);

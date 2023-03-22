@@ -1,3 +1,5 @@
+# Valgrind reports false positives coming from coredumper internals
+--source include/not_valgrind.inc
 # ASAN disables core dumps
 --source include/not_asan.inc
 
@@ -96,13 +98,23 @@ remove_files_wildcard $MYSQLD_DATADIR mycore.*;
 --let $restart_parameters=restart:
 --source include/start_mysqld.inc
 
-# Check Build ID and server version has been written to error log
+--let $has_build_id = `SELECT COUNT(*) != 0 FROM performance_schema.global_variables WHERE variable_name = 'build_id'`
+
 --let $assert_text= Checking MySQL wrote Build ID
---let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select= Build ID: ([a-f0-9]{40}|Not Available)
---let $assert_only_after=CURRENT_TEST: main.coredump
---let $assert_count=2
---source include/assert_grep.inc
+if ($has_build_id)
+{
+  # Check Build ID and server version has been written to error log
+  --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+  --let $assert_select= ^BuildID\[sha1\]=[a-f0-9]{40}
+  --let $assert_only_after=CURRENT_TEST: main.coredump
+  --let $assert_count=2
+  --source include/assert_grep.inc
+}
+if (!$has_build_id)
+{
+  # emulate successful 'assert_grep.inc' output'
+  --echo include/assert_grep.inc [$assert_text]
+}
 
 # Check Build ID and server version has been written to error log
 --let $assert_text= Checking MySQL wrote Server Version

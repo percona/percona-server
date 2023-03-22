@@ -78,7 +78,7 @@ static ST_FIELD_INFO rdb_i_s_cfstats_fields_info[] = {
     ROCKSDB_FIELD_INFO_END};
 
 static int rdb_i_s_cfstats_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -198,7 +198,7 @@ static ST_FIELD_INFO rdb_i_s_dbstats_fields_info[] = {
     ROCKSDB_FIELD_INFO_END};
 
 static int rdb_i_s_dbstats_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -302,7 +302,7 @@ static ST_FIELD_INFO rdb_i_s_perf_context_fields_info[] = {
     ROCKSDB_FIELD_INFO_END};
 
 static int rdb_i_s_perf_context_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -407,7 +407,7 @@ static ST_FIELD_INFO rdb_i_s_perf_context_global_fields_info[] = {
     ROCKSDB_FIELD_INFO_END};
 
 static int rdb_i_s_perf_context_global_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -482,7 +482,7 @@ static ST_FIELD_INFO rdb_i_s_cfoptions_fields_info[] = {
     ROCKSDB_FIELD_INFO_END};
 
 static int rdb_i_s_cfoptions_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -749,7 +749,7 @@ static ST_FIELD_INFO rdb_i_s_global_info_fields_info[] = {
  * information_schema.rocksdb_global_info
  */
 static int rdb_global_info_fill_row(my_core::THD *const thd,
-                                    my_core::TABLE_LIST *const tables,
+                                    my_core::Table_ref *const tables,
                                     const char *const type,
                                     const char *const name,
                                     const char *const value) {
@@ -774,7 +774,7 @@ static int rdb_global_info_fill_row(my_core::THD *const thd,
 }
 
 static int rdb_i_s_global_info_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -876,7 +876,7 @@ static int rdb_i_s_global_info_fill_table(
   Support for INFORMATION_SCHEMA.ROCKSDB_COMPACTION_STATS dynamic table
  */
 static int rdb_i_s_compact_stats_fill_table(
-    my_core::THD *thd, my_core::TABLE_LIST *tables,
+    my_core::THD *thd, my_core::Table_ref *tables,
     my_core::Item *cond MY_ATTRIBUTE((__unused__))) {
   assert(thd != nullptr);
   assert(tables != nullptr);
@@ -1004,7 +1004,7 @@ const char *GetCompactionReasonString(CompactionReason compaction_reason) {
   Support for INFORMATION_SCHEMA.ROCKSDB_ACTIVE_COMPACTION_STATS dynamic table
  */
 static int rdb_i_s_active_compact_stats_fill_table(
-    my_core::THD *thd, my_core::TABLE_LIST *tables,
+    my_core::THD *thd, my_core::Table_ref *tables,
     my_core::Item *cond MY_ATTRIBUTE((__unused__))) {
   assert(thd != nullptr);
   assert(tables != nullptr);
@@ -1054,7 +1054,7 @@ static int rdb_i_s_active_compact_stats_fill_table(
   Support for INFORMATION_SCHEMA.ROCKSDB_COMPACTION_HISTORY dynamic table
  */
 static int rdb_i_s_compact_history_fill_table(
-    my_core::THD *thd, my_core::TABLE_LIST *tables,
+    my_core::THD *thd, my_core::Table_ref *tables,
     my_core::Item *cond MY_ATTRIBUTE((__unused__))) {
   assert(thd != nullptr);
   assert(tables != nullptr);
@@ -1264,7 +1264,7 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
 }
 
 static int rdb_i_s_ddl_fill_table(my_core::THD *const thd,
-                                  my_core::TABLE_LIST *const tables,
+                                  my_core::Table_ref *const tables,
                                   my_core::Item *const cond) {
   DBUG_ENTER_FUNC();
 
@@ -1457,7 +1457,7 @@ static ST_FIELD_INFO rdb_i_s_sst_props_fields_info[] = {
     ROCKSDB_FIELD_INFO_END};
 
 static int rdb_i_s_sst_props_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -1627,7 +1627,7 @@ static ST_FIELD_INFO rdb_i_s_index_file_map_fields_info[] = {
 
 /* Fill the information_schema.rocksdb_index_file_map virtual table */
 static int rdb_i_s_index_file_map_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -1774,7 +1774,7 @@ static ST_FIELD_INFO rdb_i_s_lock_info_fields_info[] = {
 
 /* Fill the information_schema.rocksdb_locks virtual table */
 static int rdb_i_s_lock_info_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -1895,7 +1895,7 @@ static ST_FIELD_INFO rdb_i_s_trx_info_fields_info[] = {
 
 /* Fill the information_schema.rocksdb_trx virtual table */
 static int rdb_i_s_trx_info_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
@@ -2019,7 +2019,7 @@ static ST_FIELD_INFO rdb_i_s_deadlock_info_fields_info[] = {
 
 /* Fill the information_schema.rocksdb_trx virtual table */
 static int rdb_i_s_deadlock_info_fill_table(
-    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::THD *const thd, my_core::Table_ref *const tables,
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 

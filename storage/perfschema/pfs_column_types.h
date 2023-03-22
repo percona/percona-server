@@ -245,8 +245,7 @@ enum enum_object_type : char {
   OBJECT_TYPE_RESOURCE_GROUPS = 17,
   OBJECT_TYPE_FOREIGN_KEY = 18,
   OBJECT_TYPE_CHECK_CONSTRAINT = 19,
-  OBJECT_TYPE_RESOURCE_GROUPS_GLOBAL = 20,
-  OBJECT_TYPE_BACKUP_TABLES = 21
+  OBJECT_TYPE_BACKUP_TABLES = 20
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_EVENT))

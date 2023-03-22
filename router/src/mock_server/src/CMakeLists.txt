@@ -28,6 +28,7 @@
 ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc mysql_server_mock_schema.h
                    COMMAND json_schema_embedder
                      ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_mock_schema.js
+                     mysql_server_mock_schema.cc
                      mysql_server_mock_schema.h
                      "SqlQueryJsonSchema"
                    DEPENDS mysql_server_mock_schema.js)
@@ -142,6 +143,7 @@ add_harness_plugin(mock_server
   mysql_server_mock.cc
   classic_mock_session.cc
   x_mock_session.cc
+  mysql_server_mock_schema.cc
   duk_module_shim.cc
   duk_node_fs.c
   mock_server_plugin.cc

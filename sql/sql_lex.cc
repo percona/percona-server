@@ -570,7 +570,7 @@ void LEX::clear_execution() {
   /*
     m_view_ctx_list contains all the view tables view_ctx objects and must
     be emptied now since it's going to be re-populated below as we reiterate
-    over all query_tables and call TABLE_LIST::prepare_security().
+    over all query_tables and call Table_ref::prepare_security().
   */
   thd->m_view_ctx_list.clear();
 
@@ -582,7 +582,7 @@ void LEX::clear_execution() {
     Another note: this loop uses query_tables so does not see TABLE_LISTs
     which represent join nests.
   */
-  for (TABLE_LIST *tr = query_tables; tr != nullptr; tr = tr->next_global)
+  for (Table_ref *tr = query_tables; tr != nullptr; tr = tr->next_global)
     tr->reset();
 }
 
@@ -1444,6 +1444,12 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         yylval->lex_str.length = lip->yytoklen;
         return (NCHAR_STRING);
 
+      case MY_LEX_IDENT_OR_DOLLAR_QUOTE:
+        state = MY_LEX_IDENT;
+        push_deprecated_warn_no_replacement(
+            lip->m_thd, "$ as the first character of an unquoted identifier");
+        break;
+
       case MY_LEX_IDENT_OR_HEX:
         if (lip->yyPeek() == '\'') {  // Found x'hex-number'
           state = MY_LEX_HEX_NUMBER;
@@ -1561,10 +1567,16 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         yylval->lex_str.str = const_cast<char *>(lip->get_ptr());
         yylval->lex_str.length = 1;
         c = lip->yyGet();  // should be '.'
-        lip->next_state =
-            MY_LEX_IDENT_START;         // Next is an ident (not a keyword)
-        if (!ident_map[lip->yyPeek()])  // Probably ` or "
+        if (uchar next_c = lip->yyPeek(); ident_map[next_c]) {
+          lip->next_state =
+              MY_LEX_IDENT_START;  // Next is an ident (not a keyword)
+          if (next_c == '$')       // We got .$ident
+            push_deprecated_warn_no_replacement(
+                lip->m_thd,
+                "$ as the first character of an unquoted identifier");
+        } else  // Probably ` or "
           lip->next_state = MY_LEX_START;
+
         return ((int)c);
 
       case MY_LEX_NUMBER_IDENT:  // number or ident which num-start
@@ -2139,8 +2151,8 @@ Query_block::Query_block(MEM_ROOT *mem_root, Item *where, Item *having)
       ftfunc_list(&ftfunc_list_alloc),
       sj_nests(mem_root),
       first_context(&context),
-      top_join_list(mem_root),
-      join_list(&top_join_list),
+      m_table_nest(mem_root),
+      m_current_table_nest(&m_table_nest),
       m_where_cond(where),
       m_having_cond(having) {}
 
@@ -2437,10 +2449,6 @@ ha_rows Query_block::get_limit(const THD *thd) const {
     return ha_rows{HA_POS_ERROR};
 }
 
-void Query_block::add_order_to_list(ORDER *order) {
-  add_to_list(order_list, order);
-}
-
 bool Query_block::add_item_to_list(Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("Item: %p", item));
@@ -2680,7 +2688,7 @@ void Index_hint::print(const THD *thd, String *str) {
   str->append(')');
 }
 
-typedef Prealloced_array<TABLE_LIST *, 8> Table_array;
+typedef Prealloced_array<Table_ref *, 8> Table_array;
 
 static void print_table_array(const THD *thd, String *str,
                               const Table_array &tables,
@@ -2690,7 +2698,7 @@ static void print_table_array(const THD *thd, String *str,
   Table_array::const_iterator it = tables.begin();
   bool first = true;
   for (; it != tables.end(); ++it) {
-    TABLE_LIST *curr = *it;
+    Table_ref *curr = *it;
 
     const bool is_optimized =
         curr->query_block->join && curr->query_block->join->is_optimized();
@@ -2756,7 +2764,7 @@ static void print_table_array(const THD *thd, String *str,
 */
 
 static void print_join(const THD *thd, String *str,
-                       mem_root_deque<TABLE_LIST *> *tables,
+                       mem_root_deque<Table_ref *> *tables,
                        enum_query_type query_type) {
   /* List is reversed => we should reverse it before using */
 
@@ -2781,7 +2789,7 @@ static void print_join(const THD *thd, String *str,
   const bool print_const_tables = (query_type & QT_NO_DATA_EXPANSION);
   Table_array tables_to_print(PSI_NOT_INSTRUMENTED);
 
-  for (TABLE_LIST *t : *tables) {
+  for (Table_ref *t : *tables) {
     // The single table added to fake_query_block has no name;
     // “from dual” looks slightly better than “from ``”, so drop it.
     // (The fake_query_block query is invalid either way.)
@@ -2814,11 +2822,11 @@ bool db_is_default_db(const char *db, size_t db_len, const THD *thd) {
   @param str   string where table should be printed
 */
 
-void TABLE_LIST::print(const THD *thd, String *str,
-                       enum_query_type query_type) const {
+void Table_ref::print(const THD *thd, String *str,
+                      enum_query_type query_type) const {
   if (nested_join) {
     str->append('(');
-    print_join(thd, str, &nested_join->join_list, query_type);
+    print_join(thd, str, &nested_join->m_tables, query_type);
     str->append(')');
   } else {
     const char *cmp_name;  // Name to compare with alias
@@ -2966,7 +2974,7 @@ void Query_block::print_update(const THD *thd, String *str,
   print_update_options(str);
   if (parent_lex->sql_command == SQLCOM_UPDATE) {
     // Single table update
-    auto *t = table_list.first;
+    Table_ref *t = get_table_list();
     t->print(thd, str, query_type);  // table identifier
     str->append(STRING_WITH_LEN(" set "));
     print_update_list(thd, str, query_type, fields,
@@ -2986,7 +2994,7 @@ void Query_block::print_update(const THD *thd, String *str,
     print_limit(thd, str, query_type);
   } else {
     // Multi table update
-    print_join(thd, str, &top_join_list, query_type);
+    print_join(thd, str, &m_table_nest, query_type);
     str->append(STRING_WITH_LEN(" set "));
     print_update_list(thd, str, query_type, fields,
                       *sql_cmd_update->update_value_list);
@@ -3000,7 +3008,7 @@ void Query_block::print_delete(const THD *thd, String *str,
   print_hints(thd, str, query_type);
   print_delete_options(str);
   if (parent_lex->sql_command == SQLCOM_DELETE) {
-    TABLE_LIST *t = table_list.first;
+    Table_ref *t = get_table_list();
     // Single table delete
     str->append(STRING_WITH_LEN("from "));
     t->print(thd, str, query_type);  // table identifier
@@ -3021,7 +3029,7 @@ void Query_block::print_delete(const THD *thd, String *str,
     // Multi table delete
     print_table_references(thd, str, parent_lex->query_tables, query_type);
     str->append(STRING_WITH_LEN(" from "));
-    print_join(thd, str, &top_join_list, query_type);
+    print_join(thd, str, &m_table_nest, query_type);
     print_where_cond(thd, str, query_type);
   }
 }
@@ -3047,9 +3055,9 @@ void Query_block::print_insert(const THD *thd, String *str,
   print_insert_options(str);
   str->append(STRING_WITH_LEN("into "));
 
-  TABLE_LIST *tbl = (parent_lex->insert_table_leaf)
-                        ? parent_lex->insert_table_leaf
-                        : table_list.first;
+  Table_ref *tbl = (parent_lex->insert_table_leaf)
+                       ? parent_lex->insert_table_leaf
+                       : get_table_list();
   tbl->print(thd, str, query_type);  // table identifier
 
   print_insert_fields(thd, str, query_type);
@@ -3139,23 +3147,23 @@ void Query_block::print_select_options(String *str) {
 }
 
 void Query_block::print_update_options(String *str) {
-  if (table_list.first &&
-      table_list.first->mdl_request.type == MDL_SHARED_WRITE_LOW_PRIO)
+  if (get_table_list() &&
+      get_table_list()->mdl_request.type == MDL_SHARED_WRITE_LOW_PRIO)
     str->append(STRING_WITH_LEN("low_priority "));
   if (parent_lex->is_ignore()) str->append(STRING_WITH_LEN("ignore "));
 }
 
 void Query_block::print_delete_options(String *str) {
-  if (table_list.first &&
-      table_list.first->mdl_request.type == MDL_SHARED_WRITE_LOW_PRIO)
+  if (get_table_list() &&
+      get_table_list()->mdl_request.type == MDL_SHARED_WRITE_LOW_PRIO)
     str->append(STRING_WITH_LEN("low_priority "));
   if (active_options() & OPTION_QUICK) str->append(STRING_WITH_LEN("quick "));
   if (parent_lex->is_ignore()) str->append(STRING_WITH_LEN("ignore "));
 }
 
 void Query_block::print_insert_options(String *str) {
-  if (table_list.first) {
-    int type = static_cast<int>(table_list.first->lock_descriptor().type);
+  if (get_table_list()) {
+    int type = static_cast<int>(get_table_list()->lock_descriptor().type);
 
     // Lock option
     if (type == static_cast<int>(TL_WRITE_LOW_PRIORITY))
@@ -3168,24 +3176,24 @@ void Query_block::print_insert_options(String *str) {
 }
 
 void Query_block::print_table_references(const THD *thd, String *str,
-                                         TABLE_LIST *table_list,
+                                         Table_ref *table_list,
                                          enum_query_type query_type) {
   bool first = true;
-  for (TABLE_LIST *tbl = table_list; tbl; tbl = tbl->next_local) {
+  for (Table_ref *tbl = table_list; tbl; tbl = tbl->next_local) {
     if (tbl->updating) {
       if (first)
         first = false;
       else
         str->append(STRING_WITH_LEN(", "));
 
-      TABLE_LIST *t = tbl;
+      Table_ref *t = tbl;
 
       /*
         Query Rewrite Plugin will not have is_view() set even for a view. This
         is because operations like open_table haven't happened yet. So the
         underlying target tables will not be added, only the original
         table/view list will be reproduced. Ideally, it would be better if
-        TABLE_LIST::updatable_base_table() were used here, but that isn't
+        Table_ref::updatable_base_table() were used here, but that isn't
         possible due to QRP.
       */
       while (t->is_view()) t = t->merge_underlying_list;
@@ -3299,10 +3307,10 @@ void Query_block::print_from_clause(const THD *thd, String *str,
   /*
     from clause
   */
-  if (table_list.elements) {
+  if (m_table_list.elements) {
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
-    print_join(thd, str, &top_join_list, query_type);
+    print_join(thd, str, &m_table_nest, query_type);
   } else if (m_where_cond) {
     /*
       "SELECT 1 FROM DUAL WHERE 2" should not be printed as
@@ -3423,16 +3431,16 @@ bool Query_expression::accept(Select_lex_visitor *visitor) {
   return visitor->visit(this);
 }
 
-bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
+bool accept_for_join(mem_root_deque<Table_ref *> *tables,
                      Select_lex_visitor *visitor) {
-  for (TABLE_LIST *t : *tables) {
+  for (Table_ref *t : *tables) {
     if (accept_table(t, visitor)) return true;
   }
   return false;
 }
 
-bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor) {
-  if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
+bool accept_table(Table_ref *t, Select_lex_visitor *visitor) {
+  if (t->nested_join && accept_for_join(&t->nested_join->m_tables, visitor))
     return true;
   if (t->is_derived()) t->derived_query_expression()->accept(visitor);
   if (walk_item(t->join_cond(), visitor)) return true;
@@ -3446,7 +3454,8 @@ bool Query_block::accept(Select_lex_visitor *visitor) {
   }
 
   // From clause
-  if (table_list.elements != 0 && accept_for_join(join_list, visitor))
+  if (m_table_list.elements != 0 &&
+      accept_for_join(m_current_table_nest, visitor))
     return true;
 
   // Where clause
@@ -3507,7 +3516,7 @@ void LEX::clear_privileges() {
 void Query_tables_list::reset_query_tables_list(bool init) {
   sql_command = SQLCOM_END;
   if (!init && query_tables) {
-    TABLE_LIST *table = query_tables;
+    Table_ref *table = query_tables;
     for (;;) {
       delete table->view_query();
       if (query_tables_last == &table->next_global ||
@@ -3791,7 +3800,7 @@ bool Query_expression::is_mergeable() const {
 
   Query_block *const select = first_query_block();
   return !select->is_grouped() && !select->having_cond() &&
-         !select->is_distinct() && select->table_list.elements > 0 &&
+         !select->is_distinct() && select->m_table_list.elements > 0 &&
          !select->has_limit() && select->m_windows.elements == 0;
 }
 
@@ -3859,8 +3868,8 @@ void Query_expression::restore_cmd_properties() {
 }
 
 /**
-  @brief Set the initial purpose of this TABLE_LIST object in the list of used
-    tables.
+  @brief Set the initial purpose of this Table_ref object in the list of
+  used tables.
 
   We need to track this information on table-by-table basis, since when this
   table becomes an element of the pre-locked list, it's impossible to identify
@@ -3886,7 +3895,7 @@ void LEX::set_trg_event_type_for_tables() {
 
   /*
     Some auxiliary operations
-    (e.g. GRANT processing) create TABLE_LIST instances outside
+    (e.g. GRANT processing) create Table_ref instances outside
     the parser. Additionally, some commands (e.g. OPTIMIZE) change
     the lock type for a table only after parsing is done. Luckily,
     these do not fire triggers and do not need to pre-load them.
@@ -3909,8 +3918,8 @@ void LEX::set_trg_event_type_for_tables() {
   switch (sql_command) {
     case SQLCOM_LOCK_TABLES:
       /*
-        On a LOCK TABLE, all triggers must be pre-loaded for this TABLE_LIST
-        when opening an associated TABLE.
+        On a LOCK TABLE, all triggers must be pre-loaded for this
+        Table_ref when opening an associated TABLE.
       */
       new_trg_event_map =
           static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_INSERT)) |
@@ -3981,7 +3990,7 @@ void LEX::set_trg_event_type_for_tables() {
     Do not iterate over sub-selects, only the tables in the outermost
     Query_block can be modified, if any.
   */
-  TABLE_LIST *tables = query_block ? query_block->get_table_list() : nullptr;
+  Table_ref *tables = query_block ? query_block->get_table_list() : nullptr;
   while (tables) {
     /*
       This is a fast check to filter out statements that do
@@ -4016,8 +4025,8 @@ void LEX::set_trg_event_type_for_tables() {
       In this case link_to_local is set.
 
 */
-TABLE_LIST *LEX::unlink_first_table(bool *link_to_local) {
-  TABLE_LIST *first;
+Table_ref *LEX::unlink_first_table(bool *link_to_local) {
+  Table_ref *first;
   if ((first = query_tables)) {
     /*
       Exclude from global table list
@@ -4037,8 +4046,8 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local) {
     if ((*link_to_local = query_block->get_table_list() != nullptr)) {
       query_block->context.table_list =
           query_block->context.first_name_resolution_table = first->next_local;
-      query_block->table_list.first = first->next_local;
-      query_block->table_list.elements--;  // safety
+      query_block->m_table_list.first = first->next_local;
+      query_block->m_table_list.elements--;  // safety
       first->next_local = nullptr;
       /*
         Ensure that the global list has the same first table as the local
@@ -4067,9 +4076,9 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local) {
 */
 
 void LEX::first_lists_tables_same() {
-  TABLE_LIST *first_table = query_block->get_table_list();
+  Table_ref *first_table = query_block->get_table_list();
   if (query_tables != first_table && first_table != nullptr) {
-    TABLE_LIST *next;
+    Table_ref *next;
     if (query_tables_last == &first_table->next_global)
       query_tables_last = first_table->prev_global;
 
@@ -4102,7 +4111,7 @@ void LEX::first_lists_tables_same() {
     global list
 */
 
-void LEX::link_first_table_back(TABLE_LIST *first, bool link_to_local) {
+void LEX::link_first_table_back(Table_ref *first, bool link_to_local) {
   if (first) {
     if ((first->next_global = query_tables))
       query_tables->prev_global = &first->next_global;
@@ -4115,10 +4124,10 @@ void LEX::link_first_table_back(TABLE_LIST *first, bool link_to_local) {
     query_tables = first;
 
     if (link_to_local) {
-      first->next_local = query_block->table_list.first;
+      first->next_local = query_block->m_table_list.first;
       query_block->context.table_list = first;
-      query_block->table_list.first = first;
-      query_block->table_list.elements++;  // safety
+      query_block->m_table_list.first = first;
+      query_block->m_table_list.elements++;  // safety
     }
   }
 }
@@ -4442,11 +4451,11 @@ void Query_block::include_chain_in_global(Query_block **start) {
    @returns true if OOM
 */
 static bool get_optimizable_join_conditions(
-    THD *thd, mem_root_deque<TABLE_LIST *> &join_list) {
-  for (TABLE_LIST *table : join_list) {
+    THD *thd, mem_root_deque<Table_ref *> &join_list) {
+  for (Table_ref *table : join_list) {
     NESTED_JOIN *const nested_join = table->nested_join;
     if (nested_join &&
-        get_optimizable_join_conditions(thd, nested_join->join_list))
+        get_optimizable_join_conditions(thd, nested_join->m_tables))
       return true;
     Item *const jc = table->join_cond();
     if (jc && !thd->stmt_arena->is_regular()) {
@@ -4470,7 +4479,8 @@ static bool get_optimizable_join_conditions(
    @param[out] new_where  copy of WHERE
    @param[out] new_having copy of HAVING (if passed pointer is not NULL)
 
-   Copies of join (ON) conditions are placed in TABLE_LIST::m_join_cond_optim.
+   Copies of join (ON) conditions are placed in
+   Table_ref::m_join_cond_optim.
 
    @returns true if OOM
 */
@@ -4494,7 +4504,7 @@ bool Query_block::get_optimizable_conditions(THD *thd, Item **new_where,
     } else
       *new_having = m_having_cond;
   }
-  return get_optimizable_join_conditions(thd, top_join_list);
+  return get_optimizable_join_conditions(thd, m_table_nest);
 }
 
 Subquery_strategy Query_block::subquery_strategy(const THD *thd) const {
@@ -4539,13 +4549,13 @@ void Query_block::update_semijoin_strategies(THD *thd) {
       parent_lex->m_sql_cmd != nullptr &&
       parent_lex->m_sql_cmd->using_secondary_storage_engine();
 
-  for (TABLE_LIST *sj_nest : sj_nests) {
+  for (Table_ref *sj_nest : sj_nests) {
     /*
       After semi-join transformation, original Query_block with hints is lost.
       Fetch hints from last table in semijoin nest, as join_list has the
       convention to list join operators' arguments in reverse order.
     */
-    TABLE_LIST *table = sj_nest->nested_join->join_list.back();
+    Table_ref *table = sj_nest->nested_join->m_tables.back();
     /*
       Do not respect opt_hints_qb for secondary engine optimization.
       Secondary storage engines may not support all strategies that are
@@ -4642,15 +4652,15 @@ bool Query_block::validate_base_options(LEX *lex, ulonglong options_arg) const {
   JOINs may be nested. Walk nested joins recursively to apply the
   processor.
 */
-static bool walk_join_condition(mem_root_deque<TABLE_LIST *> *tables,
+static bool walk_join_condition(mem_root_deque<Table_ref *> *tables,
                                 Item_processor processor, enum_walk walk,
                                 uchar *arg) {
-  for (const TABLE_LIST *table : *tables) {
+  for (const Table_ref *table : *tables) {
     if (table->join_cond() && table->join_cond()->walk(processor, walk, arg))
       return true;
 
     if (table->nested_join != nullptr &&
-        walk_join_condition(&table->nested_join->join_list, processor, walk,
+        walk_join_condition(&table->nested_join->m_tables, processor, walk,
                             arg))
       return true;
   }
@@ -4676,15 +4686,15 @@ bool Query_block::walk(Item_processor processor, enum_walk walk, uchar *arg) {
     if (item->walk(processor, walk, arg)) return true;
   }
 
-  if (join_list != nullptr &&
-      walk_join_condition(join_list, processor, walk, arg))
+  if (m_current_table_nest != nullptr &&
+      walk_join_condition(m_current_table_nest, processor, walk, arg))
     return true;
 
   if ((walk & enum_walk::SUBQUERY)) {
     /*
       for each leaf: if a materialized table, walk the unit
     */
-    for (TABLE_LIST *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
+    for (Table_ref *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
       if (!tbl->uses_materialization()) continue;
       if (tbl->is_derived()) {
         if (tbl->derived_query_expression()->walk(processor, walk, arg))
@@ -4742,11 +4752,12 @@ bool Query_block::walk(Item_processor processor, enum_walk walk, uchar *arg) {
 
   @retval NULL If not found.
 */
-TABLE_LIST *Query_block::find_table_by_name(const Table_ident *ident) {
+Table_ref *Query_block::find_table_by_name(const Table_ident *ident) {
   LEX_CSTRING db_name = ident->db;
   LEX_CSTRING table_name = ident->table;
 
-  for (TABLE_LIST *table = table_list.first; table; table = table->next_local) {
+  for (Table_ref *table = m_table_list.first; table;
+       table = table->next_local) {
     if ((db_name.length == 0 || strcmp(db_name.str, table->db) == 0) &&
         strcmp(table_name.str, table->alias) == 0)
       return table;
@@ -4769,7 +4780,7 @@ bool Query_block::save_cmd_properties(THD *thd) {
 
   if (save_properties(thd)) return true;
 
-  for (TABLE_LIST *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
+  for (Table_ref *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
     if (!tbl->is_base_table()) continue;
     if (tbl->save_properties()) return true;
   }
@@ -4779,16 +4790,16 @@ bool Query_block::save_cmd_properties(THD *thd) {
 /**
   Restore prepared statement properties for this query block and all
   underlying query expressions so they are ready for optimization.
-  Restores properties saved in TABLE_LIST objects into corresponding TABLEs.
-  Restores ORDER BY and GROUP by clauses, and window definitions, so they
-  are ready for optimization.
+  Restores properties saved in Table_ref objects into corresponding
+  TABLEs. Restores ORDER BY and GROUP by clauses, and window definitions, so
+  they are ready for optimization.
 */
 void Query_block::restore_cmd_properties() {
   for (Query_expression *u = first_inner_query_expression(); u;
        u = u->next_query_expression())
     u->restore_cmd_properties();
 
-  for (TABLE_LIST *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
+  for (Table_ref *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
     if (!tbl->is_base_table()) continue;
     tbl->restore_properties();
     tbl->table->m_record_buffer = Record_buffer{0, 0, nullptr};

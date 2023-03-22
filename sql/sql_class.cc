@@ -3242,14 +3242,33 @@ bool THD::is_current_stmt_binlog_log_replica_updates_disabled() const {
           !mysql_bin_log.is_open());
 }
 
+bool THD::is_current_stmt_binlog_enabled_and_caches_empty() const {
+  return mysql_bin_log.is_current_stmt_binlog_enabled_and_caches_empty(this);
+}
+
 bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const {
   return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
           is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
 }
 
+void THD::enable_low_level_commit_ordering() {
+  DBUG_TRACE;
+  m_is_low_level_commit_ordering_enabled = true;
+}
+
+void THD::disable_low_level_commit_ordering() {
+  DBUG_TRACE;
+  m_is_low_level_commit_ordering_enabled = false;
+}
+
+bool THD::is_low_level_commit_ordering_enabled() const {
+  DBUG_TRACE;
+  return m_is_low_level_commit_ordering_enabled;
+}
+
 void THD::check_rpl_stmt_event_format_used() {
-  for (TABLE_LIST *table = lex->query_tables; table;
+  for (Table_ref *table = lex->query_tables; table;
        table = table->next_global) {
     if (!table->is_placeholder() && table->table != NULL &&
         table->table->file != NULL) {

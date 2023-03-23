@@ -137,6 +137,8 @@ DROP TABLE no_hashing;
 #
 SET SESSION optimizer_trace="enabled=on";
 SET SESSION tmp_table_size=100000;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 # b) With secondary overflow
 SET SESSION debug_set_operations_secondary_overflow_at='0 10 20';
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
@@ -426,6 +428,8 @@ DROP TABLE no_hashing;
 #
 SET SESSION optimizer_trace="enabled=on";
 SET SESSION tmp_table_size=100000;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 # b) With secondary overflow
 SET SESSION debug_set_operations_secondary_overflow_at='0 10 20';
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;

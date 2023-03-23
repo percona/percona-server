@@ -171,6 +171,8 @@ SELECT @@global.transaction_alloc_block_size;
 @@global.transaction_alloc_block_size
 8192
 SET @@session.tmp_table_size = @start_session_value;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@session.transaction_alloc_block_size;
 @@session.transaction_alloc_block_size
 1024

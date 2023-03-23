@@ -353,13 +353,6 @@ INSERT INTO t1 SELECT pk+8, col1, col1 FROM tmp;
 SELECT uniq, col1, col2 FROM t1 GROUP BY uniq;
 uniq	col1	col2
 1	a	a
-10	b	b
-11	c	c
-12	d	d
-13	e	e
-14	f	f
-15	g	g
-16	h	h
 2	b	b
 3	c	c
 4	d	d
@@ -368,6 +361,13 @@ uniq	col1	col2
 7	g	g
 8	h	h
 9	a	a
+10	b	b
+11	c	c
+12	d	d
+13	e	e
+14	f	f
+15	g	g
+16	h	h
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
@@ -504,7 +504,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "makes_grouped_rows": true,
                 "cannot_insert_duplicates": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 1
+                "row_limit_estimate": 250
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -515,23 +515,6 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 {
                   "de-duplicate with index": {
                     "steps": [
-                      {
-                        "converting_tmp_table_to_ondisk": {
-                          "cause": "memory_table_size_exceeded",
-                          "tmp_table_info": {
-                            "table": "<temporary>",
-                            "in_plan_at_position": 1,
-                            "columns": 3,
-                            "row_length": 4182,
-                            "key_length": 43,
-                            "unique_constraint": false,
-                            "makes_grouped_rows": true,
-                            "cannot_insert_duplicates": false,
-                            "location": "disk (TMP_TABLE_ENGINE)",
-                            "record_format": "packed"
-                          } /* tmp_table_info */
-                        } /* converting_tmp_table_to_ondisk */
-                      }
                     ] /* steps */
                   } /* de-duplicate with index */
                 }
@@ -563,7 +546,7 @@ SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1	{
           "makes_grouped_rows": false,
           "cannot_insert_duplicates": false,
           "location": "memory (heap)",
-          "row_limit_estimate": 1
+          "row_limit_estimate": 152
         } /* tmp_table_info */
       } /* creating_tmp_table */
     },
@@ -814,7 +797,7 @@ ORDER BY cc	{
                 "makes_grouped_rows": false,
                 "cannot_insert_duplicates": true,
                 "location": "memory (heap)",
-                "row_limit_estimate": 1
+                "row_limit_estimate": 21
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1192,7 +1175,7 @@ ORDER BY cc	{
                       "makes_grouped_rows": false,
                       "cannot_insert_duplicates": false,
                       "location": "memory (heap)",
-                      "row_limit_estimate": 1
+                      "row_limit_estimate": 21
                     } /* tmp_table_info */
                   } /* creating_tmp_table */
                 },
@@ -1222,7 +1205,7 @@ ORDER BY cc	{
                 "makes_grouped_rows": false,
                 "cannot_insert_duplicates": true,
                 "location": "memory (heap)",
-                "row_limit_estimate": 1
+                "row_limit_estimate": 21
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

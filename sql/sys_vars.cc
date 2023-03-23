@@ -131,8 +131,8 @@
 #include "sql/session_tracker.h"
 #include "sql/sp_head.h"  // SP_PSI_STATEMENT_INFO_COUNT
 #include "sql/sql_lex.h"
-#include "sql/sql_locale.h"            // my_locale_by_number
-#include "sql/sql_parse.h"             // killall_non_super_threads
+#include "sql/sql_locale.h"  // my_locale_by_number
+#include "sql/sql_parse.h"   // killall_non_super_threads
 #include "sql/sql_profile.h"
 #include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/sql_tmp_table.h"         // internal_tmp_mem_storage_engine_names
@@ -5374,6 +5374,15 @@ static Sys_var_transaction_read_only Sys_transaction_read_only(
     DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_transaction_read_only));
 
+static bool check_tmp_table_size(sys_var *, THD *thd, set_var *var) {
+  if (var->save_result.ulonglong_value < 1024 * 1024) {
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_PERCONA_IGNORE_TMP_TABLE_SIZE,
+                 ER_THD(thd, ER_PERCONA_IGNORE_TMP_TABLE_SIZE));
+    var->save_result.ulonglong_value = 1024 * 1024;
+  }
+  return false;
+}
 static Sys_var_ulonglong Sys_tmp_table_size(
     "tmp_table_size",
     "If an internal in-memory temporary table in the MEMORY or TempTable "
@@ -5381,7 +5390,8 @@ static Sys_var_ulonglong Sys_tmp_table_size(
     "to an on-disk table ",
     HINT_UPDATEABLE SESSION_VAR(tmp_table_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, std::numeric_limits<ulonglong>::max()),
-    DEFAULT(16 * 1024 * 1024), BLOCK_SIZE(1));
+    DEFAULT(16 * 1024 * 1024), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_tmp_table_size), ON_UPDATE(nullptr));
 
 static char *server_version_ptr;
 static Sys_var_version Sys_version(

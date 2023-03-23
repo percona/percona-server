@@ -5074,6 +5074,8 @@ DROP TABLE no_hashing, hashing_no_spill, hashing_spill;
 SET SESSION optimizer_trace="enabled=on";
 # a) When we spill
 SET SESSION tmp_table_size=100000;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 i	d	c
 0	2022-04-30	abracadabra
@@ -5482,6 +5484,8 @@ DROP TABLE no_hashing, hashing_no_spill, hashing_spill;
 SET SESSION optimizer_trace="enabled=on";
 # a) When we spill
 SET SESSION tmp_table_size=100000;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 i	d	c
 0	2022-04-30	abracadabra

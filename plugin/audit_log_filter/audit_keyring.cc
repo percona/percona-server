@@ -42,6 +42,9 @@ namespace {
 inline constexpr const char *kAuthId = "audit_log";
 const std::string kOptionsKeyTimestampFormat{"%Y%m%dT%H%M%S"};
 
+constexpr auto file_opt_id_pattern(R"(.*\.(\d{8}T\d{6}-\d+)\.enc)");
+constexpr auto keyring_opt_id_pattern(R"(.*\-(\d{8}T\d{6}\-\d+).*)");
+
 using OptionsIdListEl = std::pair<ulonglong, std::string>;
 using OptionsIdList = std::vector<OptionsIdListEl>;
 
@@ -302,13 +305,13 @@ bool generate_keyring_options(std::string &options_id) {
 
   const auto options = encryption::EncryptionOptions::generate(password);
 
-  if (!options.check_valid()) {
+  if (!options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to generate options");
     return false;
   }
 
-  return set_keyring_options(options_id, options.to_json_string());
+  return set_keyring_options(options_id, options->to_json_string());
 }
 
 }  // namespace
@@ -342,7 +345,8 @@ bool check_generate_initial_encryption_options() noexcept {
   return true;
 }
 
-encryption::EncryptionOptions get_encryption_options() noexcept {
+std::unique_ptr<encryption::EncryptionOptions>
+get_encryption_options() noexcept {
   std::string options_id;
 
   if (!get_active_keyring_options_key(options_id)) {
@@ -352,7 +356,7 @@ encryption::EncryptionOptions get_encryption_options() noexcept {
   return get_encryption_options(options_id);
 }
 
-encryption::EncryptionOptions get_encryption_options(
+std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(
     const std::string &options_id) noexcept {
   std::string options_json_str;
 
@@ -361,15 +365,7 @@ encryption::EncryptionOptions get_encryption_options(
     return {};
   }
 
-  auto opts = encryption::EncryptionOptions::from_json_string(options_json_str);
-
-  if (!opts.check_valid()) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "!!!!! Fetched invalid JSON: %s", options_json_str.c_str());
-    assert(false);
-  }
-
-  return opts;
+  return encryption::EncryptionOptions::from_json_string(options_json_str);
 }
 
 bool set_encryption_options(const std::string &password) noexcept {
@@ -383,13 +379,13 @@ bool set_encryption_options(const std::string &password) noexcept {
 
   const auto options = encryption::EncryptionOptions::generate(password);
 
-  if (!options.check_valid()) {
+  if (!options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to generate options");
     return false;
   }
 
-  if (!set_keyring_options(options_id, options.to_json_string())) {
+  if (!set_keyring_options(options_id, options->to_json_string())) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to set options");
     return false;
   }
@@ -423,8 +419,8 @@ void prune_encryption_options(
     return;
   }
 
-  const std::regex file_opt_id_regex(R"(.*\.(\d{8}T\d{6}-\d+)\.enc)");
-  const std::regex keyring_opt_id_regex(R"(.*\-(\d{8}T\d{6}\-\d+).*)");
+  const std::regex file_opt_id_regex(file_opt_id_pattern);
+  const std::regex keyring_opt_id_regex(keyring_opt_id_pattern);
 
   std::unordered_set<std::string> used_opts_ids;
 
@@ -459,4 +455,18 @@ void prune_encryption_options(
 std::string get_options_id_timestamp(const std::string &options_id) noexcept {
   return options_id.substr(strlen(kAuthId) + 1);
 }
+
+std::string get_options_id_for_file_name(
+    const std::string &file_name) noexcept {
+  std::stringstream ss;
+  std::smatch file_match;
+  const std::regex opt_id_regex(file_opt_id_pattern);
+
+  if (std::regex_match(file_name, file_match, opt_id_regex)) {
+    ss << kAuthId << "-" << file_match[1].str();
+  }
+
+  return ss.str();
+}
+
 }  // namespace audit_log_filter::audit_keyring

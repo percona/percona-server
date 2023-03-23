@@ -16,7 +16,6 @@
 MYSQL_ADD_PLUGIN(audit_log_filter
                  audit_log_filter.cc
                  audit_log_reader.cc
-                 audit_log_json_handler.cc
                  audit_encryption.cc
                  audit_record.cc
                  audit_filter.cc
@@ -47,6 +46,12 @@ MYSQL_ADD_PLUGIN(audit_log_filter
                  log_writer/file_writer_buffering.cc
                  log_writer/file_writer_compressing.cc
                  log_writer/file_writer_encrypting.cc
+                 json_reader/audit_json_read_stream.cc
+                 json_reader/audit_json_handler.cc
+                 json_reader/file_reader.cc
+                 json_reader/file_reader_decorator_base.cc
+                 json_reader/file_reader_decompressing.cc
+                 json_reader/file_reader_decrypting.cc
                  event_field_condition/field.cc
                  event_field_condition/and.cc
                  event_field_condition/or.cc

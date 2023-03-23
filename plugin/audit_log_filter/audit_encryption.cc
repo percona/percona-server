@@ -81,12 +81,13 @@ EncryptionOptions::EncryptionOptions(std::string password, SaltType salt,
                                      int iterations)
     : m_password{std::move(password)}, m_salt{salt}, m_iterations{iterations} {}
 
-EncryptionOptions EncryptionOptions::generate(
+std::unique_ptr<EncryptionOptions> EncryptionOptions::generate(
     const std::string &password) noexcept {
-  return {password, get_random_salt(), get_random_iterations()};
+  return std::unique_ptr<EncryptionOptions>(new EncryptionOptions{
+      password, get_random_salt(), get_random_iterations()});
 }
 
-EncryptionOptions EncryptionOptions::from_json_string(
+std::unique_ptr<EncryptionOptions> EncryptionOptions::from_json_string(
     const std::string &json_string) noexcept {
   rapidjson::Document doc;
   doc.Parse(json_string.c_str());
@@ -106,7 +107,8 @@ EncryptionOptions EncryptionOptions::from_json_string(
     salt[i] = c;
   }
 
-  return {doc["password"].GetString(), salt, doc["iterations"].GetInt()};
+  return std::unique_ptr<EncryptionOptions>(new EncryptionOptions{
+      doc["password"].GetString(), salt, doc["iterations"].GetInt()});
 }
 
 int EncryptionOptions::get_iterations() const noexcept { return m_iterations; }

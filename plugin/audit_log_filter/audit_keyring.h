@@ -18,6 +18,7 @@
 
 #include "plugin/audit_log_filter/audit_encryption.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -46,7 +47,8 @@ bool check_generate_initial_encryption_options() noexcept;
  * @return Instance of encryption::EncryptionOptions corresponding to
  *         newest options
  */
-encryption::EncryptionOptions get_encryption_options() noexcept;
+std::unique_ptr<encryption::EncryptionOptions>
+get_encryption_options() noexcept;
 
 /**
  * @brief Get log encryption options.
@@ -55,7 +57,7 @@ encryption::EncryptionOptions get_encryption_options() noexcept;
  * @return Instance of encryption::EncryptionOptions corresponding to
  *         provided options_id
  */
-encryption::EncryptionOptions get_encryption_options(
+std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(
     const std::string &options_id) noexcept;
 
 /**
@@ -90,6 +92,8 @@ void prune_encryption_options(
  * @return Options ID timestamp
  */
 std::string get_options_id_timestamp(const std::string &options_id) noexcept;
+
+std::string get_options_id_for_file_name(const std::string &file_name) noexcept;
 
 }  // namespace audit_log_filter::audit_keyring
 

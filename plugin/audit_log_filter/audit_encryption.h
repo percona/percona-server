@@ -19,6 +19,7 @@
 #include <openssl/evp.h>
 
 #include <array>
+#include <memory>
 #include <string>
 
 namespace audit_log_filter::encryption {
@@ -38,7 +39,8 @@ class EncryptionOptions {
    * @param password Encryption password
    * @return Instance of EncryptionOptions
    */
-  static EncryptionOptions generate(const std::string &password) noexcept;
+  static std::unique_ptr<EncryptionOptions> generate(
+      const std::string &password) noexcept;
 
   /**
    * @brief Restore EncryptionOptions instance from its JSON representation
@@ -46,7 +48,7 @@ class EncryptionOptions {
    * @param json_string JSON string representing EncryptionOptions data
    * @return Instance of EncryptionOptions
    */
-  static EncryptionOptions from_json_string(
+  static std::unique_ptr<EncryptionOptions> from_json_string(
       const std::string &json_string) noexcept;
 
   /**

@@ -26,15 +26,33 @@
 
 namespace audit_log_filter {
 
-struct AuditLogReaderArgs;
 struct AuditLogReaderContext;
+
+namespace json_reader {
 
 class AuditJsonHandler
     : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, AuditJsonHandler> {
  public:
-  AuditJsonHandler(const AuditLogReaderArgs &reader_args,
-                   AuditLogReaderContext *reader_context, char *out_buff,
+  AuditJsonHandler(AuditLogReaderContext *reader_context,
+                   std::unique_ptr<char, std::function<void(char *)>> out_buff,
                    ulong out_buff_size);
+
+  char *get_result_buffer_ptr() noexcept;
+
+  /**
+   * @brief Prepare handler to process next chunk of records
+   *        (reset buffer and printed out records counter).
+   */
+  void iterative_parse_init() noexcept;
+
+  /**
+   * @brief Finish processing chunk of data which is ready to be printed out
+   *        (adds JSON array closing tag to the buffer end)
+   *
+   * @param with_null_tag Indicates if terminating 'null' element should be
+   *                      added to JSON array.
+   */
+  void iterative_parse_close(bool with_null_tag) noexcept;
 
   bool Null();
   bool Bool(bool value);
@@ -58,7 +76,6 @@ class AuditJsonHandler
   void write_out_buff(const char *str, std::size_t str_length);
 
  private:
-  const AuditLogReaderArgs &m_reader_args;
   AuditLogReaderContext *m_reader_context;
 
   rapidjson::Document m_json_value;
@@ -67,7 +84,7 @@ class AuditJsonHandler
   int m_obj_level;
   int m_arr_level;
 
-  char *m_out_buff;
+  std::unique_ptr<char, std::function<void(char *)>> m_out_buff;
   char *m_current_buff;
   ulong m_out_buff_size;
   ulong m_used_buff_size;
@@ -77,6 +94,7 @@ class AuditJsonHandler
   LogBookmark m_current_event_bookmark;
 };
 
+}  // namespace json_reader
 }  // namespace audit_log_filter
 
 #endif  // AUDIT_LOG_FILTER_AUDIT_LOG_JSON_HANDLER_H_INCLUDED

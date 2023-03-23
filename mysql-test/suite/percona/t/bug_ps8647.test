@@ -1,0 +1,7 @@
+
+call mtr.add_suppression("Tmp_table_size is set below 1MiB.");
+
+set session tmp_table_size=1024;
+select * from information_schema.APPLICABLE_ROLES;
+select * from information_schema.ADMINISTRABLE_ROLE_AUTHORIZATIONS;
+select * from information_schema.ROLE_TABLE_GRANTS;

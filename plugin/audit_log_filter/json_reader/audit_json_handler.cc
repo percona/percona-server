@@ -13,24 +13,64 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "plugin/audit_log_filter/audit_log_json_handler.h"
+#include "plugin/audit_log_filter/json_reader/audit_json_handler.h"
 #include "plugin/audit_log_filter/audit_log_reader.h"
 
-namespace audit_log_filter {
+namespace audit_log_filter::json_reader {
 
-AuditJsonHandler::AuditJsonHandler(const AuditLogReaderArgs &reader_args,
-                                   AuditLogReaderContext *reader_context,
-                                   char *out_buff, ulong out_buff_size)
-    : m_reader_args{reader_args},
-      m_reader_context{reader_context},
+namespace {
+
+const std::string kJsonArrayOpenTag = "[\n";
+const std::string kJsonArrayCloseTag = "\n]\n";
+const std::string kJsonArrayCloseWithNullTag = "null\n]\n";
+const auto kBufferReservedSize =
+    kJsonArrayCloseTag.length() + kJsonArrayCloseWithNullTag.length();
+
+}  // namespace
+
+AuditJsonHandler::AuditJsonHandler(
+    AuditLogReaderContext *reader_context,
+    std::unique_ptr<char, std::function<void(char *)>> out_buff,
+    ulong out_buff_size)
+    : m_reader_context{reader_context},
       m_obj_level{0},
       m_arr_level{0},
-      m_out_buff{out_buff},
-      m_current_buff{out_buff},
+      m_out_buff{std::move(out_buff)},
+      m_current_buff{m_out_buff.get()},
       m_out_buff_size{out_buff_size},
       m_used_buff_size{0},
       m_printed_events_count{0},
       m_reading_start_reached{false} {}
+
+char *AuditJsonHandler::get_result_buffer_ptr() noexcept {
+  return m_out_buff.get();
+}
+
+void AuditJsonHandler::iterative_parse_init() noexcept {
+  m_current_buff = m_out_buff.get();
+  m_used_buff_size = 0;
+  m_printed_events_count = 0;
+
+  write_out_buff(kJsonArrayOpenTag.c_str(), kJsonArrayOpenTag.length());
+
+  if (!m_event_str.str().empty()) {
+    // Print leftovers from previous batch if any
+    write_out_buff(m_event_str.str().c_str(), m_event_str.str().length());
+    ++m_printed_events_count;
+    clear_current_event();
+  }
+}
+
+void AuditJsonHandler::iterative_parse_close(bool with_null_tag) noexcept {
+  if (m_used_buff_size > 2 && !with_null_tag) {
+    m_current_buff -= 2;
+    m_used_buff_size -= 2;
+  }
+
+  const auto &closing_tag =
+      with_null_tag ? kJsonArrayCloseWithNullTag : kJsonArrayCloseTag;
+  write_out_buff(closing_tag.c_str(), closing_tag.length());
+}
 
 bool AuditJsonHandler::Null() { return true; }
 
@@ -111,12 +151,15 @@ bool AuditJsonHandler::EndObject(rapidjson::SizeType memberCount
 
     m_event_str << ",\n";
     const auto event_length = m_event_str.str().length();
+    const auto max_array_length =
+        m_reader_context->batch_reader_args->max_array_length;
 
-    if ((m_used_buff_size + event_length >= m_out_buff_size) ||
-        (m_reader_args.max_array_length != 0 &&
-         m_printed_events_count == m_reader_args.max_array_length)) {
+    if ((m_used_buff_size + event_length >=
+         m_out_buff_size - kBufferReservedSize) ||
+        (max_array_length != 0 && m_printed_events_count == max_array_length)) {
       m_reader_context->next_event_bookmark = m_current_event_bookmark;
-      return false;
+      m_reader_context->is_batch_end = true;
+      return true;
     }
 
     write_out_buff(m_event_str.str().c_str(), event_length);
@@ -172,4 +215,4 @@ void AuditJsonHandler::write_out_buff(const char *str, std::size_t str_length) {
   m_used_buff_size += str_length;
 }
 
-}  // namespace audit_log_filter
+}  // namespace audit_log_filter::json_reader

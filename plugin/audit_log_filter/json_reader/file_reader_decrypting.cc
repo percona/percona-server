@@ -13,45 +13,35 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "file_writer_encrypting.h"
+#include "plugin/audit_log_filter/json_reader/file_reader_decrypting.h"
 
+#include "plugin/audit_log_filter/audit_encryption.h"
 #include "plugin/audit_log_filter/audit_error_log.h"
-#include "plugin/audit_log_filter/audit_keyring.h"
-#include "plugin/audit_log_filter/sys_vars.h"
+#include "plugin/audit_log_filter/audit_log_reader.h"
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
 
-#include <include/scope_guard.h>
-#include <cstring>
-#include <string>
+namespace audit_log_filter::json_reader {
 
-namespace audit_log_filter::log_writer {
 namespace {
 
 const size_t kEvpKeyLength = 32;
-const size_t kEncryptChunkSize = 1024 * 1024;
+const size_t kInBufferSize = 32768;
 
 }  // namespace
 
-FileWriterEncrypting::FileWriterEncrypting(
-    std::unique_ptr<FileWriterBase> file_writer)
-    : FileWriterDecoratorBase(std::move(file_writer)),
+FileReaderDecrypting::FileReaderDecrypting(
+    std::unique_ptr<FileReaderBase> file_reader)
+    : FileReaderDecoratorBase(std::move(file_reader)),
       m_cipher{EVP_aes_256_cbc()},
       m_ctx{nullptr},
       m_key{nullptr},
       m_iv{nullptr},
-      m_out_buff{nullptr} {}
+      m_in_buff{nullptr},
+      m_in_buff_data_size{0} {}
 
-FileWriterEncrypting::~FileWriterEncrypting() {
-  if (m_ctx != nullptr) {
-    ERR_clear_error();
-    EVP_CIPHER_CTX_free(m_ctx);
-    m_ctx = nullptr;
-  }
-}
-
-bool FileWriterEncrypting::init() noexcept {
+bool FileReaderDecrypting::init() noexcept {
   if (m_cipher == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "EVP_aes_256_cbc init failed");
     return false;
@@ -65,48 +55,48 @@ bool FileWriterEncrypting::init() noexcept {
     return false;
   }
 
-  m_out_buff = std::make_unique<unsigned char[]>(kEncryptChunkSize + EVP_CIPHER_block_size(m_cipher));
+  m_in_buff = std::make_unique<unsigned char[]>(kInBufferSize);
 
-  if (m_out_buff == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to init out buffer");
+  if (m_in_buff == nullptr) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to init in buffer");
     return false;
   }
 
-  return FileWriterDecoratorBase::init();
+  return FileReaderDecoratorBase::init();
 }
 
-bool FileWriterEncrypting::open() noexcept {
-  assert(m_key != nullptr && m_iv != nullptr && m_out_buff != nullptr);
+bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
+  assert(m_key != nullptr && m_iv != nullptr && m_in_buff != nullptr);
 
-  std::string keyring_key_id = SysVars::get_encryption_options_id();
-  const auto options = audit_keyring::get_encryption_options(keyring_key_id);
+  const auto *encryption_options = file_info->encryption_options.get();
 
-  if (!options->check_valid()) {
+  if (!encryption_options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to fetch options for id %s",
-                    keyring_key_id.c_str());
+                    "Invalid options provided for id %s",
+                    file_info->encryption_options_id.c_str());
     return false;
   }
 
-  const auto &keyring_password = options->get_password();
-  const auto keyring_iterations = options->get_iterations();
-  const auto &keyring_salt = options->get_salt();
+  const auto &keyring_password = encryption_options->get_password();
+  const auto keyring_iterations = encryption_options->get_iterations();
+  const auto &keyring_salt = encryption_options->get_salt();
 
   if (keyring_password.empty()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Empty password for id %s",
-                    keyring_key_id.c_str());
+                    file_info->encryption_options_id.c_str());
     return false;
   }
 
   if (keyring_iterations < 1) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Bad iterations count for id %s", keyring_key_id.c_str());
+                    "Bad iterations count for id %s",
+                    file_info->encryption_options_id.c_str());
     return false;
   }
 
   if (keyring_salt.empty()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Empty salt for id %s",
-                    keyring_key_id.c_str());
+                    file_info->encryption_options_id.c_str());
     return false;
   }
 
@@ -134,7 +124,7 @@ bool FileWriterEncrypting::open() noexcept {
     return false;
   }
 
-  if (EVP_CipherInit_ex(m_ctx, m_cipher, nullptr, m_key.get(), m_iv.get(), 1) !=
+  if (EVP_CipherInit_ex(m_ctx, m_cipher, nullptr, m_key.get(), m_iv.get(), 0) !=
       1) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "EVP_CipherInit_ex error: %s",
@@ -145,55 +135,61 @@ bool FileWriterEncrypting::open() noexcept {
     return false;
   }
 
-  return FileWriterDecoratorBase::open();
+  return FileReaderDecoratorBase::open(file_info);
 }
 
-void FileWriterEncrypting::close() noexcept {
-  int out_size = 0;
-
-  if (EVP_EncryptFinal_ex(m_ctx, m_out_buff.get(), &out_size) != 1) {
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "EVP_EncryptFinal error: %s",
-                    ERR_error_string(ERR_peek_error(), nullptr));
-  }
-
-  if (out_size > 0) {
-    FileWriterDecoratorBase::write(
-        reinterpret_cast<const char *>(m_out_buff.get()), out_size);
-  }
-
+void FileReaderDecrypting::close() noexcept {
   ERR_clear_error();
   EVP_CIPHER_CTX_free(m_ctx);
   m_ctx = nullptr;
 
-  FileWriterDecoratorBase::close();
+  FileReaderDecoratorBase::close();
 }
 
-void FileWriterEncrypting::write(const char *record, size_t size) noexcept {
-  size_t encrypted_size = 0;
+ReadStatus FileReaderDecrypting::read(unsigned char *out_buffer,
+                                      const size_t out_buffer_size,
+                                      size_t &read_size) noexcept {
+  auto decrypted_size = static_cast<int>(out_buffer_size);
+  auto status = ReadStatus::Ok;
 
-  auto cleanup_guard = create_scope_guard([&] { ERR_clear_error(); });
+  if (m_in_buff_data_size == 0) {
+    status = FileReaderDecoratorBase::read(m_in_buff.get(), kInBufferSize,
+                                           m_in_buff_data_size);
 
-  while (encrypted_size < size) {
-    int out_size = 0;
-    size_t chunk_size = size - encrypted_size > kEncryptChunkSize ? kEncryptChunkSize : size - encrypted_size;
-
-    if (EVP_EncryptUpdate(m_ctx, m_out_buff.get(), &out_size,
-                          reinterpret_cast<const unsigned char *>(record + encrypted_size),
-                          chunk_size) != 1) {
-      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "EVP_EncryptUpdate error: %s",
-                      ERR_error_string(ERR_peek_error(), nullptr));
-      return;
+    if (status == ReadStatus::Error) {
+      return status;
     }
 
-    if (out_size > 0) {
-      FileWriterDecoratorBase::write(
-          reinterpret_cast<const char *>(m_out_buff.get()), out_size);
+    if (m_in_buff_data_size == 0) {
+      return ReadStatus::Eof;
     }
-
-    encrypted_size += chunk_size;
   }
+
+  if (EVP_DecryptUpdate(m_ctx, out_buffer, &decrypted_size, m_in_buff.get(),
+                        static_cast<int>(m_in_buff_data_size)) != 1) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "EVP_DecryptUpdate error: %s",
+                    ERR_error_string(ERR_peek_error(), nullptr));
+    return ReadStatus::Error;
+  }
+
+  read_size = decrypted_size;
+
+  if (status == ReadStatus::Eof) {
+    int final_size = 0;
+
+    if (EVP_DecryptFinal(m_ctx, out_buffer + decrypted_size, &final_size) !=
+        1) {
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "EVP_DecryptFinal error: %s",
+                      ERR_error_string(ERR_peek_error(), nullptr));
+      return ReadStatus::Error;
+    }
+
+    read_size += final_size;
+  }
+
+  return status;
 }
 
-}  // namespace audit_log_filter::log_writer
+}  // namespace audit_log_filter::json_reader

@@ -60,10 +60,10 @@ FileWriterPtr get_file_writer(FileHandle &file_handle) {
     writer = std::make_unique<FileWriterBuffering>(
         std::move(writer), SysVars::get_buffer_size(),
         strategy_type == AuditLogStrategyType::Performance);
+  }
 
-    if (!writer->init()) {
-      return nullptr;
-    }
+  if (!writer->init()) {
+    return nullptr;
   }
 
   return writer;

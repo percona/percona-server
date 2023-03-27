@@ -225,7 +225,9 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
                          std::move(log_writer), std::move(log_reader));
 
   if (SysVars::get_log_disabled()) {
-    LogPluginErr(WARNING_LEVEL, ER_WARN_AUDIT_LOG_FILTER_DISABLED);
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Audit Log Filter is disabled. Enable it with "
+                    "audit_log_filter_disable = false.");
   } else {
     audit_log_filter->send_audit_start_event();
   }

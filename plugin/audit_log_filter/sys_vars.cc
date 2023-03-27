@@ -591,8 +591,11 @@ SYS_VAR **SysVars::get_sys_var_defs() noexcept { return sys_vars; }
 
 void SysVars::validate() noexcept {
   if (SysVars::get_log_max_size() > 0 && SysVars::get_log_prune_seconds() > 0) {
-    LogPluginErr(WARNING_LEVEL,
-                 ER_WARN_ADUIT_FILTER_MAX_SIZE_AND_PRUNE_SECONDS_LOG);
+    LogPluginErrMsg(
+        WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+        "Both audit_log_filter_max_size and audit_log_filter_prune_seconds are "
+        "set to non-zero. audit_log_filter_max_size takes precedence and "
+        "audit_log_filter_prune_seconds is ignored");
   }
 }
 

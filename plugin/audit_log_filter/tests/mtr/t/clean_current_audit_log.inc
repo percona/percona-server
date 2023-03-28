@@ -19,7 +19,7 @@ if (`SELECT @@global.audit_log_filter_encryption = 'AES'`) {
   --let $clean_log_name = $clean_log_name.????????T??????-?.enc
 }
 
---remove_files_wildcard $audit_filter_log_path $clean_log_name
+--remove_files_wildcard $clean_log_path $clean_log_name
 
 SELECT audit_log_rotate();
 --enable_result_log

@@ -860,7 +860,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
   *length = std::strlen(initid->ptr);
 
   if (*length == 0) {
-    std::snprintf(initid->ptr, MYSQL_ERRMSG_SIZE, "[ null ]");
+    std::snprintf(initid->ptr, MYSQL_ERRMSG_SIZE, "[\nnull\n]");
     *length = std::strlen(initid->ptr);
   }
 

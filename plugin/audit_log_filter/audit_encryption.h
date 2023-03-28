@@ -18,17 +18,18 @@
 
 #include <openssl/evp.h>
 
-#include <array>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace audit_log_filter::encryption {
 
-using SaltType = std::array<unsigned char, PKCS5_SALT_LEN>;
+using SaltType = std::vector<unsigned char>;
 
 class EncryptionOptions {
  private:
-  EncryptionOptions(std::string password, SaltType salt, int iterations);
+  EncryptionOptions(std::string password, SaltType salt,
+                    std::size_t iterations);
 
  public:
   EncryptionOptions();
@@ -56,7 +57,7 @@ class EncryptionOptions {
    *
    * @return Iterations count
    */
-  [[nodiscard]] int get_iterations() const noexcept;
+  [[nodiscard]] std::size_t get_iterations() const noexcept;
 
   /**
    * @brief Get encryption password
@@ -89,7 +90,7 @@ class EncryptionOptions {
  private:
   std::string m_password;
   SaltType m_salt;
-  int m_iterations;
+  std::size_t m_iterations;
 };
 
 }  // namespace audit_log_filter::encryption

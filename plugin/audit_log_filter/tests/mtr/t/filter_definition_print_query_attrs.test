@@ -102,7 +102,7 @@ DELETE FROM t1;
 SELECT audit_log_rotate();
 
 --let $audit_filter_log_name=
---source validate_json_logs.inc
+--source validate_logs_format.inc
 
 --echo #
 --echo # Wrong format, missing "tag" or invalid format

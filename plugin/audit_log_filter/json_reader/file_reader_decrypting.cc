@@ -105,10 +105,11 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
   auto ik_len = EVP_CIPHER_get_key_length(m_cipher);
   auto iv_len = EVP_CIPHER_get_iv_length(m_cipher);
 
-  if (!PKCS5_PBKDF2_HMAC(keyring_password.data(), keyring_password.size(),
-                         keyring_salt.data(), keyring_salt.size(),
-                         keyring_iterations, EVP_sha256(), ik_len + iv_len,
-                         tmp_key_iv)) {
+  if (!PKCS5_PBKDF2_HMAC(
+          keyring_password.data(), static_cast<int>(keyring_password.size()),
+          keyring_salt.data(), static_cast<int>(keyring_salt.size()),
+          static_cast<int>(keyring_iterations), EVP_sha256(), ik_len + iv_len,
+          tmp_key_iv)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "PKCS5_PBKDF2_HMAC error: %s",
                     ERR_error_string(ERR_peek_error(), nullptr));

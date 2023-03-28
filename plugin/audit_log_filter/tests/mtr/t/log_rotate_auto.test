@@ -11,7 +11,7 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --source generate_audit_events.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
---source validate_xml_logs.inc
+--source validate_logs_format.inc
 
 --echo #
 --echo # Cleanup

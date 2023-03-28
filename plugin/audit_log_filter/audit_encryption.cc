@@ -24,32 +24,41 @@
 
 #include <openssl/rand.h>
 
+#include <boost/algorithm/hex.hpp>
+
+#include <algorithm>
 #include <memory>
+#include <mutex>
 #include <random>
-#include <sstream>
 #include <utility>
 
 namespace audit_log_filter::encryption {
 namespace {
 
-int get_random_iterations() noexcept {
+std::size_t get_random_iterations() noexcept {
+  static std::mutex m;
+  static std::random_device r;
+  static std::default_random_engine el(r());
+
+  std::lock_guard<std::mutex> guard{m};
+
   const auto mean = SysVars::get_key_derivation_iter_count_mean();
-  std::random_device r;
-  std::default_random_engine el(r());
-  std::uniform_int_distribution<int> dist(static_cast<int>(mean * 0.9),
-                                          static_cast<int>(mean * 1.1));
+  std::uniform_int_distribution<std::size_t> dist(static_cast<int>(mean * 0.9),
+                                                  static_cast<int>(mean * 1.1));
 
   return dist(el);
 }
 
 SaltType get_random_salt() noexcept {
-  SaltType salt;
+  SaltType salt(PKCS5_SALT_LEN);
+  assert(salt.size() == PKCS5_SALT_LEN);
   RAND_bytes(salt.data(), PKCS5_SALT_LEN);
   return salt;
 }
 
 std::string make_json_string(const std::string &password,
-                             const std::string &salt, const int iterations) {
+                             const std::string &salt,
+                             const std::size_t iterations) {
   rapidjson::Document doc;
   doc.SetObject();
   doc.AddMember(
@@ -78,8 +87,10 @@ std::string make_json_string(const std::string &password,
 EncryptionOptions::EncryptionOptions() : EncryptionOptions("", {}, 0) {}
 
 EncryptionOptions::EncryptionOptions(std::string password, SaltType salt,
-                                     int iterations)
-    : m_password{std::move(password)}, m_salt{salt}, m_iterations{iterations} {}
+                                     std::size_t iterations)
+    : m_password{std::move(password)},
+      m_salt{std::move(salt)},
+      m_iterations{iterations} {}
 
 std::unique_ptr<EncryptionOptions> EncryptionOptions::generate(
     const std::string &password) noexcept {
@@ -94,24 +105,24 @@ std::unique_ptr<EncryptionOptions> EncryptionOptions::from_json_string(
 
   if (doc.HasParseError() || !doc.IsObject() || !doc.HasMember("password") ||
       !doc["password"].IsString() || !doc.HasMember("iterations") ||
-      !doc["iterations"].IsInt() || !doc.HasMember("salt") ||
+      !doc["iterations"].IsUint() || !doc.HasMember("salt") ||
       !doc["salt"].IsString()) {
     return {};
   }
 
   SaltType salt;
-  std::istringstream salt_hex_chars_stream(doc["salt"].GetString());
-  unsigned int c;
-  for (int i = 0; i < PKCS5_SALT_LEN; ++i) {
-    salt_hex_chars_stream >> std::hex >> c;
-    salt[i] = c;
-  }
+  const std::string salt_hex_chars(doc["salt"].GetString());
+  boost::algorithm::unhex(salt_hex_chars, std::back_inserter(salt));
+
+  assert(salt.size() == PKCS5_SALT_LEN);
 
   return std::unique_ptr<EncryptionOptions>(new EncryptionOptions{
-      doc["password"].GetString(), salt, doc["iterations"].GetInt()});
+      doc["password"].GetString(), salt, doc["iterations"].GetUint()});
 }
 
-int EncryptionOptions::get_iterations() const noexcept { return m_iterations; }
+std::size_t EncryptionOptions::get_iterations() const noexcept {
+  return m_iterations;
+}
 
 std::string const &EncryptionOptions::get_password() const noexcept {
   return m_password;
@@ -120,16 +131,15 @@ std::string const &EncryptionOptions::get_password() const noexcept {
 SaltType const &EncryptionOptions::get_salt() const noexcept { return m_salt; }
 
 bool EncryptionOptions::check_valid() const noexcept {
-  return m_iterations != 0 && !m_password.empty() && !m_salt.empty();
+  return m_iterations > 0 && !m_password.empty() && !m_salt.empty();
 }
 
 std::string EncryptionOptions::to_json_string() const noexcept {
-  std::stringstream salt_hex_string;
-  for (const auto &ch : m_salt) {
-    salt_hex_string << std::hex << int(ch);
-  }
+  std::string salt_hex_string;
+  boost::algorithm::hex(m_salt.cbegin(), m_salt.cend(),
+                        std::back_inserter(salt_hex_string));
 
-  return make_json_string(m_password, salt_hex_string.str(), m_iterations);
+  return make_json_string(m_password, salt_hex_string, m_iterations);
 }
 
 }  // namespace audit_log_filter::encryption

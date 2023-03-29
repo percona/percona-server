@@ -35,8 +35,6 @@ TempTable custom allocator. */
 
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/components/services/log_builtins.h"
-#include "mysqld_error.h"
 #include "sql/mysqld.h"  // temptable_max_ram, temptable_max_mmap
 #include "storage/temptable/include/temptable/block.h"
 #include "storage/temptable/include/temptable/chunk.h"
@@ -265,7 +263,6 @@ struct Prefer_RAM_over_MMAP_policy_obeying_per_table_limit {
       if (table_resource_monitor->consumption() == 0) {
         // Always allow to allocate at least one block, otherwise the temptable
         // engine is unusable
-        LogErr(WARNING_LEVEL, ER_PERCONA_IGNORE_TMP_TABLE_SIZE, block_size);
         return Prefer_RAM_over_MMAP_policy::block_source(block_size);
       }
       throw Result::RECORD_FILE_FULL;

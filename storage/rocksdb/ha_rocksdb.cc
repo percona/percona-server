@@ -760,6 +760,7 @@ bool rocksdb_column_default_value_as_expression = true;
 bool rocksdb_enable_tmp_table = false;
 bool rocksdb_enable_delete_range_for_drop_index = false;
 unsigned long long rocksdb_converter_record_cached_length = 0;
+static bool rocksdb_file_checksums = false;
 
 static std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 static std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -2482,6 +2483,12 @@ static MYSQL_SYSVAR_ULONGLONG(
     nullptr, nullptr, /* default */ rocksdb_converter_record_cached_length,
     /* min */ 0, /* max */ UINT64_MAX, 0);
 
+static MYSQL_SYSVAR_BOOL(
+    file_checksums, rocksdb_file_checksums,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Whether to write and check RocksDB file-level checksums", nullptr, nullptr,
+    false);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct SYS_VAR *rocksdb_system_variables[] = {
@@ -2685,6 +2692,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(enable_delete_range_for_drop_index),
     MYSQL_SYSVAR(corrupt_data_action),
     MYSQL_SYSVAR(converter_record_cached_length),
+    MYSQL_SYSVAR(file_checksums),
     nullptr};
 
 static bool is_tmp_table(const std::string &tablename) {
@@ -6313,6 +6321,11 @@ static int rocksdb_init_internal(void *const p) {
       rocksdb_db_options->env, myrocks_logger, trash_dir,
       rocksdb_sst_mgr_rate_bytes_per_sec, true /* delete_existing_trash */));
 
+  if (rocksdb_file_checksums) {
+    rocksdb_db_options->file_checksum_gen_factory =
+        rocksdb::GetFileChecksumGenCrc32cFactory();
+  }
+
   std::vector<std::string> cf_names;
   rocksdb::Status status;
   status = rocksdb::DB::ListColumnFamilies(*rocksdb_db_options, rocksdb_datadir,
@@ -6571,6 +6584,20 @@ static int rocksdb_init_internal(void *const p) {
   if (!status.ok()) {
     rdb_log_status_error(status, "Error opening instance");
     DBUG_RETURN(HA_EXIT_FAILURE);
+  }
+
+  if (rocksdb_file_checksums) {
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Verifying file checksums...");
+    rocksdb::ReadOptions checksum_read_options;
+    checksum_read_options.readahead_size = 2 * 1024 * 1024;
+    status = rdb->VerifyFileChecksums(checksum_read_options);
+    if (!status.ok()) {
+      rdb_log_status_error(status, "Instance failed checksum verification");
+      for (auto cfh_ptr : cf_handles) delete (cfh_ptr);
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "...done");
   }
 
   LogPluginErrMsg(INFORMATION_LEVEL, 0, "Init column families...");

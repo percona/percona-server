@@ -126,6 +126,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_certification_info_packet_count_check'
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 

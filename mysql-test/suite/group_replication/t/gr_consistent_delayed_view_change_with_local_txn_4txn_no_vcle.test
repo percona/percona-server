@@ -105,6 +105,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier
 --let $rpl_connection_name= server2
 --source include/connection.inc
 
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -127,6 +128,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_before_message_broadcast';
 --let $rpl_connection_name= server_1
 --source include/connection.inc
 
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now' and INFO = 'CREATE TABLE test.t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB'
 --source include/wait_condition.inc
 

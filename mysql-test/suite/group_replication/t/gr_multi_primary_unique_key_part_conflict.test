@@ -208,6 +208,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo
 --echo ############################################################
 --echo # Clean up.
+SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

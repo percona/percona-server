@@ -258,10 +258,7 @@ int Pfs_table_communication_information::read_column_value(
       "value",
       {
         const char act[] =
-            "now signal "
-            "signal.after_group_communication_information_read_column_value_"
-            "waiting "
-            "wait_for "
+            "now wait_for "
             "signal.after_group_communication_information_read_column_value_"
             "continue";
         assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));

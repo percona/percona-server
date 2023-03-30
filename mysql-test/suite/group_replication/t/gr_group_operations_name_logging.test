@@ -108,6 +108,7 @@ START REPLICA FOR CHANNEL 'ch1';
 --echo # 5. Unlock the action on server 1 and reap the result.
 
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 
 --let $rpl_connection_name= server1

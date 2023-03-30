@@ -93,7 +93,6 @@ INSERT INTO t1 VALUES (1);
 --source include/wait_condition.inc
 
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo
@@ -125,6 +124,10 @@ XA COMMIT 'trx';
 --let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+SET DEBUG_SYNC='RESET';
 
 --echo
 --echo ############################################################
@@ -168,7 +171,6 @@ INSERT INTO t1 VALUES (3);
 --let $rpl_connection_name= server1
 --source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo
@@ -213,6 +215,10 @@ XA COMMIT 'trx2';
 --let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+SET DEBUG_SYNC='RESET';
 
 --echo
 --echo ############################################################

@@ -89,7 +89,6 @@ UPDATE t1 SET a=4 AND b=5 WHERE b=2;
 --let $rpl_connection_name= server1
 --source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo
@@ -123,6 +122,10 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+SET DEBUG_SYNC='RESET';
 
 --echo
 --echo ############################################################
@@ -165,7 +168,6 @@ INSERT INTO t1 VALUE(12, 13);
 --let $rpl_connection_name= server1
 --source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo
@@ -209,6 +211,10 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+SET DEBUG_SYNC='RESET';
 
 --echo
 --echo ############################################################

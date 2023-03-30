@@ -36,7 +36,6 @@ INSERT INTO t1 VALUES(4, 2, 3);
 # 5. Signal the waiting thread on server_1 to resume.
 [connection server1]
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
@@ -54,6 +53,8 @@ ERROR 40000: Plugin instructed the server to rollback the current transaction.
 [connection server1]
 include/assert.inc [The value of Count_Transactions_Checked should be 3 after starting group replication]
 include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
+[connection server1]
+SET DEBUG_SYNC='RESET';
 
 ############################################################
 # Checking the positive case in which there is no conflict.
@@ -85,7 +86,6 @@ include/rpl/sync_to_replica.inc
 # 4. Signal the waiting thread on server_1 to resume.
 [connection server1]
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ########################################################################
@@ -104,6 +104,8 @@ include/assert.inc [Table t1 will contain row after the above execution]
 include/assert.inc [Table t1 will contain 3 rows after the above execution]
 include/assert.inc [The value of Count_Transactions_Checked should be 5 after starting group replication]
 include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
+[connection server1]
+SET DEBUG_SYNC='RESET';
 
 ############################################################
 # Clean up.

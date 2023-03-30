@@ -7152,8 +7152,9 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli) {
       if the table will be filtered-out or not. So we postpone error
       generation until then, and just silently skip writing the file here.
   */
-  if (!is_load_data_file_allowed(thd, rli)) return 0;
-
+  if (DBUG_EVALUATE_IF("skip_the_priv_check_in_begin_load", false, true)) {
+    if (!is_load_data_file_allowed(thd, rli)) return 0;
+  }
 #ifndef NDEBUG
   else {  // Let's ensure that we actually skipped the privilege check since the
           // error code caugth in test scripts would be the same as the no-skip

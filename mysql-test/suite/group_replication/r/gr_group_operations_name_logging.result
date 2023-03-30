@@ -49,6 +49,7 @@ include/rpl/wait_for_applier_error.inc [errno=13117]
 
 # 5. Unlock the action on server 1 and reap the result.
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 [connection server1]
 group_replication_switch_to_single_primary_mode("MEMBER1_UUID")

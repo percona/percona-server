@@ -110,9 +110,7 @@ int Pfs_table_replication_group_member_actions::read_column_value(
   DBUG_EXECUTE_IF(
       "group_replication_wait_before_group_member_actions_read_column_value", {
         const char act[] =
-            "now signal "
-            "signal.after_group_member_actions_read_column_value_waiting "
-            "wait_for "
+            "now wait_for "
             "signal.after_group_member_actions_read_column_value_continue";
         assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       };);

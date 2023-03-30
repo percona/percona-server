@@ -50,6 +50,7 @@ START GROUP_REPLICATION;
 # 5. Unblock applier on M2 and
 #    verify GR on M3 is ONLINE now.
 [connection server2]
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 [connection server3]

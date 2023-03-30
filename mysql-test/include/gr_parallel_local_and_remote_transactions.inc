@@ -136,6 +136,7 @@ BEGIN;
 --echo # group_replication_before_message_broadcast debug sync point.
 --let $rpl_connection_name= $local_server_connection2
 --source include/connection.inc
+SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -157,9 +158,6 @@ COMMIT;
 --let $rpl_connection_name= $local_server_connection2
 --source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
-SET @@GLOBAL.DEBUG= @debug_save;
-
 
 --echo
 --echo ############################################################
@@ -187,6 +185,10 @@ if ($conflict_test)
 --let $rpl_connection_name= $local_server_connection1
 --source include/connection.inc
 SET @@GLOBAL.DEBUG=@debug_save;
+
+--let $rpl_connection_name= $local_server_connection2
+--source include/connection.inc
+SET DEBUG_SYNC='RESET';
 
 --echo ############################################################
 --echo # 8. Sync everything

@@ -34,6 +34,7 @@ COMMIT;
 # 3. Wait until local transaction reaches the
 # group_replication_before_message_broadcast debug sync point.
 [connection server_1]
+SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
 
 ############################################################
 # 4. Execute a transaction on remote server, that will reach first
@@ -49,8 +50,6 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
-SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
 # 6. Wait for remote transaction to be executed succesfully
@@ -66,6 +65,8 @@ include/rpl/sync_to_replica.inc
 [connection server1]
 [connection server1]
 SET @@GLOBAL.DEBUG=@debug_save;
+[connection server_1]
+SET DEBUG_SYNC='RESET';
 ############################################################
 # 8. Sync everything
 include/rpl/sync.inc
@@ -114,6 +115,7 @@ COMMIT;
 # 3. Wait until local transaction reaches the
 # group_replication_before_message_broadcast debug sync point.
 [connection server_1]
+SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
 
 ############################################################
 # 4. Execute a transaction on remote server, that will reach first
@@ -129,8 +131,6 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
-SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
 # 6. Wait for remote transaction to be executed succesfully
@@ -146,6 +146,8 @@ include/rpl/sync_to_replica.inc
 [connection server1]
 [connection server1]
 SET @@GLOBAL.DEBUG=@debug_save;
+[connection server_1]
+SET DEBUG_SYNC='RESET';
 ############################################################
 # 8. Sync everything
 include/rpl/sync.inc
@@ -194,6 +196,7 @@ COMMIT;
 # 3. Wait until local transaction reaches the
 # group_replication_before_message_broadcast debug sync point.
 [connection server_1]
+SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
 
 ############################################################
 # 4. Execute a transaction on remote server, that will reach first
@@ -209,8 +212,6 @@ COMMIT;
 #    transaction.
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
-SET DEBUG_SYNC='RESET';
-SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
 # 6. Wait for remote transaction to be executed succesfully
@@ -227,6 +228,8 @@ include/rpl/sync_to_replica.inc
 ERROR 40000: Plugin instructed the server to rollback the current transaction.
 [connection server1]
 SET @@GLOBAL.DEBUG=@debug_save;
+[connection server_1]
+SET DEBUG_SYNC='RESET';
 ############################################################
 # 8. Sync everything
 include/rpl/sync.inc

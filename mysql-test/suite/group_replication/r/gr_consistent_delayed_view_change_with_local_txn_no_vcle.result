@@ -47,6 +47,7 @@ CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 ############################################################
 # 05. Check wait condition on server2.
 [connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
 
 ############################################################
 # 06. Execute T3 on server1
@@ -59,6 +60,7 @@ CREATE TABLE test.t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 ############################################################
 # 07. Check wait condition on server1.
 [connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
 
 ############################################################
 # 08. Start server3

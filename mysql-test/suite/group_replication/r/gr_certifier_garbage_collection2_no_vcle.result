@@ -24,6 +24,7 @@ COMMIT;
 #  3. Wait until server_1 connection reaches the
 #     group_replication_before_message_broadcast debug sync point.
 [connection server1]
+SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
 
 ############################################################
 #  4. Execute a transaction on server2, that will reach first
@@ -46,6 +47,7 @@ ERROR 40000: Plugin instructed the server to rollback the current transaction.
 ############################################################
 #  7. Make sure the pipeline is suspended on server2.
 [connection server2]
+SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_apply_data_packet_reached";
 
 ############################################################
 #  8. Wait until certification info garbage collector does

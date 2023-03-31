@@ -49,6 +49,7 @@ bool FileWriterCompressing::open() noexcept {
 void FileWriterCompressing::close() noexcept {
   m_flush = Z_FINISH;
   do_deflate();
+  deflateEnd(&m_strm);
 
   FileWriterDecoratorBase::close();
 }

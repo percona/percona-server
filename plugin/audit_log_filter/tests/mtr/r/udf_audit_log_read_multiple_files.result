@@ -62,12 +62,12 @@ SELECT @current_file_start_bookmark;
 SELECT audit_log_read(@file2_start_bookmark);
 audit_log_read(@file2_start_bookmark)
 [
-{"timestamp": "2022-08-09 10:05:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (4)", "sql_command": "insert"}},
-{"timestamp": "2022-08-09 10:06:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (5)", "sql_command": "insert"}},
-{"timestamp": "2022-08-09 10:07:00", "id": 2, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (6)", "sql_command": "insert"}},
-{"timestamp": "2022-08-09 10:09:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (7)", "sql_command": "insert"}},
-{"timestamp": "2022-08-09 10:10:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (8)", "sql_command": "insert"}},
-{"timestamp": "2022-08-09 10:11:00", "id": 2, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (9)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:05:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (4)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:06:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (5)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:07:00", "id": 2, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (6)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:09:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (7)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:10:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (8)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:11:00", "id": 2, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (9)", "sql_command": "insert"}},
 null
 ]
 
@@ -80,22 +80,22 @@ SELECT @file2_start_with_limit_bookmark;
 SELECT audit_log_read(@file2_start_with_limit_bookmark);
 audit_log_read(@file2_start_with_limit_bookmark)
 [
-{"timestamp": "2022-08-09 10:05:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (4)", "sql_command": "insert"}},
-{"timestamp": "2022-08-09 10:06:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (5)", "sql_command": "insert"}}
+{"timestamp": "2022-08-09 10:05:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (4)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:06:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (5)", "sql_command": "insert"}}
 ]
 
 SELECT audit_log_read('{"max_array_length": 2}');
 audit_log_read('{"max_array_length": 2}')
 [
-{"timestamp": "2022-08-09 10:07:00", "id": 2, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (6)", "sql_command": "insert"}},
-{"timestamp": "2022-08-09 10:09:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (7)", "sql_command": "insert"}}
+{"timestamp": "2022-08-09 10:07:00", "id": 2, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (6)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:09:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (7)", "sql_command": "insert"}}
 ]
 
 SELECT audit_log_read('{"max_array_length": 2}');
 audit_log_read('{"max_array_length": 2}')
 [
-{"timestamp": "2022-08-09 10:10:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (8)", "sql_command": "insert"}},
-{"timestamp": "2022-08-09 10:11:00", "id": 2, "class": "table_access", "event": "insert", "connection_id": 11, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (9)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:10:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (8)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:11:00", "id": 2, "class": "table_access", "event": "insert", "connection_id": <id>, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (9)", "sql_command": "insert"}},
 null
 ]
 

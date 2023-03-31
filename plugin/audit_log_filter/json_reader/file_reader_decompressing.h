@@ -28,6 +28,8 @@ class FileReaderDecompressing final : public FileReaderDecoratorBase {
  public:
   explicit FileReaderDecompressing(std::unique_ptr<FileReaderBase> file_reader);
 
+  ~FileReaderDecompressing() override;
+
   bool init() noexcept override;
   bool open(FileInfo *file_info) noexcept override;
   void close() noexcept override;

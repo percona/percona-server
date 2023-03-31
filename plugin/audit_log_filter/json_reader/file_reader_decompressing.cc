@@ -25,6 +25,8 @@ FileReaderDecompressing::FileReaderDecompressing(
     std::unique_ptr<FileReaderBase> file_reader)
     : FileReaderDecoratorBase(std::move(file_reader)) {}
 
+FileReaderDecompressing::~FileReaderDecompressing() { inflateEnd(&m_strm); }
+
 bool FileReaderDecompressing::init() noexcept {
   return FileReaderDecoratorBase::init();
 }

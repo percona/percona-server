@@ -57,14 +57,18 @@ SELECT @current_file_start_bookmark;
 
 --echo #
 --echo # Read all from two rotated logs in one request
+--replace_regex /"connection_id": \d*/"connection_id": <id>/
 SELECT audit_log_read(@file2_start_bookmark);
 
 --echo #
 --echo # Read all from two rotated logs by chunks ("max_array_length": 2)
 SET @file2_start_with_limit_bookmark := JSON_SET(@file2_start_bookmark, '$.max_array_length', 2);
 SELECT @file2_start_with_limit_bookmark;
+--replace_regex /"connection_id": \d*/"connection_id": <id>/
 SELECT audit_log_read(@file2_start_with_limit_bookmark);
+--replace_regex /"connection_id": \d*/"connection_id": <id>/
 SELECT audit_log_read('{"max_array_length": 2}');
+--replace_regex /"connection_id": \d*/"connection_id": <id>/
 SELECT audit_log_read('{"max_array_length": 2}');
 
 --echo #

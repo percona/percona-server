@@ -33,6 +33,29 @@
 namespace audit_log_filter {
 namespace {
 
+bool has_system_variables_privilege(MYSQL_THD thd) {
+  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
+      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
+  my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
+      "global_grants_check", SysVars::get_comp_regystry_srv());
+
+  bool has_audit_admin_grant = false;
+  bool has_system_variables_admin_grant = false;
+
+  if (security_context_service.is_valid() && grants_check_service.is_valid()) {
+    Security_context_handle ctx;
+
+    if (!security_context_service->get(thd, &ctx)) {
+      has_audit_admin_grant = grants_check_service->has_global_grant(
+          ctx, STRING_WITH_LEN("AUDIT_ADMIN"));
+      has_system_variables_admin_grant = grants_check_service->has_global_grant(
+          ctx, STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
+    }
+  }
+
+  return has_audit_admin_grant && has_system_variables_admin_grant;
+}
+
 /*
  * Internally used variables
  */
@@ -178,6 +201,7 @@ ulong log_encryption_type = static_cast<ulong>(AuditLogEncryptionType::None);
 ulonglong log_password_history_keep_days = 0;
 int key_derivation_iter_count_mean = 0;
 const int default_key_derivation_iter_count_mean = 600000;
+bool json_with_unix_timestamp = false;
 
 /*
  * The audit_log_filter.file variable is used to specify the filename that’s
@@ -417,26 +441,7 @@ MYSQL_THDVAR_ULONG(
  */
 int log_disabled_check_func(MYSQL_THD thd, SYS_VAR *var, void *save,
                             st_mysql_value *value) {
-  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
-      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
-  my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
-      "global_grants_check", SysVars::get_comp_regystry_srv());
-
-  bool has_audit_admin_grant = false;
-  bool has_system_variables_admin_grant = false;
-
-  if (security_context_service.is_valid() && grants_check_service.is_valid()) {
-    Security_context_handle ctx;
-
-    if (!security_context_service->get(thd, &ctx)) {
-      has_audit_admin_grant = grants_check_service->has_global_grant(
-          ctx, STRING_WITH_LEN("AUDIT_ADMIN"));
-      has_system_variables_admin_grant = grants_check_service->has_global_grant(
-          ctx, STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
-    }
-  }
-
-  if (!has_audit_admin_grant || !has_system_variables_admin_grant) {
+  if (!has_system_variables_privilege(thd)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SYSTEM_VARIABLES_ADMIN and AUDIT_ADMIN");
     return 1;
@@ -552,6 +557,44 @@ MYSQL_SYSVAR_INT(key_derivation_iterations_count_mean,
                  INT_MAX, 0);
 
 /*
+ * The audit_log_filter.format_unix_timestamp variable when enabled causes
+ * each log file record to include a time field. The field value is an integer
+ * that represents the UNIX timestamp value indicating the date and time when
+ * the audit event was generated. Applies to JSON formatted logs only.
+ */
+int format_unix_timestamp_check_func(MYSQL_THD thd, SYS_VAR *var, void *save,
+                                     st_mysql_value *value) {
+  if (!has_system_variables_privilege(thd)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SYSTEM_VARIABLES_ADMIN and AUDIT_ADMIN");
+    return 1;
+  }
+
+  return check_func_bool(thd, var, save, value);
+}
+
+void format_unix_timestamp_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr,
+                                       const void *save) {
+  const auto new_val = *static_cast<const bool *>(save);
+
+  if (json_with_unix_timestamp != new_val) {
+    *static_cast<bool *>(val_ptr) = new_val;
+
+    if (SysVars::get_format_type() == AuditLogFormatType::Json) {
+      get_audit_log_filter_instance()->on_audit_log_rotate_requested();
+    }
+  }
+}
+
+MYSQL_SYSVAR_BOOL(format_unix_timestamp, json_with_unix_timestamp,
+                  PLUGIN_VAR_RQCMDARG,
+                  "Add 'time' field to JSON formatted log records representing "
+                  "the UNIX timestamp value indicating the date and time when "
+                  "the audit event was generated.",
+                  format_unix_timestamp_check_func,
+                  format_unix_timestamp_update_func, false);
+
+/*
  * Internally used as a storage for log reader context data.
  */
 MYSQL_THDVAR_STR(log_reader_context,
@@ -578,6 +621,7 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(disable),
                        MYSQL_SYSVAR(read_buffer_size),
                        MYSQL_SYSVAR(log_reader_context),
+                       MYSQL_SYSVAR(format_unix_timestamp),
                        nullptr};
 
 #ifndef NDEBUG
@@ -661,6 +705,10 @@ ulonglong SysVars::get_password_history_keep_days() noexcept {
 
 int SysVars::get_key_derivation_iter_count_mean() noexcept {
   return key_derivation_iter_count_mean;
+}
+
+bool SysVars::get_format_unix_timestamp() noexcept {
+  return json_with_unix_timestamp;
 }
 
 void SysVars::set_session_filter_id(MYSQL_THD thd, ulong id) noexcept {

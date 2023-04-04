@@ -18,7 +18,7 @@
 
 #include "plugin/audit_log_filter/json_reader/file_reader_decorator_base.h"
 
-#include <openssl/types.h>
+#include <openssl/evp.h>
 
 #include <memory>
 
@@ -32,7 +32,7 @@ class FileReaderDecrypting final : public FileReaderDecoratorBase {
   bool open(FileInfo *file_info) noexcept override;
   void close() noexcept override;
   ReadStatus read(unsigned char *out_buffer, size_t out_buffer_size,
-                  size_t &read_size) noexcept override;
+                  size_t *read_size) noexcept override;
 
  private:
   const EVP_CIPHER *m_cipher;

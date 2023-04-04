@@ -465,7 +465,8 @@ class LogRecordFormatterBaseXml : public LogRecordFormatterBase {
    *
    * @return Escape rules
    */
-  const EscapeRulesContainer &get_escape_rules() const noexcept override;
+  [[nodiscard]] const EscapeRulesContainer &get_escape_rules()
+      const noexcept override;
 };
 
 template <AuditLogFormatType FormatType>

@@ -31,7 +31,7 @@ void FileReaderDecoratorBase::close() noexcept { m_file_reader->close(); }
 
 ReadStatus FileReaderDecoratorBase::read(unsigned char *out_buffer,
                                          const size_t out_buffer_size,
-                                         size_t &read_size) noexcept {
+                                         size_t *read_size) noexcept {
   return m_file_reader->read(out_buffer, out_buffer_size, read_size);
 }
 

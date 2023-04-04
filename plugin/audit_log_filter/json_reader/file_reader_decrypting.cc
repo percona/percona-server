@@ -102,8 +102,14 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
 
   // Derive key and default iv concatenated into a temporary buffer
   unsigned char tmp_key_iv[kEvpKeyLength + EVP_MAX_IV_LENGTH];
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
   auto ik_len = EVP_CIPHER_get_key_length(m_cipher);
   auto iv_len = EVP_CIPHER_get_iv_length(m_cipher);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  auto ik_len = EVP_CIPHER_key_length(m_cipher);
+  auto iv_len = EVP_CIPHER_iv_length(m_cipher);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   if (!PKCS5_PBKDF2_HMAC(
           keyring_password.data(), static_cast<int>(keyring_password.size()),
@@ -149,13 +155,13 @@ void FileReaderDecrypting::close() noexcept {
 
 ReadStatus FileReaderDecrypting::read(unsigned char *out_buffer,
                                       const size_t out_buffer_size,
-                                      size_t &read_size) noexcept {
+                                      size_t *read_size) noexcept {
   auto decrypted_size = static_cast<int>(out_buffer_size);
   auto status = ReadStatus::Ok;
 
   if (m_in_buff_data_size == 0) {
     status = FileReaderDecoratorBase::read(m_in_buff.get(), kInBufferSize,
-                                           m_in_buff_data_size);
+                                           &m_in_buff_data_size);
 
     if (status == ReadStatus::Error) {
       return status;
@@ -174,7 +180,7 @@ ReadStatus FileReaderDecrypting::read(unsigned char *out_buffer,
     return ReadStatus::Error;
   }
 
-  read_size = decrypted_size;
+  *read_size = decrypted_size;
 
   if (status == ReadStatus::Eof) {
     int final_size = 0;
@@ -187,7 +193,7 @@ ReadStatus FileReaderDecrypting::read(unsigned char *out_buffer,
       return ReadStatus::Error;
     }
 
-    read_size += final_size;
+    *read_size += final_size;
   }
 
   return status;

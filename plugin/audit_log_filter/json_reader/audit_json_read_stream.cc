@@ -131,7 +131,7 @@ bool AuditJsonReadStream::read() noexcept {
     m_count += m_read_count;
     status =
         m_file_reader->read(reinterpret_cast<unsigned char *>(m_buffer.get()),
-                            kStreamBufferSize, m_read_count);
+                            kStreamBufferSize, &m_read_count);
     m_buffer_last = m_buffer.get() + m_read_count - 1;
     m_current = m_buffer.get();
 

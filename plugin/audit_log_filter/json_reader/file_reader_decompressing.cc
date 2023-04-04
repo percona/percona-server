@@ -38,7 +38,7 @@ bool FileReaderDecompressing::open(FileInfo *file_info) noexcept {
 
   if (ReadStatus::Error == FileReaderDecoratorBase::read(
                                m_in_buff, kInBufferSize,
-                               reinterpret_cast<size_t &>(m_strm.avail_in))) {
+                               reinterpret_cast<size_t *>(&m_strm.avail_in))) {
     return false;
   }
 
@@ -65,12 +65,12 @@ void FileReaderDecompressing::close() noexcept {
 
 ReadStatus FileReaderDecompressing::read(unsigned char *out_buffer,
                                          const size_t out_buffer_size,
-                                         size_t &read_size) noexcept {
+                                         size_t *read_size) noexcept {
   auto status = ReadStatus::Ok;
 
   if (m_strm.avail_in == 0) {
     status = FileReaderDecoratorBase::read(
-        m_in_buff, kInBufferSize, reinterpret_cast<size_t &>(m_strm.avail_in));
+        m_in_buff, kInBufferSize, reinterpret_cast<size_t *>(m_strm.avail_in));
 
     if (status == ReadStatus::Error) {
       inflateEnd(&m_strm);
@@ -85,7 +85,7 @@ ReadStatus FileReaderDecompressing::read(unsigned char *out_buffer,
 
   int ret = inflate(&m_strm, Z_SYNC_FLUSH);
 
-  read_size = out_buffer_size - m_strm.avail_out;
+  *read_size = out_buffer_size - m_strm.avail_out;
 
   if (ret == Z_STREAM_END) {
     status = ReadStatus::Eof;

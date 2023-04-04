@@ -33,7 +33,7 @@ class FileReaderBase {
   virtual bool open(FileInfo *file_info) noexcept = 0;
   virtual void close() noexcept = 0;
   virtual ReadStatus read(unsigned char *out_buffer, size_t out_buffer_size,
-                          size_t &read_size) noexcept = 0;
+                          size_t *read_size) noexcept = 0;
 };
 
 }  // namespace json_reader

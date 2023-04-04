@@ -467,6 +467,13 @@ jobs:
       if [[ ( "$(Compiler)" == "gcc" ) && ( $(bc <<< "$(CompilerVer) < 8.1") -eq 1 ) ]]; then
         CMAKE_OPT+="
           -DWITH_ROUTER=OFF
+          -DWITH_PERCONA_AUDIT_LOG_FILTER=OFF
+        "
+      fi
+
+      if [[ ( "$(Compiler)" == "clang" ) && ( $(bc <<< "$(CompilerVer) < 7") -eq 1 ) ]]; then
+        CMAKE_OPT+="
+          -DWITH_PERCONA_AUDIT_LOG_FILTER=OFF
         "
       fi
 

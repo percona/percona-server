@@ -30,7 +30,7 @@ class FileReaderDecoratorBase : public FileReaderBase {
   bool open(FileInfo *file_info) noexcept override;
   void close() noexcept override;
   ReadStatus read(unsigned char *out_buffer, size_t out_buffer_size,
-                  size_t &read_size) noexcept override;
+                  size_t *read_size) noexcept override;
 
  private:
   std::unique_ptr<FileReaderBase> m_file_reader;

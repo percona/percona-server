@@ -3071,16 +3071,18 @@ skip_to_ssl:
       We need to make sure that reference count for
       SSL context is kept till the end of function
     */
-    const bool admin_ctx = thd->is_admin_connection() && g_admin_ssl_configured;
-    Lock_and_access_ssl_acceptor_context context(admin_ctx ? mysql_admin
-                                                           : mysql_main);
+    {
+      const bool admin_ctx = thd->is_admin_connection() && g_admin_ssl_configured;
+      Lock_and_access_ssl_acceptor_context context(admin_ctx ? mysql_admin
+                                                            : mysql_main);
 
-    /* Do the SSL layering. */
-    if (!context.have_ssl()) return packet_error;
-    DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(context, protocol->get_vio(), net->read_timeout, &errptr)) {
-      DBUG_PRINT("error", ("Failed to accept new SSL connection"));
-      return packet_error;
+      /* Do the SSL layering. */
+      if (!context.have_ssl()) return packet_error;
+      DBUG_PRINT("info", ("IO layer change in progress..."));
+      if (sslaccept(context, protocol->get_vio(), net->read_timeout, &errptr)) {
+        DBUG_PRINT("error", ("Failed to accept new SSL connection"));
+        return packet_error;
+      }
     }
 
     DBUG_PRINT("info", ("Reading user information over SSL layer"));

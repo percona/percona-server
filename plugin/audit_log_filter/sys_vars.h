@@ -199,6 +199,15 @@ class SysVars {
   [[nodiscard]] static int get_key_derivation_iter_count_mean() noexcept;
 
   /**
+   * @brief Check if a 'time' field is enabled for JSON formatted logs.
+   *
+   * @return true in case 'time' field containing UNIX timestamp should be
+   *             added to log record,
+   *         false otherwise
+   */
+  [[nodiscard]] static bool get_format_unix_timestamp() noexcept;
+
+  /**
    * @brief Set filter_id for a session.
    *
    * @param thd MYSQL_THD for current session

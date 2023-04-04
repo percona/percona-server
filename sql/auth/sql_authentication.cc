@@ -3042,6 +3042,8 @@ skip_to_ssl:
       return packet_error;
     }
 
+    context.reset();
+
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     const int rc = protocol->read_packet();
     pkt_len = protocol->get_packet_length();

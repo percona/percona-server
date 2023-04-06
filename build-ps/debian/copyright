@@ -3,7 +3,7 @@ Upstream-Name: Percona Server 8.0
 Upstream-Contact: Percona MySQL Development Team <mysqldev@percona.com>
 Source: http://www.percona.com/downloads/Percona-Server-8.0/
 
-Copyright: 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright: (C) 2020-2023 Oracle and/or its affiliates. All rights reserved.
 License:
  This is a release of MySQL, a dual-license SQL database server.
  For the avoidance of doubt, this particular copy of the software

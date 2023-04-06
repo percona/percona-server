@@ -24,8 +24,8 @@
 #include "plugin/audit_log_filter/audit_rule_parser.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_table/audit_log_user.h"
-#include "plugin/audit_log_filter/json_reader/audit_json_handler.h"
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
+#include "plugin/audit_log_filter/log_writer/file_handle.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
 #include "mysql/plugin.h"
@@ -987,12 +987,24 @@ char *AuditUdf::audit_log_rotate_udf(AuditUdf *udf [[maybe_unused]],
                                      char *result, unsigned long *length,
                                      unsigned char *is_null,
                                      unsigned char *error) noexcept {
-  get_audit_log_filter_instance()->on_audit_log_rotate_requested();
+  auto rotation_result = std::make_unique<log_writer::FileRotationResult>();
 
-  std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
-  *length = std::strlen(result);
+  get_audit_log_filter_instance()->on_audit_log_rotate_requested(
+      rotation_result.get());
+
+  if (rotation_result->error_code == 0) {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "%s",
+                  rotation_result->status_string.c_str());
+  } else {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Log rotation failed: '%s'",
+                    rotation_result->status_string.c_str());
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: Log rotation failed: '%s'",
+                  rotation_result->status_string.c_str());
+  }
+
   *is_null = 0;
   *error = 0;
+  *length = std::strlen(result);
 
   return result;
 }

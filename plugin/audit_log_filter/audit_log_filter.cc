@@ -465,7 +465,7 @@ bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
   const bool is_flushed = m_audit_rules_registry->load();
 
   DBUG_EXECUTE_IF("audit_log_filter_rotate_after_audit_rules_flush",
-                  { m_log_writer->rotate(); });
+                  { m_log_writer->rotate(nullptr); });
 
   return is_flushed;
 }
@@ -476,9 +476,10 @@ void AuditLogFilter::on_audit_log_prune_requested() noexcept {
   }
 }
 
-void AuditLogFilter::on_audit_log_rotate_requested() noexcept {
+void AuditLogFilter::on_audit_log_rotate_requested(
+    log_writer::FileRotationResult *result) noexcept {
   if (m_is_active) {
-    m_log_writer->rotate();
+    m_log_writer->rotate(result);
   }
 }
 

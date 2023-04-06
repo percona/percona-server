@@ -6,10 +6,10 @@ audit_log_filter_set_user('%', 'log_general')
 OK
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 SELECT audit_log_rotate();
 audit_log_rotate()
-OK
+<file_name>
 Rotated files Ok
 #
 # Cleanup

@@ -29,6 +29,7 @@ SET @file1_start_bookmark := audit_log_read_bookmark();
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 INSERT INTO t1 VALUES (4);
@@ -36,6 +37,7 @@ SET @file2_start_bookmark := audit_log_read_bookmark();
 INSERT INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (6);
 
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 INSERT INTO t1 VALUES (7);
@@ -43,6 +45,7 @@ SET @file3_start_bookmark := audit_log_read_bookmark();
 INSERT INTO t1 VALUES (8);
 INSERT INTO t1 VALUES (9);
 
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 INSERT INTO t1 VALUES (10);

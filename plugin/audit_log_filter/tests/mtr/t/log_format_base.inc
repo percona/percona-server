@@ -8,6 +8,7 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --source generate_audit_events.inc
 
 # rotate log manually for it to properly close and have closing tags added
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 if (`SELECT @@global.audit_log_filter_encryption = 'AES'`) {

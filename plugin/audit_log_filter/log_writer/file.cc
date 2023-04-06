@@ -29,6 +29,7 @@
 #include "sql/mysqld.h"
 
 #include <filesystem>
+#include <memory>
 #include <queue>
 
 namespace audit_log_filter::log_writer {
@@ -91,12 +92,14 @@ bool LogWriterFile::open() noexcept {
 
   const auto current_log_path = FileHandle::get_not_rotated_file_path(
       mysql_data_home, SysVars::get_file_name());
-  auto ec = FileHandle::rotate(current_log_path);
+  auto rotation_result = std::make_unique<log_writer::FileRotationResult>();
+  FileHandle::rotate(current_log_path, rotation_result.get());
 
-  if (ec.value() != 0) {
+  if (rotation_result->error_code != 0) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to rotate audit filter log: %i, %s", ec.value(),
-                    ec.message().c_str());
+                    "Failed to rotate audit filter log: %i, %s",
+                    rotation_result->error_code,
+                    rotation_result->status_string.c_str());
     return false;
   }
 
@@ -188,7 +191,7 @@ void LogWriterFile::write(const std::string &record,
 
   if (file_size_limit > 0 && !m_is_rotating &&
       file_size_limit < get_log_size()) {
-    rotate();
+    rotate(nullptr);
     prune();
   }
 }
@@ -197,7 +200,7 @@ uint64_t LogWriterFile::get_log_size() const noexcept {
   return m_file_handle.get_file_size();
 }
 
-void LogWriterFile::rotate() noexcept {
+void LogWriterFile::rotate(FileRotationResult *result) noexcept {
   std::lock_guard<std::recursive_mutex> write_guard{m_write_lock};
 
   m_is_rotating = true;
@@ -205,12 +208,18 @@ void LogWriterFile::rotate() noexcept {
 
   do_close_file();
 
-  auto ec = FileHandle::rotate(current_log_path);
+  std::unique_ptr<FileRotationResult> local_result;
+  if (result == nullptr) {
+    local_result = std::make_unique<FileRotationResult>();
+    result = local_result.get();
+  }
 
-  if (ec.value() != 0) {
+  FileHandle::rotate(current_log_path, result);
+
+  if (result->error_code != 0) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to rotate audit filter log: %i, %s", ec.value(),
-                    ec.message().c_str());
+                    "Failed to rotate audit filter log: %i, %s",
+                    result->error_code, result->status_string.c_str());
   }
 
   do_open_file();

@@ -183,10 +183,11 @@ void FileHandle::remove_file_footer(
   }
 }
 
-std::error_code FileHandle::rotate(
-    const std::filesystem::path &current_file_path) noexcept {
+void FileHandle::rotate(const std::filesystem::path &current_file_path,
+                        FileRotationResult *result) noexcept {
   if (!std::filesystem::exists(current_file_path)) {
-    return std::error_code{};
+    result->error_code = 0;
+    return;
   }
 
   std::time_t t =
@@ -214,7 +215,13 @@ std::error_code FileHandle::rotate(
 
   std::filesystem::rename(current_file_path, new_file_path, ec);
 
-  return ec;
+  result->error_code = ec.value();
+
+  if (result->error_code == 0) {
+    result->status_string = new_file_name.str();
+  } else {
+    result->status_string = ec.message();
+  }
 }
 
 PruneFilesList FileHandle::get_prune_files(

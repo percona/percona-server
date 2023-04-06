@@ -8,8 +8,11 @@ call mtr.add_suppression("Failed to shutdown components infrastructure.");
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 --let $with_compression = 0
@@ -23,8 +26,11 @@ SELECT audit_log_rotate();
 
 --remove_files_wildcard $audit_filter_log_path audit_filter*
 
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 --let $with_compression = 1
@@ -38,8 +44,11 @@ SELECT audit_log_rotate();
 
 --remove_files_wildcard $audit_filter_log_path audit_filter*
 
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 --let $with_compression = 0
@@ -53,8 +62,11 @@ SELECT audit_log_rotate();
 
 --remove_files_wildcard $audit_filter_log_path audit_filter*
 
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
+--replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 --let $with_compression = 1

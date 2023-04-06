@@ -168,7 +168,7 @@ TableResult AuditLogFilter::load_filters(
   auto ta_context = open_table();
 
   if (ta_context == nullptr) {
-    return TableResult::MissingTable;
+    return TableResult::Fail;
   }
 
   my_service<SERVICE_TYPE(mysql_charset)> charset_srv(

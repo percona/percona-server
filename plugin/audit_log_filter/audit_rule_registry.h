@@ -62,14 +62,6 @@ class AuditRuleRegistry {
                         std::string &rule_name) noexcept;
 
  private:
-  /**
-   * @brief Create plugin configuration tables.
-   *
-   * @return true in case of success, false otherwise
-   */
-  bool init_audit_tables() noexcept;
-
- private:
   audit_table::AuditLogUser::AuditUsersContainer m_audit_users;
   audit_table::AuditLogFilter::AuditRulesContainer m_audit_filter_rules;
 };

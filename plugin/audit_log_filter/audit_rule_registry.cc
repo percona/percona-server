@@ -60,11 +60,6 @@ bool AuditRuleRegistry::load() noexcept {
   auto users_result = audit_log_user.load_users(m_audit_users);
   auto filter_result = audit_log_filter.load_filters(m_audit_filter_rules);
 
-  if (users_result == audit_table::TableResult::MissingTable &&
-      filter_result == audit_table::TableResult::MissingTable) {
-    return init_audit_tables();
-  }
-
   if (users_result != audit_table::TableResult::Ok ||
       filter_result != audit_table::TableResult::Ok) {
     m_audit_users.clear();
@@ -74,8 +69,5 @@ bool AuditRuleRegistry::load() noexcept {
   return users_result == audit_table::TableResult::Ok &&
          filter_result == audit_table::TableResult::Ok;
 }
-
-// TODO: implement
-bool AuditRuleRegistry::init_audit_tables() noexcept { return true; }
 
 }  // namespace audit_log_filter

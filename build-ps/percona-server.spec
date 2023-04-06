@@ -22,6 +22,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
+%define build_timestamp %(date +"%Y")
 %undefine _missing_build_ids_terminate_build
 %global mysql_vendor Oracle and/or its affiliates
 %global percona_server_vendor Percona, Inc
@@ -131,7 +132,7 @@ Summary:        Percona-Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        %{mysql_version}
 Release:        %{release}
-License:        Copyright (c) 2000, 2018, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field..
+License:        Copyright (c) 2000, %{build_timestamp}, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field..
 Source0:        http://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>

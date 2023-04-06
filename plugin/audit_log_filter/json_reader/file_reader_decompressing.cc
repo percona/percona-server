@@ -70,7 +70,7 @@ ReadStatus FileReaderDecompressing::read(unsigned char *out_buffer,
 
   if (m_strm.avail_in == 0) {
     status = FileReaderDecoratorBase::read(
-        m_in_buff, kInBufferSize, reinterpret_cast<size_t *>(m_strm.avail_in));
+        m_in_buff, kInBufferSize, reinterpret_cast<size_t *>(&m_strm.avail_in));
 
     if (status == ReadStatus::Error) {
       inflateEnd(&m_strm);

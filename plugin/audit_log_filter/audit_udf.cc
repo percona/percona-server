@@ -1167,7 +1167,7 @@ char *AuditUdf::audit_log_encryption_password_set_udf(
 
   if (!audit_keyring::set_encryption_options(udf_args->args[0])) {
     my_error(ER_UDF_ERROR, MYF(0), "audit_log_encryption_password_set_udf",
-             "Could not set password");
+             "ERROR: Could not set password");
     *error = 1;
     return result;
   }

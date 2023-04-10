@@ -2,7 +2,7 @@
 call mtr.add_suppression("Failed to shutdown components infrastructure.");
 --enable_query_log
 
---let $restart_parameters="restart: --audit_log_filter_format=JSON --audit_log_filter_file=audit_filter.json.log --audit_log_filter_format_unix_timestamp=ON --audit_log_filter_strategy=SYNCHRONOUS"
+--let $restart_parameters="restart: --audit_log_filter_format=JSON --audit_log_filter_file=audit_filter.json.log --audit_log_filter_format_unix_timestamp=ON"
 --source include/restart_mysqld.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`

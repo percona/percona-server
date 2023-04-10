@@ -4,6 +4,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 INSTALL COMPONENT "file://component_audit_api_message_emit";
 CREATE USER 'user1'@'localhost' IDENTIFIED BY '111';
+GRANT AUDIT_ADMIN ON *.* to 'user1'@'localhost';
 CREATE USER 'user2'@'localhost' IDENTIFIED BY '222';
 GRANT SYSTEM_USER ON *.* to 'user2'@'localhost';
 GRANT AUDIT_ABORT_EXEMPT ON *.* to 'user2'@'localhost';

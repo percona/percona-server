@@ -363,6 +363,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
 
   if (!m_audit_rules_registry->lookup_rule_name(user_name, user_host,
                                                 rule_name)) {
+    SysVars::set_session_filter_id(thd, 0);
     return 0;
   }
 

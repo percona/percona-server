@@ -200,8 +200,16 @@ void FileHandle::rotate(const std::filesystem::path &current_file_path,
 
   const auto filename_str = current_file_path.filename().string();
   auto first_ext_pos = filename_str.find_first_of('.');
-  const auto base_file_name_str = filename_str.substr(0, first_ext_pos);
-  const auto extensions_str = filename_str.substr(first_ext_pos);
+
+  std::string base_file_name_str;
+  std::string extensions_str;
+
+  if (first_ext_pos == std::string::npos) {
+    base_file_name_str = filename_str;
+  } else {
+    base_file_name_str = filename_str.substr(0, first_ext_pos);
+    extensions_str = filename_str.substr(first_ext_pos);
+  }
 
   std::stringstream new_file_name;
   new_file_name << base_file_name_str << "."

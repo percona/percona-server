@@ -38,6 +38,8 @@
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
 
+#include <boost/algorithm/string/trim.hpp>
+
 #include <cstring>
 #include <regex>
 #include <unordered_set>
@@ -147,6 +149,28 @@ bool has_audit_admin_privilege(char *message) {
   }
 
   return true;
+}
+
+bool check_timestamp_valid(std::string &timestamp_str) {
+  boost::algorithm::trim(timestamp_str);
+
+  if (timestamp_str.empty()) {
+    return false;
+  }
+
+  const std::regex timestamp_full_regex(
+      R"(^\d{4}\-\d{2}\-\d{2} \d{2}:\d{2}:\d{2}$)");
+  if (std::regex_match(timestamp_str, timestamp_full_regex)) {
+    return true;
+  }
+
+  const std::regex timestamp_no_time_regex(R"(^\d{4}\-\d{2}\-\d{2}$)");
+  if (std::regex_match(timestamp_str, timestamp_no_time_regex)) {
+    timestamp_str += " 00:00:00";
+    return true;
+  }
+
+  return false;
 }
 
 }  // namespace
@@ -720,9 +744,8 @@ bool AuditUdf::audit_log_read_udf_init(AuditUdf *udf [[maybe_unused]],
 }
 
 char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
-                                   UDF_INIT *initid [[maybe_unused]],
-                                   UDF_ARGS *udf_args, char *result,
-                                   unsigned long *length,
+                                   UDF_INIT *initid, UDF_ARGS *udf_args,
+                                   char *result, unsigned long *length,
                                    unsigned char *is_null,
                                    unsigned char *error) noexcept {
   /*
@@ -756,7 +779,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
   if (udf_args->arg_count == 1 && udf_args->args != nullptr &&
       udf_args->args[0] != nullptr) {
-    // argument ether JSON null or JSON hash
+    // argument either JSON null or JSON hash
     rapidjson::Document json_doc;
     json_doc.Parse(udf_args->args[0]);
 
@@ -822,7 +845,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
       }
 
       if ((has_start_tag || has_timestamp_tag) &&
-          reader_args->timestamp.empty()) {
+          !check_timestamp_valid(reader_args->timestamp)) {
         my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
                  "Wrong JSON argument, bad timestamp format");
         *error = 1;

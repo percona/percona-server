@@ -80,7 +80,21 @@ LogWriter<AuditLogHandlerType::File>::LogWriter(
       m_is_opened{false},
       m_file_writer{nullptr} {}
 
-LogWriter<AuditLogHandlerType::File>::~LogWriter() { do_close_file(); }
+LogWriter<AuditLogHandlerType::File>::~LogWriter() {
+  do_close_file();
+
+  const auto current_log_path = FileHandle::get_not_rotated_file_path(
+      mysql_data_home, SysVars::get_file_name());
+  auto rotation_result = std::make_unique<log_writer::FileRotationResult>();
+  FileHandle::rotate(current_log_path, rotation_result.get());
+
+  if (rotation_result->error_code != 0) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to rotate audit filter log: %i, %s",
+                    rotation_result->error_code,
+                    rotation_result->status_string.c_str());
+  }
+}
 
 bool LogWriterFile::init() noexcept {
   m_file_writer = get_file_writer(m_file_handle);

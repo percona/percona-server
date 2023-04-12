@@ -25,7 +25,11 @@ FileReaderDecompressing::FileReaderDecompressing(
     std::unique_ptr<FileReaderBase> file_reader)
     : FileReaderDecoratorBase(std::move(file_reader)) {}
 
-FileReaderDecompressing::~FileReaderDecompressing() { inflateEnd(&m_strm); }
+FileReaderDecompressing::~FileReaderDecompressing() {
+  if (is_opened) {
+    close();
+  }
+}
 
 bool FileReaderDecompressing::init() noexcept {
   return FileReaderDecoratorBase::init();
@@ -39,6 +43,7 @@ bool FileReaderDecompressing::open(FileInfo *file_info) noexcept {
   if (ReadStatus::Error == FileReaderDecoratorBase::read(
                                m_in_buff, kInBufferSize,
                                reinterpret_cast<size_t *>(&m_strm.avail_in))) {
+    FileReaderDecoratorBase::close();
     return false;
   }
 
@@ -52,13 +57,17 @@ bool FileReaderDecompressing::open(FileInfo *file_info) noexcept {
   if (ret != Z_OK) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to init decompressing: %i", ret);
+    FileReaderDecoratorBase::close();
     return false;
   }
+
+  is_opened = true;
 
   return true;
 }
 
 void FileReaderDecompressing::close() noexcept {
+  is_opened = false;
   inflateEnd(&m_strm);
   FileReaderDecoratorBase::close();
 }

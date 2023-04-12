@@ -19,6 +19,7 @@
 #include "plugin/audit_log_filter/audit_log_reader.h"
 
 #include "mysql/plugin.h"
+#include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_plugin_var.h"
@@ -28,6 +29,7 @@
 
 #include <syslog.h>
 #include <atomic>
+#include <filesystem>
 #include <iomanip>
 
 namespace audit_log_filter {
@@ -179,7 +181,7 @@ SHOW_VAR status_vars[] = {
 /*
  * System variables
  */
-char *log_file_name;
+char *log_file_full_path;
 const char default_log_file_name[] = "audit_filter.log";
 ulong log_handler_type = static_cast<ulong>(AuditLogHandlerType::File);
 ulong log_format_type = static_cast<ulong>(AuditLogFormatType::New);
@@ -208,7 +210,7 @@ bool json_with_unix_timestamp = false;
  * going to store the audit log. It can contain the path relative to the
  * datadir or absolute path.
  */
-MYSQL_SYSVAR_STR(file, log_file_name,
+MYSQL_SYSVAR_STR(file, log_file_full_path,
                  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                      PLUGIN_VAR_MEMALLOC,
                  "The name of the log file.", nullptr, nullptr,
@@ -633,6 +635,27 @@ auto get_initial_debug_time_point() {
 }
 #endif
 
+std::string get_log_dir_name_value(const char *full_path) {
+  std::filesystem::path log_path{full_path};
+
+  if (log_path.is_absolute()) {
+    return log_path.has_parent_path() ? log_path.parent_path().string()
+                                      : mysql_data_home;
+  }
+
+  return log_path.has_parent_path()
+             ? std::filesystem::path{std::filesystem::path{mysql_data_home} /
+                                     log_path.parent_path()}
+                   .string()
+             : mysql_data_home;
+}
+
+std::string get_log_file_name_value(const char *full_path) {
+  std::filesystem::path log_path{full_path};
+  return log_path.has_filename() ? log_path.filename().string()
+                                 : default_log_file_name;
+}
+
 }  // namespace
 
 SHOW_VAR *SysVars::get_status_var_defs() noexcept { return status_vars; }
@@ -649,7 +672,15 @@ void SysVars::validate() noexcept {
   }
 }
 
-const char *SysVars::get_file_name() noexcept { return log_file_name; }
+const std::string &SysVars::get_file_dir() noexcept {
+  static std::string log_dir_name{get_log_dir_name_value(log_file_full_path)};
+  return log_dir_name;
+}
+
+const std::string &SysVars::get_file_name() noexcept {
+  static std::string log_file_name{get_log_file_name_value(log_file_full_path)};
+  return log_file_name;
+}
 
 AuditLogHandlerType SysVars::get_handler_type() noexcept {
   return static_cast<AuditLogHandlerType>(log_handler_type);

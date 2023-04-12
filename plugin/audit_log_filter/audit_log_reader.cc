@@ -78,7 +78,6 @@ bool AuditLogReader::init() noexcept {
     return false;
   }
 
-  auto log_dir_name = mysql_data_home;
   const auto log_current_file_name = SysVars::get_file_name();
   auto log_base_file_name = std::filesystem::path{log_current_file_name};
 
@@ -88,7 +87,8 @@ bool AuditLogReader::init() noexcept {
 
   m_first_timestamp_to_file_map.clear();
 
-  for (const auto &entry : std::filesystem::directory_iterator{log_dir_name}) {
+  for (const auto &entry :
+       std::filesystem::directory_iterator{SysVars::get_file_dir()}) {
     auto log_name = entry.path().filename().string();
 
     if (entry.is_regular_file() &&

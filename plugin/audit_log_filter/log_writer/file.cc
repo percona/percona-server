@@ -26,10 +26,9 @@
 #include "plugin/audit_log_filter/log_record_formatter/base.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
-#include "sql/mysqld.h"
-
 #include <filesystem>
 #include <memory>
+#include <numeric>
 #include <queue>
 
 namespace audit_log_filter::log_writer {
@@ -84,7 +83,7 @@ LogWriter<AuditLogHandlerType::File>::~LogWriter() {
   do_close_file();
 
   const auto current_log_path = FileHandle::get_not_rotated_file_path(
-      mysql_data_home, SysVars::get_file_name());
+      SysVars::get_file_dir(), SysVars::get_file_name());
   auto rotation_result = std::make_unique<log_writer::FileRotationResult>();
   FileHandle::rotate(current_log_path, rotation_result.get());
 
@@ -105,7 +104,7 @@ bool LogWriterFile::open() noexcept {
   assert(m_file_writer != nullptr);
 
   const auto current_log_path = FileHandle::get_not_rotated_file_path(
-      mysql_data_home, SysVars::get_file_name());
+      SysVars::get_file_dir(), SysVars::get_file_name());
   auto rotation_result = std::make_unique<log_writer::FileRotationResult>();
   FileHandle::rotate(current_log_path, rotation_result.get());
 
@@ -123,7 +122,7 @@ bool LogWriterFile::open() noexcept {
 bool LogWriterFile::close() noexcept { return do_close_file(); }
 
 bool LogWriterFile::do_open_file() noexcept {
-  auto file_path = std::filesystem::path{mysql_data_home} /
+  auto file_path = std::filesystem::path{SysVars::get_file_dir()} /
                    std::filesystem::path{SysVars::get_file_name()};
   if (SysVars::get_compression_type() != AuditLogCompressionType::None) {
     file_path += ".gz";
@@ -155,7 +154,7 @@ bool LogWriterFile::do_open_file() noexcept {
   }
 
   SysVars::set_total_log_size(FileHandle::get_total_log_size(
-      mysql_data_home, SysVars::get_file_name()));
+      SysVars::get_file_dir(), SysVars::get_file_name()));
   SysVars::set_current_log_size(get_log_size());
 
   init_formatter();
@@ -251,8 +250,8 @@ void LogWriterFile::prune() noexcept {
   const auto prune_seconds = SysVars::get_log_prune_seconds();
 
   if (log_max_size > 0) {
-    auto log_file_list =
-        FileHandle::get_prune_files(mysql_data_home, SysVars::get_file_name());
+    auto log_file_list = FileHandle::get_prune_files(SysVars::get_file_dir(),
+                                                     SysVars::get_file_name());
 
     ulonglong current_logs_size = std::accumulate(
         log_file_list.begin(), log_file_list.end(), 0,
@@ -282,8 +281,8 @@ void LogWriterFile::prune() noexcept {
       file_queue.pop();
     }
   } else if (prune_seconds > 0) {
-    auto log_file_list =
-        FileHandle::get_prune_files(mysql_data_home, SysVars::get_file_name());
+    auto log_file_list = FileHandle::get_prune_files(SysVars::get_file_dir(),
+                                                     SysVars::get_file_name());
 
     for (const auto &entry : log_file_list) {
       if (entry.age > prune_seconds) {
@@ -293,7 +292,7 @@ void LogWriterFile::prune() noexcept {
   }
 
   SysVars::set_total_log_size(FileHandle::get_total_log_size(
-      mysql_data_home, SysVars::get_file_name()));
+      SysVars::get_file_dir(), SysVars::get_file_name()));
 }
 
 }  // namespace audit_log_filter::log_writer

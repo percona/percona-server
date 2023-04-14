@@ -12211,6 +12211,9 @@ ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED
 ER_GRP_RPL_FLOW_CONTROL_TIMEOUT
   eng "Flow control auto evict timeout reached. The server will now leave the group."
 
+ER_PERCONA_IGNORE_TMP_TABLE_SIZE 
+  eng "Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning."
+
 # End of Percona Server 8.0 server error log messages
 #
 

@@ -112,18 +112,20 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
       break;
     }
 
-    std::smatch pieces_match;
-    ulonglong data_age_days = 0;
+    if (auth_id.find(kAuthId) != std::string::npos) {
+      std::smatch pieces_match;
 
-    if (std::regex_match(data_id, pieces_match, timestamp_regex)) {
-      std::tm tm{};
-      std::istringstream ss(pieces_match[1].str());
-      ss >> std::get_time(&tm, kOptionsKeyTimestampFormat.c_str());
-      tm.tm_isdst = -1;
-      data_age_days = (time_now - timelocal(&tm)) / (60 * 60 * 24);
+      if (std::regex_match(data_id, pieces_match, timestamp_regex)) {
+        std::tm tm{};
+        std::istringstream ss(pieces_match[1].str());
+        ss >> std::get_time(&tm, kOptionsKeyTimestampFormat.c_str());
+        tm.tm_isdst = -1;
+        ulonglong data_age_days = (time_now - timelocal(&tm)) / (60 * 60 * 24);
+
+        list.emplace_back(data_age_days, data_id);
+      }
     }
 
-    list.emplace_back(data_age_days, data_id);
     is_iter_valid = !iterator_srv->next(forward_iterator);
   }
 

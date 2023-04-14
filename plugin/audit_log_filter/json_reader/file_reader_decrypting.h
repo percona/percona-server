@@ -28,6 +28,8 @@ class FileReaderDecrypting final : public FileReaderDecoratorBase {
  public:
   explicit FileReaderDecrypting(std::unique_ptr<FileReaderBase> file_reader);
 
+  ~FileReaderDecrypting() override;
+
   bool init() noexcept override;
   bool open(FileInfo *file_info) noexcept override;
   void close() noexcept override;
@@ -40,7 +42,7 @@ class FileReaderDecrypting final : public FileReaderDecoratorBase {
   std::unique_ptr<unsigned char[]> m_key;
   std::unique_ptr<unsigned char[]> m_iv;
   std::unique_ptr<unsigned char[]> m_in_buff;
-  size_t m_in_buff_data_size;
+  const size_t m_in_buf_size;
 };
 
 }  // namespace audit_log_filter::json_reader

@@ -39,7 +39,13 @@ FileReaderDecrypting::FileReaderDecrypting(
       m_key{nullptr},
       m_iv{nullptr},
       m_in_buff{nullptr},
-      m_in_buff_data_size{0} {}
+      m_in_buf_size{kInBufferSize - EVP_CIPHER_block_size(m_cipher)} {}
+
+FileReaderDecrypting::~FileReaderDecrypting() {
+  if (m_ctx != nullptr) {
+    close();
+  }
+}
 
 bool FileReaderDecrypting::init() noexcept {
   if (m_cipher == nullptr) {
@@ -55,7 +61,7 @@ bool FileReaderDecrypting::init() noexcept {
     return false;
   }
 
-  m_in_buff = std::make_unique<unsigned char[]>(kInBufferSize);
+  m_in_buff = std::make_unique<unsigned char[]>(m_in_buf_size);
 
   if (m_in_buff == nullptr) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to init in buffer");
@@ -103,13 +109,8 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
   // Derive key and default iv concatenated into a temporary buffer
   unsigned char tmp_key_iv[kEvpKeyLength + EVP_MAX_IV_LENGTH];
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  auto ik_len = EVP_CIPHER_get_key_length(m_cipher);
-  auto iv_len = EVP_CIPHER_get_iv_length(m_cipher);
-#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   auto ik_len = EVP_CIPHER_key_length(m_cipher);
   auto iv_len = EVP_CIPHER_iv_length(m_cipher);
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   if (!PKCS5_PBKDF2_HMAC(
           keyring_password.data(), static_cast<int>(keyring_password.size()),
@@ -131,8 +132,7 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
     return false;
   }
 
-  if (EVP_CipherInit_ex(m_ctx, m_cipher, nullptr, m_key.get(), m_iv.get(), 0) !=
-      1) {
+  if (EVP_DecryptInit(m_ctx, m_cipher, m_key.get(), m_iv.get()) != 1) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "EVP_CipherInit_ex error: %s",
                     ERR_error_string(ERR_peek_error(), nullptr));
@@ -142,13 +142,20 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
     return false;
   }
 
-  return FileReaderDecoratorBase::open(file_info);
+  if (!FileReaderDecoratorBase::open(file_info)) {
+    close();
+    return false;
+  }
+
+  return true;
 }
 
 void FileReaderDecrypting::close() noexcept {
-  ERR_clear_error();
-  EVP_CIPHER_CTX_free(m_ctx);
-  m_ctx = nullptr;
+  if (m_ctx != nullptr) {
+    ERR_clear_error();
+    EVP_CIPHER_CTX_free(m_ctx);
+    m_ctx = nullptr;
+  }
 
   FileReaderDecoratorBase::close();
 }
@@ -156,24 +163,23 @@ void FileReaderDecrypting::close() noexcept {
 ReadStatus FileReaderDecrypting::read(unsigned char *out_buffer,
                                       const size_t out_buffer_size,
                                       size_t *read_size) noexcept {
-  auto decrypted_size = static_cast<int>(out_buffer_size);
-  auto status = ReadStatus::Ok;
+  size_t in_buff_data_size = 0;
+  auto status = FileReaderDecoratorBase::read(m_in_buff.get(), m_in_buf_size,
+                                              &in_buff_data_size);
 
-  if (m_in_buff_data_size == 0) {
-    status = FileReaderDecoratorBase::read(m_in_buff.get(), kInBufferSize,
-                                           &m_in_buff_data_size);
-
-    if (status == ReadStatus::Error) {
-      return status;
-    }
-
-    if (m_in_buff_data_size == 0) {
-      return ReadStatus::Eof;
-    }
+  if (status == ReadStatus::Error) {
+    return status;
   }
 
+  if (in_buff_data_size == 0) {
+    return ReadStatus::Eof;
+  }
+
+  auto decrypted_size =
+      static_cast<int>(out_buffer_size) - EVP_CIPHER_block_size(m_cipher);
+
   if (EVP_DecryptUpdate(m_ctx, out_buffer, &decrypted_size, m_in_buff.get(),
-                        static_cast<int>(m_in_buff_data_size)) != 1) {
+                        static_cast<int>(in_buff_data_size)) != 1) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "EVP_DecryptUpdate error: %s",
                     ERR_error_string(ERR_peek_error(), nullptr));

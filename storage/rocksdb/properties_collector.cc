@@ -170,6 +170,7 @@ void Rdb_tbl_prop_coll::CollectStatsForRow(const rocksdb::Slice &key,
     case rocksdb::kEntryMerge:
       stats->m_entry_merges++;
       break;
+    case rocksdb::kEntryRangeDeletion:
     case rocksdb::kEntryOther:
       stats->m_entry_others++;
       break;
@@ -508,8 +509,8 @@ void Rdb_index_stats::merge(const Rdb_index_stats &s, const bool increment,
 
 void Rdb_index_stats::adjust_cardinality(double adjustment_factor) {
   for (int64_t &num_keys : m_distinct_keys_per_prefix) {
-    num_keys = std::max(static_cast<int64_t>(1),
-                        static_cast<int64_t>(num_keys * adjustment_factor));
+    num_keys = std::max<int64_t>(
+        1, static_cast<int64_t>(num_keys * adjustment_factor));
   }
 }
 

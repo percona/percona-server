@@ -35,7 +35,7 @@ class AuditJsonReadStream {
   static inline size_t const kStreamBufferSize = 32768;
 
  public:
-  typedef char Ch;
+  typedef unsigned char Ch;
 
   AuditJsonReadStream();
 

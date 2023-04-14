@@ -18,8 +18,6 @@
 #include "plugin/audit_log_filter/audit_keyring.h"
 #include "plugin/audit_log_filter/audit_psi_info.h"
 
-#include "sql/mysqld.h"
-
 #include "rapidjson/document.h"
 #include "rapidjson/reader.h"
 
@@ -27,7 +25,6 @@
 #include <mysql/components/services/mysql_current_thread_reader.h>
 
 #include <scope_guard.h>
-#include <cstdio>
 #include <filesystem>
 #include <functional>
 #include <string>

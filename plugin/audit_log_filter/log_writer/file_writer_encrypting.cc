@@ -112,13 +112,8 @@ bool FileWriterEncrypting::open() noexcept {
   // Derive key and default iv concatenated into a temporary buffer
   unsigned char tmp_key_iv[kEvpKeyLength + EVP_MAX_IV_LENGTH];
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  auto ik_len = EVP_CIPHER_get_key_length(m_cipher);
-  auto iv_len = EVP_CIPHER_get_iv_length(m_cipher);
-#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   auto ik_len = EVP_CIPHER_key_length(m_cipher);
   auto iv_len = EVP_CIPHER_iv_length(m_cipher);
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   if (!PKCS5_PBKDF2_HMAC(
           keyring_password.data(), static_cast<int>(keyring_password.size()),

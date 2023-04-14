@@ -20,6 +20,7 @@ eval SELECT audit_log_filter_set_filter('log_table_insert', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_table_insert');
 
 --source clean_current_audit_log.inc
+--source remove_rotated_logs.inc
 
 SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
 
@@ -62,6 +63,7 @@ SELECT @current_file_start_bookmark;
 --echo # Read all from two rotated logs in one request
 --replace_regex /"connection_id": \d*/"connection_id": <id>/
 SELECT audit_log_read(@file2_start_bookmark);
+SELECT audit_log_read('null');
 
 --echo #
 --echo # Read all from two rotated logs by chunks ("max_array_length": 2)
@@ -73,6 +75,7 @@ SELECT audit_log_read(@file2_start_with_limit_bookmark);
 SELECT audit_log_read('{"max_array_length": 2}');
 --replace_regex /"connection_id": \d*/"connection_id": <id>/
 SELECT audit_log_read('{"max_array_length": 2}');
+SELECT audit_log_read('null');
 
 --echo #
 --echo # Cleanup

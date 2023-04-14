@@ -77,6 +77,9 @@ audit_log_read(@file2_start_bookmark)
 null
 ]
 
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
 #
 # Read all from two rotated logs by chunks ("max_array_length": 2)
 SET @file2_start_with_limit_bookmark := JSON_SET(@file2_start_bookmark, '$.max_array_length', 2);
@@ -105,6 +108,9 @@ audit_log_read('{"max_array_length": 2}')
 null
 ]
 
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
 #
 # Cleanup
 DELETE FROM mysql.audit_log_user;

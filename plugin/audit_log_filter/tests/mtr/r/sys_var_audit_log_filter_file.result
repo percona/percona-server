@@ -10,10 +10,10 @@ SELECT @@global.audit_log_filter_file;
 audit_log_filter_file
 #
 # Provide full path to some tmp dir
-# restart: --audit-log-filter-file=/home/shurik/workspace/percona-server/audit_log_v2/cmake-build-debug/mysql-test/var/tmp/audit_log_tmp_dir/audit.tmp.log
+# restart:<hidden args>
 SELECT @@global.audit_log_filter_file;
 @@global.audit_log_filter_file
-/home/shurik/workspace/percona-server/audit_log_v2/cmake-build-debug/mysql-test/var/tmp/audit_log_tmp_dir/audit.tmp.log
+<audit_filter_log_name>
 #
 # Provide relative path to some tmp dir
 # restart: --audit-log-filter-file=./audit_log_data_dir/audit.data.log

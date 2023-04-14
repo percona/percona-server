@@ -19,8 +19,11 @@ SELECT @@global.audit_log_filter_file;
 --let $audit_filter_log_name = audit.tmp.log
 --mkdir $audit_filter_log_path
 
+--let $do_not_echo_parameters = 1
 --let $restart_parameters="restart: --audit-log-filter-file='$audit_filter_log_path/$audit_filter_log_name'"
 --source include/restart_mysqld.inc
+
+--replace_column 1 <audit_filter_log_name>
 SELECT @@global.audit_log_filter_file;
 --file_exists $audit_filter_log_path/$audit_filter_log_name
 
@@ -30,6 +33,7 @@ SELECT @@global.audit_log_filter_file;
 --let $audit_filter_log_name = audit.data.log
 --mkdir $audit_filter_log_path
 
+--let $do_not_echo_parameters = 0
 --let $restart_parameters="restart: --audit-log-filter-file='./audit_log_data_dir/$audit_filter_log_name'"
 --source include/restart_mysqld.inc
 SELECT @@global.audit_log_filter_file;

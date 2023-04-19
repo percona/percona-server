@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -38,6 +38,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "mach0data.h"
 #include "os0file.h"
 #include "srv0mon.h"
@@ -92,7 +95,7 @@ monitor_id to "enum monitor_id_value" structure in srv0mon.h file. */
 
 static monitor_info_t innodb_counter_info[] = {
     /* A dummy item to mark the module start, this is
-    to accomodate the default value (0) set for the
+    to accommodate the default value (0) set for the
     global variables with the control system. */
     {"module_start", "module_start", "module_start", MONITOR_MODULE,
      MONITOR_DEFAULT_START, MONITOR_DEFAULT_START},
@@ -448,7 +451,7 @@ static monitor_info_t innodb_counter_info[] = {
      "Number of times a wait happens due to sync flushing", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_FLUSH_SYNC_WAITS},
 
-    /* Cumulative counter for flush batches for adaptive flushing  */
+    /* Cumulative counter for flush batches for adaptive flushing */
     {"buffer_flush_adaptive_total_pages", "buffer",
      "Total pages flushed as part of adaptive flushing", MONITOR_SET_OWNER,
      MONITOR_FLUSH_ADAPTIVE_COUNT, MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE},
@@ -748,7 +751,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_MODULE_TRX},
 
     {"trx_rw_commits", "transaction",
-     "Number of read-write transactions  committed", MONITOR_NONE,
+     "Number of read-write transactions committed", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_TRX_RW_COMMIT},
 
     {"trx_ro_commits", "transaction",
@@ -925,10 +928,6 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
 
-    {"log_lsn_tracked", "log", "Last LSN tracked for changed pages",
-     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
-     MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_TRACKED},
-
     {"log_flush_total_time", "log", "Total time spent on fsync for log files",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_TOTAL_TIME},
 
@@ -951,7 +950,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_LOG_FULL_BLOCK_WRITES},
 
     {"log_partial_block_writes", "log",
-     "Number of log writes for partial (incompleted) log blocks", MONITOR_NONE,
+     "Number of log writes for partial (incomplete) log blocks", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_LOG_PARTIAL_BLOCK_WRITES},
 
     {"log_padded", "log", "Bytes of log padded for log write ahead",
@@ -1060,18 +1059,6 @@ static monitor_info_t innodb_counter_info[] = {
      "Number of times padding is decremented due to good compressibility",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_PAD_DECREMENTS},
 
-    /* ========== Counters for Encryption ========== */
-    {"module_encryption", "encryption", "Counters for encryption",
-     MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_MODULE_ENCRYPTION},
-
-    {"pages_encrypted", "encryption", "Number of pages encrypted",
-     static_cast<monitor_type_t>(MONITOR_EXISTING), MONITOR_DEFAULT_START,
-     MONITOR_OVLD_PAGES_ENCRYPTED},
-
-    {"pages_decrypted", "encryption", "Number of pages decrypted",
-     static_cast<monitor_type_t>(MONITOR_EXISTING), MONITOR_DEFAULT_START,
-     MONITOR_OVLD_PAGES_DECRYPTED},
-
     /* ========== Counters for Index ========== */
     {"module_index", "index", "Index Manager", MONITOR_MODULE,
      MONITOR_DEFAULT_START, MONITOR_MODULE_INDEX},
@@ -1099,7 +1086,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_INDEX_DISCARD},
 
     /* ========== Counters for Adaptive Hash Index ========== */
-    {"module_adaptive_hash", "adaptive_hash_index", "Adpative Hash Index",
+    {"module_adaptive_hash", "adaptive_hash_index", "Adaptive Hash Index",
      MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_MODULE_ADAPTIVE_HASH},
 
     {"adaptive_hash_searches", "adaptive_hash_index",
@@ -1179,7 +1166,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_DISCARD_DELETE},
 
     {"ibuf_merges_discard_delete", "change_buffer",
-     "Number of purge merged  operations discarded",
+     "Number of purge merged operations discarded",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_DISCARD_PURGE},
 
@@ -1496,10 +1483,10 @@ void srv_mon_set_module_control(
 {
   ulint ix;
   ulint start_id;
-  ibool set_current_module = FALSE;
+  bool set_current_module = false;
 
   ut_a(module_id <= NUM_MONITOR);
-  ut_a(UT_ARR_SIZE(innodb_counter_info) == NUM_MONITOR);
+  static_assert(UT_ARR_SIZE(innodb_counter_info) == NUM_MONITOR);
 
   /* The module_id must be an ID of MONITOR_MODULE type */
   ut_a(innodb_counter_info[module_id].monitor_type & MONITOR_MODULE);
@@ -1515,7 +1502,7 @@ void srv_mon_set_module_control(
     and cannot be turned on/off individually. Need to set
     the on/off bit in the module counter */
     start_id = module_id;
-    set_current_module = TRUE;
+    set_current_module = true;
 
   } else {
     start_id = module_id + 1;
@@ -1530,7 +1517,7 @@ void srv_mon_set_module_control(
       if (set_current_module) {
         /* Continue to set on/off bit on current
         module */
-        set_current_module = FALSE;
+        set_current_module = false;
       } else if (module_id == MONITOR_ALL_COUNTER) {
         if (!(innodb_counter_info[ix].monitor_type & MONITOR_GROUP_MODULE)) {
           continue;
@@ -1631,7 +1618,7 @@ void srv_mon_process_existing_counter(
 {
   mon_type_t value;
   monitor_info_t *monitor_info;
-  ibool update_min = FALSE;
+  bool update_min = false;
   buf_pool_stat_t stat;
   buf_pools_list_size_t buf_pools_list_size;
   ulint LRU_len;
@@ -1778,19 +1765,19 @@ void srv_mon_process_existing_counter(
 
     /* innodb_os_log_fsyncs */
     case MONITOR_OVLD_OS_LOG_FSYNC:
-      value = fil_n_log_flushes;
+      value = log_total_flushes();
       break;
 
     /* innodb_os_log_pending_fsyncs */
     case MONITOR_OVLD_OS_LOG_PENDING_FSYNC:
-      value = fil_n_pending_log_flushes;
-      update_min = TRUE;
+      value = log_pending_flushes();
+      update_min = true;
       break;
 
     /* innodb_os_log_pending_writes */
     case MONITOR_OVLD_OS_LOG_PENDING_WRITES:
       value = srv_stats.os_log_pending_writes;
-      update_min = TRUE;
+      update_min = true;
       break;
 
     /* innodb_log_waits */
@@ -1806,13 +1793,6 @@ void srv_mon_process_existing_counter(
     /* innodb_log_writes */
     case MONITOR_OVLD_LOG_WRITES:
       value = srv_stats.log_writes;
-      break;
-
-    case MONITOR_OVLD_PAGES_ENCRYPTED:
-      value = srv_stats.pages_encrypted;
-      break;
-    case MONITOR_OVLD_PAGES_DECRYPTED:
-      value = srv_stats.pages_decrypted;
       break;
 
     /* innodb_dblwr_writes */
@@ -1907,7 +1887,9 @@ void srv_mon_process_existing_counter(
 
     /* innodb_row_lock_time_max */
     case MONITOR_OVLD_LOCK_MAX_WAIT_TIME:
-      value = lock_sys->n_lock_max_wait_time / 1000;
+      value = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  lock_sys->n_lock_max_wait_time)
+                  .count();
       break;
 
     /* innodb_row_lock_time_avg */
@@ -1933,7 +1915,7 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_N_FILE_OPENED:
-      value = fil_n_files_open;
+      value = fil_n_files_open.load();
       break;
 
     case MONITOR_OVLD_IBUF_MERGE_INSERT:
@@ -1973,11 +1955,11 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_LSN_FLUSHDISK:
-      value = (mon_type_t)log_sys->flushed_to_disk_lsn;
+      value = static_cast<mon_type_t>(log_sys->flushed_to_disk_lsn.load());
       break;
 
     case MONITOR_OVLD_LSN_CURRENT:
-      value = (mon_type_t)log_get_lsn(*log_sys);
+      value = static_cast<mon_type_t>(log_get_lsn(*log_sys));
       break;
 
     case MONITOR_OVLD_LSN_ARCHIVED: {
@@ -2010,17 +1992,12 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_MAX_AGE_ASYNC:
-      value = log_sys->max_modified_age_async;
+      value = log_sys->m_capacity.adaptive_flush_min_age();
       break;
 
     case MONITOR_OVLD_MAX_AGE_SYNC:
-      value = log_sys->max_modified_age_sync;
+      value = log_sys->m_capacity.adaptive_flush_max_age();
       break;
-
-    case MONITOR_OVLD_LSN_TRACKED:
-      value = log_sys->tracked_lsn.load();
-      break;
-
     case MONITOR_OVLD_ADAPTIVE_HASH_SEARCH:
       value = btr_cur_n_sea;
       break;
@@ -2046,7 +2023,7 @@ void srv_mon_process_existing_counter(
       counter has not yet been set to off in the bitmap
       table for normal turn off. We need to check the
       count status (on/off) to avoid reset the value
-      for an already off conte */
+      for an already off counter */
       if (MONITOR_IS_ON(monitor_id)) {
         srv_mon_process_existing_counter(monitor_id, MONITOR_GET_VALUE);
         MONITOR_SAVE_LAST(monitor_id);
@@ -2058,7 +2035,7 @@ void srv_mon_process_existing_counter(
         /* If MONITOR_DISPLAY_CURRENT bit is on, we
         only record the current value, rather than
         incremental value over a period. Most of
-`			this type of counters are resource related
+`                       this type of counters are resource related
         counters such as number of buffer pages etc. */
         if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
           MONITOR_SET(monitor_id, value);
@@ -2066,7 +2043,7 @@ void srv_mon_process_existing_counter(
           /* Most status counters are monotonically
           increasing, no need to update their
           minimum values. Only do so
-          if "update_min" set to TRUE */
+          if "update_min" set to true */
           MONITOR_SET_DIFF(monitor_id, value);
 
           if (update_min &&
@@ -2094,7 +2071,7 @@ void srv_mon_process_existing_counter(
  value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
 void srv_mon_reset(monitor_id_t monitor) /*!< in: monitor id */
 {
-  ibool monitor_was_on;
+  bool monitor_was_on;
 
   monitor_was_on = MONITOR_IS_ON(monitor);
 
@@ -2126,7 +2103,7 @@ void srv_mon_reset(monitor_id_t monitor) /*!< in: monitor id */
   MONITOR_MAX_VALUE(monitor) = MAX_RESERVED;
   MONITOR_MIN_VALUE(monitor) = MIN_RESERVED;
 
-  MONITOR_FIELD((monitor), mon_reset_time) = time(nullptr);
+  MONITOR_FIELD((monitor), mon_reset_time) = std::chrono::system_clock::now();
 
   if (monitor_was_on) {
     MONITOR_ON(monitor);

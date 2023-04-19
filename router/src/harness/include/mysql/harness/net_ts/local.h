@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 #include <WinSock2.h>
 #include <Windows.h>
 
-#ifdef HAVE_AF_UNIX_H
+#ifdef AF_UNIX
 #include <afunix.h>
 #define NET_TS_HAS_UNIX_SOCKET
 #endif
@@ -55,7 +55,6 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/string_view.h"
 
 namespace local {
 
@@ -82,7 +81,7 @@ class basic_endpoint {
   // namespace' (starting with \0)
   //
   // note: can be 'constexpr' with C++2a's http://wg21.link/P0202 applied
-  basic_endpoint(stdx::string_view path) : data_{} {
+  basic_endpoint(std::string_view path) : data_{} {
     data_.sun_family = protocol_type().family();
 
     const auto truncated_path =
@@ -183,7 +182,7 @@ stdx::expected<void, std::error_code> connect_pair(
       proto.family(), proto.type(), proto.protocol());
   if (!res) return stdx::make_unexpected(res.error());
 
-  const auto fds = std::move(*res);
+  const auto fds = *res;
 
   const auto assign1_res = sock1.assign(proto, fds.first);
   if (!assign1_res) {
@@ -342,7 +341,7 @@ class datagram_protocol {
   using endpoint = local::basic_endpoint<datagram_protocol>;
   using socket = net::basic_datagram_socket<datagram_protocol>;
 
-  // no peer_creds on datagram_protocol as it doens't call "connect()" nor
+  // no peer_creds on datagram_protocol as it doesn't call "connect()" nor
   // "listen()". It needs SCM_CREDS instead
 
   constexpr int family() const noexcept { return AF_UNIX; }

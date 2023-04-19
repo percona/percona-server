@@ -344,6 +344,7 @@ TRACE
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 2,
                         "cost": 0.464386,
                         "chosen": false,
@@ -1356,7 +1357,7 @@ TRACE
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `teeone`",
+                "table": "teeone",
                 "in_plan_at_position": 0,
                 "columns": 1,
                 "row_length": 16,
@@ -1379,6 +1380,7 @@ TRACE
                       {
                         "creating_tmp_table": {
                           "tmp_table_info": {
+                            "table": "<temporary>",
                             "in_plan_at_position": 1,
                             "columns": 2,
                             "row_length": 22,
@@ -3736,7 +3738,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `tmp`",
+                "table": "tmp",
                 "in_plan_at_position": 0,
                 "columns": 2,
                 "row_length": 10,
@@ -4146,12 +4148,13 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -4168,7 +4171,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -4221,12 +4224,13 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -4243,7 +4247,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -4296,12 +4300,13 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -4318,7 +4323,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -4731,23 +4736,6 @@ SUM(alias2.col_varchar_nokey)	field2
 0	6
 0	7
 0	9
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'y'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'b'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'd'
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'b'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
@@ -5011,6 +4999,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
+                      "table": "<temporary>",
                       "in_plan_at_position": 2,
                       "columns": 3,
                       "row_length": 18,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,11 @@
 
 #include <ndb_global.h>
 
+#include <time.h>
+
 #include <util/File.hpp>
 #include <NdbOut.hpp>
+#include <EventLogger.hpp>
 
 //
 // PUBLIC
@@ -48,7 +51,7 @@ File_class::exists(const char* aFileName)
   return true;
 }
 
-off_t
+ndb_off_t
 File_class::size(FILE* f)
 {
   struct stat s;
@@ -69,13 +72,13 @@ File_class::remove(const char* aFileName)
 }
 
 File_class::File_class() : 
-  m_file(NULL), 
+  m_file(nullptr), 
   m_fileMode("r")
 {
 }
 
 File_class::File_class(const char* aFileName, const char* mode) :	
-  m_file(NULL), 
+  m_file(nullptr), 
   m_fileMode(mode)
 {
   BaseString::snprintf(m_fileName, PATH_MAX, "%s", aFileName);
@@ -90,7 +93,7 @@ File_class::open()
 bool 
 File_class::open(const char* aFileName, const char* mode) 
 {
-  assert(m_file == NULL); // Not already open
+  assert(m_file == nullptr); // Not already open
   if(m_fileName != aFileName){
     /**
      * Only copy if it's not the same string
@@ -99,7 +102,7 @@ File_class::open(const char* aFileName, const char* mode)
   }
   m_fileMode = mode;
   bool rc = true;
-  if ((m_file = ::fopen(m_fileName, m_fileMode))== NULL)
+  if ((m_file = ::fopen(m_fileName, m_fileMode))== nullptr)
   {
     rc = false;      
   }
@@ -110,7 +113,7 @@ File_class::open(const char* aFileName, const char* mode)
 bool
 File_class::is_open()
 {
-  return (m_file != NULL);
+  return (m_file != nullptr);
 }
 
 File_class::~File_class()
@@ -132,7 +135,7 @@ File_class::close()
   bool rc = true;
   int retval = 0;
 
-  if (m_file != NULL)
+  if (m_file != nullptr)
   { 
     ::fflush(m_file);
     retval = ::fclose(m_file);
@@ -144,10 +147,11 @@ File_class::close()
     }
     else {
       rc = false;
-      ndbout_c("ERROR: Close file error in File.cpp for %s",strerror(errno));
+      g_eventLogger->info("ERROR: Close file error in File.cpp for %s",
+                          strerror(errno));
     }   
   }  
-  m_file = NULL;
+  m_file = nullptr;
 
   return rc;
 }
@@ -188,7 +192,7 @@ File_class::writeChar(const char* buf)
   return writeChar(buf, 0, (long)::strlen(buf));
 }
 
-off_t
+ndb_off_t
 File_class::size() const
 {
   return File_class::size(m_file);

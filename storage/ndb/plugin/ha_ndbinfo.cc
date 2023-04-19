@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "storage/ndb/plugin/ha_ndbinfo.h"
 
+#include <algorithm>  // std::min(),std::max()
 #include <vector>
 
 #include <mysql/plugin.h>
@@ -46,32 +47,32 @@ static MYSQL_THDVAR_UINT(
     max_rows, /* name */
     PLUGIN_VAR_RQCMDARG,
     "Specify max number of rows to fetch per roundtrip to cluster",
-    NULL, /* check func. */
-    NULL, /* update func. */
-    10,   /* default */
-    1,    /* min */
-    256,  /* max */
-    0     /* block */
+    nullptr, /* check func. */
+    nullptr, /* update func. */
+    10,      /* default */
+    1,       /* min */
+    256,     /* max */
+    0        /* block */
 );
 
 static MYSQL_THDVAR_UINT(
     max_bytes, /* name */
     PLUGIN_VAR_RQCMDARG,
     "Specify approx. max number of bytes to fetch per roundtrip to cluster",
-    NULL,  /* check func. */
-    NULL,  /* update func. */
-    0,     /* default */
-    0,     /* min */
-    65535, /* max */
-    0      /* block */
+    nullptr, /* check func. */
+    nullptr, /* update func. */
+    0,       /* default */
+    0,       /* min */
+    65535,   /* max */
+    0        /* block */
 );
 
 static MYSQL_THDVAR_BOOL(show_hidden, /* name */
                          PLUGIN_VAR_RQCMDARG,
                          "Control if tables should be visible or not",
-                         NULL, /* check func. */
-                         NULL, /* update func. */
-                         false /* default */
+                         nullptr, /* check func. */
+                         nullptr, /* update func. */
+                         false    /* default */
 );
 
 static char *opt_ndbinfo_dbname = const_cast<char *>("ndbinfo");
@@ -80,9 +81,9 @@ static MYSQL_SYSVAR_STR(database,           /* name */
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                             PLUGIN_VAR_NOCMDOPT,
                         "Name of the database used by ndbinfo",
-                        NULL, /* check func. */
-                        NULL, /* update func. */
-                        NULL  /* default */
+                        nullptr, /* check func. */
+                        nullptr, /* update func. */
+                        nullptr  /* default */
 );
 
 static char *opt_ndbinfo_table_prefix = const_cast<char *>("ndb$");
@@ -91,9 +92,9 @@ static MYSQL_SYSVAR_STR(table_prefix,             /* name */
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                             PLUGIN_VAR_NOCMDOPT,
                         "Prefix used for all virtual tables loaded from NDB",
-                        NULL, /* check func. */
-                        NULL, /* update func. */
-                        NULL  /* default */
+                        nullptr, /* check func. */
+                        nullptr, /* update func. */
+                        nullptr  /* default */
 );
 
 static Uint32 opt_ndbinfo_version = NDB_VERSION_D;
@@ -101,12 +102,13 @@ static MYSQL_SYSVAR_UINT(version,             /* name */
                          opt_ndbinfo_version, /* var */
                          PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY |
                              PLUGIN_VAR_NOPERSIST,
-                         "Compile version for ndbinfo", NULL, /* check func. */
-                         NULL,                                /* update func. */
-                         0,                                   /* default */
-                         0,                                   /* min */
-                         0,                                   /* max */
-                         0                                    /* block */
+                         "Compile version for ndbinfo",
+                         nullptr, /* check func. */
+                         nullptr, /* update func. */
+                         0,       /* default */
+                         0,       /* min */
+                         0,       /* max */
+                         0        /* block */
 );
 
 static bool opt_ndbinfo_offline;
@@ -134,7 +136,7 @@ static MYSQL_SYSVAR_BOOL(offline,             /* name */
                          "Set ndbinfo in offline mode, tables and views can "
                          "be opened even if they don't exist or have different "
                          "definition in NDB. No rows will be returned.",
-                         NULL,           /* check func. */
+                         nullptr,        /* check func. */
                          offline_update, /* update func. */
                          0               /* default */
 );
@@ -150,7 +152,7 @@ static bool ndbcluster_is_disabled(void) {
     if ndbcluster is not enabled, ndbinfo won't start
   */
   if (g_ndb_cluster_connection) return false;
-  assert(g_ndbinfo == NULL);
+  assert(g_ndbinfo == nullptr);
   return true;
 }
 
@@ -194,7 +196,7 @@ static struct error_message {
     {ERR_INCOMPAT_TABLE_DEF, "Incompatible table definitions"},
     {HA_ERR_NO_CONNECTION, "Connection to NDB failed"},
 
-    {0, 0}};
+    {0, nullptr}};
 
 static const char *find_error_message(int error) {
   struct error_message *err = error_messages;
@@ -205,7 +207,7 @@ static const char *find_error_message(int error) {
     }
     err++;
   }
-  return NULL;
+  return nullptr;
 }
 
 static int err2mysql(int error) {
@@ -289,7 +291,7 @@ static void warn_incompatible(const NdbInfo::Table *ndb_tab, bool fatal,
   BaseString msg;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s, fatal: %d", ndb_tab->getName(), fatal));
-  assert(format != NULL);
+  assert(format != nullptr);
 
   va_list args;
   char explanation[128];
@@ -352,7 +354,8 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
 
   int err = g_ndbinfo->openTable(name, &m_impl.m_table);
   if (err) {
-    assert(m_impl.m_table == 0);
+    assert(m_impl.m_table == nullptr);
+    ndb_log_info("NdbInfo::openTable failed for %s", name);
     if (err == NdbInfo::ERR_NoSuchTable) {
       if (g_ndb_cluster_connection->get_min_db_version() < NDB_VERSION_D) {
         // The table does not exist but there is a data node from a lower
@@ -384,13 +387,13 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   for (uint i = 0; i < table->s->fields; i++) {
     const Field *field = table->field[i];
 
-    // Check if field is NULLable
-    if (const_cast<Field *>(field)->is_nullable() == false) {
-      // Only NULLable fields supported
+    // Check that field is NULLable, unless the table is virtual.
+    if ((const_cast<Field *>(field)->is_nullable() == false) &&
+        !m_impl.m_table->getVirtualTable()) {
       warn_incompatible(ndb_tab, true, "column '%s' is NOT NULL",
                         field->field_name);
       delete m_impl.m_table;
-      m_impl.m_table = 0;
+      m_impl.m_table = nullptr;
       return ERR_INCOMPAT_TABLE_DEF;
     }
 
@@ -405,13 +408,19 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     bool compatible = false;
     switch (col->m_type) {
       case NdbInfo::Column::Number:
-        if (field->type() == MYSQL_TYPE_LONG) compatible = true;
+        if (field->type() == MYSQL_TYPE_LONG ||
+            field->real_type() == MYSQL_TYPE_ENUM ||
+            field->real_type() == MYSQL_TYPE_SET)
+          compatible = true;
+        stats.mean_rec_length += 4;
         break;
       case NdbInfo::Column::Number64:
         if (field->type() == MYSQL_TYPE_LONGLONG) compatible = true;
+        stats.mean_rec_length += 8;
         break;
       case NdbInfo::Column::String:
         if (field->type() == MYSQL_TYPE_VARCHAR) compatible = true;
+        stats.mean_rec_length += 16;
         break;
       default:
         assert(false);
@@ -421,8 +430,10 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
       // The column type is not compatible
       warn_incompatible(ndb_tab, true, "column '%s' is not compatible",
                         field->field_name);
+      ndb_log_info("Incompatible ndbinfo column: %s, type: %d,%d",
+                   field->field_name, field->type(), field->real_type());
       delete m_impl.m_table;
-      m_impl.m_table = 0;
+      m_impl.m_table = nullptr;
       return ERR_INCOMPAT_TABLE_DEF;
     }
   }
@@ -447,7 +458,7 @@ int ha_ndbinfo::close(void) {
   assert(is_open());
   if (m_impl.m_table) {
     g_ndbinfo->closeTable(m_impl.m_table);
-    m_impl.m_table = NULL;
+    m_impl.m_table = nullptr;
     m_impl.m_status = ha_ndbinfo_impl::Table_Status::CLOSED;
   }
   return 0;
@@ -509,13 +520,13 @@ int ha_ndbinfo::rnd_init(bool scan) {
 
     // Release the scan operation
     g_ndbinfo->releaseScanOperation(m_impl.m_scan_op);
-    m_impl.m_scan_op = NULL;
+    m_impl.m_scan_op = nullptr;
 
     // Release pointers to the columns
     m_impl.m_columns.clear();
   }
 
-  assert(m_impl.m_scan_op == NULL);  // No scan already ongoing
+  assert(m_impl.m_scan_op == nullptr);  // No scan already ongoing
 
   if (m_impl.m_first_use) {
     m_impl.m_first_use = false;
@@ -555,7 +566,7 @@ int ha_ndbinfo::rnd_init(bool scan) {
 
   THD *thd = current_thd;
   int err;
-  NdbInfoScanOperation *scan_op = NULL;
+  NdbInfoScanOperation *scan_op = nullptr;
   if ((err = g_ndbinfo->createScanOperation(m_impl.m_table, &scan_op,
                                             THDVAR(thd, max_rows),
                                             THDVAR(thd, max_bytes))) != 0)
@@ -573,7 +584,7 @@ int ha_ndbinfo::rnd_init(bool scan) {
     if (bitmap_is_set(table->read_set, i))
       m_impl.m_columns.push_back(scan_op->getValue(field->field_name));
     else
-      m_impl.m_columns.push_back(NULL);
+      m_impl.m_columns.push_back(nullptr);
   }
 
   if ((err = scan_op->execute()) != 0) {
@@ -597,7 +608,7 @@ int ha_ndbinfo::rnd_end() {
 
   if (m_impl.m_scan_op) {
     g_ndbinfo->releaseScanOperation(m_impl.m_scan_op);
-    m_impl.m_scan_op = NULL;
+    m_impl.m_scan_op = nullptr;
   }
   m_impl.m_columns.clear();
 
@@ -626,15 +637,13 @@ int ha_ndbinfo::rnd_next(uchar *buf) {
 
   if (err != 1) return err2mysql(err);
 
-  unpack_record(buf);
-
-  return 0;
+  return unpack_record(buf);
 }
 
 int ha_ndbinfo::rnd_pos(uchar *buf, uchar *pos) {
   DBUG_TRACE;
   assert(is_open());
-  assert(m_impl.m_scan_op == NULL);  // No scan started
+  assert(m_impl.m_scan_op == nullptr);  // No scan started
 
   /* Copy the saved row into "buf" and set all fields to not null */
   memcpy(buf, pos, ref_length);
@@ -652,55 +661,191 @@ void ha_ndbinfo::position(const uchar *record) {
   memcpy(ref, record, ref_length);
 }
 
-int ha_ndbinfo::info(uint) {
+int ha_ndbinfo::info(uint flag) {
   DBUG_TRACE;
+  if (m_impl.m_table != nullptr) {
+    stats.table_in_mem_estimate = m_impl.m_table->getVirtualTable() ? 1.0 : 0.0;
+    if (flag & HA_STATUS_VARIABLE)
+      stats.records = m_impl.m_table->getRowsEstimate();
+  }
+  if (table->key_info) table->key_info->set_records_per_key(0, 1.0F);
   return 0;
 }
 
-void ha_ndbinfo::unpack_record(uchar *dst_row) {
+static int unpack_unexpected_field(Field *f) {
+  ndb_log_error(
+      "unexpected field '%s', type: %u, real_type: %u, pack_length: %u",
+      f->field_name, f->type(), f->real_type(), f->pack_length());
+  assert(false); /* stop here on debug build */
+  return HA_ERR_INTERNAL_ERROR;
+}
+
+static int unpack_unexpected_value(Field *f, const Uint32 value) {
+  ndb_log_error(
+      "unexpected value %u for field '%s', real_type: %u, pack_length: %u",
+      value, f->field_name, f->real_type(), f->pack_length());
+  assert(false); /* stop here on debug build */
+  return HA_ERR_INTERNAL_ERROR;
+}
+
+int ha_ndbinfo::unpack_record(uchar *dst_row) {
   DBUG_TRACE;
   ptrdiff_t dst_offset = dst_row - table->record[0];
 
   for (uint i = 0; i < table->s->fields; i++) {
     Field *field = table->field[i];
     const NdbInfoRecAttr *record = m_impl.m_columns[i];
-    if (record && !record->isNULL()) {
-      field->set_notnull();
-      field->move_field_offset(dst_offset);
-      switch (field->type()) {
-        case (MYSQL_TYPE_VARCHAR): {
-          DBUG_PRINT("info", ("str: %s", record->c_str()));
-          Field_varstring *vfield = (Field_varstring *)field;
-          /* Field_bit in DBUG requires the bit set in write_set for store(). */
-          my_bitmap_map *old_map =
-              dbug_tmp_use_all_columns(table, table->write_set);
-          (void)vfield->store(record->c_str(),
-                              MIN(record->length(), field->field_length) - 1,
-                              field->charset());
-          dbug_tmp_restore_column_map(table->write_set, old_map);
-          break;
-        }
-
-        case (MYSQL_TYPE_LONG): {
-          memcpy(field->field_ptr(), record->ptr(), sizeof(Uint32));
-          break;
-        }
-
-        case (MYSQL_TYPE_LONGLONG): {
-          memcpy(field->field_ptr(), record->ptr(), sizeof(Uint64));
-          break;
-        }
-
-        default:
-          ndb_log_error("Found unexpected field type %u", field->type());
-          break;
+    if (!record || record->isNULL()) {
+      field->set_null();
+      continue;
+    }
+    field->set_notnull();
+    field->move_field_offset(dst_offset);
+    switch (field->type()) {
+      case (MYSQL_TYPE_VARCHAR): {
+        DBUG_PRINT("info", ("str: %s", record->c_str()));
+        Field_varstring *vfield = (Field_varstring *)field;
+        /* Field_bit in DBUG requires the bit set in write_set for store(). */
+        my_bitmap_map *old_map =
+            dbug_tmp_use_all_columns(table, table->write_set);
+        (void)vfield->store(record->c_str(),
+                            std::min(record->length(), field->field_length) - 1,
+                            field->charset());
+        dbug_tmp_restore_column_map(table->write_set, old_map);
+        break;
       }
 
-      field->move_field_offset(-dst_offset);
-    } else {
-      field->set_null();
+      case (MYSQL_TYPE_LONG): {
+        memcpy(field->field_ptr(), record->ptr(), sizeof(Uint32));
+        break;
+      }
+
+      case (MYSQL_TYPE_LONGLONG): {
+        memcpy(field->field_ptr(), record->ptr(), sizeof(Uint64));
+        break;
+      }
+
+      case (MYSQL_TYPE_STRING): {
+        const Uint32 value = record->u_32_value();
+        unsigned char val8;
+        uint16 val16;
+
+        if (!(field->real_type() == MYSQL_TYPE_SET ||
+              field->real_type() == MYSQL_TYPE_ENUM))
+          return unpack_unexpected_field(field);
+
+        switch (field->pack_length()) {
+          case 1:
+            if (unlikely(value > 255))
+              return unpack_unexpected_value(field, value);
+            val8 = value;
+            *(field->field_ptr()) = val8;
+            break;
+          case 2:
+            if (unlikely(value > 65535))
+              return unpack_unexpected_value(field, value);
+            val16 = value;
+            memcpy(field->field_ptr(), &val16, sizeof(Uint16));
+            break;
+          default:
+            return unpack_unexpected_field(field);
+        }
+        break;
+      }
+
+      default:
+        return unpack_unexpected_field(field);
     }
+
+    field->move_field_offset(-dst_offset);
   }
+  return 0;
+}
+
+ulonglong ha_ndbinfo::table_flags() const {
+  ulonglong flags = HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
+
+  // m_table could be null; sometimes table_flags() is called prior to open()
+  if (m_impl.m_table != nullptr && m_impl.m_table->rowCountIsExact())
+    flags |= HA_COUNT_ROWS_INSTANT | HA_STATS_RECORDS_IS_EXACT;
+
+  return flags;
+}
+
+//
+// INDEXED READS on VirtualTables
+//
+
+ulong ha_ndbinfo::index_flags(uint, uint, bool) const {
+  return HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE;
+}
+
+int ha_ndbinfo::index_init(uint index, bool) {
+  assert(index == 0);
+  active_index = index;  // required
+  int err = rnd_init(true);
+  if (err != 0) return err;
+  m_impl.m_scan_op->initIndex(index);
+  return 0;
+}
+
+int ha_ndbinfo::index_end() { return rnd_end(); }
+
+int ha_ndbinfo::index_read(uchar *buf, const uchar *key,
+                           uint key_len [[maybe_unused]],
+                           enum ha_rkey_function flag) {
+  assert(key != nullptr);
+  assert(key_len == sizeof(int));
+
+  NdbInfoScanOperation::Seek seek(
+      NdbInfoScanOperation::Seek::Mode::value,
+      flag < HA_READ_AFTER_KEY,                                   // inclusive
+      flag == HA_READ_KEY_OR_PREV || flag == HA_READ_BEFORE_KEY,  // low
+      flag == HA_READ_KEY_OR_NEXT || flag == HA_READ_AFTER_KEY);  // high
+
+  int index_value = *(const int *)key;
+  bool found = m_impl.m_scan_op->seek(seek, index_value);
+  return found ? rnd_next(buf) : HA_ERR_KEY_NOT_FOUND;
+}
+
+int ha_ndbinfo::index_read_map(uchar *buf, const uchar *key,
+                               key_part_map keypart_map,
+                               enum ha_rkey_function find_flag) {
+  return index_read(
+      buf, key, calculate_key_len(table, active_index, keypart_map), find_flag);
+}
+
+// read_last wants the last row with a given index value.
+// All indexes are unique, so it is equivalent to read.
+int ha_ndbinfo::index_read_last_map(uchar *buf, const uchar *key,
+                                    key_part_map keypart_map) {
+  return index_read(buf, key,
+                    calculate_key_len(table, active_index, keypart_map),
+                    HA_READ_KEY_EXACT);
+}
+
+int ha_ndbinfo::index_next(uchar *buf) {
+  bool found = m_impl.m_scan_op->seek(
+      NdbInfoScanOperation::Seek(NdbInfoScanOperation::Seek::Mode::next));
+  return found ? rnd_next(buf) : HA_ERR_END_OF_FILE;
+}
+
+int ha_ndbinfo::index_prev(uchar *buf) {
+  bool found = m_impl.m_scan_op->seek(
+      NdbInfoScanOperation::Seek(NdbInfoScanOperation::Seek::Mode::previous));
+  return found ? rnd_next(buf) : HA_ERR_END_OF_FILE;
+}
+
+int ha_ndbinfo::index_first(uchar *buf) {
+  m_impl.m_scan_op->seek(
+      NdbInfoScanOperation::Seek(NdbInfoScanOperation::Seek::Mode::first));
+  return rnd_next(buf);
+}
+
+int ha_ndbinfo::index_last(uchar *buf) {
+  m_impl.m_scan_op->seek(
+      NdbInfoScanOperation::Seek(NdbInfoScanOperation::Seek::Mode::last));
+  return rnd_next(buf);
 }
 
 static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
@@ -782,11 +927,9 @@ static int ndbinfo_init(void *plugin) {
   char prefix[FN_REFLEN];
   build_table_filename(prefix, sizeof(prefix) - 1, opt_ndbinfo_dbname,
                        opt_ndbinfo_table_prefix, "", 0);
-  DBUG_PRINT("info", ("prefix: '%s'", prefix));
+  ndb_log_info("ndbinfo prefix: '%s'", prefix);
   assert(g_ndb_cluster_connection);
-  g_ndbinfo =
-      new (std::nothrow) NdbInfo(g_ndb_cluster_connection, prefix,
-                                 opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
+  g_ndbinfo = new (std::nothrow) NdbInfo(g_ndb_cluster_connection, prefix);
   if (!g_ndbinfo) {
     ndb_log_error("Failed to create NdbInfo");
     return 1;
@@ -796,7 +939,7 @@ static int ndbinfo_init(void *plugin) {
     ndb_log_error("Failed to init NdbInfo");
 
     delete g_ndbinfo;
-    g_ndbinfo = NULL;
+    g_ndbinfo = nullptr;
 
     return 1;
   }
@@ -809,7 +952,7 @@ static int ndbinfo_deinit(void *) {
 
   if (g_ndbinfo) {
     delete g_ndbinfo;
-    g_ndbinfo = NULL;
+    g_ndbinfo = nullptr;
   }
 
   return 0;
@@ -823,7 +966,7 @@ SYS_VAR *ndbinfo_system_variables[] = {MYSQL_SYSVAR(max_rows),
                                        MYSQL_SYSVAR(version),
                                        MYSQL_SYSVAR(offline),
 
-                                       NULL};
+                                       nullptr};
 
 struct st_mysql_storage_engine ndbinfo_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
@@ -836,10 +979,10 @@ struct st_mysql_plugin ndbinfo_plugin = {
     "MySQL Cluster system information storage engine",
     PLUGIN_LICENSE_GPL,
     ndbinfo_init,             /* plugin init */
-    NULL,                     /* plugin uninstall check */
+    nullptr,                  /* plugin uninstall check */
     ndbinfo_deinit,           /* plugin deinit */
     0x0001,                   /* plugin version */
-    NULL,                     /* status variables */
+    nullptr,                  /* status variables */
     ndbinfo_system_variables, /* system variables */
-    NULL,                     /* config options */
+    nullptr,                  /* config options */
     0};

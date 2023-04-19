@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,9 +34,9 @@
 
 #define JAM_FILE_ID 385
 
-
 class AsyncIoThread;
 class FsReadWriteReq;
+struct FsRef;
 
 // Because one NDB Signal request can result in multiple requests to
 // AsyncFile one class must be made responsible to keep track
@@ -88,7 +88,7 @@ private:
   Ndbfs(Ndbfs & );
   void operator = (Ndbfs &);
   
-  // Used for uniqe number generation
+  // Used for unique number generation
   Uint16 theLastId;
 
   // Communication from/to files
@@ -102,6 +102,8 @@ private:
   AsyncFile* createAsyncFile();
   AsyncFile* getIdleFile(bool bound);
   void pushIdleFile(AsyncFile*);
+  void log_file_error(GlobalSignalNumber gsn, AsyncFile* file,
+                      Request* request, FsRef* fsRef);
 
   Vector<AsyncIoThread*> theThreads;// List of all created threads
   Vector<AsyncFile*> theFiles;      // List all created AsyncFiles
@@ -176,7 +178,7 @@ private:
   VoidFs(VoidFs & );
   void operator = (VoidFs &);
   
-  // Used for uniqe number generation
+  // Used for unique number generation
   Uint32 c_maxFileNo;
 };
 

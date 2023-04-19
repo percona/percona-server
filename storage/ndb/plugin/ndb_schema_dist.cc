@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -273,7 +273,7 @@ bool Ndb_schema_dist_client::Prepared_keys::check_key(
   return false;
 }
 
-extern void update_slave_api_stats(const Ndb *);
+extern void update_slave_api_stats(const Thd_ndb *);
 
 Ndb_schema_dist_client::~Ndb_schema_dist_client() {
   if (m_share) {
@@ -286,7 +286,7 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client() {
     // NOTE! This is just a "convenient place" to call this
     // function, it could be moved to "end of statement"(if there
     // was such a place..).
-    update_slave_api_stats(m_thd_ndb->ndb);
+    update_slave_api_stats(m_thd_ndb);
   }
 
   if (m_holding_acl_mutex) {
@@ -328,7 +328,7 @@ void Ndb_schema_dist_client::push_and_clear_schema_op_results() {
 
   // Push results received from participant(s) as warnings. These are meant to
   // indicate that schema distribution has failed on one of the nodes. For more
-  // information on how and why the failure occured, the relevant error log
+  // information on how and why the failure occurred, the relevant error log
   // remains the place to look
   for (const Schema_op_result &op_result : m_schema_op_results) {
     // Warning consists of the node id and message but not result code since
@@ -624,20 +624,6 @@ bool Ndb_schema_dist_client::acl_notify(std::string user_list) {
                        SOT_ACL_SNAPSHOT);
 }
 
-bool Ndb_schema_dist_client::tablespace_changed(const char *tablespace_name,
-                                                int id, int version) {
-  DBUG_TRACE;
-  return log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd), "",
-                       tablespace_name, id, version, SOT_TABLESPACE);
-}
-
-bool Ndb_schema_dist_client::logfilegroup_changed(const char *logfilegroup_name,
-                                                  int id, int version) {
-  DBUG_TRACE;
-  return log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd), "",
-                       logfilegroup_name, id, version, SOT_LOGFILE_GROUP);
-}
-
 bool Ndb_schema_dist_client::create_tablespace(const char *tablespace_name,
                                                int id, int version) {
   DBUG_TRACE;
@@ -787,7 +773,7 @@ uint32 Ndb_schema_dist_client::calculate_anyvalue(bool force_nologging) const {
     This tests code filtering ServerIds on the value of server-id-bits.
   */
   const char *p = getenv("NDB_TEST_ANYVALUE_USERDATA");
-  if (p != 0 && *p != 0 && *p != '0' && *p != 'n' && *p != 'N') {
+  if (p != nullptr && *p != 0 && *p != '0' && *p != 'n' && *p != 'N') {
     dbug_ndbcluster_anyvalue_set_userbits(anyValue);
   }
 #endif

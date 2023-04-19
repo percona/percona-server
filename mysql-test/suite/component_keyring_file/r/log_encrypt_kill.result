@@ -7,10 +7,8 @@
 # Taking backup of global manifest file for MySQL server
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-OFF
+0
 SET GLOBAL innodb_redo_log_encrypt = 1;
-Warnings:
-Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = 1;
 Warnings:
 Warning	7014	InnoDB: Undo log can't be encrypted if the keyring is not loaded.
@@ -27,7 +25,7 @@ c1	LEFT(c2,10)
 100	cccccccccc
 DROP TABLE tne_1;
 # Stop the MTR default DB server
-Pattern "Redo log cannot be encrypted if the keyring is not loaded." found
+Pattern "Can\'t set redo log files to be encrypted" found
 # create bootstrap file
 # Restore global manifest file for MySQL server from backup
 # Prepare new datadir
@@ -35,7 +33,7 @@ Pattern "Redo log cannot be encrypted if the keyring is not loaded." found
 # Starting server with keyring plugin
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-OFF
+0
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SELECT @@global.innodb_undo_log_encrypt;
 @@global.innodb_undo_log_encrypt
@@ -54,7 +52,7 @@ Component_status	Active
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-OFF
+0
 SET GLOBAL innodb_undo_log_encrypt = 0;
 SELECT @@global.innodb_undo_log_encrypt;
 @@global.innodb_undo_log_encrypt

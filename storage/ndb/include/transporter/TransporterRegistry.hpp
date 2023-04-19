@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 //      TransporterRegistry
 //
 //  DESCRIPTION
-//      TransporterRegistry (singelton) is the interface to the 
+//      TransporterRegistry (singleton) is the interface to the 
 //      transporter layer. It handles transporter states and 
 //      holds the transporter arrays.
 //
@@ -43,12 +43,12 @@
 #include <SocketServer.hpp>
 #include <SocketClient.hpp>
 
-#include <NdbTCP.h>
-
 #include <mgmapi/mgmapi.h>
 
 #include <NodeBitmask.hpp>
 #include <NdbMutex.h>
+
+#include "portlib/NdbTick.h"
 
 #ifndef _WIN32
 /*
@@ -96,16 +96,16 @@ class TransporterService : public SocketServer::Service {
   SocketAuthenticator * m_auth;
   TransporterRegistry * m_transporter_registry;
 public:
-  TransporterService(SocketAuthenticator *auth= 0)
+  TransporterService(SocketAuthenticator *auth= nullptr)
   {
     m_auth= auth;
-    m_transporter_registry= 0;
+    m_transporter_registry= nullptr;
   }
   void setTransporterRegistry(TransporterRegistry *t)
   {
     m_transporter_registry= t;
   }
-  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket) override;
+  SocketServer::Session * newSession(ndb_socket_t socket) override;
 };
 
 /**
@@ -222,7 +222,7 @@ public:
 
   /**
    * Iff using non-default TransporterReceiveHandle's
-   *   they need to get initalized
+   *   they need to get initialized
    */
   bool init(TransporterReceiveHandle&);
 
@@ -243,7 +243,7 @@ public:
 
      @returns false on failure and true on success
   */
-  bool connect_server(NDB_SOCKET_TYPE sockfd,
+  bool connect_server(ndb_socket_t sockfd,
                       BaseString& msg,
                       bool& close_with_reset,
                       bool& log_failure);
@@ -254,14 +254,14 @@ public:
    * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
    * and returns the socket.
    */
-  NDB_SOCKET_TYPE connect_ndb_mgmd(const char* server_name,
-                                   unsigned short server_port);
+  ndb_socket_t connect_ndb_mgmd(const char* server_name,
+                                unsigned short server_port);
 
   /**
    * Given a connected NdbMgmHandle, turns it into a transporter
    * and returns the socket.
    */
-  NDB_SOCKET_TYPE connect_ndb_mgmd(NdbMgmHandle *h);
+  ndb_socket_t connect_ndb_mgmd(NdbMgmHandle *h);
 
   /**
    * Manage allTransporters and theNodeIdTransporters when using
@@ -362,7 +362,7 @@ private:
   void report_connect(TransporterReceiveHandle&, NodeId node_id);
   void report_disconnect(TransporterReceiveHandle&, NodeId node_id, int errnum);
   void report_error(NodeId nodeId, TransporterError errorCode,
-                    const char *errorInfo = 0);
+                    const char *errorInfo = nullptr);
   void dump_and_report_bad_message(const char file[], unsigned line,
                     TransporterReceiveHandle & recvHandle,
                     Uint32 * readPtr,
@@ -467,9 +467,13 @@ private:
                          Uint8 prio,
                          const Uint32 *signalData,
                          NodeId nodeId,
-                         TrpId &trp_id,
+                         Transporter* t,
                          AnySectionArg section);
 
+  Transporter* prepareSend_getTransporter(const SignalHeader *signalHeader,
+                                          NodeId nodeId,
+                                          TrpId &trp_id,
+                                          SendStatus& status);
 
 public:
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
@@ -495,7 +499,15 @@ public:
                          const Uint32 *signalData,
                          NodeId nodeId,
                          const GenericSectionPtr ptr[3]);
-  
+
+  SendStatus prepareSendOverAllLinks(
+                         TransporterSendBufferHandle *sendHandle,
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         TrpBitmask &trp_mask);
+
   /* Send on a specific transporter */
   bool performSend(TrpId id, bool need_wakeup = true);
   /* performSendNode is only used from NDB API */
@@ -653,12 +665,12 @@ public:
   void wakeup();
 
   inline bool setup_wakeup_socket() {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     return setup_wakeup_socket(* receiveHandle);
   }
 private:
   bool m_has_extra_wakeup_socket;
-  NDB_SOCKET_TYPE m_extra_wakeup_sockets[2];
+  ndb_socket_t m_extra_wakeup_sockets[2];
   void consume_extra_sockets();
 
   Uint32 *getWritePtr(TransporterSendBufferHandle *handle,
@@ -701,27 +713,27 @@ public:
                           Uint32 max_spintime = UINT32_MAX);
 
   inline Uint32 pollReceive(Uint32 timeOutMillis) {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     return pollReceive(timeOutMillis, * receiveHandle);
   }
 
   inline Uint32 performReceive() {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     return performReceive(* receiveHandle, 0);
   }
 
   inline void update_connections() {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     update_connections(* receiveHandle);
   }
   inline Uint32 get_total_spintime()
   {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     return receiveHandle->m_total_spintime;
   }
   inline void reset_total_spintime()
   {
-    assert(receiveHandle != 0);
+    assert(receiveHandle != nullptr);
     receiveHandle->m_total_spintime = 0;
   }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,11 @@
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
+#include <EventLogger.hpp>
 
 /**
  * @class SimpleProperties
- * @brief Key-value-pair container.  Actully a list of named elements.
+ * @brief Key-value-pair container.  Actually a list of named elements.
  *
  * SimpleProperties:
  * - The keys are Uint16
@@ -93,8 +94,8 @@ public:
   static UnpackStatus unpack(class Reader &,
 			     void * struct_dst,
                              const SP2StructMapping[], Uint32 mapSz,
-                             IndirectReader *indirectReader = 0,
-                             void * readerExtra = 0);
+                             IndirectReader *indirectReader = nullptr,
+                             void * readerExtra = nullptr);
   
   class Writer;
 
@@ -107,8 +108,8 @@ public:
   static UnpackStatus pack(class Writer &,
 			   const void * struct_src,
 			   const SP2StructMapping[], Uint32 mapSz,
-                           IndirectWriter *indirectWriter = 0,
-                           const void * writerExtra = 0);
+                           IndirectWriter *indirectWriter = nullptr,
+                           const void * writerExtra = nullptr);
   
   /**
    * Reader class
@@ -175,8 +176,9 @@ public:
      * Print the complete simple properties (for debugging)
      */
     void printAll(NdbOut& ndbout);
+    void printAll(EventLogger* logger);
 
-  private:
+   private:
     bool readValue();
     
     Uint16 m_key;

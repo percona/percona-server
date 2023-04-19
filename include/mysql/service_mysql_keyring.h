@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
   This service allows plugins to interact with key store backends.
 
   A key currently is a blob of binary data, defined by a string
-  key type, that's meanigfull to the relevant backend.
+  key type, that's meaningful to the relevant backend.
   Typical key_type values include "AES", "DES", "DSA" etc.
   There's no length in the type, since it's defined by the number of bytes
   the key takes.
@@ -105,25 +105,5 @@ int my_key_remove(const char *, const char *);
 int my_key_generate(const char *, const char *, const char *, size_t);
 
 #endif
-
-#ifndef MYSQL_ABI_CHECK
-
-#include "map_helpers.h"
-
-inline int my_key_fetch_safe(const char *key_id,
-                             unique_ptr_my_free<char> &key_type,
-                             const char *user_id,
-                             unique_ptr_my_free<unsigned char> &key,
-                             size_t *key_len) {
-  char *key_type_tmp = nullptr;
-  void *key_tmp = nullptr;
-  const int result =
-      my_key_fetch(key_id, &key_type_tmp, user_id, &key_tmp, key_len);
-  key_type.reset(key_type_tmp);
-  key.reset(static_cast<unsigned char *>(key_tmp));
-  return result;
-}
-
-#endif  // MYSQL_ABI_CHECK
 
 #endif  // MYSQL_SERVICE_MYSQL_PLUGIN_KEYRING_INCLUDED

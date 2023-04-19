@@ -59,6 +59,8 @@ json_col1
 DROP TABLE tab1;
 FLUSH LOGS;
 include/mysqlbinlog.inc
+# The proper term is pseudo_replica_mode, but we use this compatibility alias
+# to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -108,6 +110,7 @@ BEGIN
 /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# has_generated_invisible_primary_key=0
 # at #
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`tab1`
@@ -132,6 +135,7 @@ BEGIN
 /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# has_generated_invisible_primary_key=0
 # at #
 # # server id #  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE `test`.`tab1`
@@ -158,6 +162,7 @@ BEGIN
 /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# has_generated_invisible_primary_key=0
 # at #
 # # server id #  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE `test`.`tab1`
@@ -184,6 +189,7 @@ BEGIN
 /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# has_generated_invisible_primary_key=0
 # at #
 # # server id #  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE `test`.`tab1`
@@ -210,6 +216,7 @@ BEGIN
 /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# has_generated_invisible_primary_key=0
 # at #
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`tab1`
@@ -234,6 +241,7 @@ BEGIN
 /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# has_generated_invisible_primary_key=0
 # at #
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`tab1`

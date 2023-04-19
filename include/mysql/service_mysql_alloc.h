@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 #endif
 
 /* PSI_memory_key */
-#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
 
 /* myf */
 typedef int myf_t;
@@ -124,6 +124,14 @@ extern void *my_memdup(PSI_memory_key key, const void *from, size_t length,
 extern char *my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char *my_strndup(PSI_memory_key key, const char *from, size_t length,
                         myf_t flags);
+
+#ifdef _WIN32
+extern void *my_std_malloc(PSI_memory_key key, size_t size, myf_t flags);
+extern void *my_std_realloc(PSI_memory_key key, void *ptr, size_t size,
+                            myf_t flags);
+extern void my_std_free(void *ptr);
+
+#endif  // _WIN32
 
 #endif
 

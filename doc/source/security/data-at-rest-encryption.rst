@@ -15,7 +15,7 @@ types of storage devices. Encryption ensures that if an unauthorized user
 accesses the data files from the file system, the user cannot read contents.
 
 If the user uses master key encryption, the MySQL keyring plugin stores the
-InnoDB master key, used for the master key encryption implemented by |MySQL|.
+InnoDB master key, used for the master key encryption implemented by *MySQL*.
 The master key is also used to encrypt redo logs, and undo logs, along with the
 tablespaces.
 
@@ -45,7 +45,7 @@ encrypted by the I/O layer before the page is flushed to disk.
 
 .. note::
 
-   |Percona XtraBackup| version 8 supports the backup of encrypted general
+   *Percona XtraBackup* version 8 supports the backup of encrypted general
    tablespaces. Features which are not Generally Available (GA) in |Percona
    Server| are not supported in version 8.
 
@@ -74,5 +74,5 @@ encrypted by the I/O layer before the page is flushed to disk.
     :ref:`undo-tablespace-encryption`
 
     :ref:`rotating-master-key`
-
+    
     :ref:`encrypting-threads`

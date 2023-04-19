@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class MockServerRestClient {
                        const std::string &http_hostname = "127.0.0.1");
 
   /** @brief Sets values of the all globals in the server mock via
-   *         http inteface.
+   *         http interface.
    *         Example:
    *             set_globals("{\"secondary_removed\": true}");
    *

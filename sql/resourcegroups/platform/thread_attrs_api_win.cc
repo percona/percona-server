@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
   return res == 0;
 }
 
-int thread_priority(my_thread_os_id_t thread_id) {
+int thread_priority(my_thread_os_id_t) {
   assert(0);
   return 0;
 }

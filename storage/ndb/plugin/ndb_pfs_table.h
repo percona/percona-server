@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include "mysql/components/services/pfs_plugin_table_service.h"  // PFS_engine_table_share_proxy
 
 /*
-  Wrapper around PFS_engine_table_share_proxy. Used to constuct a table share
+  Wrapper around PFS_engine_table_share_proxy. Used to construct a table share
   for ndbcluster PFS tables. It contains table information and is used to
   register callbacks for various functions. The share is used to create the
   table in PFS

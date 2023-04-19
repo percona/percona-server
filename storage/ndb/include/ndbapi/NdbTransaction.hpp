@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ enum ExecType {
  * getNdbIndexOperation(), or getNdbIndexScanOperation().
  * Then the operation is defined. 
  * Several operations can be defined on the same 
- * NdbTransaction object, they will in that case be executed in parallell.
+ * NdbTransaction object, they will in that case be executed in parallel.
  * When all operations are defined, the execute()
  * method sends them to the NDB kernel for execution.
  *
@@ -159,7 +159,6 @@ class NdbTransaction
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbBlob;
-  friend class ha_ndbcluster;
   friend class NdbQueryImpl;
   friend class NdbQueryOperationImpl;
 #endif
@@ -339,7 +338,7 @@ public:
    *                     ExecType::Commit  executes remaining operations and 
    *                                       commits the complete transaction.<br>
    *                     ExecType::Rollback rollbacks the entire transaction.
-   * @param abortOption  Handling of error while excuting
+   * @param abortOption  Handling of error while executing
    *                     AbortOnError - Abort transaction if an operation fail
    *                     AO_IgnoreError  - Accept failing operations
    *                     DefaultAbortOption - Use per-operation abort option
@@ -366,8 +365,8 @@ public:
 #endif
 #else
   /**
-   * 50 compability layer
-   *   Check 50-docs for sematics
+   * 50 compatibility layer
+   *   Check 50-docs for semantics
    */
 
   int execute(ExecType execType, NdbOperation::AbortOption, int force);
@@ -425,8 +424,8 @@ public:
 #endif
 #else
   /**
-   * 50 compability layer
-   *   Check 50-docs for sematics
+   * 50 compatibility layer
+   *   Check 50-docs for semantics
    */
   void executeAsynchPrepare(ExecType          execType,
 			    NdbAsynchCallback callback,
@@ -473,8 +472,8 @@ public:
 #endif
 #else
   /**
-   * 50 compability layer
-   *   Check 50-docs for sematics
+   * 50 compatibility layer
+   *   Check 50-docs for semantics
    */
   void executeAsynch(ExecType            aTypeOfExec,
 		     NdbAsynchCallback   aCallback,
@@ -790,7 +789,7 @@ public:
    * the definition of the NdbScanOperation::ScanOptions structure for 
    * more information.
    *
-   * To enable backwards compatability of this interface, a sizeOfOptions
+   * To enable backwards compatibility of this interface, a sizeOfOptions
    * parameter can be passed.  This parameter indicates the size of the
    * ScanOptions structure at the time the client was compiled, and enables
    * detection of the use of an old ScanOptions structure.  If this 
@@ -833,7 +832,7 @@ public:
    * A ScanOptions structure can be passed, specifying extra options.  See
    * the definition of the ScanOptions structure for more information.
    *
-   * To enable backwards compatability of this interface, a sizeOfOptions
+   * To enable backwards compatibility of this interface, a sizeOfOptions
    * parameter can be passed.  This parameter indicates the size of the
    * ScanOptions structure at the time the client was compiled, and enables
    * detection of the use of an old ScanOptions structure.  If this functionality
@@ -857,11 +856,13 @@ public:
    * parameters are specified in the 'paramValue' array. Parameter values
    * Should be supplied in the same order as the related paramValue's
    * was defined.
+   *
+   * Note, query uses LM_CommittedRead. The LockMode parameter is ignored.
    */
   NdbQuery*
   createQuery(const NdbQueryDef* query,
               const NdbQueryParamValue paramValue[]= 0,
-              NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
+              NdbOperation::LockMode= NdbOperation::LM_CommittedRead);
 
   /* LockHandle methods */
   /*
@@ -944,6 +945,18 @@ public:
   void setMaxPendingBlobReadBytes(Uint32 bytes);
   void setMaxPendingBlobWriteBytes(Uint32 bytes);
 
+  /*
+   * Release completed operations and queries.
+   *
+   * NOTE! Only applications which reads/write blobs fully and does not keep
+   * blobs open/active over execute can safely use this function to release
+   * completed.
+   */
+  void releaseCompletedOpsAndQueries() {
+    releaseCompletedOperations();
+    releaseCompletedQueries();
+  }
+
 private:						
   /**
    * Release completed operations
@@ -974,7 +987,7 @@ private:
    */
   void setConnectedNodeId( Uint32 nodeId, Uint32 sequence); 
 
-  void		setMyBlockReference( int );	  // Set my block refrerence
+  void		setMyBlockReference( int );	  // Set my block reference
   void		setTC_ConnectPtr( Uint32 );	  // Sets TC Connect pointer
   int		getTC_ConnectPtr();		  // Gets TC Connect pointer
   void          setBuddyConPtr(Uint32);           // Sets Buddy Con Ptr
@@ -1047,7 +1060,7 @@ private:
   void		setOperationErrorCode(int anErrorCode);	
 
   // Indicate something went wrong in the definition phase
-  void		setOperationErrorCodeAbort(int anErrorCode, int abortOption = -1);
+  void          setOperationErrorCodeAbort(int anErrorCode);
 
   int		checkMagicNumber();		       // Verify correct object
   Uint32        getMagicNumberFromObject() const;
@@ -1104,7 +1117,8 @@ private:
                                              // array for this object
   TimeMillis_t       theStartTransTime;      // Start time of the transaction
 
-  NdbError theError;	      	// Errorcode on transaction
+  // Allow update error from const methods.
+  mutable NdbError theError;    // Errorcode on transaction
   int	   theErrorLine;	// Method number of last error in NdbOperation
   NdbOperation*	theErrorOperation; // The NdbOperation where the error occurred
 
@@ -1126,7 +1140,7 @@ private:
   Uint32	theMyRef;				// Our block reference		
   Uint32	theTCConPtr;				// Transaction Co-ordinator connection pointer.
   Uint64	theTransactionId;			// theTransactionId of the transaction
-  Uint64	theGlobalCheckpointId;			// The gloabl checkpoint identity of the transaction
+  Uint64	theGlobalCheckpointId;			// The global checkpoint identity of the transaction
   Uint64 *p_latest_trans_gci;                           // Reference to latest gci for connection
   ConStatusType	theStatus;				// The status of the connection		
   enum CompletionStatus { 
@@ -1331,8 +1345,8 @@ NdbTransaction::getConnectedNodeId()
 /******************************************************************************
 void setMyBlockReference(int aBlockRef);
 
-Parameters:     aBlockRef: The block refrerence.
-Remark:         Set my block refrerence. 
+Parameters:     aBlockRef: The block reference.
+Remark:         Set my block reference. 
 ******************************************************************************/
 inline
 void			

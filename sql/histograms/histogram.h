@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_HISTOGRAM_INCLUDED
 #define HISTOGRAMS_HISTOGRAM_INCLUDED
 
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@
 
 #include "lex_string.h"  // LEX_CSTRING
 #include "my_base.h"     // ha_rows
+#include "sql/field.h"   // Field
 #include "sql/histograms/value_map_type.h"
 #include "sql/mem_root_allocator.h"   // Mem_root_allocator
 #include "sql/stateless_allocator.h"  // Stateless_allocator
@@ -58,6 +59,7 @@ class Json_dom;
 class Json_object;
 class THD;
 struct TYPELIB;
+class Field;
 
 namespace dd {
 class Table;
@@ -69,7 +71,8 @@ class Value_map;
 }  // namespace histograms
 struct CHARSET_INFO;
 struct MEM_ROOT;
-struct TABLE_LIST;
+class Table_ref;
+class Json_dom;
 
 namespace histograms {
 
@@ -87,7 +90,34 @@ enum class Message {
   COVERED_BY_SINGLE_PART_UNIQUE_INDEX,
   NO_HISTOGRAM_FOUND,
   HISTOGRAM_DELETED,
-  SERVER_READ_ONLY
+  SERVER_READ_ONLY,
+  MULTIPLE_COLUMNS_SPECIFIED,
+
+  // JSON validation errors. See Error_context.
+  JSON_FORMAT_ERROR,
+  JSON_NOT_AN_OBJECT,
+  JSON_MISSING_ATTRIBUTE,
+  JSON_WRONG_ATTRIBUTE_TYPE,
+  JSON_WRONG_BUCKET_TYPE_2,
+  JSON_WRONG_BUCKET_TYPE_4,
+  JSON_WRONG_DATA_TYPE,
+  JSON_UNSUPPORTED_DATA_TYPE,
+  JSON_UNSUPPORTED_HISTOGRAM_TYPE,
+  JSON_UNSUPPORTED_CHARSET,
+  JSON_INVALID_SAMPLING_RATE,
+  JSON_INVALID_NUM_BUCKETS_SPECIFIED,
+  JSON_INVALID_FREQUENCY,
+  JSON_INVALID_NUM_DISTINCT,
+  JSON_VALUE_FORMAT_ERROR,
+  JSON_VALUE_OUT_OF_RANGE,
+  JSON_VALUE_NOT_ASCENDING_1,
+  JSON_VALUE_NOT_ASCENDING_2,
+  JSON_VALUE_DESCENDING_IN_BUCKET,
+  JSON_CUMULATIVE_FREQUENCY_NOT_ASCENDING,
+  JSON_INVALID_NULL_VALUES_FRACTION,
+  JSON_INVALID_TOTAL_FREQUENCY,
+  JSON_NUM_BUCKETS_MORE_THAN_SPECIFIED,
+  JSON_IMPOSSIBLE_EMPTY_EQUI_HEIGHT,
 };
 
 struct Histogram_psi_key_alloc {
@@ -107,6 +137,8 @@ using value_map_type =
 using columns_set = std::set<std::string, std::less<std::string>,
                              Histogram_key_allocator<std::string>>;
 
+// Used as an array, so duplicate values are not checked.
+// TODO((tlchrist): Convert this std::map to an array.
 using results_map =
     std::map<std::string, Message, std::less<std::string>,
              Histogram_key_allocator<std::pair<const std::string, Message>>>;
@@ -131,7 +163,130 @@ enum class enum_operator {
 };
 
 /**
+  Error context to validate given JSON object which represents a histogram.
+
+  A validation error consists of two pieces of information:
+
+    1) error code  - what kind of error it is
+    2) JSON path   - where the error occurs
+
+  Errors are classified into a few conceptual categories, namely
+
+    1) absence of required attributes
+    2) unexpected JSON type of attributes
+    3) value encoding corruption
+    4) value out of domain
+    5) breaking bucket sequence semantics
+    6) breaking certain constraint between pieces of information
+
+  @see Message
+*/
+class Error_context {
+ public:
+  /// Default constructor.
+  Error_context()
+      : m_thd{nullptr}, m_field{nullptr}, m_results{nullptr}, m_binary{true} {}
+
+  /**
+    Constructor. The context will create a copy of the Field so that
+    Field::store can be used to check validity of bucket values. Results will
+    be saved to the given results store
+
+    @param thd      Thread context
+    @param field    The field for values on which the histogram is built
+    @param table    The table on which the histogram is built
+    @param results  Where reported errors are stored
+    */
+  Error_context(THD *thd, Field *field, TABLE *table, results_map *results);
+
+  /**
+   Destructor. Destroy the copy of the Field and set all pointers to nullptr
+   **/
+  ~Error_context() {
+    if (m_field) destroy(m_field);
+    m_thd = nullptr;
+    m_field = nullptr;
+    m_results = nullptr;
+    m_binary = false;
+  }
+  /**
+    Report a global error to this context.
+
+    @param err_code  The global error code
+  */
+  void report_global(Message err_code);
+
+  /**
+    Report to this context that a required attribute is missing.
+
+    @param name  Name of the missing attribute
+   */
+  void report_missing_attribute(const std::string &name);
+
+  /**
+    Report to this context that an error occurs on the given dom node.
+
+    @param dom       The given dom node
+    @param err_code  The error code
+   */
+  void report_node(const Json_dom *dom, Message err_code);
+
+  /**
+    Check if the value is in the field definition domain.
+
+    @param v Pointer to the value.
+
+    @return true on error, false otherwise
+   */
+  template <typename T>
+  bool check_value(T *v);
+
+  /**
+    Tell whether the input json is an internal persisted copy or
+    a user-defined input. If the input is an internal copy, there
+    should never be type/format errors. If it is a user-defined input,
+    errors may occur and should be handled, and some type casting may
+    be needed.
+
+    @return true for JSON, false otherwise
+   */
+  bool binary() const { return m_binary; }
+
+  /**
+    Return data-type of field in context if present. Used to enforce
+    that histogram datatype matches column datatype for user-defined
+    histograms.
+    @return datatype string if present, nullptr if not
+   */
+  Field *field() const { return m_field; }
+
+ private:
+  /// Thread context for error handlers
+  THD *m_thd;
+  /// Buffer for m_field
+  uchar m_buffer[MAX_FIELD_WIDTH];
+  /// The field for checking endpoint values
+  Field *m_field;
+  /// Where reported errors are stored
+  results_map *m_results;
+  /// Whether or not the JSON object to process is in binary format
+  bool m_binary;
+};
+
+/**
   Histogram base class.
+
+  This is an abstract class containing the interface and shared code for
+  concrete histogram subclasses.
+
+  Histogram subclasses (Singleton, Equi_height) are constructed through factory
+  methods in order to catch memory allocation errors during construction.
+
+  The histogram subclasses have no public copy or move constructors. In order to
+  copy a histogram onto a given MEM_ROOT, use the public clone method. The clone
+  method ensures that members of the histogram, such String type buckets,
+  are also allocated on the given MEM_ROOT. Modifications to these methods need
+  to be careful that histogram buckets are cloned/copied correctly.
 */
 class Histogram {
  public:
@@ -182,6 +337,32 @@ class Histogram {
   }
 
   /**
+    Constructor.
+
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param db_name   name of the database this histogram represents
+    @param tbl_name  name of the table this histogram represents
+    @param col_name  name of the column this histogram represents
+    @param type      the histogram type (equi-height, singleton)
+    @param data_type the type of data that this histogram contains
+    @param[out] error is set to true if an error occurs
+  */
+  Histogram(MEM_ROOT *mem_root, const std::string &db_name,
+            const std::string &tbl_name, const std::string &col_name,
+            enum_histogram_type type, Value_map_type data_type, bool *error);
+
+  /**
+    Copy constructor
+
+    This will make a copy of the provided histogram onto the provided MEM_ROOT.
+
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param other     the histogram to copy
+    @param[out] error is set to true if an error occurs
+  */
+  Histogram(MEM_ROOT *mem_root, const Histogram &other, bool *error);
+
+  /**
     Write the data type of this histogram into a JSON object.
 
     @param json_object the JSON object where we will write the histogram
@@ -200,12 +381,14 @@ class Histogram {
     histogram object.
 
     @param json_dom the JSON DOM object to extract the value from
-    @param out the value from the JSON DOM object
+    @param out      the value from the JSON DOM object
+    @param context  error context for validation
 
     @return true on error, false otherwise
   */
   template <class T>
-  bool extract_json_dom_value(const Json_dom *json_dom, T *out);
+  bool extract_json_dom_value(const Json_dom *json_dom, T *out,
+                              Error_context *context);
 
   /**
     Populate the histogram with data from the provided JSON object. The base
@@ -213,11 +396,13 @@ class Histogram {
     to populate fields that are shared among all histogram types (character set,
     null values fraction).
 
-    @param json_object the JSON object to read the histogram data from
+    @param json_object  the JSON object to read the histogram data from
+    @param context      error context for validation
 
     @return true on error, false otherwise
   */
-  virtual bool json_to_histogram(const Json_object &json_object) = 0;
+  virtual bool json_to_histogram(const Json_object &json_object,
+                                 Error_context *context) = 0;
 
  private:
   /// The MEM_ROOT where the histogram contents will be allocated.
@@ -239,12 +424,19 @@ class Histogram {
   LEX_CSTRING m_column_name;
 
   /**
+    An internal function for getting a selectivity estimate prior to adustment.
+    @see get_selectivity() for details.
+   */
+  bool get_raw_selectivity(Item **items, size_t item_count, enum_operator op,
+                           double *selectivity) const;
+
+  /**
     An internal function for getting the selecitvity estimation.
 
     This function will read/evaluate the value from the given Item, and pass
     this value on to the correct selectivity estimation function based on the
     data type of the histogram. For instance, if the data type of the histogram
-    is INT, we will call "val_int" on the Item to evaulate the value as an
+    is INT, we will call "val_int" on the Item to evaluate the value as an
     integer and pass this value on to the next function.
 
     @param item The Item to read/evaluate the value from.
@@ -298,31 +490,11 @@ class Histogram {
   double apply_operator(const enum_operator op, const T &value) const;
 
  public:
-  /**
-    Constructor.
-
-    @param mem_root  the mem_root where the histogram contents will be allocated
-    @param db_name   name of the database this histogram represents
-    @param tbl_name  name of the table this histogram represents
-    @param col_name  name of the column this histogram represents
-    @param type      the histogram type (equi-height, singleton)
-    @param data_type the type of data that this histogram contains
-  */
-  Histogram(MEM_ROOT *mem_root, const std::string &db_name,
-            const std::string &tbl_name, const std::string &col_name,
-            enum_histogram_type type, Value_map_type data_type);
-
-  /**
-    Copy constructor
-
-    This will make a copy of the provided histogram onto the provided MEM_ROOT.
-  */
-  Histogram(MEM_ROOT *mem_root, const Histogram &other);
-
+  Histogram() = delete;
   Histogram(const Histogram &other) = delete;
 
   /// Destructor.
-  virtual ~Histogram() {}
+  virtual ~Histogram() = default;
 
   /// @return the MEM_ROOT that this histogram uses for allocations
   MEM_ROOT *get_mem_root() const { return m_mem_root; }
@@ -406,6 +578,7 @@ class Histogram {
     @param  table_name  the table name
     @param  column_name the column name
     @param  json_object output where the histogram is stored
+    @param  context     error context for validation
 
     @return nullptr on error. Otherwise a histogram allocated on the provided
             MEM_ROOT.
@@ -414,7 +587,8 @@ class Histogram {
                                       const std::string &schema_name,
                                       const std::string &table_name,
                                       const std::string &column_name,
-                                      const Json_object &json_object);
+                                      const Json_object &json_object,
+                                      Error_context *context);
 
   /**
     Make a clone of the current histogram
@@ -468,7 +642,7 @@ class Histogram {
   /**
     @return the fraction of non-null values in the histogram.
   */
-  double get_non_null_values_frequency() const {
+  double get_non_null_values_fraction() const {
     return 1.0 - get_null_values_fraction();
   }
 };
@@ -516,12 +690,13 @@ Histogram *build_histogram(MEM_ROOT *mem_root, const Value_map<T> &value_map,
   @param columns Columns specified by the user.
   @param num_buckets The maximum number of buckets to create in each
          histogram.
+  @param data The histogram json literal for update
   @param results A map where the result of each operation is stored.
 
   @return false on success, true on error.
 */
-bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
-                      int num_buckets, results_map &results);
+bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
+                      int num_buckets, LEX_STRING data, results_map &results);
 
 /**
   Drop histograms for all columns in a given table.
@@ -531,9 +706,12 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   @param original_table_def Original table definition.
   @param results A map where the result of each operation is stored.
 
+  @note Assumes that caller owns exclusive metadata lock on the table,
+        so there is no need to lock individual statistics.
+
   @return false on success, true on error.
 */
-bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
+bool drop_all_histograms(THD *thd, Table_ref &table,
                          const dd::Table &original_table_def,
                          results_map &results);
 
@@ -546,12 +724,18 @@ bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
   @param thd Thread handler.
   @param table The table where we should look for the columns.
   @param columns Columns specified by the user.
+  @param needs_lock Whether we need to acquire metadata locks on
+                    the table and column statistics to be dropped.
   @param results A map where the result of each operation is stored.
+
+  @note In case when needs_lock parameter is false assumes that caller
+        owns exclusive metadata lock on the table, so there is no need
+        to lock individual statistics.
 
   @return false on success, true on error.
 */
-bool drop_histograms(THD *thd, const TABLE_LIST &table,
-                     const columns_set &columns, results_map &results);
+bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
+                     bool needs_lock, results_map &results);
 
 /**
   Rename histograms for all columns in a given table.

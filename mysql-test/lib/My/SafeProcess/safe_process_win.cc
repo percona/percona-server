@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@
 /// once it has done that it will continue to monitor the child as well
 /// as the parent.
 ///
-/// The safe_process then checks the follwing things:
-/// 1. Child exits, propagate the childs return code to the parent
+/// The safe_process then checks the following things:
+/// 1. Child exits, propagate the child's return code to the parent
 ///    by exiting with the same return code as the child.
 ///
 /// 2. Parent dies, immediately kill the child and exit, thus the
@@ -131,7 +131,7 @@ DWORD get_parent_pid(DWORD pid) {
 
   CloseHandle(snapshot);
 
-  if (parent_pid == -1) die("Could not find parent pid");
+  if (parent_pid == static_cast<DWORD>(-1)) die("Could not find parent pid");
 
   return parent_pid;
 }
@@ -255,8 +255,8 @@ int main(int argc, const char **argv) {
         (unsigned long)parent_pid);
 
   // Create the child process in a job
-  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
-  STARTUPINFO si = {0};
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {};
+  STARTUPINFO si = {};
   si.cb = sizeof(si);
 
   // Create the job object to make it possible to kill the process
@@ -324,9 +324,10 @@ int main(int argc, const char **argv) {
 
   BOOL jobobject_assigned = FALSE;
   BOOL process_created = FALSE;
-  PROCESS_INFORMATION process_info = {0};
+  PROCESS_INFORMATION process_info = {};
 
-  for (int i = 0; i < sizeof(create_flags) / sizeof(create_flags[0]); i++) {
+  for (unsigned int i = 0; i < sizeof(create_flags) / sizeof(create_flags[0]);
+       i++) {
     process_created = CreateProcess(
         NULL, (LPSTR)child_args, NULL, NULL, TRUE,  // Inherit handles
         CREATE_SUSPENDED | create_flags[i], NULL, NULL, &si, &process_info);

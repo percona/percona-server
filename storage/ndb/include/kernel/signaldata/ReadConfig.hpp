@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
  */
 class ReadConfigReq {
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -40,14 +40,17 @@ public:
   Uint32 parameters[1];  // see mgmapi_config_parameters.h
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_READ_CONFIG_REQ, Local);
+
 class ReadConfigConf {
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderRef;
   Uint32 senderData;
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_READ_CONFIG_CONF, Local);
 
 #undef JAM_FILE_ID
 

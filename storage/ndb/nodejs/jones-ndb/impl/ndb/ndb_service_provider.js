@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2014, 2022, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,7 @@ exports.loadRequiredModules = function() {
       "  libndbclient) will resolve the problem.\n\n";
       if(existsSync(gypConfigFile)) {
         try {
+	  /* 'utf8' here is a json, rather than MySQL, setting. */
           jsonconfig = fs.readFileSync(gypConfigFile, 'utf8');
           jsonconfig = JSON.parse(jsonconfig);
           libpath = path.join(jsonconfig.variables.mysql_path, "lib");

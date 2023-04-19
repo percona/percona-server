@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 
@@ -103,7 +104,7 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(
   decode(buf, len);
 }
 
-Pipeline_stats_member_message::~Pipeline_stats_member_message() {}
+Pipeline_stats_member_message::~Pipeline_stats_member_message() = default;
 
 int32 Pipeline_stats_member_message::get_transactions_waiting_certification() {
   DBUG_TRACE;
@@ -346,6 +347,12 @@ Pipeline_stats_member_collector::~Pipeline_stats_member_collector() {
   mysql_mutex_destroy(&m_transactions_waiting_apply_lock);
 }
 
+void Pipeline_stats_member_collector::clear_transactions_waiting_apply() {
+  mysql_mutex_lock(&m_transactions_waiting_apply_lock);
+  m_transactions_waiting_apply = 0;
+  mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
+}
+
 void Pipeline_stats_member_collector::increment_transactions_waiting_apply() {
   mysql_mutex_lock(&m_transactions_waiting_apply_lock);
   assert(m_transactions_waiting_apply.load() >= 0);
@@ -356,7 +363,6 @@ void Pipeline_stats_member_collector::increment_transactions_waiting_apply() {
 void Pipeline_stats_member_collector::decrement_transactions_waiting_apply() {
   mysql_mutex_lock(&m_transactions_waiting_apply_lock);
   if (m_transactions_waiting_apply.load() > 0) --m_transactions_waiting_apply;
-  assert(m_transactions_waiting_apply.load() >= 0);
   mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
 }
 
@@ -620,7 +626,8 @@ void Pipeline_member_stats::update_member_stats(
 }
 
 bool Pipeline_member_stats::is_flow_control_needed() {
-  return (m_flow_control_mode == FCM_QUOTA) &&
+  return (m_flow_control_mode == FCM_QUOTA ||
+          m_flow_control_mode == FCM_QUOTA_MAJORITY) &&
          (m_transactions_waiting_certification >
               get_flow_control_certifier_threshold_var() ||
           m_transactions_waiting_apply >
@@ -737,6 +744,56 @@ void Flow_control_module::flow_control_step(
     Pipeline_stats_member_collector *member) {
   if (--seconds_to_skip > 0) return;
 
+  if (get_auto_evict_timeout() > 0) {
+    auto it = m_info.end();
+    if (group_member_mgr != nullptr) {
+      auto ml = group_member_mgr->get_all_members();
+      auto local_uuid = local_member_info->get_uuid();
+      auto it2 = std::find_if(
+          ml->begin(), ml->end(),
+          [local_uuid](auto const &v) { return v->get_uuid() == local_uuid; });
+      if (it2 != ml->end()) {
+        it = m_info.find((*it2)->get_gcs_member_id().get_member_id());
+      }
+      for (Group_member_info *member : *ml) {
+        delete member;
+      }
+      delete ml;
+
+      std::string current_primary_uuid;
+      if (group_member_mgr->get_primary_member_uuid(current_primary_uuid)) {
+        if (current_primary_uuid == local_uuid) {
+          it = m_info.end();  // The primary node should never self-leave
+                              // because of flow control
+        }
+      }
+    }
+
+    if (it != m_info.end() && it->second.is_flow_control_needed()) {
+      m_flow_control_time += get_flow_control_period_var();
+    } else {
+      m_flow_control_time = 0;
+    }
+    if (m_flow_control_time > get_auto_evict_timeout()) {
+      const char *exit_state_action_abort_log_message =
+          "Flow control timeout value reached, leaving Group Replication.";
+      leave_group_on_failure::mask leave_actions;
+      /*
+        Only follow exit_state_action if we were already inside a group. We may
+        happen to come across an applier error during the startup of GR (i.e.
+        during the execution of the START GROUP_REPLICATION command). We must
+        not follow exit_state_action on that situation.
+      */
+      leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION,
+                        gcs_module->belongs_to_group());
+      leave_group_on_failure::leave(leave_actions,
+                                    ER_GRP_RPL_FLOW_CONTROL_TIMEOUT, nullptr,
+                                    exit_state_action_abort_log_message);
+      m_flow_control_time = 0;
+      return;
+    }
+  }
+
   int32 holds = m_holds_in_period.exchange(0);
   Flow_control_mode fcm =
       static_cast<Flow_control_mode>(get_flow_control_mode_var());
@@ -762,6 +819,7 @@ void Flow_control_module::flow_control_step(
   });
 
   switch (fcm) {
+    case FCM_QUOTA_MAJORITY:
     case FCM_QUOTA: {
       double HOLD_FACTOR =
           1.0 -
@@ -807,7 +865,8 @@ void Flow_control_module::flow_control_step(
             */
             m_info.erase(it++);
           } else {
-            if (it->second.get_flow_control_mode() == FCM_QUOTA) {
+            Flow_control_mode mode = it->second.get_flow_control_mode();
+            if (mode == FCM_QUOTA || mode == FCM_QUOTA_MAJORITY) {
               if (get_flow_control_certifier_threshold_var() > 0 &&
                   it->second.get_delta_transactions_certified() > 0 &&
                   it->second.get_transactions_waiting_certification() -
@@ -952,16 +1011,83 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
   /*
     Verify if flow control is required.
   */
-  if (it->second.is_flow_control_needed()) {
-    ++m_holds_in_period;
+  Flow_control_mode mode = message.get_flow_control_mode();
+
+  if (mode == FCM_QUOTA_MAJORITY) {
+    int members_needing_flow_control = 0;
+    int total_members = 0;
+    auto itr = m_info.begin();
+    while (itr != m_info.end()) {
+      total_members += 1;
+      if (itr->second.is_flow_control_needed()) {
+        members_needing_flow_control += 1;
 #ifndef NDEBUG
-    it->second.debug(it->first.c_str(), m_quota_size.load(),
-                     m_quota_used.load());
+        itr->second.debug(itr->first.c_str(), m_quota_size.load(),
+                          m_quota_used.load());
 #endif
+      }
+      itr++;
+    }
+    if (members_needing_flow_control > total_members / 2) {
+      ++m_holds_in_period;
+    }
+  } else if (mode == FCM_QUOTA) {
+    if (it->second.is_flow_control_needed()) {
+      ++m_holds_in_period;
+#ifndef NDEBUG
+      it->second.debug(it->first.c_str(), m_quota_size.load(),
+                       m_quota_used.load());
+#endif
+    }
   }
 
   m_flow_control_module_info_lock->unlock();
   return error;
+}
+
+void Flow_control_module::get_flow_control_stats(
+    group_replication_fc_stats &stats) {
+  int members_needing_flow_control{0};
+  int total_members{0};
+  bool add_separator{false};
+  std::ostringstream str;
+
+  /* Acquire read lock */
+  m_flow_control_module_info_lock->rdlock();
+  Flow_control_module_info::iterator it = m_info.begin();
+
+  while (it != m_info.end()) {
+    ++total_members;
+    if (it->second.is_flow_control_needed()) {
+      ++members_needing_flow_control;
+      if (add_separator) str << ",";
+      str << it->first;
+      add_separator = true;
+    }
+    ++it;
+  }
+
+  /* Release read lock */
+  m_flow_control_module_info_lock->unlock();
+
+  std::ostringstream tmp;
+  tmp << "(" << members_needing_flow_control << "/" << total_members << ")";
+  std::string status = str.str();
+  status = tmp.str() + status;
+  stats.nodes.assign(status);
+
+  int64 quota_size = m_quota_size.load();
+  tmp.str("");
+  tmp.clear();
+
+  if (quota_size > 0) {
+    tmp << "ACTIVE";
+    stats.quota = quota_size;
+  } else {
+    tmp << "DISABLED";
+    stats.quota = 0;
+  }
+  stats.active = tmp.str();
 }
 
 Pipeline_member_stats *Flow_control_module::get_pipeline_stats(

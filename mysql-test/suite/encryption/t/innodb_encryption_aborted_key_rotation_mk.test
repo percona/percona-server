@@ -1,3 +1,0 @@
-# Testing basic table's type
-let $t1_table_type=ENCRYPTION='Y';
---source innodb_encryption_aborted_key_rotation.inc

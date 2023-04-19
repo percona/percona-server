@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,8 @@ bool Raw_record_set::open() {
   }
 
   if (m_key)
-    rc = m_table->file->ha_index_read_idx_map(
-        m_table->record[0], m_key->index_no, m_key->key, m_key->keypart_map,
-        HA_READ_KEY_EXACT);
+    rc = m_table->file->ha_index_read_map(
+        m_table->record[0], m_key->key, m_key->keypart_map, HA_READ_KEY_EXACT);
   else
     rc = m_table->file->ha_index_first(m_table->record[0]);
 

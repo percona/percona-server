@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/log_resource.h"
-#include "sql/json_dom.h"
+#include "debug_sync.h"
+#include "sql-common/json_dom.h"
 
 int MY_ATTRIBUTE((visibility("default")))
     Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server() {
@@ -100,12 +101,23 @@ bool Log_resource_binlog_wrapper::collect_info() {
   return error;
 }
 
-void Log_resource_gtid_state_wrapper::lock() { global_sid_lock->wrlock(); }
+void Log_resource_gtid_state_wrapper::lock() {
+  DEBUG_SYNC(current_thd, "log_resource_gtid_lock");
+  mysql_mutex_lock(binlog->get_sync_lock());
+  mysql_mutex_lock(binlog->get_commit_lock());
+  global_sid_lock->wrlock();
+}
 
-void Log_resource_gtid_state_wrapper::unlock() { global_sid_lock->unlock(); }
+void Log_resource_gtid_state_wrapper::unlock() {
+  global_sid_lock->unlock();
+  mysql_mutex_unlock(binlog->get_commit_lock());
+  mysql_mutex_unlock(binlog->get_sync_lock());
+}
 
 bool Log_resource_gtid_state_wrapper::collect_info() {
   bool error = false;
+  mysql_mutex_assert_owner(binlog->get_sync_lock());
+  mysql_mutex_assert_owner(binlog->get_commit_lock());
   global_sid_lock->assert_some_wrlock();
 
   char *gtid_executed_string;
@@ -150,9 +162,10 @@ Log_resource *Log_resource_factory::get_wrapper(MYSQL_BIN_LOG *binlog,
 }
 
 Log_resource *Log_resource_factory::get_wrapper(Gtid_state *gtid_state,
+                                                MYSQL_BIN_LOG *binlog,
                                                 Json_dom *json) {
   Log_resource_gtid_state_wrapper *wrapper;
-  wrapper = new Log_resource_gtid_state_wrapper(gtid_state, json);
+  wrapper = new Log_resource_gtid_state_wrapper(gtid_state, binlog, json);
   return wrapper;
 }
 

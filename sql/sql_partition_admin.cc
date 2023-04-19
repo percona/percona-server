@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
   /* first Query_block (have special meaning for many of non-SELECTcommands) */
   Query_block *query_block = lex->query_block;
   /* first table of first Query_block */
-  TABLE_LIST *first_table = query_block->table_list.first;
+  Table_ref *first_table = query_block->get_table_list();
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -307,9 +307,9 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   @note This is a DDL operation so triggers will not be used.
 */
 bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
-    THD *thd, TABLE_LIST *table_list, Alter_info *alter_info) {
+    THD *thd, Table_ref *table_list, Alter_info *alter_info) {
   TABLE *part_table, *swap_table;
-  TABLE_LIST *swap_table_list;
+  Table_ref *swap_table_list;
   partition_element *part_elem;
   String *partition_name;
   uint swap_part_id;
@@ -391,7 +391,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   /* OK to exchange */
 
   /*
-    Get exclusive mdl lock on both tables, alway the non partitioned table
+    Get exclusive mdl lock on both tables, always the non partitioned table
     first. Remember the tickets for downgrading locks later.
   */
   auto downgrade_mdl_lambda = [thd](MDL_ticket *ticket) {
@@ -584,7 +584,7 @@ bool Sql_cmd_alter_table_repair_partition::execute(THD *thd) {
 bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   int error;
   ulong timeout = thd->variables.lock_wait_timeout;
-  TABLE_LIST *first_table = thd->lex->query_block->table_list.first;
+  Table_ref *first_table = thd->lex->query_block->get_table_list();
   uint table_counter;
   Partition_handler *part_handler = nullptr;
   handlerton *hton;
@@ -656,12 +656,20 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   /* Table was successfully opened above. */
   assert(table_def != nullptr);
 
+  Table_ddl_hton_notification_guard notification_guard{
+      thd, &first_table->mdl_request.key, ha_ddl_type::HA_TRUNCATE_DDL};
+
+  if (notification_guard.notify()) return true;
+
   if (table_def->options().exists("secondary_engine")) {
-    /* Truncate operation is not allowed for tables with secondary engine
-     * since it's not currently supported by change propagation
-     */
-    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
-    return true;
+    LEX_CSTRING secondary_engine;
+    table_def->options().get("secondary_engine", &secondary_engine,
+                             thd->mem_root);
+
+    if (!ha_secondary_engine_supports_ddl(thd, secondary_engine)) {
+      my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+      return true;
+    }
   }
 
   if (hton->partition_flags() & HA_TRUNCATE_PARTITION_PRECLOSE) {

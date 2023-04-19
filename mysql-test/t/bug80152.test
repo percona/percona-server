@@ -2,21 +2,21 @@
 # Bug #22602324 / #80152 "handle_fatal_signal (sig=11) in Trace::function_enter"
 # fixed in 5.7.13, 5.8.0
 # Replication: Setting certain semisynchronous-replication configurations on
-# the master server when semisynchronous replication was not enabled on it
+# the source server when semisynchronous replication was not enabled on it
 # might cause the server to exit. This fix prevents the unexpected exits to
 # occur in the situation.
 #
 --source include/have_semisync_plugin.inc
 
---let $semisync_master_enabled = OFF
---source include/install_semisync_master.inc
+--let $semisync_source_enabled = OFF
+--source include/install_semisync_source.inc
 
-SET @saved_rpl_semi_sync_master_wait_no_slave = @@global.rpl_semi_sync_master_wait_no_slave;
+SET @saved_rpl_semi_sync_source_wait_no_replica = @@global.rpl_semi_sync_source_wait_no_replica;
 
-SET GLOBAL rpl_semi_sync_master_wait_no_slave = 0;
-SET GLOBAL rpl_semi_sync_master_wait_no_slave = 1;
-SET GLOBAL rpl_semi_sync_master_wait_no_slave = 0;
+SET GLOBAL rpl_semi_sync_source_wait_no_replica = 0;
+SET GLOBAL rpl_semi_sync_source_wait_no_replica = 1;
+SET GLOBAL rpl_semi_sync_source_wait_no_replica = 0;
 
-SET GLOBAL rpl_semi_sync_master_wait_no_slave = @saved_rpl_semi_sync_master_wait_no_slave;
+SET GLOBAL rpl_semi_sync_source_wait_no_replica = @saved_rpl_semi_sync_source_wait_no_replica;
 
---source include/uninstall_semisync_master.inc
+--source include/uninstall_semisync_source.inc

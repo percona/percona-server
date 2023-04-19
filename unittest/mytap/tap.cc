@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@
 #define vsnprintf _vsnprintf
 #endif
 
-static void handle_core_signal(int signo) MY_ATTRIBUTE((noreturn));
+[[noreturn]] static void handle_core_signal(int signo);
 static void vemit_tap(int pass, char const *fmt, va_list ap)
     MY_ATTRIBUTE((format(printf, 2, 0)));
 

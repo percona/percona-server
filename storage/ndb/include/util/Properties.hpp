@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef PROPERTIES_HPP
 #define PROPERTIES_HPP
 
+#include <string_view>
 #include <ndb_global.h>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
@@ -49,6 +50,7 @@ struct Property {
   Property(const char* name, Uint32 val);
   Property(const char* name, Uint64 val);
   Property(const char* name, const char * value);
+  Property(const char* name, std::string_view value);
   Property(const char* name, const class Properties * value);
   // We have no copy or move constructors so delete also assignment operator.
   Property& operator=(const Property&) = delete;
@@ -65,7 +67,8 @@ private:
  */
 class Properties {
 public:
-  static const char delimiter;
+  static constexpr char delimiter = ':';
+  static constexpr char truncated_prefix_mark[] = "...:";
   static const char version[];
 
   Properties(bool case_insensitive= false);
@@ -75,9 +78,9 @@ public:
   virtual ~Properties();
 
   /**
-   * Set/Get wheather names in the Properties should be compared 
+   * Set/Get whether names in the Properties should be compared 
    * w/o case.
-   * NOTE: The property is automatically applied to all propoerties put
+   * NOTE: The property is automatically applied to all properties put
    *       into this after a called to setCaseInsensitiveNames has been made
    *       But properties already in when calling setCaseInsensitiveNames will
    *       not be affected
@@ -93,8 +96,10 @@ public:
   bool put(const char * name, Uint32 value, bool replace = false);
   bool put64(const char * name, Uint64 value, bool replace = false);
   bool put(const char * name, const char * value, bool replace = false);
+  bool put(const char * name, std::string_view value, bool replace = false);
   bool put(const char * name, const Properties * value, bool replace = false);
   bool append(const char * name, const char * value);
+  bool append(const char * name, std::string_view value);
 
   /**
    * Same as put above,
@@ -104,6 +109,7 @@ public:
   bool put(const char *, Uint32 no, Uint32, bool replace = false);
   bool put64(const char *, Uint32 no, Uint64, bool replace = false);
   bool put(const char *, Uint32 no, const char *, bool replace = false);
+  bool put(const char *, Uint32 no, std::string_view, bool replace = false);
   bool put(const char *, Uint32 no, const Properties *, bool replace = false);
 
 
@@ -140,7 +146,7 @@ public:
 
   void remove(const char * name);
   
-  void print(FILE * file = stdout, const char * prefix = 0) const;
+  void print(FILE * file = stdout, const char * prefix = nullptr) const;
   /**
    *  Iterator over names 
    */
@@ -157,23 +163,20 @@ public:
     class IteratorImpl *m_iterImpl;
   };
   friend class Properties::Iterator;
-
-  Uint32 getPackedSize() const;
-  bool unpack(const Uint32 * buf, Uint32 bufLen);
-  bool unpack(UtilBuffer &buf);
   
   Uint32 getPropertiesErrno() const { return propErrno; }
   Uint32 getOSErrno() const { return osErrno; }
 
-private:
-  Uint32 propErrno;
-  Uint32 osErrno;
+ private:
+  //  Get methods that fail may set error code without changing property
+  mutable Uint32 propErrno;
+  mutable Uint32 osErrno;
 
   friend class PropertiesImpl;
-  class PropertiesImpl * impl;
-  class Properties * parent;
+  class PropertiesImpl *impl;
+  class Properties *parent;
 
-  void setErrno(Uint32 pErr, Uint32 osErr = 0) const ;
+  void setErrno(Uint32 pErr, Uint32 osErr = 0) const;
 };
 
 /**
@@ -206,47 +209,10 @@ extern const Uint32 E_PROPERTIES_INVALID_TYPE;
 extern const Uint32 E_PROPERTIES_ELEMENT_ALREADY_EXISTS;
 
 /**
- * Invalid version on properties file you are trying to read
- */
-extern const Uint32 E_PROPERTIES_INVALID_VERSION_WHILE_UNPACKING;
-
-/**
- * When unpacking an buffer
- *  found that buffer is to short
- *
- * Probably an invlaid buffer
- */
-extern const Uint32 E_PROPERTIES_INVALID_BUFFER_TO_SHORT;
-
-/**
- * Error when packing, can not allocate working buffer
- *   
- * Note: OS error is set
- */
-extern const Uint32 E_PROPERTIES_ERROR_MALLOC_WHILE_PACKING;
-
-/**
  * Error when unpacking, can not allocate working buffer
  *   
  * Note: OS error is set
  */
 extern const Uint32 E_PROPERTIES_ERROR_MALLOC_WHILE_UNPACKING;
-
-/**
- * Error when unpacking, invalid checksum
- *   
- */
-extern const Uint32 E_PROPERTIES_INVALID_CHECKSUM;
-
-/**
- * Error when unpacking
- *   No of items > 0 while size of buffer (left) <= 0
- */
-extern const Uint32 E_PROPERTIES_BUFFER_TO_SMALL_WHILE_UNPACKING;
-
-inline bool
-Properties::unpack(UtilBuffer &buf) {
-  return unpack((const Uint32 *)buf.get_data(), buf.length());
-}
 
 #endif

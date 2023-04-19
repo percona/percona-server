@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,9 +79,9 @@ static const size_t MAX_QUERY_LENGTH = 300;
 /**
   Connects Information_Schema and Profiling.
 */
-int fill_query_profile_statistics_info(
-    THD *thd MY_ATTRIBUTE((unused)), TABLE_LIST *tables MY_ATTRIBUTE((unused)),
-    Item *) {
+int fill_query_profile_statistics_info(THD *thd [[maybe_unused]],
+                                       Table_ref *tables [[maybe_unused]],
+                                       Item *) {
 #if defined(ENABLED_PROFILING)
   const char *old = thd->lex->sql_command == SQLCOM_SHOW_PROFILE
                         ? "SHOW PROFILE"
@@ -724,7 +724,7 @@ int PROFILING::print_current(IO_CACHE *log_file) const noexcept {
   There are two ways to get to this function:  Selecting from the information
   schema, and a SHOW command.
 */
-int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables) {
+int PROFILING::fill_statistics_info(THD *thd_arg, Table_ref *tables) {
   DBUG_TRACE;
   TABLE *table = tables->table;
   ulonglong row_number = 0;

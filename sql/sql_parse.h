@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,16 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <array>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
-#include "mysql_com.h"    // enum_server_command
-#include "sql/handler.h"  // enum_schema_tables
+#include "mysql_com.h"             // enum_server_command
+#include "sql/handler.h"           // enum_schema_tables
+#include "sql/system_variables.h"  // System_variables
+#include "storage/perfschema/terminology_use_previous_enum.h"
 
 struct mysql_rwlock_t;
 template <typename T>
@@ -52,7 +55,7 @@ struct LEX;
 struct LEX_USER;
 struct ORDER;
 struct Parse_context;
-struct TABLE_LIST;
+class Table_ref;
 union COM_DATA;
 
 extern "C" int test_if_data_home_dir(const char *dir);
@@ -114,9 +117,9 @@ int append_file_to_dir(THD *thd, const char **filename_ptr,
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_lock);
 void add_to_list(SQL_I_List<ORDER> &list, ORDER *order);
-void add_join_on(TABLE_LIST *b, Item *expr);
-bool push_new_name_resolution_context(Parse_context *pc, TABLE_LIST *left_op,
-                                      TABLE_LIST *right_op);
+void add_join_on(Table_ref *b, Item *expr);
+bool push_new_name_resolution_context(Parse_context *pc, Table_ref *left_op,
+                                      Table_ref *right_op);
 void init_sql_command_flags(void);
 const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs);
 void killall_non_super_threads(THD *thd);
@@ -126,14 +129,181 @@ bool show_precheck(THD *thd, LEX *lex, bool lock);
 /* Variables */
 
 extern uint sql_command_flags[];
-extern const LEX_CSTRING command_name[];
 
-size_t get_command_name_len(void);
+/**
+  Map from enumeration values of type enum_server_command to
+  descriptions of type std::string.
+
+  In this context, a "command" is a type code for a remote procedure
+  call in the client-server protocol; for instance, a "connect" or a
+  "ping" or a "query".
+
+  The getter functions use @@terminology_use_previous to
+  decide which version of the name to use, for names that depend on
+  it.
+*/
+class Command_names {
+ private:
+  /**
+    Array indexed by enum_server_command, where each element is a
+    description string.
+  */
+  static const std::array<const std::string, COM_END + 1> m_names;
+  /**
+    Command whose name depends on @@terminology_use_previous.
+
+    Currently, there is only one such command, so we use a single
+    member variable.  In case we ever change any other command name
+    and control the use of the old or new name using
+    @@terminology_use_previous, we need to change the
+    following three members into some collection type, e.g.,
+    std::unordered_set.
+  */
+  static constexpr enum_server_command m_replace_com{COM_REGISTER_SLAVE};
+  /**
+    Name to use when compatibility is enabled.
+  */
+  static const std::string m_replace_str;
+  /**
+    The version when the name was changed.
+  */
+  static constexpr terminology_use_previous::enum_compatibility_version
+      m_replace_version{terminology_use_previous::BEFORE_8_0_26};
+  /**
+    Given a system_variable object, returns the string to use for
+    m_replace_com, according to the setting of
+    terminology_use_previous stored in the object.
+
+    @param sysvars The System_variables object holding the
+    configuration that should be considered when doing the translation.
+
+    @return The instrumentation name that was in use in the configured
+    version, for m_replace_com.
+  */
+  static const std::string &translate(const System_variables &sysvars);
+  /**
+    Cast an integer to enum_server_command, and assert it is in range.
+
+    @param cmd The integer value
+    @return The enum_server_command
+  */
+  static enum_server_command int_to_cmd(int cmd) {
+    assert(cmd >= 0);
+    assert(cmd <= COM_END);
+    return static_cast<enum_server_command>(cmd);
+  }
+
+ public:
+  /**
+    Return a description string for a given enum_server_command.
+
+    This bypasses @@terminology_use_previous and acts as if
+    it was set to NONE.
+
+    @param cmd The enum_server_command
+    @retval The description string
+  */
+  static const std::string &str_notranslate(enum_server_command cmd) {
+    return m_names[cmd];
+  }
+  /**
+    Return a description string for an integer that is the numeric
+    value of an enum_server_command.
+
+    This bypasses @@terminology_use_previous and acts as if
+    it was set to NONE.
+
+    @param cmd The integer value
+    @retval The description string
+  */
+  static const std::string &str_notranslate(int cmd) {
+    return str_notranslate(int_to_cmd(cmd));
+  }
+  /**
+    Return a description string for a given enum_server_command.
+
+    This takes @@session.terminology_use_previous into
+    account, and returns an old name if one has been defined and the
+    option is enabled.
+
+    @param cmd The enum_server_command
+    @retval The description string
+  */
+  static const std::string &str_session(enum_server_command cmd);
+  /**
+    Return a description string for a given enum_server_command.
+
+    This takes @@global.terminology_use_previous into
+    account, and returns an old name if one has been defined and the
+    option is enabled.
+
+    @param cmd The enum_server_command
+    @retval The description string
+  */
+  static const std::string &str_global(enum_server_command cmd);
+  /**
+    Return a description string for an integer that is the numeric
+    value of an enum_server_command.
+
+    This takes @@session.terminology_use_previous into
+    account, and returns an old name if one has been defined and the
+    option is enabled.
+
+    @param cmd The integer value
+    @retval The description string
+  */
+  static const std::string &str_session(int cmd) {
+    return str_session(int_to_cmd(cmd));
+  }
+
+  /**
+   * Return an enum_server_command corresponding to command string description.
+   * The COM_END is returned in case the command is unknown.
+   *
+   * @param cmd_name The description string
+   * @return The enum_server_command corresponding to the description string
+   */
+  static enum_server_command get_index_by_str_name(const std::string cmd_name) {
+    for (size_t i = 0; i < m_names.size(); ++i) {
+      if (m_names[i] == cmd_name) {
+        return static_cast<enum_server_command>(i);
+      }
+    }
+
+    return COM_END;
+  }
+};
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
-bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
-bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
+/**
+  @brief This function checks if the sql_command is one that identifies the
+  boundaries (begin, end or savepoint) of a transaction.
+
+  @note this is used for replication purposes.
+
+  @param command The parsed SQL_COMM to check.
+  @return true if this is either a BEGIN, COMMIT, SAVEPOINT, ROLLBACK,
+  ROLLBACK_TO_SAVEPOINT.
+  @return false any other SQL command.
+ */
+bool is_normal_transaction_boundary_stmt(enum enum_sql_command command);
+
+/**
+  @brief This function checks if the sql_command is one that identifies the
+  boundaries (begin, end or savepoint) of an XA transaction. It does not
+  consider PREPARE statements.
+
+  @note this is used for replication purposes.
+
+  @param command The parsed SQL_COMM to check.
+  @return true if this is either a XA_START, XA_END, XA_COMMIT, XA_ROLLBACK.
+  @return false any other SQL command.
+ */
+bool is_xa_transaction_boundary_stmt(enum enum_sql_command command);
+
+bool all_tables_not_ok(THD *thd, Table_ref *tables);
+bool some_non_temp_table_to_be_updated(THD *thd, Table_ref *tables);
 
 // TODO: remove after refactoring of ALTER DATABASE:
 bool set_default_charset(HA_CREATE_INFO *create_info,

@@ -1,7 +1,7 @@
 #ifndef SQL_TRUNCATE_INCLUDED
 #define SQL_TRUNCATE_INCLUDED
 
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 
 class MDL_ticket;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 struct handlerton;
 
 using Up_table = std::unique_ptr<dd::Table>;
@@ -51,9 +51,9 @@ class Sql_cmd_truncate_table : public Sql_cmd {
   /**
     Constructor, used to represent a TRUNCATE statement.
   */
-  Sql_cmd_truncate_table() {}
+  Sql_cmd_truncate_table() = default;
 
-  ~Sql_cmd_truncate_table() override {}
+  ~Sql_cmd_truncate_table() override = default;
 
   bool execute(THD *) override;
 
@@ -61,19 +61,19 @@ class Sql_cmd_truncate_table : public Sql_cmd {
 
  private:
   /* Handle locking a base table for truncate. */
-  bool lock_table(THD *, TABLE_LIST *);
+  bool lock_table(THD *, Table_ref *);
 
   /*
     Optimized delete of all rows by doing a full regenerate of the table.
     Depending on the storage engine, it can be accomplished through a
     drop and recreate or via the handler truncate method.
   */
-  void truncate_base(THD *, TABLE_LIST *);
-  void truncate_temporary(THD *, TABLE_LIST *);
+  void truncate_base(THD *, Table_ref *);
+  void truncate_temporary(THD *, Table_ref *);
 
   void end_transaction(THD *, bool, bool);
   void cleanup_base(THD *, const handlerton *);
-  void cleanup_temporary(THD *, handlerton *, const TABLE_LIST &, Up_table *,
+  void cleanup_temporary(THD *, handlerton *, const Table_ref &, Up_table *,
                          const std::string &);
 };
 

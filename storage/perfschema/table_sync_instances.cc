@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -202,8 +202,8 @@ int table_mutex_instances::make_row(PFS_mutex *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
   m_row.m_identity = pfs->m_identity;
 
   /* Protect this reader against a mutex unlock */
@@ -234,7 +234,7 @@ int table_mutex_instances::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 1: /* OBJECT_INSTANCE */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
@@ -416,8 +416,8 @@ int table_rwlock_instances::make_row(PFS_rwlock *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
   m_row.m_identity = pfs->m_identity;
 
   /* Protect this reader against a rwlock unlock in the writer */
@@ -450,7 +450,7 @@ int table_rwlock_instances::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 1: /* OBJECT_INSTANCE */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
@@ -620,8 +620,8 @@ int table_cond_instances::make_row(PFS_cond *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
   m_row.m_identity = pfs->m_identity;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
@@ -642,7 +642,7 @@ int table_cond_instances::read_row_values(TABLE *table, unsigned char *,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 1: /* OBJECT_INSTANCE */
           set_field_ulonglong(f, (intptr)m_row.m_identity);

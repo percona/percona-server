@@ -8,11 +8,17 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t1 (a) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06390645064400BB USING utf8mb3));
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (0xAEA5);
 Warnings:
 Warning	1366	Incorrect string value: '\xAE\xA5' for column 'a' at row 1
 INSERT INTO t1 VALUES (_ucs2 0x0184),(_ucs2 0x0185),(_ucs2 0x0186),(_ucs2 0x0187);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET @@session.max_join_size = 8;
 INSERT INTO t1 VALUES (Point(-1*0e0, -1*0e0)), (Point(0, 0));
 Warnings:

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ public:
    * Below we define the variants of 'AnySectionArg' which may
    * be used to call the templated ::pack(). Required as the
    * SegmentedSection variant also need the extra 'Pool' parameter,
-   * and the C++ 11 'variadic template' feature cant be used yet.
+   * and the C++ 11 'variadic template' feature can't be used yet.
    */
   class LinearSectionArg
   {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +47,10 @@
 
 NdbInterpretedCode::NdbInterpretedCode(const NdbDictionary::Table *table,
                                        Uint32 *buffer, Uint32 buffer_word_size) :
-  m_table_impl(NULL),
+  m_table_impl(nullptr),
   m_buffer(buffer),
   m_buffer_length(buffer_word_size),
-  m_internal_buffer(NULL),
+  m_internal_buffer(nullptr),
   m_number_of_labels(0),
   m_number_of_subs(0),
   m_number_of_calls(0),
@@ -58,16 +58,18 @@ NdbInterpretedCode::NdbInterpretedCode(const NdbDictionary::Table *table,
   m_instructions_length(0),
   m_first_sub_instruction_pos(0),
   m_available_length(m_buffer_length),
-  m_flags(0)
+  m_flags(0),
+  m_error(),
+  m_unknown_action(CmpHasNoUnknowns)
 {
-  if (table != NULL)
+  if (table != nullptr)
     m_table_impl= & NdbTableImpl::getImpl(*table);
   m_error.code= 0;
 }
 
 NdbInterpretedCode::NdbInterpretedCode(const NdbRecord &record, Uint32 *buffer,
                                        Uint32 buffer_word_size) :
-  NdbInterpretedCode(NULL, buffer, buffer_word_size)
+  NdbInterpretedCode(nullptr, buffer, buffer_word_size)
 {
   m_table_impl = record.table;
 }
@@ -75,24 +77,30 @@ NdbInterpretedCode::NdbInterpretedCode(const NdbRecord &record, Uint32 *buffer,
 
 NdbInterpretedCode::~NdbInterpretedCode()
 {
-  if (m_internal_buffer != NULL)
+  if (m_internal_buffer != nullptr)
   {
     delete [] m_internal_buffer;
   }
 }
 
 void
+NdbInterpretedCode::set_sql_null_semantics(UnknownHandling unknown_action)
+{
+  m_unknown_action = unknown_action;
+}
+
+void
 NdbInterpretedCode::reset()
 {
-  if (m_internal_buffer != NULL)
+  if (m_internal_buffer != nullptr)
   {
     if (m_buffer == m_internal_buffer)
     {
-      m_buffer = NULL;
+      m_buffer = nullptr;
       m_buffer_length = 0;
     }
     delete [] m_internal_buffer;
-    m_internal_buffer = NULL;
+    m_internal_buffer = nullptr;
   }
   m_number_of_labels = 0;
   m_number_of_subs = 0;
@@ -128,7 +136,7 @@ NdbInterpretedCode::have_space_for(Uint32 wordsRequired)
   if (likely(m_available_length >= wordsRequired))
     return true;
 
-  if ((m_internal_buffer != NULL) || (m_buffer_length == 0))
+  if ((m_internal_buffer != nullptr) || (m_buffer_length == 0))
   {
     Uint32 newSize= m_buffer_length;
     const Uint32 extraRequired= wordsRequired - m_available_length; 
@@ -153,7 +161,7 @@ NdbInterpretedCode::have_space_for(Uint32 wordsRequired)
     {
       Uint32 *newBuf= new Uint32[ newSize ];
       
-      if (newBuf != NULL)
+      if (newBuf != nullptr)
       {
         Uint32 metaInfoWords= m_buffer_length - m_last_meta_pos;
         Uint32 newLastMetaInfoPos= newSize - metaInfoWords;
@@ -223,8 +231,7 @@ NdbInterpretedCode::add3(Uint32 x1, Uint32 x2, Uint32 x3)
   return 0;
 }
 
-inline int 
-NdbInterpretedCode::addN(Uint32 *data, Uint32 length)
+inline int NdbInterpretedCode::addN(const Uint32 *data, Uint32 length)
 {
   if (likely(length > 0))
   {
@@ -314,11 +321,11 @@ NdbInterpretedCode::read_attr_impl(const NdbColumnImpl *c, Uint32 RegDest)
 int
 NdbInterpretedCode::read_attr(Uint32 RegDest, Uint32 attrId)
 {
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
-  if (unlikely(c == NULL))
+  if (unlikely(c == nullptr))
     return error(BadAttributeId);
   return read_attr_impl(c, RegDest);
 }
@@ -327,7 +334,7 @@ int
 NdbInterpretedCode::read_attr(Uint32 RegDest, 
                               const NdbDictionary::Column *column)
 {
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   // TODO : Check column is from the correct table
@@ -345,11 +352,11 @@ NdbInterpretedCode::write_attr_impl(const NdbColumnImpl *c, Uint32 RegSource)
 int
 NdbInterpretedCode::write_attr(Uint32 attrId, Uint32 RegSource)
 {
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
-  if (unlikely(c == NULL))
+  if (unlikely(c == nullptr))
     return error(BadAttributeId);
   return write_attr_impl(c, RegSource);
 }
@@ -358,7 +365,7 @@ int
 NdbInterpretedCode::write_attr(const NdbDictionary::Column *column,
                                Uint32 RegSource)
 {
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   // TODO : Check column is from the right table
@@ -384,23 +391,20 @@ NdbInterpretedCode::def_label(int LabelNum)
   return addMeta(info);
 }
 
-int 
-NdbInterpretedCode::add_branch(Uint32 instruction, Uint32 Label)
+int NdbInterpretedCode::add_branch(Uint32 instruction, Uint32 label)
 {
   /* We store the instruction with the label as the offset
    * rather than the correct offset.
    * This is corrected at finalise() time when we know
    * the correct offset for the code
    */
-  if (unlikely(Label > 0xffff))
-    return error(BranchToBadLabel);
-  return add1(instruction | Label << 16);
+  if (unlikely(label > 0xffff)) return error(BranchToBadLabel);
+  return add1(instruction | label << 16);
 }
 
-int
-NdbInterpretedCode::branch_label(Uint32 Label)
+int NdbInterpretedCode::branch_label(Uint32 label)
 {
-  return add_branch(Interpreter::BRANCH, Label);
+  return add_branch(Interpreter::BRANCH, label);
 }
 
 /* For the following inequalities, the order of the 
@@ -409,116 +413,112 @@ NdbInterpretedCode::branch_label(Uint32 Label)
  * This ensures that the comparison is Lvalue <cond> Rvalue,
  * not Rvalue <cond> Lvalue.
  */
-int
-NdbInterpretedCode::branch_ge(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_ge(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_GE_REG_REG,
                                      RegRvalue, RegLvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_gt(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_gt(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_GT_REG_REG,
                                      RegRvalue, RegLvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_le(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_le(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_LE_REG_REG,
                                      RegRvalue, RegLvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_lt(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_lt(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_LT_REG_REG,
                                      RegRvalue, RegLvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_eq(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_eq(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_EQ_REG_REG,
                                      RegLvalue, RegRvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_ne(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_ne(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_NE_REG_REG,
                                      RegLvalue, RegRvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_ne_null(Uint32 RegLvalue, Uint32 Label)
+int NdbInterpretedCode::branch_ne_null(Uint32 RegLvalue, Uint32 label)
 {
-  return add_branch
-    (((RegLvalue % MaxReg) << 6) | Interpreter::BRANCH_REG_NE_NULL, Label);
+  return add_branch(
+      ((RegLvalue % MaxReg) << 6) | Interpreter::BRANCH_REG_NE_NULL, label);
 }
 
-int
-NdbInterpretedCode::branch_eq_null(Uint32 RegLvalue, Uint32 Label)
+int NdbInterpretedCode::branch_eq_null(Uint32 RegLvalue, Uint32 label)
 {
-  return add_branch
-    (((RegLvalue % MaxReg) << 6) | Interpreter::BRANCH_REG_EQ_NULL, Label);
+  return add_branch(
+      ((RegLvalue % MaxReg) << 6) | Interpreter::BRANCH_REG_EQ_NULL, label);
 }
 
-int
-NdbInterpretedCode::branch_col_eq_null(Uint32 attrId, Uint32 Label)
+int NdbInterpretedCode::branch_col_eq_null(Uint32 attrId, Uint32 label)
 {
   int res= 0;
 
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
 
-  if (unlikely(c == NULL))
+  if (unlikely(c == nullptr))
     return error(BadAttributeId);
 
   if (c->m_storageType == NDB_STORAGETYPE_DISK)
     m_flags|= UsesDisk;
   
   /* Add instruction and branch label */
-  if ((res= add_branch(Interpreter::BRANCH_ATTR_EQ_NULL, Label)) !=0)
+  if ((res = add_branch(Interpreter::BRANCH_ATTR_EQ_NULL, label)) != 0)
     return res;
 
   /* Add attrId with no length */
   return add1(Interpreter::BranchCol_2(attrId));
 }
 
-int
-NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 Label)
+int NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 label)
 {
   int res= 0;
 
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     return error(4538);
   const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
 
-  if (unlikely(c == NULL))
+  if (unlikely(c == nullptr))
     return error(BadAttributeId);
 
   if (c->m_storageType == NDB_STORAGETYPE_DISK)
     m_flags|= UsesDisk;
 
   /* Add instruction and branch label */
-  if ((res= add_branch(Interpreter::BRANCH_ATTR_NE_NULL, Label)) !=0)
+  if ((res = add_branch(Interpreter::BRANCH_ATTR_NE_NULL, label)) != 0)
     return res;
 
   /* Add attrId with no length */
@@ -526,36 +526,36 @@ NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 Label)
 }
 
 int
-NdbInterpretedCode::branch_col(Uint32 branch_type,
-                               Uint32 attrId,
-                               const void * val,
-                               Uint32 len,
-                               Uint32 label)
+NdbInterpretedCode::branch_col_val(Uint32 branch_type,
+                                   Uint32 attrId,
+                                   const void * val,
+                                   Uint32 len,
+                                   Uint32 label)
 {
-  DBUG_ENTER("NdbInterpretedCode::branch_col");
+  DBUG_ENTER("NdbInterpretedCode::branch_col_val");
   DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
                        branch_type, attrId, val, len, label));
-  if (val != NULL)
-    DBUG_DUMP("value", (uchar*)val, len);
+  if (val != nullptr)
+    DBUG_DUMP("value", (const uchar *)val, len);
   else
     DBUG_PRINT("info", ("value == NULL"));
 
   Interpreter::BinaryCondition cond =
     (Interpreter::BinaryCondition)branch_type;
   
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     DBUG_RETURN(error(4538));
 
   const NdbColumnImpl * col = 
     m_table_impl->getColumn(attrId);
   
-  if(col == NULL){
+  if(col == nullptr){
     DBUG_RETURN(error(BadAttributeId));
   }
 
   Uint32 lastWordMask= ~0;
-  if (val == NULL)
+  if (val == nullptr)
     len = 0;
   else {
     if (! col->getStringType())
@@ -593,7 +593,15 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
   if (col->m_storageType == NDB_STORAGETYPE_DISK)
     m_flags|= UsesDisk;
 
-  if (add_branch(Interpreter::BranchCol(cond, 0, 0), label) != 0)
+  Interpreter::NullSemantics nulls = Interpreter::NULL_CMP_EQUAL;
+  if (m_unknown_action == CmpHasNoUnknowns)
+    nulls = Interpreter::NULL_CMP_EQUAL;
+  else if (m_unknown_action == BranchIfUnknown)
+    nulls = Interpreter::IF_NULL_BREAK_OUT;
+  else  // ContinueIfUnknown
+    nulls = Interpreter::IF_NULL_CONTINUE;
+
+  if (add_branch(Interpreter::BranchCol(cond, nulls), label) != 0)
     DBUG_RETURN(-1);
 
   if (add1(Interpreter::BranchCol_2(attrId, len)) != 0)
@@ -604,38 +612,37 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
   if((len2 == len)  && (lastWordMask == (Uint32)~0))
   {
     /* Whole number of 32-bit words */
-    DBUG_RETURN(addN((Uint32*)val, len2 >> 2));
+    DBUG_RETURN(addN((const Uint32 *)val, len2 >> 2));
   } 
 
   /* else */
   /* Partial last word */
   len2 -= 4;
-  if (addN((Uint32*)val, len2 >> 2) != 0)
-    DBUG_RETURN(-1);
-  
+  if (addN((const Uint32 *)val, len2 >> 2) != 0) DBUG_RETURN(-1);
+
   /* Zero insignificant bytes in last word */
   Uint32 tmp = 0;
   for (Uint32 i = 0; i < len-len2; i++) {
     char* p = (char*)&tmp;
-    p[i] = ((char*)val)[len2+i];
+    p[i] = ((const char *)val)[len2 + i];
   }
   DBUG_RETURN(add1((tmp & lastWordMask)));
 }
 
 int
-NdbInterpretedCode::branch_col(Uint32 branch_type,
-                               Uint32 attrId1,
-                               Uint32 attrId2,
-                               Uint32 label)
+NdbInterpretedCode::branch_col_col(Uint32 branch_type,
+                                   Uint32 attrId1,
+                                   Uint32 attrId2,
+                                   Uint32 label)
 {
-  DBUG_ENTER("NdbInterpretedCode::branch_col");
+  DBUG_ENTER("NdbInterpretedCode::branch_col_col");
   DBUG_PRINT("enter", ("type: %u  col1:%u  col2:%u  label: %u",
                        branch_type, attrId1, attrId2, label));
   const Interpreter::BinaryCondition cond =
     (Interpreter::BinaryCondition)branch_type;
   assert(cond != Interpreter::LIKE && cond != Interpreter::NOT_LIKE);
 
-  if (unlikely(m_table_impl == NULL))
+  if (unlikely(m_table_impl == nullptr))
     /* NdbInterpretedCode instruction requires that table is set */
     DBUG_RETURN(error(4538));
 
@@ -657,7 +664,15 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
       col2->m_storageType == NDB_STORAGETYPE_DISK)
     m_flags|= UsesDisk;
 
-  if (add_branch(Interpreter::BranchColAttrId(cond), label) != 0)
+  Interpreter::NullSemantics nulls = Interpreter::NULL_CMP_EQUAL;
+  if (m_unknown_action == CmpHasNoUnknowns)
+    nulls = Interpreter::NULL_CMP_EQUAL;
+  else if (m_unknown_action == BranchIfUnknown)
+    nulls = Interpreter::IF_NULL_BREAK_OUT;
+  else  // ContinueIfUnknown
+    nulls = Interpreter::IF_NULL_CONTINUE;
+
+  if (add_branch(Interpreter::BranchColAttrId(cond, nulls), label) != 0)
     DBUG_RETURN(-1);
 
   if (add1(Interpreter::BranchColAttrId_2(attrId1, attrId2)) != 0)
@@ -666,112 +681,133 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
   DBUG_RETURN(0);
 }
 
-int 
-NdbInterpretedCode::branch_col_eq(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
-{
-  return branch_col(Interpreter::EQ, attrId, val, 0, Label);
-}
-
-int 
-NdbInterpretedCode::branch_col_ne(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
-{
-  return branch_col(Interpreter::NE, attrId, val, 0, Label);
-}
-
-int 
-NdbInterpretedCode::branch_col_lt(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
-{
-  return branch_col(Interpreter::LT, attrId, val, 0, Label);
-}
-
-int 
-NdbInterpretedCode::branch_col_le(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
-{
-  return branch_col(Interpreter::LE, attrId, val, 0, Label);
-}
-
-int 
-NdbInterpretedCode::branch_col_gt(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
-{
-  return branch_col(Interpreter::GT, attrId, val, 0, Label);
-}
-
-int 
-NdbInterpretedCode::branch_col_ge(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
-{
-  return branch_col(Interpreter::GE, attrId, val, 0, Label);
-}
-
-int 
-NdbInterpretedCode::branch_col_like(const void * val, 
-                                    Uint32 len,
-                                    Uint32 attrId,
-                                    Uint32 Label)
-{
-  return branch_col(Interpreter::LIKE, attrId, val, len, Label);
-}
-
-int 
-NdbInterpretedCode::branch_col_notlike(const void * val, 
-                                       Uint32 len,
-                                       Uint32 attrId,
-                                       Uint32 Label)
-{
-  return branch_col(Interpreter::NOT_LIKE, attrId, val, len, Label);
-}
-
 int
-NdbInterpretedCode::branch_col_and_mask_eq_mask(const void * mask,
-                                                Uint32 len,
-                                                Uint32 attrId,
-                                                Uint32 label)
+NdbInterpretedCode::branch_col_param(Uint32 branch_type,
+                                     Uint32 attrId,
+                                     Uint32 paramId,
+                                     Uint32 label)
 {
-  return branch_col(Interpreter::AND_EQ_MASK, attrId, mask, 0, Label);
+  DBUG_ENTER("NdbInterpretedCode::branch_col_param");
+  DBUG_PRINT("enter", ("type: %u  col:%u  param:%u  label: %u",
+                       branch_type, attrId, paramId, label));
+  const Interpreter::BinaryCondition cond =
+    (Interpreter::BinaryCondition)branch_type;
+  assert(cond != Interpreter::LIKE && cond != Interpreter::NOT_LIKE);
+
+  if (unlikely(m_table_impl == nullptr))
+    /* NdbInterpretedCode instruction requires that table is set */
+    DBUG_RETURN(error(4538));
+
+  const NdbColumnImpl *col = m_table_impl->getColumn(attrId);
+  if (unlikely(col == nullptr))
+    DBUG_RETURN(error(BadAttributeId));
+
+  if (col->m_storageType == NDB_STORAGETYPE_DISK)
+    m_flags|= UsesDisk;
+
+  Interpreter::NullSemantics nulls = Interpreter::NULL_CMP_EQUAL;
+  if (m_unknown_action == CmpHasNoUnknowns)
+    nulls = Interpreter::NULL_CMP_EQUAL;
+  else if (m_unknown_action == BranchIfUnknown)
+    nulls = Interpreter::IF_NULL_BREAK_OUT;
+  else  // ContinueIfUnknown
+    nulls = Interpreter::IF_NULL_CONTINUE;
+
+  if (add_branch(Interpreter::BranchColParameter(cond, nulls), label) != 0)
+    DBUG_RETURN(-1);
+
+  if (add1(Interpreter::BranchColParameter_2(attrId, paramId)) != 0)
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(0);
 }
 
-int
-NdbInterpretedCode::branch_col_and_mask_ne_mask(const void * mask,
-                                                Uint32 len,
-                                                Uint32 attrId,
-                                                Uint32 label)
+int NdbInterpretedCode::branch_col_eq(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col(Interpreter::AND_NE_MASK, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::EQ, attrId, val, 0, label);
 }
 
-int
-NdbInterpretedCode::branch_col_and_mask_eq_zero(const void * mask,
-                                                Uint32 len,
-                                                Uint32 attrId,
-                                                Uint32 label)
+int NdbInterpretedCode::branch_col_ne(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col(Interpreter::AND_EQ_ZERO, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::NE, attrId, val, 0, label);
 }
 
-int
-NdbInterpretedCode::branch_col_and_mask_ne_zero(const void * mask,
-                                                Uint32 len,
-                                                Uint32 attrId,
-                                                Uint32 label)
+int NdbInterpretedCode::branch_col_lt(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col(Interpreter::AND_NE_ZERO, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::LT, attrId, val, 0, label);
+}
+
+int NdbInterpretedCode::branch_col_le(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
+{
+  return branch_col_val(Interpreter::LE, attrId, val, 0, label);
+}
+
+int NdbInterpretedCode::branch_col_gt(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
+{
+  return branch_col_val(Interpreter::GT, attrId, val, 0, label);
+}
+
+int NdbInterpretedCode::branch_col_ge(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
+{
+  return branch_col_val(Interpreter::GE, attrId, val, 0, label);
+}
+
+int NdbInterpretedCode::branch_col_like(const void *val,
+                                        Uint32 len,
+                                        Uint32 attrId,
+                                        Uint32 label)
+{
+  return branch_col_val(Interpreter::LIKE, attrId, val, len, label);
+}
+
+int NdbInterpretedCode::branch_col_notlike(const void *val,
+                                           Uint32 len,
+                                           Uint32 attrId,
+                                           Uint32 label)
+{
+  return branch_col_val(Interpreter::NOT_LIKE, attrId, val, len, label);
+}
+
+int NdbInterpretedCode::branch_col_and_mask_eq_mask(const void *mask, Uint32,
+                                                    Uint32 attrId, Uint32 label)
+{
+  return branch_col_val(Interpreter::AND_EQ_MASK, attrId, mask, 0, label);
+}
+
+int NdbInterpretedCode::branch_col_and_mask_ne_mask(const void *mask, Uint32,
+                                                    Uint32 attrId, Uint32 label)
+{
+  return branch_col_val(Interpreter::AND_NE_MASK, attrId, mask, 0, label);
+}
+
+int NdbInterpretedCode::branch_col_and_mask_eq_zero(const void *mask, Uint32,
+                                                    Uint32 attrId, Uint32 label)
+{
+  return branch_col_val(Interpreter::AND_EQ_ZERO, attrId, mask, 0, label);
+}
+
+int NdbInterpretedCode::branch_col_and_mask_ne_zero(const void *mask, Uint32,
+                                                    Uint32 attrId, Uint32 label)
+{
+  return branch_col_val(Interpreter::AND_NE_ZERO, attrId, mask, 0, label);
 }
 
 /**
@@ -782,7 +818,7 @@ NdbInterpretedCode::branch_col_eq(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::EQ, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::EQ, attrId1, attrId2, label);
 }
 
 int
@@ -790,7 +826,7 @@ NdbInterpretedCode::branch_col_ne(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::NE, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::NE, attrId1, attrId2, label);
 }
 
 int
@@ -798,7 +834,7 @@ NdbInterpretedCode::branch_col_lt(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::LT, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::LT, attrId1, attrId2, label);
 }
 
 int
@@ -806,7 +842,7 @@ NdbInterpretedCode::branch_col_le(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::LE, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::LE, attrId1, attrId2, label);
 }
 
 int
@@ -814,7 +850,7 @@ NdbInterpretedCode::branch_col_gt(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::GT, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::GT, attrId1, attrId2, label);
 }
 
 int
@@ -822,7 +858,58 @@ NdbInterpretedCode::branch_col_ge(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::GE, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::GE, attrId1, attrId2, label);
+}
+
+/**
+ * Variants taking an attrId and a paramId arguments.
+ */
+int
+NdbInterpretedCode::branch_col_eq_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::EQ, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_ne_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::NE, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_lt_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::LT, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_le_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::LE, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_gt_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::GT, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_ge_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::GE, attrId, paramId, label);
 }
 
 int
@@ -1063,9 +1150,8 @@ NdbInterpretedCode::getInfo(Uint32 number, CodeMetaInfo &info) const
 }
 
 /* Update internal NdbError object based on its code */
-static void
-update(const NdbError & _err){
-  NdbError & error = (NdbError &) _err;
+static void update(NdbError &error)
+{
   ndberror_struct ndberror = (ndberror_struct)error;
   ndberror_update(&ndberror);
   error = NdbError(ndberror);
@@ -1074,8 +1160,8 @@ update(const NdbError & _err){
 const NdbDictionary::Table * 
 NdbInterpretedCode::getTable() const
 {
-  return (m_table_impl == NULL) ? 
-    NULL : 
+  return (m_table_impl == nullptr) ? 
+    nullptr : 
     m_table_impl->m_facade;
 }
 
@@ -1107,23 +1193,23 @@ NdbInterpretedCode::copy(const NdbInterpretedCode& src)
   /**
    * Each NdbInterpretedCode manages life cycle of m_internal_buffer.
    */
-  if (m_internal_buffer!=NULL)
+  if (m_internal_buffer!=nullptr)
   {
     delete[] m_internal_buffer;
-    m_internal_buffer = NULL;
+    m_internal_buffer = nullptr;
   }
 
-  if (src.m_internal_buffer==NULL)
+  if (src.m_internal_buffer==nullptr)
   {
-    // External buffer with externaly managed life cycle.
+    // External buffer with externally managed life cycle.
     m_buffer = src.m_buffer;
   }
   else
   {
     m_buffer = m_internal_buffer = new Uint32[m_buffer_length];
-    if (unlikely(m_internal_buffer==NULL))
+    if (unlikely(m_internal_buffer==nullptr))
     {
-      return 4000; // Alllocation failed.
+      return 4000; // Allocation failed.
     }
     memcpy(m_internal_buffer,
            src.m_internal_buffer,
@@ -1154,8 +1240,8 @@ int
 NdbInterpretedCode::compareMetaInfo(const void *va, 
                                     const void *vb)
 {
-  Uint32 aWord= *(((Uint32 *) va) + 1); // number || type
-  Uint32 bWord= *(((Uint32 *) vb) + 1); // number || type
+  Uint32 aWord = *(((const Uint32 *)va) + 1);  // number || type
+  Uint32 bWord = *(((const Uint32 *)vb) + 1);  // number || type
   Uint16 aType= aWord & 0xffff;
   Uint16 bType= bWord & 0xffff;
   const int AFirst= -1;
@@ -1192,7 +1278,7 @@ NdbInterpretedCode::finalise()
         return -1;
   }
 
-  assert (m_buffer != NULL);
+  assert (m_buffer != nullptr);
 
   /* Use label and subroutine meta-info at
    * the end of the code buffer to determine
@@ -1223,7 +1309,7 @@ NdbInterpretedCode::finalise()
     Interpreter::InstructionPreProcessing action;
     nextIp= Interpreter::getInstructionPreProcessingInfo(ip,
                                                          action);
-    if (nextIp == NULL)
+    if (nextIp == nullptr)
     {
       m_error.code= 4516; // Illegal instruction in interpreted program
       return -1;

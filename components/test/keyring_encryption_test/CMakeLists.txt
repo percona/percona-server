@@ -1,4 +1,4 @@
-# Copyright (c) 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,8 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+IF(WIN32)
+  IF(OPENSSL_APPLINK_C)
+    SET(EXTRA_SOURCES "${OPENSSL_APPLINK_C}")
+  ENDIF()
+ENDIF()
 
 ADD_WSHADOW_WARNING()
+DISABLE_MISSING_PROFILE_WARNING()
 
 SET(KEYRING_ENCRYPTION_TEST_SOURCE
   # Options
@@ -41,7 +47,8 @@ SET(KEYRING_ENCRYPTION_TEST_LIBRARIES
 )
 
 MYSQL_ADD_EXECUTABLE(mysql_keyring_encryption_test
-  ${KEYRING_ENCRYPTION_TEST_SOURCE}
+  ${KEYRING_ENCRYPTION_TEST_SOURCE} ${EXTRA_SOURCES}
   LINK_LIBRARIES ${KEYRING_ENCRYPTION_TEST_LIBRARIES}
   COMPONENT Test
+  ENABLE_EXPORTS
   )

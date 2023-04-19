@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #ifndef URI_ROUTING_INCLUDED
 #define URI_ROUTING_INCLUDED
 
-#include "router_config.h"
+#include "mysqlrouter/router_export.h"
 
 #include <cstdint>
 #include <exception>
@@ -66,7 +66,7 @@ class URIError : public std::runtime_error {
  * * (RFC 3986)[https://tools.ietf.org/html/rfc3986)
  *
  */
-class URI {
+class ROUTER_LIB_EXPORT URI {
  public:
   /** @brief Delimiter used in the Query part */
   static const char query_delimiter = '&';
@@ -147,7 +147,7 @@ class URI {
 
 std::ostream &operator<<(std::ostream &strm, const URI &uri);
 
-class URIParser {
+class ROUTER_LIB_EXPORT URIParser {
  public:
   static URI parse(const std::string &uri, bool allow_path_rootless = true);
   static URI parse_shorthand_uri(const std::string &uri,

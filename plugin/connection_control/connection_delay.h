@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "plugin/connection_control/connection_control_interfaces.h" /* Observer interface */
 #include "plugin/connection_control/connection_control_memory.h" /* Connection_control_alloc */
 #include "plugin/connection_control/connection_delay_api.h" /* Constants */
-#include "sql/table.h"                                      /* TABLE_LIST */
+#include "sql/table.h"                                      /* Table_ref */
 
 namespace connection_control {
 /**
@@ -53,7 +53,7 @@ class Connection_event_record : public Connection_control_alloc {
   }
 
   /**
-    Retrives failed login count for given user entry
+    Retrieves failed login count for given user entry
 
     @returns Failed login count
   */
@@ -99,7 +99,7 @@ class Connection_delay_event : public Connection_event_records {
     lf_hash_destroy(&m_entries);
   }
 
-  void fill_IS_table(TABLE_LIST *tables);
+  void fill_IS_table(Table_ref *tables);
 
   /* Overridden function */
   bool create_or_update_entry(const Sql_string &s) override;
@@ -180,7 +180,7 @@ class Connection_delay_action : public Connection_event_observer,
   /** Get min value */
   int64 get_min_delay() { return m_min_delay.load(); }
 
-  void fill_IS_table(THD *thd, TABLE_LIST *tables, Item *cond);
+  void fill_IS_table(THD *thd, Table_ref *tables, Item *cond);
 
   /** Overridden functions */
   bool notify_event(MYSQL_THD thd,

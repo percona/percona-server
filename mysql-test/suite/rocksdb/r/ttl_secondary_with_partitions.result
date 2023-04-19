@@ -273,6 +273,27 @@ c1	c2	name	event
 4	4	four	NULL
 5	5	five	NULL
 6	6	six	NULL
+SET @@GLOBAL.ROCKSDB_ALTER_TABLE_COMMENT_INPLACE = ON;
+ALTER TABLE t1 comment = 'custom_p0_ttl_duration=1000;custom_p1_ttl_duration=5;', ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 comment = 'custom_p0_ttl_duration=1000;custom_p2_ttl_duration=5;', ALGORITHM=INPLACE;
+set global rocksdb_debug_ttl_snapshot_ts = 2000;
+set global rocksdb_force_flush_memtable_now=1;
+set @@global.rocksdb_compact_cf = 'foo';
+set @@global.rocksdb_compact_cf = 'baz';
+set @@global.rocksdb_compact_cf = 'default';
+set global rocksdb_debug_ttl_snapshot_ts = 0;
+SELECT * FROM t1 FORCE INDEX (PRIMARY);
+c1	c2	name	event
+4	4	four	NULL
+5	5	five	NULL
+6	6	six	NULL
+SELECT * FROM t1 FORCE INDEX (kc2);
+c1	c2	name	event
+4	4	four	NULL
+5	5	five	NULL
+6	6	six	NULL
+SET @@GLOBAL.ROCKSDB_ALTER_TABLE_COMMENT_INPLACE = OFF;
 DROP TABLE t1;
 CREATE TABLE t1 (
 c1 BIGINT,
@@ -299,6 +320,84 @@ INSERT INTO t1 VALUES (6, UNIX_TIMESTAMP(), "six", null);
 INSERT INTO t1 VALUES (7, UNIX_TIMESTAMP(), "seven", null);
 INSERT INTO t1 VALUES (8, UNIX_TIMESTAMP(), "eight", null);
 INSERT INTO t1 VALUES (9, UNIX_TIMESTAMP(), "nine", null);
+set global rocksdb_force_flush_memtable_now=1;
+set @@global.rocksdb_compact_cf = 'foo';
+set @@global.rocksdb_compact_cf = 'baz';
+set @@global.rocksdb_compact_cf = 'bar';
+set @@global.rocksdb_compact_cf = 'default';
+SELECT c1 FROM t1 FORCE INDEX (PRIMARY);
+c1
+4
+5
+6
+7
+8
+9
+SELECT c1 FROM t1 FORCE INDEX (kc2);
+c1
+4
+5
+6
+7
+8
+9
+set global rocksdb_debug_ttl_snapshot_ts = 600;
+set @@global.rocksdb_compact_cf = 'bar';
+set @@global.rocksdb_compact_cf = 'default';
+set global rocksdb_debug_ttl_snapshot_ts = 0;
+SELECT c1 FROM t1 FORCE INDEX (PRIMARY);
+c1
+7
+8
+9
+SELECT c1 FROM t1 FORCE INDEX (kc2);
+c1
+7
+8
+9
+SET @@GLOBAL.ROCKSDB_ALTER_TABLE_COMMENT_INPLACE = ON;
+ALTER TABLE t1 comment = 'custom_p1_ttl_duration=100;custom_p1_ttl_col=c2;custom_p2_ttl_duration=5000;', ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 comment = 'ttl_duration=1;custom_p1_ttl_col=c2;custom_p2_ttl_duration=1000;', ALGORITHM=INPLACE;
+ALTER TABLE t1 comment = 'ttl_duration=1;custom_p1_ttl_duration=100;custom_p2_ttl_duration=1000;', ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 comment = 'ttl_duration=1;custom_p1_ttl_duration=100;custom_p1_ttl_col=c2;custom_p2_ttl_duration=1000;', ALGORITHM=INPLACE;
+set global rocksdb_debug_ttl_snapshot_ts = 2000;
+set global rocksdb_force_flush_memtable_now=1;
+set @@global.rocksdb_compact_cf = 'baz';
+set @@global.rocksdb_compact_cf = 'default';
+set global rocksdb_debug_ttl_snapshot_ts = 0;
+SELECT * FROM t1 FORCE INDEX (PRIMARY);
+c1	c2	name	event
+SELECT * FROM t1 FORCE INDEX (kc2);
+c1	c2	name	event
+SET @@GLOBAL.ROCKSDB_ALTER_TABLE_COMMENT_INPLACE = OFF;
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 BIGINT,
+c2 TIMESTAMP DEFAULT NOW() NOT NULL,
+name VARCHAR(25) NOT NULL,
+event DATE,
+PRIMARY KEY (`c1`) COMMENT 'custom_p0_cfname=foo;custom_p1_cfname=bar;custom_p2_cfname=baz;',
+KEY kc2 (`c2`)
+) ENGINE=ROCKSDB
+COMMENT="ttl_duration=1;custom_p1_ttl_duration=100;custom_p1_ttl_col=c2;custom_p2_ttl_duration=5000;"
+PARTITION BY LIST(c1) (
+PARTITION custom_p0 VALUES IN (1, 2, 3),
+PARTITION custom_p1 VALUES IN (4, 5, 6),
+PARTITION custom_p2 VALUES IN (7, 8, 9)
+);
+set global rocksdb_debug_ttl_rec_ts = -300;
+INSERT INTO t1 VALUES (1, NOW(), "one", null);
+INSERT INTO t1 VALUES (2, NOW(), "two", null);
+INSERT INTO t1 VALUES (3, NOW(), "three", null);
+set global rocksdb_debug_ttl_rec_ts = 0;
+INSERT INTO t1 VALUES (4, NOW(), "four", null);
+INSERT INTO t1 VALUES (5, NOW(), "five", null);
+INSERT INTO t1 VALUES (6, NOW(), "six", null);
+INSERT INTO t1 VALUES (7, NOW(), "seven", null);
+INSERT INTO t1 VALUES (8, NOW(), "eight", null);
+INSERT INTO t1 VALUES (9, NOW(), "nine", null);
 set global rocksdb_force_flush_memtable_now=1;
 set @@global.rocksdb_compact_cf = 'foo';
 set @@global.rocksdb_compact_cf = 'baz';

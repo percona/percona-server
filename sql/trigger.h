@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 #ifndef TRIGGER_H_INCLUDED
 #define TRIGGER_H_INCLUDED
 
-#include "my_config.h"
-
 #include <string.h>
+
+#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -50,9 +50,22 @@ typedef ulonglong sql_mode_t;
   This class represents a trigger object.
   Trigger can be created, initialized, parsed and executed.
 
-  Trigger attributes are usually stored on the memory root of the subject table.
+  Trigger attributes are usually stored on the memory root of the subject table
+  TABLE object or its TABLE_SHARE (depending on whether it is something specific
+  to the TABLE instance, e.g. sp_head, or static metadata that can be shared by
+  all TABLE instances, e.g. subject table name).
   Trigger object however can exist when the subject table does not. In this
   case, trigger attributes are stored on a separate memory root.
+
+  @note We create separate sets of Trigger objects for both TABLE_SHARE and
+        TABLE instances. The set for the former is used to store static
+        information about table's triggers and is directly associated with
+        TABLE_SHARE object. The set for the latter is used primarily for
+        trigger execution, and is asssociated with TABLE object with the help
+        of Table_triggers_dispatcher class. Attributes representing static
+        properties in Trigger instances of the latter type reference
+        attributes/memory belonging to attributes of Trigger objects associated
+        with the TABLE_SHARE.
 
   Trigger objects are created in two ways:
 
@@ -84,7 +97,49 @@ class Trigger {
       const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
       enum_trigger_event_type trg_event_type,
       enum_trigger_action_time_type trg_time_type, uint action_order,
-      timeval created_timestamp);
+      my_timeval created_timestamp);
+
+  Trigger *clone_shallow(MEM_ROOT *mem_root) const;
+
+  /**
+    Constructs CREATE TRIGGER statement taking into account a value of
+    the DEFINER clause.
+
+    The point of this method is to create canonical forms of CREATE TRIGGER
+    statement for writing into the binlog.
+
+    @note
+    A statement for the binlog form must preserve FOLLOWS/PRECEDES clause
+    if it was in the original statement. The reason for that difference is this:
+
+      - the Data Dictionary preserves the trigger execution order
+    (action_order), thus FOLLOWS/PRECEDES clause is not needed.
+
+      - moreover, FOLLOWS/PRECEDES clause usually makes problem in mysqldump,
+        because CREATE TRIGGER statement will have a reference to
+    not-yet-existing trigger (which is about to be created right after this
+    one).
+
+      - thus, FOLLOWS/PRECEDES must not be stored in the Data Dictionary.
+
+      - on the other hand, the binlog contains statements in the user order (as
+        the user executes them). Thus, it is important to preserve
+        FOLLOWS/PRECEDES clause if the user has specified it so that the trigger
+        execution order on master and slave will be the same.
+
+    @param thd                thread context
+    @param[out] binlog_query  well-formed CREATE TRIGGER statement for putting
+                              into binlog (after successful execution)
+    @param def_user           user part of a definer value
+    @param def_host           host part of a definer value
+
+    @return Operation status.
+      @retval false Success
+      @retval true  Failure
+  */
+  static bool construct_create_trigger_stmt_with_definer(
+      THD *thd, String *binlog_query, const LEX_CSTRING &def_user,
+      const LEX_CSTRING &def_host);
 
  public:
   bool execute(THD *thd);
@@ -92,7 +147,7 @@ class Trigger {
   bool parse(THD *thd, bool is_upgrade);
 
   void add_tables_and_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                               TABLE_LIST *table_list);
+                               Table_ref *table_list);
 
   void print_upgrade_warning(THD *thd);
 
@@ -140,10 +195,11 @@ class Trigger {
   const LEX_CSTRING &get_action_time_as_string() const;
 
   bool is_created_timestamp_null() const {
-    return m_created_timestamp.tv_sec == 0 && m_created_timestamp.tv_usec == 0;
+    return m_created_timestamp.m_tv_sec == 0 &&
+           m_created_timestamp.m_tv_usec == 0;
   }
 
-  timeval get_created_timestamp() const { return m_created_timestamp; }
+  my_timeval get_created_timestamp() const { return m_created_timestamp; }
 
   ulonglong get_action_order() const { return m_action_order; }
 
@@ -155,7 +211,7 @@ class Trigger {
 
   GRANT_INFO *get_subject_table_grant() { return &m_subject_table_grant; }
 
-  bool has_parse_error() const { return m_has_parse_error; }
+  bool has_parse_error() const { return m_parse_error_message; }
 
   const char *get_parse_error_message() const { return m_parse_error_message; }
 
@@ -183,7 +239,7 @@ class Trigger {
           const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
           enum_trigger_event_type event_type,
           enum_trigger_action_time_type action_time, uint action_order,
-          timeval created_timestamp);
+          my_timeval created_timestamp);
 
  public:
   ~Trigger();
@@ -201,16 +257,14 @@ class Trigger {
     m_definition_utf8 = trigger_def_utf8;
   }
 
-  void set_parse_error_message(const char *error_message) {
-    m_has_parse_error = true;
-    strncpy(m_parse_error_message, error_message,
-            sizeof(m_parse_error_message));
-  }
+  void set_parse_error_message(const char *error_message);
 
   /**
     Memory root to store all data of this Trigger object.
 
-    This can be a pointer to the subject table memory root, or it can be a
+    This can be a pointer to the subject table share memory root (if this
+    Trigger object is associated with TABLE_SHARE), table memory root
+    (if this Trigger object is associated with TABLE object), or it can be a
     pointer to a dedicated memory root if subject table does not exist.
   */
   MEM_ROOT *m_mem_root;
@@ -224,7 +278,9 @@ class Trigger {
  private:
   /************************************************************************
    * Mandatory trigger attributes loaded from data dictionary.
-   * All these strings are allocated on m_mem_root.
+   * All these strings are allocated on TABLE_SHARE's memory root
+   * (for both cases when Trigger object is bound to TABLE_SHARE object
+   * and to TABLE object) or dedicated memory root pointed by m_mem_root.
    ***********************************************************************/
 
   /// Database name.
@@ -273,7 +329,7 @@ class Trigger {
 
     There is special value -- zero means CREATED is not set (NULL).
   */
-  timeval m_created_timestamp;
+  my_timeval m_created_timestamp;
 
   /**
     Action_order value for the trigger. Action_order is the ordinal position
@@ -284,7 +340,7 @@ class Trigger {
 
  private:
   /************************************************************************
-   * All these strings are allocated on the trigger table's mem-root.
+   * All these strings are allocated on the TABLE_SHARE's mem-root.
    ***********************************************************************/
 
   /// Trigger name.
@@ -292,7 +348,7 @@ class Trigger {
 
  private:
   /************************************************************************
-   * Other attributes.
+   * Other attributes. Allocated on m_mem_root if necessary.
    ***********************************************************************/
 
   /// Grant information for the trigger.
@@ -301,16 +357,15 @@ class Trigger {
   /// Pointer to the sp_head corresponding to the trigger.
   sp_head *m_sp;
 
-  /// This flags specifies whether the trigger has parse error or not.
-  bool m_has_parse_error;
-
   /**
+    Parse error for trigger, if it has one, nullptr - if not.
+
     This error will be displayed when the user tries to manipulate or invoke
     triggers on a table that has broken triggers. It will get set only once
     per statement and thus will contain the first parse error encountered in
     the trigger file.
   */
-  char m_parse_error_message[MYSQL_ERRMSG_SIZE];
+  const char *m_parse_error_message;
 };
 
 ///////////////////////////////////////////////////////////////////////////

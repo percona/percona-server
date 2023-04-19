@@ -17,6 +17,7 @@ TOKUDB_BACKUP_VERSION = "@@TOKUDB_BACKUP_VERSION@@"
 TMP=$(CURDIR)/debian/tmp/
 TMPD=$(CURDIR)/debian/tmp-debug/
 prefix=/usr
+rpath='$$ORIGIN/../private'
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -34,6 +35,7 @@ DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 TOKUDB_OPTS_DEFAULT ?= -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=$(TOKUDB_BACKUP_VERSION)
 TOKUDB_OPTS_RELEASE ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=OFF
 TOKUDB_OPTS_DEBUG ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=ON
+ZENFS_OPTS_DEFAULT ?= -DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON -DWITH_ZBD=bundled 
 
 EXPORTED_SOURCE_TARBALL = debian/percona-server-source.tar.gz
 
@@ -82,6 +84,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DFORCE_INSOURCE_BUILD=1 \
 		-DDOWNLOAD_BOOST=1 \
 		-DWITH_BOOST=libboost \
+		-DWITH_PACKAGE_FLAGS=OFF \
 		-DWITH_SYSTEM_LIBS=ON \
 		-DWITH_PROTOBUF=bundled \
 		-DWITH_RAPIDJSON=bundled \
@@ -91,6 +94,8 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DWITH_LZ4=bundled \
 		-DWITH_EDITLINE=bundled \
 		-DWITH_LIBEVENT=bundled \
+		-DWITH_FIDO=bundled \
+                -DWITH_ENCRYPTION_UDF=ON \
 		-DWITH_NUMA=ON \
 		-DWITH_LDAP=system \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_DEBUG) ..
@@ -129,6 +134,7 @@ endif
 		-DROCKSDB_DISABLE_MARCH_NATIVE=1 \
 		-DDOWNLOAD_BOOST=1 \
 		-DWITH_BOOST=libboost \
+		-DWITH_PACKAGE_FLAGS=OFF \
 		-DWITH_SYSTEM_LIBS=ON \
 		-DWITH_PROTOBUF=bundled \
 		-DWITH_RAPIDJSON=bundled \
@@ -138,6 +144,8 @@ endif
 		-DWITH_ZLIB=bundled \
 		-DWITH_EDITLINE=bundled \
 		-DWITH_LIBEVENT=bundled \
+		-DWITH_FIDO=bundled \
+		-DWITH_ENCRYPTION_UDF=ON \
 		-DWITH_NUMA=ON \
 		-DWITH_LDAP=system \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_RELEASE) ..
@@ -158,6 +166,9 @@ endif
 	cd $(builddir) && $(MAKE) -j$(NCPU) VERBOSE=1
 
 	touch $@
+
+override_dh_builddeb:
+	dh_builddeb -- -Zgzip
 
 override_dh_auto_install:
 	@echo "RULES.$@"
@@ -193,9 +204,17 @@ override_dh_auto_install:
 	install -d $(TMP)/etc/apparmor.d
 	install -d $(TMP)/etc/apparmor.d/local
 
+override_dh_install:
+	dh_install
+	patchelf --debug --set-rpath $(rpath) debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so
+	@echo "RULES.$@"
+
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-dbg
 	dh_strip -Xlibprotobuf-lite
+
+override_dh_shlibdeps:
+	dh_shlibdeps -Lpercona-server-server -l/usr/lib/mysql/private --dpkg-shlibdeps-params=--ignore-missing-info
 
 override_dh_installinit:
 	@echo "RULES.$@"

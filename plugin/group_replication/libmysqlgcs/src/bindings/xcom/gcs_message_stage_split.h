@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ class Gcs_split_header_v2 : public Gcs_stage_metadata {
   Gcs_sender_id m_sender_id;
 
   /**
-   Uniquely identify the message so that we can reassemble splitted messages.
+   Uniquely identify the message so that we can reassemble split messages.
    */
   Gcs_message_id m_message_id{0};
   static_assert(sizeof(decltype(m_message_id)) == WIRE_HD_MESSAGE_ID_SIZE,
@@ -358,7 +358,7 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
    message.
 
    @param packet fragment Fragment that will be collected to reconstruct the
-   orignal
+   original
    @returns true if successful, false otherwise
    */
   bool insert_fragment(Gcs_packet &&packet);
@@ -406,7 +406,7 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
   Gcs_packets_list get_fragments(Gcs_split_header_v2 const &fragment_header);
 
   /**
-   Reassembles the given fragment list into the orginal, whole packet.
+   Reassembles the given fragment list into the original, whole packet.
 
    This method must only be called with a non-empty packet list.
 
@@ -416,6 +416,27 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
    */
   std::pair<bool, Gcs_packet> reassemble_fragments(
       Gcs_packets_list &fragments) const;
+};
+
+class Gcs_message_stage_split_v3 : public Gcs_message_stage_split_v2 {
+ public:
+  /**
+   Creates an instance of the stage.
+
+   @param enabled enables this message stage
+   @param split_threshold messages with the payload larger
+                          than split_threshold in bytes are split.
+   */
+  explicit Gcs_message_stage_split_v3(bool enabled,
+                                      unsigned long long split_threshold)
+      : Gcs_message_stage_split_v2(enabled, split_threshold) {}
+
+  ~Gcs_message_stage_split_v3() override {}
+
+  /**
+   Return the stage code.
+   */
+  Stage_code get_stage_code() const override { return Stage_code::ST_SPLIT_V3; }
 };
 
 #endif /* GCS_MESSAGE_STAGE_SPLIT_H */

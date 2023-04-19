@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -32,6 +34,7 @@
 #include <random.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
+#include <NdbSleep.h>
 
 const NdbDictionary::Table *
 getTable(Ndb* pNdb, int i){
@@ -488,7 +491,7 @@ int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
   int savesnapshot= DumpStateOrd::TcResourceSnapshot;
   Uint32 checksnapshot= DumpStateOrd::TcResourceCheckLeak;
 
-  sleep(2);
+  NdbSleep_SecSleep(2);
   restarter.dumpStateAllNodes(&savesnapshot, 1);
   Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
 
@@ -926,7 +929,7 @@ int runCloseWithoutStop(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int numFailed = 0;
   ScanFunctions scanF(*pTab);
-  // Iterate over all possible parallelism valuse
+  // Iterate over all possible parallelism values
   for (int p = 1; p<240; p++){
     g_info << p << " CloseWithoutStop openScan" << endl;
     if (scanF.scanReadFunctions(GETNDB(step), 
@@ -1649,7 +1652,7 @@ int checkResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
   Ndb *pNdb = GETNDB(step);
   NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
 
-  sleep(2);
+  NdbSleep_SecSleep(2);
   Uint32 checksnapshot = DumpStateOrd::TcResourceCheckLeak;
   pDict->forceGCPWait(1);
   if (Ndb_internal::send_dump_state_all(pNdb, &checksnapshot, 1) != 0)
@@ -1684,7 +1687,7 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
     printf("node: %u ", node);
     switch(loops % 2){
     case 0:
-      // fall through
+      [[fallthrough]];
     case 1:
       err = 5057;
       res.insertErrorInNode(node, 5057);
@@ -1858,13 +1861,13 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
       }
       lastrow = rowId;
 
-      bzero(pRow, len);
+      std::memset(pRow, 0, len);
 
       HugoCalculator calc(* pTab);
       calc.setValues(pRow, pRowRecord, rowId, rand());
 
       NdbOperation::OperationOptions opts;
-      bzero(&opts, sizeof(opts));
+      std::memset(&opts, 0, sizeof(opts));
 
       const NdbOperation* pOp = 0;
       switch(ndb_rand_r(&seed) % 3){
@@ -2217,7 +2220,7 @@ runExtraNextResult(NDBT_Context* ctx, NDBT_Step* step)
             << ndb->getNdbError() << " in the " << i << "th iteration." <<endl;
     }
     
-    // Do a random numer of scans in this transaction.
+    // Do a random number of scans in this transaction.
     const int scanCount = rand()%4;
     for (int j=0; j < scanCount; j++)
     {
@@ -2364,7 +2367,7 @@ sizeFragment0DbaccHashTable(Ndb* ndb,
   require(NULL != trans->insertTuple(record, row, record, row));
   require(0 == trans->execute(Commit));
   trans->close();
-  sleep(1);
+  NdbSleep_SecSleep(1);
 
   return 0;
 }
@@ -2508,7 +2511,7 @@ runScanDuringShrinkAndExpandBack(NDBT_Context* ctx, NDBT_Step* step)
  * 1. Start with table with just above 2^n buckets in fragment 0.
  * 2. Start scan and read about half of the rows in fragment 0.
  * 3. Expand table, due to 1) the scanned buckets in bottom of table are
- *    splitted to top buckets.  And since scan is at about middle of the
+ *    split to top buckets.  And since scan is at about middle of the
  *    table it will not hinder expansion.
  * 4. Shrink table back to original size.  The scanned top buckets will now
  *    be merged back to bottom of table.  But before bug fix top buckets was
@@ -2547,7 +2550,7 @@ runScanDuringExpandAndShrinkBack(NDBT_Context* ctx, NDBT_Step* step)
 
   // 1. Start with table with just above 2^n buckets in fragment 0.
   require(0 == populateFragment0(ndb, pTab, fragment_rows, low_bucket));
-  sleep(1);
+  NdbSleep_SecSleep(1);
 
   // 2. Start scan and read about half of the rows in fragment 0.
 

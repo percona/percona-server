@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +66,7 @@ enum MY_ATTRIBUTE((__packed__)) my_lex_states {
   MY_LEX_IDENT_OR_HEX,
   MY_LEX_IDENT_OR_BIN,
   MY_LEX_IDENT_OR_NCHAR,
+  MY_LEX_IDENT_OR_DOLLAR_QUOTE,
   MY_LEX_STRING_OR_DELIMITER
 };
 

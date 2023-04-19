@@ -6,12 +6,12 @@ Extended Show Engine InnoDB Status
 
 This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS``
 to improve readability and to provide additional information. The
-variable :variable:`innodb_show_locks_held` controls the umber of
-locks held to print for each |InnoDB| transaction.
+variable :ref:`innodb_show_locks_held` controls the umber of
+locks held to print for each *InnoDB* transaction.
 
 This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 
-* Added extended information about |InnoDB| internal hash table sizes
+* Added extended information about *InnoDB* internal hash table sizes
   (in bytes) in the ``BUFFER POOL AND MEMORY`` section; also added
   buffer pool size in bytes.
 * Added additional LOG section information.
@@ -25,34 +25,60 @@ Other Information
 System Variables
 ================
 
-.. variable:: innodb_show_locks_held
+.. _innodb_show_locks_held:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: ULONG
-     :default: 10
-     :range: 0 - 1000
+.. rubric:: ``innodb_show_locks_held``
 
-Specifies the number of locks held to print for each |InnoDB| transaction in
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - ULONG
+   * - Default
+     - 10
+   * - Range
+     - 0 - 1000
+
+Specifies the number of locks held to print for each *InnoDB* transaction in
 ``SHOW ENGINE INNODB STATUS``.
 
-.. variable:: innodb_print_lock_wait_timeout_info
+.. _innodb_print_lock_wait_timeout_info:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Boolean
-     :default: ``OFF``
+.. rubric:: ``innodb_print_lock_wait_timeout_info``
 
-Makes |InnoDB| to write information about all lock wait timeout errors 
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+
+Makes *InnoDB* to write information about all lock wait timeout errors 
 into the log file. 
 
 This allows to find out details about the failed transaction, and, most 
-importantly, the blocking transaction. Query string can be obtained from 
-:table:`performance_schema.events_statements_current` table, based on the 
+importantly, the blocking transaction. Query string can be obtained from `EVENTS_STATEMENTS_CURRENT` table, based on the 
 ``PROCESSLIST_ID`` field, which corresponds to ``thread_id`` from the log
 output.
 
@@ -95,7 +121,7 @@ output is: ::
   srv_master_thread loops: 1 srv_active, 0 srv_shutdown, 11844 srv_idle
   srv_master_thread log flush and writes: 11844
 
-|InnoDB| has a source thread which performs background tasks depending on the
+*InnoDB* has a source thread which performs background tasks depending on the
 server state, once per second. If the server is under workload, the source
 thread runs the following: performs background table drops; performs change
 buffer merge, adaptively; flushes the redo log to disk; evicts tables from the
@@ -105,28 +131,55 @@ the redo log if needed due to the checkpoint age; performs change buffer merge
 at full I/O capacity; evicts tables from the dictionary cache if
 needed; and makes a checkpoint.
 
-.. variable:: Innodb_master_thread_active_loops
+.. _Innodb_master_thread_active_loops:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_master_thread_active_loops``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the number of times the above one-second loop was executed
 for active server states.
 
-.. variable:: Innodb_master_thread_idle_loops
+.. _Innodb_master_thread_idle_loops:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_master_thread_idle_loops``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the number of times the above one-second loop was executed
 for idle server states.
 
-.. variable:: Innodb_background_log_sync
+.. _Innodb_background_log_sync:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_background_log_sync``
 
-This variable shows the number of times the |InnoDB| source thread has written
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
+
+This variable shows the number of times the *InnoDB* source thread has written
 and flushed the redo log.
 
 SEMAPHORES
@@ -157,15 +210,33 @@ example of that output is: ::
   44497 inserts, 44497 merged recs, 8734 merges
   0.00 hash searches/s, 0.00 non-hash searches/s
 
-.. variable:: Innodb_ibuf_free_list
+.. _Innodb_ibuf_free_list:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_ibuf_free_list``
 
-.. variable:: Innodb_ibuf_segment_size
+.. list-table::
+   :header-rows: 1
 
-     :vartype: Numeric
-     :scope: Global
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
+
+.. _Innodb_ibuf_segment_size:
+
+.. rubric:: ``Innodb_ibuf_segment_size``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 LOG
 ---
@@ -189,40 +260,85 @@ output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
   Log tracked up to   10145937666
   Max tracked LSN age 80826164
 
-.. variable:: Innodb_lsn_current
+.. _Innodb_lsn_current:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_lsn_current``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the current log sequence number.
 
-.. variable:: Innodb_lsn_flushed
+.. _Innodb_lsn_flushed:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_lsn_flushed``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the current maximum LSN that has been written and flushed
 to disk.
 
-.. variable:: Innodb_lsn_last_checkpoint
+.. _Innodb_lsn_last_checkpoint:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_lsn_last_checkpoint``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the LSN of the latest completed checkpoint.
 
-.. variable:: Innodb_checkpoint_age
+.. _Innodb_checkpoint_age:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_checkpoint_age``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the current |InnoDB| checkpoint age, i.e., the difference
 between the current LSN and the LSN of the last completed checkpoint.
 
-.. variable:: Innodb_checkpoint_max_age
+.. _Innodb_checkpoint_max_age:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_checkpoint_max_age``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the maximum allowed checkpoint age above which the redo
 log is close to full and a checkpoint must happen before any further redo log
@@ -230,7 +346,7 @@ writes.
 
 .. note:: 
 
-        This variable was removed in |Percona Server| 8.0.13-4 due to a change
+        This variable was removed in *Percona Server for MySQL* 8.0.13-4 due to a change
         in MySQL. The variable is identical to log capacity.
 
 BUFFER POOL AND MEMORY
@@ -269,61 +385,123 @@ output is: ::
   Pages read ahead 0.00/s, evicted without access 0.00/s, Random read ahead 0.00/s
   LRU len: 707, unzip_LRU len: 0
 
+.. _Innodb_mem_adaptive_hash:
 
-.. variable:: Innodb_mem_adaptive_hash
+.. rubric:: ``Innodb_mem_adaptive_hash``
 
-     :vartype: Numeric
-     :scope: Global
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the current size, in bytes, of the adaptive hash index.
 
-.. variable:: Innodb_mem_dictionary
+.. _Innodb_mem_dictionary:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_mem_dictionary``
 
-This variable shows the current size, in bytes, of the |InnoDB| in-memory data
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
+
+This variable shows the current size, in bytes, of the *InnoDB* in-memory data
 dictionary info.
 
-.. variable:: Innodb_mem_total
+.. _Innodb_mem_total:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_mem_total``
 
-This variable shows the total amount of memory, in bytes, |InnoDB| has
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
+
+This variable shows the total amount of memory, in bytes, *InnoDB* has
 allocated in the process heap memory.
 
-.. variable:: Innodb_buffer_pool_pages_LRU_flushed
+.. _Innodb_buffer_pool_pages_LRU_flushed:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_buffer_pool_pages_LRU_flushed``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the total number of buffer pool pages which have been
 flushed from the LRU list, i.e., too old pages which had to be flushed in
 order to make buffer pool room to read in new data pages.
 
-.. variable:: Innodb_buffer_pool_pages_made_not_young
+.. _Innodb_buffer_pool_pages_made_not_young:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_buffer_pool_pages_made_not_young``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the number of times a buffer pool page was not marked as
-accessed recently in the LRU list because of :variable:`innodb_old_blocks_time`
+accessed recently in the LRU list because of `innodb_old_blocks_time`
 variable setting.
 
-.. variable:: Innodb_buffer_pool_pages_made_young
+.. _Innodb_buffer_pool_pages_made_young:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_buffer_pool_pages_made_young``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the number of times a buffer pool page was moved to the
 young end of the LRU list due to its access, to prevent its eviction from the
 buffer pool.
 
-.. variable:: Innodb_buffer_pool_pages_old
+.. _Innodb_buffer_pool_pages_old:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_buffer_pool_pages_old``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the total number of buffer pool pages which are considered
 to be old according to the `Making the Buffer Pool Scan Resistant manual page
@@ -349,35 +527,70 @@ the output from ``SHOW INNODB STATUS``. An example of that output is: ::
   ---TRANSACTION F561FC, ACTIVE 29 sec, process no 993, OS thread id 140213152769808 updating or deleting
   mysql tables in use 1, locked 1
 
+.. _Innodb_max_trx_id:
 
-.. variable:: Innodb_max_trx_id
+.. rubric:: ``Innodb_max_trx_id``
 
-     :vartype: Numeric
-     :scope: Global
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the next free transaction id number.
 
-.. variable:: Innodb_oldest_view_low_limit_trx_id
+.. _Innodb_oldest_view_low_limit_trx_id:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_oldest_view_low_limit_trx_id``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the highest transaction id, above which the current oldest
 open read view does not see any transaction changes. Zero if there is no open
 view.
 
-.. variable:: Innodb_purge_trx_id
+.. _Innodb_purge_trx_id:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_purge_trx_id``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 This variable shows the oldest transaction id whose records have not been
 purged yet.
 
-.. variable:: Innodb_purge_undo_no
+.. _Innodb_purge_undo_no:
 
-     :vartype: Numeric
-     :scope: Global
+.. rubric:: ``Innodb_purge_undo_no``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global
+   * - Data type
+     - Numeric
 
 INFORMATION_SCHEMA Tables
 =========================
@@ -385,15 +598,25 @@ INFORMATION_SCHEMA Tables
 The following table contains information about the oldest active transaction in
 the system.
 
-.. table:: INFORMATION_SCHEMA.XTRADB_READ_VIEW
+.. _XTRADB_READ_VIEW:
 
-   :column READ_VIEW_LOW_LIMIT_TRX_NUMBER: This is the highest transactions number at the time the view was created.
-   :column READ_VIEW_UPPER_LIMIT_TRX_ID: This is the highest transactions ID at the time the view was created. This means that it should not see newer transactions with IDs bigger than or equal to that value.
-   :column READ_VIEW_LOW_LIMIT_TRX_ID: This is the latest committed transaction ID at the time the oldest view was created. This means that it should see all transactions with IDs smaller than or equal to that value.
+.. rubric:: ``INFORMATION_SCHEMA.XTRADB_READ_VIEW``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'READ_VIEW_LOW_LIMIT_TRX_NUMBER'
+        - 'This is the highest transactions number at the time the view was created.'
+      * - 'READ_VIEW_UPPER_LIMIT_TRX_ID'
+        - 'This is the highest transactions ID at the time the view was created. This means that it should not see newer transactions with IDs bigger than or equal to that value.'
+      * - 'READ_VIEW_LOW_LIMIT_TRX_ID'
+        - 'This is the latest committed transaction ID at the time the oldest view was created. This means that it should see all transactions with IDs smaller than or equal to that value.'
 
 .. note::
 
-    Starting with |Percona Server| 8.0.20-11, in ``INFORMATION_SCHEMA.XTRADB_READ_VIEW``, the data type for the following columns is changed from ``VARCHAR(18)`` to ``BIGINT UNSIGNED``:
+    Starting with *Percona Server for MySQL* 8.0.20-11, in ``INFORMATION_SCHEMA.XTRADB_READ_VIEW``, the data type for the following columns is changed from ``VARCHAR(18)`` to ``BIGINT UNSIGNED``:
 
     * ``READ_VIEW_LOW_LIMIT_TRX_NUMBER`` 
     * ``READ_VIEW_UPPER_LIMIT_TRX_ID`` 
@@ -404,13 +627,23 @@ The columns contain 64-bit integers, which is too large for ``VARCHAR(18)``.
 The following table contains information about the memory usage for
 InnoDB/XtraDB hash tables.
 
-.. table:: INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES
+.. _XTRADB_READ_VIEW:
 
-   :column INTERNAL_HASH_TABLE_NAME: Hash table name
-   :column TOTAL_MEMORY: Total amount of memory
-   :column CONSTANT_MEMORY: Constant memory
-   :column VARIABLE_MEMORY: Variable memory
+.. rubric:: ``INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES``
 
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'INTERNAL_HASH_TABLE_NAME'
+        - 'Hash table name'
+      * - 'TOTAL_MEMORY'
+        - 'Total amount of memory'
+      * - 'CONSTANT_MEMORY'
+        - 'Constant memory'
+      * - 'VARIABLE_MEMORY'
+        - 'Variable memory'
 
 Other reading
 =============

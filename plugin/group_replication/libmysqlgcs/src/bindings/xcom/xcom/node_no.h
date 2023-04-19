@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 
 /*
   Node numbers are usually very small. A real node_no value should never close
-  to the maximun value of uint32_t. So VOID_NODE_NO is defined as the maximun
+  to the maximum value of uint32_t. So VOID_NODE_NO is defined as the maximum
   value of uint32_t.
 */
 #define VOID_NODE_NO (~((node_no)0))

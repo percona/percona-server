@@ -10,9 +10,7 @@ Ready-to-use packages are available from the |Percona Server| software
 repositories and the `download page
 <http://www.percona.com/downloads/Percona-Server-8.0/>`_. The
 |Percona| :program:`yum` repository supports popular *RPM*-based
-operating systems, including the *Amazon Linux AMI*.
-
-The easiest way to install the *Percona Yum* repository is to install an *RPM*
+operating systems. The easiest way to install the *Percona Yum* repository is to install an *RPM*
 that configures :program:`yum` and installs the `Percona GPG key
 <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
@@ -21,6 +19,10 @@ Specific information on the supported platforms, products, and versions are desc
 |Percona Server| is certified for Red Hat Enterprise Linux 8. This certification is based on common and secure best practices, and successful interoperability with the operating system. Percona Server is listed in the `Red Hat Ecosystem Catalog <https://catalog.redhat.com/software/applications/detail/5869161>`_. 
 
 
+.. note:: 
+
+    The RPM packages for Red Hat Enterprise Linux 7 (and compatible derivatives)  do not support TLSv1.3, as it requires OpenSSL 1.1.1, which is currently not available on this platform. 
+  
 
 What's in each RPM package?
 ===========================
@@ -94,22 +96,28 @@ You can install Percona yum repository by running the following commands as a ``
 
    |Percona Server| 8.0 also provides the :ref:`TokuDB storage engine
    <tokudb_intro>` and :ref:`MyRocks <myrocks_intro>` storage engines which can
-   be installed as plugins. For more information on how
-   to install and enable the |TokuDB| storage review the :ref:`tokudb_installation`
-   document. For information on how to install and enable |MyRocks| review the
+   be installed as plugins. 
+
+   Starting with :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds. For more information, see :ref:`tokudb_intro`.
+
+   For more information on how to install and enable the |TokuDB| storage review the :ref:`tokudb_installation` document. 
+   For information on how to install and enable |MyRocks| review the
    section :ref:`myrocks_install`.
 
 Percona `yum` Testing repository
 --------------------------------------------------------------------------------
 
 Percona offers pre-release builds from our testing repository. To
-subscribe to the testing repository, you'll need to enable the testing
+subscribe to the testing repository, you enable the testing
 repository in :file:`/etc/yum.repos.d/percona-release.repo`. To do so,
 set both ``percona-testing-$basearch`` and ``percona-testing-noarch``
 to ``enabled = 1`` (Note that there are three sections in this file:
 release, testing and experimental - in this case it is the second
-section that requires updating). **NOTE:** You'll need to install the
-Percona repository first (ref above) if this hasn't been done already.
+section that requires updating). 
+
+.. note:: 
+   
+   You must install the Percona repository first if the installation has not been done already.
 
 
 .. _standalone_rpm:
@@ -120,8 +128,7 @@ Installing |Percona Server| using downloaded rpm packages
 1. Download the packages of the desired series for your architecture from the
    `download page <http://www.percona.com/downloads/Percona-Server-8.0/>`_. The
    easiest way is to download bundle which contains all the packages. Following
-   example will download |Percona Server| 8.0.21-12 release packages for *CentOS*
-   8:
+   example will download |Percona Server| 8.0.21-12 release packages for *RHEL* 8. 
 
    .. code-block:: bash
 
@@ -155,11 +162,11 @@ Installing |Percona Server| using downloaded rpm packages
 
 4. Install ``jemalloc`` with the following command, if needed:
 
-  .. code-block:: bash
+   .. code-block:: bash
 
-     wget https://repo.percona.com/yum/release/8/RPMS/x86_64/jemalloc-3.6.0-1.el8.x86_64.rpm
+       wget https://repo.percona.com/yum/release/8/RPMS/x86_64/jemalloc-3.6.0-1.el8.x86_64.rpm
 
-5.  For a RHEL/CentOS 8 package installation, |Percona Server| requires the mysql module to be disabled before installing the packages: 
+5.  For a *RHEL* distribution and derivatives package installation, |Percona Server| requires the mysql module to be disabled before installing the packages: 
 
     .. code-block:: bash
 
@@ -183,9 +190,17 @@ Running |Percona Server|
 default. The configuration file used to manage |Percona
 Server| is the :file:`/etc/my.cnf`.
 
-The following commands start, provide the server status, stop the server, and restart the server:
+The following commands start, provide the server status, stop the server, and restart the server.
 
-* |Percona Server| is not started automatically on *RHEL* and *CentOS* after installation. Start the server with the following command:
+.. note::
+
+   The *RHEL* distributions and derivatives come with `systemd
+   <http://freedesktop.org/wiki/Software/systemd/>`_ as the default
+   system and service manager so you can invoke all of the commands
+   with ``sytemctl`` instead of ``service``. Currently, both options are
+   supported.
+
+* |Percona Server| is not started automatically on the *RHEL* distributions and derivatives after installation. Start the server with the following command:
 
    .. code-block:: bash
 
@@ -209,18 +224,14 @@ The following commands start, provide the server status, stop the server, and re
 
       $ sudo service mysql restart
 
-.. note::
 
-   *RHEL* 7 and *CentOS* 7 come with `systemd
-   <http://freedesktop.org/wiki/Software/systemd/>`_ as the default
-   system and service manager so you can invoke all the above commands
-   with ``sytemctl`` instead of ``service``. Currently, both are
-   supported.
 
-Working with SELinux
-======================
+SELinux and security considerations
+===============================================
 
 For information on working with SELinux, see :ref:`selinux`.
+
+The *RHEL* 8 distributions and derivatives have added `system-wide cryptographic policies component <https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/security_hardening/using-the-system-wide-cryptographic-policies_security-hardening>`__. This component allows the configuration of cryptographic subsystems. 
 
 Uninstalling |Percona Server|
 =============================

@@ -35,7 +35,7 @@ A ``flag`` field in the ``INFORMATION_SCHEMA.INNODB_TABLESPACES`` has bit number
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +-------+-----------+-------+-----------+
       | space | name      | flag  | encrypted |
@@ -95,5 +95,5 @@ INFORMATION_SCHEMA.SCHEMATA table:
 
 .. seealso::
 
-   |MariaDB| Documentation
+   *MariaDB* Documentation
     https://mariadb.com/kb/en/library/information-schema-innodb_tablespaces_encryption-table/

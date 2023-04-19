@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,6 @@
 
 #include <NdbTick.h>
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 453
 
@@ -224,6 +223,11 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
+  Uint32 encrypted_filesystem = 0;
+  ndb_mgm_get_int_parameter(
+      p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &encrypted_filesystem);
+  c_encrypted_filesystem = encrypted_filesystem;
+
   m_file_pool.setSize(1);
   Uint32 cnt = 2*MAX_ATTRIBUTES_IN_TABLE;
   cnt += PAGES;
@@ -266,21 +270,21 @@ Restore::execCONTINUEB(Signal* signal){
   case RestoreContinueB::RESTORE_NEXT:
   {
     FilePtr file_ptr;
-    m_file_pool.getPtr(file_ptr, signal->theData[1]);
+    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
     restore_next(signal, file_ptr);
     return;
   }
   case RestoreContinueB::READ_FILE:
   {
     FilePtr file_ptr;
-    m_file_pool.getPtr(file_ptr, signal->theData[1]);
+    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
     read_data_file(signal, file_ptr);
     return;
   }
   case RestoreContinueB::CHECK_EXPAND_SHRINK:
   {
     FilePtr file_ptr;
-    m_file_pool.getPtr(file_ptr, signal->theData[1]);
+    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
     restore_lcp_conf(signal, file_ptr);
     return;
   }
@@ -607,7 +611,7 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  * -----------------------------------
  * Open LCP control 0 -> Success
  * Read LCP control 0 -> Success (read important data into File data)
- * Close LCP control 0 -> Sucess
+ * Close LCP control 0 -> Success
  * Open LCP control 1 -> Success
  * Read LCP control 1 -> Success (calculate which LCP control file to use)
  * Close LCP control 1 -> Success
@@ -763,7 +767,7 @@ Restore::execFSREMOVECONF(Signal *signal)
   jamEntry();
   FsConf * conf = (FsConf*)signal->getDataPtr();
   FilePtr file_ptr;
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
   lcp_remove_old_file_done(signal, file_ptr);
 }
 
@@ -773,7 +777,7 @@ Restore::execFSWRITECONF(Signal *signal)
   jamEntry();
   FsConf *conf = (FsConf*)signal->getDataPtr();
   FilePtr file_ptr;
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
   lcp_create_ctl_done_write(signal, file_ptr);
 }
 
@@ -794,6 +798,12 @@ Restore::lcp_create_ctl_open(Signal *signal, FilePtr file_ptr)
   FsOpenReq::v5_setLcpNo(req->fileNumber, 0);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
+
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -1128,6 +1138,12 @@ Restore::open_ctl_file(Signal *signal, FilePtr file_ptr, Uint32 lcp_no)
   FsOpenReq::v5_setLcpNo(req->fileNumber, lcp_no);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
+
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -1564,7 +1580,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * have sufficient information logged if things turns for the worse. In a
      * normal restart we should at most have a few of those.
      *
-     * The LCP contained records that was commited in GCI = maxGciWritten,
+     * The LCP contained records that were committed in GCI = maxGciWritten,
      * we are restoring a GCI which is smaller, this means that the LCP cannot
      * be used for restore since we have no UNDO log for main memory
      * data.
@@ -2238,9 +2254,16 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
 
   FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
-  req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_GZ;
+  req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_READ_FORWARD |
+      FsOpenReq::OM_GZ;
   req->userPointer = file_ptr.i;
- 
+
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
+  }
+
   DEB_RES_OPEN(("(%u)tab(%u,%u) open_data_file data file number = %u",
                 instance(),
                 file_ptr.p->m_table_id,
@@ -2252,7 +2275,37 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
   FsOpenReq::v5_setLcpNo(req->fileNumber, file_ptr.p->m_file_id);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
+  {
+    LinearSectionPtr lsptr[3];
+
+    // Use a dummy file name
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    lsptr[FsOpenReq::FILENAME].p = nullptr;
+    lsptr[FsOpenReq::FILENAME].sz = 0;
+
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+
+    EncryptionKeyMaterial nmk;
+    nmk.length = globalData.nodeMasterKeyLength;
+    memcpy(&nmk.data, globalData.nodeMasterKey, globalData.nodeMasterKeyLength);
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (const Uint32 *)&nmk;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+        nmk.get_needed_words();
+
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
+               lsptr, 2);
+  }
+  else
+  {
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  }
 }
 
 void
@@ -2261,7 +2314,7 @@ Restore::execFSOPENREF(Signal* signal)
   FsRef* ref= (FsRef*)signal->getDataPtr();
   FilePtr file_ptr;
   jamEntry();
-  m_file_pool.getPtr(file_ptr, ref->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, ref->userPointer));
 
   if (file_ptr.p->m_status == File::READ_CTL_FILES)
   {
@@ -2294,7 +2347,7 @@ Restore::execFSOPENCONF(Signal* signal)
   jamEntry();
   FilePtr file_ptr;
   FsConf* conf= (FsConf*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
   
   file_ptr.p->m_fd = conf->filePointer;
 
@@ -2348,7 +2401,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       break;
     }
     Ptr<GlobalPage> page_ptr(0,0), next_page_ptr(0,0);
-    m_global_page_pool.getPtr(page_ptr, file_ptr.p->m_current_page_ptr_i);
+    ndbrequire(m_global_page_pool.getPtr(page_ptr, file_ptr.p->m_current_page_ptr_i));
     List::Iterator it;
     
     Uint32 pos= file_ptr.p->m_current_page_pos;
@@ -2376,13 +2429,13 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
         jam();
 	/**
 	 * But that's stored on next page...
-	 *   and since we have atleast 8 bytes left in buffer
+	 *   and since we have at least 8 bytes left in buffer
 	 *   we can be sure that that's in buffer
 	 */
 	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
 	pages.position(it, next_page % page_count);
-	m_global_page_pool.getPtr(next_page_ptr, * it.data);
+        ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
 	len= ntohl(* next_page_ptr.p->data);
       }
       else
@@ -2404,7 +2457,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       jam();
 
       /**
-       * Not enought bytes to read "record"
+       * Not enough bytes to read "record"
        */
       if (unlikely((status & File:: FILE_THREAD_RUNNING) == 0))
       {
@@ -2429,7 +2482,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
 	pages.position(it, next_page % page_count);
-	m_global_page_pool.getPtr(next_page_ptr, * it.data);
+        ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
       }
       file_ptr.p->m_current_page_ptr_i = next_page_ptr.i;
       file_ptr.p->m_current_page_pos = (pos + len) - GLOBAL_PAGE_SIZE_WORDS;
@@ -2482,7 +2535,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
             LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
             Uint32 next_page = (file_ptr.p->m_current_page_index + 1) % page_count;
             pages.position(it, next_page % page_count);
-            m_global_page_pool.getPtr(next_page_ptr, * it.data);
+            ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
 
             file_ptr.p->m_current_page_ptr_i = next_page_ptr.i;
             file_ptr.p->m_current_page_index = next_page;
@@ -2552,6 +2605,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	  break;
 	}
         // Fall through - on bad version
+        [[fallthrough]];
       default:
 	parse_error(signal, file_ptr, __LINE__, ntohl(* data));
       }
@@ -2618,7 +2672,7 @@ Restore::read_data_file(Signal* signal, FilePtr file_ptr)
   {
     file_ptr.p->m_outstanding_reads++;
     req->varIndex = file_ptr.p->m_current_file_page++;
-    req->data.pageData[0] = *it.data;
+    req->data.globalPage.pageNumber = *it.data;
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBA);
     
@@ -2641,7 +2695,7 @@ Restore::execFSREADREF(Signal * signal)
   jamEntry();
   FilePtr file_ptr;
   FsRef* ref= (FsRef*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, ref->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, ref->userPointer));
   if (file_ptr.p->m_status == File::READ_CTL_FILES)
   {
     jam();
@@ -2658,7 +2712,7 @@ Restore::execFSREADCONF(Signal * signal)
   jamEntry();
   FilePtr file_ptr;
   FsConf* conf= (FsConf*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
 
   if (file_ptr.p->m_status == File::READ_CTL_FILES)
   {
@@ -2718,7 +2772,7 @@ Restore::execFSCLOSECONF(Signal * signal)
   jamEntry();
   FilePtr file_ptr;
   FsConf* conf= (FsConf*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
 
   file_ptr.p->m_fd = RNIL;
 
@@ -3474,7 +3528,7 @@ Restore::execLQHKEYREF(Signal* signal)
   LqhKeyRef* ref = (LqhKeyRef*)signal->getDataPtr();
   BackupFormat::RecordType header_type =
     (BackupFormat::RecordType)(ref->connectPtr >> 28);
-  m_file_pool.getPtr(file_ptr, (ref->connectPtr & 0x0FFFFFFF));
+  ndbrequire(m_file_pool.getPtr(file_ptr, (ref->connectPtr & 0x0FFFFFFF)));
   
   ndbrequire(file_ptr.p->m_outstanding_operations > 0);
   file_ptr.p->m_outstanding_operations--;
@@ -3539,7 +3593,7 @@ void
 Restore::delete_by_rowid_fail(Uint32 op_ptr)
 {
   FilePtr file_ptr;
-  m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF));
+  ndbrequire(m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF)));
   DEB_RES_DEL(("(%u)DELETE fail:tab(%u,%u), m_rows_restored = %llu",
                instance(),
                file_ptr.p->m_table_id,
@@ -3551,7 +3605,7 @@ void
 Restore::delete_by_rowid_succ(Uint32 op_ptr)
 {
   FilePtr file_ptr;
-  m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF));
+  ndbrequire(m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF)));
   ndbrequire(file_ptr.p->m_rows_restored > 0);
   file_ptr.p->m_rows_restored--;
   DEB_RES_DEL(("(%u)DELETE success:tab(%u,%u), m_rows_restored = %llu",
@@ -3567,7 +3621,7 @@ Restore::execLQHKEYCONF(Signal* signal)
   FilePtr file_ptr;
   LqhKeyConf * conf = (LqhKeyConf *)signal->getDataPtr();
   BackupFormat::RecordType header_type = (BackupFormat::RecordType)(conf->opPtr >> 28);
-  m_file_pool.getPtr(file_ptr, (conf->opPtr & 0x0FFFFFFF));
+  ndbrequire(m_file_pool.getPtr(file_ptr, (conf->opPtr & 0x0FFFFFFF)));
   
   ndbassert(file_ptr.p->m_outstanding_operations);
   file_ptr.p->m_outstanding_operations--;

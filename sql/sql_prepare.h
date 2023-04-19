@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql_com.h"
 #include "sql/sql_class.h"  // Query_arena
 #include "sql/sql_error.h"
@@ -46,7 +46,7 @@ class Query_result_send;
 class String;
 struct LEX;
 struct PS_PARAM;
-struct TABLE_LIST;
+class Table_ref;
 union COM_DATA;
 
 /**
@@ -86,11 +86,30 @@ class Reprepare_observer final {
     simple, we only need the THD to report an error.
   */
   bool report_error(THD *thd);
+  /**
+    @returns true if some table metadata is changed and statement should be
+                  re-prepared.
+  */
   bool is_invalidated() const { return m_invalidated; }
   void reset_reprepare_observer() { m_invalidated = false; }
+  /// @returns true if prepared statement can (and will) be retried
+  bool can_retry() const {
+    // Only call for a statement that is invalidated
+    assert(is_invalidated());
+    return m_attempt <= MAX_REPREPARE_ATTEMPTS &&
+           DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", false,
+                            true);
+  }
 
  private:
-  bool m_invalidated;
+  bool m_invalidated{false};
+  int m_attempt{0};
+
+  /*
+    We take only 3 attempts to reprepare the query, otherwise we might end up
+    in endless loop.
+  */
+  static constexpr int MAX_REPREPARE_ATTEMPTS = 3;
 };
 
 bool ask_to_reprepare(THD *thd);
@@ -149,9 +168,14 @@ class Ed_result_set final {
                 MEM_ROOT *mem_root_arg);
 
   /** We don't call member destructors, they all are POD types. */
-  ~Ed_result_set() {}
+  ~Ed_result_set() = default;
 
   size_t get_field_count() const { return m_column_count; }
+
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t & = std::nothrow) noexcept {
+    return mem_root->Alloc(size);
+  }
 
   static void operator delete(void *, size_t) noexcept {
     // Does nothing because m_mem_root is deallocated in the destructor
@@ -319,41 +343,62 @@ class Server_side_cursor;
 */
 
 class Prepared_statement final {
-  enum flag_values { IS_IN_USE = 1, IS_SQL_PREPARE = 2 };
-
  public:
+  /// Memory allocation arena, for permanent allocations to statement.
   Query_arena m_arena;
-  THD *thd;
-  Item_param **param_array;
-  Server_side_cursor *cursor;
+
+  /// Array of parameters used for statement, may be NULL if there are none.
+  Item_param **m_param_array{nullptr};
+
+  /// Pointer to cursor, may be NULL if statement never used with a cursor.
+  Server_side_cursor *m_cursor{nullptr};
+
   /// Used to check that the protocol is stable during execution
   const Protocol *m_active_protocol{nullptr};
-  uint param_count;
-  uint last_errno;
-  char last_error[MYSQL_ERRMSG_SIZE];
 
-  /*
+  /// Number of parameters expected for statement
+  uint m_param_count{0};
+
+  uint m_last_errno{0};
+  char m_last_error[MYSQL_ERRMSG_SIZE];
+
+  /**
     Uniquely identifies each statement object in thread scope; change during
     statement lifetime.
   */
-  const ulong id;
+  const ulong m_id;
 
-  LEX *lex;  // parse tree descriptor
+  LEX *m_lex{nullptr};  // parse tree descriptor
 
-  /**
-    The query associated with this statement.
-  */
-  LEX_CSTRING m_query_string;
+  /// The query string associated with this statement.
+  LEX_CSTRING m_query_string{NULL_CSTR};
 
-  /* Performance Schema interface for a prepared statement. */
-  PSI_prepared_stmt *m_prepared_stmt;
+  /// Performance Schema interface for a prepared statement.
+  PSI_prepared_stmt *m_prepared_stmt{nullptr};
 
  private:
-  Query_result_send *result;
+  /// True if statement is used with cursor, false if used in regular execution
+  bool m_used_as_cursor{false};
 
-  uint flags;
-  bool with_log;
-  LEX_CSTRING m_name; /* name for named prepared statements */
+  /// Query result used when statement is used in regular execution.
+  Query_result *m_regular_result{nullptr};
+
+  /// Query result used when statement is used with a cursor.
+  Query_result *m_cursor_result{nullptr};
+
+  /// Auxiliary query result object, saved for proper destruction
+  Query_result *m_aux_result{nullptr};
+
+  /// Flag that specifies preparation state
+  bool m_is_sql_prepare{false};
+
+  /// Flag that prevents recursive invocation of prepared statements
+  bool m_in_use{false};
+
+  bool m_with_log{false};
+
+  /// Name of the prepared statement.
+  LEX_CSTRING m_name{NULL_CSTR};
   /**
     Name of the current (default) database.
 
@@ -362,55 +407,59 @@ class Prepared_statement final {
     0. In other words, "db", "db_length" must either be NULL, or contain a
     valid database name.
 
-    @note this attribute is set and alloced by the slave SQL thread (for
+    @note this attribute is set and allocated by the slave SQL thread (for
     the THD of that thread); that thread is (and must remain, for now) the
     only responsible for freeing this member.
   */
-  LEX_CSTRING m_db;
+  LEX_CSTRING m_db{NULL_CSTR};
 
   /**
     The memory root to allocate parsed tree elements (instances of Item,
     Query_block and other classes).
   */
-  MEM_ROOT main_mem_root;
+  MEM_ROOT m_mem_root;
+
+  bool prepare_query(THD *thd);
 
  public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
+
   bool set_name(const LEX_CSTRING &name);
   const LEX_CSTRING &name() const { return m_name; }
-  void close_cursor();
-  bool is_in_use() const { return flags & (uint)IS_IN_USE; }
-  bool is_sql_prepare() const { return flags & (uint)IS_SQL_PREPARE; }
-  void set_sql_prepare() { flags |= (uint)IS_SQL_PREPARE; }
-  bool prepare(const char *packet, size_t packet_length,
+  ulong id() const { return m_id; }
+  bool is_in_use() const { return m_in_use; }
+  bool is_sql_prepare() const { return m_is_sql_prepare; }
+  void set_sql_prepare(bool prepare = true) { m_is_sql_prepare = prepare; }
+  void deallocate(THD *thd);
+  bool prepare(THD *thd, const char *packet, size_t packet_length,
                Item_param **orig_param_array);
-  bool prepare_query();
-  bool execute_loop(String *expanded_query, bool open_cursor);
-  bool execute_server_runnable(Server_runnable *server_runnable);
+  bool execute_loop(THD *thd, String *expanded_query, bool open_cursor);
+  bool execute_server_runnable(THD *thd, Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt *get_PS_prepared_stmt() { return m_prepared_stmt; }
 #endif
-  /* Destroy this statement */
-  void deallocate();
-  bool set_parameters(String *expanded_query, bool has_new_types,
+  bool set_parameters(THD *thd, String *expanded_query, bool has_new_types,
                       PS_PARAM *parameters);
-  bool set_parameters(String *expanded_query);
-  void trace_parameter_types();
+  bool set_parameters(THD *thd, String *expanded_query);
+  void trace_parameter_types(THD *thd);
+  void close_cursor();
 
  private:
-  void cleanup_stmt();
-  void setup_set_params();
+  void cleanup_stmt(THD *thd);
+  void setup_stmt_logging(THD *thd);
   bool check_parameter_types();
   void copy_parameter_types(Item_param **from_param_array);
   bool set_db(const LEX_CSTRING &db_length);
 
-  bool execute(String *expanded_query, bool open_cursor);
-  bool reprepare();
-  bool validate_metadata(Prepared_statement *copy);
+  bool execute(THD *thd, String *expanded_query, bool open_cursor);
+  bool reprepare(THD *thd);
+  bool validate_metadata(THD *thd, Prepared_statement *copy);
   void swap_prepared_statement(Prepared_statement *copy);
-  bool insert_params_from_vars(List<LEX_STRING> &varnames, String *query);
-  bool insert_params(String *query, PS_PARAM *parameters);
+  bool insert_parameters_from_vars(THD *thd, List<LEX_STRING> &varnames,
+                                   String *query);
+  bool insert_parameters(THD *thd, String *query, bool has_new_types,
+                         PS_PARAM *parameters);
 };
 
 #endif  // SQL_PREPARE_H

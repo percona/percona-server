@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +128,11 @@ class mock_gcs_xcom_communication_interface
                void(Gcs_protocol_version version));
   MOCK_CONST_METHOD0(get_maximum_supported_protocol_version,
                      Gcs_protocol_version());
+  MOCK_METHOD1(set_communication_protocol,
+               void(enum_transport_protocol protocol));
+  MOCK_METHOD1(add_communication_provider,
+               void(std::shared_ptr<Network_provider> provider));
+  MOCK_METHOD0(get_incoming_connections_protocol, enum_transport_protocol());
 
   virtual Gcs_message_pipeline &get_msg_pipeline() { return m_msg_pipeline; }
 
@@ -137,7 +142,7 @@ class mock_gcs_xcom_communication_interface
 
 class XComStateExchangeTest : public GcsBaseTest {
  protected:
-  XComStateExchangeTest() {}
+  XComStateExchangeTest() = default;
 
   void SetUp() override {
     control_mock = new mock_gcs_control_interface();
@@ -267,7 +272,8 @@ TEST_F(XComStateExchangeTest, StateExchangeBroadcastJoinerTest) {
 
 uchar *copied_payload = nullptr;
 uint64_t copied_length = 0;
-enum_gcs_error copy_message_content(const Gcs_message &msg) {
+enum_gcs_error copy_message_content(const Gcs_message &msg,
+                                    unsigned long long *, Cargo_type) {
   copied_length = msg.get_message_data().get_payload_length();
   copied_payload = static_cast<uchar *>(malloc(sizeof(uchar) * copied_length));
   memcpy(copied_payload, msg.get_message_data().get_payload(), copied_length);
@@ -277,7 +283,7 @@ enum_gcs_error copy_message_content(const Gcs_message &msg) {
 
 TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase) {
   EXPECT_CALL(*comm_mock, do_send_message(_, _, _))
-      .WillOnce(WithArgs<0>(Invoke(copy_message_content)));
+      .WillOnce(Invoke(copy_message_content));
 
   /*
     Define that the first view delivered has two members, i.e.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/group_actions/multi_primary_migration_action.h"
-#include <plugin/group_replication/include/plugin_handlers/persistent_variables_handler.h>
+#include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/consensus_leaders_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/server_ongoing_transactions_handler.h"
+#include "plugin/group_replication/include/services/system_variable/set_system_variable.h"
 
 bool send_multi_primary_action_message(Plugin_gcs_message *message) {
   enum_gcs_error msg_error = gcs_module->send_message(*message);
@@ -193,15 +195,25 @@ Multi_primary_migration_action::execute_action(
       events_handler->disable_read_mode_for_compatible_members(true);
     }
   } else {
-    /* Case when 8.0.13 <> 8.0.16 member is present and 8.0.17(or greater) was
-     * primary. Post MPM switch read_only need to be set in 8.0.17 primary. */
-    if (!multi_primary_switch_aborted &&
-        Compatibility_module::check_version_incompatibility(
-            local_member_info->get_member_version(),
-            group_member_mgr->get_group_lowest_online_version()) ==
-            READ_COMPATIBLE) {
-      if (enable_server_read_mode(PSESSION_USE_THREAD)) {
-        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
+    if (!multi_primary_switch_aborted) {
+      /* Case when 8.0.13 <> 8.0.16 member is present and 8.0.17(or greater) was
+       * primary. Post MPM switch read_only need to be set in 8.0.17 primary. */
+      if (Compatibility_module::check_version_incompatibility(
+              local_member_info->get_member_version(),
+              group_member_mgr->get_group_lowest_online_version()) ==
+          READ_COMPATIBLE) {
+        if (enable_server_read_mode()) {
+          /* purecov: begin inspected */
+          LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
+          /* purecov: end */
+        }
+      } else {
+        /*
+          Even when this members was the primary on single-primary mode, it
+          might had read_only_mode enabled, as such we need to disable
+          read_only_mode.
+        */
+        events_handler->disable_read_mode_for_compatible_members(true);
       }
     }
   }
@@ -226,8 +238,18 @@ end:
     log_result_execution(multi_primary_switch_aborted && !action_terminated,
                          mode_is_set);
 
-  if ((!multi_primary_switch_aborted && !error) || action_terminated)
+  if ((!multi_primary_switch_aborted && !error) || action_terminated) {
+    Member_version const communication_protocol =
+        convert_to_mysql_version(gcs_module->get_protocol_version());
+    Gcs_member_identifier const my_gcs_id =
+        local_member_info->get_gcs_member_id();
+
+    consensus_leaders_handler->set_consensus_leaders(
+        communication_protocol, false, Group_member_info::MEMBER_ROLE_PRIMARY,
+        my_gcs_id);
+
     return Group_action::GROUP_ACTION_RESULT_TERMINATED;
+  }
 
   if (action_killed) {
     return Group_action::GROUP_ACTION_RESULT_KILLED;
@@ -248,10 +270,6 @@ bool Multi_primary_migration_action::stop_action_execution(bool killed) {
   mysql_mutex_unlock(&notification_lock);
 
   return false;
-}
-
-const char *Multi_primary_migration_action::get_action_name() {
-  return "Multi primary mode migration";
 }
 
 Group_action_diagnostics *Multi_primary_migration_action::get_execution_info() {
@@ -292,7 +310,8 @@ int Multi_primary_migration_action::after_view_change(
 }
 
 int Multi_primary_migration_action::after_primary_election(
-    std::string, bool, enum_primary_election_mode, int) {
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0; /* purecov: inspected */
 }
 
@@ -322,31 +341,23 @@ int Multi_primary_migration_action::before_message_handling(
 }
 
 bool Multi_primary_migration_action::persist_variable_values() {
-  Sql_service_command_interface *sql_command_interface =
-      new Sql_service_command_interface();
-  long error = 0;
-  std::string var_name, var_value;
+  int error = 0;
+  Set_system_variable set_system_variable;
 
-  if ((error = sql_command_interface->establish_session_connection(
-           PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer())))
+  if ((error = set_system_variable
+                   .set_persist_only_group_replication_single_primary_mode(
+                       false))) {
     goto end; /* purecov: inspected */
+  }
 
-  var_name.assign("group_replication_single_primary_mode");
-  var_value.assign("OFF");
-
-  if ((error = set_persist_only_variable(var_name, var_value,
-                                         sql_command_interface)))
+  if ((error =
+           set_system_variable
+               .set_persist_only_group_replication_enforce_update_everywhere_checks(
+                   true))) {
     goto end; /* purecov: inspected */
-
-  var_name.assign("group_replication_enforce_update_everywhere_checks");
-  var_value.assign("ON");
-
-  if ((error = set_persist_only_variable(var_name, var_value,
-                                         sql_command_interface)))
-    goto end; /* purecov: inspected */
+  }
 
 end:
-  delete sql_command_interface;
   if (error) {
     execution_message_area.set_warning_message(
         "It was not possible to persist the configuration values for this "

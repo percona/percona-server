@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,6 @@
 #include "harness_export.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -56,7 +54,7 @@ using JsonValue = rapidjson::GenericValue<rapidjson::UTF8<>, JsonAllocator>;
 /**
  * @brief DynamicState represents a MySQLRouter dynamic state object.
  *
- * It's ment to be used as a singleton that provides methods to read/update
+ * It's meant to be used as a singleton that provides methods to read/update
  * sections from the specific modules requiring saving their runtime state.
  *
  * It handles the file handling synchronization, versioning and validation.
@@ -90,6 +88,8 @@ class HARNESS_EXPORT DynamicState {
    * @brief Saves the json state object to the associated file, overwrites the
    * the file content.
    *
+   * @param is_clusterset true if the metadata is configured to work with a
+   * ClusterSet, false if a single Cluster
    * @param pretty if true the json data is written in a human readable json
    * format
    *
@@ -97,13 +97,15 @@ class HARNESS_EXPORT DynamicState {
    * @retval true operation succeeded
    * @retval false operation failed
    */
-  bool save(bool pretty = true);
+  bool save(bool is_clusterset, bool pretty = true);
 
   /**
    * @brief Saves the json state object to the output stream given as a
    * parameter, overwrites the stream content.
    *
    * @param output_stream stream where json content should be written to
+   * @param is_clusterset true if the metadata is configured to work with a
+   * ClusterSet, false if a single Cluster
    * @param pretty if true the json data is written in a human readable json
    * format
    *
@@ -111,7 +113,8 @@ class HARNESS_EXPORT DynamicState {
    * @retval true operation succeeded
    * @retval false operation failed
    */
-  bool save_to_stream(std::ostream &output_stream, bool pretty = true);
+  bool save_to_stream(std::ostream &output_stream, bool is_clusterset,
+                      bool pretty = true);
 
   /**
    * @brief Returns selected state object section by its name.

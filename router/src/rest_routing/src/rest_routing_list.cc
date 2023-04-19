@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,6 @@
 
 #include "mysqlrouter/rest_api_utils.h"
 #include "mysqlrouter/routing_component.h"
-
-constexpr const char RestRoutingList::path_regex[];
 
 bool RestRoutingList::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,

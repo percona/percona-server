@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class MOCK_JOIN_TAB : public JOIN_TAB {
   }
 
   TABLE m_table;
-  TABLE_LIST m_table_list;
+  Table_ref m_table_list;
   QEP_shared m_shared;
 };
 

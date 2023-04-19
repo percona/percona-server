@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,26 +23,18 @@
 */
 
 ////////////////////////////////////////
-// Test system include files
-#include "dim.h"
-#include "test/helpers.h"
-
-////////////////////////////////////////
 // Standard include files
 #include <memory>
 
 ////////////////////////////////////////
 // Third-party include files
 
-// #include GMock, but ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
-#include "gmock/gmock.h"
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+#include <gmock/gmock.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "dim.h"
+#include "test/helpers.h"
 
 using mysql_harness::UniquePtr;
 using ::testing::_;
@@ -58,8 +50,10 @@ class Notifier {
 // GMock objects cannot be global, because EXPECT_CALL()s are evaluated in their
 // destructors. The simplest workaround is to set a ptr to such a local object,
 // and make that globally-accessible to the things that need it.
-Notifier *g_notifier = NULL;
-void set_notifier(Notifier &notifier) { g_notifier = &notifier; }
+::testing::StrictMock<Notifier> *g_notifier = NULL;
+void set_notifier(::testing::StrictMock<Notifier> *notifier) {
+  g_notifier = notifier;
+}
 
 class A {
  public:
@@ -131,7 +125,7 @@ class UniquePtrTest : public ::testing::Test {
   Notifier &get_notifier() { return notifier_; }
 
  private:
-  Notifier notifier_;
+  ::testing::StrictMock<Notifier> notifier_;
 };
 
 TEST_F(UniquePtrTest, test_illegal_operations_warning) {
@@ -217,7 +211,7 @@ TEST_F(UniquePtrTest, moving_stuff) {
   EXPECT_FALSE(p3);
 
 #ifndef __clang__
-  // Clang genereates -Wself-move warning, because self-move is undefined per
+  // Clang generates -Wself-move warning, because self-move is undefined per
   // C++11 standard. However, a lot of people feel it should be a no-op. Our
   // UniquePtr adheres to that tighter specification.
   p4 = std::move(p4);
@@ -448,9 +442,9 @@ class B : public A {
 };
 
 TEST_F(DIMTest, singleton_simple) {
-  // 1st get_A() call should create a new istance
+  // 1st get_A() call should create a new instance
   {
-    Notifier notifier;
+    ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
     EXPECT_CALL(notifier, called_ctor("B")).Times(1);
     EXPECT_CALL(notifier, called_dtor("B"))
@@ -474,7 +468,7 @@ TEST_F(DIMTest, singleton_simple) {
 
   // subsequent get_A() calls should not create new instances
   {
-    Notifier notifier;
+    ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
     EXPECT_CALL(notifier, called_ctor("B"))
         .Times(0);  // no new instance should be created
@@ -488,7 +482,7 @@ TEST_F(DIMTest, singleton_simple) {
 
   // calling set_A() should have no effect if singleton has already been created
   {
-    Notifier notifier;
+    ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
     EXPECT_CALL(notifier, called_ctor("B")).Times(0);
     EXPECT_CALL(notifier, called_dtor("B")).Times(0);
@@ -544,7 +538,7 @@ TEST_F(DIMTest, singleton_dependency_cascade) {
 
   // should trigger creation of Foo, Bar and Baz
   {
-    Notifier notifier;
+    ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
     EXPECT_CALL(notifier, called_ctor("Foo")).Times(1);
     EXPECT_CALL(notifier, called_ctor("Bar")).Times(1);
@@ -576,7 +570,7 @@ void deleter2(A *ptr) {
 void deleterX(A *) { FAIL() << "This deleter should never be called"; }
 
 TEST_F(DIMTest, factory_simple) {
-  Notifier notifier;
+  ::testing::StrictMock<Notifier> notifier;
   set_notifier(notifier);
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);
@@ -601,7 +595,7 @@ TEST_F(DIMTest, factory_simple) {
 }
 
 TEST_F(DIMTest, factory_object_should_remember_its_deleter) {
-  Notifier notifier;
+  ::testing::StrictMock<Notifier> notifier;
   set_notifier(notifier);
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);
@@ -612,7 +606,7 @@ TEST_F(DIMTest, factory_object_should_remember_its_deleter) {
   EXPECT_CALL(notifier, called_deleter("B2")).Times(1);
 
   // changing deleter should not affect objects already instantiated
-  // (instantiated objects should "remeber their deleter" - they should be
+  // (instantiated objects should "remember their deleter" - they should be
   // deleted with the deleter current at the time of their instantiation)
   {
     dim.set_A([]() { return new B; }, deleter0);
@@ -634,7 +628,7 @@ TEST_F(DIMTest, factory_object_should_remember_its_deleter) {
 }
 
 TEST_F(DIMTest, factory_object_should_remember_its_deleter2) {
-  Notifier notifier;
+  ::testing::StrictMock<Notifier> notifier;
   set_notifier(notifier);
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);

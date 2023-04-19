@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
+#include "util/require.h"
 #include <ndb_global.h>
+#include <cstring>
 #include <NdbThread.h>
 #include "my_thread.h"
 #include <NdbMutex.h>
@@ -75,15 +76,17 @@
 #if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_PTHREAD_SET_SCHEDPARAM)
 static int g_min_prio = 0;
 static int g_max_prio = 0;
-static bool get_prio_first = TRUE;
+static bool get_prio_first = true;
 #endif
 
-static NdbMutex *ndb_thread_mutex = 0;
-static struct NdbCondition * ndb_thread_condition = 0;
+static NdbMutex *ndb_thread_mutex = nullptr;
+static struct NdbCondition * ndb_thread_condition = nullptr;
 
 static int f_high_prio_set = 0;
+#ifdef HAVE_PTHREAD_SETSCHEDPARAM
 static int f_high_prio_policy;
 static int f_high_prio_prio;
+#endif
 
 struct NdbThread 
 { 
@@ -232,7 +235,7 @@ ndb_thread_wrapper(void* _ss){
       sigdelset(&mask, SIGFPE);
       sigdelset(&mask, SIGILL);
       sigdelset(&mask, SIGSEGV);
-      pthread_sigmask(SIG_BLOCK, &mask, 0);
+      pthread_sigmask(SIG_BLOCK, &mask, nullptr);
     }      
 #endif
 
@@ -250,7 +253,7 @@ ndb_thread_wrapper(void* _ss){
         OpenThread(SYNCHRONIZE |
                      THREAD_SET_INFORMATION |
                      THREAD_QUERY_INFORMATION,
-                   FALSE,
+                   false,
                    GetCurrentThreadId());
 #endif
 
@@ -271,7 +274,7 @@ ndb_thread_wrapper(void* _ss){
   }
 }
 
-static struct NdbThread* g_main_thread = 0;
+static struct NdbThread* g_main_thread = nullptr;
 
 struct NdbThread*
 NdbThread_CreateObject(const char * name)
@@ -279,7 +282,7 @@ NdbThread_CreateObject(const char * name)
   struct NdbThread* tmpThread;
   DBUG_ENTER("NdbThread_CreateObject");
 
-  if (g_main_thread != 0)
+  if (g_main_thread != nullptr)
   {
     settid(g_main_thread);
     if (name)
@@ -290,10 +293,10 @@ NdbThread_CreateObject(const char * name)
   }
 
   tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
-  if (tmpThread == NULL)
+  if (tmpThread == nullptr)
     DBUG_RETURN(NULL);
 
-  bzero(tmpThread, sizeof(* tmpThread));
+  std::memset(tmpThread, 0, sizeof(* tmpThread));
   if (name)
   {
     my_stpnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
@@ -324,41 +327,48 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
                  NDB_THREAD_ARG *p_thread_arg,
                  const NDB_THREAD_STACKSIZE _stack_size,
                  const char* p_thread_name,
-                 NDB_THREAD_PRIO thread_prio)
+                 NDB_THREAD_PRIO thread_prio [[maybe_unused]])
 {
-  struct NdbThread* tmpThread;
-  int result;
-  my_thread_attr_t thread_attr;
-  my_thread_handle thread_handle;
-  NDB_THREAD_STACKSIZE thread_stack_size;
-
   DBUG_ENTER("NdbThread_Create");
 
+  if (p_thread_func == nullptr)
+    DBUG_RETURN(NULL);
+
+  NDB_THREAD_STACKSIZE thread_stack_size;
   /* Use default stack size if 0 specified */
   if (_stack_size == 0)
     thread_stack_size = 64 * 1024 * SIZEOF_CHARP/4;
   else
     thread_stack_size = _stack_size * SIZEOF_CHARP/4;
 
-  (void)thread_prio; /* remove warning for unused parameter */
+#ifdef PTHREAD_STACK_MIN
+  /*
+    PTHREAD_STACK_MIN is not constant from glibc 2.34 onwards. Snippet from
+    the release notes:
+    * When _DYNAMIC_STACK_SIZE_SOURCE or _GNU_SOURCE are defined,
+      PTHREAD_STACK_MIN is no longer constant and is redefined to
+      sysconf(_SC_THREAD_STACK_MIN).  This supports dynamic sized register
+      sets for modern architectural features like Arm SVE.
 
-  if (p_thread_func == NULL)
+    Return an error if the value is negative
+  */
+  if (PTHREAD_STACK_MIN < 0)
     DBUG_RETURN(NULL);
+  if (thread_stack_size < static_cast<NDB_THREAD_STACKSIZE>(PTHREAD_STACK_MIN))
+    thread_stack_size = PTHREAD_STACK_MIN;
+#endif
+  DBUG_PRINT("info", ("stack_size: %zu", thread_stack_size));
 
-  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
-  if (tmpThread == NULL)
+  NdbThread *const tmpThread = (NdbThread *)malloc(sizeof(NdbThread));
+  if (tmpThread == nullptr)
     DBUG_RETURN(NULL);
 
   DBUG_PRINT("info",("thread_name: %s", p_thread_name));
 
   my_stpnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
+  my_thread_attr_t thread_attr;
   my_thread_attr_init(&thread_attr);
-#ifdef PTHREAD_STACK_MIN
-  if (thread_stack_size < PTHREAD_STACK_MIN)
-    thread_stack_size = PTHREAD_STACK_MIN;
-#endif
-  DBUG_PRINT("info", ("stack_size: %llu", (ulonglong)thread_stack_size));
 #ifndef _WIN32
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
 #else
@@ -375,15 +385,16 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->inited = 0;
   tmpThread->func= p_thread_func;
   tmpThread->object= p_thread_arg;
-  tmpThread->cpu_set_key = NULL;
-  tmpThread->first_lock_call_exclusive = FALSE;
-  tmpThread->first_lock_call_non_exclusive = FALSE;
+  tmpThread->cpu_set_key = nullptr;
+  tmpThread->first_lock_call_exclusive = false;
+  tmpThread->first_lock_call_non_exclusive = false;
 
+  my_thread_handle thread_handle;
   NdbMutex_Lock(ndb_thread_mutex);
-  result = my_thread_create(&thread_handle,
-			    &thread_attr,
-  		            ndb_thread_wrapper,
-  		            tmpThread);
+  const int result = my_thread_create(&thread_handle,
+                                      &thread_attr,
+                                      ndb_thread_wrapper,
+                                      tmpThread);
   tmpThread->thread= thread_handle.thread;
 
   my_thread_attr_destroy(&thread_attr);
@@ -399,7 +410,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   {
 #ifdef HAVE_PTHREAD_SETSCHEDPARAM
     struct sched_param param;
-    bzero(&param, sizeof(param));
+    std::memset(&param, 0, sizeof(param));
     param.sched_priority = f_high_prio_prio;
     if (pthread_setschedparam(tmpThread->thread, f_high_prio_policy, &param))
       perror("pthread_setschedparam failed");
@@ -424,10 +435,10 @@ NdbThread_CreateLockObject(int tid)
   DBUG_ENTER("NdbThread_CreateLockObject");
 
   tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
-  if (tmpThread == NULL)
+  if (tmpThread == nullptr)
     DBUG_RETURN(NULL);
 
-  bzero(tmpThread, sizeof(* tmpThread));
+  std::memset(tmpThread, 0, sizeof(* tmpThread));
 
 #if defined HAVE_LINUX_SCHEDULING
   tmpThread->tid= (pid_t)tid;
@@ -450,7 +461,7 @@ NdbThread_CreateLockObject(int tid)
   tmpThread->thread_handle = OpenThread(SYNCHRONIZE |
                                           THREAD_SET_INFORMATION |
                                           THREAD_QUERY_INFORMATION,
-                                        FALSE,
+                                        false,
                                         (DWORD)tid);
 #endif
 
@@ -464,7 +475,7 @@ NdbThread_CreateLockObject(int tid)
 void NdbThread_Destroy(struct NdbThread** p_thread)
 {
   DBUG_ENTER("NdbThread_Destroy");
-  if (*p_thread != NULL){
+  if (*p_thread != nullptr){
 #ifdef _WIN32
     HANDLE thread_handle = (*p_thread)->thread_handle;
     if (thread_handle)
@@ -472,7 +483,7 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
 #endif
     DBUG_PRINT("info", ("Destroying thread pointer: %p", *p_thread));
     free(* p_thread);
-    * p_thread = 0;
+    * p_thread = nullptr;
   }
   DBUG_VOID_RETURN;
 }
@@ -480,7 +491,10 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
 
 int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
 {
-  if (p_wait_thread == NULL)
+  /* Always set status to nullptr, never used anyway */
+  if (status != nullptr) *status = nullptr;
+
+  if (p_wait_thread == nullptr)
     return 0;
 
   if (p_wait_thread->thread == 0)
@@ -501,8 +515,6 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
     {
       return -1;
     }
-
-    /* Don't fill in "status", never used anyway */
 
     return 0;
   }
@@ -568,7 +580,7 @@ get_prio(bool high_prio, int policy)
   {
     g_max_prio = get_max_prio(policy);
     g_min_prio = get_min_prio(policy);
-    get_prio_first = FALSE;
+    get_prio_first = false;
   }
   /*
     We need to distinguish between high and low priority threads. High
@@ -598,8 +610,8 @@ get_prio(bool high_prio, int policy)
 int
 NdbThread_yield_rt(struct NdbThread* pThread, bool high_prio)
 {
-  int res = NdbThread_SetScheduler(pThread, FALSE, high_prio);
-  int res1 = NdbThread_SetScheduler(pThread, TRUE, high_prio);
+  int res = NdbThread_SetScheduler(pThread, false, high_prio);
+  int res1 = NdbThread_SetScheduler(pThread, true, high_prio);
   if (res || res1)
     return res;
   return 0;
@@ -637,7 +649,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  bzero(&loc_sched_param, sizeof(loc_sched_param));
+  std::memset(&loc_sched_param, 0, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
   ret= sched_setscheduler(pThread->tid, policy, &loc_sched_param);
   if (ret)
@@ -659,7 +671,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  bzero(&loc_sched_param, sizeof(loc_sched_param));
+  std::memset(&loc_sched_param, 0, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
   ret= pthread_setschedparam(pThread->thread, policy, &loc_sched_param);
   if (ret)
@@ -696,55 +708,45 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
 #ifdef HAVE_PRIOCNTL
   /* Solaris */
   int ret;
-  int error_no;
+  int error_no = 0;
   int solaris_prio;
-  if (prio < 10)
+  switch (prio)
   {
-    switch (prio)
-    {
-      case 0:
-        solaris_prio = 15;
-        break;
-      case 1:
-        solaris_prio = 20;
-        break;
-      case 2:
-        solaris_prio = 25;
-        break;
-      case 3:
-        solaris_prio = 30;
-        break;
-      case 4:
-        solaris_prio = 35;
-        break;
-      case 5:
-        solaris_prio = 40;
-        break;
-      case 6:
-        solaris_prio = 45;
-        break;
-      case 7:
-        solaris_prio = 50;
-        break;
-      case 8:
-        solaris_prio = 55;
-        break;
-      case 9:
-        solaris_prio = 59;
-        break;
-      default:
-        /* Will never end up here */
-        require(FALSE);
-        break;
-    }
-  }
-  else if (prio == 10)
-  {
-    solaris_prio = 60;
-  }
-  else
-  {
-    return SET_THREAD_PRIO_OUT_OF_RANGE_ERROR;
+    case 0:
+      solaris_prio = 15;
+      break;
+    case 1:
+      solaris_prio = 20;
+      break;
+    case 2:
+      solaris_prio = 25;
+      break;
+    case 3:
+      solaris_prio = 30;
+      break;
+    case 4:
+      solaris_prio = 35;
+      break;
+    case 5:
+      solaris_prio = 40;
+      break;
+    case 6:
+      solaris_prio = 45;
+      break;
+    case 7:
+      solaris_prio = 50;
+      break;
+    case 8:
+      solaris_prio = 55;
+      break;
+    case 9:
+      solaris_prio = 59;
+      break;
+    case 10:
+      solaris_prio = 60;
+      break;
+    default:
+      return SET_THREAD_PRIO_OUT_OF_RANGE_ERROR;
   }
   ret = priocntl(P_LWPID,
                  tid,
@@ -860,7 +862,7 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
  * ids for processors we will use a mapping scheme from processor number
  * to processor group number and processor id within this group. So if your
  * CPU is located in Processor Group 2 and is processor 10 in this group, then
- * your NDB processor number will be 2 * 64 + 10 = 138. Thus the configuation
+ * your NDB processor number will be 2 * 64 + 10 = 138. Thus the configuration
  * should always use these NDB processor numbers on Windows when using systems
  * with more than 64 logical processors which are becoming fairly commonplace
  * these days.
@@ -879,8 +881,8 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
 
 static unsigned int num_processor_groups = 0;
 static unsigned int *num_processors_per_group = NULL;
-static bool inited = FALSE;
-static bool support_cpu_locking_on_windows = FALSE;
+static bool inited = false;
+static bool support_cpu_locking_on_windows = false;
 
 /**
  * On Windows the processors group have different sizes.
@@ -915,19 +917,19 @@ is_cpu_locking_supported_on_windows()
   {
     return support_cpu_locking_on_windows;
   }
-  inited = TRUE;
+  inited = true;
 
   num_processor_groups = GetActiveProcessorGroupCount();
   if (num_processor_groups == 0)
   {
-    return FALSE;
+    return false;
   }
 
   num_processors_per_group =
       (unsigned int*)malloc(num_processor_groups * sizeof(unsigned int));
   if (num_processors_per_group == NULL)
   {
-    return FALSE;
+    return false;
   }
 
   for (Uint32 i = 0; i < num_processor_groups; i++)
@@ -935,12 +937,12 @@ is_cpu_locking_supported_on_windows()
     num_processors_per_group[i] = GetActiveProcessorCount((WORD)i);
     if (num_processors_per_group[i] == 0)
     {
-      return FALSE;
+      return false;
     }
   }
 
   // Initialization successful -> cpu locking supported!
-  support_cpu_locking_on_windows = TRUE;
+  support_cpu_locking_on_windows = true;
   return support_cpu_locking_on_windows;
 }
 
@@ -953,13 +955,13 @@ is_cpu_available(unsigned int cpu_id)
 
   if (processor_group >= num_processor_groups)
   {
-    return FALSE;
+    return false;
   }
   if (processor_id >= num_processors_per_group[processor_group])
   {
-    return FALSE;
+    return false;
   }
-  return TRUE;
+  return true;
 }
 
 static void
@@ -1045,7 +1047,7 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
       break;
     default:
       /* Impossible to reach */
-      require(FALSE);
+      require(false);
   }
   const BOOL ret = SetThreadPriority(pThread->thread_handle, windows_prio);
   if (ret == 0)
@@ -1063,7 +1065,7 @@ NdbThread_UnassignFromCPUSet(struct NdbThread *pThread,
 {
   if (cpu_set == NULL)
   {
-    assert(FALSE);
+    assert(false);
     return;
   }
   unsigned int *cpu_set_ptr = (unsigned int*)cpu_set;
@@ -1080,7 +1082,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
   /* Windows */
   GROUP_AFFINITY new_affinity;
 
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
 
   new_affinity.Mask = pThread->oldProcessorMask;
   new_affinity.Group = pThread->oldProcessorGroupNumber;
@@ -1120,8 +1122,8 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   GROUP_AFFINITY new_affinity;
   GROUP_AFFINITY old_affinity;
 
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
-  bzero(&old_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
+  std::memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
 
   const KAFFINITY cpu0 = 1;
   new_affinity.Mask = (cpu0 << GET_PROCESSOR_ID(cpu_id));
@@ -1214,7 +1216,7 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
   {
     return NON_EXCLUSIVE_CPU_SET_NOT_SUPPORTED_ERROR;
   }
-  unsigned int used_processor_group;
+  unsigned int used_processor_group = UINT_MAX;
   unsigned int *cpu_set_ptr = (unsigned int*)ndb_cpu_set;
   unsigned int *dynamic_part = &cpu_set_ptr[2];
   unsigned long long min_so_far = (unsigned long long)-1;
@@ -1238,6 +1240,8 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
     }
   }
   assert(found);
+  if (!found) return CPU_ID_MISSING_ERROR; // Processor group not found
+
   KAFFINITY mask;
   calculate_processor_mask(&mask,
                            used_processor_group,
@@ -1252,8 +1256,8 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
    * has to be zeroed, otherwise Windows will return an error of invalid
    * parameter.
    */
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
-  bzero(&old_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
+  std::memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
 
   new_affinity.Mask = mask;
   new_affinity.Group = used_processor_group;
@@ -1365,7 +1369,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     }
     else
     {
-      pThread->first_lock_call_non_exclusive = FALSE;
+      pThread->first_lock_call_non_exclusive = false;
     }
   }
 #elif defined HAVE_SOLARIS_AFFINITY
@@ -1382,7 +1386,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     }
     else
     {
-      pThread->first_lock_call_exclusive = FALSE;
+      pThread->first_lock_call_exclusive = false;
     }
   }
   if (pThread->first_lock_call_non_exclusive)
@@ -1415,7 +1419,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     }
     else
     {
-      pThread->first_lock_call_non_exclusive = FALSE;
+      pThread->first_lock_call_non_exclusive = false;
     }
   }
 #else
@@ -1424,7 +1428,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
 #endif
   if (!error_no)
   {
-    pThread->cpu_set_key = NULL;
+    pThread->cpu_set_key = nullptr;
   }
   return error_no;
 }
@@ -1503,7 +1507,7 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   if (!error_no)
   {
     pThread->cpu_set_key = cpu_set_key;
-    pThread->first_lock_call_non_exclusive = TRUE;
+    pThread->first_lock_call_non_exclusive = true;
   }
   return error_no;
 
@@ -1600,7 +1604,7 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
   if (!error_no)
   {
     pThread->cpu_set_key = cpu_set_key;
-    pThread->first_lock_call_non_exclusive = TRUE;
+    pThread->first_lock_call_non_exclusive = true;
   }
   return error_no;
 
@@ -1634,7 +1638,7 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   if (!cpu_set_ptr)
   {
     error_no = errno;
-    *cpu_set = NULL;
+    *cpu_set = nullptr;
     return error_no;
   }
   CPU_ZERO(cpu_set_ptr);
@@ -1719,7 +1723,7 @@ end_error:
   /* Exclusive cpusets currently only supported on Solaris */
   (void)num_cpu_ids;
   (void)cpu_ids;
-  *cpu_set = NULL;
+  *cpu_set = nullptr;
   return EXCLUSIVE_CPU_SET_NOT_SUPPORTED_ERROR;
 #endif
 }
@@ -1764,7 +1768,7 @@ NdbThread_LockCPUSetExclusive(struct NdbThread* pThread,
   if (!error_no)
   {
     pThread->cpu_set_key = cpu_set_key;
-    pThread->first_lock_call_exclusive = TRUE;
+    pThread->first_lock_call_exclusive = true;
   }
   return error_no;
 
@@ -1781,7 +1785,7 @@ NdbThread_LockCPUSetExclusive(struct NdbThread* pThread,
 void
 NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set)
 {
-  if (cpu_set != NULL)
+  if (cpu_set != nullptr)
   {
     free(cpu_set);
   }
@@ -1790,7 +1794,7 @@ NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set)
 void
 NdbThread_LockDestroyCPUSetExclusive(struct NdbCpuSet *cpu_set)
 {
-  if (cpu_set != NULL)
+  if (cpu_set != nullptr)
   {
 #if defined HAVE_SOLARIS_AFFINITY
     /* Solaris */
@@ -1832,7 +1836,7 @@ struct NdbThread* NdbThread_GetNdbThread()
 #endif
 
 bool
-NdbThread_IsCPUAvailable(Uint32 cpu_id)
+NdbThread_IsCPUAvailable(Uint32 cpu_id [[maybe_unused]])
 {
   if (!cpu_set_working)
     return true;
@@ -1843,7 +1847,7 @@ NdbThread_IsCPUAvailable(Uint32 cpu_id)
 #elif defined(HAVE_PROCESSOR_AFFINITY)
   for (uint_t i = 0; i < g_num_ids; i++)
   {
-    if (g_cpu_ids[i] == cpu_id)
+    if (static_cast<Uint32>(g_cpu_ids[i]) == cpu_id)
       return true;
   }
   return false;
@@ -1859,7 +1863,7 @@ NdbThread_Init()
 #endif
   ndb_thread_mutex = NdbMutex_Create();
   ndb_thread_condition = NdbCondition_Create();
-  NdbThread_CreateObject(0);
+  NdbThread_CreateObject(nullptr);
   cpu_set_working = true;
 #if defined(HAVE_LINUX_SCHEDULING)
   CPU_ZERO(&g_cpu_usable_set);
@@ -1931,18 +1935,18 @@ NdbThread_End()
   if (g_main_thread)
   {
     free(g_main_thread);
-    g_main_thread = 0;
+    g_main_thread = nullptr;
   }
 }
 
 int
 NdbThread_SetHighPrioProperties(const char * spec)
 {
-  char * copy = 0;
-  char * prio = 0;
-  int found = 0;
+  char * copy = nullptr;
+  char * prio = nullptr;
+  int found [[maybe_unused]] = 0;
 
-  if (spec == 0)
+  if (spec == nullptr)
   {
     f_high_prio_set = 0;
     return 0;
@@ -1955,7 +1959,7 @@ NdbThread_SetHighPrioProperties(const char * spec)
     spec++;
 
   copy = strdup(spec);
-  if (copy == 0)
+  if (copy == nullptr)
     return -1;
 
   /**
@@ -2002,7 +2006,7 @@ NdbThread_SetHighPrioProperties(const char * spec)
   f_high_prio_prio = 50;
   if (prio)
   {
-    char * endptr = 0;
+    char * endptr = nullptr;
     long p = strtol(prio, &endptr, 10);
     if (prio == endptr)
     {
@@ -2025,6 +2029,6 @@ NdbThread_ClearSigMask()
 #ifdef HAVE_PTHREAD_SIGMASK
   sigset_t mask;
   sigfillset(&mask);
-  pthread_sigmask(SIG_UNBLOCK, &mask, 0);
+  pthread_sigmask(SIG_UNBLOCK, &mask, nullptr);
 #endif
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -56,7 +56,7 @@ NdbSchemaOp(Ndb* aNdb, Table* aTable);
 Return Value:  None
 Parameters:    aNdb: Pointers to the Ndb object.
                aTable: Pointers to the Table object
-Remark:        Creat an object of NdbSchemaOp. 
+Remark:        Create an object of NdbSchemaOp. 
 *****************************************************************************/
 NdbSchemaOp::NdbSchemaOp(Ndb* aNdb) : 
   theNdb(aNdb),
@@ -186,7 +186,7 @@ NdbSchemaOp::release(){
 /******************************************************************************
 int sendRec()
 
-Return Value:   Return 0 : send was succesful.
+Return Value:   Return 0 : send was successful.
                 Return -1: In all other case.   
 Parameters:
 Remark:         Send and receive signals for schema transaction based on state

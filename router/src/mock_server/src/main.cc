@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include <array>
+#include <csignal>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -37,7 +38,12 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/process_state_component.h"
+#include "mysql/harness/signal_handler.h"
 #include "mysql/harness/stdx/filesystem.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
+
+IMPORT_LOG_FUNCTIONS()
 
 constexpr unsigned kHelpScreenWidth = 72;
 constexpr unsigned kHelpScreenIndent = 8;
@@ -50,6 +56,7 @@ struct MysqlServerMockConfig {
   std::string http_port{};
   std::string xport{};
   bool verbose{false};
+  std::string logging_folder;
 
   std::string ssl_cert;
   std::string ssl_key;
@@ -60,6 +67,8 @@ struct MysqlServerMockConfig {
   std::string ssl_crl;
   std::string ssl_crlpath;
   std::string ssl_cipher;
+
+  bool core_file{false};
 };
 
 static void init_DIM() {
@@ -111,7 +120,13 @@ class MysqlServerMockFrontend {
   bool is_print_and_exit() { return do_print_and_exit_; }
 
   void run() {
-    std::unique_ptr<mysql_harness::Loader> loader_;
+    signal_handler_.register_ignored_signals_handler();
+    signal_handler_.block_all_nonfatal_signals();
+    signal_handler_.register_fatal_signal_handler(config_.core_file);
+    signal_handler_.spawn_signal_handler_thread();
+#ifdef _WIN32
+    signal_handler_.register_ctrl_c_handler();
+#endif
 
     init_DIM();
     std::unique_ptr<mysql_harness::LoaderConfig> loader_config(
@@ -120,9 +135,9 @@ class MysqlServerMockFrontend {
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
-    mysql_harness::Config config;
-    const mysql_harness::logging::LogLevel log_level =
-        mysql_harness::logging::get_default_log_level(config);
+    const auto log_level = config_.verbose
+                               ? mysql_harness::logging::LogLevel::kDebug
+                               : mysql_harness::logging::LogLevel::kWarning;
 
     mysql_harness::logging::clear_registry(registry);
     mysql_harness::logging::create_module_loggers(
@@ -130,7 +145,8 @@ class MysqlServerMockFrontend {
         {mysql_harness::logging::kMainLogger, "mock_server", "http_server", "",
          "rest_mock_server"},
         mysql_harness::logging::kMainLogger);
-    mysql_harness::logging::create_main_log_handler(registry, "", "", true);
+    mysql_harness::logging::create_main_log_handler(
+        registry, "mock_server", config_.logging_folder, true);
 
     registry.set_ready();
 
@@ -144,12 +160,13 @@ class MysqlServerMockFrontend {
 
       config_.module_prefix = cwd.native();
     }
-
-    // log to stderr
-    loader_config->set_default("logging_folder", "");
+    loader_config->set_default("logging_folder", config_.logging_folder);
     loader_config->add("logger");
-    loader_config->get("logger", "")
-        .add("level", config_.verbose ? "debug" : "warning");
+    auto &logger_conf = loader_config->get("logger", "");
+    logger_conf.add("level", config_.verbose ? "debug" : "warning");
+    logger_conf.add("timestamp_precision", "ms");
+    const std::string logfile_name = "mock_server_" + config_.port + ".log";
+    logger_conf.add("filename", logfile_name);
 
     // assume all path relative to the installed binary
     auto plugin_dir = mysql_harness::get_plugin_dir(origin_dir_.str());
@@ -165,6 +182,12 @@ class MysqlServerMockFrontend {
     loader_config->set_default(
         "data_folder",
         mysql_harness::Path(base_path).join("var").join("share").str());
+
+    {
+      auto &section = loader_config->add("io");
+      section.add("library", "io");
+      section.add("threads", "1");
+    }
 
     if (!config_.http_port.empty()) {
       auto &rest_mock_server_config =
@@ -216,12 +239,50 @@ class MysqlServerMockFrontend {
         [&]() { return loader_config.release(); },
         std::default_delete<mysql_harness::LoaderConfig>());
 
+    std::unique_ptr<mysql_harness::Loader> loader_;
     try {
-      loader_.reset(new mysql_harness::Loader("server-mock", *loader_config));
+      loader_ = std::make_unique<mysql_harness::Loader>("server-mock",
+                                                        *loader_config);
     } catch (const std::runtime_error &err) {
       throw std::runtime_error(std::string("init-loader failed: ") +
                                err.what());
     }
+
+    log_debug("Starting");
+
+#if !defined(_WIN32)
+    //
+    // reopen the logfile on SIGHUP.
+    //
+
+    static const char kSignalHandlerServiceName[]{"signal_handler"};
+
+    loader_->waitable_services().emplace_back(kSignalHandlerServiceName);
+
+    // as the LogReopener depends on the loggers being started, it must be
+    // initialized after Loader::start_all() has been called.
+    loader_->after_all_started([&]() {
+      signal_handler_.add_sig_handler(SIGTERM, [&](int /* sig */) {
+        mysql_harness::ProcessStateComponent::get_instance()
+            .request_application_shutdown(
+                mysql_harness::ShutdownPending::Reason::REQUESTED);
+      });
+
+      signal_handler_.add_sig_handler(SIGINT, [&](int /* sig */) {
+        mysql_harness::ProcessStateComponent::get_instance()
+            .request_application_shutdown(
+                mysql_harness::ShutdownPending::Reason::REQUESTED);
+      });
+
+      mysql_harness::on_service_ready(kSignalHandlerServiceName);
+    });
+
+    // after the first plugin finished, stop the log-reopener
+    loader_->after_first_finished([&]() {
+      signal_handler_.remove_sig_handler(SIGTERM);
+      signal_handler_.remove_sig_handler(SIGINT);
+    });
+#endif
 
     loader_->start();
   }
@@ -322,6 +383,24 @@ class MysqlServerMockFrontend {
         "directory containing PEM files of CRL", CmdOptionValueReq::required,
         "directory",
         [this](const std::string &value) { config_.ssl_crlpath = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--logging-folder"}), "logging folder",
+        CmdOptionValueReq::required, "directory",
+        [this](const std::string &value) { config_.logging_folder = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--core-file"}),
+        "Write a core file if mysqlrouter dies.", CmdOptionValueReq::optional,
+        "", [this](const std::string &value) {
+          if (value.empty() || value == "1") {
+            config_.core_file = true;
+          } else if (value == "0") {
+            config_.core_file = false;
+          } else {
+            throw std::runtime_error(
+                "Value for parameter '--core-file' needs to be "
+                "one of: ['0', '1']");
+          }
+        });
   }
 
   CmdArgHandler arg_handler_;
@@ -331,14 +410,14 @@ class MysqlServerMockFrontend {
 
   std::string program_name_;
   mysql_harness::Path origin_dir_;
+
+  mysql_harness::SignalHandler signal_handler_;
 };
 
 int main(int argc, char *argv[]) {
   MysqlServerMockFrontend frontend;
 
 #ifdef _WIN32
-  register_ctrl_c_handler();
-
   WSADATA wsaData;
   int result;
   result = WSAStartup(MAKEWORD(2, 2), &wsaData);

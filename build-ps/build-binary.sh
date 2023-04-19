@@ -110,7 +110,7 @@ do
         shift
         TARBALL_SUFFIX="-zenfs"
         WITH_ZENFS="ON"
-        ZENFS_EXTRA="-DROCKSDB_PLUGINS=zenfs"
+        ZENFS_EXTRA="-DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON"
         ;;
     -t | --tag )
         shift
@@ -171,7 +171,8 @@ TOKUDB_BACKUP_VERSION="${MYSQL_VERSION}${MYSQL_VERSION_EXTRA}"
 REVISION=""
 if test -e "$SOURCEDIR/Docs/INFO_SRC"
 then
-    REVISION="$(cd "$SOURCEDIR"; grep '^short: ' Docs/INFO_SRC |sed -e 's/short: //')"
+    REVISION="$(cd "$SOURCEDIR"; grep '^commit: ' Docs/INFO_SRC |sed -e 's/commit: //')"
+    REVISION=${REVISION::8}
 elif [ -n "$(command -v git)" -a -d "$SOURCEDIR/.git" ];
 then
     REVISION="$(git rev-parse --short HEAD)"
@@ -277,6 +278,7 @@ fi
         -DWITH_NUMA=ON \
         -DWITH_LDAP=system \
         -DDOWNLOAD_BOOST=1 \
+        -DWITH_PACKAGE_FLAGS=OFF \
         -DFORCE_INSOURCE_BUILD=1 \
         -DWITH_LIBEVENT=bundled \
         -DWITH_ZSTD=bundled \
@@ -305,33 +307,10 @@ fi
         cp COPYING "$INSTALLDIR/usr/local/$PRODUCT_FULL/COPYING-jemalloc"
     )
     fi
-    # Build zenfs
-    if [[ ${WITH_ZENFS} == "ON" ]]; then
-        if [[ -f $INSTALLDIR/zenfs ]]; then
-            echo "ZenFS utils is built"
-        else
-            INSTALL_ROOT=${WORKDIR_ABS}/rocksdb-root
-            BUILD_ROOT=${WORKDIR_ABS}/rocksdb-build
-
-            mkdir ${WORKDIR_ABS}/rocksdb-root ${WORKDIR_ABS}/rocksdb-build
-            ln -s $SOURCEDIR/storage/rocksdb/rocksdb_plugins/zenfs/ $SOURCEDIR/storage/rocksdb/rocksdb/plugin/
-
-            pushd $SOURCEDIR/storage/rocksdb/rocksdb/
-            CC=clang-12 CXX=clang++-12 make DISABLE_WARNING_AS_ERROR=1 PREFIX=${INSTALL_ROOT}/usr OBJ_DIR=${BUILD_ROOT} ROCKSDB_PLUGINS=zenfs -j$(nproc) install-static
-            popd
-
-            pushd $SOURCEDIR/storage/rocksdb/rocksdb/plugin/zenfs/util
-            PKG_CONFIG_PATH=$INSTALL_ROOT/usr/lib/pkgconfig make CC=clang-12 CXX=clang++-12 -j$(nproc)
-            popd
-
-            cp $SOURCEDIR/storage/rocksdb/rocksdb/plugin/zenfs/util/zenfs $INSTALLDIR/
-            rm -rf $INSTALL_ROOT $BUILD_ROOT
-        fi
-    fi
 )
 
 (
-    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libk5crypto.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplc4.so libnspr4.so libssl3.so libplds4.so libncurses.so.5 libtinfo.so.5"
+    LIBLIST="libgssapi.so libldap_r-2.4.so.2 libldap.so.2 liblber-2.4.so.2 liblber.so.2 libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libk5crypto.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplc4.so libnspr4.so libssl3.so libplds4.so libncurses.so.5 libtinfo.so.5 component_encryption_udf.so component_keyring_kms.so"
     DIRLIST="bin lib lib/private lib/plugin lib/mysqlrouter/plugin lib/mysqlrouter/private"
 
     LIBPATH=""
@@ -475,17 +454,11 @@ fi
     cd "$INSTALLDIR/usr/local/"
     #PS-4854 Percona Server for MySQL tarball without AGPLv3 dependency/license
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
-    if [[ ${WITH_ZENFS} == "ON" ]]; then
-        install -m 0755 $INSTALLDIR/zenfs $PRODUCT_FULL/bin
-    fi
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
 
     if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
         cd "$INSTALLDIR/usr/local/minimal/"
         find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
-        if [[ ${WITH_ZENFS} == "ON" ]]; then
-            install -m 0755 $INSTALLDIR/zenfs $PRODUCT_FULL-minimal/bin
-        fi
         $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
     fi
 )
@@ -494,4 +467,3 @@ fi
 rm -rf "$INSTALLDIR"
 rm -rf "$WORKDIR_ABS/libboost"
 rm -rf "$WORKDIR_ABS/bld"
-

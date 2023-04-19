@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -767,7 +767,7 @@ NdbapiTwsDriver::initConnection() {
     cout << "connecting to mgmd ..." << flush;
     const int retries = 0; // number of retries (< 0 = indefinitely)
     const int delay = 0;   // seconds to wait after retry
-    const int verbose = 1; // print report of progess
+    const int verbose = 1; // print report of progress
     // returns: 0 = success, 1 = recoverable error, -1 = non-recoverable error
     if (mgmd->connect(retries, delay, verbose) != 0)
         ABORT_ERROR("mgmd@" << mgmdConnect << " was not ready within "

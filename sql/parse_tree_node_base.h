@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,13 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <new>
+#include <queue>
 
 #include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 
+#include "mem_root_deque.h"
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "sql/check_stack.h"
 #include "sql/parse_location.h"
@@ -81,18 +83,52 @@ enum enum_parsing_context {
   CTX_OPTIMIZED_AWAY_SUBQUERY,  ///< Subquery executed once during optimization
   CTX_UNION,
   CTX_UNION_RESULT,  ///< Pseudo-table context for UNION result
+  CTX_INTERSECT,
+  CTX_INTERSECT_RESULT,  ///< Pseudo-table context
+  CTX_EXCEPT,
+  CTX_EXCEPT_RESULT,  ///< Pseudo-table context
+  CTX_UNARY,
+  CTX_UNARY_RESULT,  ///< Pseudo-table context
   CTX_QUERY_SPEC     ///< Inner SELECTs of UNION expression
 };
 
+class Query_term;
+enum Surrounding_context {
+  SC_TOP,
+  SC_QUERY_SPECIFICATION,
+  SC_TABLE_VALUE_CONSTRUCTOR,
+  SC_QUERY_EXPRESSION,
+  SC_SUBQUERY,
+  SC_UNION_DISTINCT,
+  SC_UNION_ALL,
+  SC_INTERSECT_DISTINCT,
+  SC_INTERSECT_ALL,
+  SC_EXCEPT_DISTINCT,
+  SC_EXCEPT_ALL
+};
+
+struct QueryLevel {
+  Surrounding_context m_type;
+  mem_root_deque<Query_term *> m_elts;
+  bool m_has_order{false};
+  QueryLevel(MEM_ROOT *mem_root, Surrounding_context sc, bool has_order = false)
+      : m_type(sc), m_elts(mem_root), m_has_order(has_order) {}
+};
 /**
   Environment data for the contextualization phase
 */
 struct Parse_context {
-  THD *const thd;       ///< Current thread handler
-  MEM_ROOT *mem_root;   ///< Current MEM_ROOT
-  Query_block *select;  ///< Current Query_block object
-
+  THD *const thd;                      ///< Current thread handler
+  MEM_ROOT *mem_root;                  ///< Current MEM_ROOT
+  Query_block *select;                 ///< Current Query_block object
+  mem_root_deque<QueryLevel> m_stack;  ///< Aids query term tree construction
+  /// Call upon parse completion.
+  /// @returns true on error, else false
+  bool finalize_query_expression();
   Parse_context(THD *thd, Query_block *sl);
+  bool is_top_level_union_all(
+      Surrounding_context op);  ///< Determine if there is anything but
+                                ///< UNION ALL above in m_stack
 };
 
 /**
@@ -114,12 +150,12 @@ class Parse_tree_node_tmpl {
   typedef Context context_t;
 
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr, size);
   }
   static void operator delete(void *, MEM_ROOT *,
@@ -133,7 +169,7 @@ class Parse_tree_node_tmpl {
   }
 
  public:
-  virtual ~Parse_tree_node_tmpl() {}
+  virtual ~Parse_tree_node_tmpl() = default;
 
 #ifndef NDEBUG
   bool is_contextualized() const { return contextualized; }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_sink_trad.h"
 #include "log_sink_perfschema.h"  // log_sink_pfs_event
 #include "my_systime.h"           // my_micro_time()
+#include "mysys/buffered_error_log.h"
 #include "sql/log.h"  // log_write_errstream(), log_prio_from_label()
 
 extern int log_item_inconsistent(log_item *li);
@@ -38,18 +39,6 @@ extern int log_item_inconsistent(log_item *li);
 */
 
 /**
-  Timestamp of when we last flushed to traditional error-log
-  (built-in sink). Log lines with timestamps older than this
-  have already been flushed to the default log-sink, so we
-  won't do so again to prevent duplicates. (The buffered events
-  are still kept around until buffered logging ends however in
-  case we need to flush them to other log-writers then.
-  This timestamp is updated to the present and then drifts into
-  the past, in contrast to the time-out value (see there).
-*/
-static ulonglong log_sink_trad_last = 0;
-
-/**
   Find the end of the current field (' ')
 
   @param  parse_from  start of the token
@@ -59,9 +48,8 @@ static ulonglong log_sink_trad_last = 0;
   @retval -1   delimiter not found, "parsing" failed
   @retval >=0  length of token
 */
-static inline ssize_t parse_trad_field(const char *parse_from,
-                                       const char **token_end,
-                                       const char *buf_end) {
+ssize_t parse_trad_field(const char *parse_from, const char **token_end,
+                         const char *buf_end) {
   assert(token_end != nullptr);
   *token_end = (const char *)memchr(parse_from, ' ', buf_end - parse_from);
   return (*token_end == nullptr) ? -1 : (*token_end - parse_from);
@@ -81,7 +69,7 @@ static inline ssize_t parse_trad_field(const char *parse_from,
 */
 log_service_error log_sink_trad_parse_log_line(const char *line_start,
                                                size_t line_length) {
-  char timestamp[iso8601_size];
+  char timestamp[iso8601_size];  // space for timestamp + '\0'
   char label[16];
   char msg[LOG_BUFF_MAX];
   ssize_t len;
@@ -97,9 +85,10 @@ log_service_error log_sink_trad_parse_log_line(const char *line_start,
   // parse timestamp
   if ((len = parse_trad_field(start, &end, line_end)) <= 0)
     return LOG_SERVICE_PARSE_ERROR;
-  if (len > iso8601_size) return LOG_SERVICE_ARGUMENT_TOO_LONG;
+  if (len >= iso8601_size) return LOG_SERVICE_ARGUMENT_TOO_LONG;
+
   memcpy(timestamp, start, len);
-  timestamp[len] = '\0';
+  timestamp[len] = '\0';  // terminate target buffer
   start = end + 1;
   e.m_timestamp = iso8601_timestamp_to_microseconds(timestamp, len);
 
@@ -144,12 +133,49 @@ log_service_error log_sink_trad_parse_log_line(const char *line_start,
   start = end + 1;
 
   // parse message - truncate if needed.
-  if ((len = line_end - start) >= ((ssize_t)sizeof(msg))) len = sizeof(msg) - 1;
+  len = line_end - start;
+
+  /*
+    If we have a message for this, it becomes more easily searchable.
+    This is provided in the hope that between error code (which it appears
+    we have) and subsystem (which it appears we also have), a human reader
+    can find out what happened here even if the log file is not available
+    to them. If the log file IS available, they should be able to just find
+    this event's time stamp in that file and see whether the line contains
+    anything that would break parsing.
+  */
+  const char *parsing_failed =
+      "No message found for this event while parsing a traditional error log! "
+      "If you wish to investigate this, use this event's timestamp to find the "
+      "offending line in the error log file.";
+  if (len <= 0) {
+    start = parsing_failed;
+    len = strlen(parsing_failed);
+  }
+
+  // Truncate length if needed.
+  if (len >= ((ssize_t)sizeof(msg))) {
+    len = sizeof(msg) - 1;
+  }
+
+  // Copy as much of the message as we have space for.
   strncpy(msg, start, len);
   msg[len] = '\0';
+
+  /*
+    Store adjusted length in log-event.
+    m_message_length is a uint while len is ssize_t, but we capped at
+    sizeof(msg) above which is less than either, so we won't
+    assert(len <= UINT_MAX) here.
+    log_sink_pfs_event_add() below will assert() if m_message_length==0,
+    but this should be prevented by us setting a fixed message above if
+    parsed resulting in an empty message field. (If parsing any of the
+    other fields failed, we won't try to add a message to the
+    performance-schema table in the first place.)
+  */
   e.m_message_length = len;
 
-  // add event to ring-buffer
+  // Add event to ring-buffer.
   return log_sink_pfs_event_add(&e, msg);
 }
 
@@ -164,7 +190,7 @@ log_service_error log_sink_trad_parse_log_line(const char *line_start,
 
   @retval          int                  number of added fields, if any
 */
-int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
+int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
   const char *label = "", *msg = "";
   int c, out_fields = 0;
   size_t msg_len = 0, iso_len = 0, label_len = 0, subsys_len = 0;
@@ -174,7 +200,6 @@ int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
   log_item_type_mask out_types = 0;
   const char *iso_timestamp = "", *subsys = "";
   my_thread_id thread_id = 0;
-  ulonglong microtime = 0;
   char *line_buffer = nullptr;
 
   if (ll->count > 0) {
@@ -186,9 +211,6 @@ int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
       out_fields++;
 
       switch (item_type) {
-        case LOG_ITEM_LOG_BUFFERED:
-          microtime = (ulonglong)ll->item[c].data.data_integer;
-          break;
         case LOG_ITEM_SQL_ERRCODE:
           errcode = (unsigned int)ll->item[c].data.data_integer;
           break;
@@ -321,40 +343,26 @@ int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
         output_buffer->type = LOG_ITEM_RET_BUFFER;
       }
 
-      /*
-        Prevent duplicates in incremental flush of buffered log events.
-        If start-up is very slow, we'll let error-log event buffering
-        "time out": we'll print the events so far to the traditional
-        error log (and only to that log, as external log-writers cannot
-        be loaded until later, when InnoDB, upon which the component
-        framework depends, has been initialized). Then, we'll go back
-        to buffering. Eventually, we'll either time-out and flush again,
-        or start-up completes, and we can do a proper flush of the
-        buffered error-events.
-        At that point, any loaded log-writers will be called for the
-        first time, whereas this here traditional writer may have been
-        called upon multiple times to give incremental updates.
-        Therefore, we must prevent duplicates in this, and only in this
-        writer. Ready? (Who lives in a time-out under the C? Buffered
-        events, in trad sink!)
-      */
-      if (out_types & LOG_ITEM_LOG_BUFFERED) {
-        // abort if we've already printed this (to trad log only!)
-        if (microtime <= log_sink_trad_last) {
-          out_fields = LOG_SERVICE_NOTHING_DONE;
-          goto done;
-        }
+      bool log_to_buffered_error_log = false;
+      bool log_only_to_buffered_error_log = false;
 
-        // otherwise remember micro-time of last buffered event we've printed
-        log_sink_trad_last = microtime;
+      // Add product specific buffered_error_log logic based on subsys & prio
+      // here
+      DBUG_EXECUTE_IF("redirect_message_to_buffered_error_log", {
+        log_to_buffered_error_log = true;
+        // also log to the normal log for MTR
+      });
+
+      if (log_to_buffered_error_log) {
+        buffered_error_log.log(buff_line, len);
       }
 
       // write log-event to log-file
-      log_write_errstream(buff_line, len);
+      if (!log_only_to_buffered_error_log || !buffered_error_log.is_enabled())
+        log_write_errstream(buff_line, len);
     }
   }
 
-done:
   if (line_buffer != nullptr) my_free(line_buffer);
 
   return out_fields;  // returning number of processed items

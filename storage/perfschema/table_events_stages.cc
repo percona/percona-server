@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -219,8 +219,8 @@ int table_events_stages_common::make_row(PFS_events_stages *stage) {
   m_normalizer->to_pico(stage->m_timer_start, timer_end, &m_row.m_timer_start,
                         &m_row.m_timer_end, &m_row.m_timer_wait);
 
-  m_row.m_name = klass->m_name;
-  m_row.m_name_length = klass->m_name_length;
+  m_row.m_name = klass->m_name.str();
+  m_row.m_name_length = klass->m_name.length();
 
   make_source_column(stage->m_source_file, stage->m_source_line, m_row.m_source,
                      sizeof(m_row.m_source), m_row.m_source_length);
@@ -263,10 +263,10 @@ int table_events_stages_common::read_row_values(TABLE *table,
           }
           break;
         case 3: /* EVENT_NAME */
-          set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_name, m_row.m_name_length);
           break;
         case 4: /* SOURCE */
-          set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
+          set_field_varchar_utf8mb4(f, m_row.m_source, m_row.m_source_length);
           break;
         case 5: /* TIMER_START */
           if (m_row.m_timer_start != 0) {
@@ -372,8 +372,7 @@ int table_events_stages_current::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_stages_current::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                            bool) {
+int table_events_stages_current::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_events_stages *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_events_stages);
@@ -493,8 +492,7 @@ int table_events_stages_history::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_stages_history::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                            bool) {
+int table_events_stages_history::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_events_stages *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_events_stages);

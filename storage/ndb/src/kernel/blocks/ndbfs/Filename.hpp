@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 //
 // .DESCRIPTION
 //      Takes a 128 bits value (done as a array of four longs) and 
-//      makes a filename out of it acording the following schema
+//      makes a filename out of it according the following schema
 //      Bits 0-31 T 
 //      Bits 32-63 F
 //      Bits 64-95 S

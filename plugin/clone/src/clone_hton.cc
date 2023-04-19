@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -226,7 +226,7 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
     clone_args.m_task_vec = &task_vec;
     clone_args.m_cur_index = 0;
     clone_args.m_err = 0;
-    clone_args.m_type = HA_CLONE_BLOCKING;
+    clone_args.m_type = HA_CLONE_HYBRID;
     clone_args.m_mode = clone_mode;
     clone_args.m_data_dir = clone_data_dir;
 
@@ -236,7 +236,7 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
     return (clone_args.m_err);
   }
 
-  uint32_t loop_index = 0;
+  uint32_t loop_index [[maybe_unused]] = 0;
 
   for (auto &loc_iter : clone_loc_vec) {
     uint32_t task_id = 0;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@
 //
 // The cfreepageList is 16 free lists. Free list 0 contains chunks of
 // pages with 2^0 (=1) pages in each chunk. Free list 1 chunks of 2^1
-// (=2) pages in each chunk and so forth upto free list 15 which
+// (=2) pages in each chunk and so forth up to free list 15 which
 // contains chunks of 2^15 (=32768) pages in each chunk.
 // The cfreepageList array contains the pointer to the first chunk
 // in each of those lists. The lists are doubly linked where the
@@ -63,7 +63,7 @@
 // performed in chunks of pages and the algorithm tries to make the
 // chunks as large as possible.
 // This manager is invoked when fragments lack internal page space to
-// accomodate all the data they are requested to store. It is also
+// accommodate all the data they are requested to store. It is also
 // invoked when fragments deallocate page space back to the free area.
 //
 // The following routines are part of the external interface:
@@ -251,7 +251,7 @@ Dbtup::update_pages_allocated(int retNo)
   tup_block->m_pages_allocated += retNo;
   if (retNo > 0 &&
       tup_block->m_pages_allocated >
-        tup_block->m_pages_allocated_max)
+      tup_block->m_pages_allocated_max)
   {
     tup_block->m_pages_allocated_max = tup_block->m_pages_allocated;
   }
@@ -260,4 +260,9 @@ Dbtup::update_pages_allocated(int retNo)
   {
     NdbMutex_Unlock(lqh_block->m_lock_tup_page_mutex);
   }
+}
+
+Uint32 Dbtup::get_pages_allocated() const
+{
+  return m_pages_allocated;
 }

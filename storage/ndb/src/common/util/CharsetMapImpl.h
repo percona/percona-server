@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2010, 2022, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
 class MapTableItem 
 {
 public:
-    MapTableItem() : name(0), value(0), next(0) {}
+    MapTableItem() : name(nullptr), value(nullptr), next(nullptr) {}
     const char *name;
     const char *value;
     MapTableItem *next;
@@ -73,7 +73,7 @@ private:
     /*
      * MY_ALL_CHARSETS_SIZE is actually 2048.
      * But the actual number of charsets is very low.
-     * So, CharsetMapImpl now supports upto 512 charsets.
+     * So, CharsetMapImpl now supports up to 512 charsets.
      * */
     const char * mysql_charset_name[512];
 };

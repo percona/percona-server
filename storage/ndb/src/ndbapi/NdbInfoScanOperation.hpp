@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,17 +25,45 @@
 #ifndef NDBINFO_SCAN_OPERATION_HPP
 #define NDBINFO_SCAN_OPERATION_HPP
 
+#include <cassert>
+
 #include "ndb_types.h"
 
 #include "NdbInfoRecAttr.hpp"
 
 class NdbInfoScanOperation {
 public:
+  class Seek {
+    // The below members are only valid for Mode::value
+    const bool m_inclusive;
+    const bool m_low;
+    const bool m_high;
+  public:
+   enum class Mode { value, first, last, next, previous };
+   Seek(Mode m, bool inclusive = false, bool low = false, bool high = false)
+       : m_inclusive(inclusive), m_low(low), m_high(high), mode(m) {}
+   const Mode mode;
+   bool inclusive() const {
+     assert(mode == Mode::value);
+     return m_inclusive;
+   }
+   bool low() const {
+     assert(mode == Mode::value);
+     return m_low;
+   }
+   bool high() const {
+     assert(mode == Mode::value);
+     return m_high;
+   }
+  };
+
   virtual int readTuples() = 0;
   virtual const NdbInfoRecAttr* getValue(const char * anAttrName) = 0;
   virtual const NdbInfoRecAttr* getValue(Uint32 anAttrId) = 0;
   virtual int execute() = 0;
   virtual int nextResult() = 0;
+  virtual void initIndex(Uint32) = 0;
+  virtual bool seek(Seek, int value=0) = 0;
   virtual ~NdbInfoScanOperation() {}
 };
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   NdbOperation(aNdb, NdbOperation::UniqueIndexAccess),
-  m_theIndex(NULL)
+  m_theIndex(nullptr)
 {
   m_tcReqGSN = GSN_TCINDXREQ;
   m_attrInfoGSN = GSN_INDXATTRINFO;
@@ -160,6 +160,12 @@ int NdbIndexOperation::dirtyUpdate()
   return NdbOperation::dirtyUpdate();
 }
 
+int NdbIndexOperation::interpretedWriteTuple()
+{
+  setErrorCode(4200);
+  return -1;
+}
+
 int NdbIndexOperation::interpretedUpdateTuple()
 {
   // First check that index is unique
@@ -183,7 +189,7 @@ NdbIndexOperation::getIndex() const
 /***************************************************************************
 int receiveTCINDXREF( NdbApiSignal* aSignal)
 
-Return Value:   Return 0 : send was succesful.
+Return Value:   Return 0 : send was successful.
                 Return -1: In all other case.   
 Parameters:     aSignal: the signal object that contains the TCINDXREF signal from TC.
 Remark:         Handles the reception of the TCKEYREF signal.

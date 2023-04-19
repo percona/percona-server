@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
 
+#include "util/require.h"
 #include <algorithm>
 #ifdef VM_TRACE
 #ifndef NDBD_RANDOM_START_PAGE
@@ -39,7 +40,7 @@
 #include "NdbSeqLock.hpp"
 #include "Pool.hpp"
 #include <Vector.hpp>
-#include "util/NdbOut.hpp"
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 291
 
@@ -380,7 +381,7 @@ private:
    * mapped into memory.
    *
    * This is normally not changed but still some thread safety is needed for
-   * the rare cases when changes do happend whenever map() is called.
+   * the rare cases when changes do happen whenever map() is called.
    *
    * A static array is used since pointers can not be protected by NdbSeqLock.
    *
@@ -958,7 +959,7 @@ Ndbd_mem_manager::get_page(Uint32 page_num) const
  * This function is typically used for converting legacy code using static
  * arrays of records to dynamically allocated records.
  * For these static arrays there has been possible to inspect state of freed
- * records to detemine that they are free.  Still this was a weak way to ensure
+ * records to determine that they are free.  Still this was a weak way to ensure
  * if the reference to record actually is to the right version of record.
  *
  * In some cases it is used to dump the all records of a kind for debugging
@@ -984,12 +985,13 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
      * Last page is region is reserved for no use.
      */
 #ifdef NDBD_RANDOM_START_PAGE
-    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: internal page %u %u",
-             (page_num + m_random_start_page_id),
-             page_num);
+    g_eventLogger->info(
+        "Warning: Ndbd_mem_manager::get_valid_page: internal page %u %u",
+        (page_num + m_random_start_page_id), page_num);
 #else
-    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: internal page %u",
-             page_num);
+    g_eventLogger->info(
+        "Warning: Ndbd_mem_manager::get_valid_page: internal page %u",
+        page_num);
 #endif
 #ifdef VM_TRACE
     abort();
@@ -1026,12 +1028,13 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
   if (unlikely(!page_is_mapped))
   {
 #ifdef NDBD_RANDOM_START_PAGE
-    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u %u",
-             (page_num + m_random_start_page_id),
-             page_num);
+    g_eventLogger->info(
+        "Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u %u",
+        (page_num + m_random_start_page_id), page_num);
 #else
-    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u",
-             page_num);
+    g_eventLogger->info(
+        "Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u",
+        page_num);
 #endif
 #ifdef VM_TRACE
     abort();

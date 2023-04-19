@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include "sql/dd/impl/utils.h"
 
 #include <assert.h>
+#include <regex>
 #include <set>
 
 #include "mysql/components/services/log_builtins.h"
@@ -51,6 +52,7 @@
 #include "sql/dd/types/object_table.h"             // dd::Object_table
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/dd/types/schema.h"
+#include "sql/dd/impl/upgrade/server.h" // Routine_event_context_guard
 #include "sql/sd_notify.h"  // sysd::notify
 #include "sql/sql_class.h"  // THD
 #include "sql/table.h"      // MYSQL_SCHEMA_NAME
@@ -137,11 +139,11 @@ bool create_temporary_schemas(THD *thd, Object_id *mysql_schema_id,
   if (dd::execute_query(
           thd, dd::String_type("CREATE SCHEMA ") + actual_table_schema_name +
                    dd::String_type(" DEFAULT COLLATE '") +
-                   dd::String_type(default_charset_info->name) + "'") ||
+                   dd::String_type(default_charset_info->m_coll_name) + "'") ||
       dd::execute_query(
           thd, dd::String_type("CREATE SCHEMA ") + *target_table_schema_name +
                    dd::String_type(" DEFAULT COLLATE '") +
-                   dd::String_type(default_charset_info->name) + "'") ||
+                   dd::String_type(default_charset_info->m_coll_name) + "'") ||
       dd::execute_query(thd,
                         dd::String_type("USE ") + *target_table_schema_name)) {
     return true;
@@ -198,6 +200,7 @@ void establish_table_name_sets(std::set<String_type> *create_set,
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
     if (is_non_inert_dd_or_ddse_table((*it)->property())) {
+      bool ignore_equivalent_utf8_declarations = false;
       /*
         In this context, all tables should have an Object_table. Minor
         downgrade is the only situation where an Object_table may not exist,
@@ -227,12 +230,45 @@ void establish_table_name_sets(std::set<String_type> *create_set,
         actual_ddl_statement = actual_table_def->get_ddl();
       }
 
+      // These changes can be ignored:
+      //   utf8     <=> utf8mb3
+      //   utf8_bin <=> utf8mb3_bin
+      // In the dictionary these are equivalent.
+      String_type target_ddl_copy = target_ddl_statement;
+      if (actual_table_def && target_table_def &&
+          actual_ddl_statement.length() != target_ddl_statement.length()) {
+        // See definition of innodb_ddl_log in innobase_ddse_dict_init()
+        std::regex regexp("COLLATE UTF8MB3_BIN");
+        target_ddl_copy =
+            std::regex_replace(target_ddl_copy, regexp, "COLLATE UTF8_BIN");
+
+        // See Object_table_impl::Object_table_impl()
+        regexp = "COLLATE=utf8mb3_bin";
+        target_ddl_copy =
+            std::regex_replace(target_ddl_copy, regexp, "COLLATE=utf8_bin");
+
+        regexp = "DEFAULT CHARSET=utf8mb3";
+        target_ddl_copy =
+            std::regex_replace(target_ddl_copy, regexp, "DEFAULT CHARSET=utf8");
+
+        if (target_ddl_copy == actual_ddl_statement)
+          ignore_equivalent_utf8_declarations = true;
+      }
       /*
         Remove and/or create as needed. If the definitions are non-null
         and equal, no change has been done, and hence upgrade of the table
         is irrelevant.
       */
-      if (target_table_def == nullptr && actual_table_def != nullptr)
+      if (ignore_equivalent_utf8_declarations) {
+        // Nothing, "utf8_bin" and "utf8mb3_bin" are equivalent in the data
+        // dictionary. If we take changes here into account and create new
+        // target tables, migrate the data, and then delete the old tables,
+        // then we will run into problems with innodb internal tables such as
+        // 'innodb_ddl_log' which are held open across transactions. A fix of
+        // this issue must close the innodb internal tables and associated
+        // data structures, and reopen them using the target tables that are
+        // created. See Bug#34608061.
+      } else if (target_table_def == nullptr && actual_table_def != nullptr)
         remove_set->insert((*it)->entity()->name());
       else if (target_table_def != nullptr && actual_table_def == nullptr)
         create_set->insert((*it)->entity()->name());
@@ -822,10 +858,15 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
     if (migrated_set.find(*it) == migrated_set.end() &&
         remove_set.find(*it) != remove_set.end()) {
       std::stringstream ss;
+
+      dd::upgrade::Routine_event_context_guard recg(thd);
+      thd->variables.sql_mode = 0;
+
       ss << "INSERT INTO " << (*it) << " SELECT * FROM "
          << MYSQL_SCHEMA_NAME.str << "." << (*it);
       if (dd::execute_query(thd, ss.str().c_str()))
         return dd::end_transaction(thd, true);
+
     }
   }
 
@@ -1125,7 +1166,6 @@ bool upgrade_tables(THD *thd) {
   LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_COMPLETED,
          bootstrap::DD_bootstrap_ctx::instance().get_actual_dd_version(),
          dd::DD_VERSION);
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Data Dictionary upgrade complete\n");
 
   /*
@@ -1133,7 +1173,7 @@ bool upgrade_tables(THD *thd) {
     DD cache and re-initialize based on 'mysql.dd_properties', hence,
     we will lose track of the fact that we have done a DD upgrade as part
     of this restart. Thus, we record this fact in the bootstrap context
-    so we can check it e.g. when initializeing the information schema,
+    so we can check it e.g. when initializing the information schema,
     where we need to regenerate the meta data if the underlying tables
     have changed.
   */
@@ -1149,7 +1189,7 @@ bool upgrade_tables(THD *thd) {
 
   /*
     Reset the encryption attribute in object table def since we will now
-    start over by creating the scaffolding, which expectes an unencrypted
+    start over by creating the scaffolding, which expects an unencrypted
     DD tablespace.
   */
   Object_table_definition_impl::set_dd_tablespace_encrypted(false);

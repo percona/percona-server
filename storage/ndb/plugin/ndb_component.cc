@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,25 @@
 
 #include "my_systime.h"  // set_timespec
 
-Ndb_component::Ndb_component(const char *name)
-    : m_thread_state(TS_UNINIT), m_server_started(false), m_name(name) {}
+Ndb_component::Ndb_component(const char *name, const char *psi_name)
+    : m_thread_state(TS_UNINIT),
+      m_server_started(false),
+      m_name(name),
+      m_psi_name(psi_name) {}
 
 Ndb_component::~Ndb_component() {}
 
 int Ndb_component::init() {
   assert(m_thread_state == TS_UNINIT);
+
+  // Register a PSI key for this thread
+  PSI_thread_info thread_info = {&m_psi_thread_key,
+                                 m_psi_name,          // Name
+                                 m_psi_name,          // OS name
+                                 PSI_FLAG_SINGLETON,  // flags
+                                 0,
+                                 PSI_DOCUMENT_ME};
+  mysql_thread_register("ndbcluster", &thread_info, 1);
 
   mysql_mutex_init(PSI_INSTRUMENT_ME, &m_start_stop_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(PSI_INSTRUMENT_ME, &m_start_stop_cond);
@@ -51,8 +63,8 @@ extern "C" void *Ndb_component_run_C(void *arg) {
   Ndb_component *self = reinterpret_cast<Ndb_component *>(arg);
   self->run_impl();
   my_thread_end();
-  my_thread_exit(0);
-  return NULL;  // Avoid compiler warnings
+  my_thread_exit(nullptr);
+  return nullptr;  // Avoid compiler warnings
 }
 
 extern my_thread_attr_t connection_attrib;  // mysql global pthread attr
@@ -61,9 +73,10 @@ int Ndb_component::start() {
   assert(m_thread_state == TS_INIT);
   mysql_mutex_lock(&m_start_stop_mutex);
   m_thread_state = TS_STARTING;
-  int res = my_thread_create(&m_thread, &connection_attrib, Ndb_component_run_C,
-                             this);
 
+  const int res =
+      mysql_thread_create(m_psi_thread_key, &m_thread, &connection_attrib,
+                          Ndb_component_run_C, this);
   if (res == 0) {
     while (m_thread_state == TS_STARTING) {
       mysql_cond_wait(&m_start_stop_cond, &m_start_stop_mutex);

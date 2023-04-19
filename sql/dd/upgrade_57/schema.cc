@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,12 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Construct the schema name from its canonical format.
-  filename_to_tablename(dbname, schema_name, sizeof(schema_name));
+  bool has_invalid_name = false;
+  filename_to_tablename(dbname, schema_name, sizeof(schema_name), false,
+                        &has_invalid_name);
+
+  // If the filename of the database is invalid, stop the upgrade.
+  if (has_invalid_name) return true;
 
   dbopt_file_name.str = dbopt_path_buff;
   dbopt_file_name.length = build_table_filename(dbopt_path_buff, FN_REFLEN - 1,
@@ -202,7 +207,8 @@ bool find_schema_from_datadir(std::vector<String_type> *db_name) {
     if (file->name[0] == '.') continue;
 
     if (MY_S_ISDIR(a->dir_entry[i].mystat->st_mode) &&
-        strcmp(a->dir_entry[i].name, "#innodb_temp") != 0) {
+        strcmp(a->dir_entry[i].name, "#innodb_temp") != 0 &&
+        strcmp(a->dir_entry[i].name, "#innodb_redo") != 0) {
       db_name->push_back(a->dir_entry[i].name);
       continue;
     }

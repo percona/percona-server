@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,12 +135,14 @@ public:
   NdbQueryOperation* getQueryOperation(Uint32 index) const;
 //NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def) const;
 
-  Uint32 getNoOfParameters() const;
-  const NdbParamOperand* getParameter(const char* name) const;
-  const NdbParamOperand* getParameter(Uint32 num) const;
-
   int setBound(const NdbRecord *keyRecord,
                const struct NdbIndexScanOperation::IndexBound *bound);
+
+  /**
+   * When returning results from a multi-range-read, over multiple 'bounds',
+   * we can get which 'range' (or bound) the returned row comes from.
+   */
+  int getRangeNo() const;
 
   /**
    * Get the next tuple(s) from the global cursor on the query.
@@ -167,7 +169,7 @@ public:
    *    or NdbRecord associated with the NdbQueryOperation!
    *  - ::nextResult() is required to retrieve the first row. This may
    *    also cause any error / status info assicioated with the result set
-   *    iself to be returned (Like 'NoData', posible type conversion errors,
+   *    itself to be returned (Like 'NoData', possible type conversion errors,
    *    or constraint violations associated with each specific row in the
    *    result set.)
    *
@@ -290,10 +292,10 @@ public:
    *                     the attribute, or a NULL pointer 
    *                     (indicating error).
    */
-  NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer = 0);
-  NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer = 0);
+  NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer = nullptr);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer = nullptr);
   NdbRecAttr* getValue(const NdbDictionary::Column* column, 
-		       char* resultBuffer = 0);
+		       char* resultBuffer = nullptr);
 
   /**
    * Retrieval of entire or partial rows may also be specified. For partial
@@ -316,11 +318,11 @@ public:
    */
   int setResultRowBuf (const NdbRecord *rec,
                        char* resBuffer,
-                       const unsigned char* result_mask = 0);
+                       const unsigned char* result_mask = nullptr);
 
   int setResultRowRef (const NdbRecord* rec,
                        const char* & bufRef,
-                       const unsigned char* result_mask = 0);
+                       const unsigned char* result_mask = nullptr);
 
   // TODO: define how BLOB/CLOB should be retrieved.
   // ... Replicate ::getBlobHandle() from NdbOperation class?
@@ -331,7 +333,7 @@ public:
 
   /** Define result ordering for ordered index scan. It is an error to call
    * this method on an operation that is not a scan, or to call it if an
-   * ordering was already set on the operation defintion by calling 
+   * ordering was already set on the operation definition by calling 
    * NdbQueryOperationDef::setOrdering().
    * @param ordering The desired ordering of results.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
@@ -441,10 +443,6 @@ public:
   // Result handling for this NdbQueryOperation
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
 
-  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
-                             // value for this NdbQueryOperation
-
-
 private:
   // Opaque implementation class instance.
   NdbQueryOperationImpl& m_impl;
@@ -456,7 +454,7 @@ class NdbQueryParamValue
 {
 public:
 
-  // Raw data formated according to bound Column format.
+  // Raw data formatted according to bound Column format.
   // NOTE: This is how mysqld prepare parameter values!
   NdbQueryParamValue(const void* val, bool shrinkVarChar= false);
 

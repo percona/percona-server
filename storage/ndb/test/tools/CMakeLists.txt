@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/test/include)
 
 NDB_ADD_EXECUTABLE(hugoFill hugoFill.cpp NDBTEST NDBCLIENT)
 
@@ -47,10 +46,16 @@ NDB_ADD_EXECUTABLE(drop_fk drop_fk.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
 NDB_ADD_EXECUTABLE(statUtils statUtils.cpp NDBTEST NDBCLIENT)
 
-
 TARGET_LINK_LIBRARIES(ndb_cpcc ndbNDBT ndbclient_static)
+
+NDB_ADD_EXECUTABLE(test_cpcd test_cpcd.cpp NDBTEST NDBCLIENT SKIP_INSTALL)
 
 IF(NOT WIN32)
   NDB_ADD_EXECUTABLE(spj_performance_test spj_performance_test.cpp
     NDBTEST NDBCLIENT MYSQLCLIENT)
+  IF(MY_COMPILER_IS_CLANG)
+    ADD_COMPILE_FLAGS(spj_performance_test.cpp COMPILE_FLAGS
+      " -Wno-error=undefined-reinterpret-cast")
+  ENDIF()
+
 ENDIF()

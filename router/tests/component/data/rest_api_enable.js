@@ -74,6 +74,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_start_transaction",
       "router_commit",
       "router_select_rest_accounts_credentials",
+      "router_clusterset_present",
 
       // to fail account verification in some tests this is not added on
       // purpose
@@ -92,6 +93,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_grant_on_routers",
       "router_grant_on_v2_routers",
       "router_update_routers_in_metadata",
+      "router_update_router_options_in_metadata",
     ],
     options);
 

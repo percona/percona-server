@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gtest/gtest.h>
 #include <stddef.h>
@@ -143,7 +140,8 @@ class TapeEngine_cost_constants : public Testable_SE_cost_constants {
   cost_constant_error set(const LEX_CSTRING &name, const double value,
                           bool default_value) {
     // Process TAPE_IO_COST here
-    if (!my_strcasecmp(&my_charset_utf8_general_ci, "TAPE_IO_COST", name.str)) {
+    if (!my_strcasecmp(&my_charset_utf8mb3_general_ci, "TAPE_IO_COST",
+                       name.str)) {
       update_cost_value(&m_tape_io_cost, &m_tape_io_cost_default, value,
                         default_value);
       return COST_CONSTANT_OK;
@@ -192,10 +190,10 @@ class Testable_Cost_model_constants : public Cost_model_constants {
   */
 
   uint find_handler_slot_from_name(THD *, const LEX_CSTRING &name) const {
-    if (my_strcasecmp(&my_charset_utf8_general_ci, "Karius", name.str) == 0)
+    if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "Karius", name.str) == 0)
       return 4;
 
-    if (my_strcasecmp(&my_charset_utf8_general_ci, "Baktus", name.str) == 0)
+    if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "Baktus", name.str) == 0)
       return 7;
 
     // There is no handler for a storage engine with the given name

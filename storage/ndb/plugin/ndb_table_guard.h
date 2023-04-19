@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,8 +101,8 @@ class Ndb_table_guard {
     NdbDictionary::Dictionary *dict = m_ndb->getDictionary();
     m_ndbtab = dict->getTableGlobal(tabname);
     if (!m_ndbtab) {
-      // Failed to retrive table definition, error will be indicated by
-      // unintialized table pointer. Save NDB error to allow caller to handle
+      // Failed to retrieve table definition, error will be indicated by
+      // uninitialized table pointer. Save NDB error to allow caller to handle
       // different errors.
       m_ndberror = dict->getNdbError();
       DBUG_PRINT("error", ("getTableGlobal, code: %d, message: %s",
@@ -127,12 +127,12 @@ class Ndb_table_guard {
 
   /**
      @brief Return pointer to table definition. Nullptr will be returned
-     both when table does not exists and when an error has occured. If there is
+     both when table does not exist and when an error has occurred. If there is
      a need to distinguish between the two cases the user need to examine the
      NDB error.
 
-     @return pointer to the NdbApi table defintion or nullptr when table doesn't
-     exist or error occurs
+     @return pointer to the NdbApi table definition or nullptr when table
+     doesn't exist or error occurs
    */
   const NdbDictionary::Table *get_table() const { return m_ndbtab; }
 
@@ -144,7 +144,7 @@ class Ndb_table_guard {
     DBUG_TRACE;
     const NdbDictionary::Table *tmp = m_ndbtab;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
-    m_ndbtab = 0;
+    m_ndbtab = nullptr;
     return tmp;
   }
 

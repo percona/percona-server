@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -148,13 +148,13 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size)) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OVERFLOW, n, size,
-               klass->m_class.m_name);
+               klass->m_class.m_name.str());
     return nullptr;
   }
 
   if (nullptr == (ptr = pfs_malloc(klass, array_size, flags))) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OOM, array_size,
-               klass->m_class.m_name);
+               klass->m_class.m_name.str());
   }
   return ptr;
 }
@@ -228,8 +228,10 @@ uint pfs_get_socket_address(char *host, uint host_len, uint *port,
           pointer_cast<const struct sockaddr_in *>(src_addr);
 #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
-      getnameinfo((struct sockaddr *)sa4, sizeof(struct sockaddr_in), host,
-                  host_len, NULL, 0, NI_NUMERICHOST);
+      getnameinfo(pointer_cast<struct sockaddr *>(
+                      const_cast<struct sockaddr_in *>(sa4)),
+                  sizeof(struct sockaddr_in), host, host_len, NULL, 0,
+                  NI_NUMERICHOST);
 #else
       inet_ntop(AF_INET, &(sa4->sin_addr), host, INET_ADDRSTRLEN);
 #endif
@@ -244,8 +246,10 @@ uint pfs_get_socket_address(char *host, uint host_len, uint *port,
           pointer_cast<const struct sockaddr_in6 *>(src_addr);
 #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
-      getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in6), host,
-                  host_len, NULL, 0, NI_NUMERICHOST);
+      getnameinfo(pointer_cast<struct sockaddr *>(
+                      const_cast<struct sockaddr_in6 *>(sa6)),
+                  sizeof(struct sockaddr_in6), host, host_len, NULL, 0,
+                  NI_NUMERICHOST);
 #else
       inet_ntop(AF_INET6, &(sa6->sin6_addr), host, INET6_ADDRSTRLEN);
 #endif

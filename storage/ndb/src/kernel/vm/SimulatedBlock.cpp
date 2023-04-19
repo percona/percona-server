@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,9 @@
   macro not defined).
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include "SimulatedBlock.hpp"
 #include <NdbOut.hpp>
@@ -70,7 +72,6 @@
 
 #define JAM_FILE_ID 252
 
-extern EventLogger * g_eventLogger;
 
 //
 // Constructor, Destructor
@@ -127,8 +128,10 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   clearTimes();
 #endif
 
-  for(GlobalSignalNumber i = 0; i<=MAX_GSN; i++)
-    theExecArray[i] = 0;
+  for(GlobalSignalNumber i = 0; i<=MAX_GSN; i++){
+    theSignalHandlerArray[i].m_execFunction = nullptr;
+    theSignalHandlerArray[i].m_signalScope = SignalScope::External;
+  }
 
   installSimulatedBlockFunctions();
 
@@ -162,7 +165,7 @@ SimulatedBlock::addInstance(SimulatedBlock* b, Uint32 theInstance)
 void
 SimulatedBlock::initCommon()
 {
-  NDB_STATIC_ASSERT(RG_COUNT == MM_RG_COUNT + 1);
+  static_assert(RG_COUNT == MM_RG_COUNT + 1);
 
   Uint32 count = 10;
   this->getParam("FragmentSendPool", &count);
@@ -217,50 +220,71 @@ SimulatedBlock::~SimulatedBlock()
 
 void 
 SimulatedBlock::installSimulatedBlockFunctions(){
-  ExecFunction * a = theExecArray;
-  a[GSN_NODE_STATE_REP] = &SimulatedBlock::execNODE_STATE_REP;
-  a[GSN_CHANGE_NODE_STATE_REQ] = &SimulatedBlock::execCHANGE_NODE_STATE_REQ;
-  a[GSN_NDB_TAMPER] = &SimulatedBlock::execNDB_TAMPER;
-  a[GSN_SIGNAL_DROPPED_REP] = &SimulatedBlock::execSIGNAL_DROPPED_REP;
-  a[GSN_CONTINUE_FRAGMENTED]= &SimulatedBlock::execCONTINUE_FRAGMENTED;
-  a[GSN_STOP_FOR_CRASH]= &SimulatedBlock::execSTOP_FOR_CRASH;
-  a[GSN_UTIL_CREATE_LOCK_REF]   = &SimulatedBlock::execUTIL_CREATE_LOCK_REF;
-  a[GSN_UTIL_CREATE_LOCK_CONF]  = &SimulatedBlock::execUTIL_CREATE_LOCK_CONF;
-  a[GSN_UTIL_DESTROY_LOCK_REF]  = &SimulatedBlock::execUTIL_DESTORY_LOCK_REF;
-  a[GSN_UTIL_DESTROY_LOCK_CONF] = &SimulatedBlock::execUTIL_DESTORY_LOCK_CONF;
-  a[GSN_UTIL_LOCK_REF]    = &SimulatedBlock::execUTIL_LOCK_REF;
-  a[GSN_UTIL_LOCK_CONF]   = &SimulatedBlock::execUTIL_LOCK_CONF;
-  a[GSN_UTIL_UNLOCK_REF]  = &SimulatedBlock::execUTIL_UNLOCK_REF;
-  a[GSN_UTIL_UNLOCK_CONF] = &SimulatedBlock::execUTIL_UNLOCK_CONF;
-  a[GSN_FSOPENREF]    = &SimulatedBlock::execFSOPENREF;
-  a[GSN_FSCLOSEREF]   = &SimulatedBlock::execFSCLOSEREF;
-  a[GSN_FSWRITEREF]   = &SimulatedBlock::execFSWRITEREF;
-  a[GSN_FSREADREF]    = &SimulatedBlock::execFSREADREF;
-  a[GSN_FSREMOVEREF]  = &SimulatedBlock::execFSREMOVEREF;
-  a[GSN_FSSYNCREF]    = &SimulatedBlock::execFSSYNCREF;
-  a[GSN_FSAPPENDREF]  = &SimulatedBlock::execFSAPPENDREF;
-  a[GSN_NODE_START_REP] = &SimulatedBlock::execNODE_START_REP;
-  a[GSN_API_START_REP] = &SimulatedBlock::execAPI_START_REP;
-  a[GSN_SEND_PACKED] = &SimulatedBlock::execSEND_PACKED;
-  a[GSN_CALLBACK_CONF] = &SimulatedBlock::execCALLBACK_CONF;
-  a[GSN_SYNC_THREAD_REQ] = &SimulatedBlock::execSYNC_THREAD_REQ;
-  a[GSN_SYNC_THREAD_CONF] = &SimulatedBlock::execSYNC_THREAD_CONF;
-  a[GSN_LOCAL_ROUTE_ORD] = &SimulatedBlock::execLOCAL_ROUTE_ORD;
-  a[GSN_SYNC_REQ] = &SimulatedBlock::execSYNC_REQ;
-  a[GSN_SYNC_PATH_REQ] = &SimulatedBlock::execSYNC_PATH_REQ;
-  a[GSN_SYNC_PATH_CONF] = &SimulatedBlock::execSYNC_PATH_CONF;
+  FunctionAndScope* a = theSignalHandlerArray;
+  a[GSN_NODE_STATE_REP].m_execFunction = &SimulatedBlock::execNODE_STATE_REP;
+  a[GSN_CHANGE_NODE_STATE_REQ].m_execFunction = &SimulatedBlock::execCHANGE_NODE_STATE_REQ;
+  a[GSN_NDB_TAMPER].m_execFunction = &SimulatedBlock::execNDB_TAMPER;
+  a[GSN_SIGNAL_DROPPED_REP].m_execFunction = &SimulatedBlock::execSIGNAL_DROPPED_REP;
+  a[GSN_CONTINUE_FRAGMENTED].m_execFunction = &SimulatedBlock::execCONTINUE_FRAGMENTED;
+  a[GSN_STOP_FOR_CRASH].m_execFunction = &SimulatedBlock::execSTOP_FOR_CRASH;
+  a[GSN_UTIL_CREATE_LOCK_REF].m_execFunction  = &SimulatedBlock::execUTIL_CREATE_LOCK_REF;
+  a[GSN_UTIL_CREATE_LOCK_CONF].m_execFunction = &SimulatedBlock::execUTIL_CREATE_LOCK_CONF;
+  a[GSN_UTIL_DESTROY_LOCK_REF].m_execFunction = &SimulatedBlock::execUTIL_DESTORY_LOCK_REF;
+  a[GSN_UTIL_DESTROY_LOCK_CONF].m_execFunction = &SimulatedBlock::execUTIL_DESTORY_LOCK_CONF;
+  a[GSN_UTIL_LOCK_REF].m_execFunction = &SimulatedBlock::execUTIL_LOCK_REF;
+  a[GSN_UTIL_LOCK_CONF].m_execFunction = &SimulatedBlock::execUTIL_LOCK_CONF;
+  a[GSN_UTIL_UNLOCK_REF].m_execFunction = &SimulatedBlock::execUTIL_UNLOCK_REF;
+  a[GSN_UTIL_UNLOCK_CONF].m_execFunction = &SimulatedBlock::execUTIL_UNLOCK_CONF;
+  a[GSN_FSOPENREF].m_execFunction = &SimulatedBlock::execFSOPENREF;
+  a[GSN_FSOPENREF].m_signalScope = SignalScope::Local;
+  a[GSN_FSCLOSEREF].m_execFunction = &SimulatedBlock::execFSCLOSEREF;
+  a[GSN_FSCLOSEREF].m_signalScope = SignalScope::Local;
+  a[GSN_FSWRITEREF].m_execFunction = &SimulatedBlock::execFSWRITEREF;
+  a[GSN_FSWRITEREF].m_signalScope = SignalScope::Local;
+  a[GSN_FSREADREF].m_execFunction = &SimulatedBlock::execFSREADREF;
+  a[GSN_FSREADREF].m_signalScope = SignalScope::Local;
+  a[GSN_FSREMOVEREF].m_execFunction = &SimulatedBlock::execFSREMOVEREF;
+  a[GSN_FSREMOVEREF].m_signalScope = SignalScope::Local;
+  a[GSN_FSSYNCREF].m_execFunction = &SimulatedBlock::execFSSYNCREF;
+  a[GSN_FSSYNCREF].m_signalScope = SignalScope::Local;
+  a[GSN_FSAPPENDREF].m_execFunction = &SimulatedBlock::execFSAPPENDREF;
+  a[GSN_FSAPPENDREF].m_signalScope = SignalScope::Local;
+  a[GSN_NODE_START_REP].m_execFunction = &SimulatedBlock::execNODE_START_REP;
+  a[GSN_API_START_REP].m_execFunction = &SimulatedBlock::execAPI_START_REP;
+  a[GSN_SEND_PACKED].m_execFunction = &SimulatedBlock::execSEND_PACKED;
+  a[GSN_CALLBACK_CONF].m_execFunction = &SimulatedBlock::execCALLBACK_CONF;
+  a[GSN_SYNC_THREAD_REQ].m_execFunction = &SimulatedBlock::execSYNC_THREAD_REQ;
+  a[GSN_SYNC_THREAD_CONF].m_execFunction = &SimulatedBlock::execSYNC_THREAD_CONF;
+  a[GSN_LOCAL_ROUTE_ORD].m_execFunction = &SimulatedBlock::execLOCAL_ROUTE_ORD;
+  a[GSN_SYNC_REQ].m_execFunction = &SimulatedBlock::execSYNC_REQ;
+  a[GSN_SYNC_PATH_REQ].m_execFunction = &SimulatedBlock::execSYNC_PATH_REQ;
+  a[GSN_SYNC_PATH_CONF].m_execFunction = &SimulatedBlock::execSYNC_PATH_CONF;
 }
 
 void
 SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn, 
 				 ExecFunction f, bool force){
-  if(gsn > MAX_GSN || (!force &&  theExecArray[gsn] != 0)){
+  if(gsn > MAX_GSN ||
+     (!force &&  theSignalHandlerArray[gsn].m_execFunction != nullptr)){
     char errorMsg[255];
     BaseString::snprintf(errorMsg, 255, 
  	     "GSN %d(%d))", gsn, MAX_GSN); 
     ERROR_SET(fatal, NDBD_EXIT_ILLEGAL_SIGNAL, errorMsg, errorMsg);
   }
-  theExecArray[gsn] = f;
+  theSignalHandlerArray[gsn].m_execFunction = f;
+}
+
+void
+SimulatedBlock::addSignalScopeImpl(GlobalSignalNumber gsn,
+                                   SignalScope scope){
+  FunctionAndScope& fas = theSignalHandlerArray[gsn];
+
+  if (!(scope == SignalScope::Local || scope == SignalScope::Remote || scope == SignalScope::Management || scope == SignalScope::External)){
+    warningEvent("SimulatedBlock::addSignalScopeImpl, incorrect use, SignalScope out of range %u", scope);
+    require(false);
+  }
+  // If scope is defined multiple times we assume the most restrictive
+  fas.m_signalScope = MIN(fas.m_signalScope, scope);
 }
 
 void
@@ -450,7 +474,7 @@ SimulatedBlock::handle_send_failed(SendStatus ss,
                                "Out of SendBufferMemory in sendSignal", "");
     break;
   case SEND_MESSAGE_TOO_BIG:
-    /* If message is too big when sending CmvmiDummySignal log a convinient
+    /* If message is too big when sending CmvmiDummySignal log a convenient
      * message about it to.
      * Note that CmvmiDummySignal is not intended for production usage but for
      * use by test cases.
@@ -495,13 +519,13 @@ static void
 linkSegments(Uint32 head, Uint32 tail){
   
   Ptr<SectionSegment> headPtr;
-  g_sectionSegmentPool.getPtr(headPtr, head);
+  require(g_sectionSegmentPool.getPtr(headPtr, head));
   
   Ptr<SectionSegment> tailPtr;
-  g_sectionSegmentPool.getPtr(tailPtr, tail);
+  require(g_sectionSegmentPool.getPtr(tailPtr, tail));
   
   Ptr<SectionSegment> oldTailPtr;
-  g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment);
+  require(g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment));
   
   /* Can only efficiently link segments if linking to the end of a 
    * multiple-of-segment-size sized chunk
@@ -513,7 +537,7 @@ linkSegments(Uint32 head, Uint32 tail){
                                "Bad head segment size",
                                "");
 #else
-    ndbout_c("linkSegments : Bad head segment size");
+    g_eventLogger->info("linkSegments : Bad head segment size");
 #endif
   }
 
@@ -534,17 +558,17 @@ getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]){
     p = g_sectionSegmentPool.getPtr(tSec2);
     ptr[2].p = p;
     ptr[2].sz = p->m_sz;
-    // Fall through
+    [[fallthrough]];
   case 2:
     p = g_sectionSegmentPool.getPtr(tSec1);
     ptr[1].p = p;
     ptr[1].sz = p->m_sz;
-    // Fall through
+    [[fallthrough]];
   case 1:
     p = g_sectionSegmentPool.getPtr(tSec0);
     ptr[0].p = p;
     ptr[0].sz = p->m_sz;
-    // Fall through
+    [[fallthrough]];
   case 0:
     return;
   }
@@ -596,17 +620,17 @@ releaseSections(SPC_ARG Uint32 secCount, SegmentedSectionPtr ptr[3]){
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz2), tSec2,
 				     ptr[2].p->m_lastSegment);
-    // Fall through
+    [[fallthrough]];
   case 2:
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz1), tSec1,
 				     ptr[1].p->m_lastSegment);
-    // Fall through
+    [[fallthrough]];
   case 1:
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz0), tSec0,
 				     ptr[0].p->m_lastSegment);
-    // Fall through
+    [[fallthrough]];
   case 0:
     return;
   }
@@ -964,9 +988,8 @@ SimulatedBlock::sendSignal(BlockReference ref,
     sh.m_fragmentInfo          = 0;
     
 #ifdef TRACE_DISTRIBUTED
-    ndbout_c("send: %s(%d) to (%s, %d)",
-	     getSignalName(gsn), gsn, getBlockName(recBlock),
-	     recNode);
+    g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                        getBlockName(recBlock), recNode);
 #endif
 
     SendStatus ss;
@@ -1074,9 +1097,8 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 #endif
 
 #ifdef TRACE_DISTRIBUTED
-    ndbout_c("send: %s(%d) to (%s, %d)",
-	     getSignalName(gsn), gsn, getBlockName(recBlock),
-	     recNode);
+    g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                        getBlockName(recBlock), recNode);
 #endif
 
     SendStatus ss;
@@ -1195,9 +1217,8 @@ SimulatedBlock::sendSignal(BlockReference ref,
     sh.m_fragmentInfo          = tFragInfo;
     
 #ifdef TRACE_DISTRIBUTED
-    ndbout_c("send: %s(%d) to (%s, %d)",
-	     getSignalName(gsn), gsn, getBlockName(recBlock),
-	     recNode);
+    g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                        getBlockName(recBlock), recNode);
 #endif
 
     SendStatus ss;
@@ -1328,9 +1349,8 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 #endif
     
 #ifdef TRACE_DISTRIBUTED
-    ndbout_c("send: %s(%d) to (%s, %d)",
-	     getSignalName(gsn), gsn, getBlockName(recBlock),
-	     recNode);
+    g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                        getBlockName(recBlock), recNode);
 #endif
 
     SendStatus ss;
@@ -1440,9 +1460,8 @@ SimulatedBlock::sendSignal(BlockReference ref,
     sh.m_fragmentInfo          = tFragInfo;
 
 #ifdef TRACE_DISTRIBUTED
-    ndbout_c("send: %s(%d) to (%s, %d)",
-	     getSignalName(gsn), gsn, getBlockName(recBlock),
-	     recNode);
+    g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                        getBlockName(recBlock), recNode);
 #endif
 
     SendStatus ss;
@@ -1571,9 +1590,8 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 #endif
 
 #ifdef TRACE_DISTRIBUTED
-    ndbout_c("send: %s(%d) to (%s, %d)",
-	     getSignalName(gsn), gsn, getBlockName(recBlock),
-	     recNode);
+    g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                        getBlockName(recBlock), recNode);
 #endif
 
     SendStatus ss;
@@ -1703,9 +1721,8 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
     sh.m_fragmentInfo          = tFragInfo;
 
 #ifdef TRACE_DISTRIBUTED
-    ndbout_c("send: %s(%d) to (%s, %d)",
-	     getSignalName(gsn), gsn, getBlockName(recBlock),
-	     recNode);
+    g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                        getBlockName(recBlock), recNode);
 #endif
 
     SendStatus ss;
@@ -1844,9 +1861,8 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
 #endif
 
 #ifdef TRACE_DISTRIBUTED
-    ndbout_c("send: %s(%d) to (%s, %d)",
-	     getSignalName(gsn), gsn, getBlockName(recBlock),
-	     recNode);
+    g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                        getBlockName(recBlock), recNode);
 #endif
 
     SendStatus ss;
@@ -1913,7 +1929,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   globalTimeQueue.insert(signal, delayInMilliSeconds);
 #endif
 
-  // befor 2nd parameter to globalTimeQueue.insert
+  // before 2nd parameter to globalTimeQueue.insert
   // (Priority)theSendSig[sigIndex].jobBuffer
 }
 
@@ -1970,6 +1986,95 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   signal->header.m_noOfSections = 0;
   signal->header.m_fragmentInfo = 0;
   sections->m_cnt = 0;
+}
+
+/*
+ * Copy implementation for sendSignalOverAllLinks from sendSignal, excluding part for
+ * local send.
+ */
+void
+SimulatedBlock::sendSignalOverAllLinks(BlockReference ref,
+                                 GlobalSignalNumber gsn,
+                                 Signal25* signal,
+                                 Uint32 length,
+                                 JobBufferLevel jobBuffer) const
+{
+
+  BlockReference sendBRef = reference();
+
+  Uint32 recBlock = refToBlock(ref);
+  Uint32 recNode   = refToNode(ref);
+  Uint32 ourProcessor         = globalData.ownId;
+
+  ndbrequire(signal->header.m_noOfSections == 0);
+  check_sections(signal, signal->header.m_noOfSections, 0);
+
+  signal->header.theLength = length;
+  signal->header.theVerId_signalNumber = gsn;
+  signal->header.theReceiversBlockNumber = recBlock;
+  signal->header.m_noOfSections = 0;
+
+  Uint32 tSignalId = signal->header.theSignalId;
+
+  if (unlikely((length == 0) || length > 25 || (recBlock == 0)))
+  {
+    signal_error(gsn, length, recBlock, __FILE__, __LINE__);
+    return;
+  }//if
+#ifdef VM_TRACE
+  if (globalData.testOn){
+    Uint16 proc =
+      (recNode == 0 ? globalData.ownId : recNode);
+    signal->header.theSendersBlockRef = sendBRef;
+    globalSignalLoggers.sendSignal(signal->header,
+                                   jobBuffer,
+                                   &signal->theData[0],
+                                   proc);
+  }
+#endif
+
+  // Local send part not copied from sendSignal.
+  ndbrequire(recNode != ourProcessor);
+  ndbrequire(recNode != 0);
+
+  // send distributed Signal
+  SignalHeader sh;
+
+  Uint32 tTrace = signal->getTrace();
+
+  sh.theVerId_signalNumber   = gsn;
+  sh.theReceiversBlockNumber = recBlock;
+  sh.theSendersBlockRef      = refToBlock(sendBRef);
+  sh.theLength               = length;
+  sh.theTrace                = tTrace;
+  sh.theSignalId             = tSignalId;
+  sh.m_noOfSections          = 0;
+  sh.m_fragmentInfo          = 0;
+
+#ifdef TRACE_DISTRIBUTED
+  g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                      getBlockName(recBlock), recNode);
+#endif
+
+  SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+  ss = mt_send_remote_over_all_links(m_threadId, &sh, jobBuffer,
+                                     &signal->theData[0], recNode);
+#else
+  TrpBitmask trp_ids;
+  ss = globalTransporterRegistry.
+         prepareSendOverAllLinks(getNonMTTransporterSendHandle(),
+                                 &sh, jobBuffer,
+                                 &signal->theData[0], recNode, trp_ids);
+#endif
+
+  if (unlikely(! (ss == SEND_OK ||
+                  ss == SEND_BLOCKED ||
+                  ss == SEND_DISCONNECTED)))
+  {
+    handle_send_failed(ss, signal, recNode, (LinearSectionPtr*)NULL);
+  }
+  return;
 }
 
 void
@@ -2080,26 +2185,42 @@ SimulatedBlock::freeBat(){
   }
 }
 
+/**
+ * Return pointer to a const NewVARIABLE object indexed by
+ * blockNo, instanceNo and varNo.
+ * Will return NULL if no such variable exists
+ */
 const NewVARIABLE *
-SimulatedBlock::getBat(Uint16 blockNo, Uint32 instanceNo){
+SimulatedBlock::getBatVar(Uint16 blockNo, Uint32 instanceNo, Uint32 varNo){
   assert(blockNo == blockToMain(blockNo));
+  /* Check blockNo in range */
+  if (unlikely(blockNo > MAX_BLOCK_NO ||
+               blockNo < MIN_BLOCK_NO))
+  {
+    assert(false);
+    return NULL;
+  }
   SimulatedBlock * sb = globalData.getBlock(blockNo);
-  if (sb != 0 && instanceNo != 0)
+  if (sb != NULL && instanceNo != 0)
+  {
+    /* Lookup instance within block type */
     sb = sb->getInstance(instanceNo);
-  if(sb == 0)
-    return 0;
-  return sb->NewVarRef;
-}
+  }
 
-Uint16
-SimulatedBlock::getBatSize(Uint16 blockNo, Uint32 instanceNo){
-  assert(blockNo == blockToMain(blockNo));
-  SimulatedBlock * sb = globalData.getBlock(blockNo);
-  if (sb != 0 && instanceNo != 0)
-    sb = sb->getInstance(instanceNo);
-  if(sb == 0)
-    return 0;
-  return sb->theBATSize;
+  /* Check block exists, Bat exists, Var exists */
+  if(unlikely(sb == NULL))
+  {
+    return NULL;
+  }
+  if (unlikely(sb->NewVarRef == NULL))
+  {
+    return NULL;
+  }
+  if (unlikely(varNo >= sb->theBATSize))
+  {
+    return NULL;
+  }
+  return &sb->NewVarRef[varNo];
 }
 
 void* SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear, Uint32 paramId)
@@ -2210,6 +2331,30 @@ SimulatedBlock::allocChunks(AllocChunk dst[],
     m_ctx.m_mm.alloc_pages(rg, &dst[i].ptrI, &cnt, 1);
     if (unlikely(cnt == 0))
       goto fail;
+    // DBLQH error range since this function is only used there.
+    if (ERROR_INSERTED(5107))
+    {
+      /*
+       * Try chop up the allocation in chunks, with unused pages between the
+       * chunks.
+       *
+       * First allocation will typically succeed allocate all memory, we keep
+       * the last pages in the range.  Then the next allocation will also
+       * succeed to allocate all remaining pages (if there are enough page
+       * memory), we keep the last pages again, and there will be a gap between
+       * the chunks.  If there are too little page memory, allocation may
+       * succeed reusing the gaps and there might not be gaps between the
+       * chunks, if that happen try configure more page memory for test.
+       */
+      const Uint32 min_pages_per_chunk = pages / (arraysize - i) + 1;
+      if (cnt > min_pages_per_chunk)
+      {
+        const Uint32 gap_pages = cnt - min_pages_per_chunk;
+        m_ctx.m_mm.release_pages(rg, dst[i].ptrI, gap_pages);
+        dst[i].ptrI += gap_pages;
+        cnt -= gap_pages;
+      }
+    }
     pages -= cnt;
     dst[i].cnt = cnt;
   }
@@ -2592,11 +2737,49 @@ SimulatedBlock::handle_execute_error(GlobalSignalNumber gsn)
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d too high)", gsn);
     ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
-  if (!(theExecArray[gsn] != 0)) {
+  if (!(theSignalHandlerArray[gsn].m_execFunction != nullptr)) {
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
     ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
   ndbabort();
+}
+
+ATTRIBUTE_NOINLINE
+void
+SimulatedBlock::handle_sender_error(GlobalSignalNumber gsn, Signal *signal, SignalScope scope)
+{
+  const BlockReference ref = (signal->senderBlockRef());
+  Uint32 nodeId = refToNode(ref);
+  char errorMsg[255];
+    switch (scope)
+    {
+    case SignalScope::Local:
+    {
+      CRASH_INSERTION(10054);
+      BaseString::snprintf(errorMsg, 255, "Illegal signal %s received for SignalScope::Local (GSN %d from node %d, block 0x%X to 0x%X)", getSignalName(gsn), gsn, nodeId, refToMain(ref), refToMain(reference()));
+      ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, getBlockName(number()));
+      break;
+    }
+    case SignalScope::Remote:
+    {
+      BaseString::snprintf(errorMsg, 255, "Illegal signal %s received for SignalScope::Remote (GSN %d from node %d, block 0x%X to 0x%X)", getSignalName(gsn), gsn, nodeId, refToMain(ref), refToMain(reference()));
+      ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, getBlockName(number()));
+      break;
+    }
+    case SignalScope::Management:
+    {
+      BaseString::snprintf(errorMsg, 255, "Illegal signal %s received for SignalScope::Management (GSN %d from API node %d, block 0x%X to 0x%X)", getSignalName(gsn), gsn, nodeId, refToMain(ref), refToMain(reference()));
+      ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, getBlockName(number()));
+      break;
+    }
+    case SignalScope::External:
+      // Should not be reachable
+      ndbassert(false);
+      BaseString::snprintf(errorMsg, 255, "Illegal signal %s eceived for SignalScope::External (GSN %d from API node %d, block 0x%X to 0x%X)", getSignalName(gsn), gsn, nodeId, refToMain(ref), refToMain(reference()));
+      ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, getBlockName(number()));
+      break;
+    }
+   ndbabort();
 }
 
 // MT LQH callback CONF via signal
@@ -3232,10 +3415,10 @@ SimulatedBlock::doNodeFailureCleanup(Signal* signal,
   sig->cleanup.resource = resource;
   sig->cleanup.cursor = cursor;
   sig->cleanup.elementsCleaned= elementsCleaned;
-  Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
-  Uint32 sigLen = ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS + 
+  constexpr Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
+  constexpr Uint32 sigLen = ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS +
     callbackWords;
-  ndbassert(sigLen <= 25); // Should be STATIC_ASSERT
+  static_assert(sigLen <= 25);
   memcpy(&sig->cleanup.callbackStart, &cb, callbackWords << 2);
   
   sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, sigLen, JBB);
@@ -3286,17 +3469,14 @@ SimulatedBlock::debugPrintFragmentCounts()
     c_segmentedFragmentSendList.next(ptr);
   }
 
-  ndbout_c("%s : Fragment assembly hash entry count : %d", 
-           blockName,
-           fragmentInfoCount);
+  g_eventLogger->info("%s : Fragment assembly hash entry count : %d", blockName,
+                      fragmentInfoCount);
 
-  ndbout_c("%s : Linear fragment send list size : %d", 
-           blockName,
-           linSendInfoCount);
+  g_eventLogger->info("%s : Linear fragment send list size : %d", blockName,
+                      linSendInfoCount);
 
-  ndbout_c("%s : Segmented fragment send list size : %d", 
-           blockName,
-           segSendInfoCount);
+  g_eventLogger->info("%s : Segmented fragment send list size : %d", blockName,
+                      segSendInfoCount);
 
   return fragmentInfoCount + 
     linSendInfoCount +
@@ -3328,19 +3508,19 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     info.m_sectionPtr[2].m_segmented.i = ptr[2].i;
     info.m_sectionPtr[2].m_segmented.p = ptr[2].p;
     totalSize += ptr[2].sz;
-    // Fall through
+    [[fallthrough]];
   case 2:
     info.m_sectionPtr[1].m_segmented.i = ptr[1].i;
     info.m_sectionPtr[1].m_segmented.p = ptr[1].p;
     totalSize += ptr[1].sz;
-    // Fall through
+    [[fallthrough]];
   case 1:
     info.m_sectionPtr[0].m_segmented.i = ptr[0].i;
     info.m_sectionPtr[0].m_segmented.p = ptr[0].p;
     totalSize += ptr[0].sz;
   }
 
-  if (totalSize + messageSize <= MAX_SIZE_SINGLE_SIGNAL)
+  if (totalSize + length <= MAX_SIZE_SINGLE_SIGNAL)
   {
     /**
      * Send signal directly
@@ -3353,7 +3533,8 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     info.m_status = FragmentSendInfo::SendComplete;
     return true;
   }
-    
+  ndbrequire(blockToMain(rg.m_block) != V_QUERY);
+
   /**
    * Setup info object
    */
@@ -3493,7 +3674,7 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
        * The section fits
        */
       sz += size;
-      lsout(ndbout_c("section %d saved as %d", secNo, secCount-1));
+      lsout(g_eventLogger->info("section %d saved as %d", secNo, secCount - 1));
       continue;
     }
     
@@ -3503,8 +3684,8 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
        * Only one segment left to send
        *   send even if sizeLeft <= size
        */
-      lsout(ndbout_c("section %d saved as %d but full over: %d", 
-		     secNo, secCount-1, overflow));
+      lsout(g_eventLogger->info("section %d saved as %d but full over: %d",
+                                secNo, secCount - 1, overflow));
       secNo--;
       break;
     }
@@ -3518,7 +3699,7 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
       secCount--;
       info.m_sectionPtr[secNo].m_segmented.i = ptrI;
       loop = Full;
-      lsout(ndbout_c("section %d not saved", secNo));
+      lsout(g_eventLogger->info("section %d not saved", secNo));
       break;
     }
     
@@ -3577,13 +3758,13 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
     info.m_sectionPtr[secNo].m_segmented.p = ptrP;
     
     loop = Full;
-    lsout(ndbout_c("section %d split into %d", secNo, prev));
+    lsout(g_eventLogger->info("section %d split into %d", secNo, prev));
     break;
   }
-  
-  lsout(ndbout_c("loop: %d secNo: %d secCount: %d sz: %d", 
-		 loop, secNo, secCount, sz));
-  
+
+  lsout(g_eventLogger->info("loop: %d secNo: %d secCount: %d sz: %d", loop,
+                            secNo, secCount, sz));
+
   /**
    * Store fragment id
    */
@@ -3594,17 +3775,17 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
   switch(loop){
   case Unknown:
     if(secNo >= 0){
-      lsout(ndbout_c("Unknown - Full"));
+      lsout(g_eventLogger->info("Unknown - Full"));
       /**
        * Not finished
        */
       break;
     }
-    // Fall through
-    lsout(ndbout_c("Unknown - Done"));
+    lsout(g_eventLogger->info("Unknown - Done"));
     info.m_status = FragmentSendInfo::SendComplete;
     ndbassert(fragInfo == 2);
     fragInfo = 3;
+    [[fallthrough]];
   case Full:
     break;
   }
@@ -3691,17 +3872,17 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   case 3:
     info.m_sectionPtr[2].m_linear = ptr[2];
     totalSize += ptr[2].sz;
-    // Fall through
+    [[fallthrough]];
   case 2:
     info.m_sectionPtr[1].m_linear = ptr[1];
     totalSize += ptr[1].sz;
-    // Fall through
+    [[fallthrough]];
   case 1:
     info.m_sectionPtr[0].m_linear = ptr[0];
     totalSize += ptr[0].sz;
   }
 
-  if (totalSize + messageSize <= MAX_SIZE_SINGLE_SIGNAL)
+  if (totalSize + length <= MAX_SIZE_SINGLE_SIGNAL)
   {
     /**
      * Send signal directly
@@ -3715,6 +3896,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
      */
     return true;
   }
+  ndbrequire(blockToMain(rg.m_block) != V_QUERY);
 
   /**
    * Setup info object
@@ -3785,7 +3967,7 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
   
   enum { Unknown = 0, Full = 2 } loop = Unknown;
   for(; secNo >= 0 && secCount < 3; secNo--){
-    Uint32 * ptrP = info.m_sectionPtr[secNo].m_linear.p;
+    const Uint32* ptrP = info.m_sectionPtr[secNo].m_linear.p;
     if(ptrP == NULL)
       continue;
     
@@ -3803,7 +3985,7 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
        * The section fits
        */
       sz += size;
-      lsout(ndbout_c("section %d saved as %d", secNo, secCount-1));
+      lsout(g_eventLogger->info("section %d saved as %d", secNo, secCount - 1));
       continue;
     }
     
@@ -3813,8 +3995,8 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
        * Only one segment left to send
        *   send even if sizeLeft <= size
        */
-      lsout(ndbout_c("section %d saved as %d but full over: %d", 
-		     secNo, secCount-1, overflow));
+      lsout(g_eventLogger->info("section %d saved as %d but full over: %d",
+                                secNo, secCount - 1, overflow));
       secNo--;
       break;
     }
@@ -3828,7 +4010,7 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
       secCount--;
       info.m_sectionPtr[secNo].m_linear.p = ptrP;
       loop = Full;
-      lsout(ndbout_c("section %d not saved", secNo));
+      lsout(g_eventLogger->info("section %d not saved", secNo));
       break;
     }
     
@@ -3856,13 +4038,13 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
     info.m_sectionPtr[secNo].m_linear.sz = size - sum;
     
     loop = Full;
-    lsout(ndbout_c("section %d split into %d", secNo, prev));
+    lsout(g_eventLogger->info("section %d split into %d", secNo, prev));
     break;
   }
-  
-  lsout(ndbout_c("loop: %d secNo: %d secCount: %d sz: %d", 
-		 loop, secNo, secCount, sz));
-  
+
+  lsout(g_eventLogger->info("loop: %d secNo: %d secCount: %d sz: %d", loop,
+                            secNo, secCount, sz));
+
   /**
    * Store fragment id
    */
@@ -3873,17 +4055,17 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
   switch(loop){
   case Unknown:
     if(secNo >= 0){
-      lsout(ndbout_c("Unknown - Full"));
+      lsout(g_eventLogger->info("Unknown - Full"));
       /**
        * Not finished
        */
       break;
     }
-    // Fall through
-    lsout(ndbout_c("Unknown - Done"));
+    lsout(g_eventLogger->info("Unknown - Done"));
     info.m_status = FragmentSendInfo::SendComplete;
     ndbassert(fragInfo == 2);
     fragInfo = 3;
+    [[fallthrough]];
   case Full:
     break;
   }
@@ -4499,7 +4681,7 @@ SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
 {
   const Uint32 typeId = AttributeDescriptor::getType(attrDesc);
   NdbSqlUtil::Cmp *cmp = NdbSqlUtil::getType(typeId).m_cmp;
-  return (*cmp)(cs, s1, s1Len, s2, s1Len);
+  return (*cmp)(cs, s1, s1Len, s2, s2Len);
 }
 
 
@@ -4577,9 +4759,10 @@ SimulatedBlock::xfrm_attr_hash(
     
     if (0)
     {
-      ndbout_c("srcPos: %d dstPos: %d len: %d srcWords: %d dstWords: %d",
-               srcPos, dstPos, len, srcWords, dstWords);
-      
+      g_eventLogger->info(
+          "srcPos: %d dstPos: %d len: %d srcWords: %d dstWords: %d", srcPos,
+          dstPos, len, srcWords, dstWords);
+
       for(Uint32 i = 0; i<srcWords; i++)
         printf("%.8x ", src[srcPos + i]);
       printf("\n");
@@ -4778,9 +4961,13 @@ SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
   }
 
   LocalRouteOrd* ord = (LocalRouteOrd*)signal->getDataPtr();
-  Uint32 pathcnt = ord->cnt >> 16;
-  Uint32 dstcnt = ord->cnt & 0xFFFF;
+  const Uint32 pathcnt = ord->cnt >> 16;
+  const Uint32 dstcnt = ord->cnt & 0xFFFF;
   Uint32 sigLen = signal->getLength();
+
+  ndbrequire(sigLen >= (LocalRouteOrd::StaticLen +
+                        (pathcnt * 2) +
+                        (dstcnt)));
 
   if (pathcnt == 0)
   {
@@ -4790,6 +4977,8 @@ SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
     jam();
     Uint32 gsn = ord->gsn;
     Uint32 prio = ord->prio;
+    ndbrequire(dstcnt <= LocalRouteOrd::MaxDstCount);
+    static_assert(25 + LocalRouteOrd::MaxDstCount <= NDB_ARRAY_SIZE(signal->theData));
     memcpy(signal->theData+25, ord->path, 4*dstcnt);
     SectionHandle handle(this, signal);
     if (sigLen > LocalRouteOrd::StaticLen + dstcnt)
@@ -4992,7 +5181,7 @@ SimulatedBlock::execSYNC_THREAD_CONF(Signal* signal)
 {
   jamEntry();
   Ptr<SyncThreadRecord> ptr;
-  c_syncThreadPool.getPtr(ptr, signal->theData[1]);
+  ndbrequire(c_syncThreadPool.getPtr(ptr, signal->theData[1]));
 
   ndbrequire(ptr.p->m_cnt > 0);
   ptr.p->m_cnt--;
@@ -5089,8 +5278,11 @@ SimulatedBlock::synchronize_path(Signal * signal,
 void
 SimulatedBlock::execSYNC_PATH_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   SyncPathReq * req = CAST_PTR(SyncPathReq, signal->getDataPtrSend());
+  ndbrequire(req->pathlen >= 1 && req->pathlen <= SyncPathReq::MaxPathLen);
+  ndbrequire(signal->getLength() >= SyncPathReq::SignalLength + req->pathlen);
   if (req->pathlen == 1)
   {
     jam();
@@ -5120,7 +5312,7 @@ SimulatedBlock::execSYNC_PATH_CONF(Signal* signal)
   SyncPathConf conf = * CAST_CONSTPTR(SyncPathConf, signal->getDataPtr());
   Ptr<SyncThreadRecord> ptr;
 
-  c_syncThreadPool.getPtr(ptr, conf.senderData);
+  ndbrequire(c_syncThreadPool.getPtr(ptr, conf.senderData));
 
   if (ptr.p->m_cnt == 0)
   {
@@ -5149,7 +5341,7 @@ SimulatedBlock::checkNodeFailSequence(Signal* signal)
   /**
    * Make sure that a signal being part of node-failure handling
    *   from a remote node, does not get to us before we got the NODE_FAILREP
-   *   (this to avoid tricky state handling to some extent when receving
+   *   (this to avoid tricky state handling to some extent when receiving
    *    signals from old nodes)
    *
    * To ensure this, we send the signal via the transporter for the remote
@@ -5331,8 +5523,20 @@ SimulatedBlock::ndbinfo_send_scan_break(Signal* signal,
 
   Ndbinfo::ScanCursor::setHasMoreData(cursor->flags, true);
 
-  sendSignal(cursor->senderRef, GSN_DBINFO_SCANCONF, signal,
-             signal_length, JBB);
+  if (rl.rows > 0)
+  {
+    jam();
+    /* Send what we have so far back to requestor */
+    sendSignal(cursor->senderRef, GSN_DBINFO_SCANCONF, signal,
+               signal_length, JBB);
+  }
+  else
+  {
+    jam();
+    /* We have nothing yet, take a RTB, but keep scanning */
+    sendSignal(reference(), GSN_DBINFO_SCANREQ, signal,
+               signal_length, JBB);
+  }
 }
 
 void
@@ -5705,7 +5909,7 @@ SimulatedBlock::get_load_indicators(DistributionHandler * const handle,
  * The selection is based on load levels. We use two levels of loads
  * to impact this decision. We use a long-term scheduling based on
  * the CPU load the last 100 milliseconds. Thus we change the
- * scheduling 10 times per second to accomodate the load of the various
+ * scheduling 10 times per second to accommodate the load of the various
  * threads. This means that e.g. if a certain LDM thread is very busy
  * with write actions and other things it will get a lower risk of being
  * selected here in the next scheduling decision.

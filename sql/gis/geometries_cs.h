@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GEOMETRIES_CS_H_INCLUDED
 #define SQL_GIS_GEOMETRIES_CS_H_INCLUDED
 
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -175,9 +175,6 @@ class Geographic_linestring : public Linestring {
 /// A Cartesian 2d linear ring.
 class Cartesian_linearring : public Cartesian_linestring, public Linearring {
  public:
-#if defined(__SUNPRO_CC)
-  ~Cartesian_linearring() override = default;
-#endif
   Geometry_type type() const override { return Linearring::type(); }
   Coordinate_system coordinate_system() const override {
     return Coordinate_system::kCartesian;
@@ -197,7 +194,7 @@ class Cartesian_linearring : public Cartesian_linestring, public Linearring {
 
   /// This implementation of clone() uses a broader return type than
   /// other implementations. This is due to the restraint in some compilers,
-  /// such as cl.exe, that overriding functions with ambigious bases must have
+  /// such as cl.exe, that overriding functions with ambiguous bases must have
   /// covariant return types.
   Cartesian_linestring *clone() const override {
     return new Cartesian_linearring(*this);
@@ -224,9 +221,6 @@ class Cartesian_linearring : public Cartesian_linestring, public Linearring {
 /// A geographic (ellipsoidal) 2d linear ring.
 class Geographic_linearring : public Geographic_linestring, public Linearring {
  public:
-#if defined(__SUNPRO_CC)
-  ~Geographic_linearring() override = default;
-#endif
   Geometry_type type() const override { return Linearring::type(); }
   Coordinate_system coordinate_system() const override {
     return Coordinate_system::kGeographic;
@@ -246,7 +240,7 @@ class Geographic_linearring : public Geographic_linestring, public Linearring {
 
   /// This implementation of clone() uses a broader return type than
   /// other implementations. This is due to the restraint in some compilers,
-  /// such as cl.exe, that overriding functions with ambigious bases must have
+  /// such as cl.exe, that overriding functions with ambiguous bases must have
   /// covariant return types.
   Geographic_linestring *clone() const override {
     return new Geographic_linearring(*this);
@@ -382,6 +376,12 @@ class Cartesian_geometrycollection : public Geometrycollection {
   /// List of geometries in the collection.
   std::vector<Geometry *, Malloc_allocator<Geometry *>> m_geometries;
 
+  void delete_geometries() noexcept {
+    for (Geometry *g : m_geometries) {
+      delete g;
+    }
+  }
+
  public:
   typedef decltype(m_geometries)::iterator iterator;
   typedef decltype(m_geometries)::const_iterator const_iterator;
@@ -395,11 +395,7 @@ class Cartesian_geometrycollection : public Geometrycollection {
             Malloc_allocator<Geometry *>(key_memory_Geometry_objects_data)) {
     m_geometries = std::move(gc.m_geometries);
   }
-  ~Cartesian_geometrycollection() override {
-    for (Geometry *g : m_geometries) {
-      delete g;
-    }
-  }
+  ~Cartesian_geometrycollection() override { delete_geometries(); }
   Coordinate_system coordinate_system() const override {
     return Coordinate_system::kCartesian;
   }
@@ -419,7 +415,10 @@ class Cartesian_geometrycollection : public Geometrycollection {
   bool empty() const override;
   std::size_t size() const override { return m_geometries.size(); }
   void resize(std::size_t count) override { m_geometries.resize(count); }
-  void clear() noexcept override { m_geometries.clear(); }
+  void clear() noexcept override {
+    delete_geometries();
+    m_geometries.clear();
+  }
 
   iterator begin() noexcept { return m_geometries.begin(); }
   const_iterator begin() const noexcept { return m_geometries.begin(); }
@@ -445,6 +444,12 @@ class Geographic_geometrycollection : public Geometrycollection {
   /// List of geometries in the collection.
   std::vector<Geometry *, Malloc_allocator<Geometry *>> m_geometries;
 
+  void delete_geometries() noexcept {
+    for (Geometry *g : m_geometries) {
+      delete g;
+    }
+  }
+
  public:
   typedef decltype(m_geometries)::iterator iterator;
   typedef decltype(m_geometries)::const_iterator const_iterator;
@@ -458,11 +463,7 @@ class Geographic_geometrycollection : public Geometrycollection {
             Malloc_allocator<Geometry *>(key_memory_Geometry_objects_data)) {
     m_geometries = std::move(gc.m_geometries);
   }
-  ~Geographic_geometrycollection() override {
-    for (Geometry *g : m_geometries) {
-      delete g;
-    }
-  }
+  ~Geographic_geometrycollection() override { delete_geometries(); }
   Coordinate_system coordinate_system() const override {
     return Coordinate_system::kGeographic;
   }
@@ -482,7 +483,10 @@ class Geographic_geometrycollection : public Geometrycollection {
   bool empty() const override;
   std::size_t size() const override { return m_geometries.size(); }
   void resize(std::size_t count) override { m_geometries.resize(count); }
-  void clear() noexcept override { m_geometries.clear(); }
+  void clear() noexcept override {
+    delete_geometries();
+    m_geometries.clear();
+  }
 
   iterator begin() noexcept { return m_geometries.begin(); }
   const_iterator begin() const noexcept { return m_geometries.begin(); }

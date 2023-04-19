@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,11 +57,11 @@ class Data_extension final : public Data {
   /* Get data */
   const data::Data get_data() const override { return Data::get_data(); }
 
-  /* Get Metdata extension details */
+  /* Get Metadata extension details */
   const Extension get_extension() const { return ext_; }
 
   /* Set data */
-  void set_data(const data::Data data) override { Data::operator=(data); }
+  void set_data(const data::Data &data) override { Data::operator=(data); }
   /* Set metadata extension */
   void set_extension(const Extension ext) { ext_ = ext; }
 

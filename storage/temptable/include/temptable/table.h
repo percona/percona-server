@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,7 +46,7 @@ namespace temptable {
 class Table {
  public:
   Table(TABLE *mysql_table, Block *shared_block,
-        bool all_columns_are_fixed_size);
+        bool all_columns_are_fixed_size, size_t tmp_table_size_limit);
 
   /* The `m_rows` member is too expensive to copy around. */
   Table(const Table &) = delete;
@@ -68,6 +68,8 @@ class Table {
   const Columns &columns() const;
 
   size_t number_of_rows() const;
+
+  uint64_t get_mem_counter() const;
 
   const Index &index(size_t i) const;
 
@@ -146,6 +148,8 @@ class Table {
 
   Result indexes_remove(Storage::Element *row);
 
+  TableResourceMonitor m_resource_monitor;
+
   /** Allocator for all members that need dynamic memory allocation. */
   Allocator<uint8_t> m_allocator;
 
@@ -184,6 +188,10 @@ inline size_t Table::number_of_columns() const { return m_columns.size(); }
 inline const Columns &Table::columns() const { return m_columns; }
 
 inline size_t Table::number_of_rows() const { return m_rows.size(); }
+
+inline uint64_t Table::get_mem_counter() const {
+  return m_allocator.get_allocated_mem_counter();
+}
 
 inline const Index &Table::index(size_t i) const {
   return *m_index_entries[i].m_index;

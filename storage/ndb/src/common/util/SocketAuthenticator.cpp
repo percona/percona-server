@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@ SocketAuthSimple::SocketAuthSimple(const char *username, const char *passwd) {
   if (username)
     m_username= strdup(username);
   else
-    m_username= 0;
+    m_username= nullptr;
   if (passwd)
     m_passwd= strdup(passwd);
   else
-    m_passwd= 0;
+    m_passwd= nullptr;
 }
 
 SocketAuthSimple::~SocketAuthSimple()
@@ -45,7 +45,7 @@ SocketAuthSimple::~SocketAuthSimple()
     free(m_username);
 }
 
-bool SocketAuthSimple::client_authenticate(NDB_SOCKET_TYPE sockfd)
+bool SocketAuthSimple::client_authenticate(ndb_socket_t sockfd)
 {
   SocketOutputStream s_output(sockfd);
   SocketInputStream  s_input(sockfd);
@@ -57,7 +57,7 @@ bool SocketAuthSimple::client_authenticate(NDB_SOCKET_TYPE sockfd)
   char buf[16];
 
   // Read authentication result
-  if (s_input.gets(buf, sizeof(buf)) == 0)
+  if (s_input.gets(buf, sizeof(buf)) == nullptr)
     return false;
   buf[sizeof(buf)-1]= 0;
 
@@ -68,7 +68,7 @@ bool SocketAuthSimple::client_authenticate(NDB_SOCKET_TYPE sockfd)
   return false;
 }
 
-bool SocketAuthSimple::server_authenticate(NDB_SOCKET_TYPE sockfd)
+bool SocketAuthSimple::server_authenticate(ndb_socket_t sockfd)
 {
   SocketOutputStream s_output(sockfd);
   SocketInputStream  s_input(sockfd);
@@ -76,12 +76,12 @@ bool SocketAuthSimple::server_authenticate(NDB_SOCKET_TYPE sockfd)
   char buf[256];
 
   // Read username
-  if (s_input.gets(buf, sizeof(buf)) == 0)
+  if (s_input.gets(buf, sizeof(buf)) == nullptr)
     return false;
   buf[sizeof(buf)-1]= 0;
 
   // Read password
-  if (s_input.gets(buf, sizeof(buf)) == 0)
+  if (s_input.gets(buf, sizeof(buf)) == nullptr)
     return false;
   buf[sizeof(buf)-1]= 0;
 

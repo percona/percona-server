@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
 
 private:
 
@@ -80,12 +80,13 @@ private:
   /**
    * If directory = 1
    *
-   * 0 = remove only files/direcories in directory specified in fileNumber
+   * 0 = remove only files/directories in directory specified in fileNumber
    * 1 = remove directory specified in fileNumber
    */
   UintR ownDirectory;
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_FSREMOVEREQ, Local);
 
 #undef JAM_FILE_ID
 

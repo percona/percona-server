@@ -16,6 +16,7 @@
 
 #define _UTILS_H
 
+#include <my_inttypes.h>
 #include <mysql/components/services/registry.h>
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/udf_registration_types.h>

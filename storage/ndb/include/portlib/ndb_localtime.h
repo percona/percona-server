@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 /*
  ndb_locatime_r
- Portability fucntion which emulates the localtime_r() function
+ Portability function which emulates the localtime_r() function
 
 **/
 
@@ -36,7 +36,7 @@ struct tm*
 ndb_localtime_r(const time_t *timep, struct tm *result)
 {
 #ifdef _WIN32
-  // NOTE! reversed args and different returntype
+  // NOTE! reversed args and different return type
   if (localtime_s(result, timep) != 0)
   {
     return NULL;

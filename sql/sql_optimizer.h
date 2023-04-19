@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,9 @@
 #include "my_table_map.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"  // Explain_sort_clause
-#include "sql/row_iterator.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -156,10 +156,8 @@ class JOIN {
   JOIN_TAB **best_ref{nullptr};
   /// mapping between table indexes and JOIN_TABs
   JOIN_TAB **map2table{nullptr};
-  ///< mapping between table indexes and QEB_TABs
-  QEP_TAB **map2qep_tab{nullptr};
   /*
-    The table which has an index that allows to produce the requried ordering.
+    The table which has an index that allows to produce the required ordering.
     A special value of 0x1 means that the ordering will be produced by
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
@@ -242,9 +240,41 @@ class JOIN {
   */
   table_map found_const_table_map;
   /**
-     Used in some loops which scan the JOIN's tables: it is the bitmap of all
-     tables which are dependencies of lateral derived tables which the loop
-     has not yet processed.
+     This is the bitmap of all tables which are dependencies of
+     lateral derived tables which are not (yet) part of the partial
+     plan.  (The value is a logical 'or' of zero or more
+     Table_ref.map() values.)
+
+     When we are building the join order, there is a partial plan (an
+     ordered sequence of JOIN_TABs), and an unordered set of JOIN_TABs
+     not yet added to the plan. Due to backtracking, the partial plan
+     may both grow and shrink. When we add a new table to the plan, we
+     may wish to set up join buffering, so that rows from the preceding
+     table are buffered. If any of the remaining tables are derived
+     tables that depends on any of the predecessors of the table we
+     are adding (i.e. a lateral dependency), join buffering would be
+     inefficient. (@see setup_join_buffering() for a detailed
+     explanation of why this is so.)
+
+     For this reason we need to maintain this table_map of lateral
+     dependencies of tables not yet in the plan. Whenever we add a new
+     table to the plan, we update the map by calling
+     Optimize_table_order::recalculate_lateral_deps_incrementally().
+     And when we remove a table, we restore the previous map value
+     using a Tabel_map_restorer object.
+
+     As an example, assume that we join four tables, t1, t2, t3 and
+     d1, where d1 is a derived table that depends on t1:
+
+     SELECT * FROM t1 JOIN t2 ON t1.a=t2.b JOIN t3 ON t2.c=t3.d
+       JOIN LATERAL (SELECT DISTINCT e AS x FROM t4 WHERE t4.f=t1.c)
+       AS d1 ON t3.e=d1.x;
+
+     Now, if our partial plan is t1->t2, the map (of lateral
+     dependencies of the remaining tables) will contain t1.
+     This tells us that we should not use join buffering when joining t1
+     with t2. But if the partial plan is t1->d2->t2, the map will be
+     empty. We may thus use join buffering when joining d2 with t2.
   */
   table_map deps_of_remaining_lateral_derived_tables{0};
 
@@ -304,6 +334,10 @@ class JOIN {
   mem_root_deque<Item *> *fields;
   List<Cached_item> group_fields{};
   List<Cached_item> group_fields_cache{};
+
+  // For destroying fields otherwise owned by RemoveDuplicatesIterator.
+  List<Cached_item> semijoin_deduplication_fields{};
+
   Item_sum **sum_funcs{nullptr};
   /**
      Describes a temporary table.
@@ -373,9 +407,6 @@ class JOIN {
   /// Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
 
-  /// List storing all expressions used in query block
-  mem_root_deque<Item *> *query_block_fields;
-
   /**
     Array of pointers to lists of expressions.
     Each list represents the SELECT list at a certain stage of execution,
@@ -394,6 +425,13 @@ class JOIN {
   mem_root_deque<Item *> *tmp_fields = nullptr;
 
   int error{0};  ///< set in optimize(), exec(), prepare_result()
+
+  /**
+    Incremented each time clear_hash_tables() is run, signaling to
+    HashJoinIterators that they cannot keep their hash tables anymore
+    (since outer references may have changed).
+   */
+  uint64_t hash_table_generation{0};
 
   /**
     ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
@@ -467,7 +505,7 @@ class JOIN {
     optimization. May be changed (to NULL) only if optimize_aggregated_query()
     optimizes tables away.
   */
-  TABLE_LIST *tables_list;
+  Table_ref *tables_list;
   COND_EQUAL *cond_equal{nullptr};
   /*
     Join tab to return to. Points to an element of join->join_tab array, or to
@@ -491,18 +529,11 @@ class JOIN {
     - slice 3 is a copy of the original slice 0. It is created if
       slice overwriting is necessary, and it is used to restore
       original values in slice 0 after having been overwritten.
-    - slices 4 -> N are used by windowing:
-      first are all the window's out tmp tables,
-      the next indexes are reserved for the windows' frame buffers (in the same
-      order), if any, e.g.
-
-      One window:      4: window 1's out table
-                       5: window 1's FB
+    - slices 4 -> N are used by windowing: all the window's out tmp tables,
 
       Two windows:     4: window 1's out table
                        5: window 2's out table
-                       6: window 1's FB
-                       7: window 2's FB
+
       and so on.
 
     Slice 0 is allocated for the lifetime of a statement, whereas slices 1-3
@@ -578,7 +609,14 @@ class JOIN {
   */
   bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
-  bool optimize();
+  /**
+    Returns true if any of the items in JOIN::fields contains a call to the
+    full-text search function MATCH, which is not wrapped in an aggregation
+    function.
+  */
+  bool contains_non_aggregated_fts() const;
+
+  bool optimize(bool finalize_access_paths);
   void reset();
   bool prepare_result();
   void destroy();
@@ -639,7 +677,7 @@ class JOIN {
   mem_root_deque<Item *> *get_current_fields();
 
   bool optimize_rollup();
-  bool finalize_table_conditions();
+  bool finalize_table_conditions(THD *thd);
   /**
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before
@@ -653,6 +691,7 @@ class JOIN {
   bool clear_fields(table_map *save_nullinfo);
   void restore_fields(table_map save_nullinfo);
 
+ private:
   /**
     Return whether the caller should send a row even if the join
     produced no rows if:
@@ -669,6 +708,7 @@ class JOIN {
             query_block->having_value != Item::COND_FALSE);
   }
 
+ public:
   bool generate_derived_keys();
   void finalize_derived_keys();
   bool get_best_combination();
@@ -681,13 +721,14 @@ class JOIN {
  public:
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(uint idx, ORDER_with_src *order,
-                            bool force_stable_sort, bool sort_before_group);
+                            bool sort_before_group);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
   table_map calculate_deps_of_remaining_lateral_derived_tables(
       table_map plan_tables, uint idx) const;
   bool clear_sj_tmp_tables();
   bool clear_corr_derived_tmp_tables();
+  void clear_hash_tables() { ++hash_table_generation; }
 
   void mark_const_table(JOIN_TAB *table, Key_use *key);
   /// State of execution plan. Currently used only for EXPLAIN
@@ -734,6 +775,33 @@ class JOIN {
   bool push_to_engines();
 
   AccessPath *root_access_path() const { return m_root_access_path; }
+  void set_root_access_path(AccessPath *path) { m_root_access_path = path; }
+
+  /**
+    If this query block was planned twice, once with and once without conditions
+    added by in2exists, changes the root access path to the one without
+    in2exists. If not (ie., there were never any such conditions in the first
+    place), does nothing.
+   */
+  void change_to_access_path_without_in2exists();
+
+  /**
+    In the case of rollup (only): After the base slice list was made, we may
+    have modified the field list to add rollup group items and sum switchers,
+    but there may be Items with refs that refer to the base slice. This function
+    refreshes the base slice (and its copy, REF_SLICE_SAVED_BASE) with a fresh
+    copy of the list from “fields”.
+
+    When we get rid of slices entirely, we can get rid of this, too.
+   */
+  void refresh_base_slice();
+
+  /**
+    Whether this query block needs finalization (see
+    FinalizePlanForQueryBlock()) before it can be actually used.
+    This only happens when using the hypergraph join optimizer.
+   */
+  bool needs_finalize{false};
 
  private:
   bool optimized{false};  ///< flag to avoid double optimization in EXPLAIN
@@ -795,12 +863,39 @@ class JOIN {
   */
   bool optimize_fts_query();
 
+  /**
+    Checks if the chosen plan suffers from a problem related to full-text search
+    and streaming aggregation, which is likely to cause wrong results or make
+    the query misbehave in other ways, and raises an error if so. Only to be
+    called for queries with full-text search and GROUP BY WITH ROLLUP.
+
+    If there are calls to MATCH in the SELECT list (including the hidden
+    elements lifted there from other clauses), and they are not inside an
+    aggregate function, the results of the MATCH clause need to be materialized
+    before streaming aggregation is performed. The hypergraph optimizer adds a
+    materialization step before aggregation if needed (see
+    CreateStreamingAggregationPath()), but the old optimizer only does that for
+    implicitly grouped queries. For explicitly grouped queries, it instead
+    disables streaming aggregation for the queries that would need a
+    materialization step to work correctly (see JOIN::test_skip_sort()).
+
+    For explicitly grouped queries WITH ROLLUP, however, streaming aggregation
+    is currently the only alternative. In many cases it still works correctly
+    because an intermediate materialization step has been added for some other
+    reason, typically for a sort. For now, in those cases where a
+    materialization step has not been added, we raise an error instead of going
+    ahead with an invalid execution plan.
+
+    @return true if an error was raised.
+  */
+  bool check_access_path_with_fts() const;
+
   bool prune_table_partitions();
   /**
     Initialize key dependencies for join tables.
 
     TODO figure out necessity of this method. Current test
-         suite passed without this intialization.
+         suite passed without this initialization.
   */
   void init_key_dependencies() {
     JOIN_TAB *const tab_end = join_tab + tables;
@@ -936,6 +1031,7 @@ class JOIN {
    */
   void create_access_paths();
 
+ public:
   /**
     Create access paths with the knowledge that there are going to be zero rows
     coming from tables (before aggregation); typically because we know that
@@ -945,11 +1041,13 @@ class JOIN {
    */
   void create_access_paths_for_zero_rows();
 
+ private:
   void create_access_paths_for_index_subquery();
 
   /** @{ Helpers for create_access_paths. */
   AccessPath *create_root_access_path_for_join();
   AccessPath *attach_access_paths_for_having_and_limit(AccessPath *path);
+  AccessPath *attach_access_path_for_update_or_delete(AccessPath *path);
   /** @} */
 
   /**
@@ -957,6 +1055,13 @@ class JOIN {
     (after you create an iterator from it).
    */
   AccessPath *m_root_access_path = nullptr;
+
+  /**
+    If this query block contains conditions synthesized during IN-to-EXISTS
+    conversion: A second query plan with all such conditions removed.
+    See comments in JOIN::optimize().
+   */
+  AccessPath *m_root_access_path_no_in2exists = nullptr;
 };
 
 /**
@@ -990,14 +1095,14 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
                      Item::cond_result *cond_value);
 bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
-                   mem_root_deque<TABLE_LIST *> *join_list,
+                   mem_root_deque<Table_ref *> *join_list,
                    Item::cond_result *cond_value);
 Item *substitute_for_best_equal_field(THD *thd, Item *cond,
                                       COND_EQUAL *cond_equal,
                                       JOIN_TAB **table_join_idx);
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
-                       mem_root_deque<TABLE_LIST *> *join_list,
+                       mem_root_deque<Table_ref *> *join_list,
                        COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join,
                              mem_root_deque<Item_field *> *out_args);
@@ -1007,7 +1112,7 @@ Key_use_array *create_keyuse_for_table(
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
                           table_map used_table, bool exclude_expensive_cond);
-uint build_bitmap_for_nested_joins(mem_root_deque<TABLE_LIST *> *join_list,
+uint build_bitmap_for_nested_joins(mem_root_deque<Table_ref *> *join_list,
                                    uint first_unused);
 
 /**
@@ -1042,70 +1147,31 @@ inline bool field_time_cmp_date(const Field *f, const Item *v) {
 bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
                    ORDER *group_list, ORDER *order);
 
-/// RAII class to manage JOIN::deps_of_remaining_lateral_derived_tables
-class Deps_of_remaining_lateral_derived_tables {
-  JOIN *const join;
-  table_map saved;
-  /// All lateral tables not part of this map should be ignored
-  const table_map plan_tables;
+/**
+   This class restores a table_map object to its original value
+   when '*this' is destroyed.
+ */
+class Table_map_restorer final {
+  /** The location to be restored.*/
+  table_map *const m_location;
+  /** The original value to restore.*/
+  const table_map m_saved_value;
 
  public:
   /**
      Constructor.
-     @param j                the JOIN
-     @param plan_tables_arg  table_map of derived tables @see
-     JOIN::deps_of_remaining_lateral_derived_tables
+     @param map The table map that we wish to restore.
   */
-  Deps_of_remaining_lateral_derived_tables(JOIN *j, table_map plan_tables_arg)
-      : join(j),
-        saved(join->deps_of_remaining_lateral_derived_tables),
-        plan_tables(plan_tables_arg) {}
-  ~Deps_of_remaining_lateral_derived_tables() { restore(); }
-  void restore() { join->deps_of_remaining_lateral_derived_tables = saved; }
-  void assert_unchanged() const {
-    assert(join->deps_of_remaining_lateral_derived_tables == saved);
-  }
-  void recalculate(uint next_idx) {
-    if (join->has_lateral)
-      /*
-        No cur_tab given, so assume we start from a place in the plan which
-        may be backward or forward compared to where we were before:
-        recalculate.
-      */
-      join->deps_of_remaining_lateral_derived_tables =
-          join->calculate_deps_of_remaining_lateral_derived_tables(plan_tables,
-                                                                   next_idx);
-  }
+  explicit Table_map_restorer(table_map *map)
+      : m_location(map), m_saved_value(*map) {}
 
-  void recalculate(JOIN_TAB *cur_tab, uint next_idx) {
-    if (join->has_lateral) {
-      assert(join->deps_of_remaining_lateral_derived_tables ==
-             join->calculate_deps_of_remaining_lateral_derived_tables(
-                 plan_tables, next_idx - 1));
-      /*
-        We have just added cur_tab to the plan; if it's not lateral, the map
-        doesn't change, no need to recalculate it.
-      */
-      if (cur_tab->table_ref->is_derived() &&
-          cur_tab->table_ref->derived_query_expression()->m_lateral_deps) {
-        /*
-          This function requires join->deps_of_remaining_lateral_derived_tables
-          to contain the dependencies of the lateral derived tables from
-          join->best_ref[next_idx-1] and on. The assert below checks that this
-          precondition holds.
-        */
-        recalculate(next_idx);
-      }
-    }
-  }
-  void init() {
-    // Normally done once in a run of JOIN::optimize().
-    if (join->has_lateral) {
-      recalculate(join->const_tables);
-      // Forget stale value:
-      saved = join->deps_of_remaining_lateral_derived_tables;
-    }
-  }
+  // This class is not intended to be copied.
+  Table_map_restorer(const Table_map_restorer &) = delete;
+  Table_map_restorer &operator=(const Table_map_restorer &) = delete;
+
+  ~Table_map_restorer() { restore(); }
+  void restore() { *m_location = m_saved_value; }
+  void assert_unchanged() const { assert(*m_location == m_saved_value); }
 };
 
 /**
@@ -1162,7 +1228,7 @@ Item_equal *find_item_equal(COND_EQUAL *cond_equal,
   (ie., normally, if we do many, they will hit cache instead of being
   separate seeks). Given to find_cost_for_ref().
  */
-double find_worst_seeks(const Cost_model_table *cost_model, double num_rows,
+double find_worst_seeks(const TABLE *table, double num_rows,
                         double table_scan_cost);
 
 /**
@@ -1170,7 +1236,38 @@ double find_worst_seeks(const Cost_model_table *cost_model, double num_rows,
   comparison in all cases, ie., one can remove any further checks on
   field = right_item. If not, there may be false positives, and one
   needs to keep the comparison after the ref lookup.
+
+  @param thd            thread handler
+  @param field          field that is looked up through an index
+  @param right_item     value used to perform look up
+  @param[out] subsumes  true if an exact comparison can be done, false otherwise
+
+  @returns false if success, true if error
  */
-bool ref_lookup_subsumes_comparison(Field *field, Item *right_item);
+bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
+                                    bool *subsumes);
+
+/**
+  Checks if we need to create iterators for this query. We usually have to. The
+  exception is if a secondary engine is used, and that engine will offload the
+  query execution to an external executor using #JOIN::override_executor_func.
+  In this case, the external executor will use its own execution structures and
+  we don't need to bother with creating the iterators needed by the MySQL
+  executor.
+ */
+bool IteratorsAreNeeded(const THD *thd, AccessPath *root_path);
+
+/**
+  Estimates the number of base table row accesses that will be performed when
+  executing a query using the given plan.
+
+  @param path The access path representing the plan.
+  @param num_evaluations The number of times this path is expected to be
+  evaluated during a single execution of the query.
+  @param limit The maximum number of rows expected to be read from this path.
+  @return An estimate of the number of row accesses.
+ */
+double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
+                           double limit);
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

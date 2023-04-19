@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 
   NOTES
     This function assumes that all variables are longlong/ulonglong.
-    If this assumption will change, then we have to explictely add
+    If this assumption will change, then we have to explicitly add
     the other variables after the while loop
 */
 
@@ -94,3 +94,5 @@ void add_diff_to_status(System_status_var *to_var, System_status_var *from_var,
 void reset_system_status_vars(System_status_var *status_vars) {
   memset(status_vars, 0, sizeof(*status_vars));
 }
+
+const String Query_errors_set::LOG_ALL = String("ALL", system_charset_info);

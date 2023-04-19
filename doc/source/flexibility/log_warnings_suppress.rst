@@ -15,22 +15,36 @@ This feature is intended to provide a general mechanism (using ``log_warnings_si
 Version Specific Information
 ============================
 
-  * :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7
 
 System Variables
 ================
 
-.. variable:: log_warnings_suppress
+.. _log_warnings_suppress:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: SET
-     :default: ``(empty string)``
-     :range: ``(empty string)``, ``1592``
+.. rubric:: ``log_warnings_suppress``
 
-It is intended to provide a more general mechanism for disabling warnings than existed previously with variable :variable:`suppress_log_warning_1592`.
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - SET
+   * - Default
+     - ``(empty string)``
+   * - Range
+     - ``(empty string)``, ``1592``
+
+It is intended to provide a more general mechanism for disabling warnings than existed previously with variable :ref:`suppress_log_warning_1592`.
 When set to the empty string, no warnings are disabled. When set to ``1592``, warning #1592 messages (unsafe statement for binary logging) are suppressed.
 In the future, the ability to optionally disable additional warnings may also be added.
 

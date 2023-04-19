@@ -19,19 +19,30 @@ As a special exception, it is forbidden for the proxied IP address to be ``127.0
 Version Specific Information
 ============================
 
-  * :rn:`8.0.12-1`:
-    Feature ported from |Percona Server| 5.7.
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 System Variables
 ================
 
-.. variable:: proxy_protocol_networks
+.. _proxy_protocol_networks:
 
-  :cli: Yes
-  :conf: Yes
-  :scope: Global
-  :dyn: No
-  :default: ``(empty string)``
+.. rubric:: ``proxy_protocol_networks``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Default
+     - ``(empty string)``
 
 This variable is a global-only, read-only variable, which is either a ``*`` (to enable proxying globally, a non-recommended setting), or a list of comma-separated IPv4 and IPv6 network and host addresses, for which proxying is enabled. Network addresses are specified in CIDR notation, i.e. ``192.168.0.0/24``. To prevent source host spoofing, the setting of this variable must be as restrictive as possible to include only trusted proxy hosts.
 

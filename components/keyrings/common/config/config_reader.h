@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class Config_reader {
 
     @param [in] config_file_path Full path to configuration file
   */
-  explicit Config_reader(const std::string config_file_path);
+  inline explicit Config_reader(const std::string config_file_path);
 
   /**
     Get an element value from JSON document.
@@ -76,3 +76,5 @@ class Config_reader {
 }  // namespace keyring_common
 
 #endif  // !CONFIG_READER_INCLUDED
+
+#include "config_reader.cc"

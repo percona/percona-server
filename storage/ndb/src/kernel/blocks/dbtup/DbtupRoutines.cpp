@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,10 @@
 
 #define DBTUP_C
 #define DBTUP_ROUTINES_CPP
+#include "util/require.h"
 #include "Dbtup.hpp"
 
+#include <cstring>
 #include "m_ctype.h"
 
 #include <RefConvert.hpp>
@@ -321,7 +323,7 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
     }
     sprintf(q+3*i, " %02X", p[i]);
   }
-  ndbout_c("%8p: %s", p, buf);
+  g_eventLogger->info("%8p: %s", p, buf);
 }
 #endif
 
@@ -534,10 +536,10 @@ zero32(Uint8* dstPtr, const Uint32 len)
     switch(odd){     /* odd is: {1..3} */
     case 1:
       dst[1] = 0;
-      // Fall through
+      [[fallthrough]];
     case 2:
       dst[2] = 0;
-      // Fall through
+      [[fallthrough]];
     default:         /* Known to be odd==3 */
       dst[3] = 0;
     }
@@ -948,7 +950,7 @@ Dbtup::readDynFixedSizeExpandedNotNULL(Uint8* outBuffer,
 {
   /*
     In the expanded format, we share the read code with static varsized, just
-    using different data base pointer and offset/lenght arrays.
+    using different data base pointer and offset/length arrays.
   */
   Uint32 attrDescriptor = Uint32((attrDes << 32) >> 32);
   Uint32 attrDes2 = Uint32(attrDes >> 32);
@@ -1118,7 +1120,7 @@ Dbtup::readDynBigFixedSizeExpandedNotNULL(Uint8* outBuffer,
 {
   /*
     In the expanded format, we share the read code with static varsized, just
-    using different data base pointer and offset/lenght arrays.
+    using different data base pointer and offset/length arrays.
   */
   Uint32 attrDescriptor = Uint32((attrDes << 32) >> 32);
   Uint32 attrDes2 = Uint32(attrDes >> 32);
@@ -1212,7 +1214,7 @@ Dbtup::readDynBigFixedSizeShrunkenNotNULL(Uint8* outBuffer,
   
   /*
     In the expanded format, we share the read code with static varsized, just
-    using different data base pointer and offset/lenght arrays.
+    using different data base pointer and offset/length arrays.
   */
   thrjamDebug(req_struct->jamBuffer);
   return varsize_reader(outBuffer, req_struct, ahOut, attrDes,
@@ -1416,7 +1418,7 @@ Dbtup::readDynVarSizeExpandedNotNULL(Uint8* outBuffer,
 {
   /*
     In the expanded format, we share the read code with static varsized, just
-    using different data base pointer and offset/lenght arrays.
+    using different data base pointer and offset/length arrays.
   */
   Uint32 attrDescriptor = Uint32((attrDes << 32) >> 32);
   Uint32 attrDes2 = Uint32(attrDes >> 32);
@@ -1504,7 +1506,7 @@ Dbtup::readDynVarSizeShrunkenNotNULL(Uint8* outBuffer,
 
   /*
     In the expanded format, we share the read code with static varsized, just
-    using different data base pointer and offset/lenght arrays.
+    using different data base pointer and offset/length arrays.
   */
   thrjamDebug(req_struct->jamBuffer);
   return varsize_reader(outBuffer, req_struct, ahOut, attrDes,
@@ -1983,11 +1985,6 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   req_struct->xfrm_flag = tmp;
   
   ndbrequire(req_struct->out_buf_index == attributeHeader.getByteSize());
-  if (unlikely(ahIn.getDataSize() != attributeHeader.getDataSize()))
-  {
-    thrjam(req_struct->jamBuffer);
-    return true;
-  }
 
   if (charsetFlag)
   {
@@ -2011,12 +2008,18 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
    * non-character column. (Little endian format would have required
    * 'cmp_attr' to correctly compare '>' or '<')
    */
-  else if (unlikely(memcmp(&keyReadBuffer[0], 
-                    &updateBuffer[1],
-                    req_struct->out_buf_index) != 0))
-  {
-    thrjam(req_struct->jamBuffer);
-    return true;
+  else {
+    /* Not charset, use binary comparison */
+    if (unlikely(ahIn.getDataSize() != attributeHeader.getDataSize())) {
+      thrjam(req_struct->jamBuffer);
+      return true;
+    }
+
+    if (unlikely(memcmp(&keyReadBuffer[0], &updateBuffer[1],
+                        req_struct->out_buf_index) != 0)) {
+      thrjam(req_struct->jamBuffer);
+      return true;
+    }
   }
   return false;
 }
@@ -3016,7 +3019,7 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
   Uint32* dst = (Uint32*)(outBuffer + ((outPos - 4) >> 2));
   Uint32* dstmask = dst + 1;
   AttributeHeader::init(dst, AttributeHeader::READ_PACKED, 4*masksz);
-  bzero(dstmask, 4*masksz);
+  std::memset(dstmask, 0, 4*masksz);
     
   AttributeHeader ahOut;
   Uint8* outBuf = (Uint8*)outBuffer;

@@ -115,7 +115,7 @@ ROCKSDB_CF_OPTIONS
    * - VALUE
      - varchar(193)
 
-.. _ps.myrocks.information-schema-table.rocksdb-active-compaction-stats
+.. _ps.myrocks.information-schema-table.rocksdb-active-compaction-stats:
 
 ROCKSDB_ACTIVE_COMPACTION_STATS
 ================================================================================
@@ -138,7 +138,7 @@ ROCKSDB_ACTIVE_COMPACTION_STATS
    * - COMPACTION_REASON
      - varchar(513)
 
-.. _ps.myrocks.information-schema-table.rocksdb-compaction-history
+.. _ps.myrocks.information-schema-table.rocksdb-compaction-history:
 
 ROCKSDB_COMPACTION_HISTORY
 ================================================================================

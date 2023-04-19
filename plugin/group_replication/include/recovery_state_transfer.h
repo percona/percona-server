@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -388,16 +388,16 @@ class Recovery_state_transfer {
   /* The selected donor member hostname */
   std::string selected_donor_hostname;
   /* Vector with group members info*/
-  std::vector<Group_member_info *> *group_members;
+  Group_member_info_list *group_members;
   /* Member with suitable donors for use on recovery*/
-  std::vector<Group_member_info *> suitable_donors;
+  Group_member_info_list suitable_donors;
 
   /* Retry count on donor connections*/
   long donor_connection_retry_count;
 
   /* Recovery abort flag */
   bool recovery_aborted;
-  /*  Flag that signals when the donor transfered all it's data */
+  /*  Flag that signals when the donor transferred all its data */
   bool donor_transfer_finished;
   /* Are we successfully connected to a donor*/
   bool connected_to_donor;

@@ -312,3 +312,74 @@ DROP PREPARE s2;
 DROP TABLE t1;
 SET secondary_engine_cost_threshold = default;
 SET optimizer_switch="subquery_to_derived=default";
+#
+# Bug#34445328 (Hypergraph) Optimizer degenerate join
+# conditions when encountering semi join + outer join
+#
+CREATE TABLE t (a INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (), (), ();
+ALTER TABLE t SECONDARY_LOAD;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT 1
+FROM t AS t1 LEFT JOIN t AS t2
+ON 1 IN (
+SELECT 1 FROM t AS t3 WHERE a <=>
+(SELECT a FROM t AS t4)
+);
+EXPLAIN
+-> Nested loop left join  (rows=81)
+    -> Table scan on t1 in secondary engine MOCK  (rows=3)
+    -> Nested loop inner join  (rows=27)
+        -> Table scan on t2 in secondary engine MOCK  (rows=3)
+        -> Constant row from <subquery2>  (rows=1)
+            -> Materialize with deduplication  (rows=9)
+                -> Left hash join (no condition)  (rows=9)
+                    -> Table scan on t3 in secondary engine MOCK  (rows=3)
+                    -> Hash
+                        -> Table scan on derived_2_3  (rows=3)
+                            -> Materialize  (rows=3)
+                                -> Table scan on t4 in secondary engine MOCK  (rows=3)
+
+Warnings:
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+DROP TABLE t;
+#
+# Bug#34534373: Heatwave offload issue - Sees inner tables
+#               of a semijoin when it should not
+#
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+set optimizer_switch="subquery_to_derived=on";
+EXPLAIN FORMAT=TREE
+SELECT 1
+FROM (t1 JOIN t1 AS t2
+ON t2.f1 = t1.f2 AND t1.f1 IN (SELECT f1 FROM t1 AS t3))
+WHERE (SELECT SUM(f2) FROM t1 AS t4) IS NULL
+AND t1.f1 = t2.f1 OR t2.f2 <= 0;
+EXPLAIN
+-> Filter: (((t1.f2 = t1.f1) and (derived_1_3.`SUM(f2)` is null)) or (t2.f2 <= 0))  (rows=1)
+    -> Left hash join (no condition)  (rows=1)
+        -> Hash semijoin (t3.f1 = t1.f1)  (rows=1)
+            -> Filter: ((t1.f2 = t1.f1) or (t2.f2 <= 0))  (rows=1)
+                -> Inner hash join (t2.f1 = t1.f2)  (rows=1)
+                    -> Table scan on t2 in secondary engine MOCK  (rows=1)
+                    -> Hash
+                        -> Table scan on t1 in secondary engine MOCK  (rows=1)
+            -> Hash
+                -> Table scan on t3 in secondary engine MOCK  (rows=1)
+        -> Hash
+            -> Table scan on derived_1_3  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Aggregate: sum(t4.f2)  (rows=1)
+                        -> Table scan on t4 in secondary engine MOCK  (rows=1)
+
+Warnings:
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+DROP TABLE t1;
+set optimizer_switch="subquery_to_derived=off";

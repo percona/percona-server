@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,10 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"     // my_thread_id
+#include "mysqld_error.h"
 #include "sql/rpl_gtid.h"        // Gitd_specification
 #include "sql/sql_plugin_ref.h"  // plugin_ref
+#include "sql_string.h"
 
 class MY_LOCALE;
 class Time_zone;
@@ -100,12 +102,34 @@ enum use_secondary_engine {
   SECONDARY_ENGINE_FORCED = 2
 };
 
+/**
+  Values for explain_format sysvar.
+
+  The value "TRADITIONAL_STRICT" is meant only to be used by the mtr test
+  suite. With hypergraph optimizer, if explain_format value is TRADITIONAL,
+  EXPLAIN without a format specifier prints in TREE format. The mtr tests were
+  written *before* this traditional-tree conversion was introduced. So mtr was
+  designed to just ignore the "format not supported with hypergraph" error when
+  a test runs an EXPLAIN without format specifier with --hypergraph. With the
+  conversion introduced, EXPLAIN without format specifier therefore would have
+  output in different formats with and without the mtr --hypergraph option.  In
+  order for the mtr tests to be able to continue to pass, mtr internally sets
+  explain_format to TRADITIONAL_STRICT so that these statements continue to
+  error out rather than print TREE format as they would do with TRADITIONAL
+  format. This is a temporary stuff.  Once all tests start using TREE format,
+  we will deprecate this value.
+*/
+enum class Explain_format_type : ulong {
+  TRADITIONAL = 0,
+  TRADITIONAL_STRICT = 1,
+  TREE = 2,
+  JSON = 3
+};
+
 // Values for default_table_encryption
 enum enum_default_table_encryption {
   DEFAULT_TABLE_ENC_OFF = 0,
   DEFAULT_TABLE_ENC_ON = 1,
-  DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING = 2,
-  DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED = 3
 };
 
 /* Bits for different SQL modes modes (including ANSI mode) */
@@ -199,6 +223,160 @@ struct fragmentation_stats_t {
                                               query (in bytes) */
 };
 
+class Query_errors_set {
+ public:
+  static constexpr uint8_t MAX_CODES_NUM = 64;
+  static constexpr uint32_t MAX_TEXT_LENGTH =
+      std::numeric_limits<uint32_t>::digits10 * MAX_CODES_NUM + MAX_CODES_NUM;
+  static const String LOG_ALL;
+
+ private:
+  bool is_all_set;
+  uint32_t codes[MAX_CODES_NUM];
+
+  void set_all() {
+    if (!is_all_set) {
+      clear_all();
+      is_all_set = true;
+    }
+  }
+
+ public:
+  void clear_all() {
+    is_all_set = false;
+    for (uint32_t &code : codes) {
+      code = 0;
+    }
+  }
+
+  static bool check(const String *str) {
+    if (str == nullptr || str->is_empty()) {
+      return true;
+    }
+    if (stringcmp(str, &LOG_ALL) == 0) {
+      return true;
+    }
+
+    const char *val = str->ptr();
+
+    for (; my_isspace(system_charset_info, *val); ++val) /* empty */
+      ;
+
+    uint8_t codes_count = 0;
+    uint8_t digits_count = 0;
+
+    for (const char *p = val; *p; ++p) {
+      if (!my_isdigit(system_charset_info, *p) && *p != ',') {
+        return false;
+      }
+
+      if (*p == ',' && ++codes_count == MAX_CODES_NUM) {
+        my_error(ER_TOO_MANY_ERROR_CODES, MYF(0), MAX_CODES_NUM);
+        return false;
+      }
+
+      if (my_isdigit(system_charset_info, *p)) {
+        ++digits_count;
+      }
+      if ((*p == ',' || static_cast<size_t>(p - val) + 1 == str->length()) &&
+          digits_count > 0) {
+        long err_code = 0;
+        const char *code_start =
+            (*p == ',') ? p - digits_count : p - digits_count + 1;
+        if (!str2int(code_start, 10, 0, LONG_MAX, &err_code)) {
+          my_error(ER_TOO_BIG_ERROR_CODE, MYF(0), LONG_MAX);
+          return false;
+        }
+        digits_count = 0;
+      }
+    }
+
+    return true;
+  }
+
+  bool set_codes(const String *str) {
+    if (str == nullptr || str->is_empty()) {
+      clear_all();
+      return true;
+    }
+    if (stringcmp(str, &LOG_ALL) == 0) {
+      set_all();
+      return true;
+    }
+
+    const char *val = str->ptr();
+
+    for (; my_isspace(system_charset_info, *val); ++val) /* empty */
+      ;
+
+    clear_all();
+    uint8_t error_index = 0;
+
+    for (const char *p = val; *p;) {
+      long err_code;
+      if (!(p = str2int(p, 10, 0, LONG_MAX, &err_code))) {
+        break;
+      }
+
+      if (error_index == MAX_CODES_NUM) {
+        // Too many codes, should have been detected in check()
+        return true;
+      }
+
+      codes[error_index] = err_code;
+      ++error_index;
+
+      while (!my_isdigit(system_charset_info, *p) && *p) {
+        p++;
+      }
+    }
+
+    return true;
+  }
+
+  size_t to_string(char *buf) const {
+    char *p = buf;
+
+    if (is_all_set) {
+      p += sprintf(p, "%s", LOG_ALL.ptr());
+    } else {
+      for (int i = 0; i < MAX_CODES_NUM; ++i) {
+        if (codes[i] != 0) {
+          if (i > 0) {
+            p += sprintf(p, ",%d", codes[i]);
+          } else {
+            p += sprintf(p, "%d", codes[i]);
+          }
+        }
+      }
+    }
+
+    *p = '\0';
+
+    return p - buf;
+  }
+
+  bool check_error_set(const uint32_t code) const {
+    if (is_all_set) {
+      return true;
+    }
+
+    for (const uint32_t &c : codes) {
+      if (c == 0) {
+        // unused slots reached
+        break;
+      }
+      if (code == c) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool check_variable_set() const { return is_all_set || codes[0] != 0; }
+};
+
 struct System_variables {
   /*
     How dynamically allocated system variables are handled:
@@ -207,7 +385,7 @@ struct System_variables {
     They both should have the same 'version' and 'size'.
     When attempting to access a dynamic variable, if the session version
     is out of date, then the session version is updated and realloced if
-    neccessary and bytes copied from global to make up for missing data.
+    necessary and bytes copied from global to make up for missing data.
   */
   ulong dynamic_variables_version;
   char *dynamic_variables_ptr;
@@ -253,6 +431,7 @@ struct System_variables {
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  ulong optimizer_max_subgraph_pairs;
   ulonglong parser_max_mem_size;
   ulong range_optimizer_max_mem_size;
   ulong preload_buff_size;
@@ -339,6 +518,7 @@ struct System_variables {
 
   bool sysdate_is_now;
   bool binlog_rows_query_log_events;
+  bool binlog_ddl_skip_rewrite;
 
 #ifndef NDEBUG
   ulonglong query_exec_time;
@@ -347,6 +527,7 @@ struct System_variables {
   ulong log_slow_rate_limit;
   ulonglong log_slow_filter;
   ulonglong log_slow_verbosity;
+  Query_errors_set log_query_errors;
 
   ulong innodb_io_reads;
   ulonglong innodb_io_read;
@@ -357,7 +538,7 @@ struct System_variables {
 
   double long_query_time_double;
 
-  bool pseudo_slave_mode;
+  bool pseudo_replica_mode;
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
@@ -422,6 +603,16 @@ struct System_variables {
   bool sql_require_primary_key;
 
   /**
+    @sa Sys_sql_generate_invisible_primary_key
+  */
+  bool sql_generate_invisible_primary_key;
+
+  /**
+    @sa Sys_show_gipk_in_create_table_and_information_schema
+  */
+  bool show_gipk_in_create_table_and_information_schema;
+
+  /**
     Used in replication to determine the server version of the original server
     where the transaction was executed.
   */
@@ -434,15 +625,15 @@ struct System_variables {
   uint32_t immediate_server_version;
 
   /**
-    @sa Sys_var_print_identified_with_as_hex
-  */
-  bool print_identified_with_as_hex;
-
-  /**
     Used to determine if the database or tablespace should be encrypted by
     default.
   */
   ulong default_table_encryption;
+
+  /**
+    @sa Sys_var_print_identified_with_as_hex
+  */
+  bool print_identified_with_as_hex;
 
   /**
     @sa Sys_var_show_create_table_skip_secondary_engine
@@ -470,6 +661,48 @@ struct System_variables {
     @sa Sys_select_disk_sync_delay
   */
   uint select_into_disk_sync_delay;
+
+  /**
+    @sa Sys_terminology_use_previous
+  */
+  ulong terminology_use_previous;
+
+  /**
+    @sa Sys_connection_memory_limit
+  */
+  ulonglong conn_mem_limit;
+  /**
+    @sa Sys_connection_memory_chunk_size
+  */
+  ulong conn_mem_chunk_size;
+  /**
+    @sa Sys_connection_global_memory_tracking
+  */
+  bool conn_global_mem_tracking;
+
+  /**
+    Switch which controls whether XA transactions are detached
+    (made accessible to other connections for commit/rollback)
+    as part of XA PREPARE (true), or at session disconnect (false, default).
+    An important side effect of setting this to true is that temporary tables
+    are disallowed in XA transactions. This is necessary because temporary
+    tables and their contents (and thus changes to them) is bound to
+    specific connections, so they don't make sense if XA transaction is
+    committed or rolled back from another connection.
+   */
+  bool xa_detach_on_prepare;
+
+  /**
+    @sa Sys_debug_sensitive_session_string
+  */
+  char *debug_sensitive_session_str;
+
+  /**
+    Used to specify the format in which the EXPLAIN statement should display
+    information if the FORMAT option is not explicitly specified.
+    @sa Sys_explain_format
+   */
+  Explain_format_type explain_format;
 };
 
 /**
@@ -510,6 +743,9 @@ struct System_status_var {
   ulonglong table_open_cache_hits;
   ulonglong table_open_cache_misses;
   ulonglong table_open_cache_overflows;
+  ulonglong table_open_cache_triggers_hits;
+  ulonglong table_open_cache_triggers_misses;
+  ulonglong table_open_cache_triggers_overflows;
   ulonglong select_full_join_count;
   ulonglong select_full_range_join_count;
   ulonglong select_range_count;

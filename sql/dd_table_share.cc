@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <type_traits>
 
@@ -47,10 +48,10 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/dd_table.h"       // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"  // dd::get_tablespace_name
+#include "sql/dd/dd_trigger.h"     // dd::load_triggers
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "sql/dd/impl/utils.h"  // dd::eat_str
 #include "sql/dd/properties.h"  // dd::Properties
@@ -235,7 +236,7 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
 
   /*
     If the key column is of NOT NULL BLOB type, then it
-    will definitly have key prefix. And if key part prefix size
+    will definitely have key prefix. And if key part prefix size
     is equal to the BLOB column max size, then we can promote
     it to primary key.
    */
@@ -261,7 +262,6 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
 static bool prepare_share(THD *thd, TABLE_SHARE *share,
                           const dd::Table *table_def) {
   my_bitmap_map *bitmaps;
-  bool use_hash;
   handler *handler_file = nullptr;
 
   // Mark 'system' tables (tables with one row) to help the Optimizer.
@@ -270,18 +270,6 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   bool use_extended_sk = ha_check_storage_engine_flag(
       share->db_type(), HTON_SUPPORTS_EXTENDED_KEYS);
-  // Setup name_hash for quick look-up
-  use_hash = share->fields >= MAX_FIELDS_BEFORE_HASH;
-  if (use_hash) {
-    Field **field_ptr = share->field;
-    share->name_hash = new collation_unordered_map<std::string, Field **>(
-        system_charset_info, PSI_INSTRUMENT_ME);
-    share->name_hash->reserve(share->fields);
-
-    for (uint i = 0; i < share->fields; i++, field_ptr++) {
-      share->name_hash->emplace((*field_ptr)->field_name, field_ptr);
-    }
-  }
 
   share->m_histograms =
       new malloc_unordered_map<uint, const histograms::Histogram *>(
@@ -759,15 +747,9 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   if (table_options.exists("encrypt_type"))
     table_options.get("encrypt_type", &share->encrypt_type, &share->mem_root);
 
-  if (table_options.exists("encryption_key_id")) {
-    share->was_encryption_key_id_set = true;
-    table_options.get("encryption_key_id", &share->encryption_key_id);
-  }
-
   if (table_options.exists("explicit_encryption")) {
     table_options.get("explicit_encryption", &share->explicit_encryption);
   }
-
   return false;
 }
 
@@ -1175,7 +1157,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   share->gen_def_field_count = 0;
 
   // Iterate through all the columns.
-  uchar *null_flags MY_ATTRIBUTE((unused));
+  uchar *null_flags [[maybe_unused]];
   uchar *null_pos, *rec_pos;
   null_flags = null_pos = share->default_values;
   rec_pos = share->default_values + share->null_bytes;
@@ -1585,18 +1567,15 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
       return true; /* purecov: inspected */
 
     //
-    // Alloc buffer to hold keys and key_parts
+    // Alloc buffers to hold keys and key_parts
     //
 
-    if (!(share->key_info = (KEY *)share->mem_root.Alloc(
-              share->keys * sizeof(KEY) +
-              total_key_parts * sizeof(KEY_PART_INFO))))
+    if (!(share->key_info = share->mem_root.ArrayAlloc<KEY>(share->keys)))
       return true; /* purecov: inspected */
 
-    memset(
-        share->key_info, 0,
-        (share->keys * sizeof(KEY) + total_key_parts * sizeof(KEY_PART_INFO)));
-    key_part = (KEY_PART_INFO *)(share->key_info + share->keys);
+    if (!(key_part =
+              share->mem_root.ArrayAlloc<KEY_PART_INFO>(total_key_parts)))
+      return true; /* purecov: inspected */
 
     //
     // Alloc buffer to hold keynames
@@ -1611,8 +1590,8 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
     share->keynames.count = share->keys;
 
     // In first iteration get all the index_obj, so that we get all
-    // user_defined_key_parts for each key. This is required to propertly
-    // allocation key_part memory for keys.
+    // user_defined_key_parts for each key. This is required to properly
+    // allocate key_part memory for keys.
     const dd::Index *index_at_pos[MAX_INDEXES];
     uint key_nr = 0;
     for (const dd::Index *idx_obj : tab_obj->indexes()) {
@@ -1994,26 +1973,26 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     case dd::Table::PT_RANGE_COLUMNS:
       part_info->column_list = true;
       part_info->list_of_part_fields = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_RANGE:
       part_info->part_type = partition_type::RANGE;
       break;
     case dd::Table::PT_LIST_COLUMNS:
       part_info->column_list = true;
       part_info->list_of_part_fields = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_LIST:
       part_info->part_type = partition_type::LIST;
       break;
     case dd::Table::PT_LINEAR_HASH:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_HASH:
       part_info->part_type = partition_type::HASH;
       break;
     case dd::Table::PT_LINEAR_KEY_51:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_KEY_51:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_51;
       part_info->list_of_part_fields = true;
@@ -2021,7 +2000,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::PT_LINEAR_KEY_55:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_KEY_55:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->list_of_part_fields = true;
@@ -2029,7 +2008,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::PT_AUTO_LINEAR:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_AUTO:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->part_type = partition_type::HASH;
@@ -2048,13 +2027,13 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::ST_LINEAR_HASH:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_HASH:
       part_info->subpart_type = partition_type::HASH;
       break;
     case dd::Table::ST_LINEAR_KEY_51:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_KEY_51:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_51;
       part_info->list_of_subpart_fields = true;
@@ -2062,7 +2041,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::ST_LINEAR_KEY_55:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_KEY_55:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->list_of_subpart_fields = true;
@@ -2354,6 +2333,24 @@ static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
   return false;
 }
 
+/**
+  Fill information about triggers from dd::Table object to the TABLE_SHARE.
+*/
+static bool fill_triggers_from_dd(THD *thd, TABLE_SHARE *share,
+                                  const dd::Table *tab_obj) {
+  assert(share->triggers == nullptr);
+
+  if (tab_obj->has_trigger()) {
+    share->triggers = new (&share->mem_root) List<Trigger>;
+    if (share->triggers == nullptr) return true;  // OOM
+    if (dd::load_triggers(thd, &share->mem_root, share->db.str,
+                          share->table_name.str, *tab_obj, share->triggers))
+      return true;  // OOM.
+  }
+
+  return false;
+}
+
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
   DBUG_TRACE;
 
@@ -2367,7 +2364,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
                 fill_indexes_from_dd(thd, share, &table_def) ||
                 fill_partitioning_from_dd(thd, share, &table_def) ||
                 fill_foreign_keys_from_dd(share, &table_def) ||
-                fill_check_constraints_from_dd(share, &table_def));
+                fill_check_constraints_from_dd(share, &table_def) ||
+                fill_triggers_from_dd(thd, share, &table_def));
 
   thd->mem_root = old_root;
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
 #include "mysql/harness/stdx/expected_ostream.h"
 
 TEST(NetTS_impl_resolver, gethostname_buffer_empty) {
-  std::array<char, 1> name;
+  std::array<char, 1> name{};
   const auto res = net::impl::resolver::gethostname(name.data(), 0);
 
 #if defined(_WIN32)
@@ -117,9 +117,12 @@ TEST(NetTS_impl_resolver, getnameinfo_invalid_sockaddr_size) {
   // windows: WSAEFAULT
   // solaris: resolver:4 (EAI_FAIL)
   // others: EAI_FAMILY
+  // wine: WSAEAFNOSUPPORT
 #if defined(_WIN32)
-  EXPECT_THAT(res, stdx::make_unexpected(
-                       std::error_code(WSAEFAULT, std::system_category())));
+  EXPECT_THAT(res, ::testing::AnyOf(stdx::make_unexpected(make_error_code(
+                                        net::ip::resolver_errc::bad_family)),
+                                    stdx::make_unexpected(std::error_code(
+                                        WSAEFAULT, std::system_category()))));
 #else
   EXPECT_THAT(res, ::testing::AnyOf(stdx::make_unexpected(make_error_code(
                                         net::ip::resolver_errc::bad_family)),
@@ -167,9 +170,13 @@ TEST(NetTS_impl_resolver, getnameinfo_overflow) {
   // macosx: EAI_OVERFLOW
   // solaris: ENOSPC
   // windows: ERROR_INSUFFICIENT_BUFFER
+  // wine: WSATRY_AGAIN
 #if defined(_WIN32)
-  EXPECT_THAT(res, stdx::make_unexpected(std::error_code(
-                       ERROR_INSUFFICIENT_BUFFER, std::system_category())));
+  EXPECT_THAT(res, ::testing::AnyOf(
+                       stdx::make_unexpected(std::error_code(
+                           ERROR_INSUFFICIENT_BUFFER, std::system_category())),
+                       stdx::make_unexpected(std::error_code(make_error_code(
+                           net::ip::resolver_errc::try_again)))));
 #else
   EXPECT_THAT(
       res,
@@ -225,7 +232,7 @@ TEST(NetTS_impl_resolver, getaddrinfo_numerichost_ipv4_mapped_ipv6) {
   ASSERT_NE(ainfo, nullptr);
 
   // solaris: AF_INET
-  // ohters: AF_INET6
+  // others: AF_INET6
   EXPECT_THAT(ainfo->ai_family, ::testing::AnyOf(AF_INET6, AF_INET));
   ASSERT_EQ(ainfo->ai_addr->sa_family, ainfo->ai_family);
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 
 /** @struct Plugin_abi
  *
- * @brief The assumend and expected beginning of each version of Plugin struct
+ * @brief The assumed and expected beginning of each version of Plugin struct
  *
  **/
 struct Plugin_abi {
@@ -45,7 +45,7 @@ struct Plugin_abi {
  *
  * @brief Data fields of the first version of the Plugin struct.
  *        Whenever this changes, add a new struct (callded vX) here,
- *        respective contructor to Plugin_info and its handling
+ *        respective constructor to Plugin_info and its handling
  *
  **/
 struct Plugin_v1 {
@@ -56,7 +56,7 @@ struct Plugin_v1 {
   uint32_t plugin_version;
 
   size_t requires_length;
-  const char **requires;
+  const char **requires_plugins;
 
   size_t conflicts_length;
   const char **conflicts;
@@ -75,7 +75,7 @@ class Plugin_info {
  public:
   /** @brief Constructor
    *
-   * @param plugin contructor from v1 of Plugin struct
+   * @param plugin constructor from v1 of Plugin struct
    **/
   explicit Plugin_info(const Plugin_v1 &plugin);
 
@@ -110,7 +110,7 @@ class Plugin_info {
   std::string brief;
   uint32_t plugin_version;
 
-  std::list<std::string> requires;
+  std::list<std::string> requires_plugins;
   std::list<std::string> conflicts;
 };
 

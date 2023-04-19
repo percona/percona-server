@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,10 @@ using components::Keyring_encryption_test;
 
 using options::Options;
 using options::process_options;
+
+class THD;
+thread_local THD *current_thd = nullptr;            // dummy
+PSI_thread *thd_get_psi(THD *) { return nullptr; }  // dummy
 
 class Keyring_encryption_test_setup {
  public:

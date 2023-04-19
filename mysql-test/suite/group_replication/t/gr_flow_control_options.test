@@ -50,7 +50,7 @@ SET GLOBAL group_replication_flow_control_mode= "XXX";
 SET GLOBAL group_replication_flow_control_mode= -1;
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL group_replication_flow_control_mode= 2;
+SET GLOBAL group_replication_flow_control_mode= 3;
 
 # Valid values
 SET GLOBAL group_replication_flow_control_mode= DISABLED;
@@ -63,6 +63,11 @@ SET GLOBAL group_replication_flow_control_mode= QUOTA;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
 --source include/assert.inc
 
+SET GLOBAL group_replication_flow_control_mode= MAJORITY;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "MAJORITY"
+--source include/assert.inc
+
 SET GLOBAL group_replication_flow_control_mode= 0;
 --let $assert_text= group_replication_flow_control_mode is correct
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "DISABLED"
@@ -72,6 +77,13 @@ SET GLOBAL group_replication_flow_control_mode= 1;
 --let $assert_text= group_replication_flow_control_mode is correct
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
 --source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= 2;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "MAJORITY"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= DEFAULT;
 
 --echo
 --echo ############################################################
@@ -400,6 +412,13 @@ SET GLOBAL group_replication_flow_control_mode= QUOTA;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
 --source include/assert.inc
 
+SET GLOBAL group_replication_flow_control_mode= MAJORITY;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "MAJORITY"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= DEFAULT;
+
 SET GLOBAL group_replication_flow_control_certifier_threshold= 1000;
 --let $assert_text= group_replication_flow_control_certifier_threshold is correct
 --let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_certifier_threshold] = 1000
@@ -492,6 +511,11 @@ START GROUP_REPLICATION;
 --echo ############################################################
 --echo # Clean up.
 
+--let $allow_rpl_inited= 1
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
 
@@ -511,5 +535,7 @@ SET GLOBAL group_replication_flow_control_hold_percent=@group_replication_flow_c
 SET GLOBAL group_replication_flow_control_release_percent=@group_replication_flow_control_release_percent_save;
 
 SET @@GLOBAL.DEBUG= @debug_saved;
+
+
 
 --source include/group_replication_end.inc

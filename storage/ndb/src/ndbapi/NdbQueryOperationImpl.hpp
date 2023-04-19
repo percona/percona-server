@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ public:
   /**
    * Allocate memory for a number of objects from the heap.
    * @param[in] maxObjs The maximal number of objects this instance should
-   * accomodate.
+   * accommodate.
    * @return 0 or possible error code.
    */
   int init(Uint32 maxObjs);
@@ -81,7 +81,7 @@ private:
   /** Size of each object (in bytes).*/
   const size_t m_objSize;
 
-  /** The number of objects this instance can accomodate.*/
+  /** The number of objects this instance can accommodate.*/
   Uint32 m_maxObjs;
 
   /** The allocated memory area.*/
@@ -131,11 +131,6 @@ public:
 //NdbQueryOperationDefImpl& getQueryOperationDef(Uint32 ident) const;
 //NdbQueryOperationDefImpl* getQueryOperationDef(const char* ident) const;
 
-  /** Return number of parameter operands in query.*/
-  Uint32 getNoOfParameters() const;
-  const NdbParamOperand* getParameter(const char* name) const;
-  const NdbParamOperand* getParameter(Uint32 num) const;
-
   /** Get the next tuple(s) from the global cursor on the query.
    * @param fetchAllowed If true, the method may block while waiting for more
    * results to arrive. Otherwise, the method will return immediately if no more
@@ -182,6 +177,13 @@ public:
   int setBound(const NdbRecord *keyRecord,
                const NdbIndexScanOperation::IndexBound *bound);
 
+  /**
+   * If multiple ranges/bounds were specified, getRangeNo will return the
+   * IndexBound::range_no specified for the 'bound' used to locate the
+   * current tuple.
+   */
+  int getRangeNo() const;
+
   /** Prepare for execution. 
    *  @return possible error code.
    */
@@ -216,7 +218,7 @@ public:
   void execCLOSE_SCAN_REP(int errorCode, bool needClose);
 
   /** Determines if query has completed and may be garbage collected
-   *  A query is not considder complete until the client has 
+   *  A query is not considered complete until the client has 
    *  called the ::close() or ::release() method on it.
    */
   bool hasCompleted() const
@@ -289,7 +291,7 @@ private:
 
   /**
    * Container of SPJ worker results that the application is currently
-   * iterating over. 'Owned' by application thread and can be accesed
+   * iterating over. 'Owned' by application thread and can be accessed
    * without requiring a mutex lock.
    * Worker results are appended to a OrderedFragSet by ::prepareMoreResults()
    *
@@ -434,7 +436,8 @@ private:
   const NdbQueryDefImpl* m_queryDef;
 
   /** Possible error status of this query.*/
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
   /**
    * Possible error received from TC / datanodes.
@@ -575,6 +578,9 @@ private:
    */
   FetchResult awaitMoreResults(bool forceSend);
 
+  /** True of this query reads back the RANGE_NO - see getRangeNo() */
+  bool needRangeNo() const { return m_num_bounds > 1; }
+
   /** Check if we have received an error from TC, or datanodes.
    * @return 'true' if an error is pending, 'false' otherwise.
    */
@@ -668,9 +674,6 @@ public:
 
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
 
-  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrieved a new
-                             // value for this NdbQueryOperation
-
   /** Process result data for this operation. Return true if batch complete.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);
 
@@ -694,7 +697,7 @@ public:
 
   /** Define result ordering for ordered index scan. It is an error to call
    * this method on an operation that is not a scan, or to call it if an
-   * ordering was already set on the operation defintion by calling 
+   * ordering was already set on the operation definition by calling 
    * NdbQueryOperationDef::setOrdering().
    * @param ordering The desired ordering of results.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
@@ -773,9 +776,17 @@ public:
   const NdbRecord* getNdbRecord() const
   { return m_ndbRecord; }
 
+  /**
+   * Returns true if this operation need to know which RANGE_NO any returned row
+   * originated from. Note that only the root operation will return a RANGE_NO.
+   * (As well as setBound's, which are the origin of the RANGE_NO)
+   */
+  bool needRangeNo() const
+  { return m_queryImpl.needRangeNo() && getInternalOpNo() == 0; }
+
 private:
 
-  STATIC_CONST (MAGIC = 0xfade1234);
+  static constexpr Uint32 MAGIC = 0xfade1234;
 
   /** Interface for the application developer.*/
   NdbQueryOperation m_interface;
@@ -820,7 +831,7 @@ private:
   /** Ordering of scan results (only applies to ordered index scans.)*/
   NdbQueryOptions::ScanOrdering m_ordering;
 
-  /** A scan filter is mapped to an interpeter code program, which is stored
+  /** A scan filter is mapped to an interpreter code program, which is stored
    * here. (This field is NULL if no scan filter has been defined.)*/
   NdbInterpretedCode* m_interpretedCode;
 
@@ -834,7 +845,7 @@ private:
   mutable Uint32 m_rowSize;
 
   /** Max rows (per resultStream) in a fragment scan batch.
-   *   >0: User specified prefered value,
+   *   >0: User specified preferred value,
    *  ==0: Use default CFG values
    *
    *  Used as 'batch_rows' argument in 'SCANREQ'
@@ -855,7 +866,7 @@ private:
   ~NdbQueryOperationImpl();
 
   /** Copy NdbRecAttr and/or NdbRecord results from stream into appl. buffers */
-  void fetchRow(NdbResultStream& resultStream);
+  int fetchRow(NdbResultStream& resultStream);
 
   /** Set result for this operation and all its descendand child 
    *  operations to NULL.
@@ -889,7 +900,7 @@ private:
 
   /**
    * Expand keys and bounds for the root operation into the KEYINFO section.
-   * @param keyInfo Actuall KEYINFO section the key / bounds are 
+   * @param keyInfo Actual KEYINFO section the key / bounds are 
    *                put into
    * @param actualParam Instance values for NdbParamOperands.
    * Returns: 0 if OK, or possible an errorcode.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,14 @@
 #ifndef SIMULATEDBLOCK_H
 #define SIMULATEDBLOCK_H
 
+#include "util/require.h"
 #include <new>
 
 #include <NdbTick.h>
 #include <kernel_types.h>
 #include <util/version.h>
 #include <ndb_limits.h>
+#include "portlib/ndb_compiler.h"
 
 #include "VMSignal.hpp"
 #include <RefConvert.hpp>
@@ -71,11 +73,11 @@
 #include <ndb_global.h>
 #include "BlockThreadBitmask.hpp"
 #include <NdbHW.hpp>
+#include "portlib/mt-asm.h"
+
 
 struct CHARSET_INFO;
 
-#include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 248
 
@@ -490,7 +492,6 @@ protected:
   typedef void (SimulatedBlock::* ExecFunction)(Signal* signal);
   void addRecSignalImpl(GlobalSignalNumber g, ExecFunction fun, bool f =false);
   void installSimulatedBlockFunctions();
-  ExecFunction theExecArray[MAX_GSN+1];
   void handle_execute_error(GlobalSignalNumber gsn);
 
   void initCommon();
@@ -504,8 +505,20 @@ protected:
                               ExecFunction f,
                               BlockReference ref,
                               Uint32 len);
+/*
+  Signal scope management, see signal classes for declarations
+*/
+  struct FunctionAndScope {
+    ExecFunction m_execFunction;
+    SignalScope m_signalScope;
+  };
+  FunctionAndScope theSignalHandlerArray[MAX_GSN+1];
 
-public:
+  void addSignalScopeImpl(GlobalSignalNumber gsn, SignalScope scope);
+  void checkSignalSender(GlobalSignalNumber gsn, Signal *signal, SignalScope scope);
+  [[noreturn]] void handle_sender_error(GlobalSignalNumber gsn, Signal *signal, SignalScope scope);
+
+ public:
   typedef void (SimulatedBlock::* CallbackFunction)(Signal*,
 						    Uint32 callbackData,
 						    Uint32 returnCode);
@@ -524,7 +537,7 @@ public:
 
   ExecFunction getExecuteFunction(GlobalSignalNumber gsn)
   {
-    return theExecArray[gsn];
+    return theSignalHandlerArray[gsn].m_execFunction;
   }
  
   SimulatedBlock* getInstance(Uint32 instanceNumber) {
@@ -843,6 +856,12 @@ protected:
                            Uint32 delayInMilliSeconds,
 			   Uint32 length,
 			   SectionHandle* sections) const;
+
+  void sendSignalOverAllLinks(BlockReference ref,
+                        GlobalSignalNumber gsn,
+                        Signal25* signal,
+                        Uint32 length,
+                        JobBufferLevel jbuf ) const ;
 
   /**
    * EXECUTE_DIRECT comes in five variants.
@@ -1210,6 +1229,23 @@ protected:
   void sendNextLinearFragment(Signal* signal, FragmentSendInfo & info);
   
   BlockNumber    number() const;
+
+  /**
+   * Ensure that signal's sender is same node
+   */
+  void LOCAL_SIGNAL(Signal* signal) const
+  {
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == theNodeId);
+  }
+
+  /**
+   * Is reference for our node?
+   */
+  bool local_ref(BlockReference ref) const
+  {
+    return (refToNode(ref) == theNodeId ||
+            refToNode(ref) == 0);
+  }
 public:
   /* Must be public so that we can jam() outside of block scope. */
   EmulatedJamBuffer *jamBuffer() const;
@@ -1296,10 +1332,9 @@ protected:
   Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
   void freeBat();
-  static const NewVARIABLE* getBat    (BlockNumber blockNo,
-                                       Uint32 instanceNo);
-  static Uint16             getBatSize(BlockNumber blockNo,
-                                       Uint32 instanceNo);
+  static const NewVARIABLE * getBatVar(BlockNumber blockNo,
+                                       Uint32 instanceNo,
+                                       Uint32 varNo);
   
   static BlockReference calcTcBlockRef   (NodeId aNode);
   static BlockReference calcLqhBlockRef  (NodeId aNode);
@@ -1405,7 +1440,7 @@ protected:
    * Compare either a full (non-NULL) key, or a single attr.
    *
    * Character strings are compared taking their normalized
-   * 'weight' into considderation, as defined by their collation.
+   * 'weight' into consideration, as defined by their collation.
    *
    * No intermediate xfrm'ed string are produced during the compare.
    *
@@ -2249,13 +2284,15 @@ void
 SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
                                 Signal *signal)
 {
-  ExecFunction f = theExecArray[gsn];
+  FunctionAndScope& fas = theSignalHandlerArray[gsn];
   if (unlikely(gsn > MAX_GSN))
   {
     handle_execute_error(gsn);
     return;
   }
-  executeFunction(gsn, signal, f);
+  // No need to check signal scope here since signals are always local
+  // checkSignalSender(gsn, signal, fas.m_signalScope);
+  executeFunction(gsn, signal, fas.m_execFunction);
 }
 
 inline
@@ -2263,13 +2300,14 @@ void
 SimulatedBlock::executeFunction_async(GlobalSignalNumber gsn,
                                       Signal *signal)
 {
-  ExecFunction f = theExecArray[gsn];
+  FunctionAndScope& fas = theSignalHandlerArray[gsn];
   if (unlikely(gsn > MAX_GSN))
   {
     handle_execute_error(gsn);
     return;
   }
-  executeFunction(gsn, signal, f);
+  checkSignalSender(gsn, signal, fas.m_signalScope);
+  executeFunction(gsn, signal, fas.m_execFunction);
 }
 
 inline
@@ -2288,6 +2326,49 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
   signal->setLength(len);
   signal->header.theSendersBlockRef = ref;
   executeFunction(gsn, signal, f);
+}
+
+inline
+void
+SimulatedBlock::checkSignalSender(GlobalSignalNumber gsn,
+                                  Signal *signal,
+                                  SignalScope scope)
+{
+  // Signals with no restriction on scope do not need to be checked
+  if (scope == SignalScope::External)
+    return;
+
+  BlockReference ref = (signal->senderBlockRef());
+  const Uint32 nodeId = refToNode(ref);
+  // Avoid any overhead since local signals are always allowed
+  if (likely(nodeId == theNodeId))
+    return;
+
+  // Check if signal is allowed to be received
+  switch (scope)
+  {
+  case SignalScope::Local:
+  {
+    handle_sender_error(gsn, signal, scope);
+    break;
+  }
+  case SignalScope::Remote:
+  {
+    const NodeInfo::NodeType nodeType = getNodeInfo(nodeId).getType();
+    if (unlikely(nodeType != NodeInfo::DB))
+      handle_sender_error(gsn, signal, scope);
+    break;
+  }
+  case SignalScope::Management:
+  {
+    const NodeInfo::NodeType nodeType = getNodeInfo(nodeId).getType();
+    if  (nodeType != NodeInfo::DB && nodeType != NodeInfo::MGM)
+      handle_sender_error(gsn, signal, scope);
+    break;
+  }
+  case SignalScope::External:
+    break;
+  }
 }
 
 inline 
@@ -2615,7 +2696,7 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
     handle_execute_error(gsn);
     return;
   }
-  ExecFunction f = rec_block->theExecArray[gsn];
+  ExecFunction f = rec_block->theSignalHandlerArray[gsn].m_execFunction;
   signal->header.theSendersBlockRef = ref;
   /**
    * In this function we only allow function calls within the same thread.
@@ -2717,22 +2798,28 @@ SimulatedBlock::check_sections(Signal25* signal,
  */
 
 #define BLOCK_DEFINES(BLOCK) \
-  typedef void (BLOCK::* ExecSignalLocal) (Signal* signal); \
   typedef void (BLOCK::* BlockCallback)(Signal*, Uint32 callb, Uint32 retCode); \
   inline CallbackFunction safe_cast(BlockCallback f){ \
     return static_cast<CallbackFunction>(f); \
   } \
-public:\
-private: \
-  void addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force = false)
+  typedef void (BLOCK::* ExecSignalLocal) (Signal* signal)
+
+/*
+  Define addRecSignal as a macro that, for the passed specific signal (represented by the
+  GlobalSignalNumber), setup the receiver function and fetch the signal scope for the specific
+  signal. The signal scope defines what runtime checks we should do when the signal is received.
+  The signal scopes are defined together with the signal definitions (usually as signal classes).
+ */
+#define addRecSignal(gsn,f,...) \
+  do{ \
+      static_assert(gsn > 0 && gsn < MAX_GSN + 1); \
+      addRecSignalImpl(gsn, (ExecFunction)f, ## __VA_ARGS__); \
+      addSignalScopeImpl(gsn, signal_property<gsn>::scope); \
+    }while(false)
 
 #define BLOCK_CONSTRUCTOR(BLOCK) do { SimulatedBlock::initCommon(); } while(0)
 
-#define BLOCK_FUNCTIONS(BLOCK) \
-void \
-BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
-  addRecSignalImpl(gsn, (ExecFunction)f, force);\
-}
+#define BLOCK_FUNCTIONS(BLOCK) // empty
 
 #ifdef ERROR_INSERT
 #define RSS_AP_SNAPSHOT(x) Uint32 rss_##x
@@ -2780,7 +2867,7 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 struct Hash2FragmentMap
 {
-  STATIC_CONST( MAX_MAP = NDB_MAX_HASHMAP_BUCKETS );
+  static constexpr Uint32 MAX_MAP = NDB_MAX_HASHMAP_BUCKETS;
   Uint32 m_cnt;
   Uint32 m_fragments;
   Uint16 m_map[MAX_MAP];

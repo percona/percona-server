@@ -156,7 +156,7 @@ SET global.tf_sequence_table_max_upper_bound = 8000;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.tf_sequence_table_max_upper_bound = 8000' at line 1
 SELECT global.tf_sequence_table_max_upper_bound;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT tf_sequence_table_max_upper_bound = @@session.tf_sequence_table_max_upper_bound;
+SELECT tf_sequence_table_max_upper_bound;
 ERROR 42S22: Unknown column 'tf_sequence_table_max_upper_bound' in 'field list'
 ##############################
 #   Restore initial value    #

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 #define WIRE_PAYLOAD_LEN_SIZE 8
@@ -98,7 +99,7 @@ class Gcs_message_data {
   bool append_to_payload(const uchar *to_append, uint64_t to_append_len);
 
   /**
-   Release the buffer's owership which means that this object will not
+   Release the buffer's ownership which means that this object will not
    be responsible for deallocating its internal buffer. The caller should
    do so.
 
@@ -113,7 +114,7 @@ class Gcs_message_data {
    is provided or the data was not already appended to the buffer, an error
    is returned.
 
-   The meta data is formated in little endian format, and is structured
+   The meta data is formatted in little endian format, and is structured
    on the wire as depicted below:
 
    -----------------------------------------------
@@ -243,7 +244,7 @@ class Gcs_message_data {
   uint64_t m_payload_capacity;
 
   /*
-    Pointer to the begining of the buffer that contains both the
+    Pointer to the beginning of the buffer that contains both the
     header and the payload.
   */
   uchar *m_buffer;
@@ -259,6 +260,23 @@ class Gcs_message_data {
     when deleted.
   */
   bool m_owner;
+
+  /**
+    On memory allocation this function is called, so that memory
+    consumption can be tracked.
+
+    @param[in] size    memory size to be allocated
+
+    @return true on error, false otherwise.
+  */
+  bool report_allocate_memory(size_t size);
+
+  /**
+    On memory free this function is called to reduce count of allocated memory.
+
+    @param[in] size    memory size to be allocated
+  */
+  void report_deallocate_memory(size_t size);
 
   /*
     Disabling the copy constructor and assignment operator.

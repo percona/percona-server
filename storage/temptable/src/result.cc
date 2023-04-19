@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,6 +47,8 @@ const char *result_to_string(Result r) {
       return "TABLE_CORRUPT";
     case Result::TABLE_EXIST:
       return "TABLE_EXIST";
+    case Result::TOO_BIG_ROW:
+      return "TOO_BIG_ROW";
     case Result::UNSUPPORTED:
       return "UNSUPPORTED";
     case Result::WRONG_COMMAND:

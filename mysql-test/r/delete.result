@@ -138,9 +138,6 @@ a	b
 2	12
 33	10
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
-Warnings:
-Warning	1242	Subquery returns more than 1 row
-Warning	1242	Subquery returns more than 1 row
 analyze table t11,t12,t2;
 Table	Op	Msg_type	Msg_text
 test.t11	analyze	status	OK
@@ -181,6 +178,32 @@ a	b
 0	10
 1	11
 drop table t11, t12, t2;
+# sql_safe_updates mode with single-table DELETE.
+CREATE TABLE t (a INTEGER);
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7);
+SET sql_safe_updates = ON;
+DELETE FROM t;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
+DELETE FROM t ORDER BY a;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
+DELETE FROM t WHERE a = 6;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
+DELETE FROM t ORDER BY a LIMIT 1;
+ALTER TABLE t ADD KEY k (a);
+DELETE FROM t;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
+DELETE FROM t ORDER BY a;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
+DELETE FROM t WHERE a = 6;
+DELETE FROM t ORDER BY a LIMIT 1;
+SELECT * FROM t ORDER BY a;
+a
+3
+4
+5
+7
+SET sql_safe_updates = DEFAULT;
+DROP TABLE t;
 # sql_safe_updates mode with multi-table DELETE
 CREATE TABLE t1(a INTEGER PRIMARY KEY);
 INSERT INTO t1 VALUES(10),(20);
@@ -865,3 +888,110 @@ ROW_COUNT()
 2
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
+#
+# WL#14673: Enable the hypergraph optimizer for DELETE
+#
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (a INTEGER, b INTEGER);
+CREATE TABLE t3 (a INTEGER);
+CREATE TABLE t4 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (-1), (0), (1), (2), (2), (3), (100), (1000);
+INSERT INTO t2 VALUES (-2, 0), (2, 1), (3, 1), (3, 0), (101, 2), (1001, 0);
+INSERT INTO t3 VALUES (-1), (0), (1), (2), (2), (3), (100), (1000);
+INSERT INTO t4 VALUES (-2, -1), (2, 1), (3, 1), (3, -1), (101, 2), (1001, -1);
+DELETE t1, t2, t3, t4
+FROM (t1 INNER JOIN t2 USING (a)) LEFT JOIN (t3 INNER JOIN t4 USING (a)) ON t2.b = t4.b;
+SELECT * FROM t1;
+a
+-1
+0
+1
+100
+1000
+SELECT * FROM t2;
+a	b
+-2	0
+1001	0
+101	2
+SELECT * FROM t3;
+a
+-1
+0
+1
+100
+1000
+SELECT * FROM t4;
+a	b
+-2	-1
+1001	-1
+101	2
+3	-1
+DROP TABLE t1, t2, t3, t4;
+#
+# Bug#33722819: recent regression: crash/corruption with gcols
+#               and multitable delete...
+#
+CREATE TABLE t (
+a INT,
+b INT,
+c TIMESTAMP GENERATED ALWAYS AS (65),
+UNIQUE KEY (a, b),
+UNIQUE KEY (c, a)
+);
+INSERT IGNORE INTO t(a, b) VALUES (1, 1), (2, 2);
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'c' at row 2
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a > d2.a;
+ERROR 22007: Incorrect datetime value: '65' for column 'c' at row 1
+SELECT * FROM t;
+a	b	c
+1	1	0000-00-00 00:00:00
+2	2	0000-00-00 00:00:00
+Warning	1292	Incorrect datetime value: '65' for column 'c' at row 1
+Warning	1292	Incorrect datetime value: '65' for column 'c' at row 2
+Warnings:
+DELETE IGNORE d2 FROM t AS d1, t AS d2 WHERE d1.a > d2.a;
+SELECT * FROM t;
+a	b	c
+2	2	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '65' for column 'c' at row 1
+DROP TABLE t;
+# Bug#34603748: Assertion !thd->is_error() failed in sql_executor.cc
+CREATE TABLE t1 (
+c int,
+k int,
+v varchar(1),
+pk int NOT NULL PRIMARY KEY,
+KEY(k)
+);
+INSERT INTO t1 VALUES (737324598,-252214477,'k',1);
+CREATE TABLE t2 (
+c int,
+k int,
+v varchar(1),
+pk int NOT NULL PRIMARY KEY,
+KEY(k)
+);
+INSERT INTO t2 VALUES
+(855986294,-882338447,NULL,1), (232637232,731304773,'y',2),
+(1590168493,1015181107,'h',3), (-1009423426,-232667498,'r',4),
+(236379810,1802601033,'H',5), (551188244,-756499064,NULL,6),
+(-1719538815,-448490308,'N',7), (-2122356533,NULL,'y',8),
+(-687608898,199866688,'0',9), (-1901664078,NULL,'B',10),
+(-2108420295,-497498614,'M',11), (1407257546,191555131,'8',12),
+(88536399,-1988379833,'N',13), (351531198,1071194019,'r',14),
+(194539025,1671647783,'Y',15), (-1133948378,1947844472,'e',16),
+(-533037937,1007507258,'E',17), (1268272947,-1875925199,'w',18),
+(2002333920,-764155734,'0',19), (-2017216121,-1780822065,'w',20);
+DELETE FROM outr1, outr2
+USING t1 AS outr1 RIGHT OUTER JOIN t1 AS outr2
+ON outr1.c = outr2.c
+WHERE outr1.c >= (SELECT DISTINCT innr1.k AS y
+FROM t2 AS innr2 LEFT JOIN t2 AS innr1
+ON innr2.k = CAST(innr1.v AS DATETIME)
+WHERE innr1.pk = 3
+);
+ERROR 22007: Incorrect datetime value: 'h'
+DROP TABLE t1, t2;

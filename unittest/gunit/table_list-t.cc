@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@ namespace table_list_test {
 TEST(TableListTest, Constructors) {
   auto tablename = "abcdef";
   // Setting up a trap here, the ctor should not follow this TABLE pointer.
-  TABLE_LIST table_list(nullptr, tablename);
+  Table_ref table_list(nullptr, tablename);
   EXPECT_STREQ(table_list.table_name, tablename);
   EXPECT_STREQ(table_list.alias, tablename);
   EXPECT_STREQ(table_list.db, "");

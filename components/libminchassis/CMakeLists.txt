@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -38,3 +38,4 @@ SET(LIBMINCHASSIS_SOURCES
 
 ADD_LIBRARY(minchassis STATIC ${LIBMINCHASSIS_SOURCES})
 ADD_DEPENDENCIES(minchassis GenError)
+TARGET_LINK_LIBRARIES(minchassis ${CMAKE_DL_LIBS})

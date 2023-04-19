@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,13 +31,19 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/plugin_psi.h"
+#include "plugin/group_replication/include/plugin_status_variables.h"
 
 /**
   Flow control modes:
-    FCM_DISABLED  flow control disabled
-    FCM_QUOTA introduces a delay only on transactions the exceed a quota
+    FCM_DISABLED        flow control disabled
+
+    FCM_QUOTA           introduces a delay only on transactions the exceed a
+                        quota
+
+    FCM_QUOTA_MAJORITY  introduces a delay only on transactions that exceed the
+                        quota on majority of the nodes
 */
-enum Flow_control_mode { FCM_DISABLED = 0, FCM_QUOTA };
+enum Flow_control_mode { FCM_DISABLED = 0, FCM_QUOTA, FCM_QUOTA_MAJORITY };
 
 /**
   @class Pipeline_stats_member_message
@@ -172,14 +178,14 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
   int64 get_transactions_applied();
 
   /**
-    Get local transactions that member tried to commmit.
+    Get local transactions that member tried to commit.
 
     @return the counter value
   */
   int64 get_transactions_local();
 
   /**
-    Get negatively certfied transaction by member.
+    Get negatively certified transaction by member.
 
     @return the counter value
   */
@@ -286,6 +292,11 @@ class Pipeline_stats_member_collector {
     Decrement transactions waiting apply counter value.
   */
   void decrement_transactions_waiting_apply();
+
+  /**
+    Set transactions waiting apply counter to 0.
+  */
+  void clear_transactions_waiting_apply();
 
   /**
     Increment transactions certified counter value.
@@ -529,7 +540,7 @@ class Pipeline_member_stats {
   int64 get_delta_transactions_applied();
 
   /**
-    Get local transactions that member tried to commmit
+    Get local transactions that member tried to commit
     since last stats message.
 
     @return the counter value
@@ -630,6 +641,11 @@ class Flow_control_module {
   Pipeline_member_stats *get_pipeline_stats(const std::string &member_id);
 
   /**
+    Gets stats related to Flow Control
+  */
+  void get_flow_control_stats(group_replication_fc_stats &stats);
+
+  /**
     Compute and wait the amount of time in microseconds that must
     be elapsed before a new message is sent.
     If there is no need to wait, the method returns immediately.
@@ -661,6 +677,11 @@ class Flow_control_module {
   */
   std::atomic<int64> m_quota_used;
   std::atomic<int64> m_quota_size;
+
+  /*
+    Seconds spent in flow control
+  */
+  uint64 m_flow_control_time;
 
   /*
     Counter incremented on every flow control step.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,13 +45,11 @@ namespace {
 
 CHARSET_INFO *lookup_collation(const char *name) {
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   return my_collation_get_by_name(&loader, name, MYF(0));
 }
 
 CHARSET_INFO *lookup_charset(const char *name, int flag) {
   MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
   return my_charset_get_by_name(&loader, name, flag, MYF(0));
 }
 
@@ -68,7 +66,7 @@ static void BM_LookupAllCollations(size_t num_iterations) {
   for (size_t i = 0; i < num_iterations; i++) {
     const CHARSET_INFO *cs = all_charsets[i % num_charsets];
     if (cs) {
-      EXPECT_NE(lookup_collation(cs->name), nullptr);
+      EXPECT_NE(lookup_collation(cs->m_coll_name), nullptr);
     }
   }
 }

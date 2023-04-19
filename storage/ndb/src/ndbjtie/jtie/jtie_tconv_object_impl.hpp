@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ typedef JniMemberId< WEAK_CACHING, _Wrapper_cdelegate > Wrapper_cdelegate;
 //template< typename C > struct ObjectParam< _jtie_Object *, C * > {
 // to
 //template< typename J, typename C > struct ObjectParam< J *, C * > {
-// same for Target, Result; or conversly
+// same for Target, Result; or conversely
 //template< typename J > struct ObjectResult< J *, void * > {
 
 // Implements the mapping of jtie_Objects parameters.

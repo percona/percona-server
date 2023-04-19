@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,15 +41,15 @@
 
 void
 NdbOperation::initInterpreter(){
-  theFirstLabel = NULL;
-  theLastLabel = NULL;
-  theFirstBranch = NULL;
-  theLastBranch = NULL;
+  theFirstLabel = nullptr;
+  theLastLabel = nullptr;
+  theFirstBranch = nullptr;
+  theLastBranch = nullptr;
   
-  theFirstCall = NULL;
-  theLastCall = NULL;
-  theFirstSubroutine = NULL;
-  theLastSubroutine = NULL;
+  theFirstCall = nullptr;
+  theLastCall = nullptr;
+  theFirstSubroutine = nullptr;
+  theLastSubroutine = nullptr;
   
   theNoOfLabels = 0;
   theNoOfSubroutines = 0;
@@ -72,7 +72,7 @@ NdbOperation::isNdbRecordOperation()
    */
   return !(((m_type == PrimaryKeyAccess) ||
             (m_type == UniqueIndexAccess)) &&
-           (m_attribute_record == NULL));
+           (m_attribute_record == nullptr));
 }
 
 int
@@ -85,7 +85,7 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
   }
 
   if (theInterpretIndicator == 1) {
-    if (tNdbColumnImpl == NULL)
+    if (tNdbColumnImpl == nullptr)
       goto inc_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() != true) ||
         (tNdbColumnImpl->m_pk != false) ||
@@ -144,7 +144,7 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
   }
 
   if (theInterpretIndicator == 1) {
-    if (tNdbColumnImpl == NULL)
+    if (tNdbColumnImpl == nullptr)
       goto write_attr_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() == false) ||
         (tNdbColumnImpl->m_pk))
@@ -195,7 +195,7 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
   }
 
   if (theInterpretIndicator == 1) {
-    if (tNdbColumnImpl == NULL)
+    if (tNdbColumnImpl == nullptr)
       goto read_attr_check_error1;
     if (tNdbColumnImpl->getInterpretableType() == false)
       goto read_attr_check_error2;
@@ -325,7 +325,7 @@ NdbOperation::intermediate_interpreterCheck()
 /*****************************************************************************
  * int incValue(const char* anAttrName, char* aValue, Uint32 aValue)
  *
- * Return Value:  Return 0 : incValue was succesful.
+ * Return Value:  Return 0 : incValue was successful.
  *                Return -1: In all other case.   
  * Parameters:    anAttrName : Attribute name where the attribute value 
  *                             will be save.
@@ -373,7 +373,7 @@ incValue_error1:
 /*****************************************************************************
  * int subValue(const char* anAttrName, char* aValue, Uint32 aValue)
  *
- * Return Value:   Return 0 : incValue was succesful.
+ * Return Value:   Return 0 : incValue was successful.
  *                 Return -1: In all other case.   
  * Parameters:     anAttrName : Attribute name where the attribute value 
  *                              will be save.
@@ -421,7 +421,7 @@ NdbOperation::subValue(const NdbColumnImpl* tNdbColumnImpl, Uint32 aValue)
 /******************************************************************************
  * int incValue(const char* anAttrName, char* aValue, Uint64 aValue)
  *
- * Return Value:   Return 0 : incValue was succesful.
+ * Return Value:   Return 0 : incValue was successful.
  *                 Return -1: In all other case.   
  * Parameters:     anAttrName : Attribute name where the attribute value will 
  *                             be save.
@@ -462,7 +462,7 @@ incValue_error1:
 /*****************************************************************************
  * int subValue(const char* anAttrName, char* aValue, Uint64 aValue)
  *
- * Return Value:   Return 0 : incValue was succesful.
+ * Return Value:   Return 0 : incValue was successful.
  *                Return -1: In all other case.   
  * Parameters:     anAttrName : Attribute name where the attribute value will 
  *                              be save.
@@ -515,18 +515,18 @@ NdbOperation::def_label(int tLabelNo)
   if (tLabelIndex == 0)
   {
     NdbLabel* tNdbLabel = theNdb->getNdbLabel();
-    if (tNdbLabel == NULL)
+    if (tNdbLabel == nullptr)
     {
       setErrorCodeAbort(4000);
       return -1;
     }
-    if (theFirstLabel == NULL)
+    if (theFirstLabel == nullptr)
       theFirstLabel = tNdbLabel;
     else
       theLastLabel->theNext = tNdbLabel;
 
     theLastLabel = tNdbLabel;
-    tNdbLabel->theNext = NULL;
+    tNdbLabel->theNext = nullptr;
   }
 
   /**
@@ -617,18 +617,18 @@ NdbOperation::def_subroutine(int tSubNo)
   if (tSubroutineIndex == 0)
   {
     NdbSubroutine* tNdbSubroutine = theNdb->getNdbSubroutine();
-    if (tNdbSubroutine == NULL)
+    if (tNdbSubroutine == nullptr)
     {
       setErrorCodeAbort(4000);
       return -1;
     }
-    if (theFirstSubroutine == NULL)
+    if (theFirstSubroutine == nullptr)
       theFirstSubroutine = tNdbSubroutine;
     else
       theLastSubroutine->theNext = tNdbSubroutine;
 
     theLastSubroutine = tNdbSubroutine;
-    tNdbSubroutine->theNext = NULL;
+    tNdbSubroutine->theNext = nullptr;
   }
   theLastSubroutine->theSubroutineAddress[tSubroutineIndex] = theTotalCurrAI_Len - 
     (AttrInfo::SectionSizeInfoLength + theInitialReadSize + theInterpretedSize + 
@@ -1032,9 +1032,9 @@ NdbOperation::insertBranch(Uint32 aLabel)
 {
   Uint32 tAddress;
   NdbBranch* tBranch = theNdb->getNdbBranch();
-  if (tBranch == NULL)
+  if (tBranch == nullptr)
     goto insertBranch_error1;
-  if (theFirstBranch == NULL)
+  if (theFirstBranch == nullptr)
     theFirstBranch = tBranch;
   else
     theLastBranch->theNext = tBranch;
@@ -1063,12 +1063,12 @@ int
 NdbOperation::insertCall(Uint32 aCall)
 {
   NdbCall* tCall = theNdb->getNdbCall();
-  if (tCall == NULL)
+  if (tCall == nullptr)
   {
     setErrorCodeAbort(4000);
     return -1;
   }
-  if (theFirstCall == NULL)
+  if (theFirstCall == nullptr)
     theFirstCall = tCall;
   else
     theLastCall->theNext = tCall;
@@ -1088,8 +1088,7 @@ NdbOperation::branch_col(Uint32 type,
   DBUG_ENTER("NdbOperation::branch_col");
   DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
                        type, ColId, val, len, Label));
-  if (val != NULL)
-    DBUG_DUMP("value", (uchar*)val, len);
+  if (val != nullptr) DBUG_DUMP("value", (const uchar*)val, len);
 
   if (initial_interpreterCheck() == -1)
     DBUG_RETURN(-1);
@@ -1099,12 +1098,12 @@ NdbOperation::branch_col(Uint32 type,
   const NdbColumnImpl * col = 
     m_currentTable->getColumn(ColId);
   
-  if(col == 0){
+  if(col == nullptr){
     abort();
   }
 
   Uint32 lastWordMask= ~0;
-  if (val == NULL)
+  if (val == nullptr)
     len = 0;
   else {
     if (! col->getStringType())
@@ -1151,7 +1150,8 @@ NdbOperation::branch_col(Uint32 type,
     val = tempData;
   }
 
-  if (insertATTRINFO(Interpreter::BranchCol(c, 0, 0)) == -1)
+  const Interpreter::NullSemantics nulls = Interpreter::NULL_CMP_EQUAL;
+  if (insertATTRINFO(Interpreter::BranchCol(c, nulls)) == -1)
     DBUG_RETURN(-1);
   
   if (insertBranch(Label) == -1)
@@ -1163,14 +1163,14 @@ NdbOperation::branch_col(Uint32 type,
   Uint32 len2 = Interpreter::mod4(len);
   if((len2 == len) &&
      (lastWordMask == (Uint32)~0)){
-    insertATTRINFOloop((Uint32*)val, len2 >> 2);
+    insertATTRINFOloop((const Uint32*)val, len2 >> 2);
   } else {
     len2 -= 4;
-    insertATTRINFOloop((Uint32*)val, len2 >> 2);
+    insertATTRINFOloop((const Uint32*)val, len2 >> 2);
     Uint32 tmp = 0;
     for (Uint32 i = 0; i < len-len2; i++) {
       char* p = (char*)&tmp;
-      p[i] = ((char*)val)[len2+i];
+      p[i] = ((const char*)val)[len2 + i];
     }
     insertATTRINFO(tmp & lastWordMask);
   }
@@ -1179,96 +1179,90 @@ NdbOperation::branch_col(Uint32 type,
   DBUG_RETURN(0);
 }
 
-int 
-NdbOperation::branch_col_eq(Uint32 ColId, const void * val, Uint32 len, 
-			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_eq %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
-             nopad, Label));
+int NdbOperation::branch_col_eq(Uint32 ColId, const void* val, Uint32 len, bool,
+                                Uint32 Label)
+{
+  INT_DEBUG(("branch_col_eq %u %.*s(%u) -> %u", ColId, len, (char*)val, len, Label));
   return branch_col(Interpreter::EQ, ColId, val, len, Label);
 }
 
-int
-NdbOperation::branch_col_ne(Uint32 ColId, const void * val, Uint32 len, 
-			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_ne %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
-             nopad, Label));
+int NdbOperation::branch_col_ne(Uint32 ColId, const void* val, Uint32 len, bool,
+                                Uint32 Label)
+{
+  INT_DEBUG(("branch_col_ne %u %.*s(%u) -> %u", ColId, len, (char*)val, len, Label));
   return branch_col(Interpreter::NE, ColId, val, len, Label);
 }
-int
-NdbOperation::branch_col_lt(Uint32 ColId, const void * val, Uint32 len, 
-			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_lt %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
-             nopad, Label));
+int NdbOperation::branch_col_lt(Uint32 ColId, const void* val, Uint32 len, bool,
+                                Uint32 Label)
+{
+  INT_DEBUG(("branch_col_lt %u %.*s(%u) -> %u", ColId, len, (char*)val, len, Label));
   return branch_col(Interpreter::LT, ColId, val, len, Label);
 }
-int
-NdbOperation::branch_col_le(Uint32 ColId, const void * val, Uint32 len, 
-			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_le %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
-             nopad, Label));
+int NdbOperation::branch_col_le(Uint32 ColId, const void* val, Uint32 len, bool,
+                                Uint32 Label)
+{
+  INT_DEBUG(("branch_col_le %u %.*s(%u) -> %u", ColId, len, (char*)val, len, Label));
   return branch_col(Interpreter::LE, ColId, val, len, Label);
 }
-int
-NdbOperation::branch_col_gt(Uint32 ColId, const void * val, Uint32 len, 
-			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_gt %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
-             nopad, Label));
+int NdbOperation::branch_col_gt(Uint32 ColId, const void* val, Uint32 len, bool,
+                                Uint32 Label)
+{
+  INT_DEBUG(("branch_col_gt %u %.*s(%u) -> %u", ColId, len, (char*)val, len, Label));
   return branch_col(Interpreter::GT, ColId, val, len, Label);
 }
 
-int
-NdbOperation::branch_col_ge(Uint32 ColId, const void * val, Uint32 len, 
-			    bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_ge %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
-             nopad, Label));
+int NdbOperation::branch_col_ge(Uint32 ColId, const void* val, Uint32 len, bool,
+                                Uint32 Label)
+{
+  INT_DEBUG(("branch_col_ge %u %.*s(%u) -> %u", ColId, len, (char*)val, len, Label));
   return branch_col(Interpreter::GE, ColId, val, len, Label);
 }
 
-int
-NdbOperation::branch_col_like(Uint32 ColId, const void * val, Uint32 len, 
-			      bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_like %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
-             nopad, Label));
+int NdbOperation::branch_col_like(Uint32 ColId, const void* val, Uint32 len,
+                                  bool, Uint32 Label)
+{
+  INT_DEBUG(("branch_col_like %u %.*s(%u) -> %u", ColId, len, (char*)val, len,
+             Label));
   return branch_col(Interpreter::LIKE, ColId, val, len, Label);
 }
 
-int
-NdbOperation::branch_col_notlike(Uint32 ColId, const void * val, Uint32 len, 
-				 bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_notlike %u %.*s(%u,%d) -> %u", ColId, len, (char*) val, len,
-             nopad, Label));
+int NdbOperation::branch_col_notlike(Uint32 ColId, const void* val, Uint32 len,
+                                     bool, Uint32 Label)
+{
+  INT_DEBUG(("branch_col_notlike %u %.*s(%u,%d) -> %u", ColId, len, (char*)val,
+             len, Label));
   return branch_col(Interpreter::NOT_LIKE, ColId, val, len, Label);
 }
 
-int
-NdbOperation::branch_col_and_mask_eq_mask(Uint32 ColId, const void * mask, 
-                                          Uint32 len, bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_and_mask_eq_mask %u %.*s(%u,%d) -> %u", ColId, len, (char*) mask, len,
-             nopad, Label));
+int NdbOperation::branch_col_and_mask_eq_mask(Uint32 ColId, const void* mask,
+                                              Uint32 len, bool, Uint32 Label)
+{
+  INT_DEBUG(("branch_col_and_mask_eq_mask %u %.*s(%u) -> %u", ColId, len,
+             (char*)mask, len, Label));
   return branch_col(Interpreter::AND_EQ_MASK, ColId, mask, len, Label);
 }
 
-int
-NdbOperation::branch_col_and_mask_ne_mask(Uint32 ColId, const void * mask, 
-                                          Uint32 len, bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_and_mask_ne_mask %u %.*s(%u,%d) -> %u", ColId, len, (char*) mask, len,
-             nopad, Label));
+int NdbOperation::branch_col_and_mask_ne_mask(Uint32 ColId, const void* mask,
+                                              Uint32 len, bool, Uint32 Label)
+{
+  INT_DEBUG(("branch_col_and_mask_ne_mask %u %.*s(%u) -> %u", ColId, len,
+             (char*)mask, len, Label));
   return branch_col(Interpreter::AND_NE_MASK, ColId, mask, len, Label);
 }
 
-int
-NdbOperation::branch_col_and_mask_eq_zero(Uint32 ColId, const void * mask, 
-                                          Uint32 len, bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_and_mask_eq_zero %u %.*s(%u,%d) -> %u", ColId, len, (char*) mask, len,
-             nopad, Label));
+int NdbOperation::branch_col_and_mask_eq_zero(Uint32 ColId, const void* mask,
+                                              Uint32 len, bool, Uint32 Label)
+{
+  INT_DEBUG(("branch_col_and_mask_eq_zero %u %.*s(%u) -> %u", ColId, len,
+             (char*)mask, len, Label));
   return branch_col(Interpreter::AND_EQ_ZERO, ColId, mask, len, Label);
 }
 
-int
-NdbOperation::branch_col_and_mask_ne_zero(Uint32 ColId, const void * mask, 
-                                          Uint32 len, bool nopad, Uint32 Label){
-  INT_DEBUG(("branch_col_and_mask_ne_zero %u %.*s(%u,%d) -> %u", ColId, len, (char*) mask, len,
-             nopad, Label));
+int NdbOperation::branch_col_and_mask_ne_zero(Uint32 ColId, const void* mask,
+                                              Uint32 len, bool, Uint32 Label)
+{
+  INT_DEBUG(("branch_col_and_mask_ne_zero %u %.*s(%u) -> %u", ColId, len,
+             (char*)mask, len, Label));
   return branch_col(Interpreter::AND_NE_ZERO, ColId, mask, len, Label);
 }
 

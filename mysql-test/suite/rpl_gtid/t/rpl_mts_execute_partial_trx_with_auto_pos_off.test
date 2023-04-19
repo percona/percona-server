@@ -15,13 +15,14 @@
 --source include/not_binlog_transaction_compression_on.inc
 
 --source include/not_group_replication_plugin.inc
+--source include/not_rpl_gtid_only.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 --source include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_AUTO_POSITION=0;
 --source include/start_slave.inc

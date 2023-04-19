@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include <algorithm>
 
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_byteorder.h"
 
 #include "my_inttypes.h"
@@ -389,7 +390,7 @@ static int tailoring_append2(MY_XML_PARSER *st, const char *fmt, size_t len1,
 }
 
 static size_t scan_one_character(const char *s, const char *e, my_wc_t *wc) {
-  CHARSET_INFO *cs = &my_charset_utf8_general_ci;
+  CHARSET_INFO *cs = &my_charset_utf8mb3_general_ci;
   if (s >= e) return 0;
 
   /* Escape sequence: \uXXXX */
@@ -462,8 +463,7 @@ static int cs_leave(MY_XML_PARSER *st, const char *attr, size_t len) {
   switch (state) {
     case _CS_COLLATION:
       if (i->tailoring_length) i->cs.tailoring = i->tailoring;
-      rc = i->loader->add_collation ? i->loader->add_collation(&i->cs)
-                                    : MY_XML_OK;
+      rc = i->loader->add_collation(&i->cs);
       break;
 
     /* Rules: Logical Reset Positions */
@@ -553,10 +553,16 @@ static int cs_value(MY_XML_PARSER *st, const char *attr, size_t len) {
       i->cs.primary_number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_COLNAME:
-      i->cs.name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
+      i->cs.m_coll_name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
       break;
     case _CS_CSNAME:
-      i->cs.csname = mstr(i->csname, attr, len, MY_CS_NAME_SIZE - 1);
+      // Replace "utf8" with "utf8mb3" for external character sets.
+      if (0 == strncmp(attr, "utf8", len))
+        i->cs.csname =
+            mstr(i->csname, STRING_WITH_LEN("utf8mb3"), MY_CS_NAME_SIZE - 1);
+      else
+        i->cs.csname = mstr(i->csname, attr, len, MY_CS_NAME_SIZE - 1);
+      assert(0 != strcmp(i->cs.csname, "utf8"));
       break;
     case _CS_CSDESCRIPT:
       i->cs.comment = mstr(i->comment, attr, len, MY_CS_CSDESCR_SIZE - 1);
@@ -790,38 +796,6 @@ uint my_string_repertoire(const CHARSET_INFO *cs, const char *str,
 uint my_charset_repertoire(const CHARSET_INFO *cs) {
   return cs->state & MY_CS_PUREASCII ? MY_REPERTOIRE_ASCII
                                      : MY_REPERTOIRE_UNICODE30;
-}
-
-/*
-  Detect whether a character set is ASCII compatible.
-
-  Returns true for:
-
-  - all 8bit character sets whose Unicode mapping of 0x7B is '{'
-    (ignores swe7 which maps 0x7B to "LATIN LETTER A WITH DIAERESIS")
-
-  - all multi-byte character sets having mbminlen == 1
-    (ignores ucs2 whose mbminlen is 2)
-
-  TODO:
-
-  When merging to 5.2, this function should be changed
-  to check a new flag MY_CS_NONASCII,
-
-     return (cs->flag & MY_CS_NONASCII) ? 0 : 1;
-
-  This flag was previously added into 5.2 under terms
-  of WL#3759 "Optimize identifier conversion in client-server protocol"
-  especially to mark character sets not compatible with ASCII.
-
-  We won't backport this flag to 5.0 or 5.1.
-  This function is Ok for 5.0 and 5.1, because we're not going
-  to introduce new tricky character sets between 5.0 and 5.2.
-*/
-bool my_charset_is_ascii_based(const CHARSET_INFO *cs) {
-  return (cs->mbmaxlen == 1 && cs->tab_to_uni &&
-          cs->tab_to_uni[static_cast<int>('{')] == '{') ||
-         (cs->mbminlen == 1 && cs->mbmaxlen > 1);
 }
 
 /*

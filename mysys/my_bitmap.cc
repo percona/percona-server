@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -399,6 +399,22 @@ bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2) {
   return false;
 }
 
+/**
+   Check if 'map' is valid.
+   @param map The map that we wish to verify.
+   @returns 'true' if 'map' passes a consistency check.
+*/
+bool bitmap_is_valid(const MY_BITMAP *map) {
+  if (map->bitmap == nullptr) {
+    return false;
+  }
+
+  // Check that last_word_mask is set correctly.
+  MY_BITMAP copy = *map;
+  create_last_word_mask(&copy);
+  return map->last_word_mask == copy.last_word_mask;
+}
+
 void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
   my_bitmap_map *to = map->bitmap, *from = map2->bitmap, *end;
   uint len = no_words_in_map(map), len2 = no_words_in_map(map2);
@@ -428,7 +444,7 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
   NOTE
     You can only set/clear full bytes.
     The function is meant for the situation that you copy a smaller bitmap
-    to a bigger bitmap. Bitmap lengths are always multiple of eigth (the
+    to a bigger bitmap. Bitmap lengths are always multiple of eight (the
     size of a byte). Using 'from_byte' saves multiplication and division
     by eight during parameter passing.
 
@@ -585,4 +601,44 @@ void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit) {
   assert(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_clear_bit(map, bitmap_bit);
   bitmap_unlock(map);
+}
+
+/**
+    Copy as many bits as 'dst' can hold from 'src', but no more than
+    max_bits_to_copy bits. 'src' and 'dst' should not overlap. If 'dst'
+    and 'src' have the same size (in bits), and this is less or equal than
+    max_bits_to_copy, this function behaves identical to bitmap_copy().
+
+    @param dst The destination bitmap.
+    @param src The source bitmap.
+    @param max_bits_to_copy The maximal number of bits to copy.
+    @return The number of bits copied.
+*/
+uint bitmap_n_copy(MY_BITMAP *dst, const MY_BITMAP *src,
+                   uint max_bits_to_copy) {
+  assert(bitmap_is_valid(dst));
+  assert(bitmap_is_valid(src));
+  // Since bitmap_copy() also does this.
+  assert(dst->n_bits > 0);
+  assert(src->n_bits > 0);
+  const uint input_bits = std::min(src->n_bits, max_bits_to_copy);
+  if (input_bits >= dst->n_bits) {
+    memcpy(dst->bitmap, src->bitmap, bitmap_buffer_size(dst->n_bits));
+    return dst->n_bits;
+  } else {
+    const uint full_words = input_bits / 32;
+    // Number of bits in the last (incomplete) word.
+    const uint tail_bits = input_bits % 32;
+    memcpy(dst->bitmap, src->bitmap, full_words * 4);
+    /*
+       We must not overwrite bits in the range [input_bits..dst->n_bits-1]
+       in 'dst'.
+    */
+    if (tail_bits > 0) {
+      dst->bitmap[full_words] =
+          (dst->bitmap[full_words] & (~0U << tail_bits)) |
+          (src->bitmap[full_words] & (~0U >> (32 - tail_bits)));
+    }
+    return input_bits;
+  }
 }

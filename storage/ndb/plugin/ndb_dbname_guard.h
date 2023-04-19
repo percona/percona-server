@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ class Ndb_dbname_guard {
   static bool check_dbname(Ndb *ndb, const std::string &dbname) {
     // Check that:
     // - dbname parameter is not empty string
-    // - database name of the Ndb object is identical to the dbname paramter
+    // - database name of the Ndb object is identical to the dbname parameter
     if (dbname.empty() || dbname != ndb->getDatabaseName()) {
       assert(false);  // Internal error, crash here in debug
       return false;

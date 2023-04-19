@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #define Logger_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
+#include <time.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
 
@@ -35,7 +37,7 @@ class LogHandler;
 class LogHandlerList;
 
 /**
- * Logger should be used whenver you need to log a message like
+ * Logger should be used whenever you need to log a message like
  * general information or debug messages. By creating/adding different
  * log handlers, a single log message can be sent to 
  * different outputs (stdout, file or syslog).
@@ -118,7 +120,7 @@ public:
 
       @epoch time to convert and print
       @str pointer to buffer where to print the resulting string
-      @len max lenght of result buffer
+      @len max length of result buffer
 
   */
   static void format_timestamp(const time_t epoch,
@@ -172,7 +174,9 @@ public:
    *
    * @return true if successful.
    */
+#ifdef _WIN32
   bool createEventLogHandler(const char* source_name);
+#endif
 
   /**
    * Create a default handler which writes to the specified file name.
@@ -320,7 +324,7 @@ private:
   Logger operator = (const Logger&);
   bool operator == (const Logger&);
 
-  STATIC_CONST( MAX_LOG_LEVELS = 8 );
+  static constexpr Uint32 MAX_LOG_LEVELS = 8;
 
   bool m_logLevels[MAX_LOG_LEVELS];
   

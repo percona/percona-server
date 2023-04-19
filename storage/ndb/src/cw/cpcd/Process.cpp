@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
+
+#include <time.h>
+
 #include "NdbSleep.h"
 
 #ifdef _WIN32
@@ -225,7 +229,7 @@ bool CPCD::Process::isRunning() {
 
 #else
   int s = kill((pid_t)-m_pid, 0); /* Sending "signal" 0 to a process only
-                                   * checkes if the process actually exists */
+                                   * checks if the process actually exists */
   if (s != 0) {
     switch (errno) {
       case EPERM:
@@ -554,7 +558,7 @@ void CPCD::Process::do_exec() {
   si.hStdOutput = (HANDLE)_get_osfhandle(1);
   si.hStdError = (HANDLE)_get_osfhandle(2);
 
-  if (!CreateProcessA(sh.c_str(), (LPSTR)shcmd.c_str(), NULL, NULL, TRUE,
+  if (!CreateProcessA(sh.c_str(), (LPSTR)shcmd.c_str(), NULL, NULL, true,
                       CREATE_SUSPENDED,  // Resumed after assigned to Job
                       NULL, NULL, &si, &pi)) {
     char *message;
@@ -622,7 +626,7 @@ void CPCD::Process::do_exec() {
 }
 
 #ifdef _WIN32
-void sched_yield() { Sleep(100); }
+void sched_yield() { NdbSleep_MilliSleep(100); }
 #endif
 
 int CPCD::Process::start() {
@@ -635,7 +639,7 @@ int CPCD::Process::start() {
    * This is a bit tricky but has the following advantages:
    *  - the cpcd can die, and "reconnect" to the monitored clients
    *    without restarting them.
-   *  - the cpcd does not have to wait() for the childs. init(1) will
+   *  - the cpcd does not have to wait() for the children. init(1) will
    *    take care of that.
    */
   logger.info("Starting %d: %s", m_id, m_name.c_str());
@@ -875,7 +879,7 @@ void CPCD::Process::do_shutdown(bool force_sigkill)
   HANDLE proc;
   require(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid));
   require(IsProcessInJob(proc, m_job, &truth));
-  require(truth == TRUE);
+  require(truth);
   require(CloseHandle(proc));
   // Terminate process with exit code 37
   require(TerminateJobObject(m_job, 37));

@@ -5,15 +5,27 @@ Encrypting Temporary Files
 ==========================================================
 
 For InnoDB user-created temporary tables, created in a temporary tablespace
-file, use the :variable:`innodb_temp_tablespace_encrypt` variable.
+file, use the :ref:`innodb_temp_tablespace_encrypt` variable.
 
-.. variable:: innodb_temp_tablespace_encrypt
+.. _innodb_temp_tablespace_encrypt:
 
-   :cli: ``innodb-temp-tablespace-encrypt``
-   :dyn: Yes
-   :scope: Global
-   :vartype: Boolean
-   :default: ``OFF``
+.. rubric:: ``innodb_temp_tablespace_encrypt``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``innodb-temp-tablespace-encrypt``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
 
 When this variable is set to ``ON``, the server encrypts the global temporary
 tablespace (:file: `ibtmp*` files) and the session temporary tablespaces
@@ -31,9 +43,9 @@ are located in the encrypted session temporary tablespace.
 To create new temporary tablespaces unencrypted, the following variables must
 be set to ``OFF`` at runtime:
 
-* :variable:`innodb_temp_tablespace_encrypt`
+* :ref:`innodb_temp_tablespace_encrypt`
 
-* :variable:`default_table_encryption`
+* :ref:`default_table_encryption`
 
 Any existing encrypted user-created temporary files and intrinsic temporary
 tables remain in an encrypted session.
@@ -70,19 +82,31 @@ For each temporary file, an encryption key has the following attributes:
 System Variables
 ----------------------
 
-.. variable:: encrypt_tmp_files
+.. _encrypt_tmp_files:
 
-   :cli: ``--encrypt_tmp_files``
-   :dyn: No
-   :scope: Global
-   :vartype: Boolean
-   :default: ``OFF``
+.. rubric:: ``encrypt_tmp_files``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--encrypt_tmp_files``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
 
 This variable turns "ON" the encryption of temporary files created by |Percona
 Server|. The default value is ``OFF``.
 
   .. seealso::
 
-    |MySQL| Documentation
+    *MySQL* Documentation
     https://dev.mysql.com/doc/refman/8.0/en/create-temporary-table.html
 

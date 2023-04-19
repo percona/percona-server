@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,6 @@ Primary_election_secondary_process::Primary_election_secondary_process()
       primary_ready(false),
       group_in_read_mode(false),
       is_waiting_on_read_mode_group(false),
-      read_mode_session_id(0),
-      is_read_mode_set(SECONDARY_ELECTION_READ_MODE_NOT_SET),
       number_of_know_members(0) {
   mysql_mutex_init(key_GR_LOCK_primary_election_secondary_process_run,
                    &election_lock, MY_MUTEX_INIT_FAST);
@@ -59,7 +57,7 @@ void Primary_election_secondary_process::set_stop_wait_timeout(ulong timeout) {
 
 int Primary_election_secondary_process::launch_secondary_election_process(
     enum_primary_election_mode mode, std::string &primary_to_elect,
-    std::vector<Group_member_info *> *group_members_info) {
+    Group_member_info_list *group_members_info) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&election_lock);
@@ -77,8 +75,6 @@ int Primary_election_secondary_process::launch_secondary_election_process(
   group_in_read_mode = false;
   is_waiting_on_read_mode_group = false;
   election_process_aborted = false;
-  read_mode_session_id = 0;
-  is_read_mode_set = SECONDARY_ELECTION_READ_MODE_NOT_SET;
 
   known_members_addresses.clear();
   for (Group_member_info *member : *group_members_info) {
@@ -162,8 +158,10 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
   }
 
   if (election_mode == DEAD_OLD_PRIMARY) {
-    group_events_observation_manager->after_primary_election(primary_uuid, true,
-                                                             election_mode);
+    group_events_observation_manager->after_primary_election(
+        primary_uuid,
+        enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+        election_mode);
     goto wait_for_queued_message;
   }
 
@@ -230,7 +228,10 @@ end:
 
   if (error && !election_process_aborted) {
     group_events_observation_manager->after_primary_election(
-        primary_uuid, true, election_mode, error); /* purecov: inspected */
+        primary_uuid,
+        enum_primary_election_primary_change_status::
+            PRIMARY_DID_CHANGE_WITH_ERROR,
+        election_mode, error); /* purecov: inspected */
     kill_transactions_and_leave_on_election_error(
         err_msg); /* purecov: inspected */
   }
@@ -244,15 +245,15 @@ end:
   global_thd_manager_remove_thd(thd);
   delete thd;
 
-  mysql_mutex_lock(&election_lock);
-  election_process_thd_state.set_terminated();
-  mysql_cond_broadcast(&election_cond);
-  mysql_mutex_unlock(&election_lock);
-
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
   my_thread_end();
+
+  mysql_mutex_lock(&election_lock);
+  election_process_thd_state.set_terminated();
+  mysql_cond_broadcast(&election_cond);
+  mysql_mutex_unlock(&election_lock);
 
   return error;
 }
@@ -266,53 +267,12 @@ bool Primary_election_secondary_process::enable_read_mode_on_server() {
   remote_clone_handler->lock_gr_clone_read_mode_lock();
 
   if (!plugin_is_group_replication_cloning()) {
-    mysql_mutex_lock(&election_lock);
-    Sql_service_command_interface *sql_command_interface =
-        new Sql_service_command_interface();
-    error = sql_command_interface->establish_session_connection(
-        PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer());
-    if (!error) {
-      read_mode_session_id =
-          sql_command_interface->get_sql_service_interface()->get_session_id();
-      is_read_mode_set = SECONDARY_ELECTION_READ_MODE_BEING_SET;
-    }
-    mysql_mutex_unlock(&election_lock);
-
     if (!error && !election_process_aborted) {
-      error = enable_super_read_only_mode(sql_command_interface);
+      error = enable_server_read_mode();
     }
-
-    mysql_mutex_lock(&election_lock);
-    delete sql_command_interface;
-    is_read_mode_set = SECONDARY_ELECTION_READ_MODE_IS_SET;
-    mysql_mutex_unlock(&election_lock);
   }
 
   remote_clone_handler->unlock_gr_clone_read_mode_lock();
-
-  return error != 0;
-}
-
-bool Primary_election_secondary_process::kill_read_mode_query() {
-  int error = 0;
-
-  mysql_mutex_assert_owner(&election_lock);
-
-  if (is_read_mode_set == SECONDARY_ELECTION_READ_MODE_BEING_SET) {
-    assert(read_mode_session_id != 0);
-    Sql_service_command_interface *sql_command_interface =
-        new Sql_service_command_interface();
-    error = sql_command_interface->establish_session_connection(
-        PSESSION_DEDICATED_THREAD, GROUPREPL_USER, get_plugin_pointer());
-    if (!error) {
-      error = sql_command_interface->kill_session(read_mode_session_id);
-      // If the thread is no longer there don't report an warning
-      if (ER_NO_SUCH_THREAD == error) {
-        error = 0; /* purecov: inspected */
-      }
-    }
-    delete sql_command_interface;
-  }
 
   return error != 0;
 }
@@ -348,8 +308,21 @@ int Primary_election_secondary_process::after_view_change(
     if (!group_in_read_mode) {
       group_in_read_mode = true;
       mysql_cond_broadcast(&election_cond);
+      /*
+       group_in_read_mode is false so response from some member was still
+       pending. But known_members_addresses is empty so members on which
+       election was waiting have left the group.
+       If primary is part of the group then we can end the election normally.
+       If primary member has left the group then forcefully end the election so
+       that new election can take place.
+      */
+      const enum_primary_election_primary_change_status primary_changed_status =
+          group_member_mgr->is_member_info_present(primary_uuid)
+              ? enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE
+              : enum_primary_election_primary_change_status::
+                    PRIMARY_DID_NOT_CHANGE_PRIMARY_LEFT_FORCE_ELECTION_END;
       group_events_observation_manager->after_primary_election(
-          primary_uuid, true, election_mode);
+          primary_uuid, primary_changed_status, election_mode);
     }
   }
 
@@ -371,7 +344,8 @@ int Primary_election_secondary_process::after_view_change(
 }
 
 int Primary_election_secondary_process::after_primary_election(
-    std::string, bool, enum_primary_election_mode, int) {
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0;
 }
 
@@ -420,7 +394,9 @@ int Primary_election_secondary_process::before_message_handling(
           group_in_read_mode = true;
           mysql_cond_broadcast(&election_cond);
           group_events_observation_manager->after_primary_election(
-              primary_uuid, true, election_mode);
+              primary_uuid,
+              enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+              election_mode);
         }
       }
       mysql_mutex_unlock(&election_lock);
@@ -441,13 +417,6 @@ int Primary_election_secondary_process::terminate_election_process(bool wait) {
 
   // Awake up possible stuck conditions
   mysql_cond_broadcast(&election_cond);
-
-  if (kill_read_mode_query()) {
-    abort_plugin_process(
-        "In the primary election process it was not possible to kill a "
-        "previous query trying to enable the server read "
-        "mode."); /* purecov: inspected */
-  }
 
   if (wait) {
     while (election_process_thd_state.is_thread_alive()) {

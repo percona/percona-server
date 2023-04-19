@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "sql/auth/auth_common.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/partitioned_rwlock.h"
+#include "sql/auth/sql_mfa.h" /* I_multi_factor_auth */
 #include "sql/auth/user_table.h"
 #include "sql/sql_audit.h"
 #include "sql/table.h"
@@ -138,7 +139,8 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
                      acl_table::Pod_user_what_to_update &what_to_update,
-                     uint failed_login_attempts, int password_lock_time);
+                     uint failed_login_attempts, int password_lock_time,
+                     const I_multi_factor_auth *mfa);
 void acl_users_add_one(const char *user, const char *host,
                        enum SSL_type ssl_type, const char *ssl_cipher,
                        const char *x509_issuer, const char *x509_subject,
@@ -148,7 +150,8 @@ void acl_users_add_one(const char *user, const char *host,
                        const MYSQL_TIME &password_change_time,
                        const LEX_ALTER &password_life, bool add_role_vertex,
                        Restrictions &restrictions, uint failed_login_attempts,
-                       int password_lock_time, THD *thd MY_ATTRIBUTE((unused)));
+                       int password_lock_time, const I_multi_factor_auth *mfa,
+                       THD *thd [[maybe_unused]]);
 void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type, const char *ssl_cipher,
                      const char *x509_issuer, const char *x509_subject,
@@ -156,7 +159,8 @@ void acl_insert_user(THD *thd, const char *user, const char *host,
                      const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
-                     uint failed_login_attempts, int password_lock_time);
+                     uint failed_login_attempts, int password_lock_time,
+                     const I_multi_factor_auth *mfa);
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke);
 void acl_update_db(const char *user, const char *host, const char *db,
                    ulong privileges);
@@ -173,6 +177,7 @@ bool acl_reload(THD *thd, bool mdl_locked);
 bool grant_reload(THD *thd, bool mdl_locked);
 void clean_user_cache();
 bool set_user_salt(ACL_USER *acl_user);
+void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str);
 
 /* sql_user_table */
 ulong get_access(TABLE *form, uint fieldnr, uint *next_field);
@@ -195,11 +200,11 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                           const LEX_USER &combo, const char *db,
                           const char *routine_name, bool is_proc, ulong rights,
                           bool revoke_grant);
-int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-void acl_tables_setup_for_read(TABLE_LIST *tables);
+int open_grant_tables(THD *thd, Table_ref *tables, bool *transactional_tables);
+void acl_tables_setup_for_read(Table_ref *tables);
 
 void acl_print_ha_error(int handler_error);
-bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
+bool check_engine_type_for_acl_table(Table_ref *tables, bool report_error);
 bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users = nullptr,
                             Rewrite_params *rewrite_params = nullptr,
@@ -266,8 +271,7 @@ struct role_id_hash {
   }
 };
 
-typedef std::unordered_multimap<const Role_id, const Role_id, role_id_hash>
-    Default_roles;
+typedef std::unordered_multimap<Role_id, Role_id, role_id_hash> Default_roles;
 typedef std::map<std::string, bool> Dynamic_privileges;
 
 void get_privilege_access_maps(
@@ -300,15 +304,16 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
                          LEX_USER *user_from, LEX_USER *user_to);
 bool set_and_validate_user_attributes(
     THD *thd, LEX_USER *Str, acl_table::Pod_user_what_to_update &what_to_set,
-    bool is_privileged_user, bool is_role, TABLE_LIST *history_table,
-    bool *history_check_done, const char *cmd, Userhostpassword_list &);
+    bool is_privileged_user, bool is_role, Table_ref *history_table,
+    bool *history_check_done, const char *cmd, Userhostpassword_list &,
+    I_multi_factor_auth **mfa = nullptr);
 typedef std::pair<std::string, bool> Grant_privilege;
-typedef std::unordered_multimap<const Role_id, Grant_privilege, role_id_hash>
+typedef std::unordered_multimap<Role_id, Grant_privilege, role_id_hash>
     User_to_dynamic_privileges_map;
 User_to_dynamic_privileges_map *get_dynamic_privileges_map();
 User_to_dynamic_privileges_map *swap_dynamic_privileges_map(
     User_to_dynamic_privileges_map *map);
-bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst);
+bool populate_roles_caches(THD *thd, Table_ref *tablelst);
 void grant_role(ACL_USER *role, const ACL_USER *user, bool with_admin_opt);
 void get_mandatory_roles(std::vector<Role_id> *mandatory_roles);
 extern std::vector<Role_id> *g_mandatory_roles;
@@ -337,4 +342,7 @@ bool read_user_application_user_metadata_from_table(LEX_CSTRING user,
                                                     TABLE *table,
                                                     bool mode_no_backslash);
 bool is_expected_or_transient_error(THD *thd);
+bool report_missing_user_grant_message(THD *thd, bool user_exists,
+                                       const char *user, const char *host,
+                                       const char *object_name, int err_code);
 #endif /* AUTH_INTERNAL_INCLUDED */

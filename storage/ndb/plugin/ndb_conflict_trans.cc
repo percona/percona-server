@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ st_row_event_key_info::st_row_event_key_info(const NdbDictionary::Table *_table,
       packed_key(_key_buff),
       packed_key_len(_key_buff_len),
       transaction_id(_transaction_id),
-      hash_next(NULL) {}
+      hash_next(nullptr) {}
 
 Uint64 st_row_event_key_info::getTransactionId() const {
   return transaction_id;
@@ -89,7 +89,7 @@ st_trans_dependency::st_trans_dependency(st_transaction *_target_transaction,
     : target_transaction(_target_transaction),
       dependent_transaction(_dependent_transaction),
       next_entry(_next),
-      hash_next(NULL) {}
+      hash_next(nullptr) {}
 
 st_transaction *st_trans_dependency::getTargetTransaction() const {
   return target_transaction;
@@ -132,8 +132,8 @@ void st_trans_dependency::setNext(st_trans_dependency *_next) {
 st_transaction::st_transaction(Uint64 _transaction_id)
     : transaction_id(_transaction_id),
       in_conflict(false),
-      dependency_list_head(NULL),
-      hash_next(NULL) {}
+      dependency_list_head(nullptr),
+      hash_next(nullptr) {}
 
 Uint64 st_transaction::getTransactionId() const { return transaction_id; }
 
@@ -178,7 +178,7 @@ template class LinkedStack<Uint64, st_mem_root_allocator>;
  * Given a table, key_record and record, this method will
  * determine how many significant bytes the key contains,
  * and if a buffer is passed, will copy the bytes into the
- * buffer.
+ * buffer. Returns -1 on failure and 0 on success
  */
 static int pack_key_to_buffer(const NdbDictionary::Table *table,
                               const NdbRecord *key_rec, const uchar *record,
@@ -190,7 +190,7 @@ static int pack_key_to_buffer(const NdbDictionary::Table *table,
    */
   Uint32 attr_id;
   Uint32 buff_offset = 0;
-  NdbDictionary::getFirstAttrId(key_rec, attr_id);
+  if (!NdbDictionary::getFirstAttrId(key_rec, attr_id)) return -1;
 
   do {
     Uint32 from_offset = 0;
@@ -211,6 +211,9 @@ static int pack_key_to_buffer(const NdbDictionary::Table *table,
         byte_len = uint2korr(&record[from_offset]);
         from_offset += 2;
         break;
+      default:
+        assert(false);
+        return -1;
     };
     assert((buff_offset + byte_len) <= buff_len);
 
@@ -223,13 +226,15 @@ static int pack_key_to_buffer(const NdbDictionary::Table *table,
   return 0;
 }
 
-static Uint32 determine_packed_key_size(const NdbDictionary::Table *table,
-                                        const NdbRecord *key_rec,
-                                        const uchar *record) {
-  Uint32 key_size = ~Uint32(0);
+static bool determine_packed_key_size(const NdbDictionary::Table *table,
+                                      const NdbRecord *key_rec,
+                                      const uchar *record,
+                                      Uint32 &required_buff_size) {
   /* Use pack_key_to_buffer to calculate length required */
-  pack_key_to_buffer(table, key_rec, record, NULL, key_size);
-  return key_size;
+  if (pack_key_to_buffer(table, key_rec, record, nullptr, required_buff_size) ==
+      -1)
+    return false;
+  return true;
 }
 
 /* st_mem_root_allocator implementation */
@@ -255,7 +260,7 @@ st_mem_root_allocator::st_mem_root_allocator(MEM_ROOT *_mem_root)
 /* DependencyTracker implementation */
 
 DependencyTracker *DependencyTracker::newDependencyTracker(MEM_ROOT *mem_root) {
-  DependencyTracker *dt = NULL;
+  DependencyTracker *dt = nullptr;
   // Allocate memory from MEM_ROOT
   void *mem = mem_root->Alloc(sizeof(DependencyTracker));
   if (mem) {
@@ -272,7 +277,7 @@ DependencyTracker::DependencyTracker(MEM_ROOT *mem_root)
       dependency_hash(&mra),
       iteratorTodo(ITERATOR_STACK_BLOCKSIZE, &mra),
       conflicting_trans_count(0),
-      error_text(NULL) {
+      error_text(nullptr) {
   /* TODO Get sizes from somewhere */
   key_hash.setSize(1024);
   trans_hash.setSize(100);
@@ -285,7 +290,12 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
                                        Uint64 transaction_id) {
   DBUG_TRACE;
 
-  Uint32 required_buff_size = determine_packed_key_size(table, key_rec, row);
+  Uint32 required_buff_size = ~Uint32(0);
+  if (!determine_packed_key_size(table, key_rec, row, required_buff_size)) {
+    if (!error_text)
+      error_text = "track_operation : Failed to determine packed key size";
+    return -1;
+  }
   DBUG_PRINT("info", ("Required length for key : %u", required_buff_size));
 
   /* Alloc space for packed key and struct in MEM_ROOT */
@@ -293,7 +303,7 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
   void *element_mem = mra.mem_root->Alloc(sizeof(st_row_event_key_info));
 
   if (pack_key_to_buffer(table, key_rec, row, packed_key_buff,
-                         required_buff_size)) {
+                         required_buff_size) == -1) {
     if (!error_text) error_text = "track_operation : Failed packing key";
     return -1;
   }
@@ -331,7 +341,7 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
       */
       existing->updateRowTransactionId(newTransIdOnRow);
 
-      assert(res == 0 || error_text != NULL);
+      assert(res == 0 || error_text != nullptr);
 
       return res;
     } else {
@@ -404,7 +414,7 @@ bool DependencyTracker::in_conflict(Uint64 trans_id) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("trans_id %llu", trans_id));
   st_transaction key(trans_id);
-  const st_transaction *entry = NULL;
+  const st_transaction *entry = nullptr;
 
   /*
     If transaction hash entry exists, check it for
@@ -422,7 +432,7 @@ bool DependencyTracker::in_conflict(Uint64 trans_id) {
 st_transaction *DependencyTracker::get_or_create_transaction(Uint64 trans_id) {
   DBUG_TRACE;
   st_transaction transKey(trans_id);
-  st_transaction *transEntry = NULL;
+  st_transaction *transEntry = nullptr;
 
   if (!(transEntry = trans_hash.get(&transKey))) {
     /*
@@ -440,7 +450,7 @@ st_transaction *DependencyTracker::get_or_create_transaction(Uint64 trans_id) {
 
       if (!trans_hash.add(transEntry)) {
         st_mem_root_allocator::mem_free(&mra, transEntry); /* For show */
-        transEntry = NULL;
+        transEntry = nullptr;
       }
     }
   }
@@ -467,9 +477,9 @@ int DependencyTracker::add_dependency(Uint64 trans_id,
   }
 
   /* Now lookup dependency.  Add it if not already present */
-  st_trans_dependency depKey(targetEntry, dependentEntry, NULL);
-  st_trans_dependency *dep = NULL;
-  if (!(dep = dependency_hash.get(&depKey))) {
+  st_trans_dependency depKey(targetEntry, dependentEntry, nullptr);
+  st_trans_dependency *dep = dependency_hash.get(&depKey);
+  if (dep == nullptr) {
     DBUG_PRINT("info", ("Creating new dependency hash entry for "
                         "dependency of %llu on %llu.",
                         dependentEntry->getTransactionId(),
@@ -533,14 +543,14 @@ st_transaction *DependencyTracker::get_next_dependency(
 
   assert(iteratorTodo.size() == 0);
   DBUG_PRINT("info", ("No more dependencies to visit"));
-  return NULL;
+  return nullptr;
 }
 
 void DependencyTracker::dump_dependents(Uint64 trans_id) {
   fprintf(stderr, "Dumping dependents of transid %llu : ", trans_id);
 
   st_transaction key(trans_id);
-  const st_transaction *dependent = NULL;
+  const st_transaction *dependent = nullptr;
 
   if ((dependent = trans_hash.get(&key))) {
     reset_dependency_iterator();
@@ -577,7 +587,7 @@ bool DependencyTracker::verify_graph() {
   HashMap2<st_transaction, true, st_mem_root_allocator>::Iterator it(
       trans_hash);
 
-  st_transaction *root = NULL;
+  st_transaction *root = nullptr;
 
   while ((root = it.next())) {
     bool in_conflict = root->getInConflict();

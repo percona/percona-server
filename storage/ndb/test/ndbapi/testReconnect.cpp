@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
 
         if (extra_loops < 10)
         {
-          // Check that last query suceeded
+          // Check that last query succeeded
           if (sql.last_errno() != 0)
           {
             g_err << "Fatal error during shutdown queries: "
@@ -110,7 +110,7 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
         }
         else
         {
-          // We are done, signal sucess
+          // We are done, signal success
           result= NDBT_OK;
         }
       }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,12 +34,12 @@
 #include <NdbConfig.h>
 #include <Configuration.hpp>
 #include "EventLogger.hpp"
-extern EventLogger * g_eventLogger;
 
 #include "ndb_stacktrace.h"
 #include "TimeModule.hpp"
 
 #include <NdbAutoPtr.hpp>
+#include <NdbSleep.h>
 
 #define JAM_FILE_ID 490
 
@@ -63,6 +63,10 @@ static void dumpJam(FILE* jamStream,
 		    const JamEvent thrdTheEmulatedJam[]);
 
 const char * ndb_basename(const char *path);
+
+#ifdef ERROR_INSERT
+int simulate_error_during_error_reporting = 0;
+#endif
 
 static
 const char*
@@ -154,12 +158,15 @@ ErrorReporter::formatMessage(int thr_no,
 
   /* Extract the name of the trace file to log explicitly as it is
    * often truncated due to long path names */
-  BaseString traceFileFullPath(theNameOfTheTraceFile);
-  Vector<BaseString> traceFileComponents;
-  int noOfComponents = traceFileFullPath.split(traceFileComponents,
-                                               DIR_SEPARATOR);
-  assert(noOfComponents >= 1);
-  BaseString failingThdTraceFileName = traceFileComponents[noOfComponents-1];
+  BaseString failingThdTraceFileName("");
+  if (theNameOfTheTraceFile) {
+    BaseString traceFileFullPath(theNameOfTheTraceFile);
+    Vector<BaseString> traceFileComponents;
+    int noOfComponents = traceFileFullPath.split(traceFileComponents,
+                                                 DIR_SEPARATOR);
+    assert(noOfComponents >= 1);
+    failingThdTraceFileName = traceFileComponents[noOfComponents-1];
+  }
 
   processId = NdbHost_GetProcessId();
   char thrbuf[100] = "";
@@ -345,7 +352,8 @@ WriteMessage(int thrdMessageID,
     stream = fopen(theErrorFileName, "w");
     if(stream == NULL)
     {
-      fprintf(stderr,"Unable to open error log file: %s\n", theErrorFileName);
+      g_eventLogger->info("Unable to open error log file: %s",
+                          theErrorFileName);
       return -1;
     }
     fprintf(stream, "%s%u%s", "Current byte-offset of file-pointer is: ", 69,
@@ -433,6 +441,14 @@ WriteMessage(int thrdMessageID,
   fclose(stream);
 
   ErrorReporter::prepare_to_crash(false, (nst == NST_ErrorInsert));
+
+#ifdef ERROR_INSERT
+  if (simulate_error_during_error_reporting == 1)
+  {
+    fprintf(stderr, "Stall during error reporting after releasing lock\n");
+    NdbSleep_MilliSleep(30000);
+  }
+#endif
 
   if (theTraceFileName) {
     /* Attempt to stop all processing to be able to dump a consistent state. */

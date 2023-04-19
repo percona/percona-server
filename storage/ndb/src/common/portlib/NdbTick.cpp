@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,10 @@
 */
 
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <NdbTick.h>
+#include <EventLogger.hpp>
 
 #define NANOSEC_PER_SEC  1000000000
 #define MICROSEC_PER_SEC 1000000
@@ -81,9 +83,9 @@ void NdbTick_Init()
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 
-  fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_gettime,"
-          " errno=%u.  Aborting\n", errno);
-  fflush(stderr);
+  g_eventLogger->info(
+      "Failed to use CLOCK_REALTIME for clock_gettime, errno=%u.  Aborting",
+      errno);
   abort();
 
 #elif defined(_WIN32)
@@ -96,27 +98,27 @@ void NdbTick_Init()
   BOOL res = QueryPerformanceFrequency(&perf_frequency);
   if (!res)
   {
-    fprintf(stderr, "BEWARE: A suitable monotonic timer was not available on "
-                    "this platform. ('QueryPerformanceFrequency()' failed)."
-                    "This is not a suitable platform for this SW.\n");
-    fflush(stderr);
+    g_eventLogger->info(
+        "BEWARE: A suitable monotonic timer was not available"
+        " on this platform. ('QueryPerformanceFrequency()' failed). "
+        "This is not a suitable platform for this SW.");
     abort();
   }
   LARGE_INTEGER unused;
   res = QueryPerformanceCounter(&unused);
   if (!res)
   {
-    fprintf(stderr, "BEWARE: A suitable monotonic timer was not available on "
-                    "this platform. ('QueryPerformanceCounter()' failed)."
-                    "This is not a suitable platform for this SW.\n");
-    fflush(stderr);
+    g_eventLogger->info(
+        "BEWARE: A suitable monotonic timer was not available on "
+        "this platform. ('QueryPerformanceCounter()' failed). "
+        "This is not a suitable platform for this SW.");
     abort();
   }
   NdbDuration::tick_frequency = (Uint64)(perf_frequency.QuadPart);
   assert(NdbDuration::tick_frequency != 0);
 
 #else
-  /* Considder to deprecate platforms not supporting monotonic counters */
+  /* Consider to deprecate platforms not supporting monotonic counters */
   //#error "A monotonic counter was not available on this platform"
 
   // gettimeofday() resolution is usec
@@ -164,7 +166,7 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
    * timespec arg is an invalid pointer.
    * As we test the clk_id in NdbTick_Init() at startup,
    * and is in control of the tp-arg ourself, it should be
-   * safe to assume that errors wil never be returned.
+   * safe to assume that errors will never be returned.
    */
   assert(res==0);
   (void)res;
@@ -172,19 +174,20 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
 #ifndef NDBUG
   if (unlikely(res != 0))
   {
-    fprintf(stderr, "clock_gettime(%u, tp) failed, errno=%d\n", 
-            NdbTick_clk_id, errno);
+    g_eventLogger->info("clock_gettime(%u, tp) failed, errno=%d",
+                        NdbTick_clk_id, errno);
 #ifdef CLOCK_MONOTONIC
-    fprintf(stderr, "CLOCK_MONOTONIC=%u\n", CLOCK_MONOTONIC);
+    g_eventLogger->info("CLOCK_MONOTONIC=%u", CLOCK_MONOTONIC);
 #endif
 #ifdef  CLOCK_HIGHRES
-    fprintf(stderr, "CLOCK_HIGHRES=%u\n", CLOCK_HIGHRES);
+    g_eventLogger->info("CLOCK_HIGHRES=%u", CLOCK_HIGHRES);
 #endif
 #ifdef CLOCK_UPTIME_RAW
-    fprintf(stderr, "CLOCK_UPTIME_RAW=%u\n", CLOCK_UPTIME_RAW);
+    g_eventLogger->info("CLOCK_UPTIME_RAW=%u", CLOCK_UPTIME_RAW);
 #endif
-    fprintf(stderr, "CLOCK_REALTIME=%u\n", CLOCK_REALTIME);
-    fprintf(stderr, "NdbTick_clk_id = %u\n", NdbTick_clk_id);
+    g_eventLogger->info("CLOCK_REALTIME=%u", CLOCK_REALTIME);
+    g_eventLogger->info("NdbTick_clk_id = %u", NdbTick_clk_id);
+
     abort();
   }
 #endif
@@ -195,7 +198,7 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
 
 #elif defined(_WIN32)
   LARGE_INTEGER t_cnt;
-  const BOOL res = QueryPerformanceCounter(&t_cnt);
+  const BOOL res [[maybe_unused]] = QueryPerformanceCounter(&t_cnt);
   /**
    * We tested support of QPC in NdbTick_Init().
    * Thus, it should not fail later.

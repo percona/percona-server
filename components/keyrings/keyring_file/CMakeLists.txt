@@ -1,4 +1,4 @@
-# Copyright (c) 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,10 @@ ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="component_keyring_file")
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
+
 
 SET(KEYRING_FILE_SOURCE
   # Encryption handling
@@ -80,3 +83,8 @@ MYSQL_ADD_COMPONENT(keyring_file
   LINK_LIBRARIES ${KEYRING_FILE_LIBRARIES}
   MODULE_ONLY
 )
+IF(APPLE)
+  SET_TARGET_PROPERTIES(component_keyring_file PROPERTIES
+    LINK_FLAGS "-undefined dynamic_lookup")
+ENDIF()
+

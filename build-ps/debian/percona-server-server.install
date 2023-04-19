@@ -50,6 +50,10 @@ usr/share/mysql/*.sql
 #private shared libs
 usr/lib/mysql/private/libprotobuf-lite.so.*
 usr/lib/mysql/private/libprotobuf.so.*
+usr/lib/mysql/private/libfido2.so.*
+# private data files
+usr/lib/mysql/private/icudt69l/unames.icu
+usr/lib/mysql/private/icudt69l/brkitr/*
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so
@@ -107,6 +111,12 @@ usr/lib/mysql/plugin/debug/component_query_attributes.so
 usr/lib/mysql/plugin/debug/component_test_component_deinit.so
 usr/lib/mysql/plugin/debug/component_reference_cache.so
 usr/lib/mysql/plugin/debug/component_keyring_file.so
+usr/lib/mysql/plugin/debug/authentication_kerberos_client.so
+usr/lib/mysql/plugin/debug/component_test_table_access.so
+usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
+usr/lib/mysql/plugin/debug/semisync_replica.so
+usr/lib/mysql/plugin/debug/semisync_source.so
+usr/lib/mysql/plugin/debug/authentication_fido_client.so
 
 # Percona plugins
 usr/lib/mysql/plugin/audit_log.so
@@ -123,8 +133,6 @@ usr/lib/mysql/plugin/libmurmur_udf.so
 usr/lib/mysql/plugin/debug/libmurmur_udf.so
 usr/lib/mysql/plugin/dialog.so
 usr/lib/mysql/plugin/debug/dialog.so
-usr/lib/mysql/plugin/auth.so
-usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/connection_control.so
 usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
@@ -138,6 +146,25 @@ usr/lib/mysql/plugin/debug/binlog_utils_udf.so
 usr/lib/mysql/plugin/debug/test_udf_wrappers.so
 usr/lib/mysql/plugin/procfs.so
 usr/lib/mysql/plugin/debug/procfs.so
+usr/lib/mysql/plugin/authentication_kerberos_client.so
+usr/lib/mysql/plugin/semisync_replica.so
+usr/lib/mysql/plugin/semisync_source.so
+usr/lib/mysql/plugin/component_test_table_access.so
+usr/lib/mysql/plugin/component_test_mysql_system_variable_set.so
+usr/lib/mysql/plugin/authentication_oci_client.so
+usr/lib/mysql/plugin/component_keyring_kmip.so
+usr/lib/mysql/plugin/debug/authentication_oci_client.so
+usr/lib/mysql/plugin/debug/component_keyring_kmip.so
+usr/lib/mysql/plugin/authentication_fido_client.so
+usr/lib/mysql/plugin/component_encryption_udf.so
+usr/lib/mysql/plugin/debug/component_encryption_udf.so
+usr/lib/mysql/plugin/component_keyring_kms.so
+usr/lib/mysql/plugin/debug/component_keyring_kms.so
+usr/lib/mysql/plugin/authentication_fido.so
+usr/lib/mysql/plugin/debug/authentication_fido.so
+usr/lib/mysql/plugin/authentication_ldap_sasl.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
+
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/mysql-log-rotate

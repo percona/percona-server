@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 /** These templated classes represent normal C or C++ function calls.
   *
-  * They inherit from AsyncCall_Returning<R>, which encapsualtes
+  * They inherit from AsyncCall_Returning<R>, which encapsulates
   * wrapper functions for async execution, and some return type,
   * and from a Call_N_<> template class templated over argument types.
   *
@@ -262,7 +262,7 @@ public:
 
 
 /** Template class with no arguments
- * Wrapped native funtion call returning void
+ * Wrapped native function call returning void
  *
 **/
 class NativeCVoidFunctionCall_0_ : public AsyncCall_Returning<int> {
@@ -286,7 +286,7 @@ public:
 
 /** Template class with:
  * one argument of type A0
- * Wrapped native funtion call returning void
+ * Wrapped native function call returning void
  * The javascript return value is integer 0.
  *
 **/

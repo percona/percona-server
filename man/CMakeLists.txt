@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,6 @@ IF(NOT WITH_SYSTEMD)
 ENDIF()
 
 SET(MAN1_NDB
-  ndb-common-options.1
   ndb_blob_tool.1
   ndb_config.1
   ndb_cpcd.1
@@ -82,6 +81,7 @@ SET(MAN1_NDB
   ndb_print_sys_file.1
   ndb_redo_log_reader.1
   ndb_restore.1
+  ndb_secretsfile_reader.1
   ndb_select_all.1
   ndb_select_count.1
   ndb_show_tables.1
@@ -89,6 +89,7 @@ SET(MAN1_NDB
   ndb_top.1
   ndb_waiter.1
   ndbinfo_select_all.1
+  ndbxfrm.1
 )
 SET(MAN1_ROUTER
   mysqlrouter.1
@@ -113,7 +114,7 @@ IF(WITH_ROUTER)
     )
 ENDIF()
 
-IF(WITH_NDBCLUSTER)
+IF(WITH_NDB)
   INSTALL(FILES ${MAN1_NDB}
     DESTINATION ${INSTALL_MANDIR}/man1 COMPONENT ManPages)
   INSTALL(FILES ${MAN8_NDB}

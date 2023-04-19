@@ -1,5 +1,5 @@
 #################################################
-# Testing mysqldump with options: --single-transaction --master-data
+# Testing mysqldump with options: --single-transaction --source-data
 #################################################
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (0);

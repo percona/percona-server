@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ Compatibility_type Compatibility_module::check_incompatibility(
   return COMPATIBLE;
 }
 
-/* Compatibility_module is independant, we cannot use local_member_info or
+/* Compatibility_module is independent, we cannot use local_member_info or
  * group_mgr. */
 Compatibility_type Compatibility_module::check_version_incompatibility(
     Member_version from, Member_version to) {

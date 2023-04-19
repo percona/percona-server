@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,13 +27,14 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <functional>  // std::function
+#include <optional>
 
 #include "lex_string.h"
 
+#include "field_types.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/bits/psi_bits.h"
-#include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"
 #include "sql/key.h"  // KEY
@@ -54,11 +55,7 @@ class Item;
 class Key_spec;
 class String;
 class THD;
-struct TABLE_LIST;
-
-enum enum_field_types : int;
-
-using Mysql::Nullable;
+class Table_ref;
 
 /**
   Class representing DROP COLUMN, DROP KEY, DROP FOREIGN KEY, DROP CHECK
@@ -90,10 +87,10 @@ class Alter_column {
   /// The default value supplied.
   Item *def;
 
-  /// The expression to be used to generated the default value.
+  /// The expression to be used to generate the default value.
   Value_generator *m_default_val_expr;
 
-  /// The new colum name.
+  /// The new column name.
   const char *m_new_name;
 
   enum class Type {
@@ -291,7 +288,7 @@ class Alter_info {
     /// Set for DROP FOREIGN KEY
     DROP_FOREIGN_KEY = 1ULL << 22,
 
-    /// Set for EXCHANGE PARITION
+    /// Set for EXCHANGE PARTITION
     ALTER_EXCHANGE_PARTITION = 1ULL << 23,
 
     /// Set by Sql_cmd_alter_table_truncate_partition::execute()
@@ -374,10 +371,10 @@ class Alter_info {
      Describes the level of concurrency during ALTER TABLE.
   */
   enum enum_alter_table_lock {
-    // Maximum supported level of concurency for the given operation.
+    // Maximum supported level of concurrency for the given operation.
     ALTER_TABLE_LOCK_DEFAULT,
 
-    // Allow concurrent reads & writes. If not supported, give erorr.
+    // Allow concurrent reads & writes. If not supported, give error.
     ALTER_TABLE_LOCK_NONE,
 
     // Allow concurrent reads only. If not supported, give error.
@@ -507,7 +504,7 @@ class Alter_info {
                  const CHARSET_INFO *cs, bool has_explicit_collation,
                  uint uint_geom_type, const LEX_CSTRING *zip_dict,
                  Value_generator *gcol_info, Value_generator *default_val_expr,
-                 const char *opt_after, Nullable<gis::srid_t> srid,
+                 const char *opt_after, std::optional<gis::srid_t> srid,
                  Sql_check_constraint_spec_list *check_cons_list,
                  dd::Column::enum_hidden_type hidden, bool is_array = false);
 
@@ -530,7 +527,7 @@ class Alter_table_ctx {
  public:
   Alter_table_ctx();
 
-  Alter_table_ctx(THD *thd, TABLE_LIST *table_list, uint tables_opened_arg,
+  Alter_table_ctx(THD *thd, Table_ref *table_list, uint tables_opened_arg,
                   const char *new_db_arg, const char *new_name_arg);
 
   ~Alter_table_ctx();
@@ -628,7 +625,7 @@ class Sql_cmd_common_alter_table : public Sql_cmd_ddl_table {
   enum_sql_command sql_command_code() const final { return SQLCOM_ALTER_TABLE; }
 };
 
-inline Sql_cmd_common_alter_table::~Sql_cmd_common_alter_table() {}
+inline Sql_cmd_common_alter_table::~Sql_cmd_common_alter_table() = default;
 
 /**
   Represents the generic ALTER TABLE statement.
@@ -651,7 +648,7 @@ class Sql_cmd_discard_import_tablespace : public Sql_cmd_common_alter_table {
   bool execute(THD *thd) override;
 
  private:
-  bool mysql_discard_or_import_tablespace(THD *thd, TABLE_LIST *table_list);
+  bool mysql_discard_or_import_tablespace(THD *thd, Table_ref *table_list);
 };
 
 /**
@@ -665,7 +662,7 @@ class Sql_cmd_secondary_load_unload final : public Sql_cmd_common_alter_table {
   bool execute(THD *thd) override;
 
  private:
-  bool mysql_secondary_load_or_unload(THD *thd, TABLE_LIST *table_list);
+  bool mysql_secondary_load_or_unload(THD *thd, Table_ref *table_list);
 };
 
 #endif

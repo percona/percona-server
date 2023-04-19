@@ -4,11 +4,11 @@
 Multiple page asynchronous I/O requests
 =======================================
 
-I/O unit size in |InnoDB| is only one page, even if doing read ahead. 16KB
+I/O unit size in *InnoDB* is only one page, even if doing read ahead. 16KB
 I/O unit size is too small for sequential reads, and much less efficient than
 larger I/O unit size.
 
-|InnoDB| uses Linux asynchronous I/O (``aio``) by default. By submitting multiple
+*InnoDB* uses Linux asynchronous I/O (``aio``) by default. By submitting multiple
 consecutive 16KB read requests at once, Linux internally can merge requests and
 reads can be done more efficiently.
 
@@ -18,20 +18,29 @@ more than 1000MB/s disk reads can be achieved by submitting 64 consecutive pages
 requests at once, while only
 160MB/s disk reads is shown by submitting single page request.
 
-With this feature |InnoDB| submits multiple page I/O requests.
+With this feature *InnoDB* submits multiple page I/O requests.
 
 Version Specific Information
 ============================
 
-* :rn:`8.0.12-1` - The feature was ported from |Percona Server| 5.7.
+* `8.0.12-1` - The feature was ported from *Percona Server for MySQL* 5.7.
 
 Status Variables
 ================
 
-.. variable:: Innodb_buffered_aio_submitted
+.. _Innodb_buffered_aio_submitted:
 
-  :vartype: Numeric
-  :scope: Global
+.. rubric:: ``Innodb_buffered_aio_submitted``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Data type
+     - Numeric
+   * - Scope
+     - Global
 
 This variable shows the number of submitted buffered asynchronous I/O requests.
 

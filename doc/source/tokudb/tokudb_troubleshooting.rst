@@ -4,6 +4,16 @@
 TokuDB Troubleshooting
 ======================
 
+.. Important:: 
+
+   Starting with :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds.
+
+   Starting with :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   We recommend :ref:`migrate-myrocks`. To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+
 .. contents::
    :local:
    :depth: 1
@@ -13,20 +23,20 @@ TokuDB Troubleshooting
 Known Issues
 ===============================================================================
 
-**Replication and binary logging**: |TokuDB| supports binary logging and replication, with one restriction. |TokuDB| does not implement a lock on the auto-increment function, so concurrent insert statements with one or more of the statements inserting multiple rows may result in a non-deterministic interleaving of the auto-increment values. When running replication with these concurrent inserts, the auto-increment values on the replica table may not match the auto-increment values on the source table. Note that this is only an issue with Statement Based Replication (SBR), and not Row Based Replication (RBR).
+**Replication and binary logging**: *TokuDB* supports binary logging and replication, with one restriction. *TokuDB* does not implement a lock on the auto-increment function, so concurrent insert statements with one or more of the statements inserting multiple rows may result in a non-deterministic interleaving of the auto-increment values. When running replication with these concurrent inserts, the auto-increment values on the replica table may not match the auto-increment values on the source table. Note that this is only an issue with Statement Based Replication (SBR), and not Row Based Replication (RBR).
 
-For more information about auto-increment and replication, see the |MySQL|
+For more information about auto-increment and replication, see the *MySQL*
 Reference Manual: `AUTO_INCREMENT handling in InnoDB
 <http://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html>`_.
 
-In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with no secondary indexes or tables where secondary indexes are subsets of the primary, the session variable :variable:`tokudb_pk_insert_mode` controls whether row based replication will work.
+In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with no secondary indexes or tables where secondary indexes are subsets of the primary, the session variable :ref:`tokudb_pk_insert_mode` controls whether row based replication will work.
 
 **Uninformative error message**: The ``LOAD DATA INFILE`` command can sometimes
  produce ``ERROR 1030 (HY000): Got error 1 from storage engine``. The message
  should say that the error is caused by insufficient disk space for the
  temporary files created by the loader.
 
-**Transparent Huge Pages**: |TokuDB| will refuse to start if transparent huge
+**Transparent Huge Pages**: *TokuDB* will refuse to start if transparent huge
  pages are enabled. Transparent huge page support can be disabled by issuing the
  following as root:
 
@@ -39,8 +49,8 @@ In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with
    The previous command needs to be executed after every reboot, because it
    defaults to ``always``.
 
-**XA behavior vs. InnoDB**: |InnoDB| forces a deadlocked XA transaction to
- abort, |TokuDB| does not.
+**XA behavior vs. InnoDB**: *InnoDB* forces a deadlocked XA transaction to
+ abort, *TokuDB* does not.
 
 **Disabling the unique checks**: For tables with unique keys, every insertion
 into the table causes a lookup by key followed by an insertion, if the key is
@@ -55,16 +65,16 @@ entropy (it looks random), or your secondary keys are declared unique and have
 a lot of entropy, then disabling unique checks can provide a significant
 performance boost.
 
-If :variable:`unique_checks` is disabled when the primary key is not unique,
+If :ref:`unique_checks` is disabled when the primary key is not unique,
 secondary indexes may become corrupted. In this case, the indexes should be
-dropped and rebuilt. This behavior differs from that of |InnoDB|, in which
+dropped and rebuilt. This behavior differs from that of *InnoDB*, in which
 uniqueness is always checked on the primary key, and setting
-:variable:`unique_checks` to off turns off uniqueness checking on secondary
+:ref:`unique_checks` to off turns off uniqueness checking on secondary
 indexes only. Turning off uniqueness checking on the primary key can provide
 large performance boosts, but it should only be done when the primary key is
 known to be unique.
 
-**Group Replication**: |TokuDB| storage engine doesn't support `Group Replication
+**Group Replication**: *TokuDB* storage engine doesn't support `Group Replication
 <https://dev.mysql.com/doc/refman/8.0/en/group-replication.html>`_.
 
 As of 8.0.17, InnoDB supports `multi-valued indexes <https://dev.mysql.com/doc/refman/8.0/en/create-index.html#create-index-multi-valued>`__. TokuDB does not support this feature.
@@ -76,18 +86,18 @@ As of 8.0.17, InnoDB supports the `Clone Plugin <https://dev.mysql.com/doc/refma
 Lock Visualization in TokuDB
 ================================================================================
 
-|TokuDB| uses key range locks to implement serializable transactions, which are
+*TokuDB* uses key range locks to implement serializable transactions, which are
 acquired as the transaction progresses. The locks are released when the
 transaction commits or aborts (this implements two phase locking).
 
-|TokuDB| stores these locks in a data structure called the lock tree. The lock
+*TokuDB* stores these locks in a data structure called the lock tree. The lock
 tree stores the set of range locks granted to each transaction. In addition, the
 lock tree stores the set of locks that are not granted due to a conflict with
 locks granted to some other transaction. When these other transactions are
 retired, these pending lock requests are retried. If a pending lock request is
 not granted before the lock timer expires, then the lock request is aborted.
 
-Lock visualization in |TokuDB| exposes the state of the lock tree with tables in
+Lock visualization in *TokuDB* exposes the state of the lock tree with tables in
 the information schema. We also provide a mechanism that may be used by a
 database client to retrieve details about lock conflicts that it encountered
 while executing a transaction.
@@ -95,11 +105,11 @@ while executing a transaction.
 The ``TOKUDB_TRX`` table
 --------------------------------------------------------------------------------
 
-The :table:`TOKUDB_TRX` table in the ``INFORMATION_SCHEMA`` maps |TokuDB|
-transaction identifiers to |MySQL| client identifiers. This mapping allows one
-to associate a |TokuDB| transaction with a |MySQL| client operation.
+The :ref:`TOKUDB_TRX` table in the ``INFORMATION_SCHEMA`` maps *TokuDB*
+transaction identifiers to *MySQL* client identifiers. This mapping allows one
+to associate a *TokuDB* transaction with a *MySQL* client operation.
 
-The following query returns the |MySQL| clients that have a live |TokuDB|
+The following query returns the *MySQL* clients that have a live *TokuDB*
 transaction:
 
 .. code-block:: mysql
@@ -111,17 +121,17 @@ transaction:
 The ``TOKUDB_LOCKS`` table
 --------------------------------------------------------------------------------
 
-The :table:`tokudb_locks` table in the information schema contains the set of
-locks granted to |TokuDB| transactions.
+The :ref:`tokudb_locks` table in the information schema contains the set of
+locks granted to *TokuDB* transactions.
 
-The following query returns all of the locks granted to some |TokuDB|
+The following query returns all of the locks granted to some *TokuDB*
 transaction:
 
 .. code-block:: mysql
 
    SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCKS;
 
-The following query returns the locks granted to some |MySQL| client:
+The following query returns the locks granted to some *MySQL* client:
 
 .. code-block:: mysql
 
@@ -132,7 +142,7 @@ The following query returns the locks granted to some |MySQL| client:
 The ``TOKUDB_LOCK_WAITS`` table
 --------------------------------------------------------------------------------
 
-The :table:`tokudb_lock_waits` table in the information schema contains the set
+The :ref:`tokudb_lock_waits` table in the information schema contains the set
 of lock requests that are not granted due to a lock conflict with some other
 transaction.
 
@@ -149,10 +159,10 @@ Supporting explicit DEFAULT value expressions as of 8.0.13-3
 TokuDB does not support `explicit DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__ as of verion 8.0.13-3.
 
 
-The :variable:`tokudb_lock_timeout_debug` session variable
+The :ref:`tokudb_lock_timeout_debug` session variable
 --------------------------------------------------------------------------------
 
-The :variable:`tokudb_lock_timeout_debug` session variable controls how lock
+The :ref:`tokudb_lock_timeout_debug` session variable controls how lock
 timeouts and lock deadlocks seen by the database client are reported.
 
 The following values are available:
@@ -160,9 +170,9 @@ The following values are available:
 :0: No lock timeouts or lock deadlocks are reported.
 
 :1: A JSON document that describes the lock conflict is stored in the
-    :variable:`tokudb_last_lock_timeout` session variable
+    :ref:`tokudb_last_lock_timeout` session variable
 
-:2: A JSON document that describes the lock conflict is printed to the |MySQL|
+:2: A JSON document that describes the lock conflict is printed to the *MySQL*
     error log.
 
     *Supported since 7.5.5*: In addition to the JSON document describing the lock conflict, the following lines are printed to the MySQL error log:
@@ -170,27 +180,27 @@ The following values are available:
     * A line containing the blocked thread id and blocked SQL
     * A line containing the blocking thread id and the blocking SQL.
 
-:3: A JSON document that describes the lock conflict is stored in the :variable:`tokudb_last_lock_timeout` session variable and is printed to the |MySQL| error log.
+:3: A JSON document that describes the lock conflict is stored in the :ref:`tokudb_last_lock_timeout` session variable and is printed to the *MySQL* error log.
 
-    *Supported since 7.5.5*: In addition to the JSON document describing the lock conflict, the following lines are printed to the |MySQL| error log:
+    *Supported since 7.5.5*: In addition to the JSON document describing the lock conflict, the following lines are printed to the *MySQL* error log:
 
     * A line containing the blocked thread id and blocked SQL
     * A line containing the blocking thread id and the blocking SQL.
 
-The :variable:`tokudb_last_lock_timeout` session variable
+The :ref:`tokudb_last_lock_timeout` session variable
 --------------------------------------------------------------------------------
 
-The :variable:`tokudb_last_lock_timeout` session variable contains a JSON
-document that describes the last lock conflict seen by the current |MySQL|
+The :ref:`tokudb_last_lock_timeout` session variable contains a JSON
+document that describes the last lock conflict seen by the current *MySQL*
 client. It gets set when a blocked lock request times out or a lock deadlock is
-detected. The :variable:`tokudb_lock_timeout_debug` session variable should have
+detected. The :ref:`tokudb_lock_timeout_debug` session variable should have
 bit ``0`` set (decimal ``1``).
 
 .. rubric:: Example
 
 Suppose that we create a table with a single column that is the primary key.
 
-.. code-block:: guess
+.. code-block:: mysql
 
  mysql> SHOW CREATE TABLE table;
 
@@ -198,11 +208,11 @@ Suppose that we create a table with a single column that is the primary key.
  ‘id‘ int(11) NOT NULL,
  PRIMARY KEY (‘id‘)) ENGINE=TokuDB DEFAULT CHARSET=latin1
 
-Suppose that we have 2 |MySQL| clients with ID's 1 and 2 respectively. Suppose
-that |MySQL| client 1 inserts some values into ``table``. |TokuDB| transaction
+Suppose that we have 2 *MySQL* clients with ID's 1 and 2 respectively. Suppose
+that *MySQL* client 1 inserts some values into ``table``. *TokuDB* transaction
 51 is created for the insert statement. Since autocommit is disabled,
 transaction 51 is still live after the insert statement completes, and we can
-query the :table:`tokudb_locks` table in information schema to see the locks
+query the :ref:`tokudb_locks` table in information schema to see the locks
 that are held by the transaction.
 
 .. code-block:: mysql
@@ -212,7 +222,7 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       Query OK, 3 rows affected (0.00 sec)
       Records: 3  Duplicates: 0  Warnings: 0
@@ -223,7 +233,7 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |
@@ -239,13 +249,13 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       Empty set (0.00 sec)
 
 The keys are currently hex dumped.
 
-Now we switch to the other |MySQL| client with ID 2.
+Now we switch to the other *MySQL* client with ID 2.
 
 .. code-block:: mysql
 
@@ -253,15 +263,15 @@ Now we switch to the other |MySQL| client with ID 2.
 
 The insert gets blocked since there is a conflict on the primary key with value 100.
 
-The granted |TokuDB| locks are:
+The granted *TokuDB* locks are:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCKS;
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |
@@ -275,7 +285,7 @@ The granted |TokuDB| locks are:
 
 The locks that are pending due to a conflict are:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCK_WAITS;
 
@@ -297,7 +307,7 @@ Eventually, the lock for client 2 times out, and we can retrieve a JSON document
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +---------------------------------------------------------------------------------------------------------------+
       | @@tokudb_last_lock_timeout                                                                                    |
@@ -317,7 +327,7 @@ Since transaction 62 was rolled back, all of the locks taken by it are released.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |
@@ -332,7 +342,7 @@ Since transaction 62 was rolled back, all of the locks taken by it are released.
 Engine Status
 --------------------------------------------------------------------------------
 
-Engine status provides details about the inner workings of |TokuDB| and can be
+Engine status provides details about the inner workings of *TokuDB* and can be
 useful in tuning your particular environment. The engine status can be
 determined by running the following command:  :mysql:`SHOW ENGINE tokudb STATUS;`
 
@@ -356,13 +366,13 @@ The following is a reference of the table status statements:
        * File system is completely full
 
    * - time of environment creation
-     - This is the time when the |TokuDB| storage engine was first started up.
-       Normally, this is when ``mysqld`` was initially installed with |TokuDB|. If
-       the environment was upgraded from |TokuDB| 4.x (4.2.0 or later), then this
+     - This is the time when the *TokuDB* storage engine was first started up.
+       Normally, this is when ``mysqld`` was initially installed with *TokuDB*. If
+       the environment was upgraded from *TokuDB* 4.x (4.2.0 or later), then this
        will be displayed as "Dec 31, 1969" on Linux hosts.
 
    * - time of engine startup
-     - This is the time when the |TokuDB| storage engine started up. Normally, this
+     - This is the time when the *TokuDB* storage engine started up. Normally, this
        is when ``mysqld`` started.
 
    * - time now
@@ -413,7 +423,7 @@ The following is a reference of the table status statements:
    * - dictionary updates fail
      - This is the number of single-index update operations that failed.
 
-   * - dictionary broadcast updates``:
+   * - dictionary broadcast updates
      - This is the number of broadcast updates that have been successfully performed.
        A broadcast update is an update that affects all rows in a dictionary.
 
@@ -461,7 +471,7 @@ The following is a reference of the table status statements:
    * - le: max memsize
      - This is the maximum number of bytes that were stored on disk as a new or
        modified row. This is the maximum uncompressed size of any row stored in
-       |TokuDB| that was created or modified since the server started.
+       *TokuDB* that was created or modified since the server started.
 
    * - le: size of leafentries before garbage collection (during message application)
      - Total number of bytes of leaf nodes data before performing garbage collection
@@ -610,7 +620,7 @@ The following is a reference of the table status statements:
      - Total number of times the cleaner thread loop has executed.
 
    * - cachetable: cleaner period
-     - |TokuDB| includes a cleaner thread that optimizes indexes in the background.
+     - *TokuDB* includes a cleaner thread that optimizes indexes in the background.
        This variable is the time, in seconds, between the completion of a group of
        cleaner operations and the beginning of the next group of cleaner operations.
        The cleaner operations run on a background thread performing work that does
@@ -658,35 +668,35 @@ The following is a reference of the table status statements:
    * - cachetable: cachetable pool: number of currently active threads in pool
      - The number of currently active threads in the cachetable thread pool.
 
-   * - cachetable: cachetable pool: number of currently queued work items``:
+   * - cachetable: cachetable pool: number of currently queued work items
      - The number of currently queued work items in the cachetable thread pool.
 
-   * - cachetable: cachetable pool: largest number of queued work items``:
+   * - cachetable: cachetable pool: largest number of queued work items
      - The largest number of queued work items in the cachetable thread pool.
 
-   * - cachetable: cachetable pool: total number of work items processed``:
+   * - cachetable: cachetable pool: total number of work items processed
      - The total number of work items processed in the cachetable thread pool.
 
-   * - cachetable: cachetable pool: total execution time of processing work items``:
+   * - cachetable: cachetable pool: total execution time of processing work items
      - The total execution time of processing work items in the cachetable thread
        pool.
 
-   * - cachetable: checkpoint pool: number of threads in pool``:
+   * - cachetable: checkpoint pool: number of threads in pool
      - The number of threads in the checkpoint thread pool.
 
    * - cachetable: checkpoint pool: number of currently active threads in pool
      - The number of currently active threads in the checkpoint thread pool.
 
-   * - cachetable: checkpoint pool: number of currently queued work items``:
+   * - cachetable: checkpoint pool: number of currently queued work items
      - The number of currently queued work items in the checkpoint thread pool.
 
-   * - cachetable: checkpoint pool: largest number of queued work items``:
+   * - cachetable: checkpoint pool: largest number of queued work items
      - The largest number of queued work items in the checkpoint thread pool.
 
-   * - cachetable: checkpoint pool: total number of work items processed``:
+   * - cachetable: checkpoint pool: total number of work items processed
      - The total number of work items processed in the checkpoint thread pool.
 
-   * - cachetable: checkpoint pool: total execution time of processing work items``:
+   * - cachetable: checkpoint pool: total execution time of processing work items
      - The total execution time of processing work items in the checkpoint thread
        pool.
 
@@ -780,14 +790,14 @@ The following is a reference of the table status statements:
      - The number of messages that were ignored by a leaf because it had already been
        applied.
 
-   * - ft: total search retries due to TRY AGAIN``
+   * - ft: total search retries due to TRY AGAIN
      - Total number of search retries due to TRY AGAIN. Internal value that is no use
        to anyone other than a developer debugging a specific query/search issue.
 
    * - ft: searches requiring more tries than the height of the tree
      - Number of searches that required more tries than the height of the tree.
 
-   * - ft: searches requiring more tries than the height of the tree plus three``
+   * - ft: searches requiring more tries than the height of the tree plus three
      - Number of searches that required more tries than the height of the tree plus
        three.
 
@@ -827,7 +837,7 @@ The following is a reference of the table status statements:
    * - ft: leaf nodes flushed to disk (for checkpoint) (uncompressed bytes)
      - Number of uncompressed bytes of leaf nodes flushed to disk for checkpoint.
 
-   * - ft: leaf nodes flushed to disk (for checkpoint) (seconds)``
+   * - ft: leaf nodes flushed to disk (for checkpoint) (seconds)
      - Number of seconds waiting for IO when writing leaf nodes flushed to disk for
        checkpoint.
 
@@ -869,7 +879,7 @@ The following is a reference of the table status statements:
    * - ft: leaf node partial evictions (bytes)
      - The number of bytes freed by evicting partitions of leaf nodes from the cache.
 
-   * - ft: leaf node full evictions``
+   * - ft: leaf node full evictions
      - The number of times a full leaf node was evicted from the cache.
 
    * - ft: leaf node full evictions (bytes)
@@ -896,7 +906,7 @@ The following is a reference of the table status statements:
    * - ft: bytes of messages injected at root (all trees)
      - Amount of messages, in bytes, injected at root (for all trees).
 
-   * - ft: bytes of messages flushed from h1 nodes to leaves``
+   * - ft: bytes of messages flushed from h1 nodes to leaves
      - Amount of messages, in bytes, flushed from ``h1`` nodes to leaves.
 
    * - ft: bytes of messages currently in trees (estimate)
@@ -1088,7 +1098,7 @@ The following is a reference of the table status statements:
    * - ft: promotion: stopped because of a nonempty buffer
      - Number of times a message stopped because it reached a nonempty buffer.
 
-   * - ft: promotion: stopped at height 1``
+   * - ft: promotion: stopped at height 1
      - Number of times a message stopped because it had reached height ``1``.
 
    * - ft: promotion: stopped because the child was locked or not at all in memory
@@ -1195,7 +1205,7 @@ The following is a reference of the table status statements:
    * - ft flusher: number of flushes that triggered 2 cascading flushes
      - Number of flushes that triggered 2 cascading flushes.
 
-   * - ft flusher: number of flushes that triggered 3 cascading flushes:``
+   * - ft flusher: number of flushes that triggered 3 cascading flushes
      - Number of flushes that triggered 3 cascading flushes.
 
    * - ft flusher: number of flushes that triggered 4 cascading flushes
@@ -1369,7 +1379,7 @@ The following is a reference of the table status statements:
 
    * - filesystem: ENOSPC redzone state
      - The state of how much disk space exists with respect to the red zone value.
-       Redzone is space greater than :variable:`tokudb_fs_reserve_percent` and less
+       Redzone is space greater than :ref:`tokudb_fs_reserve_percent` and less
        than full disk.
 
        Valid values are:
@@ -1422,11 +1432,11 @@ The following is a reference of the table status statements:
      - Number of times node ``rwlock`` contention was observed while pinning nodes
        from root to leaf because of a partial fetch.
 
-   * - context: tree traversals blocked by a full eviction``
+   * - context: tree traversals blocked by a full eviction
      - Number of times node ``rwlock`` contention was observed while pinning nodes
        from root to leaf because of a full eviction.
 
-   * - context: tree traversals blocked by a partial eviction``
+   * - context: tree traversals blocked by a partial eviction
      - Number of times node ``rwlock`` contention was observed while pinning nodes
        from root to leaf because of a partial eviction.
 
@@ -1434,7 +1444,7 @@ The following is a reference of the table status statements:
      - Number of times node ``rwlock`` contention was observed while pinning nodes
        from root to leaf because of message injection.
 
-   * - context: tree traversals blocked by a message application``
+   * - context: tree traversals blocked by a message application
      - Number of times node ``rwlock`` contention was observed while pinning nodes
        from root to leaf because of message application (applying fresh ancestors
        messages to a basement node).

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #ifdef _WIN32
 #include <process.h>
 #endif
+#include "portlib/ndb_compiler.h"
 #include <BaseString.hpp>
 #include <ndb_daemon.h>
 #include <portlib/NdbHost.h>
@@ -170,10 +171,12 @@ install_or_remove_service(int argc, char** argv,
 }
 #endif
 
-
-int ndb_daemon_init(int argc, char** argv,
-                   ndb_daemon_run_t run, ndb_daemon_stop_t stop,
-                   const char* name, const char* display_name)
+int ndb_daemon_init(int argc,
+                    char** argv,
+                    ndb_daemon_run_t run,
+                    ndb_daemon_stop_t stop [[maybe_unused]],
+                    const char* name [[maybe_unused]],
+                    const char* display_name [[maybe_unused]])
 {
 #ifdef _WIN32
   // Check for --install or --remove options
@@ -236,12 +239,12 @@ int ndb_daemon_init(int argc, char** argv,
 #define F_ULOCK _LK_UNLCK
 #define F_LOCK  _LK_LOCK
 
-static inline int lockf(int fd, int cmd, off_t len)
+static inline int lockf(int fd, int cmd, ndb_off_t len)
 {
   return _locking(fd, cmd, len);
 }
 
-static inline int ftruncate(int fd, off_t length)
+static inline int ftruncate(int fd, ndb_off_t length)
 {
   return _chsize(fd, length);
 }
@@ -252,7 +255,7 @@ static inline int unlink(const char *filename)
 }
 #endif
 
-static const char *g_pidfile_name = 0;
+static const char *g_pidfile_name = nullptr;
 static int g_pidfd = -1, g_logfd = -1;
 
 static int
@@ -308,9 +311,10 @@ check_files(const char *pidfile_name,
   return 0;
 }
 
-
-static int
-do_files(const char *pidfile_name, const char* logfile_name, int pidfd, int logfd)
+static int do_files(const char* pidfile_name,
+                    const char* logfile_name [[maybe_unused]],
+                    int pidfd,
+                    int logfd [[maybe_unused]])
 {
   /* Lock the lock file */
   if (lockf(pidfd, F_LOCK, 0) == -1)
@@ -412,7 +416,7 @@ void ndb_daemon_exit(int status)
 
 }
 
-void ndb_service_print_options(const char* name)
+void ndb_service_print_options(const char* name [[maybe_unused]])
 {
 #ifdef _WIN32
   puts("");
@@ -428,14 +432,13 @@ void ndb_service_print_options(const char* name)
 #endif
 }
 
-
-void ndb_service_wait_for_debugger(int timeout_sec)
+void ndb_service_wait_for_debugger(int timeout_sec [[maybe_unused]])
 {
 #ifdef _WIN32
    if(!IsDebuggerPresent())
    {
      int i;
-     printf("Waiting for debugger to attach, pid=%u\n",GetCurrentProcessId());
+     printf("Waiting for debugger to attach, pid=%lu\n",GetCurrentProcessId());
      fflush(stdout);
      for(i= 0; i < timeout_sec; i++)
      {
@@ -447,7 +450,7 @@ void ndb_service_wait_for_debugger(int timeout_sec)
          return;
        }
      }
-     printf("pid=%u, debugger not attached after %d seconds, resuming\n",GetCurrentProcessId(),
+     printf("pid=%lu, debugger not attached after %d seconds, resuming\n",GetCurrentProcessId(),
        timeout_sec);
      fflush(stdout);
    }

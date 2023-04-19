@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,11 +51,11 @@ NdbObjectIdMap::NdbObjectIdMap(Uint32 sz, Uint32 eSz, NdbMutex* mutex):
   m_size(0),
   m_firstFree(InvalidId),
   m_lastFree(InvalidId),
-  m_map(0)
+  m_map(nullptr)
 {
   expand(sz);
 #ifdef DEBUG_OBJECTMAP
-  ndbout_c("NdbObjectIdMap:::NdbObjectIdMap(%u)", sz);
+  g_eventLogger->info("NdbObjectIdMap:::NdbObjectIdMap(%u)", sz);
 #endif
 }
 
@@ -63,7 +63,7 @@ NdbObjectIdMap::~NdbObjectIdMap()
 {
   assert(checkConsistency());
   free(m_map);
-  m_map = NULL;
+  m_map = nullptr;
 }
 
 int NdbObjectIdMap::expand(Uint32 incSize)
@@ -71,7 +71,7 @@ int NdbObjectIdMap::expand(Uint32 incSize)
   GUARD_EXPAND;
 
   assert(checkConsistency());
-  MapEntry* tmp = NULL;
+  MapEntry* tmp = nullptr;
   const Uint32 newSize = m_size + incSize;
 #ifdef TEST_MAP_REALLOC
   //DEBUG: Always move into new memory object, shred old.
@@ -86,7 +86,7 @@ int NdbObjectIdMap::expand(Uint32 incSize)
   tmp = (MapEntry*)realloc(m_map, newSize * sizeof(MapEntry));
 #endif
 
-  if (likely(tmp != 0))
+  if (likely(tmp != nullptr))
   {
     m_map = tmp;
     

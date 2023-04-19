@@ -4,16 +4,26 @@
  Fast Updates with TokuDB
 ==========================
 
+.. Important:: 
+
+   Starting with :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds.
+
+   Starting with :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   We recommend :ref:`migrate-myrocks`. To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+
 Introduction
 ============
 
 Update intensive applications can have their throughput limited by the random
 read capacity of the storage system. The cause of the throughput limit is the
-read-modify-write algorithm that |MySQL| uses to process update statements
+read-modify-write algorithm that *MySQL* uses to process update statements
 (read a row from the storage engine, apply the updates to it, write the new row
 back to the storage engine).
 
-To address this throughput limit, |TokuDB| provides an experimental fast update
+To address this throughput limit, *TokuDB* provides an experimental fast update
 feature, which uses a different update algorithm. Update expressions of the SQL
 statement are encoded into tiny programs that are stored in an update Fractal
 Tree message. This update message is injected into the root of the Fractal Tree
@@ -24,8 +34,8 @@ update messages.
 
 This feature is available for ``UPDATE`` and ``INSERT`` statements, and can be
 turned ON/OFF separately for them with use of two variables. Variable
-:variable:`tokudb_enable_fast_update` variable toggles fast updates for the
-``UPDATE``, and  :variable:`tokudb_enable_fast_upsert` does the same  for
+:ref:`tokudb_enable_fast_update` variable toggles fast updates for the
+``UPDATE``, and  :ref:`tokudb_enable_fast_upsert` does the same  for
 ``INSERT``.
 
 Limitations
@@ -100,7 +110,7 @@ If the event id’s are random, then the throughput of this application would be
 limited by the random read capacity of the storage system since each ``INSERT``
 statement has to determine if this `event_id` exists in the table.
 
-|TokuDB| replaces the primary key existence check with an insertion of an
+*TokuDB* replaces the primary key existence check with an insertion of an
 “upsert” message into the Fractal Tree index. This “upsert” message contains a
 copy of the row and a program that increments event_count. As the Fractal Tree
 buffer’s get filled, this “upsert” message is flushed down the tree.

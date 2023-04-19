@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ using ::testing::WithArgs;
 
 class SchemaTest : public ::testing::Test {
  protected:
-  SchemaTest() {}
+  SchemaTest() = default;
 
   void SetUp() override {
     m_dict = new Dictionary_impl();
@@ -105,7 +105,7 @@ class SchemaTest : public ::testing::Test {
     ctx->otx.register_tables<Schema>();
 
     // Fake ctx->open_tables() by assigning fake schema TABLE object directly.
-    ctx->otx.get_table<dd::Schema>()->get_table_list()->table =
+    ctx->otx.get_table<dd::Schema>()->get_table_ref()->table =
         get_schema_table(thd(), hton());
 
     return ctx;
@@ -131,8 +131,8 @@ class SchemaTest : public ::testing::Test {
   Server_initializer m_init;  // Server initializer.
 
  private:
-  // Declares (but does not define) copy constructor and assignment operator.
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(SchemaTest);
+  SchemaTest(SchemaTest const &) = delete;
+  SchemaTest &operator=(SchemaTest const &) = delete;
 };
 
 /**
@@ -147,7 +147,7 @@ class SchemaTest : public ::testing::Test {
   primary key. This is done by creating a raw access key, which is the primary
   key value with a physical representation suitable for looking up in a storage
   engine. The raw key is used to get the appropriate record from the dd tables
-  by calling ha_index_read_idx_map. By instrumenting this function to return
+  by calling ha_index_read_map. By instrumenting this function to return
   1, indicating no record found, we will provoke insert.
 
   Then, for insert, Weak_object_impl::store will first call
@@ -203,10 +203,10 @@ TEST_F(SchemaTest, CreateSchema) {
 
   // Set expectations for insert:
 
-  // ha->index_read_idx_map: Called once, return 1
-  ON_CALL(*ha, index_read_idx_map(_, _, _, _, _))
+  // ha->index_read_map: Called once, return 1
+  ON_CALL(*ha, index_read_map(_, _, _, _))
       .WillByDefault(Return(HA_ERR_KEY_NOT_FOUND));
-  EXPECT_CALL(*ha, index_read_idx_map(_, _, _, _, _)).Times(1);
+  EXPECT_CALL(*ha, index_read_map(_, _, _, _)).Times(1);
 
   // id->store: Called twice, return 0
   ON_CALL(*id, store(real_id, true))
@@ -220,8 +220,7 @@ TEST_F(SchemaTest, CreateSchema) {
 
   // name->store: Called once, return 0
   ON_CALL(*name, store(schema->name().c_str(), _, _))
-      .WillByDefault(
-          WithArgs<0>(Invoke(name, &Mock_dd_field_varstring::fake_store)));
+      .WillByDefault(Invoke(name, &Mock_dd_field_varstring::fake_store));
   EXPECT_CALL(*name, store(schema->name().c_str(), _, _)).Times(1);
 
   // collation_id->store: Called once, return 0
@@ -261,7 +260,7 @@ TEST_F(SchemaTest, CreateSchema) {
 
 /**
   To provoke an update, the setup is pretty much the same as for insert (see
-  above), but we must instrument index_read_idx_map to return 0. This
+  above), but we must instrument index_read_map to return 0. This
   makes a new Raw_record be created, and makes ha_update_row be called.
 */
 
@@ -304,9 +303,9 @@ TEST_F(SchemaTest, UpdateSchema) {
 
   // Set expectations for update:
 
-  // ha->index_read_idx_map: Called once, return 0
-  ON_CALL(*ha, index_read_idx_map(_, _, _, _, _)).WillByDefault(Return(0));
-  EXPECT_CALL(*ha, index_read_idx_map(_, _, _, _, _)).Times(1);
+  // ha->index_read_map: Called once, return 0
+  ON_CALL(*ha, index_read_map(_, _, _, _)).WillByDefault(Return(0));
+  EXPECT_CALL(*ha, index_read_map(_, _, _, _)).Times(1);
 
   // id->store: Called twice, return 0
   ON_CALL(*id, store(real_id, true))
@@ -320,8 +319,7 @@ TEST_F(SchemaTest, UpdateSchema) {
 
   // name->store: Called once, return 0
   ON_CALL(*name, store(schema->name().c_str(), _, _))
-      .WillByDefault(
-          WithArgs<0>(Invoke(name, &Mock_dd_field_varstring::fake_store)));
+      .WillByDefault(Invoke(name, &Mock_dd_field_varstring::fake_store));
   EXPECT_CALL(*name, store(schema->name().c_str(), _, _)).Times(1);
 
   // collation_id->store: Called once, return 0
@@ -414,8 +412,8 @@ TEST_F(SchemaTest, GetSchema) {
   EXPECT_CALL(*name, store(_, _, _)).Times(1);
 
   // ha->index_read: Called once, return 0
-  ON_CALL(*ha, index_read_idx_map(_, _, _, _, _)).WillByDefault(Return(0));
-  EXPECT_CALL(*ha, index_read_idx_map(_, _, _, _, _)).Times(1);
+  ON_CALL(*ha, index_read_map(_, _, _, _)).WillByDefault(Return(0));
+  EXPECT_CALL(*ha, index_read_map(_, _, _, _)).Times(1);
 
   // id->val_int: Called once, get faked id
   ON_CALL(*id, val_int())
@@ -429,8 +427,7 @@ TEST_F(SchemaTest, GetSchema) {
 
   // name->val_str: Called once, get faked name
   ON_CALL(*name, val_str(_, _))
-      .WillByDefault(
-          WithArgs<1>(Invoke(name, &Mock_dd_field_varstring::fake_val_str)));
+      .WillByDefault(Invoke(name, &Mock_dd_field_varstring::fake_val_str));
   EXPECT_CALL(*name, val_str(_, _)).Times(1);
 
   // collation_id->val_int: Called once, get faked id
@@ -453,7 +450,7 @@ TEST_F(SchemaTest, GetSchema) {
   // Set faked field contents.
   id->fake_store(real_id, true);
   catalog_id->fake_store(m_def_cat_id, true);
-  name->fake_store(real_name);
+  name->fake_store(real_name, 0, nullptr);
   collation_id->fake_store(real_collation_id, true);
   created->fake_store(real_created, true);
   last_altered->fake_store(real_last_altered, true);

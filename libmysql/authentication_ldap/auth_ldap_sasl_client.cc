@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,7 +166,7 @@ int Sasl_client::read_method_name_from_server() {
 }
 
 Sasl_client::Sasl_client() {
-  m_connection = NULL;
+  m_connection = nullptr;
   m_ldap_server_host = "";
   m_mysql = nullptr;
   m_sasl_mechanism = nullptr;
@@ -202,12 +202,12 @@ int Sasl_client::initilize() {
 #endif
   /** Creating sasl connection. */
   if (m_ldap_server_host.empty()) {
-    rc_sasl = sasl_client_new(m_service_name, NULL, NULL, NULL, callbacks, 0,
-                              &m_connection);
+    rc_sasl = sasl_client_new(m_service_name, nullptr, nullptr, nullptr,
+                              callbacks, 0, &m_connection);
   } else {
     log_info(m_ldap_server_host.c_str());
-    rc_sasl = sasl_client_new(m_service_name, m_ldap_server_host.c_str(), NULL,
-                              NULL, callbacks, 0, &m_connection);
+    rc_sasl = sasl_client_new(m_service_name, m_ldap_server_host.c_str(),
+                              nullptr, nullptr, callbacks, 0, &m_connection);
   }
   if (rc_sasl != SASL_OK) {
     log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
@@ -229,11 +229,29 @@ Sasl_client::~Sasl_client() {
   m_sasl_mechanism = nullptr;
 }
 
+/**
+ * send SASL request to the server and read the servers reply.
+ *
+ * wraps the SASL message in a MySQL packet and sends it to the server.
+ *
+ * if sending to the server fails, the function fails. But if reading
+ * the reply fails, the *response_len will be 0.
+ *
+ * @param[in] request pointer to the SASL request payload
+ * @param[in] request_len length of the request
+ * @param[out] response pointer to a location where the response buffers
+ * location shall be stored.
+ * @param[out] response_len pointer to a location where the length of the
+ * response buffer shall be stored.
+ *
+ * @retval 1 write failed.
+ * @retval 0 write succeeded, but read may have failed.
+ */
 int Sasl_client::send_sasl_request_to_server(const unsigned char *request,
                                              int request_len,
                                              unsigned char **response,
                                              int *response_len) {
-  int rc_server = CR_ERROR;
+  int rc_server = 1;
   std::stringstream log_stream;
 
   if (m_vio == nullptr) {
@@ -312,11 +330,11 @@ int Sasl_client::sasl_step(char *server_in, int server_in_length,
   do {
     if (server_in && server_in[0] == 0x0) {
       server_in_length = 0;
-      server_in = NULL;
+      server_in = nullptr;
     }
     rc_sasl = sasl_client_step(
-        m_connection, (server_in == NULL) ? NULL : server_in,
-        (server_in == NULL) ? 0 : server_in_length, &interactions,
+        m_connection, (server_in == nullptr) ? nullptr : server_in,
+        (server_in == nullptr) ? 0 : server_in_length, &interactions,
         static_cast<const char **>(client_out_p),
         (unsigned int *)client_out_length);
     if (rc_sasl == SASL_INTERACT) Sasl_client::interact(interactions);
@@ -364,6 +382,16 @@ static int initialize_plugin(char *, size_t, int, va_list) SUPPRESS_UBSAN;
 static int deinitialize_plugin() SUPPRESS_UBSAN;
 #endif  // __clang__
 
+/*
+ * authenticate via SASL.
+ *
+ * executes the SASL full handshake.
+ *
+ * @returns one of the CR_xxx codes.
+ * @retval CR_OK on auth success
+ * @retval CR_ERROR on generic auth failure
+ * @retval CR_AUTH_HANDSHAKE on handshake failure
+ */
 static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int rc_sasl = SASL_FAIL;
   int rc_auth = CR_ERROR;
@@ -422,15 +450,17 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     MySQL server plug-in working as proxy for SASL / LDAP server.
   */
   do {
-    server_packet = NULL;
+    server_packet = nullptr;
     server_packet_len = 0;
-    rc_auth = sasl_client.send_sasl_request_to_server(
+    const int send_res = sasl_client.send_sasl_request_to_server(
         (const unsigned char *)sasl_client_output, sasl_client_output_len,
         &server_packet, &server_packet_len);
-    if (rc_auth < 0) {
+    if (send_res != 0) {
+      rc_auth = CR_AUTH_HANDSHAKE;
+
       goto EXIT;
     }
-    sasl_client_output = NULL;
+    sasl_client_output = nullptr;
     rc_sasl =
         sasl_client.sasl_step((char *)server_packet, server_packet_len,
                               &sasl_client_output, &sasl_client_output_len);
@@ -442,16 +472,17 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   if (rc_sasl == SASL_OK) {
     rc_auth = CR_OK;
+
     log_dbg("sasl_authenticate authentication successful");
     /**
       Kerberos authentication is concluded by the LDAP/SASL server,
-      From client side, authentication is succeded and we need to send data to
+      From client side, authentication has succeeded and we need to send data to
       server side to conclude the authentication. Other SASL authentication are
       conculded in the client side.
     */
     if (strcmp(sasl_client.get_method().c_str(), SASL_GSSAPI) == 0) {
-      server_packet = NULL;
-      rc_auth = sasl_client.send_sasl_request_to_server(
+      server_packet = nullptr;
+      /* int send_res = */ sasl_client.send_sasl_request_to_server(
           (const unsigned char *)sasl_client_output, sasl_client_output_len,
           &server_packet, &server_packet_len);
       rc_auth = CR_OK;
@@ -593,11 +624,15 @@ static int initialize_plugin(char *, size_t, int, va_list) {
 static int deinitialize_plugin() {
   delete g_logger_client;
   g_logger_client = nullptr;
-
+#if defined(SASL_CLIENT_DONE_SUPPORTED)
+  sasl_client_done();
+#else
+  sasl_done();
+#endif
   return 0;
 }
 
 mysql_declare_client_plugin(AUTHENTICATION) "authentication_ldap_sasl_client",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "LDAP SASL Client Authentication Plugin",
     {0, 1, 0}, "PROPRIETARY", nullptr, initialize_plugin, deinitialize_plugin,
-    nullptr, sasl_authenticate, nullptr mysql_end_client_plugin;
+    nullptr, nullptr, sasl_authenticate, nullptr mysql_end_client_plugin;

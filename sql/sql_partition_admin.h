@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "sql/sql_alter.h"  // Sql_cmd_common_alter_table
 
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 /**
   Class that represents the ALTER TABLE t1 EXCHANGE PARTITION p
@@ -42,7 +42,7 @@ class Sql_cmd_alter_table_exchange_partition
   bool execute(THD *thd) override;
 
  private:
-  bool exchange_partition(THD *thd, TABLE_LIST *, Alter_info *);
+  bool exchange_partition(THD *thd, Table_ref *, Alter_info *);
 };
 
 /**
@@ -55,9 +55,10 @@ class Sql_cmd_alter_table_analyze_partition final
     Constructor, used to represent a ALTER TABLE ANALYZE PARTITION statement.
   */
   Sql_cmd_alter_table_analyze_partition(THD *thd, Alter_info *alter_info)
-      : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0) {}
+      : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0,
+                              {nullptr, 0}) {}
 
-  ~Sql_cmd_alter_table_analyze_partition() override {}
+  ~Sql_cmd_alter_table_analyze_partition() override = default;
 
   bool execute(THD *thd) override;
 

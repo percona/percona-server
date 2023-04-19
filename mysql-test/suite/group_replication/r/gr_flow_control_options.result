@@ -29,16 +29,21 @@ SET GLOBAL group_replication_flow_control_mode= "XXX";
 ERROR 42000: Variable 'group_replication_flow_control_mode' can't be set to the value of 'XXX'
 SET GLOBAL group_replication_flow_control_mode= -1;
 ERROR 42000: Variable 'group_replication_flow_control_mode' can't be set to the value of '-1'
-SET GLOBAL group_replication_flow_control_mode= 2;
-ERROR 42000: Variable 'group_replication_flow_control_mode' can't be set to the value of '2'
+SET GLOBAL group_replication_flow_control_mode= 3;
+ERROR 42000: Variable 'group_replication_flow_control_mode' can't be set to the value of '3'
 SET GLOBAL group_replication_flow_control_mode= DISABLED;
 include/assert.inc [group_replication_flow_control_mode is correct]
 SET GLOBAL group_replication_flow_control_mode= QUOTA;
+include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= MAJORITY;
 include/assert.inc [group_replication_flow_control_mode is correct]
 SET GLOBAL group_replication_flow_control_mode= 0;
 include/assert.inc [group_replication_flow_control_mode is correct]
 SET GLOBAL group_replication_flow_control_mode= 1;
 include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= 2;
+include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= DEFAULT;
 
 ############################################################
 # 2. Test group_replication_flow_control_certifier_threshold
@@ -219,6 +224,9 @@ SET GLOBAL group_replication_flow_control_mode= DISABLED;
 include/assert.inc [group_replication_flow_control_mode is correct]
 SET GLOBAL group_replication_flow_control_mode= QUOTA;
 include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= MAJORITY;
+include/assert.inc [group_replication_flow_control_mode is correct]
+SET GLOBAL group_replication_flow_control_mode= DEFAULT;
 SET GLOBAL group_replication_flow_control_certifier_threshold= 1000;
 include/assert.inc [group_replication_flow_control_certifier_threshold is correct]
 SET GLOBAL group_replication_flow_control_applier_threshold= 1000;
@@ -261,6 +269,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 
 ############################################################
 # Clean up.
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
 include/rpl_reconnect.inc
 [connection server1]
 SET GLOBAL group_replication_flow_control_mode= @group_replication_flow_control_mode_save;

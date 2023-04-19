@@ -23,6 +23,10 @@
 #include <string>
 #include <vector>
 
+#ifdef __APPLE__
+#include <sys/resource.h>
+#endif
+
 /* MySQL header files */
 #include "sql/handler.h" /* handler */
 #include "sql_string.h"
@@ -83,6 +87,18 @@ std::vector<Rdb_deadlock_info> rdb_get_deadlock_info();
     arguments.
 */
 extern const std::string DEFAULT_CF_NAME;
+
+/*
+  This is the name of the default tmp column family (the CF which stores tmp
+  tables)
+*/
+extern const std::string DEFAULT_TMP_CF_NAME;
+
+/*
+  This is the name of the tmp system column family which stores the tmp table
+  meta-data
+*/
+extern const std::string DEFAULT_TMP_SYSTEM_CF_NAME;
 
 /*
   This is the name of the Column Family used for storing the data dictionary.
@@ -159,6 +175,18 @@ const constexpr char RDB_TTL_DURATION_QUALIFIER[] = "ttl_duration";
 const constexpr char RDB_TTL_COL_QUALIFIER[] = "ttl_col";
 
 /*
+  Qualifier name for number of prefix keyparts in partial index
+*/
+const char *const RDB_PARTIAL_INDEX_KEYPARTS_QUALIFIER =
+    "partial_group_keyparts";
+
+/*
+  Qualifier name for materialization threshold in partial index
+*/
+const char *const RDB_PARTIAL_INDEX_THRESHOLD_QUALIFIER =
+    "partial_group_threshold";
+
+/*
   Default, minimal valid, and maximum valid sampling rate values when collecting
   statistics about table.
 */
@@ -172,7 +200,12 @@ const constexpr char RDB_TTL_COL_QUALIFIER[] = "ttl_col";
 #define RDB_MIN_RECALC_INTERVAL 10 /* seconds */
 
 #define THREAD_PRIO_MIN -20
+#ifndef __APPLE__
 #define THREAD_PRIO_MAX 19
+#else
+#define THREAD_PRIO_MAX PRIO_DARWIN_BG
+#endif
+
 /*
   Default and maximum values for rocksdb-compaction-sequential-deletes and
   rocksdb-compaction-sequential-deletes-window to add basic boundary checking.

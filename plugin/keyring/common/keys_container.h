@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@
 #include "my_sharedlib.h"
 #include "plugin/keyring/common/i_keyring_io.h"
 #include "plugin/keyring/common/i_keys_container.h"
-#include "plugin/keyring/common/i_system_keys_container.h"
 #include "plugin/keyring/common/keyring_key.h"
 #include "plugin/keyring/common/keyring_memory.h"
 #include "plugin/keyring/common/logger.h"
@@ -83,7 +82,6 @@ class Keys_container : public IKeys_container {
   ILogger *logger;
   IKeyring_io *keyring_io;
   std::string keyring_storage_url;
-  std::unique_ptr<ISystem_keys_container> system_keys_container;
 };
 
 }  // namespace keyring

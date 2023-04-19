@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2010, 2022, Oracle and/or its affiliates.
  Use is subject to license terms.
 
  This program is free software; you can redistribute it and/or modify
@@ -240,7 +240,7 @@ struct Result
 //
 // Examples: 'int const', 'A * const' (does not apply to 'const A *')
 
-// XXX ambigous with enums
+// XXX ambiguous with enums
 //template< typename J, typename C >
 //struct Param< J, C const > : Param< J, C > {};
 //

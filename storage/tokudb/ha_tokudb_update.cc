@@ -397,6 +397,8 @@ static bool full_field_in_key(TABLE *table, Field *field) {
   return false;
 }
 
+extern bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
+
 // Check that an expression looks like fieldname = constant, fieldname is part
 // of the primary key, and the named field is an int, char or varchar type.
 // Return true if it does.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,12 +61,7 @@ const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version,
                                  const char * status,
                                  char *buf, unsigned sz)
 {
-  char tmp[NDB_VERSION_STRING_BUF_SZ];
-  if (status && status[0] != 0)
-    snprintf(tmp, sizeof(tmp), "%s", status);
-  else
-    tmp[0] = 0;
-
+  const char * tmp = (status == nullptr) ? "" : status;
   if (mysql_version)
   {
     snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s",
@@ -134,7 +129,7 @@ struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(6,2,NDB_VERSION_BUILD), MAKE_VERSION(6,1,19), UG_Range },
   { MAKE_VERSION(6,1,NDB_VERSION_BUILD), MAKE_VERSION(6,1,6), UG_Range},
   /* var page reference 32bit->64bit making 6.1.6 not backwards compatible */
-  /* ndb_apply_status table changed, and no compatability code written */
+  /* ndb_apply_status table changed, and no compatibility code written */
   { MAKE_VERSION(6,1,4), MAKE_VERSION(6,1,2), UG_Range},
   { MAKE_VERSION(5,1,NDB_VERSION_BUILD), MAKE_VERSION(5,1,0), UG_Range},
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class Rpl_sys_key_access {
     RND_POS,
     /*
       Read [part of] row via [part of] index using
-      handler::ha_index_read_idx_map.
+      handler::ha_index_read_map.
     */
     INDEX_NEXT_SAME,
     /* Read all rows of index using handler::ha_index_first. */
@@ -51,7 +51,7 @@ class Rpl_sys_key_access {
   /**
     Construction.
   */
-  Rpl_sys_key_access() {}
+  Rpl_sys_key_access() = default;
 
   /**
     Destruction.

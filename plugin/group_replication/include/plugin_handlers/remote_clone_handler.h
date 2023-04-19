@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,9 +153,10 @@ class Remote_clone_handler : public Group_event_observer {
                         bool is_leaving, bool *skip_election,
                         enum_primary_election_mode *election_mode,
                         std::string &suggested_primary) override;
-  int after_primary_election(std::string primary_uuid, bool primary_changed,
-                             enum_primary_election_mode election_mode,
-                             int error) override;
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) override;
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,
                               bool *skip_message) override;
@@ -164,8 +165,10 @@ class Remote_clone_handler : public Group_event_observer {
     The thread callback passed onto mysql_thread_create.
 
     @param[in] arg a pointer to a Remote_clone_handler instance.
+
+    @return Does not return.
   */
-  [[noreturn]] static void *launch_thread(void *arg);
+  static void *launch_thread(void *arg);
 
   /**
     The clone thread process.
@@ -199,12 +202,9 @@ class Remote_clone_handler : public Group_event_observer {
   /**
     In error fall back to recovery or error out
 
-    @param[in] sql_command_interface  the server connection
     @param[in] critical_error         the error prevent distributed recovery
   */
-  int fallback_to_recovery_or_leave(
-      Sql_service_command_interface *sql_command_interface,
-      bool critical_error = false);
+  int fallback_to_recovery_or_leave(bool critical_error = false);
 
   /**
     Executes the query to change the allowed donor list for clone
@@ -244,7 +244,7 @@ class Remote_clone_handler : public Group_event_observer {
     @param[in] use_ssl  make clone use SSL
 
     @return whether or not we managed to clone the server
-      @retval 0    the clone was sucessfull
+      @retval 0    the clone was successful
       @retval != 0 some error occurred
   */
   int run_clone_query(Sql_service_command_interface *sql_command_interface,
@@ -256,7 +256,7 @@ class Remote_clone_handler : public Group_event_observer {
     Kill the current query executing a clone
 
     @return whether or not we managed to kill the clone query
-      @retval 0    the kill query was sucessfull
+      @retval 0    the kill query was successful
       @retval != 0 some error occurred
   */
   int kill_clone_query();

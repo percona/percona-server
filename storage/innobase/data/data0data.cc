@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,8 +64,8 @@ bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
 
   ut_ad(tuple1 != nullptr);
   ut_ad(tuple2 != nullptr);
-  ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
-  ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
+  ut_ad(tuple1->magic_n == dtuple_t::MAGIC_N);
+  ut_ad(tuple2->magic_n == dtuple_t::MAGIC_N);
   ut_ad(dtuple_check_typed(tuple1));
   ut_ad(dtuple_check_typed(tuple2));
 
@@ -146,7 +146,7 @@ static bool dtuple_check_typed_no_assert(const dtuple_t *tuple) {
 bool dfield_check_typed(const dfield_t *field) {
   if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX ||
       dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
-    ib::fatal(ER_IB_MSG_158)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_158)
         << "Data field type " << dfield_get_type(field)->mtype << ", len "
         << dfield_get_len(field);
   }
@@ -168,7 +168,7 @@ bool dtuple_check_typed(const dtuple_t *tuple) {
 }
 
 bool dtuple_validate(const dtuple_t *tuple) {
-  ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
+  ut_ad(tuple->magic_n == dtuple_t::MAGIC_N);
 
   auto n_fields = dtuple_get_n_fields(tuple);
 
@@ -180,7 +180,7 @@ bool dtuple_validate(const dtuple_t *tuple) {
     auto len = dfield_get_len(field);
 
     if (!dfield_is_null(field)) {
-      const byte *data;
+      const byte *data [[maybe_unused]];
 
       data = static_cast<const byte *>(dfield_get_data(field));
 #ifndef UNIV_DEBUG_VALGRIND
@@ -330,7 +330,7 @@ void dfield_print_also_hex(const dfield_t *dfield) {
       }
 
       data = static_cast<byte *>(dfield_get_data(dfield));
-      /* fall through */
+      [[fallthrough]];
 
     case DATA_BINARY:
     default:
@@ -353,7 +353,7 @@ void dfield_print_also_hex(const dfield_t *dfield) {
 static void dfield_print_raw(FILE *f, const dfield_t *dfield) {
   ulint len = dfield_get_len(dfield);
   if (!dfield_is_null(dfield)) {
-    ulint print_len = ut_min(len, static_cast<ulint>(1000));
+    ulint print_len = std::min(len, static_cast<ulint>(1000));
     ut_print_buf(f, dfield_get_data(dfield), print_len);
     if (len != print_len) {
       fprintf(f, "(total %lu bytes%s)", (ulong)len,
@@ -427,7 +427,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   dfield_t *dfield;
   dict_field_t *ifield;
   ulint size;
-  ulint n_fields;
+  ulint n_fields [[maybe_unused]];
   ulint local_len;
   ulint local_prefix_len;
 
@@ -455,7 +455,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   }
 
   heap = mem_heap_create(
-      size + dtuple_get_n_fields(entry) * sizeof(big_rec_field_t) + 1000);
+      size + dtuple_get_n_fields(entry) * sizeof(big_rec_field_t) + 1000,
+      UT_LOCATION_HERE);
 
   vector = big_rec_t::alloc(heap, dtuple_get_n_fields(entry));
 
@@ -479,6 +480,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       dfield = dtuple_get_nth_field(entry, i);
       ifield = index->get_field(i);
+
+      ut_ad(dfield_get_len(dfield) != UNIV_SQL_INSTANT_DROP_COL);
 
       /* Skip fixed-length, NULL, externally stored,
       or short columns */
@@ -564,12 +567,12 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     }
 
 #if 0
-		/* The following would fail the Valgrind checks in
-		page_cur_insert_rec_low() and page_cur_insert_rec_zip().
-		The BLOB pointers in the record will be initialized after
-		the record and the BLOBs have been written. */
-		UNIV_MEM_ALLOC(data + local_prefix_len,
-			       BTR_EXTERN_FIELD_REF_SIZE);
+                /* The following would fail the Valgrind checks in
+                page_cur_insert_rec_low() and page_cur_insert_rec_zip().
+                The BLOB pointers in the record will be initialized after
+                the record and the BLOBs have been written. */
+                UNIV_MEM_ALLOC(data + local_prefix_len,
+                               BTR_EXTERN_FIELD_REF_SIZE);
 #endif
 
     dfield_set_data(dfield, data, local_len);
@@ -583,6 +586,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       upd_field_t upd_field;
       upd_field.field_no = longest_i;
+      IF_DEBUG(upd_field.field_phy_pos =
+                   index->get_field(longest_i)->col->get_col_phy_pos();)
       upd_field.orig_len = 0;
       upd_field.exp = nullptr;
       upd_field.old_v_val = nullptr;
@@ -788,9 +793,8 @@ trx_id_t dtuple_t::get_trx_id() const {
 }
 
 void dtuple_t::ignore_trailing_default(const dict_index_t *index) {
-  if (!index->has_instant_cols()) {
-    return;
-  }
+  ut_a(index->has_instant_cols());
+  ut_a(!index->has_row_versions());
 
   /* It's necessary to check all the fields that could be default.
   If it's from normal update, it should be OK to keep original
@@ -800,6 +804,11 @@ void dtuple_t::ignore_trailing_default(const dict_index_t *index) {
   it has to check all possible default values. */
   for (; n_fields > index->get_instant_fields(); --n_fields) {
     const dict_col_t *col = index->get_field(n_fields - 1)->col;
+
+    /* We shall never come here if INSTANT ADD/DROP is done in a version. */
+    ut_a(!col->is_instant_added());
+    ut_a(!col->is_instant_dropped());
+
     const dfield_t *dfield = dtuple_get_nth_field(this, n_fields - 1);
     ulint len = dfield_get_len(dfield);
 

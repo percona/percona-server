@@ -1,22 +1,4 @@
-CREATE PROCEDURE test_hint (hint_str VARCHAR(255), var_str VARCHAR(64))
-BEGIN
-SET @orig_q= CONCAT("SELECT VARIABLE_VALUE INTO @before_val FROM performance_schema.session_variables where VARIABLE_NAME = '",  var_str, "'");
-SET @hint_q= CONCAT("SELECT /*+ ", hint_str,
-"*/ VARIABLE_VALUE" ,
-" INTO @hint_val FROM performance_schema.session_variables where VARIABLE_NAME = '",  var_str, "'");
-SET @after_q= CONCAT("SELECT VARIABLE_VALUE INTO @after_val FROM performance_schema.session_variables where VARIABLE_NAME = '",  var_str, "'");
-PREPARE orig_stmt FROM @orig_q;
-PREPARE hint_stmt FROM @hint_q;
-PREPARE after_stmt FROM @after_q;
-EXECUTE orig_stmt;
-EXECUTE hint_stmt;
-EXECUTE after_stmt;
-SELECT  hint_str;
-SELECT @before_val, @hint_val, @after_val;
-DEALLOCATE PREPARE orig_stmt;
-DEALLOCATE PREPARE hint_stmt;
-DEALLOCATE PREPARE after_stmt;
-END\\
+Creating auxiliary 'test_hint' SP which returns variable value before hint, with hint and after hint applying
 #####################################
 # Test SET_VAR hint myisam variables
 #####################################
@@ -32,34 +14,21 @@ SET_VAR(myisam_sort_buffer_size=900000)
 @before_val	@hint_val	@after_val
 400000	900000	400000
 SET myisam_sort_buffer_size=default;
-CALL test_hint("SET_VAR(myisam_repair_threads=2)", "myisam_repair_threads");
-hint_str
-SET_VAR(myisam_repair_threads=2)
-@before_val	@hint_val	@after_val
-1	2	1
-SET myisam_repair_threads=4;
-CALL test_hint("SET_VAR(myisam_repair_threads=2)", "myisam_repair_threads");
-hint_str
-SET_VAR(myisam_repair_threads=2)
-@before_val	@hint_val	@after_val
-4	2	4
-SET myisam_repair_threads=default;
 ###################################################
 # Test SET_VAR hint optimize table for myisam table
 ###################################################
 CREATE TABLE t1 (v1 INT, v2 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (3,4);
-OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=700000) SET_VAR(myisam_repair_threads=3) */  TABLE t1;
+OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=700000) */  TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 ##############################################
 # Test with invalid values to myisam variables
 ##############################################
-OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=abc) SET_VAR(myisam_repair_threads=def) */  TABLE t1;
+OPTIMIZE /*+ SET_VAR(myisam_sort_buffer_size=abc) */  TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	Warning	Incorrect argument type to variable 'myisam_sort_buffer_size'
-test.t1	optimize	Warning	Incorrect argument type to variable 'myisam_repair_threads'
 test.t1	optimize	status	Table is already up to date
 DROP TABLE t1;
 #################################################
@@ -121,25 +90,18 @@ DROP TABLE t1;
 ###########################################################
 # Test SET_VAR hint with stored procedure (CALL statement)
 ###########################################################
-CREATE PROCEDURE p1() BEGIN
-SELECT @@myisam_sort_buffer_size,
-@@myisam_repair_threads,
-@@sort_buffer_size,
-@@max_join_size,
-@@innodb_lock_wait_timeout;
-END|
 # check without hints
 CALL p1();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
-8388608	1	262144	18446744073709551615	50
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
+8388608	262144	18446744073709551615	50
 # check with hints
-CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
-16777216	4	524288	461461461	99
+CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
+16777216	524288	461461461	99
 # some with invalid values
-CALL /*+ SET_VAR(myisam_sort_buffer_size=a216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288b) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
-@@myisam_sort_buffer_size	@@myisam_repair_threads	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
-8388608	4	262144	461461461	99
+CALL /*+ SET_VAR(myisam_sort_buffer_size=a216) SET_VAR(sort_buffer_size=524288b) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+@@myisam_sort_buffer_size	@@sort_buffer_size	@@max_join_size	@@innodb_lock_wait_timeout
+8388608	262144	461461461	99
 Warnings:
 Warning	1232	Incorrect argument type to variable 'myisam_sort_buffer_size'
 Warning	1232	Incorrect argument type to variable 'sort_buffer_size'
@@ -150,14 +112,6 @@ DROP PROCEDURE p1;
 # The hint at statement should have higher preference to the
 # hint at CALL statement
 ###########################################################
-CREATE PROCEDURE p1() BEGIN
-CALL test_hint("SET_VAR(myisam_sort_buffer_size=600000)", "myisam_sort_buffer_size");
-CALL test_hint("SET_VAR(myisam_repair_threads=9)", "myisam_repair_threads");
-CALL test_hint("SET_VAR(sort_buffer_size=420000)", "sort_buffer_size");
-CALL test_hint("SET_VAR(max_join_size=200200200)", "max_join_size");
-CALL test_hint("SET_VAR(innodb_lock_wait_timeout=299)", "innodb_lock_wait_timeout");
-CALL /*+ SET_VAR(innodb_lock_wait_timeout=499)*/ test_hint("SET_VAR(innodb_lock_wait_timeout=299)", "innodb_lock_wait_timeout");
-END|
 
 # test without hints to CALL statement
 
@@ -166,10 +120,6 @@ hint_str
 SET_VAR(myisam_sort_buffer_size=600000)
 @before_val	@hint_val	@after_val
 8388608	600000	8388608
-hint_str
-SET_VAR(myisam_repair_threads=9)
-@before_val	@hint_val	@after_val
-1	9	1
 hint_str
 SET_VAR(sort_buffer_size=420000)
 @before_val	@hint_val	@after_val
@@ -189,15 +139,11 @@ SET_VAR(innodb_lock_wait_timeout=299)
 
 # test with hints to CALL statement
 
-CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
 hint_str
 SET_VAR(myisam_sort_buffer_size=600000)
 @before_val	@hint_val	@after_val
 16777216	600000	16777216
-hint_str
-SET_VAR(myisam_repair_threads=9)
-@before_val	@hint_val	@after_val
-4	9	4
 hint_str
 SET_VAR(sort_buffer_size=420000)
 @before_val	@hint_val	@after_val

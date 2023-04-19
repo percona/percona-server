@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -56,7 +56,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_rewrite.h"  // mysql_rewrite_query
 #include "sql/table.h"
-#include "sql_parse.h"  // command_name
+#include "sql_parse.h"  // Command_names
 #include "sql_string.h"
 #include "thr_mutex.h"
 
@@ -70,7 +70,7 @@ class Audit_error_handler : public Internal_error_handler {
   /**
     @brief Blocked copy constructor (private).
   */
-  Audit_error_handler(const Audit_error_handler &obj MY_ATTRIBUTE((unused)))
+  Audit_error_handler(const Audit_error_handler &obj [[maybe_unused]])
       : m_thd(nullptr),
         m_warning_message(nullptr),
         m_error_reported(false),
@@ -310,6 +310,7 @@ inline const CHARSET_INFO *thd_get_audit_query(THD *thd,
   } else {
     query->str = thd->query().str;
     query->length = thd->query().length;
+    DBUG_PRINT("print_query", ("%.*s\n", (int)query->length, query->str));
     return thd->charset();
   }
 }
@@ -347,9 +348,8 @@ class Ignore_event_error_handler : public Audit_error_handler {
     @param sqlstate  The SQL state of the underlying error. NULL if none
     @param msg       The text of the underlying error. NULL if none
   */
-  void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
-                     uint sql_errno, const char *sqlstate,
-                     const char *msg) override {
+  void print_warning(const char *warn_msg [[maybe_unused]], uint sql_errno,
+                     const char *sqlstate, const char *msg) override {
     LogErr(WARNING_LEVEL, ER_AUDIT_CANT_ABORT_EVENT, m_event_name, sql_errno,
            sqlstate ? sqlstate : "<NO_STATE>", msg ? msg : "<NO_MESSAGE>");
   }
@@ -387,36 +387,28 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_external_user = sctx->external_user();
   event.general_rows = thd->get_stmt_da()->current_row_for_condition();
   if (thd->lex->sql_command == SQLCOM_END && msg_len > 0 && error_code == 0) {
-    int found_index = -1;
-    for (size_t i = 0; i < get_command_name_len(); ++i) {
-      if (!strcmp(command_name[i].str, msg)) {
-        found_index = i;
-        break;
-      }
-    }
+    enum_server_command found_index = Command_names::get_index_by_str_name(msg);
 
-    if (found_index == -1) {
-      event.general_sql_command = sql_statement_names[thd->lex->sql_command];
-    } else {
-      switch (found_index) {
-        case COM_STMT_PREPARE:
-          event.general_sql_command = sql_statement_names[SQLCOM_PREPARE];
-          break;
-        case COM_STMT_EXECUTE:
-          event.general_sql_command = sql_statement_names[SQLCOM_EXECUTE];
-          break;
-        case COM_STMT_RESET:
-          event.general_sql_command = sql_statement_names[SQLCOM_RESET];
-          break;
-        default:
-          cmd_class_lowercase = msg;
-          std::transform(cmd_class_lowercase.begin(), cmd_class_lowercase.end(),
-                         cmd_class_lowercase.begin(), ::tolower);
-          MYSQL_LEX_CSTRING command_class = {
-              STRING_WITH_LEN(cmd_class_lowercase.c_str())};
-          event.general_sql_command = command_class;
-          break;
-      }
+    switch (found_index) {
+      case COM_STMT_PREPARE:
+        event.general_sql_command = sql_statement_names[SQLCOM_PREPARE];
+        break;
+      case COM_STMT_EXECUTE:
+        event.general_sql_command = sql_statement_names[SQLCOM_EXECUTE];
+        break;
+      case COM_STMT_RESET:
+        event.general_sql_command = sql_statement_names[SQLCOM_RESET];
+        break;
+      case COM_END:
+        event.general_sql_command = sql_statement_names[thd->lex->sql_command];
+        break;
+      default:
+        cmd_class_lowercase = msg;
+        std::transform(cmd_class_lowercase.begin(), cmd_class_lowercase.end(),
+                       cmd_class_lowercase.begin(), ::tolower);
+        event.general_sql_command.str = cmd_class_lowercase.c_str();
+        event.general_sql_command.length = cmd_class_lowercase.length();
+        break;
     }
   } else {
     event.general_sql_command = sql_statement_names[thd->lex->sql_command];
@@ -528,7 +520,7 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
 
   @retval true - generate event, otherwise not.
 */
-inline bool generate_table_access_event(THD *thd, TABLE_LIST *table) {
+inline bool generate_table_access_event(THD *thd, Table_ref *table) {
   /* Discard views or derived tables. */
   if (table->is_view_or_derived()) return false;
 
@@ -580,7 +572,7 @@ inline static void set_table_access_subclass(
 */
 static int mysql_audit_notify(THD *thd,
                               mysql_event_table_access_subclass_t subclass,
-                              const char *subclass_name, TABLE_LIST *table) {
+                              const char *subclass_name, Table_ref *table) {
   LEX_CSTRING str;
   mysql_event_table_access event;
 
@@ -607,7 +599,7 @@ static int mysql_audit_notify(THD *thd,
                                     subclass_name, &event);
 }
 
-int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table) {
+int mysql_audit_table_access_notify(THD *thd, Table_ref *table) {
   mysql_event_table_access_subclass_t subclass;
   const char *subclass_name;
   int ret;
@@ -852,9 +844,8 @@ class Ignore_command_start_error_handler : public Audit_error_handler {
     @param sqlstate  The SQL state of the underlying error. NULL if none
     @param msg       The text of the underlying error. NULL if none
   */
-  void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
-                     uint sql_errno, const char *sqlstate,
-                     const char *msg) override {
+  void print_warning(const char *warn_msg [[maybe_unused]], uint sql_errno,
+                     const char *sqlstate, const char *msg) override {
     LogErr(WARNING_LEVEL, ER_AUDIT_CANT_ABORT_COMMAND, m_command_text,
            sql_errno, sqlstate ? sqlstate : "<NO_STATE>",
            msg ? msg : "<NO_MESSAGE>");
@@ -1460,7 +1451,7 @@ static int event_class_dispatch_error(THD *thd, mysql_event_class_t event_class,
 }
 
 /**  There's at least one active audit plugin tracking a specified class */
-bool is_audit_plugin_class_active(THD *thd MY_ATTRIBUTE((unused)),
+bool is_audit_plugin_class_active(THD *thd [[maybe_unused]],
                                   unsigned long event_class) {
   return mysql_global_audit_mask[event_class] != 0;
 }

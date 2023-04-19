@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef FILELOGHANDLER_H
 #define FILELOGHANDLER_H
+
+#include <time.h>
 
 #include "LogHandler.hpp"
 
@@ -76,8 +78,8 @@ public:
 
   bool getParams(BaseString &config) override;
 
-  off_t getCurrentSize() override;
-  off_t getMaxSize() override { return m_maxFileSize; }
+  ndb_off_t getCurrentSize() override;
+  ndb_off_t getMaxSize() override { return m_maxFileSize; }
 
 protected:	
   void writeHeader(const char* pCategory, Logger::LoggerLevel level,
@@ -109,7 +111,7 @@ private:
   bool setMaxFiles(const BaseString &files);
   
   int m_maxNoFiles;
-  off_t m_maxFileSize;
+  ndb_off_t m_maxFileSize;
   unsigned int m_maxLogEntries;
   File_class* m_pLogFile;
 };

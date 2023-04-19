@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,16 +27,6 @@
 void init_pfs_plugin_table() {}
 
 void cleanup_pfs_plugin_table() {}
-
-SERVICE_TYPE(pfs_plugin_table)
-SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table){
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 SERVICE_TYPE(pfs_plugin_table_v1)
 SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table_v1){
@@ -74,10 +64,9 @@ SERVICE_TYPE(pfs_plugin_column_double_v1)
 SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_double_v1){
     nullptr, nullptr};
 
-SERVICE_TYPE(pfs_plugin_column_string_v1)
-SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_string_v1){
-    nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr, nullptr};
+SERVICE_TYPE(pfs_plugin_column_string_v2)
+SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_string_v2){
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 SERVICE_TYPE(pfs_plugin_column_blob_v1)
 SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_blob_v1){nullptr,

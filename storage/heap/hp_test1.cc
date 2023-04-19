@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ static int get_options(int argc, char *argv[]);
 static int flag = 0, verbose = 0, remove_ant = 0, flags[50];
 
 int main(int argc, char **argv) {
-  int i, j, error, deleted;
+  int i, j, error;
   HP_INFO *file;
   uchar record[128], key[32];
   const char *filename;
@@ -84,7 +84,6 @@ int main(int argc, char **argv) {
   columndef[1].offset = 7;
   columndef[1].length = 23;
 
-  deleted = 0;
   memset(flags, 0, sizeof(flags));
 
   printf("- Creating heap-file\n");
@@ -129,7 +128,6 @@ int main(int argc, char **argv) {
         printf("key: %s  delete: %d  my_errno: %d\n", (char *)key, error,
                my_errno());
       flags[j] = 0;
-      if (!error) deleted++;
     }
     if (heap_check_heap(file, false)) {
       puts("Heap keys crashed");

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ NdbInfoScanNodes::NdbInfoScanNodes(Ndb_cluster_connection* connection,
                                    Uint32 max_nodes) :
   m_state(Undefined),
   m_connection(connection),
-  m_signal_sender(NULL),
+  m_signal_sender(nullptr),
   m_table(table),
   m_recAttrs(table->columns()),
   m_node_id(0),
@@ -99,11 +99,11 @@ const NdbInfoRecAttr *
 NdbInfoScanNodes::getValue(const char * anAttrName)
 {
   if (m_state != Prepared)
-    return NULL;
+    return nullptr;
 
   const NdbInfo::Column* column = m_table->getColumn(anAttrName);
   if (!column)
-    return NULL;
+    return nullptr;
   return getValue(column->m_column_id);
 }
 
@@ -111,10 +111,10 @@ const NdbInfoRecAttr *
 NdbInfoScanNodes::getValue(Uint32 anAttrId)
 {
   if (m_state != Prepared)
-    return NULL;
+    return nullptr;
 
   if (anAttrId >= m_table->columns())
-    return NULL;
+    return nullptr;
 
   return m_recAttrs.get_value(anAttrId);
 }
@@ -216,7 +216,7 @@ NdbInfoScanNodes::sendDBINFO_SCANREQ(void)
   assert((m_rows_received == 0 && m_rows_confirmed == (Uint32)~0) || // first
          m_rows_received == m_rows_confirmed);                       // subsequent
 
-  // No rows recieved in this batch yet
+  // No rows received in this batch yet
   m_rows_received = 0;
 
   // Number of rows returned by batch is not yet known
@@ -255,7 +255,7 @@ int NdbInfoScanNodes::receive(void)
       if (m_rows_received < m_rows_confirmed)
         DBUG_RETURN(1); // Row available
 
-      // All rows in this batch recieved
+      // All rows in this batch received
       assert(m_rows_received == m_rows_confirmed);
 
       if (m_cursor.size() == 0 && !find_next_node())
@@ -288,7 +288,7 @@ int NdbInfoScanNodes::receive(void)
       if (m_rows_received < m_rows_confirmed)
         continue;  // Continue waiting(for late TRANSID_AI signals)
 
-      // All rows in this batch recieved
+      // All rows in this batch received
       assert(m_rows_received == m_rows_confirmed);
 
       if (m_cursor.size() == 0 && !find_next_node())
@@ -392,6 +392,11 @@ NdbInfoScanNodes::nextResult()
   DBUG_RETURN(-1);
 }
 
+bool NdbInfoScanNodes::seek(NdbInfoScanOperation::Seek, int)
+{
+  assert(false);
+  return false;
+}
 
 bool
 NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
@@ -414,9 +419,9 @@ NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
   m_recAttrs.reset_recattrs();
 
   // Read attributes from long signal section
-  AttributeHeader* attr = (AttributeHeader*)signal->ptr[0].p;
-  AttributeHeader* last = (AttributeHeader*)(signal->ptr[0].p +
-                                            signal->ptr[0].sz);
+  const AttributeHeader* attr = (const AttributeHeader*)signal->ptr[0].p;
+  const AttributeHeader* last =
+      (const AttributeHeader*)(signal->ptr[0].p + signal->ptr[0].sz);
   while (attr < last)
   {
     const Uint32 col = attr->getAttributeId();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -56,7 +56,7 @@ NdbSubroutine::~NdbSubroutine()
 }
 
 NdbBranch::NdbBranch(Ndb*) :
-  theSignal(NULL)
+  theSignal(nullptr)
 {
 }
 
@@ -65,7 +65,7 @@ NdbBranch::~NdbBranch()
 }
 
 NdbCall::NdbCall(Ndb*) :
-  theSignal(NULL)
+  theSignal(nullptr)
 {
 }
 
@@ -73,10 +73,7 @@ NdbCall::~NdbCall()
 {
 }
 
-
-NdbLockHandle::NdbLockHandle(Ndb*)
-{
-}
+NdbLockHandle::NdbLockHandle(Ndb*) {}
 
 NdbLockHandle::~NdbLockHandle()
 {
@@ -86,14 +83,10 @@ void
 NdbLockHandle::init()
 {
   m_state = ALLOCATED;
-  m_table = NULL;
+  m_table = nullptr;
   m_lockRef[0] = 0;
   m_openBlobCount = 0;
-  thePrev = NULL;
+  thePrev = nullptr;
 }
 
-void
-NdbLockHandle::release(Ndb* ndb)
-{
-  m_state = FREE;
-}
+void NdbLockHandle::release(Ndb*) { m_state = FREE; }

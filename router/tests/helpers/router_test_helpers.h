@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,12 @@
 #include <typeinfo>
 
 #include "mysql/harness/stdx/attribute.h"
+
+#ifdef NDEBUG
+#define MYSQLD_BIN "mysqld"
+#else
+#define MYSQLD_BIN "mysqld-debug"
+#endif
 
 #define SKIP_GIT_TESTS(COND)                                       \
   if (COND) {                                                      \
@@ -104,52 +110,6 @@ mysql_harness::Path get_cmake_source_dir();
 mysql_harness::Path get_envvar_path(const std::string &envvar,
                                     mysql_harness::Path alternative);
 
-/** @brief Returns the current working directory
- *
- * Uses `getcwd()` and returns the current working directory as as std::string.
- *
- * Throws std::runtime_error on errors.
- *
- * @return std::string
- */
-const std::string get_cwd();
-
-/** @brief Changes the current working directory
- *
- * Uses `chdir()` to change the current working directory. When succesfully
- * change to the folder, the old working directory is returned.
- *
- * Throws std::runtime_error on errors.
- *
- * @return std::string
- */
-const std::string change_cwd(std::string &dir);
-
-/** @brief Reads a specified number of bytes from a non-blocking socket
- *
- * reads a non-blocking socket until one of three things happen:
- *   1. specified number of bytes have been read - returns this number
- *   2. timeout expires - throws, describing the error
- *   3. read() fails    - throws, describing the error
- *
- * Returns number of bytes read (should be the number of bytes requested,
- * can be less on EOF).  Throws std::runtime_error on I/O error or timeout;
- * the reason can be extracted from the thrown object with what() method.
- *
- * @param sockfd file decriptor
- * @param buffer to store read bytes
- * @param n_bytes of bytes to read
- * @param timeout_in_ms expressed in milliseconds
- *
- * @return number of bytes read
- */
-size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
-                               uint64_t timeout_in_ms);
-
-#ifdef _WIN32
-std::string get_last_error(int err_code);
-#endif
-
 /** @brief Checks if the given regex pattern can be found in the input string
  *
  *
@@ -174,8 +134,7 @@ void init_windows_sockets();
  *
  * @returns true if the selected port accepts connections, false otherwise
  */
-STDX_NODISCARD
-bool wait_for_port_ready(
+[[nodiscard]] bool wait_for_port_ready(
     uint16_t port, std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
     const std::string &hostname = "127.0.0.1");
 
@@ -183,10 +142,17 @@ bool wait_for_port_ready(
  *
  * @param port TCP port that will be checked
  *
- * @returns true if the selected port is available, false otherwise
+ * @returns true if the selected port is not used, false otherwise
  */
-STDX_NODISCARD
-bool is_port_available(const uint16_t port);
+[[nodiscard]] bool is_port_unused(const uint16_t port);
+
+/** @brief Check if a given port can be bind to.
+ *
+ * @param port TCP port that will be checked
+ *
+ * @returns true if the selected port can be bind to, false otherwise
+ */
+[[nodiscard]] bool is_port_bindable(const uint16_t port);
 
 /**
  * Wait until the port is not available (is used by any application).
@@ -197,8 +163,7 @@ bool is_port_available(const uint16_t port);
  * @return false if the port is still available after the timeout expiry,
  *         true otherwise.
  */
-STDX_NODISCARD
-bool wait_for_port_not_available(
+[[nodiscard]] bool wait_for_port_used(
     const uint16_t port,
     std::chrono::milliseconds timeout = std::chrono::seconds(10));
 
@@ -211,8 +176,7 @@ bool wait_for_port_not_available(
  * @return false if the port is still not available after the timeout expiry,
  *         true otherwise.
  */
-STDX_NODISCARD
-bool wait_for_port_available(
+[[nodiscard]] bool wait_for_port_unused(
     const uint16_t port,
     std::chrono::milliseconds timeout = std::chrono::seconds(10));
 
@@ -232,11 +196,13 @@ void init_keyring(std::map<std::string, std::string> &default_section,
 /** @brief returns true if the selected file contains a string
  *          that is true for a given predicate
  *
- * @param file_path path to the file we want to serach
+ * @param file_path path to the file we want to search
  * @param predicate predicate to test the file
  * @param sleep_time max time to wait for the entry in the file
+ * @deprecated use wait_log_contains() or get_file_output() with
+ * "EXPECT_THAT(..., Contains())"
  */
-bool find_in_file(
+[[deprecated]] bool find_in_file(
     const std::string &file_path,
     const std::function<bool(const std::string &)> &predicate,
     std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000));
@@ -281,5 +247,25 @@ void connect_client_and_query_port(unsigned router_port, std::string &out_port,
 bool add_line_to_config_file(const std::string &config_path,
                              const std::string &section_name,
                              const std::string &key, const std::string &value);
+
+/**
+ * Wait for the nth occurrence of the log_regex in the log_file with timeout
+ * If it's found returns the timepoint from the matched line prefix
+ * If timed out or failed to convert the timestamp returns unexpected
+ *
+ * @param log_file path to file containing router log
+ * @param log_regex value that is going to be searched for in the log
+ * @param occurence number denoting which occurrence of a log_regex is expected
+ * @param timeout number of milliseconds we are going to wait for the log_regex
+ * to occur at expected position
+ *
+ * @returns if log_regex is found at expected position return the timestamp of
+ * this log
+ */
+std::optional<std::chrono::time_point<std::chrono::system_clock>>
+get_log_timestamp(
+    const std::string &log_file, const std::string &log_regex,
+    const unsigned occurence = 1,
+    const std::chrono::milliseconds timeout = std::chrono::seconds(1));
 
 #endif  // ROUTER_TESTS_TEST_HELPERS_INCLUDED

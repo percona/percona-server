@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,10 @@
 #include <vector>
 
 /* Service handle */
-extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
+extern SERVICE_TYPE(pfs_plugin_column_integer_v1) * col_int_svc;
+extern SERVICE_TYPE(pfs_plugin_column_bigint_v1) * col_bigint_svc;
+extern SERVICE_TYPE(pfs_plugin_column_date_v1) * col_date_svc;
+extern SERVICE_TYPE(pfs_plugin_column_time_v1) * col_time_svc;
 
 /* Global share pointer for pfs_example_employee_salary table */
 extern PFS_engine_table_share_proxy esalary_st_share;
@@ -68,7 +71,7 @@ class Esalary_POS {
   unsigned int m_index;
 
  public:
-  ~Esalary_POS() {}
+  ~Esalary_POS() = default;
   Esalary_POS() { m_index = 0; }
 
   bool has_more() {

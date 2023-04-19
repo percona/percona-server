@@ -4,34 +4,34 @@
  Index of ``INFORMATION_SCHEMA`` Tables
 ========================================
 
-This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in |Percona Server| with |XtraDB|. The entry for each table points to the page in the documentation where it's described.
+This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in *Percona Server for MySQL* with *XtraDB*. The entry for each table points to the page in the documentation where it's described.
 
-  * :table:`CLIENT_STATISTICS`
+  * :ref:`CLIENT_STATISTICS`
 
-  * :table:`GLOBAL_TEMPORARY_TABLES`
+  * :ref:`GLOBAL_TEMPORARY_TABLES`
 
-  * :table:`INDEX_STATISTICS`
+  * :ref:`INDEX_STATISTICS`
 
-  * :table:`INNODB_CHANGED_PAGES`
+  * :ref:`INNODB_CHANGED_PAGES`
 
   * :ref:`PROCFS`
 
-  * :table:`QUERY_RESPONSE_TIME`
+  * :ref:`QUERY_RESPONSE_TIME`
 
-  * :table:`TABLE_STATISTICS`
+  * :ref:`TABLE_STATISTICS`
 
-  * :table:`TEMPORARY_TABLES`
+  * :ref:`TEMPORARY_TABLES`
 
-  * :table:`THREAD_STATISTICS`
+  * :ref:`THREAD_STATISTICS`
 
-  * :table:`USER_STATISTICS`
+  * :ref:`USER_STATISTICS`
 
-  * :table:`XTRADB_INTERNAL_HASH_TABLES`
+  * :ref:`XTRADB_INTERNAL_HASH_TABLES`
 
-  * :table:`XTRADB_READ_VIEW`
+  * :ref:`XTRADB_READ_VIEW`
 
-  * :table:`XTRADB_RSEG`
+  * :ref:`XTRADB_RSEG`
 
-  * :table:`XTRADB_ZIP_DICT`
+  * :ref:`XTRADB_ZIP_DICT`
 
-  * :table:`XTRADB_ZIP_DICT_COLS`
+  * :ref:`XTRADB_ZIP_DICT_COLS`

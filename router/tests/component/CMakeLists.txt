@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,16 +30,29 @@ MYSQL_ADD_EXECUTABLE(master_key_test_writer
   SKIP_INSTALL
   )
 
+MYSQL_ADD_EXECUTABLE(signal_me
+  signal_me.cc
+  LINK_LIBRARIES mysys
+  COMPONENT Router
+  SKIP_INSTALL
+  )
+
+ADD_SUBDIRECTORY(rest_signal)
+
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
     test_async_replicaset.cc
     test_bootstrap.cc
     test_bootstrap_account.cc
+    test_bootstrap_clusterset.cc
     test_bootstrap_system_deployment.cc
     test_bootstrap_tls_endpoint.cc
+    test_clusterset.cc
     test_component_test_framework.cc
     test_config.cc
+    test_config_overwrites.cc
+    test_connection_pool.cc
     test_gr_notifications.cc
     test_http_server.cc
     test_logging.cc
@@ -53,22 +66,30 @@ FOREACH(test_file
     test_rest_mock_server.cc
     test_rest_router.cc
     test_rest_routing.cc
+    test_rest_connection_pool.cc
     test_router_configuration_errors.cc
+    test_router_stacktrace.cc
     test_routing.cc
     test_routing_connection.cc
+    test_routing_connection_errors.cc
     test_routing_strategy.cc
+    test_routing_sharing.cc
     test_sd_notify.cc
     test_shutdown.cc
     test_state_file.cc
     test_user_option.cc
     test_metadata_http_auth_backend.cc
     test_socket_close.cc
+    test_stacktrace.cc
+    test_destination_status.cc
     )
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
   INCLUDE_DIRS
+    ${PROJECT_SOURCE_DIR}/src/harness/shared/include/
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
+    ${CMAKE_SOURCE_DIR}/plugin/x/client
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
   LIB_DEPENDS
@@ -76,6 +97,9 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_common
   mock_server_rest_client
   mysql_protocol
+  mysqlxclient_lite
+  mysqlxmessages_lite
+  ${PROTOBUF_LITE_LIBRARY}
 
   DEPENDS
   http_auth_backend
@@ -95,6 +119,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   router_protobuf
   routing
   routertestplugin_logger
+  signal_me
   )
 ENDFOREACH()
 

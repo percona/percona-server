@@ -1,6 +1,6 @@
 #ifndef DD_SP_INCLUDED
 #define DD_SP_INCLUDED
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,14 +67,4 @@ void prepare_return_type_string_from_dd_routine(
 void prepare_params_string_from_dd_routine(THD *thd, const dd::Routine *routine,
                                            dd::String_type *params_str);
 
-/**
-  Method to check whether routine object is of stored function type
-  or not.
-
-  @param[in]  routine     Routine object read from the Data Dictionary.
-*/
-
-inline bool is_dd_routine_type_function(const dd::Routine *routine) {
-  return (routine->type() == dd::Routine::RT_FUNCTION);
-}
 #endif  // DD_SP_INCLUDED

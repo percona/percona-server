@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,8 @@ Plugin_table table_accounts::m_table_def(
     "  HOST CHAR(255) CHARACTER SET ASCII default null,\n"
     "  CURRENT_CONNECTIONS bigint not null,\n"
     "  TOTAL_CONNECTIONS bigint not null,\n"
+    "  MAX_SESSION_CONTROLLED_MEMORY BIGINT unsigned not null,\n"
+    "  MAX_SESSION_TOTAL_MEMORY BIGINT unsigned not null,\n"
     "  UNIQUE KEY `ACCOUNT` (USER, HOST) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -157,10 +159,12 @@ int table_accounts::read_row_values(TABLE *table, unsigned char *buf,
       switch (f->field_index()) {
         case 0: /* USER */
         case 1: /* HOST */
-          m_row.m_account.set_field(f->field_index(), f);
+          m_row.m_account.set_nullable_field(f->field_index(), f);
           break;
         case 2: /* CURRENT_CONNECTIONS */
         case 3: /* TOTAL_CONNECTIONS */
+        case 4: /* MAX_SESSION_CONTROLLED_MEMORY */
+        case 5: /* MAX_SESSION_TOTAL_MEMORY */
           m_row.m_connection_stat.set_field(f->field_index() - 2, f);
           break;
         default:

@@ -1,0 +1,7 @@
+# Prepare datadir
+# Stop the server created by default
+# Restart server to trigger upgrade
+# Check for errors
+Pattern "Resolving dependency for the view 'test.v1' failed. View is no more valid to use" not found
+# Stop the server
+# restart

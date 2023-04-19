@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -119,6 +119,16 @@ sub fix_host {
   return $hosts[$host_no];
 }
 
+sub fix_cpubind {
+  my ($self, $config, $group_name, $group) = @_;
+  # Replace cpubind with #cpubind
+  my $value = $group->if_exist('cpubind');
+  if (defined $value) {
+    $group->remove('cpubind');
+  }
+  return $value;
+}
+
 sub fix_cluster_config_suffix {
   my ($self, $config, $group_name, $group) = @_;
 
@@ -209,6 +219,26 @@ sub fix_log {
   return "$dir/mysqld.log";
 }
 
+sub fix_group_setting {
+  my ($self, $config, $group_name, $group, $option_name) = @_;
+  # Use value from [mysqld.X], [mysqld](if group exists) or 1
+  return $group->if_exist($option_name) ||
+         ($config->group_exists('mysqld') &&
+          $config->group('mysqld')->if_exist($option_name)) || 1;
+}
+
+sub fix_slow_query_log {
+  my ($self, $config, $group_name, $group) = @_;
+  return fix_group_setting($self, $config, $group_name,
+                           $group, 'slow_query_log');
+}
+
+sub fix_general_log {
+  my ($self, $config, $group_name, $group) = @_;
+  return fix_group_setting($self, $config, $group_name,
+                           $group, 'general_log');
+}
+
 sub fix_log_slow_queries {
   my ($self, $config, $group_name, $group) = @_;
   my $dir = dirname($group->value('datadir'));
@@ -267,6 +297,7 @@ sub fix_rsa_public_key {
 #    in the order listed here
 my @mysqld_rules = (
   { '#abs_datadir'                                 => \&fix_abs_datadir },
+  { '#cpubind'                                     => \&fix_cpubind },
   { '#host'                                        => \&fix_host },
   { '#log-error'                                   => \&fix_log_error },
   { 'caching_sha2_password_private_key_path'       => \&fix_rsa_private_key },
@@ -277,7 +308,7 @@ my @mysqld_rules = (
   { 'datadir'                                      => \&fix_datadir },
   { 'port'                                         => \&fix_port },
   { 'admin-port'                                   => \&fix_admin_port },
-  { 'general_log'                                  => 1 },
+  { 'general_log'                                  => \&fix_general_log },
   { 'general_log_file'                             => \&fix_log },
   { 'loose-mysqlx-port'                            => \&fix_x_port },
   { 'loose-mysqlx-socket'                          => \&fix_x_socket },
@@ -287,7 +318,7 @@ my @mysqld_rules = (
   { 'loose-mysqlx-ssl-key'                         => "" },
   { 'pid-file'                                     => \&fix_pidfile },
   { 'server-id'                                    => \&fix_server_id, },
-  { 'slow_query_log'                               => 1 },
+  { 'slow_query_log'                               => \&fix_slow_query_log },
   { 'slow_query_log_file'                          => \&fix_log_slow_queries },
   { 'socket'                                       => \&fix_socket },
   { 'ssl-ca'                                       => \&fix_ssl_ca },
@@ -340,13 +371,15 @@ sub fix_cluster_backup_dir {
 #  - will be run in order listed here
 my @ndb_mgmd_rules =
   ({ 'DataDir' => \&fix_cluster_dir },
-   { 'PortNumber' => \&fix_ndb_mgmd_port },);
+   { 'PortNumber' => \&fix_ndb_mgmd_port },
+   { '#cpubind'   => \&fix_cpubind },);
 
 # Rules to run for each ndbd in the config
 #  - will be run in order listed here
 my @ndbd_rules = ({ 'BackupDataDir' => \&fix_cluster_backup_dir },
                   { 'DataDir'       => \&fix_cluster_dir },
-                  { 'HostName'      => \&fix_host },);
+                  { 'HostName'      => \&fix_host },
+                  { '#cpubind'      => \&fix_cpubind },);
 
 # Rules to run for each memcached in the config
 #  - will be run in order listed here
@@ -366,7 +399,8 @@ my @client_rules = ();
 # Rules to run for [mysqltest] section
 #  - will be run in order listed here
 my @mysqltest_rules = ({ 'server-public-key-path' => \&fix_rsa_public_key },
-                       { 'ssl-mode'               => \&fix_ssl_disabled },);
+                       { 'ssl-mode'               => \&fix_ssl_disabled },
+                       { '#cpubind'               => \&fix_cpubind },);
 
 # Rules to run for [mysqlbinlog] section
 #  - will be run in order listed here
@@ -459,7 +493,7 @@ sub post_check_client_groups {
 }
 
 sub resolve_at_variable {
-  my ($self, $config, $group, $option) = @_;
+  my ($self, $config, $group, $option, $worker) = @_;
 
   # Split the options value on last '.'
   my @parts       = split(/\./, $option->value());
@@ -470,7 +504,9 @@ sub resolve_at_variable {
   $group_name =~ s/^\@//;
 
   my $from;
-  if ($group_name =~ "env") {
+  if ($group_name =~ "envarray") {
+    $from = $ENV{$option_name.$worker};
+  } elsif ($group_name =~ "env") {
     $from = $ENV{$option_name};
   } else {
     my $from_group = $config->group($group_name) or
@@ -484,12 +520,12 @@ sub resolve_at_variable {
 }
 
 sub post_fix_resolve_at_variables {
-  my ($self, $config) = @_;
+  my ($self, $config, $worker) = @_;
 
   foreach my $group ($config->groups()) {
     foreach my $option ($group->options()) {
       next unless defined $option->value();
-      $self->resolve_at_variable($config, $group, $option)
+      $self->resolve_at_variable($config, $group, $option, $worker)
         if ($option->value() =~ /^\@/);
     }
   }
@@ -679,7 +715,7 @@ sub run_generate_sections_from_cluster_config {
 sub new_config {
   my ($class, $args) = @_;
 
-  my @required_args = ('basedir', 'baseport', 'vardir', 'template_path', 'testdir', 'tmpdir');
+  my @required_args = ('basedir', 'baseport', 'vardir', 'template_path', 'testdir', 'tmpdir', 'worker');
 
   foreach my $required (@required_args) {
     croak "you must pass '$required'" unless defined $args->{$required};
@@ -755,9 +791,12 @@ sub new_config {
     push(@post_rules, \&post_check_secondary_engine_mysqld_group);
   }
 
+  # Worker ID
+  my $worker = $args->{'worker'};
+
   # Run post rules
   foreach my $rule (@post_rules) {
-    &$rule($self, $config);
+    &$rule($self, $config, $worker);
   }
 
   return $config;

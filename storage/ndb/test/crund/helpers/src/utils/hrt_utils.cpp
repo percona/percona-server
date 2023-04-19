@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ timeval_diff(const struct timeval *y, const struct timeval *x)
 static inline double
 clock_t_diff(clock_t y, clock_t x)
 {
-    /* ignored: loosing precision if clock_t is specified as long double */
+    /* ignored: losing precision if clock_t is specified as long double */
     return (double)(y - x);
 }
 #endif

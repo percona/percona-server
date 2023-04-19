@@ -1,5 +1,5 @@
  /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,10 @@ static int g_loops = 7;
 
 struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::end_of_options
 };
 
 static const NdbDictionary::Table* create_random_table(Ndb*);
@@ -228,7 +230,7 @@ system_restart(Ndb* pNdb, const NdbDictionary::Table* tab)
   return 0;
 }
 
-/* Note : folowing classes test functionality of storage/ndb/src/common/util/Bitmask.cpp
+/* Note : following classes test functionality of storage/ndb/src/common/util/Bitmask.cpp
  * and were originally defined there.
  * Set BITMASK_DEBUG to 1 to get more test debugging info.
  */
@@ -555,7 +557,7 @@ testRanges(Uint32 bitmask_size)
       tmp.fill(sz32, zero);
 
       // Bit was free
-      // 1) Check how much space is avaiable
+      // 1) Check how much space is available
       // 2) Create new allocation of lrandom size
       // 3) Fill data with lrandom data
       // 4) Update alloc mask
@@ -570,7 +572,7 @@ testRanges(Uint32 bitmask_size)
       Alloc a;
       a.pos = pos;
       a.size = sz;
-      a.data.fill(((sz+31)>> 5)-1, zero);
+      a.data.fill(((sz + 31) >> 5), zero);
       if(BITMASK_DEBUG)
 	printf("pos %d -> alloc [ %d %d ]", pos, pos, pos+sz);
       for(Uint32 j = 0; j<sz; j++)

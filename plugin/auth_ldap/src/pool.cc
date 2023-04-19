@@ -1,3 +1,18 @@
+/* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
+   Copyright (c) 2022, Percona Inc. All Rights Reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 #include "plugin/auth_ldap/include/pool.h"
 
 #include <cmath>
@@ -5,6 +20,7 @@
 #include <thread>
 #include "my_sys.h"
 
+#include <boost/algorithm/string.hpp>
 #include "plugin/auth_ldap/include/plugin_log.h"
 
 namespace mysql {
@@ -12,13 +28,16 @@ namespace plugin {
 namespace auth_ldap {
 
 Pool::Pool(std::size_t pool_initial_size, std::size_t pool_max_size,
-           const std::string &ldap_host, std::uint16_t ldap_port, bool use_ssl,
-           bool use_tls, const std::string &ca_path, const std::string &bind_dn,
-           const std::string &bind_pwd)
+           const std::string &ldap_host, std::uint16_t ldap_port,
+           const std::string &fallback_host, std::uint16_t fallback_port,
+           bool use_ssl, bool use_tls, const std::string &ca_path,
+           const std::string &bind_dn, const std::string &bind_pwd)
     : pool_initial_size_(pool_initial_size),
       pool_max_size_(pool_max_size),
       ldap_host_(ldap_host),
       ldap_port_(ldap_port),
+      ldap_fallback_host_(fallback_host),
+      ldap_fallback_port_(fallback_port),
       use_ssl_(use_ssl),
       use_tls_(use_tls),
       ca_path_(ca_path),
@@ -26,13 +45,17 @@ Pool::Pool(std::size_t pool_initial_size, std::size_t pool_max_size,
       bind_pwd_(bind_pwd) {
   std::lock_guard<std::mutex> lock(pool_mutex_);
 
+  Connection::initialize_global_ldap_parameters(true, ca_path);
+
   bs_used_.resize(pool_max_size_);
   v_connections_.resize(pool_max_size_);
   for (std::size_t i = 0; i < pool_max_size_; i++) {
-    v_connections_[i] = std::make_shared<Connection>(i, ldap_host, ldap_port,
-                                                     use_ssl, use_tls, ca_path);
+    v_connections_[i] = std::make_shared<Connection>(
+        i, ldap_host_, ldap_port_, ldap_fallback_host_, ldap_fallback_port_,
+        use_ssl, use_tls);
     if (i < pool_initial_size_) {
-      v_connections_[i]->connect(bind_dn_, bind_pwd_);
+      std::string auth_resp;
+      v_connections_[i]->connect(bind_dn_, bind_pwd_, auth_resp);
     }
   }
 }
@@ -114,11 +137,27 @@ void Pool::return_connection(pool_ptr_t conn) {
   }
 }
 
+void Pool::reset_group_role_mapping(std::string const &mapping) {
+  std::vector<std::string> roles;
+  boost::algorithm::split(roles, mapping, boost::is_any_of(","));
+  group_role_mapping_.clear();
+  for (auto const &role : roles) {
+    std::vector<std::string> r;
+    boost::algorithm::split(r, role, boost::is_any_of("="));
+    if (r.size() == 1) {
+      group_role_mapping_[role] = role;
+    } else {
+      group_role_mapping_[r[0]] = r[1];
+    }
+  }
+}
+
 void Pool::reconfigure(std::size_t newpool_initial_size_,
                        std::size_t newpool_max_size_,
                        const std::string &ldap_host, std::uint16_t ldap_port,
-                       bool use_ssl, bool use_tls, const std::string &ca_path,
-                       const std::string &bind_dn,
+                       const std::string &fallback_host,
+                       std::uint16_t fallback_port, bool use_ssl, bool use_tls,
+                       const std::string &ca_path, const std::string &bind_dn,
                        const std::string &bind_pwd) {
   log_srv_dbg("Pool::reconfigure()");
   // Force zombie control
@@ -142,8 +181,9 @@ void Pool::reconfigure(std::size_t newpool_initial_size_,
     if (newpool_max_size_ > pool_max_size_) {
       log_srv_dbg("extending max pool size");
       for (std::size_t i = pool_max_size_; i < newpool_max_size_; i++) {
-        v_connections_[i] = std::make_shared<Connection>(
-            i, ldap_host, ldap_port, use_ssl, use_tls, ca_path);
+        v_connections_[i] =
+            std::make_shared<Connection>(i, ldap_host, ldap_port, fallback_host,
+                                         fallback_port, use_ssl, use_tls);
       }
     }
 
@@ -155,6 +195,8 @@ void Pool::reconfigure(std::size_t newpool_initial_size_,
   // Reconnect pool
   ldap_host_ = ldap_host;
   ldap_port_ = ldap_port;
+  ldap_fallback_host_ = fallback_host;
+  ldap_fallback_port_ = fallback_port;
   use_ssl_ = use_ssl;
   use_tls_ = use_tls;
   ca_path_ = ca_path;
@@ -163,15 +205,17 @@ void Pool::reconfigure(std::size_t newpool_initial_size_,
   bind_pwd_ = bind_pwd;
 
   for (std::size_t i = 0; i < pool_max_size_; i++) {
-    v_connections_[i]->configure(ldap_host_, ldap_port_, use_ssl_, use_tls_,
-                                 ca_path_);
+    v_connections_[i]->configure(ldap_host_, ldap_port_, ldap_fallback_host_,
+                                 ldap_fallback_port_, use_ssl_, use_tls_);
     if (i < pool_initial_size_) {
-      v_connections_[i]->connect(bind_dn_, bind_pwd_);
+      std::string auth_resp;
+      v_connections_[i]->connect(bind_dn_, bind_pwd_, auth_resp);
     }
   }
 
   for (std::size_t i = 0; i < newpool_initial_size_; i++) {
-    v_connections_[i]->connect(bind_dn_, bind_pwd_);
+    std::string auth_resp;
+    v_connections_[i]->connect(bind_dn_, bind_pwd_, auth_resp);
   }
 }
 
@@ -206,7 +250,9 @@ int Pool::find_first_free() {
 Pool::pool_ptr_t Pool::get_connection(int idx, bool default_connect) {
   // requires holding the lock
   auto conn = v_connections_[idx];
-  if (default_connect && !conn->connect(bind_dn_, bind_pwd_)) {
+  std::string auth_resp;
+  if (default_connect && conn->connect(bind_dn_, bind_pwd_, auth_resp) !=
+                             Connection::status::SUCCESS) {
     log_srv_error("Connection to LDAP backend failed");
     conn = nullptr;
   } else {

@@ -229,6 +229,7 @@ let $query=
    SELECT 1 FROM t WINDOW w AS(PARTITION BY NULL,NULL ORDER BY NULL ASC);
 eval $query;
 --replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w
@@ -236,6 +237,7 @@ let $query=
    SELECT 1 FROM t WINDOW w AS(PARTITION BY 1+2,3+4,5+6 ORDER BY 1+2,3+4);
 eval $query;
 --replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w2
@@ -243,6 +245,7 @@ let $query=
    SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
 eval $query;
 --replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Don't discard either w1 or w2. Non-optimal: could replace with
@@ -252,6 +255,7 @@ let $query=
    SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
 eval $query;
 --replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w3. Non-optimal: see previous case.
@@ -259,6 +263,7 @@ let $query=
    SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1), w3 AS (w1);
 eval $query;
 --replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w1. Non-optimal: see previous case.
@@ -266,6 +271,7 @@ let $query=
    SELECT RANK() OVER w3 FROM t WINDOW w1 AS (w2), w3 AS (w2), w2 AS ();
 eval $query;
 --replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w2.
@@ -273,6 +279,7 @@ let $query=
    SELECT RANK() OVER w1 FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a);
 eval $query;
 --replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard none.
@@ -280,6 +287,7 @@ let $query=
    SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ROWS UNBOUNDED PRECEDING);
 eval $query;
 --replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=JSON $query;
 
 DROP TABLE t;
@@ -335,7 +343,7 @@ SELECT VARIANCE(b) over w `var`,
        COUNT(b) OVER w count FROM t1
        WINDOW w as (ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
 
-SET SESSION windowing_use_high_precision= FALSE;               
+SET SESSION windowing_use_high_precision= FALSE;
 
 SELECT VARIANCE(b) over w `var`,
        AVG(b) OVER w `avg`,
@@ -365,7 +373,7 @@ SELECT VARIANCE(b) over w `var`,
        count(b) OVER w count FROM t1
        WINDOW w as (ORDER BY b ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
 
-SET SESSION windowing_use_high_precision= FALSE;               
+SET SESSION windowing_use_high_precision= FALSE;
 
 SELECT VARIANCE(b) over w `var`,
        FIRST_VALUE(b) over w fv,
@@ -619,3 +627,432 @@ SELECT JSON_ARRAY(NTH_VALUE(CAST('' AS JSON), 1) OVER (), '');
 SELECT JSON_ARRAY(LEAD(CAST('true' AS JSON), 2, CAST('' AS JSON)) OVER (), '');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_ARRAY(JSON_ARRAYAGG(CAST('' AS JSON)) OVER (), '');
+
+--echo #
+--echo # Bug #32802301: REGRESSION: TYPE_CONVERSION_STATUS FIELD_VARSTRING::STORE: ASSERTION `!TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET(TABLE->WRITE_SET, FIELD_INDEX()))' FAILED.
+--echo #
+
+CREATE TABLE t1 (a TIMESTAMP NOT NULL);
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+SELECT a + INTERVAL(LAST_VALUE(1) OVER ()) SECOND FROM (SELECT a FROM t1) q;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32820802: WRONG RESULT WITH WINDOW FUNCTION AS PART OF EXPRESSION
+--echo #
+
+CREATE TABLE t1 (
+  f1 INTEGER,
+  t1_partkey INTEGER
+);
+
+CREATE TABLE t2 (
+  t2_partkey INTEGER PRIMARY KEY
+);
+
+INSERT INTO t1 VALUES (34, 1), (10, 1), (4, 1), (6, 1),
+                      (9, 2), (64, 2), (31,2);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (6), (7);
+
+ANALYZE TABLE t1, t2;
+
+SELECT 0.2 * AVG(f1) OVER w AS avg, f1
+ FROM t1 JOIN t2 ON t1_partkey = t2_partkey
+ WINDOW w AS (PARTITION BY t1_partkey);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#32328576: BOOL PROCESS_BUFFERED_WINDOWING_RECORD: ASSERTION `!ROW_ADDED
+--echo #               && !FOUND_FIRST' FAILED.
+--echo #
+
+CREATE TABLE t(f1 SET('a','b'), f2 INTEGER);
+INSERT INTO t VALUES ('b',1), ('a',2), ('a,b',3), ('b',0), ('a',1);
+SELECT FIRST_VALUE(f2) OVER(ORDER BY f1 RANGE CURRENT ROW) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #33012642: WL#14419: ASSERTION `*TO_LEN >= 2 + FROM->SIGN' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER NOT NULL );
+INSERT INTO t1 VALUES (4);
+
+# Make sure we don't try to sort-ahead on a, SUM(a) before the grouping.
+SELECT a, SUM(a) OVER () AS s
+FROM t1
+GROUP BY a
+ORDER BY a, s;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33014346: WL#14419: ASSERTION `RECEIVER.HASSECONDARYENGINECOSTHOOK()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+
+# The (a,b,m) ordering is pre-reduced and combined with (a,b),
+# so we can't ignore it for GROUP BY on the grounds that it
+# used to contain an aggregate.
+SELECT ROW_NUMBER() OVER (ORDER BY a), COUNT(*) AS m
+FROM t1
+GROUP BY a, b
+ORDER BY a, b, m;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33041041: WL#14419: SIG 11 IN WINDOW::APPLY_TEMP_TABLE|SQL/WINDOW.CC
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+PREPARE stmt FROM "SELECT RANK() OVER (ORDER BY a) FROM t1 GROUP BY a";
+EXECUTE stmt;
+EXECUTE stmt;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33067989: WL#14419: RESULT MISMATCH SEEN WITH WINDOW FUNCTION IN SUBQUERY
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+INSERT INTO t1 VALUES (0), (1);
+
+SELECT a
+  FROM t1 AS outer_t1
+  WHERE (a,a) IN (
+    SELECT MAX(a) OVER (), a FROM t1
+  );
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33072114: WL#14419: ASSERTION `STATIC_CAST<SIZE_T>(END_BIT_NUM) <= CAPACITY()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, f INTEGER, g INTEGER, h INTEGER, i INTEGER, j INTEGER, k INTEGER );
+
+SELECT
+  CUME_DIST() OVER (ORDER BY t1.a)
+FROM
+  t1
+  NATURAL JOIN t1 AS t2
+  NATURAL JOIN t1 AS t3
+  NATURAL JOIN t1 AS t4
+GROUP BY t1.a
+WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33028408: WL#14419: ASSERTION `M_COUNT >= M_FRAME_NULL_COUNT && M_FRAME_NULL_COUNT > 0' FA
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (2);
+ANALYZE TABLE t1;
+
+SELECT SUM(pk) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM t1 GROUP BY pk WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33036143: WL#14419: ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED.
+--echo #
+
+CREATE TABLE t1 ( a LONGTEXT, b INTEGER );
+INSERT INTO t1 VALUES ('1', 0);
+
+SELECT
+  a,
+  SUM(1) OVER (ORDER BY b),
+  SUM(1) OVER (ORDER BY b DESC)
+FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33067260: WL#14419: SIG11 IN MY_FILL_8BIT|STRINGS/CTYPE-SIMPLE.CC
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b VARCHAR(255));
+INSERT INTO t1 VALUES (1,'x');
+INSERT INTO t1 VALUES (-3,'y');
+
+CREATE TABLE t2 ( a INTEGER );
+
+SET sql_mode='';
+
+SELECT MIN(a) AS field1 FROM t1 WHERE b IN ( SELECT a FROM t2 ) ORDER BY LEAD(a, 5, 7) OVER (ORDER BY b);
+SELECT MIN(a), LEAD(a, 5, 7) OVER (ORDER BY b) AS field1 FROM t1 WHERE b IN ( SELECT a FROM t2 ) ORDER BY b;
+
+SET sql_mode=DEFAULT;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #33075752: WL#14419: ASSERTION `N < SIZE()' FAILED|INCLUDE/PREALLOCED_ARRAY.H
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+SELECT DISTINCT
+  0 AS field1,
+  RANK() OVER (ORDER BY a) AS field2,
+  LAST_VALUE(a) OVER (ORDER BY a + 1) AS field3
+FROM t1
+GROUP BY a, field1 WITH ROLLUP
+ORDER BY field1, field2, field3;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33181670: Recent regression: Memory leak with window functions and user variables
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+SELECT LAST_VALUE(0) OVER (ORDER BY (@f:='x')) FROM t1;
+# NOTE: To actually show the bug in MTR, a shutdown; needs to be inserted here.
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#33399696: Switch slice before reaching execution end
+--echo #
+CREATE TABLE t(a INT, b DOUBLE);
+INSERT INTO t VALUES(1, 2.1);
+INSERT INTO t VALUES(2, 1.4);
+INSERT INTO t VALUES(1, 2.56);
+INSERT INTO t VALUES(2, 2.23);
+
+SELECT a, SUM(b)+1 AS cnt,
+       ROW_NUMBER() OVER (ORDER BY SUM(b) DESC) AS rn
+FROM t GROUP BY a ORDER BY rn;
+
+SELECT a, ROUND(SUM(b), 2) AS cnt,
+       ROW_NUMBER() OVER (ORDER BY SUM(b) DESC) AS rn
+FROM t GROUP BY a ORDER BY rn DESC;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33415082:Hypergraph: Query with window function crashes in do_add()
+--echo #
+
+CREATE TABLE v0 (v1 INTEGER);
+INSERT INTO v0 VALUES (1);
+
+let $query=
+SELECT v1, (SELECT v1 FROM (SELECT AVG(0) OVER (), v1) AS v2) FROM v0;
+# Query fails only when executed multiple times.
+eval $query;
+eval $query;
+eval $query;
+
+DROP TABLE v0;
+
+--echo #
+--echo # Bug#33930766 hypergraph: Assert failure in ApplyWindowFunctions() in query with 64 windows
+--echo #
+
+CREATE TABLE t(
+  col1 INT, col2 INT,
+  col3 INT, col4 INT, col5 INT,
+  col6 INT, col7 INT, col8 INT, col9 INT, col10 INT,
+  col11 INT, col12 INT, col13 INT, col14 INT, col15 INT,
+  col16 INT, col17 INT, col18 INT, col19 INT, col20 INT,
+  col21 INT, col22 INT, col23 INT, col24 INT, col25 INT,
+  col26 INT, col27 INT, col28 INT, col29 INT, col30 INT,
+  col31 INT, col32 INT, col33 INT, col34 INT, col35 INT,
+  col36 INT, col37 INT, col38 INT, col39 INT, col40 INT,
+  col41 INT, col42 INT, col43 INT, col44 INT, col45 INT,
+  col46 INT, col47 INT, col48 INT, col49 INT, col50 INT,
+  col51 INT, col52 INT, col53 INT, col54 INT, col55 INT,
+  col56 INT, col57 INT, col58 INT, col59 INT, col60 INT,
+  col61 INT, col62 INT, col63 INT, col64 INT, col65 INT,
+  col66 INT, col67 INT, col68 INT, col69 INT, col70 INT);
+
+--let $i= 0
+--let $error= 0
+while ($i < 10)
+{
+  eval INSERT INTO t VALUES(
+    $i+1, $i+2, $i+3, $i+4, $i+5, $i+6, $i+7, $i+8, $i+9, $i+10,
+    $i+11, $i+12, $i+13, $i+14, $i+15, $i+16, $i+17, $i+18, $i+19, $i+20,
+    $i+21, $i+22, $i+23, $i+24, $i+25, $i+26, $i+27, $i+28, $i+29, $i+30,
+    $i+31, $i+32, $i+33, $i+34, $i+35, $i+36, $i+37, $i+38, $i+39, $i+40,
+    $i+41, $i+42, $i+43, $i+44, $i+45, $i+46, $i+47, $i+48, $i+49, $i+50,
+    $i+51, $i+52, $i+53, $i+54, $i+55, $i+56, $i+57, $i+58, $i+59, $i+60,
+    $i+61, $i+62, $i+63, $i+64, $i+65, $i+66, $i+67, $i+68, $i+69, $i+70);
+  --inc $i
+}
+
+SELECT
+  FIRST_VALUE(col1) OVER (ORDER BY col1) AS wf1,
+  FIRST_VALUE(col1) OVER (ORDER BY col2) AS wf2,
+  FIRST_VALUE(col1) OVER (ORDER BY col3) AS wf3,
+  FIRST_VALUE(col1) OVER (ORDER BY col4) AS wf4,
+  FIRST_VALUE(col1) OVER (ORDER BY col5) AS wf5,
+  FIRST_VALUE(col1) OVER (ORDER BY col6) AS wf6,
+  FIRST_VALUE(col1) OVER (ORDER BY col7) AS wf7,
+  FIRST_VALUE(col1) OVER (ORDER BY col8) AS wf8,
+  FIRST_VALUE(col1) OVER (ORDER BY col9) AS wf9,
+  FIRST_VALUE(col1) OVER (ORDER BY col10) AS wf10,
+  FIRST_VALUE(col1) OVER (ORDER BY col11) AS wf11,
+  FIRST_VALUE(col1) OVER (ORDER BY col12) AS wf12,
+  FIRST_VALUE(col1) OVER (ORDER BY col13) AS wf13,
+  FIRST_VALUE(col1) OVER (ORDER BY col14) AS wf14,
+  FIRST_VALUE(col1) OVER (ORDER BY col15) AS wf15,
+  FIRST_VALUE(col1) OVER (ORDER BY col16) AS wf16,
+  FIRST_VALUE(col1) OVER (ORDER BY col17) AS wf17,
+  FIRST_VALUE(col1) OVER (ORDER BY col18) AS wf18,
+  FIRST_VALUE(col1) OVER (ORDER BY col19) AS wf19,
+  FIRST_VALUE(col1) OVER (ORDER BY col20) AS wf20,
+  FIRST_VALUE(col1) OVER (ORDER BY col21) AS wf21,
+  FIRST_VALUE(col1) OVER (ORDER BY col22) AS wf22,
+  FIRST_VALUE(col1) OVER (ORDER BY col23) AS wf23,
+  FIRST_VALUE(col1) OVER (ORDER BY col24) AS wf24,
+  FIRST_VALUE(col1) OVER (ORDER BY col25) AS wf25,
+  FIRST_VALUE(col1) OVER (ORDER BY col26) AS wf26,
+  FIRST_VALUE(col1) OVER (ORDER BY col27) AS wf27,
+  FIRST_VALUE(col1) OVER (ORDER BY col28) AS wf28,
+  FIRST_VALUE(col1) OVER (ORDER BY col29) AS wf29,
+  FIRST_VALUE(col1) OVER (ORDER BY col30) AS wf30,
+  FIRST_VALUE(col1) OVER (ORDER BY col31) AS wf31,
+  FIRST_VALUE(col1) OVER (ORDER BY col32) AS wf32,
+  FIRST_VALUE(col1) OVER (ORDER BY col33) AS wf33,
+  FIRST_VALUE(col1) OVER (ORDER BY col34) AS wf34,
+  FIRST_VALUE(col1) OVER (ORDER BY col35) AS wf35,
+  FIRST_VALUE(col1) OVER (ORDER BY col36) AS wf36,
+  FIRST_VALUE(col1) OVER (ORDER BY col37) AS wf37,
+  FIRST_VALUE(col1) OVER (ORDER BY col38) AS wf38,
+  FIRST_VALUE(col1) OVER (ORDER BY col39) AS wf39,
+  FIRST_VALUE(col1) OVER (ORDER BY col40) AS wf40,
+  FIRST_VALUE(col1) OVER (ORDER BY col41) AS wf41,
+  FIRST_VALUE(col1) OVER (ORDER BY col42) AS wf42,
+  FIRST_VALUE(col1) OVER (ORDER BY col43) AS wf43,
+  FIRST_VALUE(col1) OVER (ORDER BY col44) AS wf44,
+  FIRST_VALUE(col1) OVER (ORDER BY col45) AS wf45,
+  FIRST_VALUE(col1) OVER (ORDER BY col46) AS wf46,
+  FIRST_VALUE(col1) OVER (ORDER BY col47) AS wf47,
+  FIRST_VALUE(col1) OVER (ORDER BY col48) AS wf48,
+  FIRST_VALUE(col1) OVER (ORDER BY col49) AS wf49,
+  FIRST_VALUE(col1) OVER (ORDER BY col50) AS wf50,
+  FIRST_VALUE(col1) OVER (ORDER BY col51) AS wf51,
+  FIRST_VALUE(col1) OVER (ORDER BY col52) AS wf52,
+  FIRST_VALUE(col1) OVER (ORDER BY col53) AS wf53,
+  FIRST_VALUE(col1) OVER (ORDER BY col54) AS wf54,
+  FIRST_VALUE(col1) OVER (ORDER BY col55) AS wf55,
+  FIRST_VALUE(col1) OVER (ORDER BY col56) AS wf56,
+  FIRST_VALUE(col1) OVER (ORDER BY col57) AS wf57,
+  FIRST_VALUE(col1) OVER (ORDER BY col58) AS wf58,
+  FIRST_VALUE(col1) OVER (ORDER BY col59) AS wf59,
+  FIRST_VALUE(col1) OVER (ORDER BY col60) AS wf60,
+  FIRST_VALUE(col1) OVER (ORDER BY col61) AS wf61,
+  FIRST_VALUE(col1) OVER (ORDER BY col62) AS wf62,
+  FIRST_VALUE(col1) OVER (ORDER BY col63) AS wf63,
+  FIRST_VALUE(col1) OVER (ORDER BY col64) AS wf64,
+  FIRST_VALUE(col1) OVER (ORDER BY col65) AS wf65,
+  FIRST_VALUE(col1) OVER (ORDER BY col66) AS wf66,
+  FIRST_VALUE(col1) OVER (ORDER BY col67) AS wf67,
+  FIRST_VALUE(col1) OVER (ORDER BY col68) AS wf68,
+  FIRST_VALUE(col1) OVER (ORDER BY col69) AS wf69,
+  FIRST_VALUE(col1) OVER (ORDER BY col70) AS wf70
+FROM t;
+
+SELECT DISTINCT
+  FIRST_VALUE(col1) OVER (ORDER BY col1) AS wf1,
+  FIRST_VALUE(col1) OVER (ORDER BY col2) AS wf2,
+  FIRST_VALUE(col1) OVER (ORDER BY col3) AS wf3,
+  FIRST_VALUE(col1) OVER (ORDER BY col4) AS wf4,
+  FIRST_VALUE(col1) OVER (ORDER BY col5) AS wf5,
+  FIRST_VALUE(col1) OVER (ORDER BY col6) AS wf6,
+  FIRST_VALUE(col1) OVER (ORDER BY col7) AS wf7,
+  FIRST_VALUE(col1) OVER (ORDER BY col8) AS wf8,
+  FIRST_VALUE(col1) OVER (ORDER BY col9) AS wf9,
+  FIRST_VALUE(col1) OVER (ORDER BY col10) AS wf10,
+  FIRST_VALUE(col1) OVER (ORDER BY col11) AS wf11,
+  FIRST_VALUE(col1) OVER (ORDER BY col12) AS wf12,
+  FIRST_VALUE(col1) OVER (ORDER BY col13) AS wf13,
+  FIRST_VALUE(col1) OVER (ORDER BY col14) AS wf14,
+  FIRST_VALUE(col1) OVER (ORDER BY col15) AS wf15,
+  FIRST_VALUE(col1) OVER (ORDER BY col16) AS wf16,
+  FIRST_VALUE(col1) OVER (ORDER BY col17) AS wf17,
+  FIRST_VALUE(col1) OVER (ORDER BY col18) AS wf18,
+  FIRST_VALUE(col1) OVER (ORDER BY col19) AS wf19,
+  FIRST_VALUE(col1) OVER (ORDER BY col20) AS wf20,
+  FIRST_VALUE(col1) OVER (ORDER BY col21) AS wf21,
+  FIRST_VALUE(col1) OVER (ORDER BY col22) AS wf22,
+  FIRST_VALUE(col1) OVER (ORDER BY col23) AS wf23,
+  FIRST_VALUE(col1) OVER (ORDER BY col24) AS wf24,
+  FIRST_VALUE(col1) OVER (ORDER BY col25) AS wf25,
+  FIRST_VALUE(col1) OVER (ORDER BY col26) AS wf26,
+  FIRST_VALUE(col1) OVER (ORDER BY col27) AS wf27,
+  FIRST_VALUE(col1) OVER (ORDER BY col28) AS wf28,
+  FIRST_VALUE(col1) OVER (ORDER BY col29) AS wf29,
+  FIRST_VALUE(col1) OVER (ORDER BY col30) AS wf30,
+  FIRST_VALUE(col1) OVER (ORDER BY col31) AS wf31,
+  FIRST_VALUE(col1) OVER (ORDER BY col32) AS wf32,
+  FIRST_VALUE(col1) OVER (ORDER BY col33) AS wf33,
+  FIRST_VALUE(col1) OVER (ORDER BY col34) AS wf34,
+  FIRST_VALUE(col1) OVER (ORDER BY col35) AS wf35,
+  FIRST_VALUE(col1) OVER (ORDER BY col36) AS wf36,
+  FIRST_VALUE(col1) OVER (ORDER BY col37) AS wf37,
+  FIRST_VALUE(col1) OVER (ORDER BY col38) AS wf38,
+  FIRST_VALUE(col1) OVER (ORDER BY col39) AS wf39,
+  FIRST_VALUE(col1) OVER (ORDER BY col40) AS wf40,
+  FIRST_VALUE(col1) OVER (ORDER BY col41) AS wf41,
+  FIRST_VALUE(col1) OVER (ORDER BY col42) AS wf42,
+  FIRST_VALUE(col1) OVER (ORDER BY col43) AS wf43,
+  FIRST_VALUE(col1) OVER (ORDER BY col44) AS wf44,
+  FIRST_VALUE(col1) OVER (ORDER BY col45) AS wf45,
+  FIRST_VALUE(col1) OVER (ORDER BY col46) AS wf46,
+  FIRST_VALUE(col1) OVER (ORDER BY col47) AS wf47,
+  FIRST_VALUE(col1) OVER (ORDER BY col48) AS wf48,
+  FIRST_VALUE(col1) OVER (ORDER BY col49) AS wf49,
+  FIRST_VALUE(col1) OVER (ORDER BY col50) AS wf50,
+  FIRST_VALUE(col1) OVER (ORDER BY col51) AS wf51,
+  FIRST_VALUE(col1) OVER (ORDER BY col52) AS wf52,
+  FIRST_VALUE(col1) OVER (ORDER BY col53) AS wf53,
+  FIRST_VALUE(col1) OVER (ORDER BY col54) AS wf54,
+  FIRST_VALUE(col1) OVER (ORDER BY col55) AS wf55,
+  FIRST_VALUE(col1) OVER (ORDER BY col56) AS wf56,
+  FIRST_VALUE(col1) OVER (ORDER BY col57) AS wf57,
+  FIRST_VALUE(col1) OVER (ORDER BY col58) AS wf58,
+  FIRST_VALUE(col1) OVER (ORDER BY col59) AS wf59,
+  FIRST_VALUE(col1) OVER (ORDER BY col60) AS wf60,
+  FIRST_VALUE(col1) OVER (ORDER BY col61) AS wf61,
+  FIRST_VALUE(col1) OVER (ORDER BY col62) AS wf62,
+  FIRST_VALUE(col1) OVER (ORDER BY col63) AS wf63,
+  FIRST_VALUE(col1) OVER (ORDER BY col64) AS wf64,
+  FIRST_VALUE(col1) OVER (ORDER BY col65) AS wf65,
+  FIRST_VALUE(col1) OVER (ORDER BY col66) AS wf66,
+  FIRST_VALUE(col1) OVER (ORDER BY col67) AS wf67,
+  FIRST_VALUE(col1) OVER (ORDER BY col68) AS wf68,
+  FIRST_VALUE(col1) OVER (ORDER BY col69) AS wf69,
+  FIRST_VALUE(col1) OVER (ORDER BY col70) AS wf70
+FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#34431996 MySQL window function first_value wrong
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 INTEGER);
+
+INSERT INTO t1 VALUES (1,1,1),
+                      (2,1,20),
+                      (3,1,300),
+                      (4,1,4000);
+
+SELECT f1,f2,f3,
+       FIRST_VALUE(f3) OVER w  AS 'FIRST_VALUE',
+       LAG(f3) OVER w          AS 'LAG',
+       NTH_VALUE(f3, 4) OVER w AS 'NTH_VALUE'
+FROM t1 WINDOW w AS (PARTITION BY f2 ORDER BY f3
+                     ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+
+DROP TABLE t1;

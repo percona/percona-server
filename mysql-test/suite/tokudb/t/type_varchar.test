@@ -13,8 +13,8 @@ drop table t1;
 create table t1 (v varchar(20)) charset latin1;
 insert into t1 values('a ');
 select v='a' from t1;
-select binary v='a' from t1;
-select binary v='a ' from t1;
+select cast(v as binary)='a' from t1;
+select cast(v as binary)='a ' from t1;
 insert into t1 values('a');
 --disable_result_log
 --error ER_DUP_ENTRY

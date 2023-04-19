@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multi source replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -159,7 +159,7 @@ bool PFS_index_rpl_connection_status_by_thread::match(Master_info *mi) {
     row.thread_id = 0;
 
     if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
-      PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->info_thd);
+      PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
       if (psi != nullptr) {
         row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -183,7 +183,8 @@ PFS_engine_table *table_replication_connection_status::create(
 table_replication_connection_status::table_replication_connection_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_replication_connection_status::~table_replication_connection_status() {}
+table_replication_connection_status::~table_replication_connection_status() =
+    default;
 
 void table_replication_connection_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -330,7 +331,7 @@ int table_replication_connection_status::make_row(Master_info *mi) {
   }
 
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
-    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->info_thd);
+    PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -418,20 +419,21 @@ int table_replication_connection_status::read_row_values(TABLE *table,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name*/
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /** group_name */
           if (m_row.group_name_is_null) {
             f->set_null();
           } else {
-            set_field_char_utf8(f, m_row.group_name, UUID_LENGTH);
+            set_field_char_utf8mb4(f, m_row.group_name, UUID_LENGTH);
           }
           break;
         case 2: /** source_uuid */
           if (m_row.source_uuid_is_null) {
             f->set_null();
           } else {
-            set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+            set_field_char_utf8mb4(f, m_row.source_uuid, UUID_LENGTH);
           }
           break;
         case 3: /** thread_id */
@@ -458,15 +460,15 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           set_field_ulong(f, m_row.last_error_number);
           break;
         case 9: /*last_error_message*/
-          set_field_varchar_utf8(f, m_row.last_error_message,
-                                 m_row.last_error_message_length);
+          set_field_varchar_utf8mb4(f, m_row.last_error_message,
+                                    m_row.last_error_message_length);
           break;
         case 10: /*last_error_timestamp*/
           set_field_timestamp(f, m_row.last_error_timestamp);
           break;
         case 11: /*last_queued_trx*/
-          set_field_char_utf8(f, m_row.last_queued_trx,
-                              m_row.last_queued_trx_length);
+          set_field_char_utf8mb4(f, m_row.last_queued_trx,
+                                 m_row.last_queued_trx_length);
           break;
         case 12: /*last_queued_trx_original_commit_timestamp*/
           set_field_timestamp(f,
@@ -483,7 +485,8 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           set_field_timestamp(f, m_row.last_queued_trx_end_queue_timestamp);
           break;
         case 16: /*queueing_trx*/
-          set_field_char_utf8(f, m_row.queueing_trx, m_row.queueing_trx_length);
+          set_field_char_utf8mb4(f, m_row.queueing_trx,
+                                 m_row.queueing_trx_length);
           break;
         case 17: /*queueing_trx_original_commit_timestamp*/
           set_field_timestamp(f, m_row.queueing_trx_original_commit_timestamp);

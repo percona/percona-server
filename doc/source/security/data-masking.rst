@@ -6,10 +6,10 @@
 Data Masking
 ==================================================================
 
-This feature was implemented in |Percona Server| version :rn:`8.0.17-8`.
+This feature was implemented in *Percona Server for MySQL* version :ref:`8.0.17-8`.
 
 The Percona Data Masking plugin is a free and Open Source implementation of the
-|MySQL|'s data masking plugin. Data Masking provides a set of functions to hide
+*MySQL*'s data masking plugin. Data Masking provides a set of functions to hide
 sensitive data with modified content.
 
 Data masking can have either of the characteristics:
@@ -83,7 +83,6 @@ The special purpose data masking functions are as follows:
     * - Parameter
       - Description
       - Sample
-
     * - mask_pan(string)
       - Masks the Primary Account Number (PAN) by replacing the
         string with an "X" except for the last four characters. The PAN string must be 15 characters or 16 characters in length.
@@ -107,8 +106,9 @@ The special purpose data masking functions are as follows:
             +------------------------------------------+
             | 520754XXXXXX4848                         |
             +------------------------------------------+
+
     * - mask_ssn(string)
-      - Returns a  string with only the last four numbers visible. The rest
+      - Returns a string with only the last four numbers visible. The rest
         of the string is replaced by "X".
       - ::
 
@@ -133,8 +133,7 @@ These functions generate random values for specific requirements.
       - Description
       - Sample
     * - gen_range(lower, upper)
-      - Generates a random number based on a selected range and supports    negative numbers.
-
+      - Generates a random number based on a selected range and supports negative numbers.
       - ::
 
               mysql> SELECT gen_range(10, 100);
@@ -161,6 +160,7 @@ These functions generate random values for specific requirements.
              +---------------------------------------+
              | sma.jrts@example.com                  |
              +---------------------------------------+
+
     * - gen_rnd_pan([size in integer])
       - Generates a random primary account number. This function should only be used for test purposes.
       - ::
@@ -171,6 +171,7 @@ These functions generate random values for specific requirements.
               +-------------------------------------+
               | XXXXXXXXXXXX4444                    |
               +-------------------------------------+
+
     * - gen_rnd_us_phone()
       - Generates a random U.S. phone number. The generated number adds the
         `1` dialing code and is in the `555` area code. The `555` area code
@@ -181,8 +182,9 @@ These functions generate random values for specific requirements.
             +-------------------------------+
             | gen_rnd_us_phone()            |
             +-------------------------------+
-            | 1-555-635-5709                 |
+            | 1-555-635-5709                |
             +-------------------------------+
+
     * - gen_rnd_ssn()
       - Generates a random, non-legitimate US Social Security Number in an ``AAA-BBB-CCCC`` format. This function should only be used for test purposes.
       - ::
@@ -244,11 +246,12 @@ Copy the dictionary files to a directory accessible to MySQL. The `secure-file-p
             +--------------------------------------------------+
             | Norway spruce                                    |
             +--------------------------------------------------+
+
     * - gen_dictionary_drop(dictionary_name)
       - Removes the selected dictionary from the dictionary registry. 
       - Either success or failure
-      - .. code-block:: mysql
-          
+      - ::
+
           mysql> SELECT gen_dictionary_drop('mytestdict')
           +-------------------------------------+
           | gen_dictionary_drop('mytestdict')   |
@@ -261,18 +264,18 @@ Copy the dictionary files to a directory accessible to MySQL. The `secure-file-p
       - Either success or failure
       - ::
 
-             mysql> SELECT gen_dictionary_load('/usr/local/mysql/dict-files/testdict', 'testdict');
-            +-------------------------------------------------------------------------------+
-            | gen_dictionary_load('/usr/local/mysql/mysql/dict-files/testdict', 'testdict') |
-            +-------------------------------------------------------------------------------+
-            | Dictionary load successfully                                                  |
-            +-------------------------------------------------------------------------------+
+          mysql> SELECT gen_dictionary_load('/usr/local/mysql/dict-files/testdict', 'testdict');
+          +-------------------------------------------------------------------------------+
+          | gen_dictionary_load('/usr/local/mysql/mysql/dict-files/testdict', 'testdict') |
+          +-------------------------------------------------------------------------------+
+          | Dictionary load successfully                                                  |
+          +-------------------------------------------------------------------------------+
 
 .. rubric:: Uninstalling the plugin
 
 The `UNINSTALL PLUGIN <https://dev.mysql.com/doc/refman/8.0/en/uninstall-plugin.html>`_ statement disables and uninstalls the plugin.
 
 .. seealso::
-    |MySQL| Documentation
+    *MySQL* Documentation
     https://dev.mysql.com/doc/refman/8.0/en/data-masking-reference.html
     https://dev.mysql.com/doc/refman/8.0/en/data-masking-functions.html

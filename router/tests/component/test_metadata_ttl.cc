@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,16 @@
 #include <thread>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include "cluster_metadata.h"
+#include "my_config.h"
+
+#include "config_builder.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
-#include "mysql_session.h"
+#include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -66,17 +70,20 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     const std::string cluster_type_str =
         (cluster_type == ClusterType::RS_V2) ? "rs" : "gr";
 
-    return "[metadata_cache:test]\n"
-           "cluster_type=" +
-           cluster_type_str +
-           "\n"
-           "router_id=1\n"
-           "bootstrap_server_addresses=" +
-           bootstrap_server_addresses + "\n" +
-           "user=mysql_router1_user\n"
-           "connect_timeout=1\n"
-           "metadata_cluster=test\n" +
-           (ttl.empty() ? "" : std::string("ttl=" + ttl + "\n")) + "\n";
+    std::map<std::string, std::string> options{
+        {"cluster_type", cluster_type_str},
+        {"router_id", "1"},
+        {"bootstrap_server_addresses", bootstrap_server_addresses},
+        {"user", router_metadata_username},
+        {"connect_timeout", "1"},
+        {"metadata_cluster", "test"}};
+
+    if (!ttl.empty()) {
+      options["ttl"] = ttl;
+    }
+
+    return mysql_harness::ConfigBuilder::build_section("metadata_cache:test",
+                                                       options);
   }
 
   std::string get_metadata_cache_routing_section(
@@ -84,19 +91,21 @@ class MetadataChacheTTLTest : public RouterComponentTest {
       const std::string &strategy, const std::string &mode = "",
       const std::string &section_name = "default",
       const std::string &protocol = "classic") {
-    std::string result =
-        "[routing:" + section_name +
-        "]\n"
-        "bind_port=" +
-        std::to_string(router_port) + "\n" +
-        "destinations=metadata-cache://test/default?role=" + role + "\n" +
-        "protocol=" + protocol + "\n";
+    std::map<std::string, std::string> options{
+        {"bind_port", std::to_string(router_port)},
+        {"destinations", "metadata-cache://test/default?role=" + role},
+        {"protocol", protocol}};
 
-    if (!strategy.empty())
-      result += std::string("routing_strategy=" + strategy + "\n");
-    if (!mode.empty()) result += std::string("mode=" + mode + "\n");
+    if (!strategy.empty()) {
+      options["routing_strategy"] = strategy;
+    }
 
-    return result;
+    if (!mode.empty()) {
+      options["mode"] = mode;
+    }
+
+    return mysql_harness::ConfigBuilder::build_section(
+        "routing:" + section_name, options);
   }
 
   auto get_array_field_value(const std::string &json_string,
@@ -121,8 +130,8 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return get_int_field_value(json_string, "md_query_count");
   }
 
-  int get_update_version_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "update_version_count");
+  int get_update_attributes_count(const std::string &json_string) {
+    return get_int_field_value(json_string, "update_attributes_count");
   }
 
   int get_update_last_check_in_count(const std::string &json_string) {
@@ -139,7 +148,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
   auto &launch_router(const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const int expected_exitcode,
-                      std::chrono::milliseconds wait_for_notify_ready = 5s) {
+                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, get_test_temp_dir_name());
 
@@ -154,7 +163,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return router;
   }
 
-  TcpPortPool port_pool_;
+  const std::string router_metadata_username{"mysql_router1_user"};
 };
 
 struct MetadataTTLTestParams {
@@ -217,71 +226,6 @@ MATCHER_P2(IsBetween, a, b,
   return a <= arg && arg <= b;
 }
 
-// Wait for the nth occurence of the log_regex in the log_file with the timeout
-// If it's found returns the full line containing the log_regex
-// If the timeout has been reached returns unexpected
-static stdx::expected<std::string, void> wait_log_line(
-    const std::string &log_file, const std::string &log_regex,
-    const unsigned n_occurence = 1,
-    const std::chrono::milliseconds timeout = 1s) {
-  const auto start_timestamp = std::chrono::steady_clock::now();
-  const auto kStep = 50ms;
-
-  do {
-    std::istringstream ss{get_file_output(log_file)};
-
-    unsigned current_occurence = 0;
-    for (std::string line; std::getline(ss, line);) {
-      if (pattern_found(line, log_regex)) {
-        current_occurence++;
-        if (current_occurence == n_occurence) return {line};
-      }
-    }
-
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - start_timestamp) >= timeout) {
-      return stdx::make_unexpected();
-    }
-    std::this_thread::sleep_for(kStep);
-  } while (true);
-}
-
-// Wait for the nth occurence of the log_regex in the log_file with timeout
-// If it's found returns the timepoint from the matched line prefix
-// If timed out or failed to convert the timestamp returns unexpected
-static stdx::expected<std::chrono::time_point<std::chrono::system_clock>, void>
-get_log_timestamp(const std::string &log_file, const std::string &log_regex,
-                  const unsigned occurence = 1,
-                  const std::chrono::milliseconds timeout = 1s) {
-  // first wait for the nth occurence of the pattern
-  const auto log_line = wait_log_line(log_file, log_regex, occurence, timeout);
-  if (!log_line) {
-    return log_line.get_unexpected();
-  }
-
-  const std::string log_line_str = log_line.value();
-  // make sure the line is prefixed with the expected timestamp
-  // 2020-06-09 03:53:26.027 foo bar
-  if (!pattern_found(log_line_str,
-                     "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}.*")) {
-    return stdx::make_unexpected();
-  }
-
-  // extract the timestamp prefix and conver to the duration
-  std::string timestamp_str =
-      log_line_str.substr(0, strlen("2020-06-09 03:53:26.027"));
-  std::stringstream timestamp_ss(timestamp_str);
-  std::tm tm{};
-  char dot;
-  unsigned milliseconds;
-  timestamp_ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S") >> dot >>
-      milliseconds;
-  auto result = std::chrono::system_clock::from_time_t(std::mktime(&tm));
-  result += std::chrono::milliseconds(milliseconds);
-
-  return result;
-}
-
 TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   auto test_params = GetParam();
 
@@ -304,7 +248,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
 
   // the remaining is too time-dependent to hope it will pass with VALGRIND
   if (getenv("WITH_VALGRIND")) {
@@ -317,7 +261,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
                         ".*Finished refreshing the cluster metadata.*", 1, 2s);
   if (!first_refresh_stop_timestamp) {
     FAIL() << "Did not find first metadata refresh end log in the logfile.\n"
-           << router.get_full_logfile();
+           << router.get_logfile_content();
   }
 
   SCOPED_TRACE("// Wait for the second metadata refresh to start");
@@ -326,7 +270,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       2, test_params.ttl_expected_max + 1s);
   if (!second_refresh_start_timestamp) {
     FAIL() << "Did not find second metadata refresh start log in the logfile.\n"
-           << router.get_full_logfile();
+           << router.get_logfile_content();
   }
 
   SCOPED_TRACE(
@@ -420,17 +364,6 @@ INSTANTIATE_TEST_SUITE_P(
                               ClusterType::GR_V2, "1,1")),
     get_test_description);
 
-static size_t count_str_occurences(const std::string &s,
-                                   const std::string &needle) {
-  if (needle.length() == 0) return 0;
-  size_t result = 0;
-  for (size_t pos = s.find(needle); pos != std::string::npos;) {
-    ++result;
-    pos = s.find(needle, pos + needle.length());
-  }
-  return result;
-}
-
 class MetadataChacheTTLTestInstanceListUnordered
     : public MetadataChacheTTLTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};
@@ -485,9 +418,9 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
 
   SCOPED_TRACE("// check it is not treated as a change");
   const std::string needle = "Potential changes detected in cluster";
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
-  // 1 is expected, that comes from the inital reading of the metadata
+  // 1 is expected, that comes from the initial reading of the metadata
   EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 }
 
@@ -583,7 +516,7 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
 
   // keep the router running for a while and change the metadata version
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
@@ -594,30 +527,37 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   // let the router run a bit more
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
 
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   SCOPED_TRACE(
       "// check that the router really saw the version upgrade at some point");
   std::string needle =
       "Metadata version change was discovered. New metadata version is 2.0.0";
-  EXPECT_GE(1, count_str_occurences(log_content, needle)) << log_content;
+  EXPECT_GE(1, count_str_occurences(log_content, needle));
 
   SCOPED_TRACE(
       "// there should be no cluster change reported caused by the version "
       "upgrade");
   needle = "Potential changes detected in cluster";
-  // 1 is expected, that comes from the inital reading of the metadata
-  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+  // 1 is expected, that comes from the initial reading of the metadata
+  EXPECT_EQ(1, count_str_occurences(log_content, needle));
 
   // router should exit noramlly
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
 
-class CheckRouterVersionUpdateOnceTest
+class CheckRouterInfoUpdatesTest
     : public MetadataChacheTTLTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};
 
-TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
+/**
+ * @test Checks that the Router updates the static configuration information in
+ * the metadata once when it starts and that the periodic updates are done every
+ * 10th metadata refresh when working with standalone Cluster (that is not a
+ * part of a ClusterSet).
+ */
+TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
+  const auto router_port = port_pool_.get_next_available();
   SCOPED_TRACE(
       "// launch the server mock (it's our metadata server and single cluster "
       "node)");
@@ -630,32 +570,36 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
       json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
 
   SCOPED_TRACE(
-      "// let's tell the mock which version it should expect so that it does "
-      "the strict sql matching for us");
+      "// let's tell the mock which attributes it should expect so that it "
+      "does the strict sql matching for us");
   auto globals = mock_GR_metadata_as_json("", {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
+  globals.AddMember("router_rw_classic_port", router_port, allocator);
+  globals.AddMember("router_metadata_user",
+                    JsonValue(router_metadata_username.c_str(),
+                              router_metadata_username.length(), allocator),
+                    allocator);
   const auto globals_str = json_to_string(globals);
   MockServerRestClient(md_server_http_port).set_globals(globals_str);
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  const auto router_port = port_pool_.get_next_available();
 
   const std::string metadata_cache_section = get_metadata_cache_section(
       {md_server_port}, GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
-  SCOPED_TRACE("// let the router run for 3 ttl periods");
-  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
+  SCOPED_TRACE("// let the router run for at least 10 metadata refresh cycles");
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 12));
 
   SCOPED_TRACE("// we still expect the version to be only set once");
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
-  const int version_upd_count = get_update_version_count(server_globals);
-  EXPECT_EQ(1, version_upd_count);
+  const int attributes_upd_count = get_update_attributes_count(server_globals);
+  EXPECT_EQ(1, attributes_upd_count);
 
   SCOPED_TRACE(
       "// Let's check if the first query is starting a trasaction and the "
@@ -679,17 +623,19 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
                queries.at(3).c_str());
 
   if (GetParam().cluster_type != ClusterType::GR_V1) {
-    SCOPED_TRACE("// last_check_in should be attempted at least once");
+    SCOPED_TRACE(
+        "// last_check_in should be attempted at least twice (first update is "
+        "done on start)");
     std::string server_globals =
         MockServerRestClient(md_server_http_port).get_globals_as_json_string();
     const int last_check_in_upd_count =
         get_update_last_check_in_count(server_globals);
-    EXPECT_GE(1, last_check_in_upd_count);
+    EXPECT_GE(2, last_check_in_upd_count);
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    CheckRouterVersionUpdateOnce, CheckRouterVersionUpdateOnceTest,
+    CheckRouterInfoUpdates, CheckRouterInfoUpdatesTest,
     ::testing::Values(
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update.js",
                               "router_version_update_once_gr_v1",
@@ -702,11 +648,82 @@ INSTANTIATE_TEST_SUITE_P(
                               ClusterType::RS_V2, "0.1")),
     get_test_description);
 
+/**
+ * @test Verify that when the Router was bootstrapped against the Cluster while
+ * it was a standalone Cluster and now it is part of a ClusterSet, Router checks
+ * v2_cs_router_options for periodic updates frequency
+ */
+TEST_F(MetadataChacheTTLTest, CheckRouterInfoUpdatesClusterPartOfCS) {
+  const auto router_port = port_pool_.get_next_available();
+  SCOPED_TRACE(
+      "// launch the server mock (it's our metadata server and single cluster "
+      "node)");
+  auto md_server_port = port_pool_.get_next_available();
+  auto md_server_http_port = port_pool_.get_next_available();
+  const std::string json_metadata =
+      get_data_dir()
+          .join("metadata_dynamic_nodes_version_update_v2_gr.js")
+          .str();
+
+  /*auto &metadata_server = */ launch_mysql_server_mock(
+      json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
+
+  SCOPED_TRACE(
+      "// let's tell the mock which attributes it should expect so that it "
+      "does the strict sql matching for us");
+  auto globals = mock_GR_metadata_as_json("", {md_server_port});
+  JsonAllocator allocator;
+  globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
+  globals.AddMember("router_rw_classic_port", router_port, allocator);
+  globals.AddMember("router_metadata_user",
+                    JsonValue(router_metadata_username.c_str(),
+                              router_metadata_username.length(), allocator),
+                    allocator);
+
+  // instrument the metadata in a way that shows that we bootstrapped once the
+  // Cluster was standalone but now it is part of a ClusterSet
+  globals.AddMember("bootstrap_target_type", "cluster", allocator);
+  globals.AddMember("clusterset_present", 1, allocator);
+  const auto globals_str = json_to_string(globals);
+  MockServerRestClient(md_server_http_port).set_globals(globals_str);
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+
+  const std::string metadata_cache_section =
+      get_metadata_cache_section({md_server_port}, ClusterType::GR_V2, "0.1");
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
+                /*wait_for_notify_ready=*/30s);
+
+  SCOPED_TRACE("// let the router run for at least 10 metadata refresh cycles");
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 12));
+
+  SCOPED_TRACE("// we expect the version to be only set once");
+  std::string server_globals =
+      MockServerRestClient(md_server_http_port).get_globals_as_json_string();
+  const int attributes_upd_count = get_update_attributes_count(server_globals);
+  EXPECT_EQ(1, attributes_upd_count);
+
+  // We were bootstrapped once the Cluster was standalone Cluster. Now it is
+  // part of the ClusterSet. Even though we keep using the Cluster as a
+  // standalone Cluster, we make an expection when it comes to periodic updates.
+  // We don't want to do them unless the frequency is explicitly set in the
+  // v2_cs_router_options.
+  const int last_check_in_upd_count =
+      get_update_last_check_in_count(server_globals);
+
+  // since the frequency is not set in v2_cs_router_options we do not expect any
+  // periodic updates
+  EXPECT_EQ(0, last_check_in_upd_count);
+}
+
 class PermissionErrorOnVersionUpdateTest
     : public MetadataChacheTTLTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};
 
-TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnVersionUpdate) {
+TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
+  const auto router_port = port_pool_.get_next_available();
   SCOPED_TRACE(
       "// launch the server mock (it's our metadata server and single cluster "
       "node)");
@@ -719,18 +736,23 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnVersionUpdate) {
       json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
 
   SCOPED_TRACE(
-      "// let's tell the mock which version it should expect so that it does "
-      "the strict sql matching for us, also tell it to issue the permission "
-      "error on the update attempt");
+      "// let's tell the mock which attributes it should expect so that it "
+      "does the strict sql matching for us, also tell it to issue the "
+      "permission error on the update attempt");
   auto globals = mock_GR_metadata_as_json("", {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
+  globals.AddMember("router_rw_classic_port", router_port, allocator);
+  globals.AddMember("router_metadata_user",
+                    JsonValue(router_metadata_username.c_str(),
+                              router_metadata_username.length(), allocator),
+                    allocator);
+
   globals.AddMember("perm_error_on_version_update", 1, allocator);
   const auto globals_str = json_to_string(globals);
   MockServerRestClient(md_server_http_port).set_globals(globals_str);
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  const auto router_port = port_pool_.get_next_available();
 
   const std::string metadata_cache_section = get_metadata_cache_section(
       {md_server_port}, GetParam().cluster_type, GetParam().ttl);
@@ -738,28 +760,29 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnVersionUpdate) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
-
-  SCOPED_TRACE("// let the router run for 3 ttl periods");
-  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
+                    /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE(
-      "// we expect the error trying to update the version in the log");
-  const std::string log_content = router.get_full_logfile();
-  const std::string pattern =
-      "Updating the router version in metadata failed:.*\n"
+      "// wait for several Router transactions on the metadata server");
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 6));
+
+  SCOPED_TRACE(
+      "// we expect the error trying to update the attributes in the log "
+      "exactly once");
+  const std::string log_content = router.get_logfile_content();
+  const std::string needle =
       "Make sure to follow the correct steps to upgrade your metadata.\n"
-      "Run the dba.upgradeMetadata\\(\\) then launch the new Router version "
+      "Run the dba.upgradeMetadata() then launch the new Router version "
       "when prompted";
-  ASSERT_TRUE(pattern_found(log_content, pattern)) << log_content;
+  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 
   SCOPED_TRACE(
-      "// we expect that the router attempted to update the version only once, "
-      "even tho it failed");
+      "// we expect that the router attempted to update the continuously "
+      "because of the missing access rights error");
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
-  const int version_upd_count = get_update_version_count(server_globals);
-  EXPECT_EQ(1, version_upd_count);
+  const int attributes_upd_count = get_update_attributes_count(server_globals);
+  EXPECT_GT(attributes_upd_count, 1);
 
   SCOPED_TRACE(
       "// It should still not be fatal, the router should accept the "
@@ -809,8 +832,8 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
-  EXPECT_TRUE(wait_for_port_not_available(router_port));
+                    /*wait_for_notify_ready=*/30s);
+  EXPECT_TRUE(wait_for_port_used(router_port));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
   auto client = make_new_connection_ok(router_port, md_server_port);
@@ -853,7 +876,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
                                           "password", "", ""));
 
   SCOPED_TRACE("// Info about the update should be logged.");
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
   ASSERT_TRUE(log_content.find("Cluster metadata upgrade in progress, aborting "
                                "the metada refresh") != std::string::npos);
 }
@@ -911,7 +934,7 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
       router_port, "PRIMARY", "first-available");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   SCOPED_TRACE(
@@ -1011,7 +1034,7 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
     router =
         &launch_router(metadata_cache_section,
                        routing_rw_section + routing_ro_section, EXIT_SUCCESS,
-                       /*wait_for_notify_ready=*/5s);
+                       /*wait_for_notify_ready=*/30s);
 
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*router, read_only ? router_ro_port : router_rw_port));
@@ -1022,10 +1045,17 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
   void set_nodes_attributes(const std::vector<std::string> &nodes_attributes,
                             const bool no_primary = false) {
     const auto primary_id = no_primary ? -1 : 0;
-    set_mock_metadata(node_http_ports[0], "", node_ports, primary_id, 0, false,
-                      node_hostname, {}, nodes_attributes);
 
-    EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+    ASSERT_NO_THROW({
+      set_mock_metadata(node_http_ports[0], "", node_ports, primary_id, 0,
+                        false, node_hostname, {}, nodes_attributes);
+    });
+
+    try {
+      ASSERT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 3));
+    } catch (const std::exception &e) {
+      FAIL() << "failed waiting for trans' count increase: " << e.what();
+    };
   }
 
   std::vector<uint16_t> node_ports, node_http_ports;
@@ -1058,112 +1088,206 @@ class ClusterNodeHiddenTest
 
 TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
-  setup_cluster(3, GetParam().tracefile);
+  try {
+    setup_cluster(3, GetParam().tracefile);
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  setup_router(GetParam().cluster_type, GetParam().ttl);
+  try {
+    setup_router(GetParam().cluster_type, GetParam().ttl);
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
+
   SCOPED_TRACE("// check if both RO and RW ports are used");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
+
   SCOPED_TRACE("// Make rw connection, should be ok");
-  make_new_connection_ok(router_rw_port, node_ports[0]);
+  try {
+    make_new_connection_ok(router_rw_port, node_ports[0]);
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Configure first RO node to hidden=true");
-  set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })", ""});
+  ASSERT_NO_FATAL_FAILURE(
+      set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })", ""}));
+
   SCOPED_TRACE("// RW and RO ports should be used by the router");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Configure both RO node to hidden=true");
-  set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })",
-                        R"({"tags" : {"_hidden": true} })"});
+  ASSERT_NO_FATAL_FAILURE(
+      set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })",
+                            R"({"tags" : {"_hidden": true} })"}));
+
   SCOPED_TRACE("// RO ports should not be used by the router");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Unhide first RO node");
-  set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })", ""});
+  ASSERT_NO_FATAL_FAILURE(
+      set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })", ""}));
+
   SCOPED_TRACE("// RO ports should be used by the router");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Hide first RO node");
-  set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })",
-                        R"({"tags" : {"_hidden": true} })"});
+  ASSERT_NO_FATAL_FAILURE(
+      set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })",
+                            R"({"tags" : {"_hidden": true} })"}));
+
   SCOPED_TRACE("// RO ports should not be used by the router");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Unhide second RO node");
-  set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })",
-                        R"({"tags" : {"_hidden": true} })"});
+  ASSERT_NO_FATAL_FAILURE(
+      set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })",
+                            R"({"tags" : {"_hidden": true} })"}));
+
   SCOPED_TRACE("// RO ports should be used by the router");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Unhide first RO node");
-  set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })",
-                        R"({"tags" : {"_hidden": false} })"});
+  ASSERT_NO_FATAL_FAILURE({
+    set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })",
+                          R"({"tags" : {"_hidden": false} })"});
+  });
+
   SCOPED_TRACE("// RO ports should be used by the router");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE(
       "// Configure RW node to hidden=true, "
-      "disconnect_existing_sessions_when_hidden stays default which is 'true'");
-  set_nodes_attributes({R"({"tags" : {"_hidden": true} })",
-                        R"({"tags" : {"_hidden": true} })",
-                        R"({"tags" : {"_hidden": true} })"});
+      "disconnect_existing_sessions_when_hidden stays default which is "
+      "'true'");
+  ASSERT_NO_FATAL_FAILURE(set_nodes_attributes(
+      {R"({"tags" : {"_hidden": true} })", R"({"tags" : {"_hidden": true} })",
+       R"({"tags" : {"_hidden": true} })"}));
+
   SCOPED_TRACE("// RW port should be open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+    EXPECT_TRUE(wait_for_port_unused(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
+
   SCOPED_TRACE("// Making new connection should not be possible");
-  verify_new_connection_fails(router_rw_port);
+  try {
+    verify_new_connection_fails(router_rw_port);
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Configure RW node back to hidden=false");
-  set_nodes_attributes({R"({"tags" : {"_hidden": false} })", "", ""});
+  ASSERT_NO_FATAL_FAILURE(
+      set_nodes_attributes({R"({"tags" : {"_hidden": false} })", "", ""}));
+
   SCOPED_TRACE("// RW port should be again used by the Router");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
+
   SCOPED_TRACE("// Making new connection should be possible again");
-  make_new_connection_ok(router_rw_port, node_ports[0]);
+  try {
+    make_new_connection_ok(router_rw_port, node_ports[0]);
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Configure RW node again to hidden=true");
-  set_nodes_attributes({R"({"tags" : {"_hidden": true} })", "", ""});
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+  ASSERT_NO_FATAL_FAILURE(
+      set_nodes_attributes({R"({"tags" : {"_hidden": true} })", "", ""}));
+
+  try {
+    EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_unused(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
+
   SCOPED_TRACE("// Making new connection should not be possible");
-  verify_new_connection_fails(router_rw_port);
+  try {
+    verify_new_connection_fails(router_rw_port);
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 
   SCOPED_TRACE("// Configure RW node back to hidden=false");
-  set_nodes_attributes({R"({"tags" : {"_hidden": false} })", "", ""});
+  ASSERT_NO_FATAL_FAILURE(
+      set_nodes_attributes({R"({"tags" : {"_hidden": false} })", "", ""}));
+
   SCOPED_TRACE("// RW port should be again used by the Router");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
-  SCOPED_TRACE("// Making new connection should be possible again");
-  make_new_connection_ok(router_rw_port, node_ports[0]);
+  try {
+    EXPECT_TRUE(wait_for_port_used(router_rw_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_port));
+    EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+    EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
+    SCOPED_TRACE("// Making new connection should be possible again");
+    make_new_connection_ok(router_rw_port, node_ports[0]);
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
 }
 
 TEST_P(ClusterNodeHiddenTest, RWNodeHidden) {
@@ -1173,24 +1297,24 @@ TEST_P(ClusterNodeHiddenTest, RWNodeHidden) {
   setup_router(GetParam().cluster_type, GetParam().ttl);
 
   SCOPED_TRACE("// RW socket is listening");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
 
   SCOPED_TRACE("// Hide RW node");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })"});
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
 
   SCOPED_TRACE("// Unhide RW node");
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })"});
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_x_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1468,37 +1592,37 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Configure primary node to be hidden");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })", "", ""});
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down secondary nodes, primary is hidden");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
                     node_hostname, {}, {R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Bring up second secondary node, primary is hidden");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, node_hostname, {},
                     {R"({"tags" : {"_hidden": true} })", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide primary node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, node_hostname, {}, {"", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 }
 
 TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
@@ -1514,31 +1638,31 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Configure second secondary node to be hidden");
   set_nodes_attributes({"", "", R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down first primary node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, node_hostname, {},
                     {"", R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide second secondary node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
                     0, false, node_hostname, {}, {"", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1572,16 +1696,16 @@ TEST_P(OneNodeClusterHiddenTest, OneRWNodeClusterHidden) {
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl);
 
-  SCOPED_TRACE("// RW port shoudld be used, RO is unused");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  SCOPED_TRACE("// RW port should be used, RO is unused");
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Hide the single node that we have");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })"});
 
   SCOPED_TRACE("// RW and RO ports are open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   verify_new_connection_fails(router_rw_port);
 
@@ -1595,8 +1719,8 @@ TEST_P(OneNodeClusterHiddenTest, OneRWNodeClusterHidden) {
   setup_cluster(1, GetParam().tracefile, {R"({"tags" : {"_hidden": true} })"});
 
   SCOPED_TRACE("// RW and RO ports are open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// We still should not be able to connect");
   verify_new_connection_fails(router_rw_port);
@@ -1604,9 +1728,9 @@ TEST_P(OneNodeClusterHiddenTest, OneRWNodeClusterHidden) {
   SCOPED_TRACE("// Un-hide the node");
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })"});
 
-  SCOPED_TRACE("// RW port shoudld be used, RO is unused");
-  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  SCOPED_TRACE("// RW port should be used, RO is unused");
+  EXPECT_TRUE(wait_for_port_used(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Now we should be able to connect");
   make_new_connection_ok(router_rw_port, node_ports[0]);
@@ -1624,17 +1748,17 @@ TEST_P(OneNodeClusterHiddenTest, OneRONodeClusterHidden) {
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl, true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Hide the single node that we have");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })"},
                        /*no_primary*/ true);
 
   SCOPED_TRACE("// RW and RO ports are open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   verify_new_connection_fails(router_rw_port);
 
@@ -1649,8 +1773,8 @@ TEST_P(OneNodeClusterHiddenTest, OneRONodeClusterHidden) {
                 /*no_primary*/ true);
 
   SCOPED_TRACE("// RW and RO ports are open");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// We still should not be able to connect");
   verify_new_connection_fails(router_rw_port);
@@ -1659,9 +1783,9 @@ TEST_P(OneNodeClusterHiddenTest, OneRONodeClusterHidden) {
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })"},
                        /*no_primary*/ true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Now we should be able to connect");
   make_new_connection_ok(router_ro_port, node_ports[0]);
@@ -1696,17 +1820,17 @@ TEST_P(TwoNodesClusterHidden, TwoRONodesClusterHidden) {
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl, true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Hide one node");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })", ""},
                        /*no_primary*/ true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Hide the second node as well");
   set_nodes_attributes(
@@ -1714,8 +1838,8 @@ TEST_P(TwoNodesClusterHidden, TwoRONodesClusterHidden) {
       /*no_primary*/ true);
 
   SCOPED_TRACE("// RO and RW ports are unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   verify_new_connection_fails(router_rw_port);
 
@@ -1723,16 +1847,16 @@ TEST_P(TwoNodesClusterHidden, TwoRONodesClusterHidden) {
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })", ""},
                        /*no_primary*/ true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Un-hide second node");
   set_nodes_attributes({"", ""}, /*no_primary*/ true);
 
-  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
-  EXPECT_TRUE(wait_for_port_available(router_rw_port));
-  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  SCOPED_TRACE("// RO port should be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port));
+  EXPECT_TRUE(wait_for_port_used(router_ro_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1751,7 +1875,7 @@ class InvalidAttributesTagsTest
  protected:
   void check_log_contains(const std::string &expected_string,
                           size_t expected_occurences) {
-    const std::string log_content = router->get_full_logfile();
+    const std::string log_content = router->get_logfile_content();
     EXPECT_EQ(expected_occurences,
               count_str_occurences(log_content, expected_string))
         << log_content;

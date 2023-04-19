@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,16 +23,10 @@
 #ifndef OFFLINE_MODE_HANDLER_INCLUDE
 #define OFFLINE_MODE_HANDLER_INCLUDE
 
-#include "plugin/group_replication/include/sql_service/sql_service_command.h"
-
 /**
   This method creates a server session and connects to the server
   to enable the offline mode
-
-  @param session_isolation session creation requirements: use current thread,
-                           use thread but initialize it or create it in a
-                           dedicated thread
 */
-void enable_server_offline_mode(enum_plugin_con_isolation session_isolation);
+void enable_server_offline_mode();
 
 #endif /* OFFLINE_MODE_HANDLER_INCLUDE */

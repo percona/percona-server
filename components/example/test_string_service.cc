@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MAX_BUFFER_LENGTH 80
 
-#define WRITE_LOG(lit_log_text)   \
-  strcpy(log_text, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile)
+#define WRITE_LOG(lit_log_text)                                             \
+  strcpy(log_text, lit_log_text);                                           \
+  if (fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile) != \
+      strlen(log_text))                                                     \
+    return true;
 
 /**
   This file contains a test (example) component, which tests the service
@@ -68,32 +70,32 @@ mysql_service_status_t test_string_service_init() {
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             nullptr,  // its a input buffer
-            strlen(test_text), "utf8")) {
+            strlen(test_text), "utf8mb3")) {
       WRITE_LOG("Buffer=NULL in convert from buffer: passed.\n");
     };
-    // Lenght is too high for buffer in convert from buffer
+    // Length is too high for buffer in convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer
-            strlen(test_text) + 10, "utf8")) {
+            strlen(test_text) + 10, "utf8mb3")) {
       WRITE_LOG("Length too high for buffer in convert from buffer: passed.\n");
     }
-    // Lenght is zero for buffer in convert from buffer
+    // Length is zero for buffer in convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer
-            0, "utf8")) {
+            0, "utf8mb3")) {
       WRITE_LOG("Length is zero for buffer in convert from buffer: failed.\n");
     } else {
       WRITE_LOG("Length is zero for buffer in convert from buffer: passed.\n");
     }
-    // Lenght is negative for buffer in convert from buffer
+    // Length is negative for buffer in convert from buffer
     // Crash as real_alloc (this=0x7f1ddc29a528, length=18446744073709551615)
     /*      if
        (mysql_service_mysql_string_converter->convert_from_buffer(&out_string,
                                                 test_text, // its a input buffer
                                                 -1,
-                                                "utf8"))
+                                                "utf8mb3"))
           {
             WRITE_LOG ("Length is negative for buffer in convert from buffer:
        failed.\n");
@@ -108,7 +110,7 @@ mysql_service_status_t test_string_service_init() {
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             empty_test_text,  // its a input buffer
-            strlen(empty_test_text), "utf8")) {
+            strlen(empty_test_text), "utf8mb3")) {
       WRITE_LOG("Empty string as input to convert from buffer failed.\n");
     } else {
       WRITE_LOG("Empty string as input to convert from buffer passed.\n");
@@ -117,7 +119,7 @@ mysql_service_status_t test_string_service_init() {
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer
-            strlen(test_text), "utf8")) {
+            strlen(test_text), "utf8mb3")) {
       WRITE_LOG("Convert from buffer failed.\n");
     } else {
       uint out_length = 0;
@@ -170,12 +172,12 @@ mysql_service_status_t test_string_service_init() {
           WRITE_LOG("Tolower passed:\n");
           // NULL as input buffer in Convert string to buffer
           if (mysql_service_mysql_string_converter->convert_to_buffer(
-                  nullptr, low_test_text, MAX_BUFFER_LENGTH, "utf8")) {
+                  nullptr, low_test_text, MAX_BUFFER_LENGTH, "utf8mb3")) {
             WRITE_LOG("NULL as input buffer in Convert to buffer passed.\n");
           }
           // Convert low string to buffer
           if (mysql_service_mysql_string_converter->convert_to_buffer(
-                  low_string, low_test_text, MAX_BUFFER_LENGTH, "utf8")) {
+                  low_string, low_test_text, MAX_BUFFER_LENGTH, "utf8mb3")) {
             WRITE_LOG("Convert to buffer failed.\n");
           } else {
             WRITE_LOG(low_test_text);
@@ -199,7 +201,8 @@ mysql_service_status_t test_string_service_init() {
         } else {
           WRITE_LOG("Toupper passed:\n");
           if (mysql_service_mysql_string_converter->convert_to_buffer(
-                  upper_string, upper_test_text, MAX_BUFFER_LENGTH, "utf8")) {
+                  upper_string, upper_test_text, MAX_BUFFER_LENGTH,
+                  "utf8mb3")) {
             WRITE_LOG("Convert to buffer failed.\n");
           } else {
             WRITE_LOG(upper_test_text);
@@ -268,7 +271,7 @@ mysql_service_status_t test_string_service_init() {
           WRITE_LOG("NULL as iterator in is_digit passed.\n");
         }
         while (mysql_service_mysql_string_iterator->iterator_get_next(
-                   out_iterator, &out_iter_char) != true) {
+                   out_iterator, &out_iter_char) == 0) {
           WRITE_LOG("Iterator get next passed.\n");
           if (mysql_service_mysql_string_ctype->is_lower(out_iterator, &out)) {
             WRITE_LOG("Is lower failed.\n");

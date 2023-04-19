@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ private:
    * objects has been observed.
    *
    * The high usage peaks are most interesting as we want to scale the
-   * free-list to accomodate these - The smaller peaks inbetween are mostly
+   * free-list to accommodate these - The smaller peaks in between are mostly
    * considered as 'noise' in this statistics. Which may cause a too low
    * usage statistics to be collected, such that the high usage peaks could
    * not be served from the free-list.
@@ -84,7 +84,7 @@ private:
    * 2) A sampled peak value of 2 or less is considered as 'noise' and
    *    just ignored.
    * 3) Other peak values, less than the current mean:
-   *    These are observed over a periode of such smaller peaks, and their
+   *    These are observed over a period of such smaller peaks, and their
    *    max value collected in 'm_sample_max'. When the windows size has expired,
    *    the 'm_sample_max' value is sampled.
    *    Intention with this heuristic is that temporary reduced usage of objects
@@ -115,7 +115,7 @@ private:
       if (m_samples_skipped < max_skipped && m_samples_skipped < 10)
         return;
 
-      // Expired low-value observation periode, sample max value seen.
+      // Expired low-value observation period, sample max value seen.
       m_stats.update(m_sample_max);
     }
     m_sample_max = 0;
@@ -138,7 +138,7 @@ private:
   /** Number of consecuitive 'low-peak' values skipped */
   Uint32 m_samples_skipped;
 
-  /** Max sample value seen in the 'm_samples_skipped' periode */
+  /** Max sample value seen in the 'm_samples_skipped' period */
   Uint32 m_sample_max;
 
   /** Statistics of peaks in number of obj 'T' in use */
@@ -257,7 +257,7 @@ public:
   }
 
   /* We don't record the sent/received bytes of some GSNs as they are 
-   * generated constantly and are not targetted to specific
+   * generated constantly and are not targeted to specific
    * Ndb instances.
    * See also TransporterFacade::TRACE_GSN
    */
@@ -322,7 +322,10 @@ public:
   Uint32 getNodeSequence(NodeId nodeId) const;
   Uint32 getNodeNdbVersion(NodeId nodeId) const;
   Uint32 getMinDbNodeVersion() const;
-  bool check_send_size(Uint32 node_id, Uint32 send_size) const { return true;}
+  bool check_send_size(Uint32 /*node_id*/, Uint32 /*send_size*/) const
+  {
+    return true;
+  }
 
   int sendSignal(NdbApiSignal*, Uint32 nodeId);
   int sendSignal(NdbApiSignal*, Uint32 nodeId,
@@ -413,7 +416,7 @@ NdbReceiver::getTransaction(ReceiverType type) const
   {
   case NDB_UNINITIALIZED:
     assert(false);
-    return NULL;
+    return nullptr;
   case NDB_QUERY_OPERATION:
     return &((NdbQueryOperationImpl*)m_owner)->getQuery().getNdbTransaction();
   default:
@@ -447,7 +450,7 @@ inline
 Ndb_free_list_t<T>::Ndb_free_list_t()
  : m_used_cnt(0),
    m_free_cnt(0),
-   m_free_list(NULL),
+   m_free_list(nullptr),
    m_is_growing(false),
    m_samples_skipped(0),
    m_sample_max(0),
@@ -478,10 +481,10 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
 #ifndef HAVE_VALGRIND
   m_is_growing = true;
-  if (m_free_list == 0)
+  if (m_free_list == nullptr)
   {
     m_free_list = new T(ndb);
-    if (m_free_list == 0)
+    if (m_free_list == nullptr)
     {
       NdbImpl::setNdbError(*ndb, 4000);
       assert(false);
@@ -492,7 +495,7 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
   while(m_free_cnt < cnt)
   {
     T* obj= new T(ndb);
-    if(obj == 0)
+    if(obj == nullptr)
     {
       NdbImpl::setNdbError(*ndb, 4000);
       assert(false);
@@ -504,6 +507,10 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
   }
   return 0;
 #else
+  // Older versions of gcc do not like [[maybe_unused]] in templates.
+  // So disable the maybe-unused warning like this instead:
+  (void) ndb;
+  (void) cnt;
   return 0;
 #endif
 }
@@ -516,13 +523,13 @@ Ndb_free_list_t<T>::seize(Ndb* ndb)
 #ifndef HAVE_VALGRIND
   T* tmp = m_free_list;
   m_is_growing = true;
-  if (likely(tmp != NULL))
+  if (likely(tmp != nullptr))
   {
     m_free_list = (T*)tmp->next();
-    tmp->next(NULL);
+    tmp->next(nullptr);
     m_free_cnt--;
   }
-  else if (unlikely((tmp = new T(ndb)) == NULL))
+  else if (unlikely((tmp = new T(ndb)) == nullptr))
   {
     NdbImpl::setNdbError(*ndb, 4000);
     assert(false);
@@ -575,13 +582,13 @@ Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
   {
     T* tmp = head;
     Uint32 tmp_cnt = 0;
-    while (tmp != 0 && tmp != tail)
+    while (tmp != nullptr && tmp != tail)
     {
       tmp = (T*)tmp->next();
       tmp_cnt++;
     }
     assert(tmp == tail);
-    assert((tail==NULL && tmp_cnt==0) || tmp_cnt+1 == cnt);
+    assert((tail==nullptr && tmp_cnt==0) || tmp_cnt+1 == cnt);
   }
 #endif
 

@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,11 +42,12 @@
 #include "mysql_time.h"
 #include "sql/comp_creator.h"
 #include "sql/enum_query_type.h"
-#include "sql/item.h"            // Item_result_field
-#include "sql/parse_location.h"  // POS
+#include "sql/item.h"                    // Item_result_field
+#include "sql/iterators/row_iterator.h"  // IWYU pragma: keep
+#include "sql/parse_location.h"          // POS
 #include "sql/parse_tree_node_base.h"
-#include "sql/row_iterator.h"  // IWYU pragma: keep
 #include "sql/sql_const.h"
+#include "sql/sql_opt_exec_shared.h"
 #include "template_utils.h"
 
 class Comp_creator;
@@ -56,7 +57,6 @@ class Item_in_optimizer;
 class JOIN;
 class Json_wrapper;
 class PT_subquery;
-class QEP_TAB;
 class Query_result_interceptor;
 class Query_result_subquery;
 class Query_result_union;
@@ -69,7 +69,7 @@ class Temp_table_param;
 class my_decimal;
 class subselect_indexsubquery_engine;
 struct AccessPath;
-struct TABLE_LIST;
+class Table_ref;
 
 template <class T>
 class List;
@@ -117,7 +117,9 @@ class Item_subselect : public Item_result_field {
   enum_engine_type engine_type() const;
 
   // For EXPLAIN. Only valid if engine_type() == HASH_SJ_ENGINE.
-  const QEP_TAB *get_qep_tab() const;
+  const TABLE *get_table() const;
+  const Index_lookup &index_lookup() const;
+  join_type get_join_type() const;
 
   void create_iterators(THD *thd);
   virtual AccessPath *root_access_path() const { return nullptr; }
@@ -357,6 +359,8 @@ class Item_singlerow_subselect : public Item_subselect {
     @return the Query_block structure that was given in the constructor.
   */
   Query_block *invalidate_and_restore_query_block();
+  std::optional<ContainedSubquery> get_contained_subquery(
+      const Query_block *outer_query_block) override;
   friend class Query_result_scalar_subquery;
 };
 
@@ -425,11 +429,11 @@ class Item_exists_subselect : public Item_subselect {
   /**
     Used by subquery optimizations to keep track about where this subquery
     predicate is located, and whether it is a candidate for transformation.
-      (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
-      join nest pointer - the predicate is an AND-part of ON expression
-                          of a join nest
-      NULL              - for all other locations. It also means that the
-                          predicate is not a candidate for transformation.
+      (Table_ref*) 1 - the predicate is an AND-part of the WHERE
+      join nest pointer    - the predicate is an AND-part of ON expression
+                             of a join nest
+      NULL                 - for all other locations. It also means that the
+                             predicate is not a candidate for transformation.
     See also THD::emb_on_expr_nest.
 
     As for the second case above (the join nest pointer), note that this value
@@ -437,7 +441,7 @@ class Item_exists_subselect : public Item_subselect {
     cf. transform_scalar_subqueries_to_join_with_derived, due to the need to
     build new join nests. The change is performed in Query_block::nest_derived.
   */
-  TABLE_LIST *embedding_join_nest{nullptr};
+  Table_ref *embedding_join_nest{nullptr};
 
   Item_exists_subselect(Query_block *select);
 
@@ -593,7 +597,6 @@ class Item_in_subselect : public Item_exists_subselect {
     bool dependent_after;
   } * in2exists_info;
 
-  Item *remove_in2exists_conds(Item *conds);
   bool mark_as_outer(Item *left_row, size_t col);
 
  public:
@@ -687,8 +690,9 @@ class Item_in_subselect : public Item_exists_subselect {
      last steps of this transformation.
   */
   bool finalize_materialization_transform(THD *thd, JOIN *join);
-
   AccessPath *root_access_path() const override;
+  std::optional<ContainedSubquery> get_contained_subquery(
+      const Query_block *outer_query_block) override;
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
@@ -724,7 +728,7 @@ class SubqueryWithResult {
   /**
     Cleanup subquery after complete query execution, free all resources.
   */
-  void cleanup(THD *thd);
+  void cleanup();
   bool prepare(THD *thd);
   void fix_length_and_dec(Item_cache **row);
   /**
@@ -798,7 +802,10 @@ class subselect_indexsubquery_engine {
  protected:
   Query_result_union *result = nullptr; /* results storage class */
   /// Table which is read, using one of eq_ref, ref, ref_or_null.
-  QEP_TAB *tab;
+  TABLE *table{nullptr};
+  Table_ref *table_ref{nullptr};
+  Index_lookup ref;
+  join_type type{JT_UNKNOWN};
   Item *cond;     /* The WHERE condition of subselect */
   ulonglong hash; /* Hash value calculated by RefIterator, when needed. */
   /*
@@ -818,14 +825,23 @@ class subselect_indexsubquery_engine {
  public:
   enum enum_engine_type { INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE };
 
-  subselect_indexsubquery_engine(QEP_TAB *tab_arg, Item_in_subselect *subs,
-                                 Item *where, Item *having_arg)
-      : tab(tab_arg), cond(where), having(having_arg), item(subs) {}
+  subselect_indexsubquery_engine(TABLE *table, Table_ref *table_ref,
+                                 const Index_lookup &ref,
+                                 enum join_type join_type,
+                                 Item_in_subselect *subs, Item *where,
+                                 Item *having_arg)
+      : table(table),
+        table_ref(table_ref),
+        ref(ref),
+        type(join_type),
+        cond(where),
+        having(having_arg),
+        item(subs) {}
   virtual ~subselect_indexsubquery_engine() = default;
   virtual bool exec(THD *thd);
   virtual void print(const THD *thd, String *str, enum_query_type query_type);
   virtual enum_engine_type engine_type() const { return INDEXSUBQUERY_ENGINE; }
-  virtual void cleanup(THD *) {}
+  virtual void cleanup() {}
   virtual void create_iterators(THD *) {}
 };
 
@@ -867,8 +883,6 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   Query_expression *const unit;
   unique_ptr_destroy_only<RowIterator> m_iterator;
   AccessPath *m_root_access_path;
-  /* Temp table context of the outer select's JOIN. */
-  Temp_table_param *tmp_param;
 
   /// Saved result object, must be restored after use
   Query_result_interceptor *saved_result{nullptr};
@@ -876,21 +890,48 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
  public:
   subselect_hash_sj_engine(Item_in_subselect *in_predicate,
                            Query_expression *unit_arg)
-      : subselect_indexsubquery_engine(nullptr, in_predicate, nullptr, nullptr),
+      : subselect_indexsubquery_engine(nullptr, nullptr, {}, JT_UNKNOWN,
+                                       in_predicate, nullptr, nullptr),
         is_materialized(false),
-        unit(unit_arg),
-        tmp_param(nullptr) {}
+        unit(unit_arg) {}
   ~subselect_hash_sj_engine() override;
 
   bool setup(THD *thd, const mem_root_deque<Item *> &tmp_columns);
-  void cleanup(THD *thd) override;
+  void cleanup() override;
   bool exec(THD *thd) override;
   void print(const THD *thd, String *str, enum_query_type query_type) override;
   enum_engine_type engine_type() const override { return HASH_SJ_ENGINE; }
 
-  const QEP_TAB *get_qep_tab() const { return tab; }
+  TABLE *get_table() const { return table; }
+  const Index_lookup &index_lookup() const { return ref; }
+  enum join_type get_join_type() const { return type; }
   AccessPath *root_access_path() const { return m_root_access_path; }
   void create_iterators(THD *thd) override;
 };
+
+/**
+  Removes every predicate injected by IN->EXISTS.
+
+  This function is different from others:
+  - it wants to remove all traces of IN->EXISTS (for
+  materialization)
+  - remove_subq_pushed_predicates() and remove_additional_cond() want to
+  remove only the conditions of IN->EXISTS which index lookup already
+  satisfies (they are just an optimization).
+
+  If there are no in2exists conditions, it will return the exact same
+  pointer. If it returns a new Item, the old Item is left alone, so it
+  can be reused in other settings.
+
+  @param thd    Thread handle.
+  @param conds  Condition; may be nullptr.
+  @param copy   true if a copy of the new condition needs to be returned
+                (used in case of hypergraph optimizer).
+  @returns      new condition
+ */
+Item *remove_in2exists_conds(THD *thd, Item *conds, bool copy);
+
+/// Returns whether the Item is an IN-subselect.
+bool IsItemInSubSelect(Item *item);
 
 #endif /* ITEM_SUBSELECT_INCLUDED */

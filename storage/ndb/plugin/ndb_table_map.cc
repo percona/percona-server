@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 #include "sql/table.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
-Ndb_table_map::Ndb_table_map(struct TABLE *mysqlTable,
+Ndb_table_map::Ndb_table_map(const TABLE *mysqlTable,
                              const NdbDictionary::Table *ndbTable)
     : m_ndb_table(ndbTable),
       m_array_size(mysqlTable->s->fields),
@@ -42,8 +42,8 @@ Ndb_table_map::Ndb_table_map(struct TABLE *mysqlTable,
     m_map_by_col = new int[m_array_size];
 
     /* Initialize the two bitmaps */
-    bitmap_init(&m_moved_fields, 0, m_array_size);
-    bitmap_init(&m_rewrite_set, 0, m_array_size);
+    bitmap_init(&m_moved_fields, nullptr, m_array_size);
+    bitmap_init(&m_rewrite_set, nullptr, m_array_size);
 
     /* Initialize both arrays full of -1 */
     for (uint i = 0; i < m_array_size; i++) {
@@ -84,7 +84,7 @@ uint Ndb_table_map::get_field_for_column(uint colId) const {
 }
 
 unsigned char *Ndb_table_map::get_column_mask(const MY_BITMAP *field_mask) {
-  unsigned char *map = 0;
+  unsigned char *map = nullptr;
   if (field_mask) {
     map = (unsigned char *)(field_mask->bitmap);
     if ((!m_trivial) && bitmap_is_overlapping(&m_moved_fields, field_mask)) {
@@ -111,7 +111,7 @@ Ndb_table_map::~Ndb_table_map() {
 }
 
 bool Ndb_table_map::has_virtual_gcol(const TABLE *table) {
-  if (table->vfield == NULL) return false;
+  if (table->vfield == nullptr) return false;
   for (Field **gc = table->vfield; *gc; gc++) {
     if (!(*gc)->stored_in_db) return true;
   }
@@ -119,7 +119,7 @@ bool Ndb_table_map::has_virtual_gcol(const TABLE *table) {
 }
 
 uint Ndb_table_map::num_stored_fields(const TABLE *table) {
-  if (table->vfield == NULL) {
+  if (table->vfield == nullptr) {
     // Table has no virtual fields, just return number of fields
     return table->s->fields;
   }
@@ -131,24 +131,6 @@ uint Ndb_table_map::num_stored_fields(const TABLE *table) {
     if (!(*vfield_ptr)->stored_in_db) num_stored_fields--;
   }
   return num_stored_fields;
-}
-
-bool Ndb_table_map::have_physical_blobs(const TABLE *table) {
-  for (uint i = 0; i < table->s->fields; i++) {
-    Field *field = table->field[i];
-    if (!field->stored_in_db) {
-      // Not stored
-      continue;
-    }
-
-    if (field->is_flag_set(BLOB_FLAG)) {
-      // Double check that TABLE_SHARE thinks that table had some
-      // blobs(physical or not)
-      assert(table->s->blob_fields > 0);
-      return true;
-    }
-  }
-  return false;
 }
 
 #ifndef NDEBUG
@@ -170,7 +152,7 @@ void Ndb_table_map::print_record(const TABLE *table, const uchar *record) {
 }
 
 void Ndb_table_map::print_table(const char *info, const TABLE *table) {
-  if (table == 0) {
+  if (table == nullptr) {
     DBUG_PRINT("info", ("%s: (null)", info));
     return;
   }

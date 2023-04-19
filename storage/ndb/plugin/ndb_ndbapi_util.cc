@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,7 +164,7 @@ bool ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab) {
 
 bool ndb_table_has_tablespace(const NdbDictionary::Table *ndbtab) {
   // NOTE! There is a slight ambiguity in the NdbDictionary::Table.
-  // Depending on wheter it has been retrieved from NDB or created
+  // Depending on whether it has been retrieved from NDB or created
   // by user as part of defining a new table in NDB, different methods
   // need to be used for determining if table has tablespace
 
@@ -175,7 +175,7 @@ bool ndb_table_has_tablespace(const NdbDictionary::Table *ndbtab) {
 
   if (ndbtab->getTablespace()) {
     // Retrieved from NDB, the tablespace id and version
-    // are avaliable in the table definition -> has tablespace.
+    // are available in the table definition -> has tablespace.
     // NOTE! Fetching the name would require another roundtrip to NDB
     return true;
   }
@@ -251,7 +251,8 @@ bool ndb_get_tablespace_names(
 
 bool ndb_get_table_names_in_schema(
     const NdbDictionary::Dictionary *dict, const std::string &schema_name,
-    std::unordered_set<std::string> *table_names) {
+    std::unordered_set<std::string> *table_names,
+    std::unordered_set<std::string> *temp_names) {
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0) {
     return false;
@@ -264,8 +265,14 @@ bool ndb_get_table_names_in_schema(
       continue;
     }
 
-    if (ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
+    if (ndb_name_is_blob_prefix(elmt.name) ||
         ndb_name_is_fk_mock_prefix(elmt.name)) {
+      continue;
+    }
+
+    // Skip temporary named tables if container for them is not provided
+    const bool is_temp = ndb_name_is_temp(elmt.name);
+    if (temp_names == nullptr && is_temp) {
       continue;
     }
 
@@ -275,16 +282,8 @@ bool ndb_get_table_names_in_schema(
          strcmp(elmt.name, "ndb_sql_metadata") == 0 ||
          strcmp(elmt.name, "ndb_index_stat_head") == 0 ||
          strcmp(elmt.name, "ndb_index_stat_sample") == 0)) {
-      // Skip NDB utility tables.
-      //
-      // The first three tables and marked as hidden in the DD and are handled
-      // specifically by the binlog thread.
-      //
-      // The index stat tables are created by the index stat thread and are not
-      // installed in the DD at all. The contents of these tables are
-      // incomprehensible without some kind of parsing and are thus not exposed
-      // to the MySQL Server. They remain visible and accessible via the
-      // ndb_select_all tool.
+      // Skip NDB utility tables. They are marked as hidden in the DD and are
+      // specially handled by the binlog thread.
       continue;
     }
 
@@ -294,7 +293,7 @@ bool ndb_get_table_names_in_schema(
       // Only return the table if they're already usable i.e. StateOnline or
       // StateBackup or if they're expected to be usable soon which is denoted
       // by StateBuilding
-      table_names->insert(elmt.name);
+      is_temp ? temp_names->insert(elmt.name) : table_names->insert(elmt.name);
     }
   }
   return true;
@@ -572,7 +571,7 @@ bool ndb_table_scan_and_delete_rows(
 
         case 1:
           DBUG_PRINT("info", ("No more rows"));
-          // No more rows, commit the transation
+          // No more rows, commit the transaction
           if (trans->execute(NdbTransaction::Commit) != 0) {
             // Failed to commit
             return &trans->getNdbError();

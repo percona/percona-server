@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,8 @@ bool Ndb_plugin_reference::lock() {
   const LEX_CSTRING plugin_name = {STRING_WITH_LEN("ndbcluster")};
 
   // Resolve reference to "ndbcluster plugin"
-  plugin = plugin_lock_by_name(NULL, plugin_name, MYSQL_STORAGE_ENGINE_PLUGIN);
+  plugin =
+      plugin_lock_by_name(nullptr, plugin_name, MYSQL_STORAGE_ENGINE_PLUGIN);
   if (!plugin) return false;
 
   return true;
@@ -50,6 +51,6 @@ st_plugin_int *Ndb_plugin_reference::handle() const {
 Ndb_plugin_reference::~Ndb_plugin_reference() {
   if (plugin) {
     // Unlock the "ndbcluster_plugin" reference
-    plugin_unlock(NULL, plugin);
+    plugin_unlock(nullptr, plugin);
   }
 }

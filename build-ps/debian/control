@@ -29,22 +29,6 @@ Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
 Vcs-Git: git://github.com/percona/percona-server.git -b 8.0
 
-Package: percona-server-tokudb
-Section: database
-Architecture: any
-Depends: percona-server-server (= ${binary:Version}), libjemalloc1 (>= 3.3.0), ${misc:Depends}
-Breaks: percona-server-tokudb-5.6, percona-server-tokudb-5.7
-Replaces: percona-server-tokudb-5.6, percona-server-tokudb-5.7
-Description: TokuDB engine plugin for Percona Server
- .
- TokuDB is a storage engine for MySQL and MariaDB that is specifically
- designed for high performance on write-intensive workloads. It achieves
- this via Fractal Tree indexing. TokuDB is a scalable, ACID and MVCC compliant
- storage engine that provides indexing-based query improvements, offers online
- schema modifications, and reduces slave lag for both hard disk drives and flash memory.
- .
- This package includes the TokuDB plugin library.
-
 Package: percona-server-rocksdb
 Section: database
 Architecture: any
@@ -237,7 +221,8 @@ Replaces: mysql-server-5.0,
           mariadb-server-5.5,
           virtual-mysql-server,
           virtual-mysql-server-core
-Conflicts: percona-server-server (< 8.0.12)
+Conflicts: percona-server-server (< 8.0.12),
+           percona-server-tokudb
 Description: Percona Server database server binaries
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database
@@ -251,7 +236,7 @@ Architecture: any
 Depends: percona-server-client (= ${binary:Version}),
          percona-server-server (= ${binary:Version}),
          libperconaserverclient21-dev (= ${binary:Version}),
-         perl, python, ${misc:Depends}, ${shlibs:Depends}
+         perl, ${misc:Depends}, ${shlibs:Depends}
 Replaces: percona-server-server, percona-server-client
 Description: Percona Server database test suite
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL

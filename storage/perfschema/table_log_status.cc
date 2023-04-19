@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ PFS_engine_table *table_log_status::create(PFS_engine_table_share *) {
 table_log_status::table_log_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_log_status::~table_log_status() {}
+table_log_status::~table_log_status() = default;
 
 void table_log_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -97,7 +97,7 @@ int table_log_status::rnd_next(void) {
   return res;
 }
 
-int table_log_status::rnd_pos(const void *pos MY_ATTRIBUTE((unused))) {
+int table_log_status::rnd_pos(const void *pos [[maybe_unused]]) {
   int res = HA_ERR_RECORD_DELETED;
 
   set_position(pos);
@@ -222,7 +222,8 @@ int table_log_status::make_row() {
   */
   {
     Log_resource *res;
-    res = Log_resource_factory::get_wrapper(gtid_state, &json_local);
+    res = Log_resource_factory::get_wrapper(gtid_state, &mysql_bin_log,
+                                            &json_local);
     if ((error = DBUG_EVALUATE_IF("log_status_oom_gtid", 1, !res))) {
       my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0), "LOCAL",
                "failed to allocate memory to collect "
@@ -310,10 +311,10 @@ end:
   return error ? HA_ERR_RECORD_DELETED : 0;
 }
 
-int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
-                                      unsigned char *buf MY_ATTRIBUTE((unused)),
-                                      Field **fields MY_ATTRIBUTE((unused)),
-                                      bool read_all MY_ATTRIBUTE((unused))) {
+int table_log_status::read_row_values(TABLE *table [[maybe_unused]],
+                                      unsigned char *buf [[maybe_unused]],
+                                      Field **fields [[maybe_unused]],
+                                      bool read_all [[maybe_unused]]) {
   Field *f;
 
   assert(table->s->null_bytes == 0);
@@ -323,7 +324,7 @@ int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /*server_uuid*/
-          set_field_char_utf8(f, m_row.server_uuid, UUID_LENGTH);
+          set_field_char_utf8mb4(f, m_row.server_uuid, UUID_LENGTH);
           break;
         case 1: /*local*/
           set_field_json(f, &m_row.w_local);

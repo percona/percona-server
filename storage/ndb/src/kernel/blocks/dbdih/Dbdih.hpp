@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,16 +44,6 @@
 
 
 #ifdef DBDIH_C
-
-/*###################*/
-/* FILE SYSTEM FLAGS */
-/*###################*/
-#define ZLIST_OF_PAIRS 0
-#define ZLIST_OF_PAIRS_SYNCH 16
-#define ZOPEN_READ_WRITE 2
-#define ZCREATE_READ_WRITE 0x302
-#define ZCLOSE_NO_DELETE 0
-#define ZCLOSE_DELETE 1
 
 /*###############*/
 /* NODE STATES   */
@@ -796,7 +786,7 @@ public:
      * per fragment scanned in a scan operation. This means that it can
      * be called many millions of times per second in a data node. Thus
      * a mutex per table is not sufficient. The data read in DIGETNODESREQ
-     * is updated very seldomly. So we use the RCU mechanism, we read
+     * is updated very seldom. So we use the RCU mechanism, we read
      * the value of the NdbSeqLock before reading the variables, we then
      * read the variables protected by this mechanism whereafter we verify
      * that the NdbSeqLock haven't changed it's value.
@@ -1393,6 +1383,7 @@ private:
   void start_add_fragments_in_new_table(TabRecordPtr,
                                         ConnectRecordPtr,
                                         const Uint16 buf[],
+                                        const Uint32 bufLen,
                                         Signal *signal);
   void make_new_table_writeable(TabRecordPtr, ConnectRecordPtr, bool);
   void make_new_table_read_and_writeable(TabRecordPtr,
@@ -1733,7 +1724,9 @@ private:
   void initialiseFragstore();
 
   void wait_old_scan(Signal*);
-  Uint32 add_fragments_to_table(Ptr<TabRecord>, const Uint16 buf[]);
+  Uint32 add_fragments_to_table(Ptr<TabRecord>,
+                                const Uint16 buf[],
+                                const Uint32 bufLen);
   Uint32 add_fragment_to_table(Ptr<TabRecord>, Uint32, Ptr<Fragmentstore>&);
 
   void drop_fragments(Signal*, ConnectRecordPtr, Uint32 last);
@@ -2005,7 +1998,7 @@ private:
    * of this list in any order, so we need Double Linked List.
    *
    * c_activeTakeOverList:
-   * While scannning fragments to find a fragment that our thread is
+   * While scanning fragments to find a fragment that our thread is
    * responsible for, we are placed into this list. This list handling
    * is on the starting node.
    * 
@@ -2263,7 +2256,7 @@ private:
     /*       GLOBAL CHECKPOINTS. WE CAN HOWEVER ONLY HANDLE TWO SUCH COPY AT  */
     /*       THE TIME. THUS WE HAVE TO KEEP WAIT INFORMATION IN THIS VARIABLE.*/
     /*------------------------------------------------------------------------*/
-    STATIC_CONST( WAIT_CNT = 2 );
+    static constexpr Uint32 WAIT_CNT = 2;
     CopyGCIReq::CopyReason m_waiting[WAIT_CNT];
   } c_copyGCIMaster;
   
@@ -2492,7 +2485,7 @@ private:
   bool c_increase_lcp_speed_after_nf;
   /**
    * Available nodegroups (ids) (length == cnoOfNodeGroups)
-   *   use to support nodegroups 2,4,6 (not just consequtive nodegroup ids)
+   *   use to support nodegroups 2,4,6 (not just consecutive nodegroup ids)
    */
   Uint32 c_node_groups[MAX_NDB_NODE_GROUPS];
   Uint32 cnoOfNodeGroups;
@@ -2649,7 +2642,7 @@ private:
   
 #define DIH_CDATA_SIZE _SYSFILE_FILE_SIZE
   /**
-   * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32_v2
+   * This variable must be at least the size of Sysfile::SYSFILE_SIZE32_v2
    */
   Uint32 cdata[DIH_CDATA_SIZE];       /* TEMPORARY ARRAY VARIABLE */
 

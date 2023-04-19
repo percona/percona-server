@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ PFS_engine_table *table_persisted_variables::create(PFS_engine_table_share *) {
 ha_rows table_persisted_variables::get_row_count(void) {
   Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
   if (pv) {
-    return pv->get_persisted_variables()->size();
+    return pv->get_persisted_dynamic_variables()->size();
   } else {
     return 0;
   }
@@ -143,8 +143,7 @@ int table_persisted_variables::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_persisted_variables::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                          bool) {
+int table_persisted_variables::index_init(uint idx [[maybe_unused]], bool) {
   /*
     Build a cache of system variables for this thread.
   */
@@ -203,8 +202,8 @@ int table_persisted_variables::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* VARIABLE_NAME */
-          set_field_varchar_utf8(f, m_row.m_variable_name.m_str,
-                                 m_row.m_variable_name.m_length);
+          set_field_varchar_utf8mb4(f, m_row.m_variable_name.m_str,
+                                    m_row.m_variable_name.m_length);
           break;
         case 1: /* VARIABLE_VALUE */
           m_row.m_variable_value.set_field(f);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/create_field.h"
@@ -472,8 +472,8 @@ class sp_head {
   ulong m_recursion_level;
 
   /**
-    A list of diferent recursion level instances for the same procedure.
-    For every recursion level we have a sp_head instance. This instances
+    A list of different recursion level instances for the same procedure.
+    For every recursion level we have an sp_head instance. This instances
     connected in the list. The list ordered by increasing recursion level
     (m_recursion_level).
   */
@@ -759,7 +759,7 @@ class sp_head {
     Get SP-instruction at given index.
 
     NOTE: it is important to have *unsigned* int here, sometimes we get (-1)
-    passed here, so it get's converted to MAX_INT, and the result of the
+    passed here, so it gets converted to MAX_INT, and the result of the
     function call is NULL.
   */
   sp_instr *get_instr(uint i) {
@@ -785,9 +785,9 @@ class sp_head {
     routine, NULL if none.
   */
   void add_used_tables_to_table_list(THD *thd,
-                                     TABLE_LIST ***query_tables_last_ptr,
+                                     Table_ref ***query_tables_last_ptr,
                                      enum_sql_command sql_command,
-                                     TABLE_LIST *belong_to_view);
+                                     Table_ref *belong_to_view);
 
   /**
     Check if this stored routine contains statements disallowed
@@ -797,8 +797,6 @@ class sp_head {
   bool is_not_allowed_in_function(const char *where) {
     if (m_flags & CONTAINS_DYNAMIC_SQL)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "Dynamic SQL");
-    else if (m_flags & MULTI_RESULTS)
-      my_error(ER_SP_NO_RETSET, MYF(0), where);
     else if (m_flags & HAS_SET_AUTOCOMMIT_STMT)
       my_error(ER_SP_CANT_SET_AUTOCOMMIT, MYF(0));
     else if (m_flags & HAS_COMMIT_OR_ROLLBACK)
@@ -807,6 +805,8 @@ class sp_head {
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "RESET");
     else if (m_flags & HAS_SQLCOM_FLUSH)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
+    else if (m_flags & MULTI_RESULTS)
+      my_error(ER_SP_NO_RETSET, MYF(0), where);
 
     return (m_flags &
             (CONTAINS_DYNAMIC_SQL | MULTI_RESULTS | HAS_SET_AUTOCOMMIT_STMT |
@@ -983,7 +983,7 @@ class sp_head {
 
     @return Error status.
   */
-  bool merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check);
+  bool merge_table_list(THD *thd, Table_ref *table, LEX *lex_for_tmp_check);
 
   friend sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type,
                                    sp_name *sp_name);

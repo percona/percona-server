@@ -6,18 +6,30 @@ Encrypting the Redo Log files
 
 MySQL uses the redo log files to apply changes during data recovery.
 
-Encrypt the redo log files by enabling the :variable:`innodb_redo_log_encrypt`
+Encrypt the redo log files by enabling the :ref:`innodb_redo_log_encrypt`
 variable. The default value for the variable is ``OFF``.
 
 The Redo log files uses the tablespace encryption key.
 
-.. variable:: innodb_redo_log_encrypt
+.. _innodb_redo_log_encrypt:
 
-    :cli:  ``--innodb-redo-log-encrypt``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Text
-    :default: OFF
+.. rubric:: ``innodb_redo_log_encrypt``
+ 
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-redo-log-encrypt``
+   * - Dynamic
+     - Yes
+   * - Scope
+     - Global
+   * - Data type
+     - Text
+   * - Default
+     - OFF
 
 Determines the encryption for redo log data for tables.
 
@@ -25,8 +37,8 @@ When you enable `innodb_redo_log_encrypt` any existing redo log pages stay
 unencrypted, and new pages are encrypted when they are written to disk. If you
 disable `innodb_redo_log_encrypt` after enabling the variable, any encrypted pages remain encrypted, but the new pages are unencrypted.
 
-As implemented in :rn:`8.0.16-7`, the supported values for
-:variable:`innodb_redo_log_encrypt` are the following:
+As implemented in :ref:`8.0.16-7`, the supported values for
+:ref:`innodb_redo_log_encrypt` are the following:
 
 * ON
 

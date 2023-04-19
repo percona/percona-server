@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -20,9 +20,6 @@ You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <thread>
 
@@ -34,29 +31,39 @@ namespace temptable_storage_unittest {
 
 TEST(StorageTest, Iterate) {
   std::thread t([]() {
+    temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
-    temptable::Allocator<uint8_t> allocator(&shared_block);
-    temptable::Storage storage(&allocator);
 
-    storage.element_size(sizeof(uint64_t));
+    {
+      temptable::Allocator<uint8_t> allocator(&shared_block,
+                                              table_resource_monitor);
+      temptable::Storage storage(&allocator);
 
-    for (uint64_t i = 0; i < 10000; ++i) {
-      *static_cast<uint64_t *>(storage.allocate_back()) = i;
+      storage.element_size(sizeof(uint64_t));
+
+      for (uint64_t i = 0; i < 10000; ++i) {
+        *static_cast<uint64_t *>(storage.allocate_back()) = i;
+      }
+
+      uint64_t i = 0;
+      for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
+        EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
+      }
+
+      i = storage.size();
+      auto it = storage.end();
+      for (; it != storage.begin();) {
+        --it;
+        --i;
+        EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
+      }
+      EXPECT_EQ(0u, i);
     }
 
-    uint64_t i = 0;
-    for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
-      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-    }
-
-    i = storage.size();
-    auto it = storage.end();
-    for (; it != storage.begin();) {
-      --it;
-      --i;
-      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-    }
-    EXPECT_EQ(0u, i);
+    // Deallocate the shared-block (allocator keeps it alive
+    // intentionally)
+    // Must be done after storage is destructed
+    shared_block.destroy();
   });
   t.join();
 }
@@ -65,8 +72,9 @@ TEST(StorageTest, AllocatorRebind) {
   // Bug in VS2019 error C3409 if we do the same as above.
   // Turns out it is the rebind which confuses the compiler.
   auto thread_function = []() {
+    temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
-    temptable::Allocator<uint8_t> alloc(&shared_block);
+    temptable::Allocator<uint8_t> alloc(&shared_block, table_resource_monitor);
     uint8_t *shared_eater = alloc.allocate(
         1048576);  // Make sure to consume the initial shared block.
     uint8_t *ptr = alloc.allocate(100);
@@ -79,6 +87,10 @@ TEST(StorageTest, AllocatorRebind) {
     rebound_alloc.deallocate(ptr2, 50);
 
     alloc.deallocate(shared_eater, 1048576);
+
+    // Deallocate the shared-block (allocator keeps it alive
+    // intentionally)
+    shared_block.destroy();
   };
   std::thread t(thread_function);
   t.join();

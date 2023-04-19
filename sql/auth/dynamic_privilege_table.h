@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,11 +31,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 class THD;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 
 typedef std::unordered_set<std::string> Dynamic_privilege_register;
 
-bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst);
+bool populate_dynamic_privilege_caches(THD *thd, Table_ref *tablelst);
 bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
                                         const Auth_id_ref &auth_id,
                                         const LEX_CSTRING &privilege,

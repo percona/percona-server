@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ public:
   
   int push_back(const T &);
   int push(const T&, unsigned pos);
-  T& set(T&, unsigned pos, T& fill_obj);
+  T& set(const T&, unsigned pos, const T& fill_obj);
   T& back();
   const T& back() const;
   
@@ -51,7 +51,7 @@ public:
   
   void clear();
   
-  int fill(unsigned new_size, T & obj);
+  int fill(unsigned new_size, const T & obj);
 
   Vector<T>& operator=(const Vector<T>&);
   Vector<T>& operator=(Vector<T>&&);
@@ -84,7 +84,7 @@ private:
  */
 template<class T>
 Vector<T>::Vector(unsigned sz, unsigned inc_sz):
-  m_items(NULL),
+  m_items(nullptr),
   m_size(0),
   m_incSize((inc_sz > 0) ? inc_sz : 50),
   m_arraySize(0)
@@ -93,7 +93,7 @@ Vector<T>::Vector(unsigned sz, unsigned inc_sz):
     return;
 
   m_items = new T[sz];
-  if (m_items == NULL)
+  if (m_items == nullptr)
   {
     errno = ENOMEM;
     return;
@@ -108,7 +108,7 @@ Vector<T>::expand(unsigned sz){
     return 0;
 
   T * tmp = new T[sz];
-  if(tmp == NULL)
+  if(tmp == nullptr)
   {
     errno = ENOMEM;
     return -1;
@@ -130,7 +130,7 @@ Vector<T>::expand(unsigned sz){
  */
 template<class T>
 Vector<T>::Vector(const Vector& src):
-  m_items(NULL),
+  m_items(nullptr),
   m_size(0),
   m_incSize(src.m_incSize),
   m_arraySize(0)
@@ -140,7 +140,7 @@ Vector<T>::Vector(const Vector& src):
     return;
 
   m_items = new T[sz];
-  if (unlikely(m_items == NULL)){
+  if (unlikely(m_items == nullptr)){
     errno = ENOMEM;
     return;
   }
@@ -155,7 +155,7 @@ template<class T>
 Vector<T>::~Vector(){
   delete[] m_items;
   // safety for placement new usage
-  m_items = 0;
+  m_items = nullptr;
   m_size = 0;
   m_arraySize = 0;
 }
@@ -225,9 +225,9 @@ Vector<T>::push(const T & t, unsigned pos)
 
 template<class T>
 T&
-Vector<T>::set(T & t, unsigned pos, T& fill_obj)
+Vector<T>::set(const T & t, unsigned pos, const T& fill_obj)
 {
-  if (fill(pos, fill_obj))
+  if (fill(pos + 1, fill_obj))
     abort();
   T& ret = m_items[pos];
   m_items[pos] = t;
@@ -253,11 +253,12 @@ Vector<T>::clear(){
 
 template<class T>
 int
-Vector<T>::fill(unsigned new_size, T & obj){
+Vector<T>::fill(unsigned new_size, const T & obj)
+{
   const int err = expand(new_size);
   if (unlikely(err))
     return err;
-  while(m_size <= new_size)
+  while (m_size < new_size)
     if (push_back(obj))
       return -1;
   return 0;
@@ -348,7 +349,7 @@ public:
   void clear();
   void clear(bool lockMutex);
 
-  int fill(unsigned new_size, T & obj);
+  int fill(unsigned new_size, const T & obj);
 private:
   // Don't allow copy and assignment of MutexVector
   MutexVector(const MutexVector&); 
@@ -369,7 +370,7 @@ private:
  */
 template<class T>
 MutexVector<T>::MutexVector(unsigned sz, unsigned inc_sz):
-  m_items(NULL),
+  m_items(nullptr),
   m_size(0),
   m_incSize((inc_sz > 0) ? inc_sz : 50),
   m_arraySize(0)
@@ -378,7 +379,7 @@ MutexVector<T>::MutexVector(unsigned sz, unsigned inc_sz):
     return;
 
   m_items = new T[sz];
-  if (m_items == NULL)
+  if (m_items == nullptr)
   {
     errno = ENOMEM;
     return;
@@ -393,7 +394,7 @@ MutexVector<T>::expand(unsigned sz){
     return 0;
 
   T * tmp = new T[sz];
-  if(tmp == NULL)
+  if(tmp == nullptr)
   {
     errno = ENOMEM;
     return -1;
@@ -410,7 +411,7 @@ template<class T>
 MutexVector<T>::~MutexVector(){
   delete[] m_items;
   // safety for placement new usage
-  m_items = 0;
+  m_items = nullptr;
   m_size = 0;
   m_arraySize = 0;
 }
@@ -532,8 +533,9 @@ MutexVector<T>::clear(bool l){
 
 template<class T>
 int
-MutexVector<T>::fill(unsigned new_size, T & obj){
-  while(m_size <= new_size)
+MutexVector<T>::fill(unsigned new_size, const T & obj)
+{
+  while (m_size < new_size)
     if (push_back(obj))
       return -1;
   return 0;

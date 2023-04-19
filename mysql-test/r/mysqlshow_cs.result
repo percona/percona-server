@@ -102,7 +102,6 @@ Database: information_schema
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_CACHED_INDEXES                 |
-| INNODB_CHANGED_PAGES                  |
 | INNODB_CMP                            |
 | INNODB_CMPMEM                         |
 | INNODB_CMPMEM_RESET                   |
@@ -126,8 +125,6 @@ Database: information_schema
 | INNODB_TABLES                         |
 | INNODB_TABLESPACES                    |
 | INNODB_TABLESPACES_BRIEF              |
-| INNODB_TABLESPACES_ENCRYPTION         |
-| INNODB_TABLESPACES_SCRUBBING          |
 | INNODB_TABLESTATS                     |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
@@ -198,7 +195,6 @@ Database: INFORMATION_SCHEMA
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_CACHED_INDEXES                 |
-| INNODB_CHANGED_PAGES                  |
 | INNODB_CMP                            |
 | INNODB_CMPMEM                         |
 | INNODB_CMPMEM_RESET                   |
@@ -222,8 +218,6 @@ Database: INFORMATION_SCHEMA
 | INNODB_TABLES                         |
 | INNODB_TABLESPACES                    |
 | INNODB_TABLESPACES_BRIEF              |
-| INNODB_TABLESPACES_ENCRYPTION         |
-| INNODB_TABLESPACES_SCRUBBING          |
 | INNODB_TABLESTATS                     |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
@@ -361,11 +355,11 @@ SET GLOBAL sql_mode = @OLD_SQL_MODE;
 CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
 GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
 Database: mysql  Table: user  Wildcard: user
-+-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
-| Field | Type     | Collation | Null | Key | Default | Extra | Privileges                      | Comment |
-+-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
-| User  | char(32) | utf8_bin  | NO   | PRI |         |       | select,insert,update,references |         |
-+-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
++-------+----------+-------------+------+-----+---------+-------+---------------------------------+---------+
+| Field | Type     | Collation   | Null | Key | Default | Extra | Privileges                      | Comment |
++-------+----------+-------------+------+-----+---------+-------+---------------------------------+---------+
+| User  | char(32) | utf8mb3_bin | NO   | PRI |         |       | select,insert,update,references |         |
++-------+----------+-------------+------+-----+---------+-------+---------------------------------+---------+
 DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
 
 End of tests

@@ -5,5 +5,5 @@
 SELECT @ssl_cipher;
 @ssl_cipher
 NULL
-# restart
+# restart:<hidden args>
 Pattern "Failed to set up SSL because of the following SSL library error: Failed to set ciphers to use" found

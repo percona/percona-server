@@ -7,7 +7,7 @@
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
 
-  Modifications Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+  Modifications Copyright (c) 2000, 2022, Oracle and/or its affiliates.
   All rights reserved.
 */
 #include "nt_servc.h"
@@ -24,7 +24,6 @@ static NTService *pService;
 
  -------------------------------------------------------------------------- */
 NTService::NTService() {
-  bOsNT = false;
   // service variables
   ServiceName = NULL;
   hExitEvent = 0;
@@ -65,16 +64,6 @@ NTService::~NTService() {
 
  -------------------------------------------------------------------------- */
 
-BOOL NTService::GetOS() {
-  bOsNT = false;
-  memset(&osVer, 0, sizeof(OSVERSIONINFO));
-  osVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-  if (GetVersionEx(&osVer)) {
-    if (osVer.dwPlatformId == VER_PLATFORM_WIN32_NT) bOsNT = true;
-  }
-  return bOsNT;
-}
-
 /**
   Registers the main service thread with the service manager.
 
@@ -91,7 +80,7 @@ long NTService::Init(LPCSTR szInternName, void *ServiceThread) {
   lstrcpy(ServiceName, szInternName);
 
   SERVICE_TABLE_ENTRY stb[] = {
-      {(char *)szInternName, (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+      {const_cast<char *>(szInternName), (LPSERVICE_MAIN_FUNCTION)ServiceMain},
       {NULL, NULL}};
   return StartServiceCtrlDispatcher(stb);  // register with the Service Manager
 }

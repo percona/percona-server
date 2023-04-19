@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,8 +51,8 @@ class Named_pipe_listener {
   */
   Named_pipe_listener(const std::string *pipe_name)
       : m_pipe_name(*pipe_name),
-        m_pipe_handle(INVALID_HANDLE_VALUE),
-        mp_sa_pipe_security(nullptr) {}
+        mp_sa_pipe_security(nullptr),
+        m_pipe_handle(INVALID_HANDLE_VALUE) {}
 
   /**
     Set up a listener.

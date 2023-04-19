@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,8 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
   MDL_request m_request;
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(CacheStorageTest);
+  CacheStorageTest(CacheStorageTest const &) = delete;
+  CacheStorageTest &operator=(CacheStorageTest const &) = delete;
 };
 
 template <typename T>
@@ -1273,7 +1274,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId) {
 //   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
 //   // Create a new tablespace.
-//   dd::Object_id tablespace_id MY_ATTRIBUTE((unused));
+//   dd::Object_id tablespace_id [[maybe_unused]];
 //   {
 //     std::unique_ptr<dd::Tablespace> obj(dd::create_object<dd::Tablespace>());
 //     dd_unittest::set_attributes(obj.get(), "test_tablespace");
@@ -1393,7 +1394,7 @@ TEST_F(CacheStorageTest, TestTriggers) {
 
   dd::String_type obj_name =
       dd::Table::DD_table::instance().name() + dd::String_type("_trigs");
-  dd::Object_id id MY_ATTRIBUTE((unused));
+  dd::Object_id id [[maybe_unused]];
 
   //
   // Create table object

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@
 #include "sql/mysqld.h"          // key_file_misc
 #include "sql/psi_memory_key.h"  // key_memory_THD_db
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
 #include "sql/session_tracker.h"
 #include "sql/sp.h"         // lock_db_routines
 #include "sql/sql_base.h"   // lock_table_names
@@ -94,7 +94,7 @@
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables
 #include "sql/sql_table.h"    // build_table_filename
 #include "sql/system_variables.h"
-#include "sql/table.h"  // TABLE_LIST
+#include "sql/table.h"  // Table_ref
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql_string.h"
@@ -113,7 +113,7 @@ static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
                                                     const char *path);
 
 static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
-                           TABLE_LIST **tables);
+                           Table_ref **tables);
 
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static bool rm_dir_w_symlink(const char *org_path, bool send_error);
@@ -352,16 +352,8 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   bool encrypt_schema = false;
   if (create_info->encrypt_type.str) {
     encrypt_schema = dd::is_encrypted(create_info->encrypt_type);
-    if (global_system_variables.default_table_encryption ==
-        DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING) {
-      my_error(encrypt_schema ? ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
-                              : ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH,
-               MYF(0));
-      return true;
-    }
   } else {
-    encrypt_schema =
-        thd->variables.default_table_encryption == DEFAULT_TABLE_ENC_ON;
+    encrypt_schema = thd->variables.default_table_encryption;
   }
   if (opt_table_encryption_privilege_check &&
       encrypt_schema != thd->variables.default_table_encryption &&
@@ -378,7 +370,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   const char *lock_db_name = db;
   if (lower_case_table_names == 2) {
     my_stpcpy(name_buf, db);
-    my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
+    my_casedn_str(&my_charset_utf8mb3_tolower_ci, name_buf);
     lock_db_name = name_buf;
   }
   if (lock_schema_name(thd, lock_db_name)) return true;
@@ -527,25 +519,13 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   /*
     Check if user has permission to alter database, if encryption type
     provided differ from global 'default_table_encryption' setting.
-    Also check if user doesn't try to alter encryption when
-    default_table_encryption = ONLINE_TO_KEYRING.
   */
-  if (create_info->encrypt_type.str) {
-    if (opt_table_encryption_privilege_check &&
-        dd::is_encrypted(create_info->encrypt_type) !=
-            thd->variables.default_table_encryption &&
-        check_table_encryption_admin_access(thd)) {
-      my_error(ER_CANNOT_SET_DATABASE_ENCRYPTION, MYF(0));
-      return true;
-    }
-    if (global_system_variables.default_table_encryption ==
-        DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING) {
-      bool encrypt_schema = dd::is_encrypted(create_info->encrypt_type);
-      my_error(encrypt_schema ? ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
-                              : ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH,
-               MYF(0));
-      return true;
-    }
+  if (create_info->encrypt_type.str && opt_table_encryption_privilege_check &&
+      dd::is_encrypted(create_info->encrypt_type) !=
+          thd->variables.default_table_encryption &&
+      check_table_encryption_admin_access(thd)) {
+    my_error(ER_CANNOT_SET_DATABASE_ENCRYPTION, MYF(0));
+    return true;
   }
 
   if (lock_schema_name(thd, db)) return true;
@@ -590,7 +570,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     only check and the COMMIT are not done atomically, we use the table MDL
     to serialize ALTER SCHEMA and any write statements.
   */
-  TABLE_LIST *tables = nullptr;
+  Table_ref *tables = nullptr;
   if (find_db_tables(thd, *schema, db, &tables) ||
       lock_table_names(thd, tables, nullptr, thd->variables.lock_wait_timeout,
                        0))
@@ -634,7 +614,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
   /*
     Commit the statement locally instead of relying on caller,
-    in order to be sure that it is  successfull, before changing
+    in order to be sure that it is successful, before changing
     options of current database.
   */
   if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
@@ -660,7 +640,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   */
   if (create_info->used_fields & HA_CREATE_USED_READ_ONLY) {
     mysql_ha_flush_tables(thd, tables);
-    for (TABLE_LIST *table = tables; table != nullptr;
+    for (Table_ref *table = tables; table != nullptr;
          table = table->next_global) {
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
                        false);
@@ -725,8 +705,8 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
   ulong deleted_tables = 0;
   bool error = false;
   char path[2 * FN_REFLEN + 16];
-  TABLE_LIST *tables = nullptr;
-  TABLE_LIST *table;
+  Table_ref *tables = nullptr;
+  Table_ref *table;
   Drop_table_error_handler err_handler;
   bool dropped_non_atomic = false;
   std::set<handlerton *> post_ddl_htons;
@@ -814,7 +794,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
         lock_db_routines(thd, *schema) || lock_trigger_names(thd, tables))
       return true;
 
-    /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
+    /* mysql_ha_rm_tables() requires a non-null Table_ref. */
     if (tables) mysql_ha_rm_tables(thd, tables);
 
     for (table = tables; table; table = table->next_local) {
@@ -858,7 +838,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
       thd->clear_error(); /* @todo Do not ignore errors */
       Disable_binlog_guard binlog_guard(thd);
       error = Events::drop_schema_events(thd, *schema);
-      error = (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
+      error = (error || sp_drop_db_routines(thd, *schema));
     }
     thd->pop_internal_handler();
 
@@ -952,10 +932,8 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
     */
     if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
             ->is_enabled()) {
-      LEX_CSTRING dummy = {STRING_WITH_LEN("")};
-      dummy.length = dummy.length * 1;
       thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
-          ->mark_as_changed(thd, &dummy);
+          ->mark_as_changed(thd, {});
     }
   }
 
@@ -985,7 +963,7 @@ static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
     char *extension;
     DBUG_PRINT("info", ("Examining: %s", file->name));
 
-    /* skiping . and .. */
+    /* skipping . and .. */
     if (file->name[0] == '.' &&
         (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
       continue;
@@ -1041,8 +1019,8 @@ found_other_files:
 */
 
 static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
-                           TABLE_LIST **tables) {
-  TABLE_LIST *tot_list = nullptr, **tot_list_next_local, **tot_list_next_global;
+                           Table_ref **tables) {
+  Table_ref *tot_list = nullptr, **tot_list_next_local, **tot_list_next_global;
   DBUG_TRACE;
 
   tot_list_next_local = tot_list_next_global = &tot_list;
@@ -1059,7 +1037,7 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
     return true;
 
   for (const dd::String_type &table_name : sch_tables) {
-    TABLE_LIST *table_list = new (thd->mem_root) TABLE_LIST;
+    Table_ref *table_list = new (thd->mem_root) Table_ref;
     if (table_list == nullptr) return true; /* purecov: inspected */
 
     table_list->db = thd->mem_strdup(db);
@@ -1166,7 +1144,7 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path) {
     char *extension, *revision;
     DBUG_PRINT("info", ("Examining: %s", file->name));
 
-    /* skiping . and .. */
+    /* skipping . and .. */
     if (file->name[0] == '.' &&
         (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
       continue;
@@ -1464,7 +1442,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   }
 
   if (!force_switch && !(db_access & DB_OP_ACLS) &&
-      check_grant_db(thd, new_db_file_name.str)) {
+      check_grant_db(thd, new_db_file_name.str, true)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str, new_db_file_name.str);
     query_logger.general_log_print(
@@ -1526,15 +1504,13 @@ done:
     Check if current database tracker is enabled. If so, set the 'changed' flag.
   */
   if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled()) {
-    LEX_CSTRING dummy = {STRING_WITH_LEN("")};
-    dummy.length = dummy.length * 1;
     thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
-        ->mark_as_changed(thd, &dummy);
+        ->mark_as_changed(thd, {});
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
           ->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-        ->mark_as_changed(thd, nullptr);
+        ->mark_as_changed(thd, {});
   return false;
 }
 
@@ -1556,7 +1532,7 @@ done:
   forced @see mysql_change_db()
   @param[out]     cur_db_changed  out-flag to indicate whether the current
                                   database has been changed (valid only if
-                                  the function suceeded)
+                                  the function succeeded)
 */
 
 bool mysql_opt_change_db(THD *thd, const LEX_CSTRING &new_db_name,

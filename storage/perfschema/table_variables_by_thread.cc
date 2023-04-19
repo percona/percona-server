@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -101,8 +101,12 @@ PFS_engine_table *table_variables_by_thread::create(PFS_engine_table_share *) {
 
 ha_rows table_variables_by_thread::get_row_count(void) {
   mysql_mutex_lock(&LOCK_plugin_delete);
+#ifndef NDEBUG
+  extern mysql_mutex_t LOCK_plugin;
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
+#endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  ulong system_var_count = get_system_variable_hash_records();
+  ulong system_var_count = get_system_variable_count();
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return (global_thread_container.get_row_count() * system_var_count);
@@ -166,8 +170,7 @@ int table_variables_by_thread::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_variables_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                          bool) {
+int table_variables_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   /* Build array of SHOW_VARs from the system variable hash. */
   m_sysvar_cache.initialize_session();
 
@@ -254,8 +257,8 @@ int table_variables_by_thread::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_thread_internal_id);
           break;
         case 1: /* VARIABLE_NAME */
-          set_field_varchar_utf8(f, m_row.m_variable_name.m_str,
-                                 m_row.m_variable_name.m_length);
+          set_field_varchar_utf8mb4(f, m_row.m_variable_name.m_str,
+                                    m_row.m_variable_name.m_length);
           break;
         case 2: /* VARIABLE_VALUE */
           m_row.m_variable_value.set_field(f);

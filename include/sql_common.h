@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#define SQL_COMMON_INCLUDED
 
 /**
   @file include/sql_common.h
@@ -48,7 +46,10 @@ struct MEM_ROOT;
 extern "C" {
 #endif
 
-extern const char *unknown_sqlstate;
+#ifdef IMPORT_UNKNOWN_SQLSTATE
+__declspec(dllimport)
+#endif
+    extern const char *unknown_sqlstate;
 extern const char *cant_connect_sqlstate;
 extern const char *not_error_sqlstate;
 
@@ -92,6 +93,7 @@ struct STATE_INFO {
 */
 
 struct st_mysql_trace_info;
+struct mysql_async_connect;
 
 struct MYSQL_EXTENSION {
   struct st_mysql_trace_info *trace_data;
@@ -101,6 +103,8 @@ struct MYSQL_EXTENSION {
 #ifdef MYSQL_SERVER
   // Used by replication to pass around compression context data.
   NET_SERVER *server_extn;
+  /* used by mysql_init() api for mysql command service related information */
+  void *mcs_extn;
 #endif
   struct {
     uint n_params;
@@ -125,11 +129,40 @@ void mysql_extension_bind_free(MYSQL_EXTENSION *ext);
 
 #define ASYNC_DATA(M) \
   (NULL != (M) ? (MYSQL_EXTENSION_PTR(M)->mysql_async_context) : NULL)
+/**
+  Sets the MYSQL_EXTENSION::server_extn attribute by the use of NET_SERVER which
+  contains information about compression context and compression attributes.
+  This attribute needs to be set each time mysql_real_connect() is called to
+  make a connection. When a connection attempt fails or when a connection is
+  closed, as part of the MYSQL handle cleanup, mysql_close_free() is called and
+  that will free MYSQL_EXTENSION::server_extn.
+
+  mysql_close_free() will free all the memory allocated in the MYSQL handle but
+  preserves MYSQL::options. These options are later free'd by
+  mysql_close_free_options() unless the client flag CLIENT_REMEMBER_OPTIONS is
+  set.
+
+  @param mysql  The MYSQL handle
+  @param extn   The NET_SERVER handle that contains compression context info.
+*/
 #ifdef MYSQL_SERVER
 inline void mysql_extension_set_server_extn(MYSQL *mysql, NET_SERVER *extn) {
   MYSQL_EXTENSION_PTR(mysql)->server_extn = extn;
 }
-#endif
+#endif /* MYSQL_SERVER*/
+
+/*
+  Maximum allowed authentication plugins for a given user account.
+*/
+#define MAX_AUTHENTICATION_FACTOR 3
+/*
+  Placeholder to save plugin name and password of 1st, 2nd and 3rd
+  factor authentication methods.
+*/
+struct client_authentication_info {
+  char *plugin_name;
+  char *password;
+};
 
 struct st_mysql_options_extention {
   char *plugin_dir;
@@ -152,9 +185,12 @@ struct st_mysql_options_extention {
   unsigned int zstd_compression_level;
   bool connection_compressed;
   char *load_data_dir;
+  struct client_authentication_info client_auth_info[MAX_AUTHENTICATION_FACTOR];
+  void *ssl_session_data; /** the session serialization to use */
 };
 
 struct MYSQL_METHODS {
+  MYSQL *(*connect_method)(mysql_async_connect *connect_args);
   bool (*read_query_result)(MYSQL *mysql);
   bool (*advanced_command)(MYSQL *mysql, enum enum_server_command command,
                            const unsigned char *header, size_t header_length,
@@ -163,6 +199,7 @@ struct MYSQL_METHODS {
   MYSQL_DATA *(*read_rows)(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
                            unsigned int fields);
   MYSQL_RES *(*use_result)(MYSQL *mysql);
+  MYSQL_ROW (*fetch_row)(MYSQL_RES *);
   void (*fetch_lengths)(unsigned long *to, MYSQL_ROW column,
                         unsigned int field_count);
   void (*flush_use_result)(MYSQL *mysql, bool flush_all_results);
@@ -222,6 +259,8 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
                                   unsigned int fields);
 MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, unsigned long field_count,
                                unsigned int fields);
+MYSQL_RES *use_result(MYSQL *mysql);
+MYSQL *connect_helper(mysql_async_connect *ctx);
 void free_rows(MYSQL_DATA *cur);
 void free_old_query(MYSQL *mysql);
 void end_server(MYSQL *mysql);
@@ -265,13 +304,11 @@ int is_file_or_dir_world_writable(const char *filepath);
 void read_ok_ex(MYSQL *mysql, unsigned long len);
 
 bool fix_param_bind(MYSQL_BIND *param, uint idx);
-bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
-                                    MYSQL_BIND *params, const char **names,
-                                    unsigned long n_param_sets,
-                                    uchar **ret_data, ulong *ret_length,
-                                    uchar send_types_to_server,
-                                    bool send_named_params,
-                                    bool send_parameter_set_count);
+bool mysql_int_serialize_param_data(
+    NET *net, unsigned int param_count, MYSQL_BIND *params, const char **names,
+    unsigned long n_param_sets, uchar **ret_data, ulong *ret_length,
+    uchar send_types_to_server, bool send_named_params,
+    bool send_parameter_set_count, bool send_parameter_count_when_zero);
 
 #ifdef __cplusplus
 }
@@ -279,4 +316,8 @@ bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
 
 #define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)
 
+/*
+  AuthNextFactor packet is defined to have value 2 in 1st byte.
+*/
+#define AUTH_NEXT_FACTOR_PACKETTYPE 2
 #endif /* SQL_COMMON_INCLUDED */

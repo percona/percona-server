@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,7 +119,7 @@ bool ndb_dd_sdi_deserialize(THD *thd, const dd::sdi_t &sdi, dd::Table *table) {
 dd::sdi_t ndb_dd_sdi_serialize(THD *thd, const dd::Table &table,
                                const dd::String_type &schema_name) {
 #ifndef NDEBUG
-  // Verify that dd::serialize generates SDI in minimzed format
+  // Verify that dd::serialize generates SDI in minimized format
   dd::sdi_t sdi = dd::serialize(thd, table, schema_name);
   assert(minify(sdi) == sdi);
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@
 namespace dynarray_unittest {
 
 // We generate some random data at startup, for testing of sorting.
-void generate_test_data(Key_use *keys, TABLE_LIST *tables, int n) {
+void generate_test_data(Key_use *keys, Table_ref *tables, int n) {
   int ix;
   for (ix = 0; ix < n; ++ix) {
     tables[ix].set_tableno(ix % 3);
@@ -79,14 +79,13 @@ class MemRootTest : public ::testing::Test {
   MemRootTest() : m_mem_root_p(&m_mem_root), m_array_std(m_mem_root_p) {}
 
   void SetUp() override {
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     THR_MALLOC = &m_mem_root_p;
 
     m_array_std.reserve(num_elements);
     destroy_counter = 0;
   }
 
-  void TearDown() override { free_root(&m_mem_root, MYF(0)); }
+  void TearDown() override { m_mem_root.Clear(); }
 
   static void SetUpTestCase() {
     generate_test_data(test_data, table_list, num_elements);
@@ -95,7 +94,7 @@ class MemRootTest : public ::testing::Test {
 
   static void TearDownTestCase() { THR_MALLOC = nullptr; }
 
-  MEM_ROOT m_mem_root;
+  MEM_ROOT m_mem_root{PSI_NOT_INSTRUMENTED, 1024};
   MEM_ROOT *m_mem_root_p;
   Key_use_array m_array_std;
 
@@ -104,14 +103,15 @@ class MemRootTest : public ::testing::Test {
 
  private:
   static Key_use test_data[num_elements];
-  static TABLE_LIST table_list[num_elements];
+  static Table_ref table_list[num_elements];
 
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(MemRootTest);
+  MemRootTest(MemRootTest const &) = delete;
+  MemRootTest &operator=(MemRootTest const &) = delete;
 };
 
 size_t MemRootTest::destroy_counter;
 Key_use MemRootTest::test_data[num_elements];
-TABLE_LIST MemRootTest::table_list[num_elements];
+Table_ref MemRootTest::table_list[num_elements];
 
 // Test that Mem_root_array re-expanding works.
 TEST_F(MemRootTest, Reserve) {
@@ -134,7 +134,7 @@ TEST_F(MemRootTest, Reserve) {
 class DestroyCounter {
  public:
   DestroyCounter() : p_counter(&MemRootTest::destroy_counter) {}
-  DestroyCounter(const DestroyCounter &rhs) : p_counter(rhs.p_counter) {}
+  DestroyCounter(const DestroyCounter &rhs) = default;
   explicit DestroyCounter(size_t *p) : p_counter(p) {}
   DestroyCounter &operator=(const DestroyCounter &) = default;
   ~DestroyCounter() { (*p_counter) += 1; }

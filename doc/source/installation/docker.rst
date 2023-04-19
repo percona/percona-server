@@ -1,10 +1,10 @@
 .. _docker:
 
 ================================================
- Running |Percona Server| in a Docker Container
+ Running *Percona Server for MySQL* in a Docker Container
 ================================================
 
-Docker images of |Percona Server| are hosted publicly on Docker Hub at
+Docker images of *Percona Server for MySQL* are hosted publicly on Docker Hub at
 https://hub.docker.com/r/percona/percona-server/.
 
 For more information about using Docker, see the `Docker Docs`_.
@@ -21,17 +21,17 @@ For more information about using Docker, see the `Docker Docs`_.
    available locally.
 
 
-Using the |Percona Server| Images
+Using the *Percona Server for MySQL* Images
 =================================
 
 The following procedure describes how to run and access Percona Server 8.0
 using Docker.
 
-Starting an Instance of |Percona Server| in a Container
+Starting an Instance of *Percona Server for MySQL* in a Container
 -------------------------------------------------------
 
 To start a container named ``ps`` running the latest version of
-|Percona Server| 8.0, with the root password set to ``root``::
+*Percona Server for MySQL* 8.0, with the root password set to ``root``::
 
  [root@docker-host] $ docker run -d \
    --name ps \
@@ -81,7 +81,7 @@ to access the database directly::
 
  mysql>
 
-Accessing |Percona Server| from Application in Another Container
+Accessing *Percona Server for MySQL* from Application in Another Container
 ----------------------------------------------------------------
 
 The image exposes the standard MySQL port 3306,
@@ -115,20 +115,22 @@ by passing one or more environment variables with the ``docker run`` command.
 The variables are optional,
 except that you must specify at least one of the following:
 
-* :variable:`MYSQL_ALLOW_EMPTY_PASSWORD`: least secure, use only for testing.
+* :ref:`MYSQL_ALLOW_EMPTY_PASSWORD`: least secure, use only for testing.
 
-* :variable:`MYSQL_ROOT_PASSWORD`: more secure,
+* :ref:`MYSQL_ROOT_PASSWORD`: more secure,
   but setting the password on the command line is not recommended
   for sensitive production setups.
 
-* :variable:`MYSQL_RANDOM_ROOT_PASSWORD`: most secure,
+* :ref:`MYSQL_RANDOM_ROOT_PASSWORD`: most secure,
   recommended for production.
 
   .. note:: To further secure your instance,
-     use the :variable:`MYSQL_ONETIME_PASSWORD` variable
+     use the :ref:`MYSQL_ONETIME_PASSWORD` variable
      if you are running version 5.6 or later.
 
-.. variable:: MYSQL_ALLOW_EMPTY_PASSWORD
+.. _MYSQL_ALLOW_EMPTY_PASSWORD:
+
+.. rubric:: ``MYSQL_ALLOW_EMPTY_PASSWORD`` 
 
   Specifies whether to allow the container
   to be started with a blank password for the MySQL root user.
@@ -138,13 +140,17 @@ except that you must specify at least one of the following:
   .. note:: Allowing empty root password is not recommended for production,
      because anyone will have full superuser access to the database.
 
-.. variable:: MYSQL_DATABASE
+.. _MYSQL_DATABASE:
+
+.. rubric:: ``MYSQL_DATABASE``
 
   Specifies the name of the database to be created when running the container.
   To create a user with full access to this database (``GRANT ALL``),
-  set the :variable:`MYSQL_USER` and :variable:`MYSQL_PASSWORD` variables.
+  set the :ref:`MYSQL_USER` and :ref:`MYSQL_PASSWORD` variables.
 
-.. variable:: MYSQL_ONETIME_PASSWORD
+.. _MYSQL_ONETIME_PASSWORD:
+
+.. rubric:: ``MYSQL_ONETIME_PASSWORD``
 
   Specifies whether the password for the MySQL root user
   should be set as expired.
@@ -152,13 +158,17 @@ except that you must specify at least one of the following:
   If enabled using ``MYSQL_ONETIME_PASSWORD=yes``,
   the MySQL root password must be changed before using it to log in.
 
-.. variable:: MYSQL_PASSWORD
+.. _MYSQL_PASSWORD:
+
+.. rubric:: ``MYSQL_PASSWORD``
 
   Specifies the password for the user with full access to the database
-  specified by the :variable:`MYSQL_DATABASE` variable.
-  Setting the :variable:`MYSQL_USER` variable is also required.
+  specified by the :ref:`MYSQL_DATABASE` variable.
+  Setting the :ref:`MYSQL_USER` variable is also required.
 
-.. variable:: MYSQL_RANDOM_ROOT_PASSWORD
+.. _MYSQL_RANDOM_ROOT_PASSWORD:
+
+.. rubric:: ``MYSQL_RANDOM_ROOT_PASSWORD``
 
   Specifies whether a random password for the MySQL root user
   should be generated.
@@ -168,34 +178,48 @@ except that you must specify at least one of the following:
   The password will be printed to ``stdout`` in the container,
   and it can be viewed using the ``docker logs`` command.
 
-.. variable:: MYSQL_ROOT_PASSWORD
+.. _MYSQL_ROOT_PASSWORD:
+
+.. rubric:: ``MYSQL_ROOT_PASSWORD``
 
   Specifies the password for the MySQL root user.
 
   .. note:: Setting the MySQL root password on the command line is insecure.
      It is recommended to set a random password
-     using the :variable:`MYSQL_RANDOM_ROOT_PASSWORD` variable.
+     using the :ref:`MYSQL_RANDOM_ROOT_PASSWORD` variable.
 
-.. variable:: MYSQL_ROOT_PASSWORD_FILE
+.. _MYSQL_ROOT_PASSWORD_FILE:
+
+.. rubric:: ``MYSQL_ROOT_PASSWORD_FILE``
 
   Specifies a file that will be read for the root user account.
   This can be a mounted file when you run your container. This
   can also be used in the scope of the Docker Secrets (Swarm mode)
   functionality.
 
-.. variable:: MYSQL_USER
+.. _MYSQL_USER:
+
+.. rubric:: ``MYSQL_USER``
 
   Specifies the name for the user with full access to the database
-  specified by the :variable:`MYSQL_DATABASE` variable.
-  Setting the :variable:`MYSQL_PASSWORD` variable is also required.
+  specified by the :ref:`MYSQL_DATABASE` variable.
+  Setting the :ref:`MYSQL_PASSWORD` variable is also required.
 
-.. variable:: INIT_TOKUDB
+.. _INIT_TOKUDB:
+
+.. rubric:: ``INIT_TOKUDB``
 
   Specifies whether to allow the container to be started with
   enabled TokuDB engine. Disabled by default. To enable, set
   ``INIT_TOKUDB=yes``.
 
-.. variable:: INIT_ROCKSDB
+.. note:: 
+
+   Starting with :ref:`8.0.28-19`, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and disabled the storage engine in our binary builds. For more information, see :ref:`tokudb_intro`.
+
+.. _INIT_ROCKSDB:
+
+.. rubric:: ``INIT_ROCKSDB``
 
   Specifies whether to allow the container to be started with
   enabled RocksDB engine. Disabled by default. To enable, set
@@ -234,9 +258,9 @@ you run the container with the following command::
 The ``-v /local/datadir:/var/lib/mysql`` option
 mounts the ``/local/datadir`` directory on the host
 to ``/var/lib/mysql`` in the container,
-which is the default data directory used by |Percona Server|.
+which is the default data directory used by *Percona Server for MySQL*.
 
-.. note:: If the data directory contains subdirectories, files, or data, do not add :variable:`MYSQL_ROOT_PASSWORD` to the ``docker run`` command.
+.. note:: If the data directory contains subdirectories, files, or data, do not add :ref:`MYSQL_ROOT_PASSWORD` to the ``docker run`` command.
 
 .. note:: If you have SELinux enabled,
    assign the relevant policy type to the new data directory,
@@ -262,12 +286,12 @@ To map the standard MySQL port 3306 to port 6603 on the host::
    -p 6603:3306 \
    percona/percona-server:8.0
 
-Passing Options to |Percona Server|
+Passing Options to *Percona Server for MySQL*
 ===================================
 
-You can pass options to |Percona Server| when running the container
+You can pass options to *Percona Server for MySQL* when running the container
 by appending them to the ``docker run`` command.
-For example, to start run |Percona Server| with UTF-8
+For example, to start run *Percona Server for MySQL* with UTF-8
 as the default setting for character set
 and collation for all databases::
 

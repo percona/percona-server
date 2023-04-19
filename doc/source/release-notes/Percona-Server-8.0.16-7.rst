@@ -1,7 +1,7 @@
-.. rn:: 8.0.16-7:
+.. _8.0.16-7:
 
 ===============================================================================
-|Percona Server| |release|
+*Percona Server for MySQL* 8.0.16-7
 ===============================================================================
 
 |Percona| announces the release of |Percona Server| |release| on |date|
@@ -25,8 +25,8 @@ Encryption Features General Availability (GA)
 - :ref:`encrypting-temporary-files`
 - :ref:`undo-tablespace-encryption`
 - :ref:`encrypting-system-tablespace`
-- :variable:`default_table_encryption` =OFF/ON
-- :variable:`table_encryption_privilege_check` =OFF/ON
+- :ref:`default_table_encryption` =OFF/ON
+- :refref:`table_encryption_privilege_check` =OFF/ON
 - :ref:`encrypting-redo-log` for master key encryption only
 - :ref:`merge-sort-encryption`
 - :ref:`encrypting-doublewrite-buffers`
@@ -36,19 +36,19 @@ Bugs Fixed
 
 - Parallel doublewrite buffer writes must crash the server on an I/O error occurs. Bug fixed :psbug:`5678`.
 
-- After resetting the :variable:`innodb_temp_tablespace_encrypt` to ``OFF`` during runtime the subsequent file-per-table temporary tables continue to be encrypted. Bug fixed :psbug:`5734`.
+- After resetting the :ref:`innodb_temp_tablespace_encrypt` to ``OFF`` during runtime the subsequent file-per-table temporary tables continue to be encrypted. Bug fixed :psbug:`5734`.
 
-- Setting the encryption to ``ON`` for the system tablespace generates an encryption key and encrypts system temporary tablespace pages. Resetting the encryption to ``OFF``, all subsequent pages are written to the temporary tablespace without encryption. To allow any encrypted tables to be decrypted, the generated keys are not erased. Modifying the :variable:`innodb_temp_tablespace_encrypt` does not affect file-per-table temporary tables. This type of table is encrypted if ``ENCRYPTION`` ='Y' is set during table creation. Bug fixed :psbug:`5736`.
+- Setting the encryption to ``ON`` for the system tablespace generates an encryption key and encrypts system temporary tablespace pages. Resetting the encryption to ``OFF``, all subsequent pages are written to the temporary tablespace without encryption. To allow any encrypted tables to be decrypted, the generated keys are not erased. Modifying the :ref:`innodb_temp_tablespace_encrypt` does not affect file-per-table temporary tables. This type of table is encrypted if ``ENCRYPTION`` ='Y' is set during table creation. Bug fixed :psbug:`5736`.
 
 - An instance started with the default values but setting the redo-log without specifying the keyring plugin parameters does not fail or throw an error. Bug fixed :psbug:`5476`.
 
-- The :variable:`rocksdb_large_prefix` allows index key prefixes up to 3072 bytes. The default value is changed to ``TRUE`` to match the behavior of the :variable:`innodb_large_prefix`. :psbug:`5655`.
+- The :ref:`rocksdb_large_prefix` allows index key prefixes up to 3072 bytes. The default value is changed to ``TRUE`` to match the behavior of the :ref:`innodb_large_prefix`. :psbug:`5655`.
 
 - On a server with a large number of tables, a shutdown may take a measurable length of time. Bug fixed :psbug:`5639`.
 
 - The changed page tracking uses the LOG flag during read operations. The redo log encryption may attempt to decrypt pages with a specific bit set and fail. This failure generates error messages. A NO_ENCRYPTION flag lets the read process safely disable decryption errors in this case. Bug fixed :psbug:`5541`.
 
-- If large pages are enabled on MySQL side, the maximum size for :variable:`innodb_buffer_pool_chunk_size` is effectively limited to 4GB. Bug fixed :psbug:`5517`. (Upstream `94747 <https://bugs.mysql.com/bug.php?id=94747>`__)
+- If large pages are enabled on MySQL side, the maximum size for :ref:`innodb_buffer_pool_chunk_size` is effectively limited to 4GB. Bug fixed :psbug:`5517`. (Upstream `94747 <https://bugs.mysql.com/bug.php?id=94747>`__)
 
 - The TokuDB hot backup library continually dumps TRACE information to the server error log. The user cannot enable or disable the dump of this information. Bug fixed :psbug:`4850`.
 

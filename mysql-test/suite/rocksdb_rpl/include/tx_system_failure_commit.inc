@@ -9,9 +9,6 @@ eval set session debug= $myrocks_debug_set_code;
 --error 2013
 insert into t1 values (4,4);
 
---enable_reconnect
---source include/wait_until_connected_again.inc
-
 # Primary instance restart needs this, otherwise rpl_end fails.
 --let $rpl_server_number = 1
 --source include/rpl_reconnect.inc
@@ -32,9 +29,6 @@ insert into t1 values (5,5);
 insert into t1 values (6,6);
 --error 2013
 commit;
-
---enable_reconnect
---source include/wait_until_connected_again.inc
 
 # Primary instance restart needs this, otherwise rpl_end fails.
 --let $rpl_server_number = 1

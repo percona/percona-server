@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
-
+#include <cassert>
 #include <NdbCondition.h>
 #include <NdbMutex.h>
 #include "NdbTick.h"
+
+#include <EventLogger.hpp>
 
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
@@ -65,12 +66,12 @@ NdbCondition_initialize()
 
   if ((res = clock_gettime(clock_id, &tick_time)) != 0)
   {
-    assert(FALSE);
+    assert(false);
     goto nogo;
   }
   if ((res = pthread_condattr_init(&attr)) != 0)
   {
-    assert(FALSE);
+    assert(false);
     goto nogo;
   }
   condattr_init = 1;
@@ -92,10 +93,8 @@ nogo:
   }
   
   clock_id = CLOCK_REALTIME;
-  fprintf(stderr, 
-          "Failed to use CLOCK_MONOTONIC for pthread_condition res: %u\n", 
-          res);
-  fflush(stderr);
+  g_eventLogger->info(
+      "Failed to use CLOCK_MONOTONIC for pthread_condition res: %u", res);
   return;
 #else
   init = 1;
@@ -120,7 +119,7 @@ NdbCondition_Init(struct NdbCondition* ndb_cond)
   }
   else
   {
-    result = pthread_cond_init(&ndb_cond->cond, NULL);
+    result = pthread_cond_init(&ndb_cond->cond, nullptr);
   }
 #else
   result = native_cond_init(&ndb_cond->cond);
@@ -136,8 +135,8 @@ NdbCondition_Create(void)
   struct NdbCondition* tmpCond;
 
   tmpCond = (struct NdbCondition*)malloc(sizeof(struct NdbCondition));
-  if (tmpCond == NULL)
-    return NULL;
+  if (tmpCond == nullptr)
+    return nullptr;
 
   (void)NdbCondition_Init(tmpCond);
   return tmpCond;
@@ -149,7 +148,7 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
 {
   int result;
 
-  if (p_cond == NULL || p_mutex == NULL)
+  if (p_cond == nullptr || p_mutex == nullptr)
     return 1;
   
 #ifdef NDB_MUTEX_STRUCT
@@ -175,10 +174,10 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
 void
 NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
 {
-  int secs = 0;
 #ifdef _WIN32
   set_timespec_nsec(abstime, msecs * 1000000ULL);
 #else
+  int secs = 0;
 #ifdef HAVE_CLOCK_GETTIME
   clock_gettime(clock_id, abstime);
 #else
@@ -250,7 +249,7 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
   const struct timespec * waitarg = abstime;
 #endif
 
-  if (p_cond == NULL || p_mutex == NULL)
+  if (p_cond == nullptr || p_mutex == nullptr)
     return 1;
 
 #ifdef NDB_MUTEX_STRUCT
@@ -264,7 +263,7 @@ int
 NdbCondition_Signal(struct NdbCondition* p_cond){
   int result;
 
-  if (p_cond == NULL)
+  if (p_cond == nullptr)
     return 1;
 
   result = native_cond_signal(&p_cond->cond);
@@ -277,7 +276,7 @@ int NdbCondition_Broadcast(struct NdbCondition* p_cond)
 {
   int result;
 
-  if (p_cond == NULL)
+  if (p_cond == nullptr)
     return 1;
 
   result = native_cond_broadcast(&p_cond->cond);
@@ -288,12 +287,14 @@ int NdbCondition_Broadcast(struct NdbCondition* p_cond)
 
 int NdbCondition_Destroy(struct NdbCondition* p_cond)
 {
-  int result;
 
-  if (p_cond == NULL)
+  if (p_cond == nullptr)
     return 1;
 
+  int result [[maybe_unused]];
   result = native_cond_destroy(&p_cond->cond);
+  assert(result == 0);
+
   memset(p_cond, 0xff, sizeof(struct NdbCondition));
   free(p_cond);
 

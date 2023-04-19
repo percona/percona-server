@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "Backup.hpp"
 
+#include <cstring>
 #include <ndb_version.h>
 
 #include <NdbTCP.h>
@@ -76,7 +77,6 @@
 #include <dbtup/Dbtup.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #include <math.h>
 
@@ -311,7 +311,7 @@ Backup::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&conf->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -428,30 +428,32 @@ Backup::handle_overflow(Uint64& overflow_disk_write,
   {
     jam();
 #ifdef DEBUG_CHECKPOINTSPEED
-    ndbout_c("Overflow of %u bytes (max/period is %u bytes)",
-             overflowThisPeriod * 4, curr_disk_write_speed * 4);
+    g_eventLogger->info("Overflow of %ju bytes (max/period is %ju bytes)",
+                        uintmax_t{overflowThisPeriod} * 4,
+                        uintmax_t{curr_disk_write_speed} * 4);
 #endif
     if (remainingOverFlow)
     {
       jam();
 #ifdef DEBUG_CHECKPOINTSPEED
-      ndbout_c("  Extra overflow : %u bytes, will take %u further periods"
-               " to clear", remainingOverFlow * 4,
-                 remainingOverFlow / curr_disk_write_speed);
+      g_eventLogger->info(
+          "  Extra overflow : %ju bytes, will take %ju further periods to clear",
+          uintmax_t{remainingOverFlow} * 4,
+          uintmax_t{remainingOverFlow / curr_disk_write_speed});
 #endif
     }
   }
   if (true || curr_disk_write_speed == m_curr_disk_write_speed)
   {
-    DEB_REDO_CONTROL_DETAIL(("(%u)bytes_written_this_period: %llu kB, "
-                             " overflowThisPeriod: %llu kB, "
-                             " remainingOverFlow: %llu kB, "
-                             " curr_disk_write_speed %llu kB",
+    DEB_REDO_CONTROL_DETAIL(("(%u) bytes_written_this_period: %ju kB, "
+                             " overflowThisPeriod: %ju kB, "
+                             " remainingOverFlow: %ju kB, "
+                             " curr_disk_write_speed %ju kB",
                              instance(),
-                             words_written_this_period / 256,
-                             overflowThisPeriod / 256,
-                             remainingOverFlow / 256,
-                             curr_disk_write_speed / 256));
+                             uintmax_t{words_written_this_period} / 256,
+                             uintmax_t{overflowThisPeriod} / 256,
+                             uintmax_t{remainingOverFlow} / 256,
+                             uintmax_t{curr_disk_write_speed} / 256));
   }
   words_written_this_period = overflowThisPeriod;
   overflow_disk_write = remainingOverFlow;
@@ -461,7 +463,7 @@ void
 Backup::calculate_next_delay(const NDB_TICKS curr_time)
 {
   /**
-   * Adjust for upto 10 millisecond delay of this signal. Longer
+   * Adjust for up to 10 millisecond delay of this signal. Longer
    * delays will not be handled, in this case the system is most
    * likely under too high load and it won't matter very much that
    * we decrease the speed of checkpoints.
@@ -570,35 +572,38 @@ Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
      * than allowed by the quota (DiskCheckpointSpeed), including
      * transient spikes due to a single MaxBackupWriteSize write
      */
-    ndbout << "Backup : Excessive Backup/LCP write rate in last"
-           << " monitoring period - recorded = "
-           << (m_monitor_words_written * 4 * 1000) / millisPassed
-           << " bytes/s, "
-           << endl
-           << "Recorded writes to backup: "
-           << (m_backup_monitor_words_written * 4 * 1000) / millisPassed
-           << " bytes/s, "
-           << endl;
-    ndbout << "Current speed is = "
-           << m_curr_disk_write_speed *
-                CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS
-           << " bytes/s"
-           << endl;
-    ndbout << "Current backup speed is = "
-           << m_curr_backup_disk_write_speed *
-                CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS
-           << " bytes/s"
-           << endl;
-    ndbout << "Backup : Monitoring period : " << millisPassed
-           << " millis. Bytes written : " << (m_monitor_words_written * 4)
-           << ".  Max allowed : " << (maxExpectedWords * 4) << endl;
-    ndbout << "Backup : Monitoring period : " << millisPassed
-           << " millis. Bytes written : "
-           << (m_backup_monitor_words_written * 4)
-           << ".  Max allowed : " << (maxExpectedWordsBackup * 4) << endl;
-    ndbout << "Actual number of periods in this monitoring interval: ";
-    ndbout << m_periods_passed_in_monitor_period;
-    ndbout << " calculated number was: " << periodsPassed << endl;
+    g_eventLogger->info(
+        "Backup : Excessive Backup/LCP write rate in last"
+        " monitoring period - recorded = %llu bytes/s, ",
+        (m_monitor_words_written * 4 * 1000) / millisPassed);
+
+    g_eventLogger->info(
+        "Recorded writes to backup: %llu bytes/s, ",
+        (m_backup_monitor_words_written * 4 * 1000) / millisPassed);
+
+    g_eventLogger->info(
+        "Current speed is = %llu bytes/s",
+        m_curr_disk_write_speed * CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS);
+
+    g_eventLogger->info("Current backup speed is = %llu bytes/s",
+                        m_curr_backup_disk_write_speed *
+                            CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS);
+
+    g_eventLogger->info(
+        "Backup : Monitoring period : %llu"
+        " millis. Bytes written : %llu.  Max allowed : %llu",
+        millisPassed, (m_monitor_words_written * 4), (maxExpectedWords * 4));
+
+    g_eventLogger->info(
+        "Backup : Monitoring period : %llu"
+        " millis. Bytes written : %llu.  Max allowed : %llu",
+        millisPassed, (m_backup_monitor_words_written * 4),
+        (maxExpectedWordsBackup * 4));
+
+    g_eventLogger->info(
+        "Actual number of periods in this"
+        " monitoring interval: %u calculated number was: %llu",
+        m_periods_passed_in_monitor_period, periodsPassed);
   }
   report_disk_write_speed_report(4 * m_monitor_words_written,
                                  4 * m_backup_monitor_words_written,
@@ -2077,7 +2082,7 @@ Backup::calculate_disk_write_speed(Signal *signal)
   if (c_lqh->is_ldm_instance_io_lagging())
   {
     /**
-     * With IO lagging behind we will decrease the LCP speed to accomodate
+     * With IO lagging behind we will decrease the LCP speed to accommodate
      * for more REDO logging bandwidth. The definition of REDO log IO lagging
      * is kept in DBLQH, but will be a number of seconds of outstanding REDO
      * IO requests that LQH is still waiting for completion of.
@@ -2421,7 +2426,7 @@ Backup::execCONTINUEB(Signal* signal)
     Uint32 fragPtr_I = signal->theData[3];
 
     BackupRecordPtr ptr;
-    c_backupPool.getPtr(ptr, ptr_I);
+    ndbrequire(c_backupPool.getPtr(ptr, ptr_I));
     TablePtr tabPtr;
     ptr.p->tables.getPtr(tabPtr, tabPtr_I);
 
@@ -2485,7 +2490,7 @@ Backup::execCONTINUEB(Signal* signal)
   {
     jam();
     BackupFilePtr filePtr;
-    c_backupFilePool.getPtr(filePtr, Tdata1);
+    ndbrequire(c_backupFilePool.getPtr(filePtr, Tdata1));
     checkFile(signal, filePtr);
     return;
   }
@@ -2494,8 +2499,8 @@ Backup::execCONTINUEB(Signal* signal)
     jam();
     BackupFilePtr filePtr;
     BackupRecordPtr ptr;
-    c_backupFilePool.getPtr(filePtr, Tdata1);
-    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+    ndbrequire(c_backupFilePool.getPtr(filePtr, Tdata1));
+    ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
     /**
      * Given that we've been waiting a few milliseconds for buffers to become
      * free, we need to initialise the priority mode algorithm to ensure that
@@ -2516,7 +2521,7 @@ Backup::execCONTINUEB(Signal* signal)
   {
     jam();
     BackupFilePtr filePtr;
-    c_backupFilePool.getPtr(filePtr, Tdata1);
+    ndbrequire(c_backupFilePool.getPtr(filePtr, Tdata1));
     fragmentCompleted(signal, filePtr, Tdata2);
     return;
   }
@@ -2525,7 +2530,7 @@ Backup::execCONTINUEB(Signal* signal)
   {
     jam();
     BackupRecordPtr ptr;
-    c_backupPool.getPtr(ptr, Tdata1);
+    ndbrequire(c_backupPool.getPtr(ptr, Tdata1));
     
     BackupFilePtr filePtr;
 
@@ -2544,7 +2549,7 @@ Backup::execCONTINUEB(Signal* signal)
     if(buf.getFreeSize() < buf.getMaxWrite()) {
       jam();
       TablePtr tabPtr;
-      c_tablePool.getPtr(tabPtr, Tdata2);
+      ndbrequire(c_tablePool.getPtr(tabPtr, Tdata2));
       
       DEBUG_OUT("Backup - Buffer full - " 
                 << buf.getFreeSize()
@@ -2563,7 +2568,7 @@ Backup::execCONTINUEB(Signal* signal)
     }//if
     
     TablePtr tabPtr;
-    c_tablePool.getPtr(tabPtr, Tdata2);
+    ndbrequire(c_tablePool.getPtr(tabPtr, Tdata2));
     GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
     req->senderRef = reference();
     req->senderData = filePtr.i;
@@ -2580,7 +2585,7 @@ Backup::execCONTINUEB(Signal* signal)
     BackupRecordPtr backupPtr;
     TablePtr tabPtr;
     Uint32 fragNo = signal->theData[3];
-    c_backupPool.getPtr(backupPtr, signal->theData[1]);
+    ndbrequire(c_backupPool.getPtr(backupPtr, signal->theData[1]));
     ndbrequire(findTable(backupPtr, tabPtr, signal->theData[2]));
     getFragmentInfo(signal, backupPtr, tabPtr, fragNo);
     return;
@@ -2602,7 +2607,7 @@ Backup::execBACKUP_LOCK_TAB_CONF(Signal *signal)
   jamEntry();
   const BackupLockTab *conf = (const BackupLockTab *)signal->getDataPtr();
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, conf->m_backupRecordPtr_I);
+  ndbrequire(c_backupPool.getPtr(ptr, conf->m_backupRecordPtr_I));
   TablePtr tabPtr;
   ptr.p->tables.getPtr(tabPtr, conf->m_tablePtr_I);
 
@@ -2900,63 +2905,68 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     const Uint64 resetElapsed = NdbTick_Elapsed(m_reset_disk_speed_time,now).milliSec();
     const Uint64 millisPassed = NdbTick_Elapsed(m_monitor_snapshot_start,now).milliSec();
     /* Dump measured disk write speed since last RESET_DISK_SPEED */
-    ndbout_c("m_curr_disk_write_speed: %ukb  m_words_written_this_period:"
-             " %u kwords  m_overflow_disk_write: %u kb",
-              Uint32(4 * m_curr_disk_write_speed / 1024),
-              Uint32(m_words_written_this_period / 1024),
-              Uint32(m_overflow_disk_write / 1024));
-    ndbout_c("m_backup_curr_disk_write_speed: %ukb  "
-             "m_backup_words_written_this_period:"
-             " %u kwords  m_backup_overflow_disk_write: %u kb",
-              Uint32(4 * m_curr_backup_disk_write_speed / 1024),
-              Uint32(m_backup_words_written_this_period / 1024),
-              Uint32(m_backup_overflow_disk_write / 1024));
-    ndbout_c("m_reset_delay_used: %u  time since last RESET_DISK_SPEED: %llu millis",
-             m_reset_delay_used, resetElapsed);
+    g_eventLogger->info(
+        "m_curr_disk_write_speed: %ukb  m_words_written_this_period:"
+        " %u kwords  m_overflow_disk_write: %u kb",
+        Uint32(4 * m_curr_disk_write_speed / 1024),
+        Uint32(m_words_written_this_period / 1024),
+        Uint32(m_overflow_disk_write / 1024));
+    g_eventLogger->info(
+        "m_backup_curr_disk_write_speed: %ukb  "
+        "m_backup_words_written_this_period:"
+        " %u kwords  m_backup_overflow_disk_write: %u kb",
+        Uint32(4 * m_curr_backup_disk_write_speed / 1024),
+        Uint32(m_backup_words_written_this_period / 1024),
+        Uint32(m_backup_overflow_disk_write / 1024));
+    g_eventLogger->info(
+        "m_reset_delay_used: %u  time since last RESET_DISK_SPEED: %llu millis",
+        m_reset_delay_used, resetElapsed);
     /* Dump measured rate since last snapshot start */
     Uint64 byteRate = (4000 * m_monitor_words_written) / (millisPassed + 1);
-    ndbout_c("m_monitor_words_written : %llu, duration : %llu millis, rate :"
-             " %llu bytes/s : (%u pct of config)",
-             m_monitor_words_written, millisPassed, 
-             byteRate,
-             (Uint32) ((100 * byteRate / (4 * 10)) /
-                       (m_curr_disk_write_speed + 1)));
+    g_eventLogger->info(
+        "m_monitor_words_written : %llu, duration : %llu millis, rate :"
+        " %llu bytes/s : (%u pct of config)",
+        m_monitor_words_written, millisPassed, byteRate,
+        (Uint32)((100 * byteRate / (4 * 10)) / (m_curr_disk_write_speed + 1)));
     byteRate = (4000 * m_backup_monitor_words_written) / (millisPassed + 1);
-    ndbout_c("m_backup_monitor_words_written : %llu, duration : %llu"
-             " millis, rate :"
-             " %llu bytes/s : (%u pct of config)",
-             m_backup_monitor_words_written, millisPassed, 
-             byteRate,
-             (Uint32) ((100 * byteRate / (4 * 10)) /
-                       (m_curr_backup_disk_write_speed + 1)));
+    g_eventLogger->info(
+        "m_backup_monitor_words_written : %llu, duration : %llu"
+        " millis, rate :"
+        " %llu bytes/s : (%u pct of config)",
+        m_backup_monitor_words_written, millisPassed, byteRate,
+        (Uint32)((100 * byteRate / (4 * 10)) /
+                 (m_curr_backup_disk_write_speed + 1)));
 
     for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
     {
-      ndbout_c("BackupRecord %u:  BackupId: %u  MasterRef: %x  ClientRef: %x",
-               ptr.i, ptr.p->backupId, ptr.p->masterRef, ptr.p->clientRef);
-      ndbout_c(" State: %u", ptr.p->slaveState.getState());
-      ndbout_c(" noOfByte: %llu  noOfRecords: %llu",
-               ptr.p->noOfBytes, ptr.p->noOfRecords);
-      ndbout_c(" noOfLogBytes: %llu  noOfLogRecords: %llu",
-               ptr.p->noOfLogBytes, ptr.p->noOfLogRecords);
-      ndbout_c(" errorCode: %u", ptr.p->errorCode);
+      g_eventLogger->info(
+          "BackupRecord %u:  BackupId: %u  MasterRef: %x  ClientRef: %x", ptr.i,
+          ptr.p->backupId, ptr.p->masterRef, ptr.p->clientRef);
+      g_eventLogger->info(" State: %u", ptr.p->slaveState.getState());
+      g_eventLogger->info(" noOfByte: %llu  noOfRecords: %llu",
+                          ptr.p->noOfBytes, ptr.p->noOfRecords);
+      g_eventLogger->info(" noOfLogBytes: %llu  noOfLogRecords: %llu",
+                          ptr.p->noOfLogBytes, ptr.p->noOfLogRecords);
+      g_eventLogger->info(" errorCode: %u", ptr.p->errorCode);
       BackupFilePtr filePtr;
       for(ptr.p->files.first(filePtr); filePtr.i != RNIL; 
 	  ptr.p->files.next(filePtr))
       {
-	ndbout_c(" file %u:  type: %u  flags: H'%x  tableId: %u  fragmentId: %u",
-                 filePtr.i, filePtr.p->fileType, filePtr.p->m_flags,
-                 filePtr.p->tableId, filePtr.p->fragmentNo);
+        g_eventLogger->info(
+            " file %u:  type: %u  flags: H'%x  tableId: %u  fragmentId: %u",
+            filePtr.i, filePtr.p->fileType, filePtr.p->m_flags,
+            filePtr.p->tableId, filePtr.p->fragmentNo);
       }
       if (ptr.p->slaveState.getState() == SCANNING && ptr.p->dataFilePtr[0] != RNIL)
       {
-        c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+        ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]));
         OperationRecord & op = filePtr.p->operation;
         Uint32 *tmp = NULL;
         Uint32 sz = 0;
-        bool eof = FALSE;
+        bool eof = false;
         bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
-        ndbout_c("ready: %s  eof: %s", ready ? "TRUE" : "FALSE", eof ? "TRUE" : "FALSE");
+        g_eventLogger->info("ready: %s  eof: %s", ready ? "true" : "false",
+                            eof ? "true" : "false");
       }
     }
     return;
@@ -2995,25 +3005,25 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
       Uint32 file_pages = 0;
       BackupFilePtr lcp_file;
 
-      c_backupFilePool.getPtr(lcp_file, lcp.p->prepareCtlFilePtr[0]);
+      ndbrequire(c_backupFilePool.getPtr(lcp_file, lcp.p->prepareCtlFilePtr[0]));
       file_pages += lcp_file.p->pages.getSize();
 
-      c_backupFilePool.getPtr(lcp_file, lcp.p->prepareCtlFilePtr[1]);
+      ndbrequire(c_backupFilePool.getPtr(lcp_file, lcp.p->prepareCtlFilePtr[1]));
       file_pages += lcp_file.p->pages.getSize();
 
       for (Uint32 i = 0; i < BackupFormat::NDB_MAX_FILES_PER_LCP; i++)
       {
-        c_backupFilePool.getPtr(lcp_file, lcp.p->dataFilePtr[i]);
+        ndbrequire(c_backupFilePool.getPtr(lcp_file, lcp.p->dataFilePtr[i]));
         file_pages += lcp_file.p->pages.getSize();
 
-        c_backupFilePool.getPtr(lcp_file, lcp.p->prepareDataFilePtr[i]);
+        ndbrequire(c_backupFilePool.getPtr(lcp_file, lcp.p->prepareDataFilePtr[i]));
         file_pages += lcp_file.p->pages.getSize();
       }
 
-      c_backupFilePool.getPtr(lcp_file, lcp.p->ctlFilePtr);
+      ndbrequire(c_backupFilePool.getPtr(lcp_file, lcp.p->ctlFilePtr));
       file_pages += lcp_file.p->pages.getSize();
 
-      c_backupFilePool.getPtr(lcp_file, lcp.p->deleteFilePtr);
+      ndbrequire(c_backupFilePool.getPtr(lcp_file, lcp.p->deleteFilePtr));
       file_pages += lcp_file.p->pages.getSize();
 
       ndbrequire(c_pagePool.getSize() == 
@@ -3045,10 +3055,10 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == DumpStateOrd::BackupErrorInsert)
   {
     if (signal->getLength() == 1)
-      ndbout_c("BACKUP: setting error %u", signal->theData[1]);
+      g_eventLogger->info("BACKUP: setting error %u", signal->theData[1]);
     else
-      ndbout_c("BACKUP: setting error %u, %u",
-               signal->theData[1], signal->theData[2]);
+      g_eventLogger->info("BACKUP: setting error %u, %u", signal->theData[1],
+                          signal->theData[2]);
     SET_ERROR_INSERT_VALUE2(signal->theData[1], signal->theData[2]);
   }
 }
@@ -3074,7 +3084,7 @@ Backup::get_disk_write_speed_record(Uint32 start_index)
   else if (last_disk_write_speed_report == 0)
   {
     /**
-     * We might still be in inital phase when not all records have
+     * We might still be in initial phase when not all records have
      * been written yet.
      */
     return DISK_WRITE_SPEED_REPORT_SIZE;
@@ -3391,8 +3401,10 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     };
 
     const size_t num_config_params =
-      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+      NDB_ARRAY_SIZE(pools[0].config_params);
+    const Uint32 numPools = NDB_ARRAY_SIZE(pools);
     Uint32 pool = cursor->data[0];
+    ndbrequire(pool < numPools);
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
     {
@@ -3639,6 +3651,7 @@ Backup::findTable(const BackupRecordPtr & ptr,
 		  TablePtr & tabPtr, Uint32 tableId)
 {
   Uint32 loopCount = 0;
+  ndbrequire(tableId < c_tableMapSize);
   tabPtr.i = c_tableMap[tableId];
   while (loopCount++ < MAX_TABLE_MAPS)
   {
@@ -3731,8 +3744,7 @@ struct Number {
   Uint64 val;
 };
 
-NdbOut &
-operator<< (NdbOut & out, const Number & val){
+static char *printNumber(char buf[], int n, const Number &val) {
   char p = 0;
   Uint32 loop = 1;
   while(val.val > loop){
@@ -3765,14 +3777,14 @@ operator<< (NdbOut & out, const Number & val){
   Uint32 tmp = (Uint32)((val.val + (loop >> 1)) / loop);
 #if 1
   if(p > 0)
-    out << tmp << str;
+    BaseString::snprintf(buf, n, "%u%s", tmp, str);
   else
-    out << tmp;
+    BaseString::snprintf(buf, n, "%u", tmp);
 #else
   out << val.val;
 #endif
 
-  return out;
+  return buf;
 }
 
 void
@@ -3780,8 +3792,8 @@ Backup::execBACKUP_CONF(Signal* signal)
 {
   jamEntry();
   BackupConf * conf = (BackupConf*)signal->getDataPtr();
-  
-  ndbout_c("Backup %u has started", conf->backupId);
+
+  g_eventLogger->info("Backup %u has started", conf->backupId);
 }
 
 void
@@ -3790,7 +3802,8 @@ Backup::execBACKUP_REF(Signal* signal)
   jamEntry();
   BackupRef * ref = (BackupRef*)signal->getDataPtr();
 
-  ndbout_c("Backup (%u) has NOT started %d", ref->senderData, ref->errorCode);
+  g_eventLogger->info("Backup (%u) has NOT started %d", ref->senderData,
+                      ref->errorCode);
 }
 
 void
@@ -3801,8 +3814,8 @@ Backup::execBACKUP_COMPLETE_REP(Signal* signal)
  
   const NDB_TICKS now = NdbTick_getCurrentTicks();
   const Uint64 elapsed = NdbTick_Elapsed(startTime,now).milliSec();
-  
-  ndbout_c("Backup %u has completed", rep->backupId);
+
+  g_eventLogger->info("Backup %u has completed", rep->backupId);
   const Uint64 bytes =
     rep->noOfBytesLow + (((Uint64)rep->noOfBytesHigh) << 32);
   const Uint64 records =
@@ -3811,21 +3824,34 @@ Backup::execBACKUP_COMPLETE_REP(Signal* signal)
   Number rps = xps(records, elapsed);
   Number bps = xps(bytes, elapsed);
 
-  ndbout << " Data [ "
-	 << Number(records) << " rows " 
-	 << Number(bytes) << " bytes " << elapsed << " ms ] " 
-	 << " => "
-	 << rps << " row/s & " << bps << "b/s" << endl;
+  static constexpr size_t MAX_UINT64_STR = 21;
+
+  char records_str[MAX_UINT64_STR];
+  printNumber(records_str, sizeof(records_str), Number(records));
+
+  char bytes_str[MAX_UINT64_STR];
+  printNumber(bytes_str, sizeof(bytes_str), Number(bytes));
+
+  char rps_str[MAX_UINT64_STR];
+  printNumber(rps_str, sizeof(rps_str), rps);
+
+  char bps_str[MAX_UINT64_STR];
+  printNumber(bps_str, sizeof(bps_str), bps);
+
+  g_eventLogger->info(" Data [ %s rows %s bytes %llu ms ] => %s row/s & %s b/s",
+                      records_str, bytes_str, elapsed, rps_str, bps_str);
 
   bps = xps(rep->noOfLogBytes, elapsed);
   rps = xps(rep->noOfLogRecords, elapsed);
 
-  ndbout << " Log [ "
-	 << Number(rep->noOfLogRecords) << " log records " 
-	 << Number(rep->noOfLogBytes) << " bytes " << elapsed << " ms ] " 
-	 << " => "
-	 << rps << " records/s & " << bps << "b/s" << endl;
+  printNumber(records_str, sizeof(records_str), Number(rep->noOfLogRecords));
+  printNumber(bytes_str, sizeof(bytes_str), Number(rep->noOfLogBytes));
+  printNumber(rps_str, sizeof(rps_str), rps);
+  printNumber(bps_str, sizeof(bps_str), bps);
 
+  g_eventLogger->info(
+      " Log [ %s log records %s bytes %llu ms ] => %s records/s & %s b/s",
+      records_str, bytes_str, elapsed, rps_str, bps_str);
 }
 
 void
@@ -3833,8 +3859,9 @@ Backup::execBACKUP_ABORT_REP(Signal* signal)
 {
   jamEntry();
   BackupAbortRep* rep = (BackupAbortRep*)signal->getDataPtr();
-  
-  ndbout_c("Backup %u has been aborted %d", rep->backupId, rep->reason);
+
+  g_eventLogger->info("Backup %u has been aborted %d", rep->backupId,
+                      rep->reason);
 }
 
 const TriggerEvent::Value triggerEventValues[] = {
@@ -3897,8 +3924,8 @@ Backup::CompoundState::setState(State newState){
   state = newState;
 #ifdef DEBUG_ABORT
   if (newState != currState) {
-    ndbout_c("%u: Old state = %u, new state = %u, abort state = %u",
-	     id, currState, newState, abortState);
+    g_eventLogger->info("%u: Old state = %u, new state = %u, abort state = %u",
+                        id, currState, newState, abortState);
   }
 #endif
 }
@@ -3916,8 +3943,9 @@ Backup::CompoundState::forceState(State newState)
   state = newState;
 #ifdef DEBUG_ABORT
   if (newState != currState) {
-    ndbout_c("%u: FORCE: Old state = %u, new state = %u, abort state = %u",
-	     id, currState, newState, abortState);
+    g_eventLogger->info(
+        "%u: FORCE: Old state = %u, new state = %u, abort state = %u", id,
+        currState, newState, abortState);
   }
 #endif
 }
@@ -3939,6 +3967,25 @@ Backup::Table::Table(Fragment_pool & fh)
  *
  *****************************************************************************/
 void
+Backup::execNODE_START_REP(Signal* signal)
+{
+  jamEntry();
+  Uint32 started_node = signal->theData[0];
+
+  NodePtr node;
+  for (c_nodes.first(node); node.i != RNIL; c_nodes.next(node)) {
+    jam();
+    const Uint32 node_id = node.p->nodeId;
+    if(node_id == started_node) {
+      jam();
+      node.p->alive = 1;
+      c_aliveNodes.set(started_node);
+      break;
+    }
+  }
+}
+
+void
 Backup::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
@@ -3952,7 +3999,7 @@ Backup::execNODE_FAILREP(Signal* signal)
         getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(rep->theNodes, 0, sizeof(rep->theNodes));
     copy(rep->theNodes, ptr);
     releaseSections(handle);
@@ -3998,7 +4045,7 @@ Backup::execNODE_FAILREP(Signal* signal)
   }//if
   
 #ifdef DEBUG_ABORT
-  ndbout_c("****************** Node fail rep ******************");
+  g_eventLogger->info("****************** Node fail rep ******************");
 #endif
 
   NodeId newCoordinator = c_masterNodeId;
@@ -4124,8 +4171,8 @@ Backup::checkNodeFail(Signal* signal,
     jam();
     CRASH_INSERTION((10001));
 #ifdef DEBUG_ABORT
-    ndbout_c("**** Master: Node failed: Master id = %u", 
-	     refToNode(ptr.p->masterRef));
+    g_eventLogger->info("**** Master: Node failed: Master id = %u",
+                        refToNode(ptr.p->masterRef));
 #endif
 
     Uint32 gsn, len, pos;
@@ -4213,7 +4260,7 @@ Backup::checkNodeFail(Signal* signal,
         // send only one reply to self per node on behalf of BackupProxy
         sendSignal(reference(), gsn, signal, len, JBB);
 #ifdef DEBUG_ABORT
-        ndbout_c("sending %d to self from %d", gsn, i);
+        g_eventLogger->info("sending %d to self from %d", gsn, i);
 #endif
       }
     }
@@ -4234,35 +4281,18 @@ Backup::execINCL_NODEREQ(Signal* signal)
   const Uint32 senderRef = signal->theData[0];
   const Uint32 inclNode  = signal->theData[1];
 
-  NodePtr node;
-  for(c_nodes.first(node); node.i != RNIL; c_nodes.next(node)) {
-    jam();
-    const Uint32 nodeId = node.p->nodeId;
-    if(inclNode == nodeId){
-      jam();
-      
-      ndbrequire(node.p->alive == 0);
-      ndbrequire(!c_aliveNodes.get(nodeId));
-      
-      node.p->alive = 1;
-      c_aliveNodes.set(nodeId);
-      
-      break;
-    }//if
-  }//for
   signal->theData[0] = inclNode;
   signal->theData[1] = reference();
   sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
-Uint32
-Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
+Uint32 Backup::validateEncryptionPassword(const EncryptionKeyMaterial* epd)
 {
   Uint32 allowedASCIIRanges[][2] = {{32, 32}, {35, 35}, {38, 38}, {40, 91},
                                     {93, 93}, {95, 95}, {97, 126}};
   Uint32 numElem = sizeof(allowedASCIIRanges) / (2* sizeof(Uint32));
 
-  Uint32 epdLength = epd->password_length;
+  Uint32 epdLength = epd->length;
   if (epdLength > MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH)
   {
     return BackupRef::EncryptionPasswordTooLong;
@@ -4271,7 +4301,6 @@ Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
   {
     return BackupRef::EncryptionPasswordZeroLength;
   }
-  ndbrequire(epd->encryption_password[epdLength] == '\0');
 
   for (Uint32 i = 0; i < epdLength; i++)
   {
@@ -4281,8 +4310,7 @@ Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
       Uint32 low = allowedASCIIRanges[j][0];
       Uint32 high = allowedASCIIRanges[j][1];
 
-      if (((Uint32)epd->encryption_password[i] >= low) &&
-          ((Uint32)epd->encryption_password[i] <= high))
+      if (((Uint32)epd->data[i] >= low) && ((Uint32)epd->data[i] <= high))
       {
         charMatch = true;
 	break;
@@ -4297,7 +4325,7 @@ Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
 }
 /*****************************************************************************
  * 
- * Master functionallity - Define backup
+ * Master functionality - Define backup
  *
  * Backup master = BACKUP instance 1 (LDM1) on master node.
  * Backup master receives BACKUP_REQ and sends control signals to all slaves
@@ -4353,13 +4381,22 @@ Backup::execBACKUP_REQ(Signal* signal)
 {
   jamEntry();
   BackupReq * req = (BackupReq*)signal->getDataPtr();
+
+  if (ERROR_INSERTED(10054) && (getOwnNodeId() == getMasterNodeId()))
+  {
+    // Don't allow this signal to be sent from any other node,
+    // only from the same local node
+    // BACKUP_REQ is sent bt MGMD to Master so this will cause
+    // a node failure
+    addSignalScopeImpl(GSN_BACKUP_REQ, Local);
+  }
   
   const Uint32 senderData = req->senderData;
   const BlockReference senderRef = signal->senderBlockRef();
   const Uint32 dataLen32 = req->backupDataLen; // In 32 bit words
   const Uint32 flags = signal->getLength() > 2 ? req->flags : 2;
   const Uint32 input_backupId = signal->getLength() > 3 ? req->inputBackupId : 0;
-  EncryptionPasswordData epd;
+  EncryptionKeyMaterial epd;
   bool encrypted_file = false;
 
   if (flags & BackupReq::ENCRYPTED_BACKUP)
@@ -4368,12 +4405,12 @@ Backup::execBACKUP_REQ(Signal* signal)
     ndbrequire(signal->getNoOfSections() >= 1)
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
-    ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
+    ndbrequire(handle.getSection(ptr, 0));
+    ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(EncryptionKeyMaterial));
     copy((Uint32*)&epd, ptr);
-    ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+    ndbrequire(epd.get_needed_words() <= ptr.sz);
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-    g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+    g_eventLogger->debug("Encryption password:%*s", epd.length, epd.data);
 #endif
     releaseSections(handle);
     encrypted_file = true;
@@ -4450,7 +4487,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->m_encrypted_file = encrypted_file;
   if (flags & BackupReq::ENCRYPTED_BACKUP)
   {
-    ndbrequire(ptr.p->m_encryption_password_data.password_length>0);
+    ndbrequire(ptr.p->m_encryption_password_data.length > 0);
   }
 
   Uint32 node = ptr.p->nodes.find_first();
@@ -4582,8 +4619,7 @@ Backup::execUTIL_SEQUENCE_REF(Signal* signal)
   jamEntry();
   BackupRecordPtr ptr;
   UtilSequenceRef * utilRef = (UtilSequenceRef*)signal->getDataPtr();
-  ptr.i = utilRef->senderData;
-  c_backupPool.getPtr(ptr);
+  ndbrequire(c_backupPool.getPtr(ptr, utilRef->senderData));
   ndbrequire(ptr.p->masterData.gsn == GSN_UTIL_SEQUENCE_REQ);
 
   if (utilRef->errorCode == UtilSequenceRef::TCError)
@@ -4655,8 +4691,7 @@ Backup::execUTIL_SEQUENCE_CONF(Signal* signal)
   }
 
   BackupRecordPtr ptr;
-  ptr.i = conf->senderData;
-  c_backupPool.getPtr(ptr);
+  ndbrequire(c_backupPool.getPtr(ptr, conf->senderData));
 
   ndbrequire(ptr.p->masterData.gsn == GSN_UTIL_SEQUENCE_REQ);
 
@@ -4698,8 +4733,7 @@ Backup::defineBackupMutex_locked(Signal* signal, Uint32 ptrI, Uint32 retVal){
   ndbrequire(retVal == 0);
   
   BackupRecordPtr ptr;
-  ptr.i = ptrI;
-  c_backupPool.getPtr(ptr);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
   
   ndbrequire(ptr.p->masterData.gsn == GSN_UTIL_LOCK_REQ);
 
@@ -4719,8 +4753,7 @@ Backup::dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal)
    * We now have both the mutexes
    */
   BackupRecordPtr ptr;
-  ptr.i = ptrI;
-  c_backupPool.getPtr(ptr);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   ndbrequire(ptr.p->masterData.gsn == GSN_UTIL_LOCK_REQ);
 
@@ -4754,7 +4787,7 @@ Backup::dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal)
 
 /*****************************************************************************
  * 
- * Master functionallity - Define backup cont'd (from now on all slaves are in)
+ * Master functionality - Define backup cont'd (from now on all slaves are in)
  *
  *****************************************************************************/
 
@@ -4774,8 +4807,9 @@ Backup::haveAllSignals(BackupRecordPtr ptr, Uint32 gsn, Uint32 nodeId)
     if (ERROR_INSERTED(10051) || ERROR_INSERTED(10052) ||
         ERROR_INSERTED(10053))
     {
-      ndbout_c("Received duplicate signal from non-master node %u for gsn %u",
-               nodeId, gsn);
+      g_eventLogger->info(
+          "Received duplicate signal from non-master node %u for gsn %u",
+          nodeId, gsn);
       CLEAR_ERROR_INSERT_VALUE;
     }
   }
@@ -4842,7 +4876,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
     if (ptr.p->m_encrypted_file)
     {
       lsptr[1].p = (Uint32*)&ptr.p->m_encryption_password_data;
-      lsptr[1].sz = sizeof(ptr.p->m_encryption_password_data)/4;
+      lsptr[1].sz = ptr.p->m_encryption_password_data.get_needed_words();
       cnt++;
     }
     sendSignal(ref, GSN_DEFINE_BACKUP_REQ, signal,
@@ -4879,7 +4913,7 @@ Backup::execDEFINE_BACKUP_REF(Signal* signal)
   const Uint32 nodeId = ref->nodeId;
   
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
   
   ptr.p->setErrorCode(ref->errorCode);
   defineBackupReply(signal, ptr, nodeId);
@@ -4896,7 +4930,7 @@ Backup::execDEFINE_BACKUP_CONF(Signal* signal)
   const Uint32 nodeId = refToNode(signal->senderBlockRef());
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   if (ERROR_INSERTED(10024))
   {
@@ -4971,7 +5005,7 @@ Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 
 /*****************************************************************************
  * 
- * Master functionallity - Prepare triggers
+ * Master functionality - Prepare triggers
  *
  *****************************************************************************/
 void
@@ -5124,7 +5158,7 @@ Backup::execCREATE_TRIG_IMPL_CONF(Signal* signal)
     TriggerInfo::getTriggerEvent(conf->triggerInfo);
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   /**
    * Verify that I'm waiting for this conf
@@ -5154,7 +5188,7 @@ Backup::execCREATE_TRIG_IMPL_REF(Signal* signal)
   const Uint32 tableId = ref->tableId;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   /**
    * Verify that I'm waiting for this ref
@@ -5198,8 +5232,10 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
     ref->backupId = ptr.p->backupId;
     ref->errorCode = ptr.p->errorCode;
     ref->nodeId = getOwnNodeId();
-    ndbout_c("Backup::createTrigReply : CREATE_TRIG_IMPL error %d, backup id %u node %d",
-             ref->errorCode, ref->backupId, ref->nodeId);
+    g_eventLogger->info(
+        "Backup::createTrigReply :"
+        " CREATE_TRIG_IMPL error %d, backup id %u node %d",
+        ref->errorCode, ref->backupId, ref->nodeId);
     sendSignal(ptr.p->senderRef, GSN_START_BACKUP_REF, signal,
                StartBackupRef::SignalLength, JBB);
     return;
@@ -5233,7 +5269,7 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Master functionallity - Start backup
+ * Master functionality - Start backup
  *
  *****************************************************************************/
 void
@@ -5272,7 +5308,7 @@ Backup::execSTART_BACKUP_REF(Signal* signal)
   const Uint32 nodeId = ref->nodeId;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   ndbrequire(ref->errorCode != StartBackupRef::FailedStartSinceDefineFailed);
   ptr.p->setErrorCode(ref->errorCode);
@@ -5290,7 +5326,7 @@ Backup::execSTART_BACKUP_CONF(Signal* signal)
   const Uint32 nodeId = refToNode(signal->senderBlockRef());
   
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   startBackupReply(signal, ptr, nodeId);
 }
@@ -5375,7 +5411,7 @@ Backup::execWAIT_GCP_REF(Signal* signal)
   const Uint32 ptrI = ref->senderData;
   
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   ndbrequire(ptr.p->masterRef == reference());
   ndbrequire(ptr.p->masterData.gsn == GSN_WAIT_GCP_REQ);
@@ -5399,7 +5435,7 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
   const Uint32 gcp = conf->gci_hi;
   
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
   
   ndbrequire(ptr.p->masterRef == reference());
   ndbrequire(ptr.p->masterData.gsn == GSN_WAIT_GCP_REQ);
@@ -5467,7 +5503,7 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
 
 /*****************************************************************************
  * 
- * Master functionallity - Backup fragment
+ * Master functionality - Backup fragment
  *
  *****************************************************************************/
 void
@@ -5576,7 +5612,7 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
     conf->noOfRecordsLow + (((Uint64)conf->noOfRecordsHigh) << 32);
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   ptr.p->noOfBytes += noOfBytes;
   ptr.p->noOfRecords += noOfRecords;
@@ -5637,7 +5673,7 @@ Backup::execBACKUP_FRAGMENT_REF(Signal* signal)
   const Uint32 nodeId = ref->nodeId;
   
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   TablePtr tabPtr;
   ptr.p->tables.first(tabPtr);
@@ -5690,7 +5726,7 @@ Backup::execBACKUP_FRAGMENT_COMPLETE_REP(Signal* signal)
     (BackupFragmentCompleteRep*)signal->getDataPtr();
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, rep->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, rep->backupPtr));
 
   TablePtr tabPtr;
   ndbrequire(findTable(ptr, tabPtr, rep->tableId));
@@ -5707,7 +5743,7 @@ Backup::execBACKUP_FRAGMENT_COMPLETE_REP(Signal* signal)
 
 /*****************************************************************************
  *
- * Slave functionallity - Drop triggers
+ * Slave functionality - Drop triggers
  *
  *****************************************************************************/
 
@@ -5895,12 +5931,12 @@ Backup::execDROP_TRIG_IMPL_REF(Signal* signal)
   const Uint32 ptrI = ref->senderData;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   if(ref->triggerId != ~(Uint32) 0)
   {
-    ndbout << "ERROR DROPPING TRIGGER: " << ref->triggerId;
-    ndbout << " Err: " << ref->errorCode << endl << endl;
+    g_eventLogger->info("ERROR DROPPING TRIGGER: %u Err: %u", ref->triggerId,
+                        ref->errorCode);
   }
 
   dropTrigReply(signal, ptr);
@@ -5915,7 +5951,7 @@ Backup::execDROP_TRIG_IMPL_CONF(Signal* signal)
   const Uint32 ptrI = conf->senderData;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   dropTrigReply(signal, ptr);
 }
@@ -5940,7 +5976,7 @@ Backup::dropTrigReply(Signal* signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Master functionallity - Stop backup
+ * Master functionality - Stop backup
  *
  *****************************************************************************/
 void
@@ -5954,7 +5990,7 @@ Backup::execSTOP_BACKUP_REF(Signal* signal)
   const Uint32 nodeId = ref->nodeId;
   
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   ptr.p->setErrorCode(ref->errorCode);
   stopBackupReply(signal, ptr, nodeId);
@@ -6001,7 +6037,7 @@ Backup::execSTOP_BACKUP_CONF(Signal* signal)
   const Uint32 nodeId = refToNode(signal->senderBlockRef());
   
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   ptr.p->noOfLogBytes += conf->noOfLogBytes;
   ptr.p->noOfLogRecords += conf->noOfLogRecords;
@@ -6164,7 +6200,7 @@ Backup::reportStatus(Signal* signal, BackupRecordPtr ptr,
 
 /*****************************************************************************
  * 
- * Master functionallity - Abort backup
+ * Master functionality - Abort backup
  *
  *****************************************************************************/
 void
@@ -6172,7 +6208,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
 {
   jam();
 #ifdef DEBUG_ABORT
-  ndbout_c("************ masterAbort");
+  g_eventLogger->info("************ masterAbort");
 #endif
 
   ndbassert(ptr.p->masterRef == reference());
@@ -6277,7 +6313,7 @@ Backup::abort_scan(Signal * signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Slave functionallity: Define Backup 
+ * Slave functionality: Define Backup 
  *
  *****************************************************************************/
 void
@@ -6394,25 +6430,25 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   const Uint32 senderVersion =
       getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version;
 
-  EncryptionPasswordData epd;
+  EncryptionKeyMaterial epd;
   bool encrypted_file = false;
   if (signal->getNoOfSections() >= 1)
   {
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this,signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(nodes.rep.data, ptr);
 
     if (signal->getNoOfSections() >=2 || handle.m_cnt >= 2)
     {
-      handle.getSection(ptr, 1);
-      ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
+      ndbrequire(handle.getSection(ptr, 1));
+      ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(EncryptionKeyMaterial));
       copy((Uint32*)&epd, ptr);
-      ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+      ndbrequire(epd.get_needed_words() <= ptr.sz);
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-      g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+      g_eventLogger->debug("Encryption password:%*s", epd.length, epd.data);
 #endif
       encrypted_file = true;
     }
@@ -6434,7 +6470,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
       * Signal sent from myself -> record already seized
       */
     jam();
-    c_backupPool.getPtr(ptr, ptrI);
+    ndbrequire(c_backupPool.getPtr(ptr, ptrI));
   } else { // from other node
     jam();
 #ifdef DEBUG_ABORT
@@ -6442,7 +6478,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
 #endif
     if (!c_backups.getPool().seizeId(ptr, ptrI)) {
       jam();
-      ndbabort(); // If master has succeeded slave should succed
+      ndbabort(); // If master has succeeded slave should succeed
     }//if
     c_backups.addFirst(ptr);
   }//if
@@ -6687,7 +6723,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
                                    maxInsertLcp);
       if (msg != 0)
       {
-        ndbout_c("setup msg = %s, i = %u", msg, i);
+        g_eventLogger->info("setup msg = %s, i = %u", msg, i);
         ndbabort();
       }
       files[i].p->operation.m_bytes_total = 0;
@@ -6835,7 +6871,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
   Uint32 noOfTables = conf->noOfTables;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, conf->senderData);
+  ndbrequire(c_backupPool.getPtr(ptr, conf->senderData));
 
   SectionHandle handle (this, signal);
   signal->header.m_fragmentInfo = 0;
@@ -6844,7 +6880,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
     ListTablesData ltd;
     const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
     SegmentedSectionPtr tableDataPtr;
-    handle.getSection(tableDataPtr, ListTablesConf::TABLE_DATA);
+    ndbrequire(handle.getSection(tableDataPtr, ListTablesConf::TABLE_DATA));
     SimplePropertiesSectionReader
       tableDataReader(tableDataPtr, getSectionSegmentPool());
 
@@ -6927,7 +6963,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
 
   if (ptr.p->m_encrypted_file)
   {
-    req->fileFlags |= FsOpenReq::OM_ENCRYPT;
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_CBC;
   }
   else
   {
@@ -6936,10 +6972,14 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
 
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->auto_sync_size = c_defaults.m_disk_synch_size;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+
   /**
    * Ctl file
    */
-  c_backupFilePool.getPtr(filePtr, ptr.p->ctlFilePtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->ctlFilePtr));
   filePtr.p->m_flags |= BackupFile::BF_OPENING;
 
   req->userPointer = filePtr.i;
@@ -6995,7 +7035,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::v2_setPartNum(req->fileNumber, 0);
     FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
   }
-  if (req->fileFlags & FsOpenReq::OM_ENCRYPT)
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
   {
     LinearSectionPtr lsptr[3];
 
@@ -7004,10 +7044,11 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
-    req->fileFlags |= FsOpenReq::OM_PASSWORD;
-    lsptr[FsOpenReq::PASSWORD].p = (Uint32*)&ptr.p->m_encryption_password_data;
-    lsptr[FsOpenReq::PASSWORD].sz =
-        1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_PASSWORD;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
+        (Uint32*)&ptr.p->m_encryption_password_data;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+        ptr.p->m_encryption_password_data.get_needed_words();
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
                FsOpenReq::SignalLength, JBA, lsptr, 2);
@@ -7020,7 +7061,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   /**
    * Log file
    */
-  c_backupFilePool.getPtr(filePtr, ptr.p->logFilePtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->logFilePtr));
   filePtr.p->m_flags |= BackupFile::BF_OPENING;
   
   //write uncompressed log file when enable undo log,since log file is read from back to front.
@@ -7042,7 +7083,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::v2_setPartNum(req->fileNumber, 0);
     FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
   }
-  if (req->fileFlags & FsOpenReq::OM_ENCRYPT)
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
   {
     LinearSectionPtr lsptr[3];
 
@@ -7051,10 +7092,11 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
-    req->fileFlags |= FsOpenReq::OM_PASSWORD;
-    lsptr[FsOpenReq::PASSWORD].p = (Uint32*)&ptr.p->m_encryption_password_data;
-    lsptr[FsOpenReq::PASSWORD].sz =
-        1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_PASSWORD;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
+        (Uint32*)&ptr.p->m_encryption_password_data;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+        ptr.p->m_encryption_password_data.get_needed_words();
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
                FsOpenReq::SignalLength, JBA, lsptr, 2);
@@ -7067,7 +7109,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   /**
    * Data file
    */
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]));
   filePtr.p->m_flags |= BackupFile::BF_OPENING;
 
   if (c_defaults.m_o_direct)
@@ -7076,7 +7118,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     req->fileFlags |= FsOpenReq::OM_GZ;
   if (ptr.p->m_encrypted_file)
   {
-    req->fileFlags |= FsOpenReq::OM_ENCRYPT;
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_CBC;
   }
   else
   {
@@ -7098,7 +7140,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
   }
   FsOpenReq::v2_setCount(req->fileNumber, 0);
-  if (req->fileFlags & FsOpenReq::OM_ENCRYPT)
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
   {
     LinearSectionPtr lsptr[3];
 
@@ -7107,10 +7149,11 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
-    req->fileFlags |= FsOpenReq::OM_PASSWORD;
-    lsptr[FsOpenReq::PASSWORD].p = (Uint32*)&ptr.p->m_encryption_password_data;
-    lsptr[FsOpenReq::PASSWORD].sz =
-        1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_PASSWORD;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
+        (Uint32*)&ptr.p->m_encryption_password_data;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+        ptr.p->m_encryption_password_data.get_needed_words();
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
                FsOpenReq::SignalLength, JBA, lsptr, 2);
@@ -7131,14 +7174,14 @@ Backup::execFSOPENREF(Signal* signal)
   const Uint32 userPtr = ref->userPointer;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, userPtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, userPtr));
   
   ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_OPEN));
   ndbrequire(filePtr.p->m_flags & BackupFile::BF_OPENING);
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_OPENING;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   ptr.p->setErrorCode(ref->errorCode);
   if (ptr.p->is_lcp())
@@ -7161,11 +7204,11 @@ Backup::execFSOPENCONF(Signal* signal)
   const Uint32 filePointer = conf->filePointer;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, userPtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, userPtr));
   filePtr.p->filePointer = filePointer; 
   
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   /**
    * Mark files as "opened"
@@ -7190,7 +7233,7 @@ Backup::openFilesReply(Signal* signal,
 {
   jam();
   /**
-   * Check if all files have recived open_reply
+   * Check if all files have received open_reply
    */
   for(ptr.p->files.first(filePtr); filePtr.i!=RNIL;ptr.p->files.next(filePtr)) 
   {
@@ -7364,8 +7407,8 @@ Backup::execGET_TABINFOREF(Signal* signal)
   
   const Uint32 senderData = ref->senderData;
   BackupRecordPtr ptr;
-  c_backupFilePool.getPtr(filePtr, senderData);
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, senderData));
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   ndbrequire(filePtr.i == ptr.p->prepareDataFilePtr[0] ||
              !ptr.p->is_lcp());
@@ -7391,12 +7434,12 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   const Uint32 tableId = conf->tableId;
 
   BackupRecordPtr ptr;
-  c_backupFilePool.getPtr(filePtr, senderData);
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, senderData));
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
-  handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  ndbrequire(handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO));
   ndbrequire(dictTabInfoPtr.sz == len);
 
   TablePtr tabPtr ;
@@ -7614,7 +7657,7 @@ Backup::parseTableDescription(Signal* signal,
 
   tabPtr.p->noOfAttributes = tmpTab.NoOfAttributes;
   tabPtr.p->maxRecordSize = 1; // LEN word
-  bzero(tabPtr.p->attrInfo, sizeof(tabPtr.p->attrInfo));
+  std::memset(tabPtr.p->attrInfo, 0, sizeof(tabPtr.p->attrInfo));
 
   if (lcp)
   {
@@ -7697,7 +7740,7 @@ Backup::execDIH_SCAN_TAB_CONF(Signal* signal)
   ndbrequire(conf->reorgFlag == 0); // no backup during table reorg
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, senderData);
+  ndbrequire(c_backupPool.getPtr(ptr, senderData));
 
   TablePtr tabPtr;
   ndbrequire(findTable(ptr, tabPtr, tableId));
@@ -7827,7 +7870,7 @@ Backup::getFragmentInfoDone(Signal* signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Slave functionallity: Start backup
+ * Slave functionality: Start backup
  *
  *****************************************************************************/
 void
@@ -7841,7 +7884,7 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
   const Uint32 ptrI = req->backupPtr;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   ptr.p->slaveState.setState(STARTED);
   ptr.p->m_gsn = GSN_START_BACKUP_REQ;
@@ -7906,7 +7949,7 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
 
 /*****************************************************************************
  * 
- * Slave functionallity: Backup fragment
+ * Slave functionality: Backup fragment
  *
  *****************************************************************************/
 void
@@ -7930,7 +7973,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   BackupFilePtr filePtr;
   TablePtr tabPtr;
 
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   if (ptr.p->is_lcp())
   {
@@ -7965,7 +8008,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     /* Get Table */
     ndbrequire(findTable(ptr, tabPtr, tableId));
   }
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]));
 
   ptr.p->slaveState.setState(SCANNING);
   ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_REQ;
@@ -8082,7 +8125,7 @@ Backup::start_lcp_scan(Signal *signal,
     }
     return;
   }
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]));
   Uint32 delay = 0;
   if (ERROR_INSERTED(10047))
   {
@@ -8112,7 +8155,7 @@ Backup::init_file_for_lcp(Signal *signal,
   ptr.p->tables.first(tabPtr);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
 
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[index]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[index]));
   ndbrequire(filePtr.p->backupPtr == ptrI);
 
   /**
@@ -8230,7 +8273,7 @@ Backup::init_file_for_lcp(Signal *signal,
  *   for executing complex SQL queries.
  *
  * 2) Local checkpoints (LCPs)
- *   These can operate continously without user interaction. The LCPs are
+ *   These can operate continuously without user interaction. The LCPs are
  *   needed to ensure that we can cut the REDO log. If LCPs execute too slow
  *   the we won't have sufficient REDO log to store all user transactions that
  *   are writing on logging tables.
@@ -8559,7 +8602,7 @@ Backup::sendScanFragReq(Signal* signal,
       for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
       {
         BackupFilePtr loopFilePtr;
-        c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
+        ndbrequire(c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]));
         loopFilePtr.p->m_flags |= BackupFile::BF_SCAN_THREAD;
       }
     }
@@ -8674,8 +8717,8 @@ Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
   BackupFilePtr zeroFilePtr;
   BackupFilePtr currentFilePtr;
   ptr = m_lcp_ptr;
-  c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]);
-  c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr);
+  ndbrequire(c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]));
+  ndbrequire(c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr));
   OperationRecord & current_op = currentFilePtr.p->operation;
   OperationRecord & zero_op = zeroFilePtr.p->operation;
   ndbrequire(ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS);
@@ -8713,8 +8756,9 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   BackupFilePtr zeroFilePtr;
   BackupFilePtr currentFilePtr;
   ptr = m_lcp_ptr;
-  c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]);
-  c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr);
+  ndbrequire(c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]));
+  ndbrequire(c_backupFilePool.getPtr(currentFilePtr,
+                                     ptr.p->m_working_data_file_ptr));
   OperationRecord & current_op = currentFilePtr.p->operation;
   OperationRecord & zero_op = zeroFilePtr.p->operation;
   ndbrequire(ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS);
@@ -8751,16 +8795,17 @@ Backup::execTRANSID_AI(Signal* signal)
   Uint32 dataLen  = signal->length() - 3;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, filePtrI);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, filePtrI));
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   OperationRecord & op = filePtr.p->operation;
   if (ptr.p->is_lcp())
   {
     BackupFilePtr currentFilePtr;
-    c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr);
+    ndbrequire(c_backupFilePool.getPtr(currentFilePtr,
+                                       ptr.p->m_working_data_file_ptr));
     OperationRecord & current_op = currentFilePtr.p->operation;
     Uint32 * dst = current_op.dst;
     Uint32 header;
@@ -8831,7 +8876,7 @@ Backup::execTRANSID_AI(Signal* signal)
       jam();
       SectionHandle handle(this, signal);
       SegmentedSectionPtr dataPtr;
-      handle.getSection(dataPtr, 0);
+      ndbrequire(handle.getSection(dataPtr, 0));
       dataLen = dataPtr.sz;
 
       * dst = htonl(dataLen);
@@ -9404,7 +9449,7 @@ Backup::update_lcp_pages_scanned(Signal *signal,
   BackupRecordPtr ptr;
   jamEntry();
 
-  c_backupFilePool.getPtr(filePtr, filePtrI);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, filePtrI));
 
   OperationRecord & op = filePtr.p->operation;
  
@@ -9522,7 +9567,7 @@ Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo, bool fill_r
     if (sz != footSz + 1)
     {
       tmp += footSz;
-      memset(tmp, 0, (sz - footSz - 1) * 4);
+      std::memset(tmp, 0, (sz - footSz - 1) * 4);
       *tmp = htonl(BackupFormat::EMPTY_ENTRY);
       tmp++;
       *tmp = htonl(sz - footSz - 1);
@@ -9564,7 +9609,7 @@ Backup::check_new_scan(BackupRecordPtr ptr,
     {
       jam();
       BackupFilePtr loopFilePtr;
-      c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
+      ndbrequire(c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]));
       OperationRecord & loop_op = loopFilePtr.p->operation;
       if (!loop_op.newScan())
       {
@@ -9631,7 +9676,7 @@ Backup::check_frag_complete(BackupRecordPtr ptr, BackupFilePtr filePtr)
     {
       jam();
       BackupFilePtr loopFilePtr;
-      c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
+      ndbrequire(c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]));
       OperationRecord & op = loopFilePtr.p->operation;
       if (((loopFilePtr.p->m_flags &
             Uint32(BackupFile::BF_SCAN_THREAD)) == 0) ||
@@ -9684,9 +9729,9 @@ Backup::check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op)
       jam();
       Uint32 *tmp = NULL;
       Uint32 sz = 0;
-      bool eof = FALSE;
+      bool eof = false;
       BackupFilePtr loopFilePtr;
-      c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
+      ndbrequire(c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]));
       OperationRecord & loop_op = loopFilePtr.p->operation;
       if (!loop_op.dataBuffer.getReadPtr(&tmp, &sz, &eof))
       {
@@ -9700,7 +9745,7 @@ Backup::check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op)
     jam();
     Uint32 *tmp = NULL;
     Uint32 sz = 0;
-    bool eof = FALSE;
+    bool eof = false;
     return op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
   }
 }
@@ -9719,7 +9764,7 @@ Backup::check_error(BackupRecordPtr ptr, BackupFilePtr filePtr)
     {
       jam();
       BackupFilePtr loopFilePtr;
-      c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
+      ndbrequire(c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]));
       if (loopFilePtr.p->errorCode != 0)
       {
         jam();
@@ -9780,7 +9825,7 @@ Backup::execSCAN_FRAGREF(Signal* signal)
   
   const Uint32 filePtrI = ref->senderData;
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, filePtrI);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, filePtrI));
 
   Uint32 errCode = ref->errorCode;
   if (filePtr.p->errorCode == 0)
@@ -9844,7 +9889,7 @@ Backup::execSCAN_FRAGREF(Signal* signal)
     // retry
 
     BackupRecordPtr ptr;
-    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+    ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
     TablePtr tabPtr;
     FragmentPtr fragPtr;
     if (ptr.p->is_lcp())
@@ -9876,11 +9921,11 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   
   const Uint32 filePtrI = conf.senderData;
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, filePtrI);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, filePtrI));
 
   OperationRecord & op = filePtr.p->operation;
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   if (ptr.p->is_lcp() && c_lqh->handleLCPSurfacing(signal))
   {
@@ -9898,7 +9943,7 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
     BackupFilePtr loopFilePtr;
     for (Uint32 i = 1; i < ptr.p->m_num_lcp_files; i++)
     {
-      c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
+      ndbrequire(c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]));
       OperationRecord & loop_op = loopFilePtr.p->operation;
       // The extra lcp files only use operation for the data buffer.
       buffer_data_len += loop_op.publishBufferData();
@@ -9942,7 +9987,7 @@ Backup::fragmentCompleted(Signal* signal,
   }//if
     
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   if (!check_frag_complete(ptr, filePtr))
   {
@@ -9962,8 +10007,8 @@ Backup::fragmentCompleted(Signal* signal,
     for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
     {
       BackupFilePtr loopFilePtr;
-      c_backupFilePool.getPtr(loopFilePtr,
-                              ptr.p->dataFilePtr[i]);
+      ndbrequire(c_backupFilePool.getPtr(loopFilePtr,
+                                         ptr.p->dataFilePtr[i]));
       loopFilePtr.p->operation.dataBuffer.eof();
     }
     {
@@ -10052,7 +10097,7 @@ void
 Backup::backupFragmentRef(Signal * signal, BackupFilePtr filePtr)
 {
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_REF;
 
@@ -10115,8 +10160,8 @@ Backup::check_pause_lcp_backup(BackupRecordPtr ptr,
    * since the last time we had a real-time break.
    *
    * If we are lagging for some reason the desired write speed since
-  * the start of the scan, we write a bit more on each real-time
-   * break until we have catched up. There could be many reasons why
+   * the start of the scan, we write a bit more on each real-time
+   * break until we have caught up. There could be many reasons why
    * this is necessary, one could be that we had a real-time break
    * that overslept a bit.
    *
@@ -10317,7 +10362,7 @@ Backup::checkScan(Signal* signal,
 			  10000, ScanFragNextReq::SignalLength);
       
       BackupRecordPtr ptr;
-      c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+      ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
       AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
       ord->backupId = ptr.p->backupId;
       ord->backupPtr = ptr.i;
@@ -10440,7 +10485,7 @@ Backup::execFSAPPENDREF(Signal* signal)
   const Uint32 errCode = ref->errorCode;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, filePtrI);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, filePtrI));
 
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_FILE_THREAD;
   filePtr.p->errorCode = errCode;
@@ -10448,7 +10493,7 @@ Backup::execFSAPPENDREF(Signal* signal)
   CRASH_INSERTION(10044);
   CRASH_INSERTION(10045);
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
   if (ptr.p->is_lcp())
   {
     /**
@@ -10475,7 +10520,7 @@ Backup::execFSAPPENDCONF(Signal* signal)
   const Uint32 bytes = signal->theData[1]; //conf->bytes;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, filePtrI);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, filePtrI));
   
   OperationRecord & op = filePtr.p->operation;
   
@@ -10496,7 +10541,7 @@ Backup::execFSAPPENDCONF(Signal* signal)
   up resources that are needed by the REDO log.
 
   The second problem is that in Linux we can get severe problems if we
-  write very much to the disk without synching. In the worst case we
+  write very much to the disk without syncing. In the worst case we
   can have Gigabytes of data in the Linux page cache before we reach
   the limit of how much we can write. If this happens the performance
   will drop significantly when we reach this limit since the Linux flush
@@ -10584,20 +10629,20 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 {
 
 #ifdef DEBUG_ABORT
-  //  ndbout_c("---- check file filePtr.i = %u", filePtr.i);
+  //  g_eventLogger->info("---- check file filePtr.i = %u", filePtr.i);
 #endif
 
   OperationRecord & op = filePtr.p->operation;
   Uint32 *tmp = NULL;
   Uint32 sz = 0;
-  bool eof = FALSE;
+  bool eof = false;
   bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
 
 #if 0
   ndbout << "Ptr to data = " << hex << tmp << endl;
 #endif
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   if (ERROR_INSERTED(10036))
   {
@@ -10657,8 +10702,8 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     {
       if (ERROR_INSERTED(10045))
       {
-        ndbout_c("BF_SCAN_THREAD = %u",
-                 (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD));
+        g_eventLogger->info("BF_SCAN_THREAD = %u",
+                            (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD));
       }
 
       if ((ERROR_INSERTED(10044) &&
@@ -10667,11 +10712,11 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
            (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD)))
       { 
         jam();
-        ndbout_c("REFing on append to data file for table %u, fragment %u, "
-                 "BF_SCAN_THREAD running : %u",
-                 filePtr.p->tableId,
-                 filePtr.p->fragmentNo,
-                 filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD);
+        g_eventLogger->info(
+            "REFing on append to data file for table %u, fragment %u, "
+            "BF_SCAN_THREAD running : %u",
+            filePtr.p->tableId, filePtr.p->fragmentNo,
+            filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD);
         FsRef* ref = (FsRef *)signal->getDataPtrSend();
         ref->userPointer = filePtr.i;
         ref->errorCode = FsRef::fsErrInvalidParameters;
@@ -10743,7 +10788,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 
 /****************************************************************************
  * 
- * Slave functionallity: Perform logging
+ * Slave functionality: Perform logging
  *
  ****************************************************************************/
 void
@@ -10761,9 +10806,9 @@ Backup::execBACKUP_TRIG_REQ(Signal* signal)
 
   jamEntry();
 
-  c_triggerPool.getPtr(trigPtr, trigger_id);
+  ndbrequire(c_triggerPool.getPtr(trigPtr, trigger_id));
 
-  c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
+  ndbrequire(c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i));
   tabPtr.p->fragments.getPtr(fragPtr, frag_id);
   if (fragPtr.p->node != getOwnNodeId()) {
 
@@ -10803,7 +10848,7 @@ Backup::get_log_buffer(Signal* signal,
     Uint32 save[TrigAttrInfo::StaticLength];
     memcpy(save, signal->getDataPtr(), 4*TrigAttrInfo::StaticLength);
     BackupRecordPtr ptr;
-    c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
+    ndbrequire(c_backupPool.getPtr(ptr, trigPtr.p->backupPtr));
     trigPtr.p->errorCode = AbortBackupOrd::LogBufferFull;
     AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
     ord->backupId = ptr.p->backupId;
@@ -10829,7 +10874,7 @@ Backup::get_log_buffer(Signal* signal,
   else if(trigPtr.p->event==2)
     logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
   else {
-    ndbout << "Bad Event: " << trigPtr.p->event << endl;
+    g_eventLogger->info("Bad Event: %u", trigPtr.p->event);
     ndbabort();
   }
 
@@ -10845,7 +10890,7 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
   TrigAttrInfo * trg = (TrigAttrInfo*)signal->getDataPtr();
 
   TriggerPtr trigPtr;
-  c_triggerPool.getPtr(trigPtr, trg->getTriggerId());
+  ndbrequire(c_triggerPool.getPtr(trigPtr, trg->getTriggerId()));
   ndbrequire(trigPtr.p->event != ILLEGAL_TRIGGER_ID); // Online...
 
   if(trigPtr.p->errorCode != 0) {
@@ -10854,7 +10899,7 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
   }//if
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, trigPtr.p->backupPtr));
 
   if(ptr.p->flags & BackupReq::USE_UNDO_LOG) {
     if(trg->getAttrInfoType() == TrigAttrInfo::AFTER_VALUES) {
@@ -10918,12 +10963,12 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
   const Uint32 fragId = trg->fragId;
 
   TriggerPtr trigPtr;
-  c_triggerPool.getPtr(trigPtr, trI);
+  ndbrequire(c_triggerPool.getPtr(trigPtr, trI));
   
   ndbrequire(trigPtr.p->event != ILLEGAL_TRIGGER_ID);
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, trigPtr.p->backupPtr));
 
   if(trigPtr.p->errorCode != 0) {
     jam();
@@ -10939,7 +10984,7 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
      * this row change in the log file on ndbmtd
      */
     TablePtr tabPtr;
-    c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
+    ndbrequire(c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i));
     FragmentPtr fragPtr;
     tabPtr.p->fragments.getPtr(fragPtr, fragId);
     if (fragPtr.p->node != getOwnNodeId()) 
@@ -10957,9 +11002,9 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     jam();
     SectionHandle handle(this,signal);
     SegmentedSectionPtr dataPtr[3];
-    handle.getSection(dataPtr[0], 0);
-    handle.getSection(dataPtr[1], 1);
-    handle.getSection(dataPtr[2], 2);
+    ndbrequire(handle.getSection(dataPtr[0], 0));
+    ndbrequire(handle.getSection(dataPtr[1], 1));
+    ndbrequire(handle.getSection(dataPtr[2], 2));
     /**
      * dataPtr[0] : Primary key info
      * dataPtr[1] : Before values
@@ -11107,7 +11152,7 @@ Backup::sendAbortBackupOrd(Signal* signal, BackupRecordPtr ptr,
 
 /*****************************************************************************
  * 
- * Slave functionallity: Stop backup
+ * Slave functionality: Stop backup
  *
  *****************************************************************************/
 void
@@ -11132,7 +11177,7 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
    * Get backup record
    */
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   ptr.p->startGCP= startGCP;
   ptr.p->stopGCP= stopGCP;
@@ -11208,7 +11253,7 @@ Backup::startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal)
    * Get backup record
    */
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
   
   ptr.p->slaveState.setState(STOPPING);
   ptr.p->m_gsn = GSN_STOP_BACKUP_REQ;
@@ -11249,7 +11294,8 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
     {
       jam();
 #ifdef DEBUG_ABORT
-      ndbout_c("Close files fileRunning == 1, filePtr.i=%u", filePtr.i);
+      g_eventLogger->info("Close files fileRunning == 1, filePtr.i=%u",
+                          filePtr.i);
 #endif
     } 
     else 
@@ -11308,8 +11354,8 @@ Backup::closeFile(Signal* signal,
   }
 
 #ifdef DEBUG_ABORT
-  ndbout_c("***** a FSCLOSEREQ filePtr.i = %u flags: %x", 
-	   filePtr.i, filePtr.p->m_flags);
+  g_eventLogger->info("***** a FSCLOSEREQ filePtr.i = %u flags: %x", filePtr.i,
+                      filePtr.p->m_flags);
 #endif
   sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
 
@@ -11324,10 +11370,10 @@ Backup::execFSCLOSEREF(Signal* signal)
   const Uint32 filePtrI = ref->userPointer;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, filePtrI);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, filePtrI));
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
   
   FsConf * conf = (FsConf*)signal->getDataPtr();
   conf->userPointer = filePtrI;
@@ -11395,10 +11441,10 @@ Backup::execFSCLOSECONF(Signal* signal)
   const Uint32 filePtrI = conf->userPointer;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, filePtrI);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, filePtrI));
 
 #ifdef DEBUG_ABORT
-  ndbout_c("***** FSCLOSECONF filePtrI = %u", filePtrI);
+  g_eventLogger->info("***** FSCLOSECONF filePtrI = %u", filePtrI);
 #endif
 
   ndbrequire(filePtr.p->m_flags == (BackupFile::BF_OPEN |
@@ -11427,7 +11473,7 @@ Backup::execFSCLOSECONF(Signal* signal)
   filePtr.p->operation.dataBuffer.reset();
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   if (ptr.p->is_lcp())
   {
@@ -11554,12 +11600,12 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Slave functionallity: Abort backup
+ * Slave functionality: Abort backup
  *
  *****************************************************************************/
 /*****************************************************************************
  * 
- * Slave functionallity: Abort backup
+ * Slave functionality: Abort backup
  *
  *****************************************************************************/
 void
@@ -11573,10 +11619,10 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   const Uint32 senderData = ord->senderData;
   
 #ifdef DEBUG_ABORT
-  ndbout_c("******** ABORT_BACKUP_ORD ********* nodeId = %u", 
-	   refToNode(signal->getSendersBlockRef()));
-  ndbout_c("backupId = %u, requestType = %u, senderData = %u, ",
-	   backupId, requestType, senderData);
+  g_eventLogger->info("******** ABORT_BACKUP_ORD ********* nodeId = %u",
+                      refToNode(signal->getSendersBlockRef()));
+  g_eventLogger->info("backupId = %u, requestType = %u, senderData = %u, ",
+                      backupId, requestType, senderData);
   dumpUsedResources();
 #endif
 
@@ -11595,7 +11641,8 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
       jam();
       // forward to master
 #ifdef DEBUG_ABORT
-      ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
+      g_eventLogger->info("---- Forward to master nodeId = %u",
+                          getMasterNodeId());
 #endif
       sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD,
 		 signal, AbortBackupOrd::SignalLength, JBB);
@@ -11604,12 +11651,12 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   } else {
     if (c_backupPool.findId(senderData)) {
       jam();
-      c_backupPool.getPtr(ptr, senderData);
+      ndbrequire(c_backupPool.getPtr(ptr, senderData));
     } else { 
       jam();
 #ifdef DEBUG_ABORT
-      ndbout_c("Backup: abort request type=%u on id=%u,%u not found",
-	       requestType, backupId, senderData);
+      g_eventLogger->info("Backup: abort request type=%u on id=%u,%u not found",
+                          requestType, backupId, senderData);
 #endif
       return;
     }
@@ -11626,10 +11673,10 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
      */
   case AbortBackupOrd::ClientAbort:
     jam();
-    // fall through
+    [[fallthrough]];
   case AbortBackupOrd::LogBufferFull:
     jam();
-    // fall through
+    [[fallthrough]];
   case AbortBackupOrd::FileOrScanError:
     jam();
     ndbrequire(isCoordinator);
@@ -11699,10 +11746,9 @@ Backup::dumpUsedResources()
 
   if (get_backup_record(ptr))
   {
-    ndbout_c("Backup id=%u, slaveState.getState = %u, errorCode=%u",
-	     ptr.p->backupId,
-	     ptr.p->slaveState.getState(),
-	     ptr.p->errorCode);
+    g_eventLogger->info("Backup id=%u, slaveState.getState = %u, errorCode=%u",
+                        ptr.p->backupId, ptr.p->slaveState.getState(),
+                        ptr.p->errorCode);
 
     TablePtr tabPtr;
     for(ptr.p->tables.first(tabPtr);
@@ -11714,12 +11760,10 @@ Backup::dumpUsedResources()
 	TriggerPtr trigPtr;
 	if(tabPtr.p->triggerAllocated[j]) {
 	  jam();
-	  c_triggerPool.getPtr(trigPtr, tabPtr.p->triggerIds[j]);
-	  ndbout_c("Allocated[%u] Triggerid = %u, event = %u",
-		 j,
-		 tabPtr.p->triggerIds[j],
-		 trigPtr.p->event);
-	}//if
+          ndbrequire(c_triggerPool.getPtr(trigPtr, tabPtr.p->triggerIds[j]));
+          g_eventLogger->info("Allocated[%u] Triggerid = %u, event = %u", j,
+                              tabPtr.p->triggerIds[j], trigPtr.p->event);
+        }//if
       }//for
     }//for
     
@@ -11728,8 +11772,8 @@ Backup::dumpUsedResources()
 	filePtr.i != RNIL;
 	ptr.p->files.next(filePtr)) {
       jam();
-      ndbout_c("filePtr.i = %u, flags: H'%x ",
-	       filePtr.i, filePtr.p->m_flags);
+      g_eventLogger->info("filePtr.i = %u, flags: H'%x ", filePtr.i,
+                          filePtr.p->m_flags);
     }//for
   }
 }
@@ -11771,7 +11815,7 @@ Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
       TriggerPtr trigPtr;
       if(tabPtr.p->triggerAllocated[j]) {
         jam();
-	c_triggerPool.getPtr(trigPtr, tabPtr.p->triggerIds[j]);
+        ndbrequire(c_triggerPool.getPtr(trigPtr, tabPtr.p->triggerIds[j]));
 	trigPtr.p->event = ILLEGAL_TRIGGER_ID;
         tabPtr.p->triggerAllocated[j] = false;
       }//if
@@ -11867,7 +11911,7 @@ Backup::execFSREMOVECONF(Signal* signal)
    * Get backup record
    */
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
 
   if (ptr.p->is_lcp())
   {
@@ -12375,7 +12419,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  *    We will also use the 1 free bit in the second word in the page map.
  *    This bit will be used to store the LCP state at the previous LCP.
  *    When we reach a page in the LCP scan we will set the state of the last
- *    LCP based on the current state and of oter flags as described below.
+ *    LCP based on the current state and of other flags as described below.
  *
  *    The state that no page map entry exists is also a valid state, this
  *    state indicates that the previous LCP state was that the page was
@@ -12664,7 +12708,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  * It must have been inserted in either of the following LCPs
  * or the last LCP and since it will be marked with a higher GCI
  * when inserted it will be part of the next LCP after being
- * inserted, similary any updates will be recorded in some LCP if
+ * inserted, similarly any updates will be recorded in some LCP if
  * it happens before or during the last LCP. Thus the row exists
  * after applying rows according to Corollary 1 such that Theorem 1
  * holds true.
@@ -12849,7 +12893,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  * .....................
  * This is the trickiest problem to solve. Using partial LCP we aim for
  * LCPs to complete in 5-10 minutes, but writing the initial LCP after
- * synching the data with the live node might take many hours if the
+ * syncing the data with the live node might take many hours if the
  * node contains terabytes of data.
  *
  * We solve this by running local LCPs before we become part of the
@@ -13061,7 +13105,7 @@ Backup::execFSREMOVECONF(Signal* signal)
   So most of the startup and shutdown logic for LCPs, both for the entire
   LCP and messages per fragment LCP is ok to raise to JBA level. They are
   short and concise messages and won't bother the user transactions at any
-  noticable level. We will avoid fixing GET_TABINFO for that since it
+  noticeable level. We will avoid fixing GET_TABINFO for that since it
   is only one signal per fragment LCP and also the code path is also used
   many other activitites which are not suitable to run at JBA-level.
 
@@ -13408,7 +13452,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   LcpPrepareReq req = *(LcpPrepareReq*)signal->getDataPtr();
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, req.backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, req.backupPtr));
 
   TablePtr tabPtr;
   FragmentPtr fragPtr;
@@ -13543,7 +13587,7 @@ void Backup::lcp_open_ctl_file(Signal *signal,
   TablePtr tabPtr;
   FragmentPtr fragPtr;
 
-  c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[lcpNo]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[lcpNo]));
   ptr.p->prepare_table.first(tabPtr);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
 
@@ -13557,6 +13601,10 @@ void Backup::lcp_open_ctl_file(Signal *signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, lcpNo);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -13604,7 +13652,7 @@ Backup::execFSREADREF(Signal *signal)
   const Uint32 userPtr = ref->userPointer;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, userPtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, userPtr));
   /**
    * Since we create the file if it doesn't exist, this should not occur
    * unless something is completely wrong with the file system.
@@ -13621,7 +13669,7 @@ Backup::execFSREADCONF(Signal *signal)
   const Uint32 userPtr = conf->userPointer;
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, userPtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, userPtr));
 
   /**
    * If we created the file in the open call, then bytes_read will be 0.
@@ -13631,7 +13679,7 @@ Backup::execFSREADCONF(Signal *signal)
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_READING;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   if (ptr.p->deleteFilePtr == filePtr.i)
   {
@@ -13646,7 +13694,7 @@ Backup::execFSREADCONF(Signal *signal)
   for (Uint32 i = 0; i < 2; i++)
   {
     jam();
-    c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[i]);
+    ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[i]));
     if ((filePtr.p->m_flags & BackupFile::BF_READING) ||
         (filePtr.p->m_flags & BackupFile::BF_OPENING))
     {
@@ -13664,7 +13712,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   for (Uint32 i = 0; i < 2; i++)
   {
     jam();
-    c_backupFilePool.getPtr(filePtr[i], ptr.p->prepareCtlFilePtr[i]);
+    ndbrequire(c_backupFilePool.getPtr(filePtr[i], ptr.p->prepareCtlFilePtr[i]));
     DEB_EXTRA_LCP(("(%u)ctl: %u, bytesRead: %u",
                    instance(), i, filePtr[i].p->bytesRead));
     if (filePtr[i].p->bytesRead != 0)
@@ -14238,7 +14286,7 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
   Uint64 remaining_size_64 = end_pos - part_array;
   ndbrequire(remaining_size_64 < file_size);
   Uint32 remaining_size = Uint32(remaining_size_64);
-  memset(part_array, 0, remaining_size);
+  std::memset(part_array, 0, remaining_size);
   return total_parts;
 }
 
@@ -14352,8 +14400,17 @@ Backup::lcp_open_data_file(Signal* signal,
     req->fileFlags |= FsOpenReq::OM_DIRECT;
   }
 
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
+  }
+
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->auto_sync_size = c_defaults.m_disk_synch_size;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
   
   TablePtr tabPtr;
   FragmentPtr fragPtr;
@@ -14363,7 +14420,7 @@ Backup::lcp_open_data_file(Signal* signal,
   ndbrequire(ptr.p->prepare_table.first(tabPtr));
   tabPtr.p->fragments.getPtr(fragPtr, 0);
 
-  c_backupFilePool.getPtr(filePtr, ptr.p->prepareDataFilePtr[0]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->prepareDataFilePtr[0]));
   dataFileNumber = ptr.p->prepareFirstDataFileNumber;
   ndbrequire(ptr.p->prepareState == PREPARE_READ_CTL_FILES);
   ptr.p->prepareState = PREPARE_OPEN_DATA_FILE;
@@ -14377,8 +14434,31 @@ Backup::lcp_open_data_file(Signal* signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, dataFileNumber);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
-  ndbrequire((req->fileFlags & FsOpenReq::OM_ENCRYPT) == 0)
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
+  {
+    LinearSectionPtr lsptr[3];
+
+    // Use a dummy file name
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    lsptr[FsOpenReq::FILENAME].p = nullptr;
+    lsptr[FsOpenReq::FILENAME].sz = 0;
+
+    EncryptionKeyMaterial nmk;
+    nmk.length = globalData.nodeMasterKeyLength;
+    memcpy(&nmk.data, globalData.nodeMasterKey, globalData.nodeMasterKeyLength);
+
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (const Uint32*)&nmk;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+        nmk.get_needed_words();
+
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
+               lsptr, 2);
+  }
+  else
+  {
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  }
 }
 
 void
@@ -14405,8 +14485,17 @@ Backup::lcp_open_data_file_late(Signal* signal,
     req->fileFlags |= FsOpenReq::OM_DIRECT;
   }
 
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
+  }
+
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->auto_sync_size = c_defaults.m_disk_synch_size;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
   
   TablePtr tabPtr;
   FragmentPtr fragPtr;
@@ -14415,7 +14504,7 @@ Backup::lcp_open_data_file_late(Signal* signal,
   tabPtr.p->fragments.getPtr(fragPtr, 0);
 
   ndbrequire(index != 0);
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[index]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[index]));
 
   Uint32 dataFileNumber = get_file_add(ptr.p->m_first_data_file_number,
                                        index);
@@ -14428,8 +14517,31 @@ Backup::lcp_open_data_file_late(Signal* signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, dataFileNumber);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
-  ndbrequire((req->fileFlags & FsOpenReq::OM_ENCRYPT) == 0);
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
+  {
+    LinearSectionPtr lsptr[3];
+
+    // Use a dummy file name
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    lsptr[FsOpenReq::FILENAME].p = nullptr;
+    lsptr[FsOpenReq::FILENAME].sz = 0;
+
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+
+    EncryptionKeyMaterial nmk;
+    nmk.length = globalData.nodeMasterKeyLength;
+    memcpy(&nmk.data, globalData.nodeMasterKey, globalData.nodeMasterKeyLength);
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (const Uint32*)&nmk;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+        nmk.get_needed_words();
+
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
+               lsptr, 2);
+  }
+  else
+  {
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  }
 }
 
 void
@@ -14443,7 +14555,7 @@ Backup::lcp_open_data_file_done(Signal* signal,
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->prepareDataFilePtr[0]);  
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->prepareDataFilePtr[0]));
   ndbrequire(filePtr.p->m_flags == 
              (BackupFile::BF_OPEN | BackupFile::BF_LCP_META));
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_LCP_META;
@@ -14488,8 +14600,8 @@ Backup::lcp_copy_ctl_page(BackupRecordPtr ptr)
   Uint32 oldest = ptr.p->prepareNextLcpCtlFileNumber;
   ndbrequire(oldest <= 1);
   Uint32 recent = oldest == 0 ? 1 : 0;
-  c_backupFilePool.getPtr(file_ptr, ptr.p->ctlFilePtr);
-  c_backupFilePool.getPtr(recent_file_ptr, ptr.p->prepareCtlFilePtr[recent]);
+  ndbrequire(c_backupFilePool.getPtr(file_ptr, ptr.p->ctlFilePtr));
+  ndbrequire(c_backupFilePool.getPtr(recent_file_ptr, ptr.p->prepareCtlFilePtr[recent]));
   file_ptr.p->pages.getPtr(page_ptr, 0);
   recent_file_ptr.p->pages.getPtr(recent_page_ptr, 0);
   /**
@@ -14543,7 +14655,7 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
                             BackupFilePtr & file_ptr)
 {
   Uint32 maxCompletedGci;
-  c_backupFilePool.getPtr(file_ptr, ptr.p->ctlFilePtr);
+  ndbrequire(c_backupFilePool.getPtr(file_ptr, ptr.p->ctlFilePtr));
   file_ptr.p->pages.getPtr(page_ptr, 0);
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (struct BackupFormat::LCPCtlFile*)page_ptr.p;
@@ -14999,13 +15111,9 @@ Backup::calculate_row_change_count(BackupRecordPtr ptr)
 Uint64
 Backup::get_total_memory()
 {
-  Resource_limit res_limit;
-  m_ctx.m_mm.get_resource_limit(RG_DATAMEM, res_limit);
-  const Uint32 pages_used = res_limit.m_curr;
-  const Uint64 dm_used = Uint64(pages_used) * Uint64(sizeof(GlobalPage));
-  const Uint64 num_ldms = getLqhWorkers() != 0 ?
-                         (Uint64)getLqhWorkers() : (Uint64)1;
-  const Uint64 total_memory = dm_used / num_ldms;
+  Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+  const Uint64 pages_allocated = tup->get_pages_allocated();
+  const Uint64 total_memory = pages_allocated * sizeof(GlobalPage);
   return total_memory;
 }
 
@@ -15164,7 +15272,7 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    *
    *   It is still possible to use the old algorithm where we always
    *   write everything in each LCP. This is kept for better backwards
-   *   compatability and for risk averse users. It also works very well
+   *   compatibility and for risk averse users. It also works very well
    *   still for smaller database sizes that updates most of the data
    *   all the time.
    *
@@ -15600,7 +15708,7 @@ Backup::lcp_close_data_file(Signal* signal,
                             bool delete_flag)
 {
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]));
   closeFile(signal, ptr, filePtr, false, delete_flag);
 }
 
@@ -15643,7 +15751,7 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
    * on the fragment and sync's them one by one with potential throttling of
    * write speed here.
    *
-   * The second stage is synching the extent pages. This always happens in
+   * The second stage is syncing the extent pages. This always happens in
    * the PGMAN proxy block that takes care of the extent pages. Here we
    * sync all extent pages that are dirty for each fragment checkpoint. The
    * reason is that one extent page is shared by many fragments, also the
@@ -15734,7 +15842,7 @@ Backup::execSYNC_PAGE_WAIT_REP(Signal *signal)
 {
   jamEntry();
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, signal->theData[0]);
+  ndbrequire(c_backupPool.getPtr(ptr, signal->theData[0]));
   if (ptr.p->m_wait_disk_data_sync)
   {
     jam();
@@ -15761,7 +15869,7 @@ Backup::execSYNC_PAGE_CACHE_CONF(Signal *signal)
   FragmentPtr fragPtr;
   jamEntry();
 
-  c_backupPool.getPtr(ptr, conf->senderData);
+  ndbrequire(c_backupPool.getPtr(ptr, conf->senderData));
   ptr.p->m_num_sync_pages_waiting = 0;
   ptr.p->tables.first(tabPtr);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
@@ -15821,7 +15929,7 @@ Backup::execSYNC_EXTENT_PAGES_CONF(Signal *signal)
   BackupRecordPtr ptr;
   jamEntry();
 
-  c_backupPool.getPtr(ptr, conf->senderData);
+  ndbrequire(c_backupPool.getPtr(ptr, conf->senderData));
   ptr.p->m_num_sync_extent_pages_written = 0;
 
   NDB_TICKS now = getHighResTimer();
@@ -15936,8 +16044,8 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
    */
   {
     BackupFilePtr dataFilePtr;
-    c_backupFilePool.getPtr(dataFilePtr,
-                            ptr.p->dataFilePtr[0]);
+    ndbrequire(c_backupFilePool.getPtr(dataFilePtr,
+                                       ptr.p->dataFilePtr[0]));
     if (!(ptr.p->m_save_error_code != 0 ||
           ptr.p->m_row_count == dataFilePtr.p->m_lcp_inserts ||
           ((ptr.p->m_num_parts_in_this_lcp !=
@@ -15979,7 +16087,7 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
 
   jam();
   ptr.p->m_lcp_lsn_synced = valid_flag;
-  c_backupFilePool.getPtr(filePtr, ptr.p->ctlFilePtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->ctlFilePtr));
   filePtr.p->pages.getPtr(pagePtr, 0);
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (struct BackupFormat::LCPCtlFile*)pagePtr.p;
@@ -16151,10 +16259,10 @@ Backup::execFSWRITECONF(Signal *signal)
   const Uint32 userPtr = conf->userPointer;
   jamEntry();
   
-  c_backupFilePool.getPtr(filePtr, userPtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, userPtr));
   ndbrequire((filePtr.p->m_flags & BackupFile::BF_WRITING) != 0);
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_WRITING;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  ndbrequire(c_backupPool.getPtr(ptr, filePtr.p->backupPtr));
 
   if (ptr.p->ctlFilePtr == filePtr.i)
   {
@@ -16189,7 +16297,7 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
       return;
     }
   }
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]));
   ndbrequire(ptr.p->tables.first(tabPtr));
   Uint32 tableId = tabPtr.p->tableId;
 
@@ -16199,10 +16307,9 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
   if (ptr.p->errorCode != 0)
   {
     jam();
-    ndbout_c("Fatal : LCP Frag scan failed with error %u"
-             " file error is: %d",
-             ptr.p->errorCode,
-             filePtr.p->errorCode);
+    g_eventLogger->info(
+        "Fatal : LCP Frag scan failed with error %u file error is: %d",
+        ptr.p->errorCode, filePtr.p->errorCode);
     ndbrequire(filePtr.p->errorCode == ptr.p->errorCode);
     
     if ((filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD) == 0)
@@ -16479,7 +16586,7 @@ Backup::delete_lcp_file_processing(Signal *signal)
     return;
   }
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr));
   lcp_close_ctl_file_for_rewrite_done(signal, ptr, filePtr);
 }
 
@@ -16563,8 +16670,9 @@ Backup::sync_log_lcp_lsn_callback(Signal *signal, Uint32 ptrI, Uint32 ununsed)
   BackupRecordPtr ptr;
   DeleteLcpFilePtr deleteLcpFilePtr;
   jamEntry();
-  c_backupPool.getPtr(ptr, ptrI);
-  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
+  ndbrequire(c_deleteLcpFilePool.getPtr(deleteLcpFilePtr,
+                                        ptr.p->currentDeleteLcpFile));
   ndbrequire(deleteLcpFilePtr.p->validFlag == 0);
   /**
    * The LSN have now been sync:ed, now time to read the LCP control file
@@ -16579,7 +16687,7 @@ Backup::lcp_open_ctl_file_for_rewrite(Signal *signal,
                                       BackupRecordPtr ptr)
 {
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr));
   FsOpenReq *req = (FsOpenReq*)signal->getDataPtrSend();
 
   req->userReference = reference();
@@ -16605,6 +16713,11 @@ Backup::lcp_open_ctl_file_for_rewrite(Signal *signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, lcpNo);
   FsOpenReq::v5_setTableId(req->fileNumber, tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragmentId);
+
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
 
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
@@ -16686,7 +16799,7 @@ Backup::lcp_close_ctl_file_for_rewrite(Signal *signal,
   closeFile(signal, ptr, filePtr, false, false);
 #ifdef DEBUG_LCP
   DeleteLcpFilePtr deleteLcpFilePtr;
-  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+  ndbrequire(c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile));
   DEB_LCP(("(%u)Completed writing with ValidFlag = 1 for tab(%u,%u).%u",
            instance(),
            deleteLcpFilePtr.p->tableId,
@@ -16703,7 +16816,7 @@ Backup::lcp_close_ctl_file_for_rewrite_done(Signal *signal,
   ndbrequire(filePtr.p->m_flags == 0);
   ndbrequire(ptr.p->errorCode == 0);
   DeleteLcpFilePtr deleteLcpFilePtr;
-  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+  ndbrequire(c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile));
 
   if (deleteLcpFilePtr.p->firstFileId != RNIL)
   {
@@ -16730,7 +16843,7 @@ Backup::lcp_remove_file(Signal* signal,
                         DeleteLcpFilePtr deleteLcpFilePtr)
 {
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr));
   FsRemoveReq * req = (FsRemoveReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->userPointer = ptr.i;
@@ -16765,7 +16878,7 @@ Backup::lcp_remove_file(Signal* signal,
   }
   FsOpenReq::v5_setTableId(req->fileNumber, deleteLcpFilePtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, deleteLcpFilePtr.p->fragmentId);
-  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, FsOpenReq::SignalLength, JBA);
+  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, FsRemoveReq::SignalLength, JBA);
 }
 
 void
@@ -16773,7 +16886,7 @@ Backup::lcp_remove_file_conf(Signal *signal, BackupRecordPtr ptr)
 {
   BackupFilePtr filePtr;
 
-  c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr);
+  ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr));
   filePtr.p->m_flags &= (~(BackupFile::BF_REMOVING));
   ndbrequire(filePtr.p->m_flags == 0);
 
@@ -16781,7 +16894,8 @@ Backup::lcp_remove_file_conf(Signal *signal, BackupRecordPtr ptr)
   {
     jam();
     DeleteLcpFilePtr deleteLcpFilePtr;
-    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+    ndbrequire(c_deleteLcpFilePool.getPtr(deleteLcpFilePtr,
+                                          ptr.p->currentDeleteLcpFile));
     if (deleteLcpFilePtr.p->firstFileId == deleteLcpFilePtr.p->lastFileId)
     {
       jam();
@@ -16826,7 +16940,8 @@ Backup::finished_removing_files(Signal *signal,
   {
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
-    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+    ndbrequire(c_deleteLcpFilePool.getPtr(deleteLcpFilePtr,
+                                          ptr.p->currentDeleteLcpFile));
     queue.remove(deleteLcpFilePtr);
     c_deleteLcpFilePool.release(deleteLcpFilePtr);
     ptr.p->currentDeleteLcpFile = RNIL;
@@ -16876,7 +16991,7 @@ Backup::execWAIT_LCP_IDLE_REQ(Signal *signal)
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, signal->theData[0]);
+  ndbrequire(c_backupPool.getPtr(ptr, signal->theData[0]));
   jamDebug();
   ndbrequire(ptr.p->is_lcp());
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
@@ -16926,7 +17041,8 @@ Backup::execINFORM_BACKUP_DROP_TAB_REQ(Signal *signal)
   {
     DeleteLcpFilePtr deleteLcpFilePtr;
     jam();
-    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+    ndbrequire(c_deleteLcpFilePool.getPtr(deleteLcpFilePtr,
+                                          ptr.p->currentDeleteLcpFile));
     if (deleteLcpFilePtr.p->tableId == ptr.p->m_informDropTabTableId)
     {
       jam();
@@ -17148,7 +17264,7 @@ Backup::openFilesReplyLCP(Signal* signal,
      * pages.
      */
     BackupFilePtr zeroFilePtr;
-    c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]);
+    ndbrequire(c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]));
     Uint32 delay = 0;
     if (ERROR_INSERTED(10047))
     {
@@ -17173,7 +17289,7 @@ Backup::execEND_LCPREQ(Signal* signal)
   BackupRecordPtr ptr;
   {
     EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
-    c_backupPool.getPtr(ptr, req->backupPtr);
+    ndbrequire(c_backupPool.getPtr(ptr, req->backupPtr));
     ptr.p->senderData = req->senderData;
   }
   jamEntry();
@@ -17294,7 +17410,7 @@ Backup::check_pgman_prep_lcp_ready(Signal *signal, Uint32 ptrI)
 {
   BackupRecordPtr ptr;
   jamEntry();
-  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(c_backupPool.getPtr(ptr, ptrI));
   bool ready = c_pgman->lcp_end_point(m_last_lcp_exec_time_in_ms,
                                       false,
                                       false);
@@ -17334,7 +17450,7 @@ Backup::lcp_close_ctl_file_drop_case(Signal *signal, BackupRecordPtr ptr)
   BackupFilePtr filePtr;
   for (Uint32 i = 0; i < 2; i++)
   {
-    c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[i]);
+    ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[i]));
     if ((filePtr.p->m_flags & BackupFile::BF_OPEN) != 0)
     {
       jam();
@@ -17503,15 +17619,16 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
           else
           {
             jam();
-            ndbout_c("Unusual LCP prepare state in LCP_STATUS_REQ() : %u",
-                     ptr.p->prepareState);
+            g_eventLogger->info(
+                "Unusual LCP prepare state in LCP_STATUS_REQ() : %u",
+                ptr.p->prepareState);
             state = LcpStatusConf::LCP_IDLE;
           }
           break;
         default:
           jam();
-          ndbout_c("Unusual LCP state in LCP_STATUS_REQ() : %u",
-                   ptr.p->slaveState.getState());
+          g_eventLogger->info("Unusual LCP state in LCP_STATUS_REQ() : %u",
+                              ptr.p->slaveState.getState());
           state = LcpStatusConf::LCP_IDLE;
         };
       }
@@ -17554,7 +17671,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
           failCode = LcpStatusRef::NoFileRecord;
           break;
         }
-        c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+        ndbrequire(c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]));
         ndbrequire(filePtr.p->backupPtr == ptr.i);
 
         ptr.p->tables.first(tabPtr);
@@ -17582,7 +17699,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
           Uint64 flushBacklog = 0;
           for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
           {
-            c_backupFilePool.getPtr(tmp_filePtr, ptr.p->dataFilePtr[i]);
+            ndbrequire(c_backupFilePool.getPtr(tmp_filePtr, ptr.p->dataFilePtr[i]));
             /* May take some time to drain the FS buffer, depending on
              * size of buff, achieved rate.
              * We provide the buffer fill level so that requestors

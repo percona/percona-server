@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,13 +34,75 @@
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 
 class Ndb;
+class NdbEventOperation;
 class Ndb_sync_pending_objects_table;
 class Ndb_sync_excluded_objects_table;
+struct ndb_binlog_index_row;
+class injector;
+class injector_transaction;
+struct TABLE;
+union NdbValue;
+struct MY_BITMAP;
+class Ndb_blobs_buffer;
+struct NDB_SHARE;
 
 class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
   static int do_after_reset_master(void *);
   Ndb_metadata_sync metadata_sync;
+
+  // Holds reference to share for ndb_apply_status table
+  NDB_SHARE *m_apply_status_share{nullptr};
+
+  class Cache_spill_checker {
+    // Binlog cache disk use
+    ulong disk_use{0};
+
+    // Mask to bound warnings of disk spills by the binlog injector thread
+    static constexpr uint32 freq_mask = 0x3FE1;
+
+    /**
+       Checks if val is in the mask. If val is greater than the
+       absolute value of the mask, then check that val is a multiple
+       of mask.
+
+       @param    val    Value to test
+       @param    mask   Bit mask to test against
+       @return          True if val is present in mask or is in the
+       boundary, false otherwise
+    */
+    bool is_on_significant_boundary(uint32 val, uint32 mask) const {
+      if (val > mask) return val % mask == 0;
+      return val == (val & mask);
+    }
+
+   public:
+    // Counter for binlog trx commits that had disk spills
+    uint32 m_disk_spills{0};
+
+    /**
+       @brief Check if a disk spill occurred and that the occurence is
+       not rate limited. Save the value for next test.
+
+       @param value     The number of binlog disk use across all thread caches
+
+       @return          True if disk spills occurred and the occurrence is not
+                        rate limited. False otherwise.
+     */
+    bool check_disk_spill(ulong value) {
+      if (value - disk_use == 0) {
+        // No disk spill
+        return false;
+      }
+      disk_use = value;
+      m_disk_spills++;
+      return is_on_significant_boundary(m_disk_spills, freq_mask);
+    }
+
+  } m_cache_spill_checker;
+
+  bool acquire_apply_status_reference();
+  void release_apply_status_reference();
 
  public:
   Ndb_binlog_thread();
@@ -165,6 +227,13 @@ class Ndb_binlog_thread : public Ndb_component {
   // Wake up for stop
   void do_wakeup() override;
 
+  /**
+    @brief Log an error from NDB to the log.
+
+    @param      ndberr The NDB error to log
+  */
+  void log_ndb_error(const NdbError &ndberr) const;
+
   /*
      The Ndb_binlog_thread is supposed to make a continuous recording
      of the activity in the cluster to the mysqlds binlog. When this
@@ -180,7 +249,7 @@ class Ndb_binlog_thread : public Ndb_component {
     // from the cluster
     CLUSTER_DISCONNECT
   };
-  bool check_reconnect_incident(THD *thd, class injector *inj,
+  bool check_reconnect_incident(THD *thd, injector *inj,
                                 Reconnect_type incident_id) const;
 
   /**
@@ -197,19 +266,16 @@ class Ndb_binlog_thread : public Ndb_component {
 
      @param ndb The Ndb object to remove event operations from
   */
-  void remove_event_operations(Ndb *ndb) const;
+  static void remove_event_operations(Ndb *ndb);
 
   /**
-     @brief Remove event operations belonging to the two different Ndb objects
-     owned by the binlog thread
-
-     @note The function also release references to NDB_SHARE's owned by the
-     binlog thread
+     @brief Remove event operations belonging to the different Ndb objects
+     (owned by the binlog thread)
 
      @param s_ndb The schema Ndb object to remove event operations from
      @param i_ndb The injector Ndb object to remove event operations from
   */
-  void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb) const;
+  static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb);
 
   /**
      @brief Synchronize the object that is currently at the front of the queue
@@ -218,6 +284,56 @@ class Ndb_binlog_thread : public Ndb_component {
      @param thd Thread handle
   */
   void synchronize_detected_object(THD *thd);
+
+#ifndef NDEBUG
+  /**
+     @brief As the Binlog thread is not a client thread, the 'set debug'
+     command does not affect it. This functions updates the thread-local
+     debug value from the global debug value.
+
+     @note function need to be called regularly in the binlog thread loop.
+   */
+  void dbug_sync_setting() const;
+#endif
+
+  /**
+    @brief The binlog injector thread is not a client thread, but has its own
+    THD object which is used when writing to the binlog. Thus its thread-local
+    variables controlling how binlog is written need to be updated from global
+    values so that the changed settings will take effect during next epoch
+    transaction.
+
+    @param thd Thread handle
+   */
+  void fix_per_epoch_trans_settings(THD *thd);
+
+  // Functions for handling received events
+  int handle_data_get_blobs(const TABLE *table,
+                            const NdbValue *const value_array,
+                            Ndb_blobs_buffer &buffer, ptrdiff_t ptrdiff) const;
+  void handle_data_unpack_record(TABLE *table, const NdbValue *value,
+                                 MY_BITMAP *defined, uchar *buf) const;
+  int handle_error(NdbEventOperation *pOp) const;
+  void handle_non_data_event(THD *thd, NdbEventOperation *pOp,
+                             ndb_binlog_index_row &row);
+  int handle_data_event(const NdbEventOperation *pOp,
+                        ndb_binlog_index_row **rows,
+                        injector_transaction &trans, unsigned &trans_row_count,
+                        unsigned &replicated_row_count) const;
+  bool handle_events_for_epoch(THD *thd, injector *inj, Ndb *i_ndb,
+                               NdbEventOperation *&i_pOp,
+                               const Uint64 current_epoch);
+
+  // Functions for injecting events
+  bool inject_apply_status_write(injector_transaction &trans,
+                                 ulonglong gci) const;
+  void inject_incident(injector *inj, THD *thd,
+                       NdbDictionary::Event::TableEvent event_type,
+                       Uint64 gap_epoch) const;
+  void inject_table_map(injector_transaction &trans, Ndb *ndb) const;
+  void commit_trans(injector_transaction &trans, THD *thd, Uint64 current_epoch,
+                    ndb_binlog_index_row *rows, unsigned trans_row_count,
+                    unsigned replicated_row_count);
 };
 
 /*

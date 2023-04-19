@@ -4,7 +4,7 @@
 Encrypting a Schema or a General Tablespace
 ======================================================
 
-|Percona Server| uses the same encryption architecture as |MySQL|, a two-tier
+*Percona Server for MySQL* uses the same encryption architecture as *MySQL*, a two-tier
 system consisting of a master key and tablespace keys. The master key can be
 changed, or rotated in the keyring, as needed. Each tablespace key, when
 decrypted, remains the same.
@@ -18,27 +18,40 @@ The tables in a general tablespace are either all encrypted or all unencrypted.
 A tablespace cannot contain a mixture of encrypted tables and unencrypted
 tables.
 
-In versions before |Percona Server| 8.0.16-7, use the variable
-:variable:`innodb_encrypt_tables`.
+In versions before *Percona Server for MySQL* 8.0.16-7, use the variable
+:ref:`innodb_encrypt_tables`.
 
-.. variable:: innodb_encrypt_tables
+.. _innodb_encrypt_tables:
 
-    :cli: ``--innodb-encrypt-tables``
-    :removed: version 8.0.16-7
-    :dyn: Yes
-    :scope: Global
-    :vartype: Text
-    :default: ``OFF``
+.. rubric:: ``innodb_encrypt_tables``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-encrypt-tables``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Text
+   * - Default
+     - ``OFF``
+
+The variable was removed in :ref:`8.0.16-7`.
 
 The variable is considered **deprecated** and was removed in version 8.0.16-7.
 The default setting is "OFF".
 
 The encryption of a schema or a general tablespace is determined by the
-:variable:`default_table_encryption` variable unless you specify the
+:ref:`default_table_encryption` variable unless you specify the
 ENCRYPTION clause in the CREATE SCHEMA or CREATE TABLESPACE statement. This
-variable is implemented in |Percona Server| version 8.0.16-7.
+variable is implemented in *Percona Server for MySQL* version 8.0.16-7.
 
-You can set the :variable:`default_table_encryption` variable in an individual
+You can set the :ref:`default_table_encryption` variable in an individual
 connection.
 
 .. code-block:: mysql
@@ -48,13 +61,25 @@ connection.
 System Variable
 ----------------
 
-.. variable:: default_table_encryption
+.. _default_table_encryption:
 
-    :cli: ``default-table-encryption``
-    :dyn: Yes
-    :scope: Session
-    :vartype: Text
-    :default: OFF
+.. rubric:: ``default_table_encryption``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``default-table-encryption``
+   * - Scope
+     - Session
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Text
+   * - Default
+     - OFF
 
 Defines the default encryption setting for schemas and general tablespaces. The
 variable allows you to create or alter schemas or tablespaces without specifying
@@ -97,14 +122,25 @@ The variable has the following possible values:
 
 .. rubric:: Merge-sort-encryption
 
+.. _innodb_encrypt_online_alter_logs:
 
-.. variable:: innodb_encrypt_online_alter_logs
+.. rubric:: ``innodb_encrypt_online_alter_logs``
 
-    :cli: ``--innodb_encrypt-online-alter-logs``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Boolean
-    :default: OFF
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb_encrypt-online-alter-logs``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - OFF
 
 This variable simultaneously turns on the encryption of files used by InnoDB for
 full text search using parallel sorting, building indexes using merge sort, and
@@ -129,8 +165,8 @@ accept the ``ENCRYPTION='Y/N'`` option.
 
 .. note::
 
-   Prior to |Percona Server| 8.0.13, the ``ENCRYPTION`` option was specific to
-   the ``CREATE TABLE`` or ``SHOW CREATE TABLE`` statement. As of |Percona Server|
+   Prior to *Percona Server for MySQL* 8.0.13, the ``ENCRYPTION`` option was specific to
+   the ``CREATE TABLE`` or ``SHOW CREATE TABLE`` statement. As of *Percona Server for MySQL*
    8.0.13, this option is a tablespace attribute and  no longer  allowed with the
    ``CREATE TABLE`` or ``SHOW CREATE TABLE`` statement except for file-per-table
    tablespaces.

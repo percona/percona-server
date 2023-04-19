@@ -12,18 +12,28 @@ You can use *Percona-Toolkit*'s `pt-query-digest <http://www.percona.com/doc/per
 Version Specific Information
 ============================
 
-  * :rn:`8.0.12-1`:
-     * Feature ported from |Percona Server| 5.7.
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 System Variables
 ================
 
-.. variable:: log_slow_filter
+.. _log_slow_filter:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global, Session
-     :dyn: Yes
+.. rubric:: ``log_slow_filter``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global, Session
+   * - Dynamic
+     - Yes
 
 Filters the slow log by the query's execution plan. The value is a comma-delimited string, and can contain any combination of the following values:
 
@@ -49,37 +59,64 @@ Values are OR'ed together. If the string is empty, then the filter is disabled. 
 
 For example, to log only queries that perform a full table scan, set the value to ``full_scan``. To log only queries that use on-disk temporary storage for intermediate results, set the value to ``tmp_table_on_disk,filesort_on_disk``.
 
-.. variable:: log_slow_rate_type
+.. _log_slow_rate_type:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Enumerated
-     :default: ``session``
-     :range: ``session``, ``query``
+.. rubric:: ``log_slow_rate_type``
 
-Specifies semantic of :variable:`log_slow_rate_limit` - ``session`` or ``query``.
+.. list-table::
+   :header-rows: 1
 
-.. variable:: log_slow_rate_limit
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Enumerated
+   * - Default
+     - ``session``
+   * - Range
+     - ``session``, ``query``
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global, session
-     :dyn: Yes
-     :default: 1
-     :range: 1-1000
+Specifies semantic of :ref:`log_slow_rate_limit` - ``session`` or ``query``.
 
-Behavior of this variable depends from :variable:`log_slow_rate_type`.
+.. _log_slow_rate_limit:
 
-Specifies that only a fraction of ``session/query`` should be logged. Logging is enabled for every nth ``session/query``. By default, n is 1, so logging is enabled for every ``session/query``. Please note: when :variable:`log_slow_rate_type` is ``session`` rate limiting is disabled for the replication thread.
+.. rubric:: ``log_slow_rate_limit``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global, session
+   * - Dynamic
+     - Yes
+   * - Default
+     - 1
+   * - Range
+     - 1-1000
+
+Behavior of this variable depends from :ref:`log_slow_rate_type`.
+
+Specifies that only a fraction of ``session/query`` should be logged. Logging is enabled for every nth ``session/query``. By default, n is 1, so logging is enabled for every ``session/query``. Please note: when :ref:`log_slow_rate_type` is ``session`` rate limiting is disabled for the replication thread.
 
 Logging all queries might consume I/O bandwidth and cause the log file to grow large.
- * When :variable:`log_slow_rate_type` is ``session``, this option lets you log full sessions, so you have complete records of sessions for later analysis; but you can rate-limit the number of sessions that are logged. Note that this feature will not work well if your application uses any type of connection pooling or persistent connections. Note that you change :variable:`log_slow_rate_limit` in ``session`` mode, you should reconnect for get effect.
+ * When :ref:`log_slow_rate_type` is ``session``, this option lets you log full sessions, so you have complete records of sessions for later analysis; but you can rate-limit the number of sessions that are logged. Note that this feature will not work well if your application uses any type of connection pooling or persistent connections. Note that you change :ref:`log_slow_rate_limit` in ``session`` mode, you should reconnect for get effect.
 
- * When :variable:`log_slow_rate_type` is ``query``, this option lets you log just some queries for later analysis. For example, if you set the value to 100, then one percent of queries will be logged.
+ * When :ref:`log_slow_rate_type` is ``query``, this option lets you log just some queries for later analysis. For example, if you set the value to 100, then one percent of queries will be logged.
 
-Note that every query has global unique ``query_id`` and every connection can has it own (session) :variable:`log_slow_rate_limit`.
+Note that every query has global unique ``query_id`` and every connection can has it own (session) :ref:`log_slow_rate_limit`.
 Decision "log or no" calculated in following manner:
 
  * if ``log_slow_rate_limit`` is 1 - log every query
@@ -88,25 +125,39 @@ Decision "log or no" calculated in following manner:
 
 This allows flexible setup logging behavior.
 
-For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In |Percona Server| information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
+For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In *Percona Server for MySQL* information about the :ref:`log_slow_rate_limit` has been added to the slow query log. This means that if the :ref:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
  
   Log_slow_rate_type: query  Log_slow_rate_limit: 10
 
-.. variable:: log_slow_sp_statements
+.. _log_slow_sp_statements:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Boolean
-     :default: TRUE
-     :range: TRUE/FALSE
+.. rubric:: ``log_slow_sp_statements``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - TRUE
+   * - Range
+     - TRUE/FALSE
 
 If ``TRUE``, statements executed by stored procedures are logged to the slow if it is open.
 
 .. _improved_sp_reporting:
 
-|Percona Server| implemented improvements for logging of stored procedures to the slow query log:
+*Percona Server for MySQL* implemented improvements for logging of stored procedures to the slow query log:
  * Each query from a stored procedure is now logged to the slow query log individually
  * ``CALL`` itself isn't logged to the slow query log anymore as this would be counting twice for the same query which would lead to incorrect results
  * Queries that were called inside of stored procedures are annotated in the slow query log with the stored procedure name in which they run.
@@ -141,12 +192,12 @@ When we check the slow query log after running the stored procedure ,with variab
    # Stored routine: world.improved_sp_log
    SET timestamp=1420803535;
 
-If variable :variable:`log_slow_sp_statements` is set to ``FALSE``:
+If variable :ref:`log_slow_sp_statements` is set to ``FALSE``:
 
  * Entry is added to a slow-log for a ``CALL`` statement only and not for any of the individual statements run in that stored procedure
  * Execution time is reported for the ``CALL`` statement as the total execution time of the ``CALL`` including all its statements
 
-If we run the same stored procedure with the variable :variable:`log_slow_sp_statements` is set to ``FALSE`` slow query log should look like this: ::
+If we run the same stored procedure with the variable :ref:`log_slow_sp_statements` is set to ``FALSE`` slow query log should look like this: ::
 
   # Time: 150109 11:51:42
   # User@Host: root[root] @ localhost []
@@ -160,12 +211,23 @@ If we run the same stored procedure with the variable :variable:`log_slow_sp_sta
 
  Support for logging stored procedures doesn't involve triggers, so they won't be logged even if this feature is enabled.
 
-.. variable:: log_slow_verbosity
+.. _log_slow_verbosity:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global, session
-     :dyn: Yes
+.. rubric:: ``log_slow_verbosity``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global, session
+   * - Dynamic
+     - Yes
 
 Specifies how much information to include in your slow log. The value is a comma-delimited string, and can contain any combination of the following values:
 
@@ -176,13 +238,13 @@ Specifies how much information to include in your slow log. The value is a comma
     Log information about the query's execution plan.
 
   * ``innodb``:
-    Log |InnoDB| statistics.
+    Log *InnoDB* statistics.
 
   * ``minimal``:
     Equivalent to enabling just ``microtime``.
 
   * ``standard``:
-    Equivalent to enabling ``microtime,innodb``.
+    Equivalent to enabling ``microtime,query_plan``.
 
   * ``full``:
     Equivalent to all other values OR'ed together without the ``profiling`` and ``profiling_use_getrusage`` options.
@@ -193,17 +255,32 @@ Specifies how much information to include in your slow log. The value is a comma
   * ``profiling_use_getrusage``:
     Enables usage of the getrusage function.
 
+  * ``query_info``: 
+    Enables printing ``Query_tables`` and ``Query_digest`` into the slow query log. These fields are disabled by default.
+
 Values are OR'ed together.
 
-For example, to enable microsecond query timing and |InnoDB| statistics, set this option to ``microtime,innodb`` or ``standard``. To turn all options on, set the option to ``full``.
+For example, to enable microsecond query timing and *InnoDB* statistics, set this option to ``microtime,innodb`` or ``standard``. To turn all options on, set the option to ``full``.
 
-.. variable:: slow_query_log_use_global_control
+.. _slow_query_log_use_global_control:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :default: None
+.. rubric:: ``slow_query_log_use_global_control``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Default
+     - None
 
 Specifies which variables have global scope instead of local. For such variables, the global variable value is used in the current session, but without copying this value to the session value. Value is a "flag" variable - you can specify multiple values separated by commas
 
@@ -211,16 +288,16 @@ Specifies which variables have global scope instead of local. For such variables
     All variables use local scope
 
   * ``log_slow_filter``:
-    Global variable :variable:`log_slow_filter` has effect (instead of local)
+    Global variable :ref:`log_slow_filter` has effect (instead of local)
 
   * ``log_slow_rate_limit``:
-    Global variable :variable:`log_slow_rate_limit` has effect (instead of local)
+    Global variable :ref:`log_slow_rate_limit` has effect (instead of local)
 
   * ``log_slow_verbosity``:
-    Global variable :variable:`log_slow_verbosity` has effect (instead of local)
+    Global variable :ref:`log_slow_verbosity` has effect (instead of local)
 
   * ``long_query_time``:
-    Global variable :variable:`long_query_time` has effect (instead of local)
+    Global variable :ref:`long_query_time` has effect (instead of local)
 
   * ``min_examined_row_limit``:
     Global variable ``min_examined_row_limit`` has effect (instead of local)
@@ -228,15 +305,27 @@ Specifies which variables have global scope instead of local. For such variables
   * ``all``
     Global variables has effect (instead of local)
 
-.. variable:: slow_query_log_always_write_time
+.. _slow_query_log_always_write_time:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :default: 10
+.. rubric:: ``slow_query_log_always_write_time``
 
-This variable can be used to specify the query execution time after which the query will be written to the slow query log. It can be used to specify an additional execution time threshold for the slow query log, that, when exceeded, will cause a query to be logged unconditionally, that is, :variable:`log_slow_rate_limit` will not apply to it.
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Default
+     - 10
+
+This variable can be used to specify the query execution time after which the query will be written to the slow query log. It can be used to specify an additional execution time threshold for the slow query log, that, when exceeded, will cause a query to be logged unconditionally, that is, :ref:`log_slow_rate_limit` will not apply to it.
 
 Other Information
 =================
@@ -257,7 +346,7 @@ The feature adds more information to the slow log output. Here is a sample log e
   SELECT id,title,production_year FROM title WHERE title = 'Bambi';
 
 
-Another example (:variable:`log_slow_verbosity` ``=profiling``): ::
+Another example (:ref:`log_slow_verbosity` ``=profiling``): ::
 
   # Time: 130601  8:03:20.700441
   # User@Host: root[root] @ localhost []  Id:    43
@@ -298,7 +387,7 @@ Any other number      KILLED_NO_VALUE (Catches all other cases)
 .. seealso::
 
    |MySQL| Documentation: |MySQL| Server Error Codes
-      https://dev.mysql.com/doc/refman/8.0/en/server-error-reference.html
+      https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
 
 Connection and Schema Identifier
 --------------------------------
@@ -356,12 +445,12 @@ Each query can be executed in various ways. For example, it may use indexes or d
   # Full_scan: Yes  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No
   # Filesort: No  Filesort_on_disk: No  Merge_passes: 0
 
-The values and their meanings are documented with the :variable:`log_slow_filter` option.
+The values and their meanings are documented with the :ref:`log_slow_filter` option.
 
-|InnoDB| Usage Information
+*InnoDB* Usage Information
 --------------------------
 
-The final part of the output is the |InnoDB| usage statistics. |MySQL| currently shows many per-session statistics for operations with ``SHOW SESSION STATUS``, but that does not include those of |InnoDB|, which are always global and shared by all threads. This feature lets you see those values for a given query. ::
+The final part of the output is the *InnoDB* usage statistics. *MySQL* currently shows many per-session statistics for operations with ``SHOW SESSION STATUS``, but that does not include those of |InnoDB|, which are always global and shared by all threads. This feature lets you see those values for a given query. ::
 
   #   InnoDB_IO_r_ops: 6415  InnoDB_IO_r_bytes: 105103360  InnoDB_IO_r_wait: 0.001279
   #   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000
@@ -376,18 +465,18 @@ Values:
     Similar to innodb_IO_r_ops, but the unit is bytes.
 
   * ``innodb_IO_r_wait``:
-    Shows how long (in seconds) it took |InnoDB| to actually read the data from storage.
+    Shows how long (in seconds) it took *InnoDB* to actually read the data from storage.
 
   * ``innodb_rec_lock_wait``:
     Shows how long (in seconds) the query waited for row locks.
 
   * ``innodb_queue_wait``:
-    Shows how long (in seconds) the query spent either waiting to enter the |InnoDB| queue or inside that queue waiting for execution.
+    Shows how long (in seconds) the query spent either waiting to enter the *InnoDB* queue or inside that queue waiting for execution.
 
   * ``innodb_pages_distinct``:
     Counts approximately the number of unique pages the query accessed. The approximation is based on a small hash array representing the entire buffer pool, because it could take a lot of memory to map all the pages. The inaccuracy grows with the number of pages accessed by a query, because there is a higher probability of hash collisions.
 
-If the query did not use |InnoDB| tables, that information is written into the log instead of the above statistics.
+If the query did not use *InnoDB* tables, that information is written into the log instead of the above statistics.
 
 Related Reading
 ===============

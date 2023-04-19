@@ -10,7 +10,7 @@ An SELinux policy defines the set of rules, the ``types`` for files, and the ``d
 
 A label represents the context for administrators and users. 
 
-CentOS 7 and CentOS 8 contain a MySQL SELinux policy. |Percona Server| is a drop-in replacement for MySQL and can use this policy without changes. 
+CentOS 7 and CentOS 8 contain a MySQL SELinux policy. *Percona Server for MySQL* is a drop-in replacement for MySQL and can use this policy without changes. 
 
 SELinux context example
 ------------------------------
@@ -74,7 +74,7 @@ SELinux has several policy types:
 
 SELinux has confined processes that run in a domain and restricts everything unless explicitly allowed. An unconfined process in an unconfined domain is allowed almost all access. 
 
-MySQL is a confined process, and the policy module defines which files are read, which ports are opened, and so on. SELinux assumes the |Percona Server| installation uses the default file locations and default ports. 
+MySQL is a confined process, and the policy module defines which files are read, which ports are opened, and so on. SELinux assumes the *Percona Server for MySQL* installation uses the default file locations and default ports. 
 
 If you change the default, you must also edit the policy. If you do not update the policy, SELinux, in enforcing mode, denies access to all non-default resources.
 
@@ -380,7 +380,7 @@ Starting MySQL returns the following message:
         SELinux is preventing mysqld from write access to the directory logs.
         ...
 
-The default SELinux policy allows mysqld to write logs into a location tagged with ``var_log_t`, which is the ``/var/log`` location. You can solve the issue with either of the following methods:
+The default SELinux policy allows mysqld to write logs into a location tagged with ``var_log_t``, which is the ``/var/log`` location. You can solve the issue with either of the following methods:
 
 * Tag the ``/logs`` location properly
 

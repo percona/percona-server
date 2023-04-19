@@ -55,7 +55,7 @@ SELECT @@innodb_temp_tablespace_encrypt;
 --source include/grep_pattern.inc
 --remove_file $ERROR_LOG
 
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/ts_encrypt_keyring $KEYRING_PLUGIN_OPT
 --source include/start_mysqld.inc
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #define _XOPEN_SOURCE_EXTENDED
 #include <stdio.h>
+#include <stdlib.h>
 #include <wchar.h>
 #include <locale.h>
 #include <ndb_config.h>
@@ -279,62 +280,50 @@ void resize_window(int dummy)
 static struct my_option
 my_long_options[] =
 {
-  {"host", 'h',
-   "Hostname of MySQL Server",
-   (uchar**) &opt_host, (uchar**) &opt_host, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P',
-   "Port of MySQL Server",
-   &opt_port_number, &opt_port_number, 0, GET_UINT,
-   REQUIRED_ARG, 3306, 0, 0, 0, 0, 0},
+  {"host", 'h', "Hostname of MySQL Server",
+   &opt_host, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+   0, 0, 0, nullptr, 0, nullptr},
+  {"port", 'P', "Port of MySQL Server",
+   &opt_port_number, nullptr, 0, GET_UINT, REQUIRED_ARG,
+   3306, 0, 0, nullptr, 0, nullptr},
   {"socket", 'S', "The socket file to use for connection.",
-   &opt_socket, &opt_socket, 0, GET_STR_ALLOC,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u',
-   "Username to log into MySQL Server",
-   (uchar**) &opt_user, (uchar**) &opt_user, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"password", 'p',
-   "Password to log into MySQL Server (default is NULL)",
-   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_socket, nullptr, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   0, 0, 0, nullptr, 0, nullptr},
+  {"user", 'u', "Username to log into MySQL Server",
+   &opt_user, nullptr, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, nullptr, 0, nullptr},
+  {"password", 'p', "Password to log into MySQL Server (default is NULL)",
+   0, 0, 0, GET_PASSWORD, OPT_ARG,
+   0, 0, 0, nullptr, 0, nullptr},
   {"node_id", 'n',
    "Node id of data node to watch",
-   &opt_node_id, &opt_node_id, 0, GET_UINT,
-   REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"sleep_time", 's',
-   "Sleep time between each refresh of statistics",
-   &opt_sleep_time, &opt_sleep_time, 0, GET_UINT,
-   REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"measured_load", 'm',
-   "Show measured load by thread",
-   &opt_measured_load, &opt_measured_load, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"os_load", 'o',
-   "Show load measured by OS",
-   &opt_os_load, &opt_os_load, 0, GET_BOOL,
-   NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"color", 'c',
-   "Use color in ASCII graphs",
-   &opt_color, &opt_color, 0, GET_BOOL,
-   NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"text", 't',
-   "Use text to represent data",
-   &opt_text, &opt_text, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"graph", 'g',
-   "Use ASCII graphs to represent data",
-   &opt_graph, &opt_graph, 0, GET_BOOL,
-   NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"sort", 'r',
-   "Sort threads after highest measured usage",
-   &opt_sort, &opt_sort, 0, GET_BOOL,
-   NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"help", '?',
-   "Print usage",
-   &opt_help, &opt_help, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-
+   &opt_node_id, nullptr, 0, GET_UINT, REQUIRED_ARG,
+   1, 0, 0, nullptr, 0, nullptr},
+  {"sleep_time", 's', "Sleep time between each refresh of statistics",
+   &opt_sleep_time, nullptr, 0, GET_UINT, REQUIRED_ARG,
+   1, 0, 0, nullptr, 0, nullptr},
+  {"measured_load", 'm', "Show measured load by thread",
+   &opt_measured_load, nullptr, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, nullptr, 0, nullptr},
+  {"os_load", 'o', "Show load measured by OS",
+   &opt_os_load, nullptr, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, nullptr, 0, nullptr},
+  {"color", 'c', "Use color in ASCII graphs",
+   &opt_color, nullptr, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, nullptr, 0, nullptr},
+  {"text", 't', "Use text to represent data",
+   &opt_text, nullptr, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, nullptr, 0, nullptr},
+  {"graph", 'g', "Use ASCII graphs to represent data",
+   &opt_graph, nullptr, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, nullptr, 0, nullptr},
+  {"sort", 'r', "Sort threads after highest measured usage",
+   &opt_sort, nullptr, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, nullptr, 0, nullptr},
+ {"help", '?', "Print usage",
+   &opt_help, nullptr, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr}
 };
 
 static void short_usage_sub()
@@ -390,7 +379,7 @@ static void usage(void)
 
 static bool
 get_one_option(int optid,
-               const struct my_option *opt MY_ATTRIBUTE((unused)),
+               const struct my_option *opt [[maybe_unused]],
                char *argument)
 {
   switch (optid) {
@@ -448,7 +437,7 @@ get_one_option(int optid,
     break;
   }
   }
-  return FALSE;
+  return false;
 }
 
 #define SORT_ORDER_ENTRIES 128

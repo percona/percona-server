@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 
 #include "dict0dd.h"
-#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
@@ -44,13 +43,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #include "ut0new.h"
 
+#include <scope_guard.h>
+
 #ifdef UNIV_HOTBACKUP
 #include "my_sys.h"
 #endif /* UNIV_HOTBACKUP */
 
 /** Initialize the name and flags of this datafile.
-@param[in]	name	tablespace name, will be copied
-@param[in]	flags	tablespace flags */
+@param[in]      name    tablespace name, will be copied
+@param[in]      flags   tablespace flags */
 void Datafile::init(const char *name, uint32_t flags) {
   ut_ad(m_name == nullptr);
   ut_ad(name != nullptr);
@@ -65,7 +66,7 @@ void Datafile::init(const char *name, uint32_t flags) {
 void Datafile::shutdown() {
   close();
 
-  ut_free(m_name);
+  ut::free(m_name);
   m_name = nullptr;
 
   free_filepath();
@@ -73,18 +74,18 @@ void Datafile::shutdown() {
   free_first_page();
 
   if (m_encryption_key != nullptr) {
-    ut_free(m_encryption_key);
+    ut::free(m_encryption_key);
     m_encryption_key = nullptr;
   }
 
   if (m_encryption_iv != nullptr) {
-    ut_free(m_encryption_iv);
+    ut::free(m_encryption_iv);
     m_encryption_iv = nullptr;
   }
 }
 
 /** Create/open a data file.
-@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
+@param[in]      read_only_mode  if true, then readonly mode checks are enforced.
 @return DB_SUCCESS or error code */
 dberr_t Datafile::open_or_create(bool read_only_mode) {
   bool success;
@@ -106,7 +107,7 @@ dberr_t Datafile::open_or_create(bool read_only_mode) {
 
 /** Open a data file in read-only mode to check if it exists so that it
 can be validated.
-@param[in]	strict	whether to issue error messages
+@param[in]      strict  whether to issue error messages
 @return DB_SUCCESS or error code */
 dberr_t Datafile::open_read_only(bool strict) {
   bool success = false;
@@ -141,7 +142,7 @@ dberr_t Datafile::open_read_only(bool strict) {
 
 /** Open a data file in read-write mode during start-up so that
 doublewrite pages can be restored and then it can be validated.
-@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
+@param[in]      read_only_mode  if true, then readonly mode checks are enforced.
 @return DB_SUCCESS or error code */
 dberr_t Datafile::open_read_write(bool read_only_mode) {
   bool success = false;
@@ -185,22 +186,22 @@ void Datafile::init_file_info() {
 @return DB_SUCCESS or error code */
 dberr_t Datafile::close() {
   if (m_handle.m_file != OS_FILE_CLOSED) {
-    ibool success = os_file_close(m_handle);
+    auto success = os_file_close(m_handle);
     ut_a(success);
 
     m_handle.m_file = OS_FILE_CLOSED;
   }
 
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Make a full filepath from a directory path and a filename.
 Prepend the dirpath to filename using the extension given.
 If dirpath is nullptr, prepend the default datadir to filepath.
 Store the result in m_filepath.
-@param[in]	dirpath		directory path
-@param[in]	filename	filename or filepath
-@param[in]	ext		filename extension */
+@param[in]      dirpath         directory path
+@param[in]      filename        filename or filepath
+@param[in]      ext             filename extension */
 void Datafile::make_filepath(const char *dirpath, const char *filename,
                              ib_file_suffix ext) {
   free_filepath();
@@ -225,10 +226,11 @@ void Datafile::make_filepath(const char *dirpath, const char *filename,
 
 /** Set the filepath by duplicating the filepath sent in. This is the
 name of the file with its extension and absolute or relative path.
-@param[in]	filepath	filepath to set */
+@param[in]      filepath        filepath to set */
 void Datafile::set_filepath(const char *filepath) {
   free_filepath();
-  m_filepath = static_cast<char *>(ut_malloc_nokey(strlen(filepath) + 1));
+  m_filepath = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, strlen(filepath) + 1));
   ::strcpy(m_filepath, filepath);
   set_filename();
 }
@@ -236,7 +238,7 @@ void Datafile::set_filepath(const char *filepath) {
 /** Free the filepath buffer. */
 void Datafile::free_filepath() {
   if (m_filepath != nullptr) {
-    ut_free(m_filepath);
+    ut::free(m_filepath);
     m_filepath = nullptr;
     m_filename = nullptr;
   }
@@ -245,7 +247,7 @@ void Datafile::free_filepath() {
 /** Do a quick test if the filepath provided looks the same as this filepath
 byte by byte. If they are two different looking paths to the same file,
 same_as() will be used to show that after the files are opened.
-@param[in]	other	filepath to compare with
+@param[in]      other   filepath to compare with
 @retval true if it is the same filename by byte comparison
 @retval false if it looks different */
 bool Datafile::same_filepath_as(const char *other) const {
@@ -253,7 +255,7 @@ bool Datafile::same_filepath_as(const char *other) const {
 }
 
 /** Test if another opened datafile is the same file as this object.
-@param[in]	other	Datafile to compare with
+@param[in]      other   Datafile to compare with
 @return true if it is the same file, else false */
 bool Datafile::same_as(const Datafile &other) const {
 #ifdef _WIN32
@@ -272,9 +274,9 @@ If a name is provided, use it; else if the datafile is file-per-table,
 extract a file-per-table tablespace name from m_filepath; else it is a
 general tablespace, so just call it that for now. The value of m_name
 will be freed in the destructor.
-@param[in]	name	Tablespace Name if known, nullptr if not */
+@param[in]      name    Tablespace Name if known, nullptr if not */
 void Datafile::set_name(const char *name) {
-  ut_free(m_name);
+  ut::free(m_name);
 
   if (name != nullptr) {
     m_name = mem_strdup(name);
@@ -289,8 +291,8 @@ void Datafile::set_name(const char *name) {
   } else {
 #ifndef UNIV_HOTBACKUP
     /* Give this general tablespace a temporary name. */
-    m_name =
-        static_cast<char *>(ut_malloc_nokey(strlen(general_space_name) + 20));
+    m_name = static_cast<char *>(ut::malloc_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, strlen(general_space_name) + 20));
 
     sprintf(m_name, "%s_" SPACE_ID_PF, general_space_name, m_space_id);
 #else  /* !UNIV_HOTBACKUP */
@@ -300,7 +302,8 @@ void Datafile::set_name(const char *name) {
     It will also not cause name clashes with remote tablespaces or
     tables in schema directory. */
     size_t len = strlen(m_filepath);
-    m_name = static_cast<char *>(ut_malloc_nokey(len + 1));
+    m_name = static_cast<char *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len + 1));
     memcpy(m_name, m_filepath, len);
     m_name[len] = '\0';
 #endif /* !UNIV_HOTBACKUP */
@@ -309,7 +312,7 @@ void Datafile::set_name(const char *name) {
 
 /** Reads a few significant fields from the first page of the first
 datafile, which must already be open.
-@param[in]	read_only_mode	If true, then readonly mode checks are enforced.
+@param[in]      read_only_mode  If true, then readonly mode checks are enforced.
 @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
 dberr_t Datafile::read_first_page(bool read_only_mode) {
   if (m_handle.m_file == OS_FILE_CLOSED) {
@@ -320,13 +323,9 @@ dberr_t Datafile::read_first_page(bool read_only_mode) {
     }
   }
 
-  m_first_page_buf =
-      static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
-
   /* Align the memory for a possible read from a raw device */
-
-  m_first_page =
-      static_cast<byte *>(ut_align(m_first_page_buf, UNIV_PAGE_SIZE));
+  m_first_page = static_cast<byte *>(
+      ut::aligned_alloc(UNIV_PAGE_SIZE_MAX, UNIV_PAGE_SIZE));
 
   IORequest request;
   dberr_t err = DB_ERROR;
@@ -374,74 +373,37 @@ dberr_t Datafile::read_first_page(bool read_only_mode) {
 
 /** Free the first page from memory when it is no longer needed. */
 void Datafile::free_first_page() {
-  if (m_first_page_buf) {
-    ut_free(m_first_page_buf);
-    m_first_page_buf = nullptr;
-    m_first_page = nullptr;
-  }
+  ut::aligned_free(m_first_page);
+  m_first_page = nullptr;
 }
 
 /** Validates the datafile and checks that it conforms with the expected
 space ID and flags.  The file should exist and be successfully opened
 in order for this function to validate it.
-@param[in]	space_id	The expected tablespace ID.
-@param[in]	flags		The expected tablespace flags.
-@param[in]	for_import	if it is for importing
+@param[in]      space_id        The expected tablespace ID.
+@param[in]      flags           The expected tablespace flags.
+@param[in]      for_import      if it is for importing
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
-Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
-                                                  uint32_t flags,
-                                                  bool for_import) {
-  ValidateOutput output;
+dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
+                                 bool for_import) {
+  dberr_t err;
 
   if (!is_open()) {
-    output.error = DB_ERROR;
-    return output;
+    return (DB_ERROR);
   }
 
   /* Validate this single-table-tablespace with the data dictionary,
   but do not compare the DATA_DIR flag, in case the tablespace was
   remotely located. */
-  output = validate_first_page(space_id, nullptr, for_import);
-  if (output.error != DB_SUCCESS) {
-    return (output);
-  }
-
-  // in case of keyring encryption it can be so happen that there will be a
-  // crash after all pages of tablespace is rotated and DD is updated, but page0
-  // of the tablespace has not been yet update. We handle this here.
-
-  if (output.encryption_type == ValidateOutput::KEYRING &&
-      ((FSP_FLAGS_GET_ENCRYPTION(flags) &&
-        output.keyring_encryption_info.keyring_encryption_min_key_version ==
-            0) ||
-       (!FSP_FLAGS_GET_ENCRYPTION(flags) &&
-        output.keyring_encryption_info.keyring_encryption_min_key_version !=
-            0)) &&
-      FSP_FLAGS_GET_ENCRYPTION(flags) != FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
-    if (srv_n_fil_crypt_threads_requested == 0) {
-      ib::warn() << "In file '" << m_filepath
-                 << "' (tablespace id = " << m_space_id
-                 << ") encryption flag is "
-                 << (FSP_FLAGS_GET_ENCRYPTION(m_flags) ? "ON" : "OFF")
-                 << ". However the encryption flag in the data dictionary is "
-                 << (FSP_FLAGS_GET_ENCRYPTION(flags) ? "ON" : "OFF")
-                 << ". This indicates that the rotation of the table was "
-                    "interrupted before space's flags were updated."
-                 << " Please have encryption_thread variable "
-                    "(innodb-encryption-threads) set to value > 0. So the "
-                    "encryption"
-                 << " could finish up the rotation.";
-    }
-    // exclude encryption flag from validation
-    fsp_flags_unset_encryption(m_flags);
-    fsp_flags_unset_encryption(flags);
+  err = validate_first_page(space_id, nullptr, for_import);
+  if (err != DB_SUCCESS) {
+    return (err);
   }
 
   if (m_space_id == space_id && FSP_FLAGS_ARE_NOT_SET(flags) &&
       fsp_is_dd_tablespace(space_id)) {
-    output.error = DB_SUCCESS;
-    return (output);
+    return (DB_SUCCESS);
   }
 
   /* Make sure the datafile we found matched the space ID.
@@ -455,8 +417,7 @@ Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
       !((m_flags ^ flags) & ~(FSP_FLAGS_MASK_DATA_DIR | FSP_FLAGS_MASK_SHARED |
                               FSP_FLAGS_MASK_SDI))) {
     /* Datafile matches the tablespace expected. */
-    output.error = DB_SUCCESS;
-    return (output);
+    return (DB_SUCCESS);
   }
 
   /* For a shared tablesapce, it is possible that encryption flag updated in
@@ -475,8 +436,7 @@ Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
     if (!((m_flags ^ flags) &
           ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
             FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
-      output.error = DB_SUCCESS;
-      return output;
+      return (DB_SUCCESS);
     }
   }
 
@@ -496,27 +456,18 @@ Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
          " "
       << TROUBLESHOOT_DATADICT_MSG;
 
-  output.error = DB_ERROR;
-  return (output);
+  return (DB_ERROR);
 }
 
-/** Validates this datafile for the purpose of recovery.  The file should
-exist and be successfully opened. We initially open it in read-only mode
-because we just want to read the SpaceID.  However, if the first page is
-corrupt and needs to be restored from the doublewrite buffer, we will
-reopen it in write mode and ry to restore that page.
-@param[in]	space_id	Expected space ID
-@retval DB_SUCCESS  on success
-m_is_valid is also set true on success, else false. */
-Datafile::ValidateOutput Datafile::validate_for_recovery(space_id_t space_id) {
-  ValidateOutput output;
+dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
+  dberr_t err;
 
   ut_ad(!srv_read_only_mode);
   ut_ad(is_open());
 
-  output = validate_first_page(space_id, nullptr, false);
+  err = validate_first_page(space_id, nullptr, false);
 
-  switch (output.error) {
+  switch (err) {
     case DB_SUCCESS:
     case DB_TABLESPACE_EXISTS:
     case DB_TABLESPACE_NOT_FOUND:
@@ -526,82 +477,69 @@ Datafile::ValidateOutput Datafile::validate_for_recovery(space_id_t space_id) {
     default:
       /* For encryption tablespace, we skip the retry step,
       since it is only because the keyring is not ready. */
-      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) &&
-          (output.error != DB_CORRUPTION)) {
-        return output;
+      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && (err != DB_CORRUPTION)) {
+        return (err);
       }
 
       /* Re-open the file in read-write mode  Attempt to restore
       page 0 from doublewrite and read the space ID from a survey
       of the first few pages. */
-      close();
-      output.error = open_read_write(srv_read_only_mode);
-      if (output.error != DB_SUCCESS) {
+      err = open_read_write(srv_read_only_mode);
+      if (err != DB_SUCCESS) {
         ib::error(ER_IB_MSG_395) << "Datafile '" << m_filepath
                                  << "' could not"
                                     " be opened in read-write mode so that the"
                                     " doublewrite pages could be restored.";
-        return (output);
+        return (err);
       };
 
-      output.error = find_space_id();
-      if (output.error != DB_SUCCESS || m_space_id == 0) {
+      err = find_space_id();
+      if (err != DB_SUCCESS || m_space_id == 0) {
         ib::error(ER_IB_MSG_396)
             << "Datafile '" << m_filepath
             << "' is"
                " corrupted. Cannot determine the space ID from"
                " the first 64 pages.";
-        return (output);
+        return (err);
       }
 
-      output.error = restore_from_doublewrite(0);
-      if (output.error != DB_SUCCESS) {
-        return (output);
+      err = restore_from_doublewrite(0);
+
+      if (err != DB_SUCCESS) {
+        return (err);
       }
 
       /* Free the previously read first page and then re-validate. */
       free_first_page();
-      output = validate_first_page(space_id, nullptr, false);
+
+      err = validate_first_page(space_id, nullptr, false);
   }
 
-  if (output.error == DB_SUCCESS ||
-      output.error == DB_INVALID_ENCRYPTION_META) {
+  if (err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META) {
     set_name(nullptr);
   }
 
-  return (output);
+  return (err);
 }
 
-/** Checks the consistency of the first page of a datafile when the
-tablespace is opened.  This occurs before the fil_space_t is created
-so the Space ID found here must not already be open.
-m_is_valid is set true on success, else false.
-@param[in]	space_id	Expected space ID
-@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
-@param[in]	for_import	if it is for importing
-(only valid for the first file of the system tablespace)
-@retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
-        expected value
-@retval DB_SUCCESS on if the datafile is valid
-@retval DB_CORRUPTION if the datafile is not readable
-@retval DB_INVALID_ENCRYPTION_META if the encrypption meta data
-        is not readable
-@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
-                                                       lsn_t *flush_lsn,
-                                                       bool for_import) {
+dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
+                                      bool for_import) {
   char *prev_name;
   char *prev_filepath;
   const char *error_txt = nullptr;
-  ValidateOutput output;
 
   m_is_valid = true;
+
+  /* fil_space_read_name_and_filepath will acquire the fil shard mutex. If there
+  is any other thread that tries to open this file, it will have the fil
+  mutex and will wait for this file to open. It will not succeed on Windows
+  as we don't open the file for shared write. */
+  auto guard = create_scope_guard([this]() { close(); });
 
   if (m_first_page == nullptr &&
       read_first_page(srv_read_only_mode) != DB_SUCCESS) {
     error_txt = "Cannot read first page";
   } else {
-    ut_ad(m_first_page_buf);
     ut_ad(m_first_page);
 
     if (flush_lsn != nullptr) {
@@ -638,9 +576,8 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
                              << univ_page_size.logical();
 
     free_first_page();
-    output.error = DB_ERROR;
 
-    return (output);
+    return (DB_ERROR);
   } else if (!fsp_flags_is_valid(m_flags) || FSP_FLAGS_GET_TEMPORARY(m_flags)) {
     /* Tablespace flags must be valid. */
     error_txt = "Tablespace flags are invalid";
@@ -665,8 +602,7 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
                   << ", expected " << space_id << " but found " << m_space_id;
 #endif /* !UNIV_HOTBACKUP */
 
-    output.error = DB_WRONG_FILE_NAME;
-    return (output);
+    return (DB_WRONG_FILE_NAME);
 
   } else {
     BlockReporter reporter(false, m_first_page, page_size,
@@ -700,43 +636,23 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
 
     free_first_page();
 
-    output.error = DB_CORRUPTION;
-    return (output);
+    return (DB_CORRUPTION);
   }
-
-  fil_space_crypt_t *crypt_data =
-      fil_space_read_crypt_data(page_size_t(m_flags), m_first_page);
-
-  if (crypt_data) {
-    output.encryption_type = ValidateOutput::KEYRING;
-    output.keyring_encryption_info.page0_has_crypt_data = true;
-    output.keyring_encryption_info.keyring_encryption_min_key_version =
-        crypt_data->min_key_version;
-    output.keyring_encryption_info.type = crypt_data->type;
-  } else if (FSP_FLAGS_GET_ENCRYPTION(m_flags))
-    output.encryption_type = ValidateOutput::MASTER_KEY;
-  else
-    output.encryption_type = ValidateOutput::NONE;
 
   /* For encrypted tablespace, check the encryption info in the
   first page can be decrypt by master key, otherwise, this table
   can't be open. And for importing, we skip checking it. */
-  if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import &&
-      crypt_data == nullptr) {
-    if (m_encryption_key == nullptr) {
-      m_encryption_key =
-          static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
-    }
-    if (m_encryption_iv == nullptr) {
-      m_encryption_iv =
-          static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
-    }
+  if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import) {
+    m_encryption_key = static_cast<byte *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
+    m_encryption_iv = static_cast<byte *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
 #ifdef UNIV_ENCRYPT_DEBUG
     fprintf(stderr, "Got from file %u:", m_space_id);
 #endif
 
-    if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,
-                                       m_encryption_iv, m_first_page)) {
+    Encryption_key e_key{m_encryption_key, m_encryption_iv};
+    if (!fsp_header_get_encryption_key(m_flags, e_key, m_first_page)) {
       ib::error(ER_IB_MSG_401)
           << "Encryption information in datafile: " << m_filepath
           << " can't be decrypted, please confirm that"
@@ -744,55 +660,27 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
 
       m_is_valid = false;
       free_first_page();
-      ut_free(m_encryption_key);
-      ut_free(m_encryption_iv);
-      m_encryption_key = NULL;
-      m_encryption_iv = NULL;
-      output.error = DB_INVALID_ENCRYPTION_META;
-      return (output);
+      ut::free(m_encryption_key);
+      ut::free(m_encryption_iv);
+      m_encryption_key = nullptr;
+      m_encryption_iv = nullptr;
+      return (DB_INVALID_ENCRYPTION_META);
     } else {
+#ifdef UNIV_DEBUG
       ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
                               << " successfully, encryption"
                               << " of this tablespace enabled.";
-      if (recv_recovery_is_on() &&
-          memcmp(m_encryption_key, m_encryption_iv, Encryption::KEY_LEN) == 0) {
-        ut_free(m_encryption_key);
-        ut_free(m_encryption_iv);
-        m_encryption_key = nullptr;
-        m_encryption_iv = nullptr;
-      }
+#endif
+      m_encryption_master_key_id = e_key.m_master_key_id;
     }
-  }
 
-  if (crypt_data != nullptr) {
-    if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED && !for_import &&
-        crypt_data->private_version == 3) {
-      // for versions 1,2 and encrypted table we will fail the upgrade.
-      Validation_key_verions_result valid_result{
-          crypt_data->key_found
-              ? crypt_data->validate_encryption_key_versions()
-              : Validation_key_verions_result::MISSING_KEY_VERSIONS};
-      if (!crypt_data->key_found ||
-          valid_result != Validation_key_verions_result::SUCCESS) {
-        ut_ad(m_filename != nullptr);
-        uint error =
-            !crypt_data->key_found
-                ? ER_XB_MSG_5
-                : (valid_result ==
-                           Validation_key_verions_result::MISSING_KEY_VERSIONS
-                       ? ER_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
-                       : ER_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS);
-
-        ib::warn(error, space_id, m_filename, crypt_data->key_id);
-        m_is_valid = false;
-        free_first_page();
-        fil_space_destroy_crypt_data(&crypt_data);
-        output.keyring_encryption_info.keyring_encryption_key_is_missing = true;
-        output.error = DB_INVALID_ENCRYPTION_META;
-        return output;
-      }
+    if (recv_recovery_is_on() &&
+        memcmp(m_encryption_key, m_encryption_iv, Encryption::KEY_LEN) == 0) {
+      ut::free(m_encryption_key);
+      ut::free(m_encryption_iv);
+      m_encryption_key = nullptr;
+      m_encryption_iv = nullptr;
     }
-    fil_space_destroy_crypt_data(&crypt_data);
   }
 #ifndef UNIV_HOTBACKUP
   /* Set encryption operation in progress based on operation type
@@ -804,10 +692,9 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
   if (fil_space_read_name_and_filepath(m_space_id, &prev_name,
                                        &prev_filepath)) {
     if (0 == strcmp(m_filepath, prev_filepath)) {
-      ut_free(prev_name);
-      ut_free(prev_filepath);
-      output.error = DB_SUCCESS;
-      return (output);
+      ut::free(prev_name);
+      ut::free(prev_filepath);
+      return (DB_SUCCESS);
     }
 
     /* Make sure the space_id has not already been opened. */
@@ -818,19 +705,17 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
                              << ". Cannot open filepath: " << m_filepath
                              << " which uses the same space ID.";
 
-    ut_free(prev_name);
-    ut_free(prev_filepath);
+    ut::free(prev_name);
+    ut::free(prev_filepath);
 
     m_is_valid = false;
 
     free_first_page();
 
-    output.error = DB_TABLESPACE_EXISTS;
-    return (output);
+    return (DB_TABLESPACE_EXISTS);
   }
 
-  output.error = DB_SUCCESS;
-  return (output);
+  return (DB_SUCCESS);
 }
 
 /** Determine the space id of the given file descriptor by reading a few
@@ -856,7 +741,7 @@ dberr_t Datafile::find_space_id() {
        page_size <<= 1) {
     /* map[space_id] = count of pages */
     typedef std::map<space_id_t, ulint, std::less<space_id_t>,
-                     ut_allocator<std::pair<const space_id_t, ulint>>>
+                     ut::allocator<std::pair<const space_id_t, ulint>>>
         Pages;
 
     Pages verify;
@@ -871,9 +756,8 @@ dberr_t Datafile::find_space_id() {
     ib::info(ER_IB_MSG_405)
         << "Page size:" << page_size << ". Pages to analyze:" << page_count;
 
-    byte *buf = static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
-
-    byte *page = static_cast<byte *>(ut_align(buf, UNIV_SECTOR_SIZE));
+    byte *page = static_cast<byte *>(
+        ut::aligned_alloc(UNIV_PAGE_SIZE_MAX, UNIV_SECTOR_SIZE));
 
     for (ulint j = 0; j < page_count; ++j) {
       dberr_t err;
@@ -959,7 +843,7 @@ dberr_t Datafile::find_space_id() {
       }
     }
 
-    ut_free(buf);
+    ut::aligned_free(page);
 
     ib::info(ER_IB_MSG_409) << "Page size: " << page_size
                             << ". Possible space_id count:" << verify.size();
@@ -989,23 +873,41 @@ dberr_t Datafile::find_space_id() {
 
 /** Finds a given page of the given space id from the double write buffer
 and copies it to the corresponding .ibd file.
-@param[in]	restore_page_no		Page number to restore
+@param[in]      restore_page_no         Page number to restore
 @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
 dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
+  ut_a(is_open());
   auto page_id = page_id_t{m_space_id, restore_page_no};
 
   /* Find if double write buffer contains page_no of given space id. */
   const byte *page = recv_sys->dblwr->find(page_id);
+
+  bool found = false;
+  lsn_t reduced_lsn = LSN_MAX;
+  std::tie(found, reduced_lsn) = recv_sys->dblwr->find_entry(page_id);
 
   if (page == nullptr) {
     /* If the first page of the given user tablespace is not there
     in the doublewrite buffer, then the recovery is going to fail
     now. Hence this is treated as an error. */
 
-    ib::error(ER_IB_MSG_412)
-        << "Corrupted page " << page_id_t(m_space_id, restore_page_no)
-        << " of datafile '" << m_filepath
-        << "' could not be found in the doublewrite buffer.";
+    if (found && reduced_lsn != LSN_MAX && reduced_lsn != 0) {
+      ib::error(ER_REDUCED_DBLWR_PAGE_FOUND, m_filepath, page_id.space(),
+                page_id.page_no());
+    } else {
+      ib::error(ER_IB_MSG_412)
+          << "Corrupted page " << page_id_t(m_space_id, restore_page_no)
+          << " of datafile '" << m_filepath
+          << "' could not be found in the doublewrite buffer.";
+    }
+    return (DB_CORRUPTION);
+  }
+
+  const lsn_t dblwr_lsn = mach_read_from_8(page + FIL_PAGE_LSN);
+
+  if (found && reduced_lsn != LSN_MAX && reduced_lsn > dblwr_lsn) {
+    ib::error(ER_REDUCED_DBLWR_PAGE_FOUND, m_filepath, page_id.space(),
+              page_id.page_no());
 
     return (DB_CORRUPTION);
   }

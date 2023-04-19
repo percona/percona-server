@@ -21,13 +21,25 @@ effectively bypasses the process.
     The use of these variables may result in improper index selection by the
     optimizer.
 
-.. variable:: innodb_records_in_range
+.. _innodb_records_in_range:
 
-    :cli: ``--innodb-records-in-range``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Numeric
-    :default: 0
+.. rubric:: ``innodb_records_in_range``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-records-in-range``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 0
 
 :Availability:  The feature is **technical preview** quality.
 
@@ -39,14 +51,25 @@ query.
     mysql> SET @@GLOBAL.innodb_records_in_range=100;
     100
 
+.. _innodb_force_index_records_in_range:
 
-.. variable:: innodb_force_index_records_in_range
+.. rubric:: ``innodb_force_index_records_in_range``
 
-    :cli: ``--innodb-force-index-records-in-range``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Numeric
-    :default: 0
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-force-index-records-in-range``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 0
 
 :Availability:  The feature is **technical preview** quality.
 

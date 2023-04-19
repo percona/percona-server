@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ private:
   unsigned int m_vBuild;
 
 public:
-  MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id);
+  MgmApiSession(class MgmtSrvr & mgm, ndb_socket_t sock, Uint64 session_id);
   ~MgmApiSession() override;
   void runSession() override;
 
@@ -130,6 +130,8 @@ public:
 
   void get_mgmd_nodeid(Parser_t::Context &ctx, Properties const &args);
 
+  static const unsigned MAX_EVENT_LENGTH = 25;
+
   void report_event(Parser_t::Context &ctx, Properties const &args);
 
   void listSessions(Parser_t::Context &ctx, Properties const &args);
@@ -155,7 +157,7 @@ public:
     m_mgmsrv(mgm),
     m_next_session_id(1) {}
 
-  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket) override{
+  SocketServer::Session * newSession(ndb_socket_t socket) override{
     return new MgmApiSession(m_mgmsrv, socket, m_next_session_id++);
   }
 };

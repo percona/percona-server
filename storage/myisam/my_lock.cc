@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ typedef void (*sig_return)(int); /* Returns type from signal */
 static int volatile my_have_got_alarm = 0;
 static uint my_time_to_wait_for_lock = 2; /* In seconds */
 
-static void my_set_alarm_variable(int signo MY_ATTRIBUTE((unused))) {
+static void my_set_alarm_variable(int signo [[maybe_unused]]) {
   my_have_got_alarm = 1; /* Tell program that time expired */
 }
 }  // extern C
@@ -62,9 +62,8 @@ static int win_lock(File fd, int locktype, my_off_t start, my_off_t length,
                     int timeout_sec) {
   LARGE_INTEGER liOffset, liLength;
   DWORD dwFlags;
-  OVERLAPPED ov = {0};
+  OVERLAPPED ov{};
   HANDLE hFile = (HANDLE)my_get_osfhandle(fd);
-  DWORD lastError = 0;
   int i;
   int timeout_millis = timeout_sec * 1000;
 

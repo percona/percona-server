@@ -59,8 +59,7 @@ INSERT INTO flush_statement(value) VALUES
   ('TABLE_STATISTICS'),
   ('INDEX_STATISTICS'),
   ('USER_RESOURCES'),
-  ('OPTIMIZER_COSTS'),
-  ('CHANGED_PAGE_BITMAPS')
+  ('OPTIMIZER_COSTS')
 ;
 
 --let $statement_idx = 1

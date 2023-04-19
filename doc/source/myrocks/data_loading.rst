@@ -61,12 +61,12 @@ killer):
 
 Using sql_log_bin=0 avoids writing to binary logs.
 
-With :variable:`rocksdb_bulk_load` set to ``1``, MyRocks enters special mode to
+With :ref:`rocksdb_bulk_load` set to ``1``, MyRocks enters special mode to
 write all inserts into bottommost RocksDB levels, and skips writing data into
 MemTable and the following compactions. This is very efficient way to load
 data.
 
-The :variable:`rocksdb_bulk_load` mode operates with a few conditions:
+The :ref:`rocksdb_bulk_load` mode operates with a few conditions:
 
 * None of the data being bulk loaded can overlap with existing data in the
   table. The easiest way to ensure this is to always bulk load into an empty
@@ -75,7 +75,7 @@ The :variable:`rocksdb_bulk_load` mode operates with a few conditions:
   overlap between what is being loaded and what already exists.
 
 * The data may not be visible until bulk load mode is ended (i.e. the
-  :variable:`rocksdb_bulk_load` is set to zero again). The method that is used
+  :ref:`rocksdb_bulk_load` is set to zero again). The method that is used
   is building up SST files which will later be added as-is to the database.
   Until a particular SST has been added the data will not be visible to the
   rest of the system, thus issuing a ``SELECT`` on the table currently being
@@ -86,7 +86,7 @@ The :variable:`rocksdb_bulk_load` mode operates with a few conditions:
   result, it is inadvisable to interleave ``INSERT`` statements to two or more
   tables during bulk load mode.
 
-By default, the :variable:`rocksdb_bulk_load` mode expects all data be inserted
+By default, the :ref:`rocksdb_bulk_load` mode expects all data be inserted
 in primary key order (or reversed order). If the data is in the reverse order
 (i.e. the data is descending on a normally ordered primary key or is ascending
 on a reverse ordered primary key), the rows are cached in chunks to switch the
@@ -117,8 +117,8 @@ To allow for loading unsorted data:
   SET session rocksdb_bulk_load=0;
   SET session rocksdb_bulk_load_allow_unsorted=0;
 
-Note that :variable:`rocksdb_bulk_load_allow_unsorted` can only be changed when
-:variable:`rocksdb_bulk_load` is disabled (set to ``0``). In this case, all
+Note that :ref:`rocksdb_bulk_load_allow_unsorted` can only be changed when
+:ref:`rocksdb_bulk_load` is disabled (set to ``0``). In this case, all
 input data will go through an intermediate step that writes the rows to
 temporary SST files, sorts them rows in the primary key order, and then writes
 to final SST files in the correct order.
@@ -126,8 +126,8 @@ to final SST files in the correct order.
 Other Approaches
 ================
 
-If :variable:`rocksdb_commit_in_the_middle` is enabled, MyRocks implicitly
-commits every :variable:`rocksdb_bulk_load_size records` (default is ``1,000``)
+If :ref:`rocksdb_commit_in_the_middle` is enabled, MyRocks implicitly
+commits every :ref:`rocksdb_bulk_load_size` records (default is ``1,000``)
 in the middle of your transaction. If your data loading fails in the middle of
 the statement (``LOAD DATA`` or bulk ``INSERT``), rows are not entirely rolled
 back, but some of rows are stored in the table. To restart data loading, you'll
@@ -135,8 +135,8 @@ need to truncate the table and loading data again.
 
 .. warning::
 
-  If you are loading large data without enabling :variable:`rocksdb_bulk_load`
-  or :variable:`rocksdb_commit_in_the_middle`, please make sure transaction
+  If you are loading large data without enabling :ref:`rocksdb_bulk_load`
+  or :ref:`rocksdb_commit_in_the_middle`, please make sure transaction
   size is small enough. All modifications of the ongoing transactions are kept
   in memory.
 

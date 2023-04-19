@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 #ifndef DELAYED_PLUGIN_INITIALIZATION_INCLUDE
 #define DELAYED_PLUGIN_INITIALIZATION_INCLUDE
 
-#include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
+#include "plugin/group_replication/include/plugin_utils.h"
 
 class Delayed_initialization_thread {
  public:

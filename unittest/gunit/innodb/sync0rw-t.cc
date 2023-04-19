@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,7 @@ TEST(sync0rw, rw_lock_reader_thread) {
   rw_lock_t *rw_locks[3];
   for (auto &rw_lock : rw_locks) {
     rw_lock = static_cast<rw_lock_t *>(malloc(sizeof(rw_lock_t)));
-    rw_lock_create(PSI_NOT_INSTRUMENTED, rw_lock, SYNC_LEVEL_VARYING);
+    rw_lock_create(PSI_NOT_INSTRUMENTED, rw_lock, LATCH_ID_BUF_BLOCK_LOCK);
   }
 
   std::atomic<std::thread::id> thread_1_id;
@@ -190,18 +190,18 @@ TEST(sync0rw, rw_lock_reader_thread) {
     */
       {
           phase_task{1, [&] { thread_1_id = std::this_thread::get_id(); }},
-          phase_task{1, [&] { rw_lock_s_lock(rw_locks[1]); }},
-          phase_task{1, [&] { rw_lock_x_lock(rw_locks[2]); }},
-          phase_task{2, [&] { rw_lock_s_lock(rw_locks[0]); }},
-          phase_task{2, [&] { rw_lock_s_lock(rw_locks[1]); }},
+          phase_task{1, [&] { rw_lock_s_lock(rw_locks[1], UT_LOCATION_HERE); }},
+          phase_task{1, [&] { rw_lock_x_lock(rw_locks[2], UT_LOCATION_HERE); }},
+          phase_task{2, [&] { rw_lock_s_lock(rw_locks[0], UT_LOCATION_HERE); }},
+          phase_task{2, [&] { rw_lock_s_lock(rw_locks[1], UT_LOCATION_HERE); }},
       },
       /* Place second S-latch on lock 0, now from thread 1. */
       {
-          phase_task{1, [&] { rw_lock_s_lock(rw_locks[0]); }},
+          phase_task{1, [&] { rw_lock_s_lock(rw_locks[0], UT_LOCATION_HERE); }},
       },
       /* Place third S-latch on lock 0, now from thread 3. */
       {
-          phase_task{3, [&] { rw_lock_s_lock(rw_locks[0]); }},
+          phase_task{3, [&] { rw_lock_s_lock(rw_locks[0], UT_LOCATION_HERE); }},
       },
       /* Unlatch S-latches on lock 0 from threads 2 and 3. */
       {
@@ -210,9 +210,12 @@ TEST(sync0rw, rw_lock_reader_thread) {
       },
       /* Now place all blocking X-latches from threads 2, 3 and 4. */
       {
-          phase_task{2, [&] { rw_lock_x_lock(rw_locks[0]); }, false},
-          phase_task{3, [&] { rw_lock_x_lock(rw_locks[1]); }, false},
-          phase_task{4, [&] { rw_lock_x_lock(rw_locks[2]); }, false},
+          phase_task{2, [&] { rw_lock_x_lock(rw_locks[0], UT_LOCATION_HERE); },
+                     false},
+          phase_task{3, [&] { rw_lock_x_lock(rw_locks[1], UT_LOCATION_HERE); },
+                     false},
+          phase_task{4, [&] { rw_lock_x_lock(rw_locks[2], UT_LOCATION_HERE); },
+                     false},
       },
       /* Now run the rw_locks check. */
       {

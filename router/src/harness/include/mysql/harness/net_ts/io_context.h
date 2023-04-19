@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 
 #include "my_config.h"  // HAVE_EPOLL
 #include "mysql/harness/net_ts/executor.h"
+#include "mysql/harness/net_ts/impl/callstack.h"
 #include "mysql/harness/net_ts/impl/kqueue_io_service.h"
 #include "mysql/harness/net_ts/impl/linux_epoll_io_service.h"
 #include "mysql/harness/net_ts/impl/poll_io_service.h"
@@ -75,6 +76,17 @@ class io_context : public execution_context {
         io_service_open_res_{io_service_->open()} {}
 
   explicit io_context(int /* concurrency_hint */) : io_context() {}
+
+  ~io_context() {
+    active_ops_.release_all();
+    cancelled_ops_.clear();
+    // Make sure the services are destroyed before our internal fields. The
+    // services own the timers that can indirectly call our methods when
+    // destructed. See UT NetTS_io_context.pending_timer_on_destroy for an
+    // example.
+    destroy();
+  }
+
   io_context(const io_context &) = delete;
   io_context &operator=(const io_context &) = delete;
 
@@ -106,7 +118,7 @@ class io_context : public execution_context {
       stopped_ = true;
     }
 
-    io_service_->notify();
+    notify_io_service_if_not_running_in_this_thread();
   }
 
   bool stopped() const noexcept {
@@ -139,6 +151,107 @@ class io_context : public execution_context {
   }
 
  private:
+  /**
+   * queued work from io_context::executor_type::dispatch()/post()/defer().
+   */
+  class DeferredWork {
+   public:
+    // simple, generic storage of callable.
+    //
+    // std::function<void()> is similar, but doesn't work for move-only
+    // callables like lambda's that capture a move-only type
+    class BasicCallable {
+     public:
+      virtual ~BasicCallable() = default;
+
+      virtual void invoke() = 0;
+    };
+
+    template <class Func>
+    class Callable : public BasicCallable {
+     public:
+      Callable(Func &&f) : f_{std::forward<Func>(f)} {}
+
+      void invoke() override { f_(); }
+
+     private:
+      Func f_;
+    };
+
+    using op_type = std::unique_ptr<BasicCallable>;
+
+    /**
+     * run a deferred work item.
+     *
+     * @returns number work items run.
+     * @retval 0 work queue was empty, nothing was run.
+     */
+    size_t run_one() {
+      // tmp list to hold the current operation to run.
+      //
+      // makes it simple and fast to move the head element and shorten the time
+      // the lock is held.
+      decltype(work_) tmp;
+
+      // lock is only needed as long as we modify the work-queue.
+      {
+        std::lock_guard<std::mutex> lk(work_mtx_);
+
+        if (work_.empty()) return 0;
+
+        // move the head of the work queue out and release the lock.
+        //
+        // note: std::list.splice() moves pointers.
+        tmp.splice(tmp.begin(), work_, work_.begin());
+      }
+
+      // run the deferred work.
+      tmp.front()->invoke();
+
+      // and destruct the list at the end.
+
+      return 1;
+    }
+
+    /**
+     * queue work for later execution.
+     */
+    template <class Func, class ProtoAllocator>
+    void post(Func &&f, const ProtoAllocator & /* a */) {
+      std::lock_guard<std::mutex> lk(work_mtx_);
+
+      work_.emplace_back(
+          std::make_unique<Callable<Func>>(std::forward<Func>(f)));
+    }
+
+    /**
+     * check if work is queued for later execution.
+     *
+     * @retval true if some work is queued.
+     */
+    bool has_outstanding_work() const {
+      std::lock_guard<std::mutex> lk(work_mtx_);
+      return !work_.empty();
+    }
+
+   private:
+    mutable std::mutex work_mtx_;
+    std::list<op_type> work_;
+  };
+
+  DeferredWork deferred_work_;
+
+  /**
+   * defer work for later execution.
+   */
+  template <class Func, class ProtoAllocator>
+  void defer_work(Func &&f, const ProtoAllocator &a) {
+    deferred_work_.post(std::forward<Func>(f), a);
+
+    // wakeup the possibly blocked io-thread.
+    notify_io_service_if_not_running_in_this_thread();
+  }
+
   template <class Clock, class Duration>
   count_type do_one_until(
       std::unique_lock<std::mutex> &lk,
@@ -181,6 +294,7 @@ class io_context : public execution_context {
   bool has_outstanding_work() const {
     if (!cancelled_ops_.empty()) return true;
     if (active_ops_.has_outstanding_work()) return true;
+    if (deferred_work_.has_outstanding_work()) return true;
 
     if (work_count_ > 0) return true;
 
@@ -250,11 +364,6 @@ class io_context : public execution_context {
         : async_op{fd, wt}, op_{std::forward<Op>(op)} {}
 
     void run(io_context & /* io_ctx */) override {
-      // for later: integrate with io_ctx.dispatch() to execute it in another
-      // execution context if required.
-      //
-      // currently, we only need it to executor directly in the current thread.
-
       if (is_cancelled()) {
         op_(make_error_code(std::errc::operation_canceled));
       } else {
@@ -299,6 +408,31 @@ class io_context : public execution_context {
 
     element_type extract_first(native_handle_type fd) {
       return extract_first(fd, [](auto const &) { return true; });
+    }
+
+    void release_all() {
+      // We expect that this method is called before AsyncOps destructor, to
+      // make sure that ops_ map is empty when the destructor executes. If the
+      // ops_ is not empty when destructed, the destructor of its element can
+      // trigger a method that will try to access that map (that is destructed).
+      // Example: we have an AsyncOp that captures some Socket object with a
+      // smart pointer. When the destructor of this AsyncOp is called, it can
+      // also call the destructor of that Socket, which in turn will call
+      // socket.close(), causing the Socket to unregister its operations in
+      // its respective io_context object which is us (calls extract_first()).
+      std::list<element_type> ops_to_delete;
+      {
+        std::lock_guard<std::mutex> lk(mtx_);
+        for (auto &fd_ops : ops_) {
+          for (auto &fd_op : fd_ops.second) {
+            ops_to_delete.push_back(std::move(fd_op));
+          }
+        }
+        ops_.clear();
+        // It is important that we release the mtx_ here before the
+        // ops_to_delete go out of scope and are deleted. AsyncOp destructor can
+        // indirectly call extract_first which would lead to a deadlock.
+      }
     }
 
    private:
@@ -353,7 +487,7 @@ class io_context : public execution_context {
     {
       auto res = io_service_->add_fd_interest(fd, wt);
       if (!res) {
-#if !defined(NDEBUG)
+#if 0
         // fd may be -1 or so
         std::cerr << "!! add_fd_interest(" << fd << ", ..."
                   << ") " << res.error() << " " << res.error().message()
@@ -371,7 +505,7 @@ class io_context : public execution_context {
       }
     }
 
-    io_service_->notify();
+    notify_io_service_if_not_running_in_this_thread();
   }
 
   class timer_queue_base : public execution_context::service {
@@ -687,7 +821,7 @@ class io_context : public execution_context {
     queue.push(timer, std::forward<Op>(op));
 
     // wakeup the blocked poll_one() to handle possible timer events.
-    io_service_->notify();
+    notify_io_service_if_not_running_in_this_thread();
   }
 
   /**
@@ -702,7 +836,7 @@ class io_context : public execution_context {
     const auto count = use_service<timer_queue<Timer>>(*this).cancel(timer);
     if (count) {
       // if a timer was canceled, interrupt the io-service
-      io_service_->notify();
+      notify_io_service_if_not_running_in_this_thread();
     }
     return count;
   }
@@ -758,6 +892,8 @@ class io_context : public execution_context {
 
   void is_running(bool v) { is_running_ = v; }
   bool is_running() const { return is_running_; }
+
+  void notify_io_service_if_not_running_in_this_thread();
 };
 }  // namespace net
 
@@ -850,34 +986,6 @@ inline io_context::count_type io_context::poll_one() {
   return do_one(lk, 0ms);
 }
 
-/**
- * cancel all async-ops of a file-descriptor.
- */
-inline stdx::expected<void, std::error_code> io_context::cancel(
-    native_handle_type fd) {
-  bool need_notify{false};
-  {
-    // check all async-ops
-    std::lock_guard<std::mutex> lk(mtx_);
-
-    while (auto op = active_ops_.extract_first(fd)) {
-      op->cancel();
-
-      cancelled_ops_.push_back(std::move(op));
-
-      need_notify = true;
-    }
-  }
-
-  // wakeup the loop to deliver the cancelled fds
-  if (true || need_notify) {
-    io_service_->remove_fd(fd);
-    io_service_->notify();
-  }
-
-  return {};
-}
-
 class io_context::executor_type {
  public:
   executor_type(const executor_type &rhs) noexcept = default;
@@ -888,40 +996,61 @@ class io_context::executor_type {
   ~executor_type() = default;
 
   bool running_in_this_thread() const noexcept {
-    // TODO: check if this task is running in this thread. Currently, it is
-    // "yes", as we don't allow post()ing to other threads
-
-    // track call-chain
-    return true;
+    return impl::Callstack<io_context>::contains(io_ctx_) != nullptr;
   }
   io_context &context() const noexcept { return *io_ctx_; }
 
   void on_work_started() const noexcept { ++io_ctx_->work_count_; }
   void on_work_finished() const noexcept { --io_ctx_->work_count_; }
 
+  /**
+   * execute function.
+   *
+   * Effect:
+   *
+   * The executor
+   *
+   * - MAY block forward progress of the caller until f() finishes.
+   */
   template <class Func, class ProtoAllocator>
   void dispatch(Func &&f, const ProtoAllocator &a) const {
     if (running_in_this_thread()) {
       // run it in this thread.
       std::decay_t<Func>(std::forward<Func>(f))();
     } else {
-      // run it in a worker thread
+      // queue function call for later execution.
       post(std::forward<Func>(f), a);
     }
   }
 
-  // TODO: implement
+  /**
+   * queue function for execution.
+   *
+   * Effects:
+   *
+   * The executor
+   *
+   * - SHALL NOT block forward progress of the caller pending completion of f().
+   * - MAY begin f() progress before the call to post completes.
+   */
   template <class Func, class ProtoAllocator>
-  void post(Func &&f, const ProtoAllocator & /* a */) const {
-    // supposed to call the function in another thread, but as we only have it
-    // in one thread right now ... execute directly
-
-    std::decay_t<Func>(std::forward<Func>(f))();
+  void post(Func &&f, const ProtoAllocator &a) const {
+    io_ctx_->defer_work(std::forward<Func>(f), a);
   }
 
+  /**
+   * defer function call for later execution.
+   *
+   * Effect:
+   *
+   * The executor:
+   *
+   * - SHALL NOT block forward progress of the caller pending completion of f().
+   * - SHOULD NOT begin f()'s progress before the call to defer()
+   *   completes.
+   */
   template <class Func, class ProtoAllocator>
   void defer(Func &&f, const ProtoAllocator &a) const {
-    // same as post
     post(std::forward<Func>(f), a);
   }
 
@@ -951,6 +1080,35 @@ inline io_context::executor_type io_context::get_executor() noexcept {
   return executor_type(*this);
 }
 
+/**
+ * cancel all async-ops of a file-descriptor.
+ */
+inline stdx::expected<void, std::error_code> io_context::cancel(
+    native_handle_type fd) {
+  bool need_notify{false};
+  {
+    // check all async-ops
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    while (auto op = active_ops_.extract_first(fd)) {
+      op->cancel();
+
+      cancelled_ops_.push_back(std::move(op));
+
+      need_notify = true;
+    }
+  }
+
+  // wakeup the loop to deliver the cancelled fds
+  if (true || need_notify) {
+    io_service_->remove_fd(fd);
+
+    notify_io_service_if_not_running_in_this_thread();
+  }
+
+  return {};
+}
+
 template <class Clock, class Duration>
 inline io_context::count_type io_context::do_one_until(
     std::unique_lock<std::mutex> &lk,
@@ -972,9 +1130,17 @@ inline io_context::count_type io_context::do_one_until(
   return do_one(lk, rel_time_ms);
 }
 
+inline void io_context::notify_io_service_if_not_running_in_this_thread() {
+  if (impl::Callstack<io_context>::contains(this) == nullptr) {
+    io_service_->notify();
+  }
+}
+
 // precond: lk MUST be locked
 inline io_context::count_type io_context::do_one(
     std::unique_lock<std::mutex> &lk, std::chrono::milliseconds timeout) {
+  impl::Callstack<io_context>::Context ctx(this);
+
   timer_queue_base *timer_q{nullptr};
 
   monitor mon(*this);
@@ -985,6 +1151,11 @@ inline io_context::count_type io_context::do_one(
   }
 
   while (true) {
+    // 1. deferred work.
+    // 2. timer
+    // 3. triggered events.
+
+    // timer (2nd round)
     if (timer_q) {
       if (timer_q->run_one()) {
         wake_one_runner_(lk);
@@ -994,6 +1165,13 @@ inline io_context::count_type io_context::do_one(
       }
     }
 
+    // deferred work
+    if (deferred_work_.run_one()) {
+      wake_one_runner_(lk);
+      return 1;
+    }
+
+    // timer
     std::chrono::milliseconds min_duration{0};
     {
       std::lock_guard<std::mutex> lk(mtx_);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,6 +114,9 @@ const char *const wrong_nr_args_str =
 const char *const invalid_format_str =
     "'%s' is not version string argument with format major.minor.patch";
 const char *const value_outside_domain_str = "%s is not between %s and %s";
+const char *const wrong_value_for_paxos_single_leader =
+    "group_replication_paxos_single_leader must be OFF when choosing a version "
+    "lower than 8.0.27.";
 
 static bool group_replication_set_communication_protocol_init(UDF_INIT *initid,
                                                               UDF_ARGS *args,
@@ -272,13 +275,29 @@ static char *group_replication_set_communication_protocol(
     return result;
   }
 
+  // If we request a transition from a version above 8.0.27 to a version
+  //  under 8.0.27, we must ensure that the group was started with
+  //  PAXOS Single Leader support with value OFF.
+  Member_version const version_that_supports_paxos_single_leader(
+      FIRST_PROTOCOL_WITH_SUPPORT_FOR_CONSENSUS_LEADERS);
+  if (my_version >= version_that_supports_paxos_single_leader &&
+      requested_version < version_that_supports_paxos_single_leader &&
+      local_member_info->get_allow_single_leader()) {
+    std::snprintf(result, MAX_SAFE_LENGTH, wrong_value_for_paxos_single_leader);
+    *length = std::strlen(result);
+    *error = 1;
+    throw_udf_error(action_name, result);
+    return result;
+  }
+
   Gcs_protocol_version gcs_protocol =
       convert_to_gcs_protocol(requested_version, my_version);
 
   Communication_protocol_action group_action(gcs_protocol);
   Group_action_diagnostics action_diagnostics;
-  group_action_coordinator->coordinate_action_execution(&group_action,
-                                                        &action_diagnostics);
+  group_action_coordinator->coordinate_action_execution(
+      &group_action, &action_diagnostics,
+      Group_action_message::ACTION_UDF_COMMUNICATION_PROTOCOL_MESSAGE);
   if (log_group_action_result_message(
           &action_diagnostics, "group_replication_set_communication_protocol",
           result, length)) {

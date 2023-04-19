@@ -5,11 +5,11 @@
 Extended SET VAR Optimizer Hint
 ================================================================================
 
-|Percona Server| |version| extends the ``SET_VAR`` introduced in |MySQL| 8.0
+*Percona Server for MySQL* 8.0 extends the ``SET_VAR`` introduced in *MySQL* 8.0
 effectively replacing the ``SET STATEMENT ... FOR`` statement. ``SET_VAR`` is an
 optimizer hint that can be applied to session variables.
 
-|Percona Server| |version| extends the ``SET_VAR`` hint to support the
+*Percona Server for MySQL* 8.0 extends the ``SET_VAR`` hint to support the
 following:
 
 - The ``OPTIMIZE TABLE`` statement
@@ -23,7 +23,7 @@ following:
 - The ``LOAD INDEX`` statement (used for MyISAM)
 - The ``CREATE TABLE`` statement
 
-|Percona Server| |version| also supports setting the following variables by
+*Percona Server for MySQL* 8.0 also supports setting the following variables by
 using ``SET_VAR``:
 
 .. hlist::
@@ -42,6 +42,6 @@ using ``SET_VAR``:
   
 .. seealso::
 
-   |MySQL| Documentation: Variable-setting hint syntax
+   *MySQL* Documentation: Variable-setting hint syntax
       https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html#optimizer-hints-set-var
    

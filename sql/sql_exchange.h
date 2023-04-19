@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 struct CHARSET_INFO;
 class String;
+
+enum enum_source_type { LOAD_SOURCE_FILE, LOAD_SOURCE_URL, LOAD_SOURCE_S3 };
 
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 

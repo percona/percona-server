@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ void Dbtup::execSEND_PACKED(Signal* signal)
 }
 
 /**
- * Copy a TRANSID_AI signal, which alread has its header constructed in 'signal',
+ * Copy a TRANSID_AI signal, which already has its header constructed in 'signal',
  * into a packed buffer structure.
  *
  * Prereq:
@@ -184,7 +184,7 @@ void Dbtup::sendAPI_TRANSID_AI(Signal* signal,
       dataBuf = &signal->theData[25];
     }
 
-    // Send already buffered TRANSID_AI(s) preceeding this TRANSID_AI
+    // Send already buffered TRANSID_AI(s) preceding this TRANSID_AI
     const BlockReference TBref = numberToRef(API_PACKED, nodeId);
     MEMCOPY_NO_WORDS(&signal->theData[0], &buffer->packetBufferTA[0], TpacketLen);
     sendSignal(TBref, GSN_TRANSID_AI, signal, TpacketLen, JBB);
@@ -207,7 +207,7 @@ void Dbtup::sendAPI_TRANSID_AI(Signal* signal,
      *
      * Note that the check for fitting a 1-word signal in addition
      * to this signal serves dual purposes:
-     * - The 1-word signal is the smalles possible signal which
+     * - The 1-word signal is the smallest possible signal which
      *   can either be added later, or already is buffered.
      * - So failing to also add a 1-word signal implies that any
      *   previously buffered signals were flushed above.
@@ -382,8 +382,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
          blockNumber == SUMA))
     {
       static_assert(MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE <=
-                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength,
-                    "");
+                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength);
       ndbrequire(TransIdAI::HeaderLength + ToutBufIndex <=
                  NDB_ARRAY_SIZE(signal->theData));
       EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal,
@@ -396,8 +395,9 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
        * Data is 'short', send short signal
        */
       jam();
+      const JobBufferLevel prioLevel = req_struct->m_prio_a_flag ? JBA : JBB;
       sendSignal(recBlockref, GSN_TRANSID_AI, signal,
-                 TransIdAI::HeaderLength+ToutBufIndex, JBB);
+                 TransIdAI::HeaderLength+ToutBufIndex, prioLevel);
     }
     else
     {

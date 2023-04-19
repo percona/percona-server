@@ -99,17 +99,16 @@ namespace myrocks {
   If a is true, then b must be true.
   If a is false, then the value is b does not matter.
 */
-#ifndef DBUG_ASSERT_IMP
-#define DBUG_ASSERT_IMP(a, b) assert(!(a) || (b))
+#ifndef assert_IMP
+#define assert_IMP(a, b) assert(!(a) || (b))
 #endif
 
 /*
   Assert a if and only if b.
   a and b must be both true or both false.
 */
-#ifndef DBUG_ASSERT_IFF
-#define DBUG_ASSERT_IFF(a, b) \
-  assert(static_cast<bool>(a) == static_cast<bool>(b))
+#ifndef assert_IFF
+#define assert_IFF(a, b) assert(static_cast<bool>(a) == static_cast<bool>(b))
 #endif
 
 /*
@@ -264,7 +263,7 @@ void rdb_log_status_error(const rocksdb::Status &s, const char *msg = nullptr);
 
 // return true if the marker file exists which indicates that the corruption
 // has been detected
-bool rdb_check_rocksdb_corruption();
+bool rdb_has_rocksdb_corruption();
 
 // stores a marker file in the data directory so that after restart server
 // is still aware that rocksdb data is corrupted
@@ -305,6 +304,11 @@ const std::vector<std::string> parse_into_tokens(const std::string &s,
 
 std::string rdb_hexdump(const char *data, const std::size_t data_len,
                         const std::size_t maxsize = 0);
+
+/*
+  Helper function to return dir + '/' + file
+ */
+std::string rdb_concat_paths(const std::string &dir, const std::string &file);
 
 /*
   Helper function to see if a database exists

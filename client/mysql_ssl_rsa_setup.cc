@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@
 #include "print_version.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
 #include <pwd.h>
 #endif
 
@@ -98,7 +98,7 @@ Sql_string_t ext_files[] = {create_string("cav3.ext"),
 #define MAX_PATH_LEN \
   (FN_REFLEN - strlen(FN_DIRSEP) - cert_files[SERVER_CERT].length() - 1)
 /*
-  Higest number of fixed characters in subject line is 47:
+  Highest number of fixed characters in subject line is 47:
   MySQL_SERVER_<suffix>_Auto_Generated_Server_Certificate
   Maximum size of subject is 64. So suffix can't be longer
   than 17 characters.
@@ -113,7 +113,7 @@ static char *opt_datadir = nullptr;
 static char default_data_dir[] = MYSQL_DATADIR;
 static char *opt_suffix = nullptr;
 static char default_suffix[] = MYSQL_SERVER_VERSION;
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
 static char *opt_userid = nullptr;
 struct passwd *user_info = nullptr;
 #endif /* HAVE_CHOWN */
@@ -137,7 +137,7 @@ static struct my_option my_options[] = {
     {"suffix", 's', "Suffix to be added in certificate subject line",
      &opt_suffix, &opt_suffix, nullptr, GET_STR_ALLOC, REQUIRED_ARG,
      (longlong)&default_suffix, 0, 0, nullptr, 0, nullptr},
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
     {"uid", 0, "The effective user id to be used for file permission",
      &opt_userid, &opt_userid, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
@@ -187,7 +187,7 @@ static int set_file_pair_permission(const Sql_string_t &priv,
           << pub.c_str() << endl;
     return 1;
   }
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
   if (user_info) {
     if (chown(priv.c_str(), user_info->pw_uid, user_info->pw_gid) ||
         chown(pub.c_str(), user_info->pw_uid, user_info->pw_gid)) {
@@ -217,16 +217,16 @@ static int remove_file(const Sql_string_t &filename, bool report_error = true) {
 static void free_resources() {
   if (opt_datadir) my_free(opt_datadir);
   if (opt_suffix) my_free(opt_suffix);
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
   if (opt_userid) my_free(opt_userid);
 #endif
 }
 
 class RSA_priv {
  public:
-  RSA_priv(uint32_t key_size = 2048) : m_key_size(key_size) {}
+  explicit RSA_priv(uint32_t key_size = 2048) : m_key_size(key_size) {}
 
-  ~RSA_priv() {}
+  ~RSA_priv() = default;
 
   Sql_string_t operator()(const Sql_string_t &key_file) {
     stringstream command;
@@ -253,7 +253,7 @@ class RSA_pub {
 
 class X509_key {
  public:
-  X509_key(const Sql_string_t &version, uint32_t validity = 10 * 365L)
+  explicit X509_key(const Sql_string_t &version, uint32_t validity = 10 * 365L)
       : m_validity(validity) {
     m_subj_prefix << "-subj /CN=MySQL_Server_" << version;
   }
@@ -281,7 +281,7 @@ class X509v3_ext_writer {
 
     m_certv3_ext_options << "basicConstraints=CA:FALSE" << std::endl;
   }
-  ~X509v3_ext_writer() {}
+  ~X509v3_ext_writer() = default;
 
   bool operator()(const Sql_string_t &cav3_ext_file,
                   const Sql_string_t &certv3_ext_file) {
@@ -312,9 +312,9 @@ class X509v3_ext_writer {
 
 class X509_cert {
  public:
-  X509_cert(uint32_t validity = 10 * 365L) : m_validity(validity) {}
+  explicit X509_cert(uint32_t validity = 10 * 365L) : m_validity(validity) {}
 
-  ~X509_cert() {}
+  ~X509_cert() = default;
 
   Sql_string_t operator()(const Sql_string_t &req_file,
                           const Sql_string_t &cert_file, uint32_t serial,
@@ -473,7 +473,7 @@ int main(int argc, char *argv[]) {
       ret_val = 1;
       goto end;
     }
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
     if (opt_userid && geteuid() == 0) {
       user_info = getpwnam(opt_userid);
       if (!user_info) {

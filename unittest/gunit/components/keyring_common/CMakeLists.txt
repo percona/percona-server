@@ -1,4 +1,4 @@
-# Copyright (c) 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES (${GMOCK_INCLUDE_DIRS})
+
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="component_keyring_gunit")
 
 # Add tests here
 SET(KEYRING_COMPONENT_COMMON_TESTS
@@ -45,41 +47,35 @@ LIST(APPEND ALL_KEYRING_COMPONENT_COMMON_TESTS
   ${CMAKE_SOURCE_DIR}/components/keyrings/common/encryption/aes.cc
   )
 
-IF(WIN32)
-  LIST(APPEND ALL_KEYRING_COMPONENT_COMMON_TESTS
-    ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc
-    )
-ENDIF()
-
-SET(KEYRING_COMPONENT_LIBS)
-LIST(APPEND KEYRING_COMPONENT_LIBS
+SET(KEYRING_COMPONENT_LIBS
   keyring_common
   ${SSL_LIBRARIES}
   ${LIBDL}
   )
 
+IF(COMPONENT_COMPILE_VISIBILITY)
+  SET(COMPILE_OPTIONS_ARG COMPILE_OPTIONS "${COMPONENT_COMPILE_VISIBILITY}")
+ENDIF()
+
 MYSQL_ADD_EXECUTABLE(merge_component_keyring_common_tests-t
  ${ALL_KEYRING_COMPONENT_COMMON_TESTS}
+ ${COMPILE_OPTIONS_ARG}
  ENABLE_EXPORTS
- ADD_TEST merge_component_keyring_common_tests)
-
-TARGET_LINK_LIBRARIES(merge_component_keyring_common_tests-t
-  ${KEYRING_COMPONENT_LIBS}
-  gunit_large
-  server_unittest_library
-  )
+ ADD_TEST merge_component_keyring_common_tests
+ LINK_LIBRARIES
+ ${KEYRING_COMPONENT_LIBS}
+ gunit_large
+ server_unittest_library
+ )
 
 FOREACH(test ${KEYRING_COMPONENT_COMMON_TESTS})
-  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+  MYSQL_ADD_EXECUTABLE(keyring_common_${test}-t ${test}-t.cc
+    ${COMPILE_OPTIONS_ARG}
     ENABLE_EXPORTS
     SKIP_INSTALL
     EXCLUDE_FROM_ALL
-    )
-
-  TARGET_LINK_LIBRARIES(${test}-t
-    ${KEYRING_COMPONENT_LIBS}
-    gunit_large
-    server_unittest_library
+    LINK_LIBRARIES
+    ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
     )
 ENDFOREACH()
 

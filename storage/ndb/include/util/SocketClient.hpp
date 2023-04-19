@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,8 @@
 #ifndef SOCKET_CLIENT_HPP
 #define SOCKET_CLIENT_HPP
 
-#include <NdbTCP.h>
+#include "portlib/ndb_socket.h"
+
 class SocketAuthenticator;
 
 class SocketClient
@@ -34,7 +35,7 @@ class SocketClient
   unsigned short m_last_used_port;
   SocketAuthenticator *m_auth;
 public:
-  SocketClient(SocketAuthenticator *sa = 0);
+  SocketClient(SocketAuthenticator *sa = nullptr);
   ~SocketClient();
   bool init();
   void set_connect_timeout(unsigned int timeout_millisec) {
@@ -42,10 +43,10 @@ public:
   }
   int bind(const char* local_hostname,
            unsigned short local_port);
-  NDB_SOCKET_TYPE connect(const char* server_hostname,
-                          unsigned short server_port);
+  ndb_socket_t connect(const char* server_hostname,
+                       unsigned short server_port);
 
-  NDB_SOCKET_TYPE m_sockfd;
+  ndb_socket_t m_sockfd;
 };
 
 #endif // SOCKET_ClIENT_HPP

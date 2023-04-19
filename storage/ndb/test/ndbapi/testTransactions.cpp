@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ struct OperationTestCase {
  *
  *         NOTE: S-READ vs DML is not unpredictable as DML locks both replicas
  *        
- *         Therefor those combinations are removed from the matrix
+ *         Therefore those combinations are removed from the matrix
  */
 OperationTestCase matrix[] = {
   { "ReadRead",         true, "READ",   1, "READ",      0, 1,   0, 1 },

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ TEST_F(Admin_cmd_modify_collection_options_test, validation_level_set_to_off) {
               execute(StrEq("SELECT @@lower_case_table_names"), _, _));
   EXPECT_CALL(mock_data_context,
               execute(MatchesRegex("ALTER TABLE `xtest`.`test_coll` ALTER "
-                                   "CHECK .val_strict.* NOT ENFORCED"),
+                                   "CHECK `.val_strict.*` NOT ENFORCED"),
                       _, _));
 
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
@@ -138,7 +138,7 @@ TEST_P(Admin_cmd_modify_validation_level_strict,
               execute(StrEq("SELECT @@lower_case_table_names"), _, _));
   EXPECT_CALL(mock_data_context,
               execute(MatchesRegex("ALTER TABLE `xtest`.`test_coll` ALTER "
-                                   "CHECK .val_strict.* ENFORCED"),
+                                   "CHECK `.val_strict.*` ENFORCED"),
                       _, _));
 
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
@@ -222,7 +222,7 @@ TEST_P(Admin_cmd_modify_validation_schema_with_level_off,
       mock_data_context,
       execute(MatchesRegex("ALTER TABLE `xtest`.`test_coll` MODIFY COLUMN "
                            "_json_schema JSON GENERATED ALWAYS AS .* VIRTUAL, "
-                           "ALTER CHECK .val_strict_.* NOT ENFORCED"),
+                           "ALTER CHECK `.val_strict_.*` NOT ENFORCED"),
               _, _));
 
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
@@ -251,7 +251,7 @@ TEST_P(Admin_cmd_modify_validation_schema_with_level_strict,
       mock_data_context,
       execute(MatchesRegex("ALTER TABLE `xtest`.`test_coll` MODIFY COLUMN "
                            "_json_schema JSON GENERATED ALWAYS AS .* VIRTUAL, "
-                           "ALTER CHECK .val_strict_.* ENFORCED"),
+                           "ALTER CHECK `.val_strict_.*` ENFORCED"),
               _, _));
 
   ASSERT_ERROR_CODE(ER_X_SUCCESS,

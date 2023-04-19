@@ -108,9 +108,11 @@ ulonglong MurmurHash2(const void *key, int len, unsigned int seed) {
 
   switch (len) {
     case 3:
-      h2 ^= ((const unsigned char *)data)[2] << 16;  // fallthrough
+      h2 ^= ((const unsigned char *)data)[2] << 16;
+      [[fallthrough]];
     case 2:
-      h2 ^= ((const unsigned char *)data)[1] << 8;  // fallthrough
+      h2 ^= ((const unsigned char *)data)[1] << 8;
+      [[fallthrough]];
     case 1:
       h2 ^= ((const unsigned char *)data)[0];
       h2 *= m;
@@ -138,9 +140,9 @@ bool murmur_hash_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   return false;
 }
 
-ulonglong murmur_hash(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
-                      char *is_null MY_ATTRIBUTE((unused)),
-                      char *error MY_ATTRIBUTE((unused))) {
+ulonglong murmur_hash(UDF_INIT *initid [[maybe_unused]], UDF_ARGS *args,
+                      char *is_null [[maybe_unused]],
+                      char *error [[maybe_unused]]) {
   uint null_default = HASH_NULL_DEFAULT;
   ulonglong result = HASH_64_INIT;
   uint i;

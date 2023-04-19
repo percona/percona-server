@@ -1,1 +1,1 @@
---skip-slave-start --relay-log-recovery=1 --innodb-buffer-pool-size=268435456
+--skip-replica-start --relay-log-recovery=1 --innodb-buffer-pool-size=268435456

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,9 +58,6 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid);
 void my_write_core(int sig);
 #if HAVE_LIBCOREDUMPER
 void my_write_libcoredumper(int sig, char *path, time_t curr_time);
-#endif
-#ifdef __linux__
-void my_print_buildID();
 #endif
 
 /**

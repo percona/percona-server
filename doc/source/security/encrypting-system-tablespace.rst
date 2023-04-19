@@ -4,7 +4,7 @@
 Encrypting the System Tablespace
 ==================================================================
 
-|Percona Server| supports system tablespace encryption. The InnoDB system
+*Percona Server for MySQL* supports system tablespace encryption. The InnoDB system
 tablespace may be encrypted with the master key encryption or the keyring
 encryption with advanced encryption key rotation. 
 
@@ -25,12 +25,12 @@ The limitation is the following:
 
     A server instance initialized with the encrypted InnoDB system tablespace
     cannot be downgraded. It is not possible to parse encrypted InnoDB system
-    tablespace pages in a version of |Percona Server| lower than the version
+    tablespace pages in a version of *Percona Server for MySQL* lower than the version
     where the InnoDB system tablespace has been encrypted.
 
 To enable system tablespace encryption, edit the my.cnf file with the following:
 
-* Add the :variable:`innodb_sys_tablespace_encrypt`
+* Add the :ref:`innodb_sys_tablespace_encrypt`
 * Edit the `innodb_sys_tablespace_encrypt` value to "ON"
 
 System tablespace encryption can only be enabled with the ``--initialize``
@@ -46,22 +46,34 @@ You can create an encrypted table as follows:
 System Variables
 ------------------------------------------------------------------
 
-.. variable:: innodb_sys_tablespace_encrypt
+.. _innodb_sys_tablespace_encrypt:
 
-   :cli: ``--innodb-sys-tablespace-encrypt``
-   :dyn: No
-   :scope: Global
-   :vartype: Boolean
-   :default: ``OFF``
+.. rubric:: ``innodb_sys_tablespace_encrypt``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-sys-tablespace-encrypt``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
 
 Enables the encryption of the InnoDB system tablespace. 
 
 .. seealso::
 
-   |MySQL| Documentation: mysql system Tablespace Encryption
+   *MySQL* Documentation: mysql system Tablespace Encryption
    https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html#innodb-mysql-tablespace-encryption-enabling-disabling
 
-   |MySQL| Documentation: ``--initialize`` option
+   *MySQL* Documentation: ``--initialize`` option
       https://dev.mysql.com/doc/refman/8.0/en/server-options.html#option_mysqld_initialize
 
 Re-Encrypt the System Tablespace

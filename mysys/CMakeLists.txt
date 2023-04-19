@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,16 +25,12 @@ ADD_WSHADOW_WARNING()
 SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
-IF(SOLARIS_INTEL AND MY_COMPILER_IS_SUNPRO)
-  # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
-  TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO1>)
-ENDIF()
 
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 SET(MYSYS_SOURCES
   array.cc
-  base64.cc
+  buffered_error_log.cc
   charset.cc
   charset-def.cc
   dbug.cc
@@ -109,7 +105,6 @@ SET(MYSYS_SOURCES
   ptr_cmp.cc
   sql_chars.cc
   stacktrace.cc
-  system_key.cc
   thr_cond.cc
   thr_lock.cc
   thr_mutex.cc
@@ -120,16 +115,38 @@ SET(MYSYS_SOURCES
   keyring_operations_helper.cc
   # From deleted mysys_ssl library
   crypt_genhash_impl.cc
-  my_crypt.cc
   my_default.cc
   my_getopt.cc
+  my_kdf.cc
   my_aes.cc
   my_sha1.cc
   my_sha2.cc
   my_md5.cc
   my_rnd.cc
+  my_openssl_fips.cc
 )
 LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
+
+IF(BUILD_IS_SINGLE_CONFIG)
+  GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+  IF(NOT CMAKE_CXX_FLAGS MATCHES "DSAFE_MUTEX" AND
+      NOT CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} MATCHES "DSAFE_MUTEX" AND
+      NOT CWD_DEFINITIONS MATCHES "SAFE_MUTEX")
+    # Both have ifdef SAFE_MUTEX
+    LIST(REMOVE_ITEM MYSYS_SOURCES
+      thr_cond.cc
+      thr_mutex.cc
+      )
+  ENDIF()
+  IF(CMAKE_CXX_FLAGS MATCHES "DNDEBUG" OR
+      CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} MATCHES "DNDEBUG" OR
+      CWD_DEFINITIONS MATCHES "NDEBUG")
+    # ifndef NDEBUG
+    LIST(REMOVE_ITEM MYSYS_SOURCES
+      dbug.cc
+      )
+  ENDIF()
+ENDIF()
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES
@@ -138,7 +155,12 @@ IF (WIN32)
     my_winerr.cc
     my_winfile.cc
     win_timers.cc
+    my_nojemalloc.cc
   )
+ENDIF()
+
+IF(HAVE_BUILD_ID_SUPPORT)
+  LIST(APPEND MYSYS_SOURCES build_id.cc)
 ENDIF()
 
 IF(HAVE_POSIX_TIMERS)
@@ -151,12 +173,6 @@ ENDIF()
 
 IF(HAVE_GETPWNAM)
   SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_getpwnam.cc)
-ENDIF()
-
-IF(SOLARIS AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  # Inline assembly template for rdtsc
-  SET_SOURCE_FILES_PROPERTIES(my_rdtsc.cc
-    PROPERTIES COMPILE_FLAGS "${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il")
 ENDIF()
 
 IF(HAVE_LINUX_LARGE_PAGES)
@@ -202,12 +218,6 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(mysys crypt32)
 ENDIF()
 
-# Bug in std::call_once in optimized mode
-IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU AND
-    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
-  ADD_COMPILE_FLAGS(charset.cc COMPILE_FLAGS "-O0")
-ENDIF()
-
 # MD5_Init() and others are deprecated.
 IF(SOLARIS AND MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(my_md5.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
@@ -230,10 +240,21 @@ MYSQL_ADD_EXECUTABLE(mf_iocache_test
   )
 SET_TARGET_PROPERTIES(mf_iocache_test PROPERTIES COMPILE_FLAGS "-DMAIN")
 
-MYSQL_ADD_EXECUTABLE(base64_test
-  base64.cc
-  DEPENDENCIES GenError
-  LINK_LIBRARIES mysys
-  SKIP_INSTALL
-  )
-SET_TARGET_PROPERTIES(base64_test PROPERTIES COMPILE_FLAGS "-DMAIN")
+IF(HAVE_BUILD_ID_SUPPORT)
+  MYSQL_ADD_EXECUTABLE(build_id_test
+    build_id_test.cc build_id.cc
+    SKIP_INSTALL
+    )
+  # Verify that we can read our own build-id:
+  ADD_CUSTOM_COMMAND(TARGET build_id_test POST_BUILD
+#   COMMAND ./build_id_test
+#   COMMAND ${READELF_EXECUTABLE} -n ./build_id_test | grep "Build ID:"
+    COMMAND ./build_id_test      | egrep -o "[0-9a-f]{40}" > build_id_test_1
+    COMMAND ${READELF_EXECUTABLE} -n ./build_id_test | grep "Build ID:" |
+                                   egrep -o "[0-9a-f]{40}" > build_id_test_2
+    COMMAND diff build_id_test_1 build_id_test_2
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+    COMMENT "Verifying build-id"
+    VERBATIM
+    )
+ENDIF()

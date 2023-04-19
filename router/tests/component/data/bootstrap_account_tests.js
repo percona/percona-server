@@ -35,6 +35,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_cluster_instance_addresses_v2",
       "router_start_transaction",
       "router_commit",
+      "router_clusterset_present",
 
       // account verification
       "router_select_metadata_v2_gr",
@@ -52,6 +53,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_grant_on_routers",           //   /
       "router_grant_on_v2_routers",        //   /
       "router_update_routers_in_metadata",
+      "router_update_router_options_in_metadata",
       "router_select_router_id",
     ],
     options);

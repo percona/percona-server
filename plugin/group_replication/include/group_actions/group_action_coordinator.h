@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,20 @@
 
 class Group_action_information {
  public:
-  Group_action_information();
-  Group_action_information(bool is_local, Group_action *current_proposed_action,
-                           Group_action_diagnostics *execution_message_area);
+  Group_action_information(
+      Group_action_message::enum_action_initiator_and_action initiator);
+  Group_action_information(
+      bool is_local, Group_action *current_proposed_action,
+      Group_action_diagnostics *execution_message_area,
+      Group_action_message::enum_action_initiator_and_action initiator);
   ~Group_action_information();
+  /**
+    Provides running group action details.
+
+    @retval string  Pair: Initiator details and Group action description
+  */
+
+  const std::pair<std::string, std::string> get_action_name_and_description();
 
   /* Was it proposed locally*/
   bool is_local;
@@ -44,6 +54,8 @@ class Group_action_information {
   Group_action_diagnostics *execution_message_area;
   /* What is the action return value */
   Group_action::enum_action_execution_result action_result;
+  /* Initiator and action details */
+  Group_action_message::enum_action_initiator_and_action m_action_initiator;
 };
 
 /**
@@ -85,10 +97,13 @@ class Group_action_coordinator : public Group_event_observer {
   /** Submit an action for execution in the coordinator
     @param action         The action instance to execute in the group
     @param execution_info The result information for this action execution
+    @param initiator      Details of initiator and action
+
     @return !=0 if something wrong happened in the action
   */
-  int coordinate_action_execution(Group_action *action,
-                                  Group_action_diagnostics *execution_info);
+  int coordinate_action_execution(
+      Group_action *action, Group_action_diagnostics *execution_info,
+      Group_action_message::enum_action_initiator_and_action initiator);
 
   /**
     Asks the coordinator to stop any ongoing action
@@ -98,7 +113,7 @@ class Group_action_coordinator : public Group_event_observer {
   int stop_coordinator_process(bool coordinator_stop, bool wait = true);
 
   /**
-    Resets flags as the coordinator can live trough multiple stops and starts
+    Resets flags as the coordinator can live through multiple stops and starts
   */
   void reset_coordinator_process();
 
@@ -114,9 +129,11 @@ class Group_action_coordinator : public Group_event_observer {
   /**
     Returns if there is a group action running
 
+    @param[out] initiator action name and description if running
+
     @return true if an action is being executed
   */
-  bool is_group_action_running();
+  bool is_group_action_running(std::pair<std::string, std::string> &initiator);
 
   /**
     The main thread process for the action execution process
@@ -147,9 +164,10 @@ class Group_action_coordinator : public Group_event_observer {
                         bool is_leaving, bool *skip_election,
                         enum_primary_election_mode *election_mode,
                         std::string &suggested_primary) override;
-  int after_primary_election(std::string primary_uuid, bool primary_changed,
-                             enum_primary_election_mode election_mode,
-                             int error) override;
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) override;
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,
                               bool *skip_message) override;
@@ -177,7 +195,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param all_members_info the list of info objects for all members
     @return true if yes, false if no member is in recovery
   */
-  bool member_in_recovery(std::vector<Group_member_info *> *all_members_info);
+  bool member_in_recovery(Group_member_info_list *all_members_info);
 
   /**
     This method checks if there is a member from a version that does not allow
@@ -185,8 +203,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param all_members_info the list of info objects for all members
     @return true if yes, false if all members are valid
   */
-  bool member_from_invalid_version(
-      std::vector<Group_member_info *> *all_members_info);
+  bool member_from_invalid_version(Group_member_info_list *all_members_info);
 
   /**
     Set an error message and awake the coordinator

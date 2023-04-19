@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ TEST_F(RDTimeStampCounter, TestCycle) {
   ulonglong t1 = my_timer_cycles();
   ulonglong t2;
   int i;
-  int backward = 0;
+  int backward [[maybe_unused]] = 0;
   int nonzero = 0;
 
   for (i = 0; i < LOOP_COUNT; i++) {

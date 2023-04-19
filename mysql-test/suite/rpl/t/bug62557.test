@@ -9,10 +9,10 @@
 --echo
 
 --connection server_1
-SELECT @@global.log_slave_updates;
+SELECT @@global.log_replica_updates;
 
 --connection server_2
-SELECT @@global.log_slave_updates;
+SELECT @@global.log_replica_updates;
 
 --connection server_1
 CREATE TABLE t1(a INT);

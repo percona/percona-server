@@ -1,0 +1,398 @@
+#
+# Bug#34402003: HYPERGRAPH BUG: Offload issue with execute statement.
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+CREATE TABLE t3(a INT);
+INSERT INTO t1 VALUES (1),(2),(5);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SET optimizer_trace='enabled=on';
+PREPARE stmt FROM "EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a JOIN t3 ON t1.a=5";
+EXECUTE stmt;
+EXPLAIN
+-> Nested loop inner join  (cost=1.16..1.16 rows=0.3)
+    -> Nested loop left join  (cost=0.91..0.91 rows=0.3)
+        -> Filter: (t1.a = 5)  (cost=0.55..0.55 rows=0.3)
+            -> Table scan on t1  (cost=0.08..0.25 rows=3)
+        -> Filter: ((t2.a = 5) and (t1.a = 5))  (cost=0.36..0.36 rows=0.01)
+            -> Table scan on t2  (cost=0.25..0.25 rows=1)
+    -> Table scan on t3  (cost=0.25..0.25 rows=1)
+
+SELECT
+IF(TRACE LIKE '%Left join (extra join condition = (t1.a = 5) AND (t2.a = 5))%',
+'OK', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+IF(TRACE LIKE '%Left join (extra join condition = (t1.a = 5) AND (t2.a = 5))%',
+'OK', TRACE)
+OK
+PREPARE stmt FROM "SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a JOIN t3 ON t1.a=5";
+EXECUTE stmt;
+a	a	a
+5	NULL	3
+SET optimizer_trace="enabled=off";
+DROP TABLE t1,t2,t3;
+CREATE TABLE t0 (a0 INTEGER);
+CREATE TABLE t1 (a1 INTEGER);
+CREATE TABLE t2 (a2 INTEGER);
+CREATE TABLE t3 (a3 INTEGER);
+INSERT INTO t0 VALUES (0),(1);
+INSERT INTO t1 VALUES (0),(1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+EXPLAIN
+-> Nested loop left join  (cost=0.90..0.90 rows=0.04)
+    -> Nested loop inner join  (cost=0.90..0.90 rows=0.04)
+        -> Filter: (t0.a0 = 1)  (cost=0.45..0.45 rows=0.2)
+            -> Table scan on t0  (cost=0.12..0.25 rows=2)
+        -> Filter: (t1.a1 = 1)  (cost=0.45..0.45 rows=0.2)
+            -> Table scan on t1  (cost=0.12..0.25 rows=2)
+    -> Zero rows (Join condition rejects all rows)  (cost=0.00..0.00 rows=0)
+
+SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+a0	a1	a2	a3
+1	1	NULL	NULL
+DROP TABLE t0,t1,t2,t3;
+#
+# Bug#34401789: Enable constant propagation in conditions
+#               for hypergraph optimizer
+#
+CREATE TABLE t1 (f1 INTEGER);
+EXPLAIN FORMAT=tree
+SELECT f1 FROM t1 GROUP BY f1 HAVING f1 = 10 AND f1 <> 11;
+EXPLAIN
+-> Filter: (t1.f1 = 10)  (cost=0.55..0.55 rows=0.1)
+    -> Group (no aggregates)  (cost=0.45..0.45 rows=1)
+        -> Sort: t1.f1  (cost=0.35..0.35 rows=1)
+            -> Table scan on t1  (cost=0.25..0.25 rows=1)
+
+DROP TABLE t1;
+#
+# Bug#34080394: Hypergraph Offload issue : Problem in
+#               ExtractRequiredItemsForFilter.
+#
+CREATE TABLE t1 (f1 YEAR);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = 1 AND f1 <> 11;
+EXPLAIN
+-> Filter: (t1.f1 = 2001)  (cost=0.35..0.35 rows=0.1)
+    -> Table scan on t1  (cost=0.25..0.25 rows=1)
+
+DROP TABLE t1;
+#
+# Bug#34504697: Hypergraph: Assertion
+#               `!(used_tabs & (~read_tables & ~filter_for_table))'
+#               failed
+#
+CREATE TABLE t1 (f1 INTEGER);
+SELECT 1
+FROM t1 LEFT JOIN (SELECT t2.*
+FROM (t1 AS t2 INNER JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+WHERE (t3.f1 <> 1 OR t2.f1 > t2.f1)) AS dt
+ON (t1.f1 = dt.f1);
+1
+DROP TABLE t1;
+#
+# Bug#34503695:Hypergraph: mysqld crash-signal 11
+#              -CommonSubexpressionElimination
+#
+CREATE TABLE t1 (f1 INTEGER);
+SELECT * FROM t1
+WHERE t1.f1 NOT IN (SELECT t2.f1
+FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+WHERE (t3.f1 <> t2.f1 OR t3.f1 < t2.f1));
+f1
+DROP TABLE t1;
+#
+# Bug#34527126: Some rapid tests in MTR fail with hypergraph
+#               when run in --ps-protocol mode
+#
+CREATE TABLE t1(f1 INTEGER);
+PREPARE ps FROM
+"SELECT * FROM (WITH RECURSIVE qn AS (SELECT 1 FROM t1 UNION ALL
+                                      SELECT 1 FROM t1 STRAIGHT_JOIN qn)
+                                     SELECT * FROM qn) AS dt1,
+                                     (SELECT COUNT(*) FROM t1) AS dt2";
+EXECUTE ps;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+DROP TABLE t1;
+#
+# Bug#34494877: WL#14449: Offload issue: RapidException (3):
+#               rpdrqctr_transcode.c:1447 @ rpdoqc_
+#
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 10), (2, 20), (3, 30);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM
+t RIGHT JOIN
+(SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t.x = dt.m;
+EXPLAIN
+-> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
+
+SELECT * FROM
+t RIGHT JOIN
+(SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t.x = dt.m;
+x	y	m
+EXPLAIN FORMAT=TREE SELECT * FROM
+t LEFT JOIN
+(SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t.x = dt.m;
+EXPLAIN
+-> Nested loop left join  (rows=3)
+    -> Table scan on t  (rows=3)
+    -> Zero rows (Impossible WHERE)  (rows=0)
+
+SELECT * FROM
+t LEFT JOIN
+(SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t.x = dt.m;
+x	y	m
+1	10	NULL
+2	20	NULL
+3	30	NULL
+EXPLAIN FORMAT=TREE SELECT * FROM
+t AS t1 LEFT JOIN
+(t AS t2
+INNER JOIN (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t2.x = dt.m)
+ON t1.x = t2.y;
+EXPLAIN
+-> Nested loop left join  (rows=3)
+    -> Table scan on t1  (rows=3)
+    -> Zero rows (impossible WHERE)  (rows=0)
+
+SELECT * FROM
+t AS t1 LEFT JOIN
+(t AS t2
+INNER JOIN (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t2.x = dt.m)
+ON t1.x = t2.y;
+x	y	x	y	m
+1	10	NULL	NULL	NULL
+2	20	NULL	NULL	NULL
+3	30	NULL	NULL	NULL
+DROP TABLE t;
+#
+# Bug#34534373: Heatwave offload issue - Sees inner tables of
+#               a semijoin when it should not
+#
+CREATE TABLE t1 (f1 INTEGER);
+EXPLAIN FORMAT=tree
+SELECT 1
+FROM t1 LEFT JOIN (SELECT * FROM t1 AS t2
+WHERE f1 IN (SELECT f1+1 FROM t1 AS t3)) AS dt
+ON t1.f1=dt.f1;
+EXPLAIN
+-> Nested loop left join  (rows=1)
+    -> Table scan on t1  (rows=1)
+    -> Filter: (t1.f1 = t2.f1)  (rows=0.01)
+        -> Nested loop semijoin  (rows=0.1)
+            -> Table scan on t2  (rows=1)
+            -> Filter: (t2.f1 = (t3.f1 + 1))  (rows=0.1)
+                -> Table scan on t3  (rows=1)
+
+DROP TABLE t1;
+#
+# Bug#34534373: Row estimates for joins ignores histograms.
+#
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 SELECT k%25 FROM
+(SELECT num1.n+num2.n*10 k FROM num num1, num num2) d1;
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 SELECT k%25 FROM
+(SELECT num1.n+num2.n*10 k FROM num num1, num num2, num num3) d1;
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN
+-> Inner hash join (t1.a = t2.b)  (rows=10000) (actual rows=4000 loops=1)
+    -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
+    -> Hash
+        -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN
+-> Inner hash join (x1.a = x2.a)  (rows=1000) (actual rows=400 loops=1)
+    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Hash
+        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
+EXPLAIN
+-> Inner hash join (x1.b = x2.b)  (rows=100000) (actual rows=40000 loops=1)
+    -> Table scan on x1  (rows=1000) (actual rows=1000 loops=1)
+    -> Hash
+        -> Table scan on x2  (rows=1000) (actual rows=1000 loops=1)
+
+CREATE INDEX ix1 ON t1(a);
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN
+-> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
+    -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
+    -> Index lookup on t1 using ix1 (a=t2.b)  (rows=4) (actual rows=4 loops=1000)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN
+-> Nested loop inner join  (rows=400) (actual rows=400 loops=1)
+    -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+    -> Index lookup on x1 using ix1 (a=x2.a)  (rows=4) (actual rows=4 loops=100)
+
+CREATE INDEX ix2 ON t2(b);
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN
+-> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
+    -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+    -> Index lookup on t2 using ix2 (b=t1.a)  (rows=40) (actual rows=40 loops=100)
+
+DROP INDEX ix1 ON t1;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN
+-> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
+    -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+    -> Index lookup on t2 using ix2 (b=t1.a)  (rows=40) (actual rows=40 loops=100)
+
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
+EXPLAIN
+-> Nested loop inner join  (rows=40000) (actual rows=40000 loops=1)
+    -> Table scan on x2  (rows=1000) (actual rows=1000 loops=1)
+    -> Index lookup on x1 using ix2 (b=x2.b)  (rows=40) (actual rows=40 loops=1000)
+
+DROP INDEX ix2 ON t2;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN
+-> Inner hash join (t1.a = t2.b)  (rows=4000) (actual rows=4000 loops=1)
+    -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
+    -> Hash
+        -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN
+-> Inner hash join (x1.a = x2.a)  (rows=400) (actual rows=400 loops=1)
+    -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Hash
+        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON b;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'b'.
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN
+-> Inner hash join (t1.a = t2.b)  (rows=4000) (actual rows=4000 loops=1)
+    -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
+    -> Hash
+        -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+
+ANALYZE TABLE t1 DROP HISTOGRAM ON a;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics removed for column 'a'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN
+-> Inner hash join (t1.a = t2.b)  (rows=4000) (actual rows=4000 loops=1)
+    -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
+    -> Hash
+        -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
+EXPLAIN
+-> Inner hash join (x1.b = x2.b)  (rows=40000) (actual rows=40000 loops=1)
+    -> Table scan on x1  (rows=1000) (actual rows=1000 loops=1)
+    -> Hash
+        -> Table scan on x2  (rows=1000) (actual rows=1000 loops=1)
+
+DROP TABLE num, t1, t2;
+#
+# Bug#34682561: Assertion `!eq_items.is_empty()' failed
+#               in make_join_hypergraph.cc
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT f1 FROM t1
+WHERE EXISTS (SELECT t2.f1
+FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f2))
+LEFT JOIN t1 AS t4 ON TRUE
+WHERE t4.f1 = t3.f1 OR t3.f2 >= t2.f2)
+GROUP BY f1;
+EXPLAIN
+-> Group (no aggregates)  (rows=0.1)
+    -> Nested loop semijoin  (rows=0.1)
+        -> Sort: t1.f1  (rows=1)
+            -> Table scan on t1  (rows=1)
+        -> Filter: (((t3.f1 = t2.f2) and (t2.f2 = t4.f1)) or (t3.f2 >= t3.f1))  (rows=0.1)
+            -> Nested loop left join  (rows=0.1)
+                -> Nested loop inner join  (rows=0.1)
+                    -> Table scan on t2  (rows=1)
+                    -> Filter: (t3.f1 = t2.f2)  (rows=0.1)
+                        -> Table scan on t3  (rows=1)
+                -> Table scan on t4  (rows=1)
+
+SELECT f1 FROM t1
+WHERE EXISTS (SELECT t2.f1
+FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f2))
+LEFT JOIN t1 AS t4 ON TRUE
+WHERE t4.f1 = t3.f1 OR t3.f2 >= t2.f2)
+GROUP BY f1;
+f1
+DROP TABLE t1;
+#
+# Bug#34717171: Hypergraph :Assertion `false' failed
+#               in join_optimizer.cc
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, x INT);
+CREATE TABLE t2 (x INT);
+INSERT INTO t1 VALUES (), (), (), (), (), (), (), (), (), ();
+INSERT INTO t2 VALUES (), (), (), (), (), (), (), (), (), ();
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree WITH subq AS (
+SELECT * FROM t2
+WHERE x IN (SELECT t1.pk FROM t1, t2 AS t3 WHERE t1.x = t3.x)
+)
+SELECT 1 FROM subq LEFT JOIN t2 AS t4 ON TRUE WHERE subq.x = t4.x;
+EXPLAIN
+-> Hash semijoin (t2.x = t1.pk)  (rows=10)
+    -> Inner hash join (t2.x = t4.x)  (rows=10)
+        -> Table scan on t2  (rows=10)
+        -> Hash
+            -> Table scan on t4  (rows=10)
+    -> Hash
+        -> Inner hash join (t1.x = t3.x)  (rows=10)
+            -> Index scan on t1 using PRIMARY  (rows=10)
+            -> Hash
+                -> Table scan on t3  (rows=10)
+
+WITH subq AS (
+SELECT * FROM t2
+WHERE x IN (SELECT t1.pk FROM t1, t2 AS t3 WHERE t1.x = t3.x)
+)
+SELECT 1 FROM subq LEFT JOIN t2 AS t4 ON TRUE WHERE subq.x = t4.x;
+1
+DROP TABLE t1,t2;

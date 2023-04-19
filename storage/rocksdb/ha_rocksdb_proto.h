@@ -31,6 +31,8 @@
 
 namespace myrocks {
 
+class Rdb_tbl_def;
+
 enum RDB_IO_ERROR_TYPE {
   RDB_IO_ERROR_TX_COMMIT,
   RDB_IO_ERROR_DICT_COMMIT,
@@ -39,13 +41,8 @@ enum RDB_IO_ERROR_TYPE {
   RDB_IO_ERROR_LAST
 };
 
-const char *get_rdb_io_error_string(const RDB_IO_ERROR_TYPE err_type);
-
 void rdb_handle_io_error(const rocksdb::Status status,
                          const RDB_IO_ERROR_TYPE err_type);
-
-bool rdb_is_tablename_normalized(const std::string &tablename)
-    MY_ATTRIBUTE((__warn_unused_result__));
 
 int rdb_normalize_tablename(const std::string &tablename, std::string *str)
     MY_ATTRIBUTE((__warn_unused_result__));
@@ -54,10 +51,6 @@ int rdb_split_normalized_tablename(const std::string &fullname, std::string *db,
                                    std::string *table = nullptr,
                                    std::string *partition = nullptr)
     MY_ATTRIBUTE((__warn_unused_result__));
-void rdb_gen_normalized_tablename(const std::string *db,
-                                  const std::string *table,
-                                  const std::string *partition,
-                                  std::string *fullname);
 
 std::vector<std::string> rdb_get_open_table_names(void);
 
@@ -82,11 +75,9 @@ Rdb_cf_manager &rdb_get_cf_manager();
 const rocksdb::BlockBasedTableOptions &rdb_get_table_options();
 bool rdb_is_table_scan_index_stats_calculation_enabled();
 bool rdb_is_ttl_enabled();
-bool rdb_is_ttl_read_filtering_enabled();
 #if !defined(NDEBUG)
 int rdb_dbug_set_ttl_rec_ts();
 int rdb_dbug_set_ttl_snapshot_ts();
-int rdb_dbug_set_ttl_read_filter_ts();
 bool rdb_dbug_set_ttl_ignore_pk();
 #endif  // !defined(NDEBUG)
 
@@ -98,10 +89,10 @@ bool rdb_sync_wal_supported();
 
 enum operation_type : int;
 void rdb_update_global_stats(const operation_type &type, uint count,
-                             bool is_system_table = false);
+                             Rdb_tbl_def *td = nullptr);
 
-class Rdb_dict_manager;
-Rdb_dict_manager *rdb_get_dict_manager(void)
+class Rdb_dict_manager_selector;
+Rdb_dict_manager_selector *rdb_get_dict_manager(void)
     MY_ATTRIBUTE((__warn_unused_result__));
 
 class Rdb_ddl_manager;

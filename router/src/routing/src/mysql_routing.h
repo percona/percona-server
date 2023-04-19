@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,9 @@
 #ifndef ROUTING_MYSQLROUTING_INCLUDED
 #define ROUTING_MYSQLROUTING_INCLUDED
 
+#include "mysqlrouter/routing_export.h"
+#include "mysqlrouter/routing_plugin_export.h"
+
 /** @file
  * @brief Defining the class MySQLRouting
  *
@@ -35,6 +38,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -66,12 +70,14 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
+#include "mysql_routing_base.h"
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
-#include "router_config.h"
+#include "socket_container.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
@@ -79,124 +85,9 @@ namespace mysql_harness {
 class PluginFuncEnv;
 }
 
-/**
- * container of sockets.
- *
- * allows to disconnect all of them.
- *
- * thread-safe.
- */
-template <class Protocol>
-class SocketContainer {
-  using protocol_type = Protocol;
-  using socket_type = typename protocol_type::socket;
-
-  // as a ref will get returned, the socket_type' object needs a stable address.
-  // - std::list<socket_type> provide that.
-  // - std::vector<std::unique_ptr<socket_type>> should work too.
-  using container_type = std::list<socket_type>;
-
- public:
-  /**
-   * move ownership of socket_type to the container.
-   *
-   * @return a ref to the stored socket.
-   */
-  socket_type &push_back(socket_type &&sock) {
-    std::lock_guard<std::mutex> lk(mtx_);
-
-    sockets_.push_back(std::move(sock));
-
-    return sockets_.back();
-  }
-
-  /**
-   * move ownership of socket_type to the container.
-   *
-   * @return a ref to the stored socket.
-   */
-  template <class... Args>
-  socket_type &emplace_back(Args &&... args) {
-    std::lock_guard<std::mutex> lk(mtx_);
-
-    sockets_.emplace_back(std::forward<Args>(args)...);
-
-    return sockets_.back();
-  }
-
-  /**
-   * release socket from container.
-   *
-   * moves ownership of the socket to the caller.
-   *
-   * @return socket
-   */
-  socket_type release(socket_type &client_sock) {
-    std::lock_guard<std::mutex> lk(mtx_);
-
-    return release_unlocked(client_sock);
-  }
-
-  socket_type release_unlocked(socket_type &client_sock) {
-    for (auto cur = sockets_.begin(); cur != sockets_.end(); ++cur) {
-      if (cur->native_handle() == client_sock.native_handle()) {
-        auto sock = std::move(*cur);
-        sockets_.erase(cur);
-        return sock;
-      }
-    }
-
-    // not found.
-    return socket_type{client_sock.get_executor().context()};
-  }
-
-  template <class F>
-  auto run(F &&f) {
-    std::lock_guard<std::mutex> lk(mtx_);
-
-    return f();
-  }
-
-  /**
-   * disconnect all sockets.
-   */
-
-  void disconnect_all() {
-    std::lock_guard<std::mutex> lk(mtx_);
-
-    for (auto &sock : sockets_) {
-      sock.cancel();
-    }
-  }
-
-  /**
-   * check if the container is empty.
-   */
-  bool empty() const {
-    std::lock_guard<std::mutex> lk(mtx_);
-    return sockets_.empty();
-  }
-
-  /**
-   * get size of container.
-   */
-  size_t size() const {
-    std::lock_guard<std::mutex> lk(mtx_);
-    return sockets_.size();
-  }
-
- private:
-  container_type sockets_;
-
-  mutable std::mutex mtx_;
-};
-
-using mysqlrouter::URI;
-using std::string;
-
 struct Nothing {};
 
-/** @class MySQLRouter
+/** @class MySQLRouting
  *  @brief Manage Connections from clients to MySQL servers
  *
  *  The class MySQLRouter is used to start a service listening on a particular
@@ -205,8 +96,8 @@ struct Nothing {};
  *
  *  Connection routing will not analyze or parse any MySQL package (except from
  *  those in the handshake phase to be able to discover invalid connection
- * error) nor will it do any authentication. It will not handle errors from the
- * MySQL server and not automatically recover. The client communicate through
+ *  error) nor will it do any authentication. It will not handle errors from the
+ *  MySQL server and not automatically recover. The client communicate through
  *  MySQL Router just like it would directly connecting.
  *
  *  The MySQL Server is chosen from a given list of hosts or IP addresses
@@ -218,16 +109,18 @@ struct Nothing {};
  *
  *  Example usage: bind to all IP addresses and use TCP Port 7001
  *
- *   MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
- *   r.destination_connect_timeout = std::chrono::seconds(1);
- *   r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
- *   r.start();
+ *  @code
+ *      MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
+ *      r.destination_connect_timeout = std::chrono::seconds(1);
+ *      r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
+ *      r.run();
+ *  @endcode
  *
  *  The above example will, when MySQL running on 10.0.10.5 is not available,
  *  use 10.0.11.6 to setup the connection routing.
  *
  */
-class MySQLRouting {
+class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
  public:
   /** @brief Default constructor
    *
@@ -245,19 +138,22 @@ class MySQLRouting {
    * @param max_connect_errors Maximum connect or handshake errors per host
    * @param connect_timeout Timeout waiting for handshake response
    * @param net_buffer_length send/receive buffer size
-   * @param thread_stack_size memory in kilobytes allocated for thread's stack
    * @param client_ssl_mode SSL mode of the client side
    * @param client_ssl_ctx SSL context of the client side
    * @param server_ssl_mode SSL mode of the serer side
    * @param dest_ssl_ctx SSL contexts of the destinations
+   * @param connection_sharing if connection sharing is allowed by the
+   * configuration
+   * @param connection_sharing_delay default before a idling connection is moved
+   * to the pool of connection sharing is allowed.
    */
   MySQLRouting(
       net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
       uint16_t port, const Protocol::Type protocol,
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
-      const string &bind_address = string{"0.0.0.0"},
+      const std::string &bind_address = {"0.0.0.0"},
       const mysql_harness::Path &named_socket = mysql_harness::Path(),
-      const string &route_name = string{},
+      const std::string &route_name = {},
       int max_connections = routing::kDefaultMaxConnections,
       std::chrono::milliseconds destination_connect_timeout =
           routing::kDefaultDestinationConnectionTimeout,
@@ -265,22 +161,23 @@ class MySQLRouting {
       std::chrono::milliseconds connect_timeout =
           routing::kDefaultClientConnectTimeout,
       unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       SslMode client_ssl_mode = SslMode::kDisabled,
       TlsServerContext *client_ssl_ctx = nullptr,
       SslMode server_ssl_mode = SslMode::kDisabled,
-      DestinationTlsContext *dest_ssl_ctx = nullptr);
+      DestinationTlsContext *dest_ssl_ctx = nullptr,
+      bool connection_sharing = false,
+      std::chrono::milliseconds connection_sharing_delay =
+          routing::kDefaultConnectionSharingDelay);
 
-  /** @brief Starts the service and accept incoming connections
+  /** @brief Runs the service and accept incoming connections
    *
-   * Starts the connection routing service and start accepting incoming
-   * MySQL client connections. Each connection will be further handled
-   * in a separate thread.
+   * Runs the connection routing service and starts accepting incoming
+   * MySQL client connections.
    *
    * @throw std::runtime_error on errors.
    *
    */
-  void start(mysql_harness::PluginFuncEnv *env);
+  void run(mysql_harness::PluginFuncEnv *env);
 
   /** @brief Sets the destinations from URI
    *
@@ -333,33 +230,27 @@ class MySQLRouting {
    *
    * @return Maximum as int
    */
-  int get_max_connections() const noexcept { return max_connections_; }
+  int get_max_connections() const noexcept override { return max_connections_; }
 
   /**
    * create new connection to MySQL Server than can handle client's
    * traffic and adds it to connection container.
    *
-   * @param destination_id identifier of the destination connected to
    * @param client_socket socket used to transfer data to/from client
    * @param client_endpoint endpoint of client
-   * @param server_socket socket used to transfer data to/from server
-   * @param server_endpoint endpoint of server
    */
-  template <class ClientProtocol, class ServerProtocol>
+  template <class ClientProtocol>
   void create_connection(
-      const std::string &destination_id,
       typename ClientProtocol::socket client_socket,
-      const typename ClientProtocol::endpoint &client_endpoint,
-      typename ServerProtocol::socket server_socket,
-      const typename ServerProtocol::endpoint &server_endpoint);
+      const typename ClientProtocol::endpoint &client_endpoint);
 
-  routing::RoutingStrategy get_routing_strategy() const;
+  routing::RoutingStrategy get_routing_strategy() const override;
 
-  routing::AccessMode get_mode() const;
+  routing::AccessMode get_mode() const override;
 
-  std::vector<mysql_harness::TCPAddress> get_destinations() const;
+  std::vector<mysql_harness::TCPAddress> get_destinations() const override;
 
-  std::vector<MySQLRoutingAPI::ConnData> get_connections();
+  std::vector<MySQLRoutingAPI::ConnData> get_connections() override;
 
   RouteDestination *destinations() { return destination_.get(); }
 
@@ -370,24 +261,32 @@ class MySQLRouting {
   /**
    * Stop accepting new connections on a listening socket.
    */
-  void stop_socket_acceptors();
+  void stop_socket_acceptors() override;
 
   /**
    * Check if we are accepting connections on a routing socket.
    *
    * @retval true if we are accepting connections, false otherwise
    */
-  bool is_accepting_connections() const;
+  bool is_accepting_connections() const override;
 
- private:
   /**
    * Start accepting new connections on a listening socket
    *
    * @returns std::error_code on errors.
    */
-  stdx::expected<void, std::error_code> start_accepting_connections(
-      const mysql_harness::PluginFuncEnv *env);
+  stdx::expected<void, std::error_code> start_accepting_connections() override;
 
+  /**
+   * Start accepting new connections on a listening socket after it has been
+   * quarantined for lack of valid destinations
+   *
+   * @returns std::error_code on errors.
+   */
+  stdx::expected<void, std::error_code> restart_accepting_connections()
+      override;
+
+ private:
   /**
    * Get listening socket detail information used for the logging purposes.
    */
@@ -417,11 +316,13 @@ class MySQLRouting {
    */
   static void set_unix_socket_permissions(const char *socket_file);
 
-  stdx::expected<void, std::error_code> start_acceptor(
+  stdx::expected<void, std::error_code> run_acceptor(
       mysql_harness::PluginFuncEnv *env);
 
  public:
-  MySQLRoutingContext &get_context() { return context_; }
+  MySQLRoutingContext &get_context() override { return context_; }
+
+  bool is_running() const override { return is_running_; }
 
  private:
   /** Monitor for notifying socket acceptor */
@@ -435,7 +336,7 @@ class MySQLRouting {
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
 
-  bool is_destination_standalone{false};
+  bool is_destination_standalone_{false};
 
   /** @brief Routing strategy to use when getting next destination */
   routing::RoutingStrategy routing_strategy_;
@@ -454,16 +355,11 @@ class MySQLRouting {
   /** @brief Socket descriptor of the TCP service */
   net::ip::tcp::acceptor service_tcp_;
   net::ip::tcp::endpoint service_tcp_endpoint_;
-  SocketContainer<net::ip::tcp> tcp_connector_container_;
-
-  // container for sockets while the Connector runs.
-  SocketContainer<net::ip::tcp> server_sock_container_;
 
 #if !defined(_WIN32)
   /** @brief Socket descriptor of the named socket service */
   local::stream_protocol::acceptor service_named_socket_;
   local::stream_protocol::endpoint service_named_endpoint_;
-  SocketContainer<local::stream_protocol> unix_socket_connector_container_;
 #endif
 
   /** @brief used to unregister from subscription on allowed nodes changes */
@@ -473,7 +369,11 @@ class MySQLRouting {
   ConnectionContainer connection_container_;
 
   /** Information if the routing plugging is still running. */
-  std::atomic<bool> routing_stopped_{false};
+  std::atomic<bool> is_running_{true};
+
+  /** Used when the accepting port is been reopened and it failed, to schedule
+   * another retry for standalone-destination(s) route. */
+  net::steady_timer accept_port_reopen_retry_timer_{io_ctx_};
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
@@ -493,7 +393,7 @@ class MySQLRouting {
 };
 
 extern "C" {
-extern mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing;
+extern mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing;
 }
 
 #endif  // ROUTING_MYSQLROUTING_INCLUDED

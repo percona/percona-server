@@ -24,682 +24,896 @@ The following global status variables are available:
 
    * - Name
      - Var Type
-   * - :variable:`rocksdb_rows_deleted`
+   * - :ref:`rocksdb_rows_deleted`
      - Numeric
-   * - :variable:`rocksdb_rows_inserted`
+   * - :ref:`rocksdb_rows_inserted`
      - Numeric
-   * - :variable:`rocksdb_rows_read`
+   * - :ref:`rocksdb_rows_read`
      - Numeric
-   * - :variable:`rocksdb_rows_unfiltered_no_snapshot`
+   * - :ref:`rocksdb_rows_unfiltered_no_snapshot`
      - Numeric
-   * - :variable:`rocksdb_rows_updated`
+   * - :ref:`rocksdb_rows_updated`
      - Numeric
-   * - :variable:`rocksdb_rows_expired`
+   * - :ref:`rocksdb_rows_expired`
      - Numeric
-   * - :variable:`rocksdb_system_rows_deleted`
+   * - :ref:`rocksdb_system_rows_deleted`
      - Numeric
-   * - :variable:`rocksdb_system_rows_inserted`
+   * - :ref:`rocksdb_system_rows_inserted`
      - Numeric
-   * - :variable:`rocksdb_system_rows_read`
+   * - :ref:`rocksdb_system_rows_read`
      - Numeric
-   * - :variable:`rocksdb_system_rows_updated`
+   * - :ref:`rocksdb_system_rows_updated`
      - Numeric
-   * - :variable:`rocksdb_memtable_total`
+   * - :ref:`rocksdb_memtable_total`
      - Numeric
-   * - :variable:`rocksdb_memtable_unflushed`
+   * - :ref:`rocksdb_memtable_unflushed`
      - Numeric
-   * - :variable:`rocksdb_queries_point`
+   * - :ref:`rocksdb_queries_point`
      - Numeric
-   * - :variable:`rocksdb_queries_range`
+   * - :ref:`rocksdb_queries_range`
      - Numeric
-   * - :variable:`rocksdb_covered_secondary_key_lookups`
+   * - :ref:`rocksdb_covered_secondary_key_lookups`
      - Numeric
-   * - :variable:`rocksdb_additional_compactions_trigger`
+   * - :ref:`rocksdb_additional_compactions_trigger`
      - Numeric
-   * - :variable:`rocksdb_block_cache_add`
+   * - :ref:`rocksdb_block_cache_add`
      - Numeric
-   * - :variable:`rocksdb_block_cache_add_failures`
+   * - :ref:`rocksdb_block_cache_add_failures`
      - Numeric
-   * - :variable:`rocksdb_block_cache_bytes_read`
+   * - :ref:`rocksdb_block_cache_bytes_read`
      - Numeric
-   * - :variable:`rocksdb_block_cache_bytes_write`
+   * - :ref:`rocksdb_block_cache_bytes_write`
      - Numeric
-   * - :variable:`rocksdb_block_cache_data_add`
+   * - :ref:`rocksdb_block_cache_data_add`
      - Numeric
-   * - :variable:`rocksdb_block_cache_data_bytes_insert`
+   * - :ref:`rocksdb_block_cache_data_bytes_insert`
      - Numeric
-   * - :variable:`rocksdb_block_cache_data_hit`
+   * - :ref:`rocksdb_block_cache_data_hit`
      - Numeric
-   * - :variable:`rocksdb_block_cache_data_miss`
+   * - :ref:`rocksdb_block_cache_data_miss`
      - Numeric
-   * - :variable:`rocksdb_block_cache_filter_add`
+   * - :ref:`rocksdb_block_cache_filter_add`
      - Numeric
-   * - :variable:`rocksdb_block_cache_filter_bytes_evict`
+   * - :ref:`rocksdb_block_cache_filter_bytes_evict`
      - Numeric
-   * - :variable:`rocksdb_block_cache_filter_bytes_insert`
+   * - :ref:`rocksdb_block_cache_filter_bytes_insert`
      - Numeric
-   * - :variable:`rocksdb_block_cache_filter_hit`
+   * - :ref:`rocksdb_block_cache_filter_hit`
      - Numeric
-   * - :variable:`rocksdb_block_cache_filter_miss`
+   * - :ref:`rocksdb_block_cache_filter_miss`
      - Numeric
-   * - :variable:`rocksdb_block_cache_hit`
+   * - :ref:`rocksdb_block_cache_hit`
      - Numeric
-   * - :variable:`rocksdb_block_cache_index_add`
+   * - :ref:`rocksdb_block_cache_index_add`
      - Numeric
-   * - :variable:`rocksdb_block_cache_index_bytes_evict`
+   * - :ref:`rocksdb_block_cache_index_bytes_evict`
      - Numeric
-   * - :variable:`rocksdb_block_cache_index_bytes_insert`
+   * - :ref:`rocksdb_block_cache_index_bytes_insert`
      - Numeric
-   * - :variable:`rocksdb_block_cache_index_hit`
+   * - :ref:`rocksdb_block_cache_index_hit`
      - Numeric
-   * - :variable:`rocksdb_block_cache_index_miss`
+   * - :ref:`rocksdb_block_cache_index_miss`
      - Numeric
-   * - :variable:`rocksdb_block_cache_miss`
+   * - :ref:`rocksdb_block_cache_miss`
      - Numeric
-   * - :variable:`rocksdb_block_cache_compressed_hit`
+   * - :ref:`rocksdb_block_cache_compressed_hit`
      - Numeric
-   * - :variable:`rocksdb_block_cache_compressed_miss`
+   * - :ref:`rocksdb_block_cache_compressed_miss`
      - Numeric
-   * - :variable:`rocksdb_bloom_filter_prefix_checked`
+   * - :ref:`rocksdb_bloom_filter_prefix_checked`
      - Numeric
-   * - :variable:`rocksdb_bloom_filter_prefix_useful`
+   * - :ref:`rocksdb_bloom_filter_prefix_useful`
      - Numeric
-   * - :variable:`rocksdb_bloom_filter_useful`
+   * - :ref:`rocksdb_bloom_filter_useful`
      - Numeric
-   * - :variable:`rocksdb_bytes_read`
+   * - :ref:`rocksdb_bytes_read`
      - Numeric
-   * - :variable:`rocksdb_bytes_written`
+   * - :ref:`rocksdb_bytes_written`
      - Numeric
-   * - :variable:`rocksdb_compact_read_bytes`
+   * - :ref:`rocksdb_compact_read_bytes`
      - Numeric
-   * - :variable:`rocksdb_compact_write_bytes`
+   * - :ref:`rocksdb_compact_write_bytes`
      - Numeric
-   * - :variable:`rocksdb_compaction_key_drop_new`
+   * - :ref:`rocksdb_compaction_key_drop_new`
      - Numeric
-   * - :variable:`rocksdb_compaction_key_drop_obsolete`
+   * - :ref:`rocksdb_compaction_key_drop_obsolete`
      - Numeric
-   * - :variable:`rocksdb_compaction_key_drop_user`
+   * - :ref:`rocksdb_compaction_key_drop_user`
      - Numeric
-   * - :variable:`rocksdb_flush_write_bytes`
+   * - :ref:`rocksdb_flush_write_bytes`
      - Numeric
-   * - :variable:`rocksdb_get_hit_l0`
+   * - :ref:`rocksdb_get_hit_l0`
      - Numeric
-   * - :variable:`rocksdb_get_hit_l1`
+   * - :ref:`rocksdb_get_hit_l1`
      - Numeric
-   * - :variable:`rocksdb_get_hit_l2_and_up`
+   * - :ref:`rocksdb_get_hit_l2_and_up`
      - Numeric
-   * - :variable:`rocksdb_get_updates_since_calls`
+   * - :ref:`rocksdb_get_updates_since_calls`
      - Numeric
-   * - :variable:`rocksdb_iter_bytes_read`
+   * - :ref:`rocksdb_iter_bytes_read`
      - Numeric
-   * - :variable:`rocksdb_memtable_hit`
+   * - :ref:`rocksdb_memtable_hit`
      - Numeric
-   * - :variable:`rocksdb_memtable_miss`
+   * - :ref:`rocksdb_memtable_miss`
      - Numeric
-   * - :variable:`rocksdb_no_file_closes`
+   * - :ref:`rocksdb_no_file_closes`
      - Numeric
-   * - :variable:`rocksdb_no_file_errors`
+   * - :ref:`rocksdb_no_file_errors`
      - Numeric
-   * - :variable:`rocksdb_no_file_opens`
+   * - :ref:`rocksdb_no_file_opens`
      - Numeric
-   * - :variable:`rocksdb_num_iterators`
+   * - :ref:`rocksdb_num_iterators`
      - Numeric
-   * - :variable:`rocksdb_number_block_not_compressed`
+   * - :ref:`rocksdb_number_block_not_compressed`
      - Numeric
-   * - :variable:`rocksdb_number_db_next`
+   * - :ref:`rocksdb_number_db_next`
      - Numeric
-   * - :variable:`rocksdb_number_db_next_found`
+   * - :ref:`rocksdb_number_db_next_found`
      - Numeric
-   * - :variable:`rocksdb_number_db_prev`
+   * - :ref:`rocksdb_number_db_prev`
      - Numeric
-   * - :variable:`rocksdb_number_db_prev_found`
+   * - :ref:`rocksdb_number_db_prev_found`
      - Numeric
-   * - :variable:`rocksdb_number_db_seek`
+   * - :ref:`rocksdb_number_db_seek`
      - Numeric
-   * - :variable:`rocksdb_number_db_seek_found`
+   * - :ref:`rocksdb_number_db_seek_found`
      - Numeric
-   * - :variable:`rocksdb_number_deletes_filtered`
+   * - :ref:`rocksdb_number_deletes_filtered`
      - Numeric
-   * - :variable:`rocksdb_number_keys_read`
+   * - :ref:`rocksdb_number_keys_read`
      - Numeric
-   * - :variable:`rocksdb_number_keys_updated`
+   * - :ref:`rocksdb_number_keys_updated`
      - Numeric
-   * - :variable:`rocksdb_number_keys_written`
+   * - :ref:`rocksdb_number_keys_written`
      - Numeric
-   * - :variable:`rocksdb_number_merge_failures`
+   * - :ref:`rocksdb_number_merge_failures`
      - Numeric
-   * - :variable:`rocksdb_number_multiget_bytes_read`
+   * - :ref:`rocksdb_number_multiget_bytes_read`
      - Numeric
-   * - :variable:`rocksdb_number_multiget_get`
+   * - :ref:`rocksdb_number_multiget_get`
      - Numeric
-   * - :variable:`rocksdb_number_multiget_keys_read`
+   * - :ref:`rocksdb_number_multiget_keys_read`
      - Numeric
-   * - :variable:`rocksdb_number_reseeks_iteration`
+   * - :ref:`rocksdb_number_reseeks_iteration`
      - Numeric
-   * - :variable:`rocksdb_number_sst_entry_delete`
+   * - :ref:`rocksdb_number_sst_entry_delete`
      - Numeric
-   * - :variable:`rocksdb_number_sst_entry_merge`
+   * - :ref:`rocksdb_number_sst_entry_merge`
      - Numeric
-   * - :variable:`rocksdb_number_sst_entry_other`
+   * - :ref:`rocksdb_number_sst_entry_other`
      - Numeric
-   * - :variable:`rocksdb_number_sst_entry_put`
+   * - :ref:`rocksdb_number_sst_entry_put`
      - Numeric
-   * - :variable:`rocksdb_number_sst_entry_singledelete`
+   * - :ref:`rocksdb_number_sst_entry_singledelete`
      - Numeric
-   * - :variable:`rocksdb_number_stat_computes`
+   * - :ref:`rocksdb_number_stat_computes`
      - Numeric
-   * - :variable:`rocksdb_number_superversion_acquires`
+   * - :ref:`rocksdb_number_superversion_acquires`
      - Numeric
-   * - :variable:`rocksdb_number_superversion_cleanups`
+   * - :ref:`rocksdb_number_superversion_cleanups`
      - Numeric
-   * - :variable:`rocksdb_number_superversion_releases`
+   * - :ref:`rocksdb_number_superversion_releases`
      - Numeric
-   * - :variable:`rocksdb_rate_limit_delay_millis`
+   * - :ref:`rocksdb_rate_limit_delay_millis`
      - Numeric
-   * - :variable:`rocksdb_row_lock_deadlocks`
+   * - :ref:`rocksdb_row_lock_deadlocks`
      - Numeric
-   * - :variable:`rocksdb_row_lock_wait_timeouts`
+   * - :ref:`rocksdb_row_lock_wait_timeouts`
      - Numeric
-   * - :variable:`rocksdb_snapshot_conflict_errors`
+   * - :ref:`rocksdb_snapshot_conflict_errors`
      - Numeric
-   * - :variable:`rocksdb_stall_l0_file_count_limit_slowdowns`
+   * - :ref:`rocksdb_stall_l0_file_count_limit_slowdowns`
      - Numeric
-   * - :variable:`rocksdb_stall_locked_l0_file_count_limit_slowdowns`
+   * - :ref:`rocksdb_stall_locked_l0_file_count_limit_slowdowns`
      - Numeric
-   * - :variable:`rocksdb_stall_l0_file_count_limit_stops`
+   * - :ref:`rocksdb_stall_l0_file_count_limit_stops`
      - Numeric
-   * - :variable:`rocksdb_stall_locked_l0_file_count_limit_stops`
+   * - :ref:`rocksdb_stall_locked_l0_file_count_limit_stops`
      - Numeric
-   * - :variable:`rocksdb_stall_pending_compaction_limit_stops`
+   * - :ref:`rocksdb_stall_pending_compaction_limit_stops`
      - Numeric
-   * - :variable:`rocksdb_stall_pending_compaction_limit_slowdowns`
+   * - :ref:`rocksdb_stall_pending_compaction_limit_slowdowns`
      - Numeric
-   * - :variable:`rocksdb_stall_memtable_limit_stops`
+   * - :ref:`rocksdb_stall_memtable_limit_stops`
      - Numeric
-   * - :variable:`rocksdb_stall_memtable_limit_slowdowns`
+   * - :ref:`rocksdb_stall_memtable_limit_slowdowns`
      - Numeric
-   * - :variable:`rocksdb_stall_total_stops`
+   * - :ref:`rocksdb_stall_total_stops`
      - Numeric
-   * - :variable:`rocksdb_stall_total_slowdowns`
+   * - :ref:`rocksdb_stall_total_slowdowns`
      - Numeric
-   * - :variable:`rocksdb_stall_micros`
+   * - :ref:`rocksdb_stall_micros`
      - Numeric
-   * - :variable:`rocksdb_wal_bytes`
+   * - :ref:`rocksdb_wal_bytes`
      - Numeric
-   * - :variable:`rocksdb_wal_group_syncs`
+   * - :ref:`rocksdb_wal_group_syncs`
      - Numeric
-   * - :variable:`rocksdb_wal_synced`
+   * - :ref:`rocksdb_wal_synced`
      - Numeric
-   * - :variable:`rocksdb_write_other`
+   * - :ref:`rocksdb_write_other`
      - Numeric
-   * - :variable:`rocksdb_write_self`
+   * - :ref:`rocksdb_write_self`
      - Numeric
-   * - :variable:`rocksdb_write_timedout`
+   * - :ref:`rocksdb_write_timedout`
      - Numeric
-   * - :variable:`rocksdb_write_wal`
+   * - :ref:`rocksdb_write_wal`
      - Numeric
 
-.. variable:: rocksdb_rows_deleted
+.. _rocksdb_rows_deleted:
+
+.. rubric:: ``rocksdb_rows_deleted``
 
 This variable shows the number of rows that were deleted from MyRocks tables.
 
-.. variable:: rocksdb_rows_inserted
+.. _rocksdb_rows_inserted:
+
+.. rubric:: ``rocksdb_rows_inserted``
 
 This variable shows the number of rows that were inserted into MyRocks tables.
 
-.. variable:: rocksdb_rows_read
+.. _rocksdb_rows_read:
+
+.. rubric:: ``rocksdb_rows_read``
 
 This variable shows the number of rows that were read from MyRocks tables.
 
-.. variable:: rocksdb_rows_unfiltered_no_snapshot
+.. _rocksdb_rows_unfiltered_no_snapshot:
+
+.. rubric:: ``rocksdb_rows_unfiltered_no_snapshot``
 
 This variable shows how many reads need TTL and have no snapshot timestamp.
 
-.. variable:: rocksdb_rows_updated
+.. _rocksdb_rows_updated:
+
+.. rubric:: ``rocksdb_rows_updated``
 
 This variable shows the number of rows that were updated in MyRocks tables.
 
-.. variable:: rocksdb_rows_expired
+.. _rocksdb_rows_expired:
+
+.. rubric:: ``rocksdb_rows_expired``
 
 This variable shows the number of expired rows in MyRocks tables.
 
-.. variable:: rocksdb_system_rows_deleted
+.. _rocksdb_system_rows_deleted:
+
+.. rubric:: ``rocksdb_system_rows_deleted``
 
 This variable shows the number of rows that were deleted
 from MyRocks system tables.
 
-.. variable:: rocksdb_system_rows_inserted
+.. _rocksdb_system_rows_inserted:
+
+.. rubric:: ``rocksdb_system_rows_inserted``
 
 This variable shows the number of rows that were inserted
 into MyRocks system tables.
 
-.. variable:: rocksdb_system_rows_read
+.. _rocksdb_system_rows_read:
+
+.. rubric:: ``ocksdb_system_rows_read``
 
 This variable shows the number of rows that were read
 from MyRocks system tables.
 
-.. variable:: rocksdb_system_rows_updated
+.. _rocksdb_system_rows_updated:
+
+.. rubric:: ``rocksdb_system_rows_updated``
 
 This variable shows the number of rows that were updated
 in MyRocks system tables.
 
-.. variable:: rocksdb_memtable_total
+.. _rocksdb_memtable_total:
+
+.. rubric:: ``rocksdb_memtable_total``
 
 This variable shows the memory usage, in bytes, of all memtables.
 
-.. variable:: rocksdb_memtable_unflushed
+.. _rocksdb_memtable_unflushed:
+
+.. rubric:: ``rocksdb_memtable_unflushed``
 
 This variable shows the memory usage, in bytes, of all unflushed memtables.
 
-.. variable:: rocksdb_queries_point
+.. _rocksdb_queries_point:
+
+.. rubric:: ``rocksdb_queries_point``
 
 This variable shows the number of single row queries.
 
-.. variable:: rocksdb_queries_range
+.. _rocksdb_queries_range:
+
+.. rubric:: ``rocksdb_queries_range``
 
 This variable shows the number of multi/range row queries.
 
-.. variable:: rocksdb_covered_secondary_key_lookups
+.. _rocksdb_covered_secondary_key_lookups:
+
+.. rubric:: ``rocksdb_covered_secondary_key_lookups``
 
 This variable shows the number of lookups via secondary index that were able to
 return all fields requested directly from the secondary index when the
 secondary index contained a field that is only a prefix of the
 ``varchar`` column.
 
-.. variable:: rocksdb_additional_compactions_trigger
+.. _rocksdb_additional_compactions_trigger:
+
+.. rubric:: ``rocksdb_additional_compactions_trigger``
 
 This variable shows the number of triggered additional compactions.
 MyRocks triggers an additional compaction if (number of deletions / number of entries) > (rocksdb_compaction_sequential_deletes / rocksdb_compaction_sequential_deletes_window)
 in the SST file.
 
-.. variable:: rocksdb_block_cache_add
+.. _rocksdb_block_cache_add:
+
+.. rubric:: ``rocksdb_block_cache_add``
 
 This variable shows the number of blocks added to block cache.
 
-.. variable:: rocksdb_block_cache_add_failures
+.. _rocksdb_block_cache_add_failures:
+
+.. rubric:: ``rocksdb_block_cache_add_failures``
 
 This variable shows the number of failures when adding blocks to block cache.
 
-.. variable:: rocksdb_block_cache_bytes_read
+.. _rocksdb_block_cache_bytes_read:
+
+.. rubric:: ``rocksdb_block_cache_bytes_read``
 
 This variable shows the number of bytes read from cache.
 
-.. variable:: rocksdb_block_cache_bytes_write
+.. _rocksdb_block_cache_bytes_write:
+
+.. rubric:: ``rocksdb_block_cache_bytes_write``
 
 This variable shows the number of bytes written into cache.
 
-.. variable:: rocksdb_block_cache_data_add
+.. _rocksdb_block_cache_data_add:
+
+.. rubric:: ``rocksdb_block_cache_data_add``
 
 This variable shows the number of data blocks added to block cache.
 
-.. variable:: rocksdb_block_cache_data_bytes_insert
+.. _rocksdb_block_cache_data_bytes_insert:
+
+.. rubric:: ``rocksdb_block_cache_data_bytes_insert``
 
 This variable shows the number of bytes of data blocks inserted into cache.
 
-.. variable:: rocksdb_block_cache_data_hit
+.. _rocksdb_block_cache_data_hit:
+
+.. rubric:: ``rocksdb_block_cache_data_hit``
 
 This variable shows the number of cache hits when accessing the
 data block from the block cache.
 
-.. variable:: rocksdb_block_cache_data_miss
+.. _rocksdb_block_cache_data_miss:
+
+.. rubric:: ``rocksdb_block_cache_data_miss``
 
 This variable shows the number of cache misses when accessing the
 data block from the block cache.
 
-.. variable:: rocksdb_block_cache_filter_add
+.. _rocksdb_block_cache_filter_add:
+
+.. rubric:: ``rocksdb_block_cache_filter_add``
 
 This variable shows the number of filter blocks added to block cache.
 
-.. variable:: rocksdb_block_cache_filter_bytes_evict
+.. _rocksdb_block_cache_filter_bytes_evict:
+
+.. rubric:: ``rocksdb_block_cache_filter_bytes_evict``
 
 This variable shows the number of bytes of bloom filter blocks
 removed from cache.
 
-.. variable:: rocksdb_block_cache_filter_bytes_insert
+.. _rocksdb_block_cache_filter_bytes_insert:
+
+.. rubric:: ``rocksdb_block_cache_filter_bytes_insert``
 
 This variable shows the number of bytes of bloom filter blocks
 inserted into cache.
 
-.. variable:: rocksdb_block_cache_filter_hit
+.. _rocksdb_block_cache_filter_hit:
+
+.. rubric:: ``rocksdb_block_cache_filter_hit``
 
 This variable shows the number of times cache hit when accessing filter block
 from block cache.
 
-.. variable:: rocksdb_block_cache_filter_miss
+.. _rocksdb_block_cache_filter_miss:
+
+.. rubric:: ``rocksdb_block_cache_filter_miss``
 
 This variable shows the number of times cache miss when accessing filter
 block from block cache.
 
-.. variable:: rocksdb_block_cache_hit
+.. _rocksdb_block_cache_hit:
+
+.. rubric:: ``rocksdb_block_cache_hit``
 
 This variable shows the total number of block cache hits.
 
-.. variable:: rocksdb_block_cache_index_add
+.. _rocksdb_block_cache_index_add:
+
+.. rubric:: ``rocksdb_block_cache_index_add``
 
 This variable shows the number of index blocks added to block cache.
 
-.. variable:: rocksdb_block_cache_index_bytes_evict
+.. _rocksdb_block_cache_index_bytes_evict:
+
+.. rubric:: ``rocksdb_block_cache_index_bytes_evict``
 
 This variable shows the number of bytes of index block erased from cache.
 
-.. variable:: rocksdb_block_cache_index_bytes_insert
+.. _rocksdb_block_cache_index_bytes_insert:
+
+.. rubric:: ``rocksdb_block_cache_index_bytes_insert``
 
 This variable shows the number of bytes of index blocks inserted into cache.
 
-.. variable:: rocksdb_block_cache_index_hit
+.. _rocksdb_block_cache_index_hit:
+
+.. rubric:: ``rocksdb_block_cache_index_hit``
 
 This variable shows the total number of block cache index hits.
 
-.. variable:: rocksdb_block_cache_index_miss
+.. _rocksdb_block_cache_index_miss:
+
+.. rubric:: ``rocksdb_block_cache_index_miss``
 
 This variable shows the number of times cache hit when accessing index
 block from block cache.
 
-.. variable:: rocksdb_block_cache_miss
+.. _rocksdb_block_cache_miss:
+
+.. rubric:: ``rocksdb_block_cache_miss``
 
 This variable shows the total number of block cache misses.
 
-.. variable:: rocksdb_block_cache_compressed_hit
+.. _rocksdb_block_cache_compressed_hit:
+
+.. rubric:: ``rocksdb_block_cache_compressed_hit``
 
 This variable shows the number of hits in the compressed block cache.
 
-.. variable:: rocksdb_block_cache_compressed_miss
+.. _rocksdb_block_cache_compressed_miss:
+
+.. rubric:: ``rocksdb_block_cache_compressed_miss``
 
 This variable shows the number of misses in the compressed block cache.
 
-.. variable:: rocksdb_bloom_filter_prefix_checked
+.. _rocksdb_bloom_filter_prefix_checked:
+
+.. rubric:: ``rocksdb_bloom_filter_prefix_checked``
 
 This variable shows the number of times bloom was checked before
 creating iterator on a file.
 
-.. variable:: rocksdb_bloom_filter_prefix_useful
+.. _rocksdb_bloom_filter_prefix_useful:
+
+.. rubric:: ``rocksdb_bloom_filter_prefix_useful``
 
 This variable shows the number of times the check was useful in avoiding
 iterator creation (and thus likely IOPs).
 
-.. variable:: rocksdb_bloom_filter_useful
+.. _rocksdb_bloom_filter_useful:
+
+.. rubric:: ``rocksdb_bloom_filter_useful``
 
 This variable shows the number of times bloom filter has avoided file reads.
 
-.. variable:: rocksdb_bytes_read
+.. _rocksdb_bytes_read:
+
+.. rubric:: ``rocksdb_bytes_read``
 
 This variable shows the total number of uncompressed bytes read. It could be
 either from memtables, cache, or table files.
 
-.. variable:: rocksdb_bytes_written
+.. _rocksdb_bytes_written:
+
+.. rubric:: ``rocksdb_bytes_written``
 
 This variable shows the total number of uncompressed bytes written.
 
-.. variable:: rocksdb_compact_read_bytes
+.. _rocksdb_compact_read_bytes:
+
+.. rubric:: ``rocksdb_compact_read_bytes``
 
 This variable shows the number of bytes read during compaction
 
-.. variable:: rocksdb_compact_write_bytes
+.. _rocksdb_compact_write_bytes:
+
+.. rubric:: ``rocksdb_compact_write_bytes``
 
 This variable shows the number of bytes written during compaction.
 
-.. variable:: rocksdb_compaction_key_drop_new
+.. _rocksdb_compaction_key_drop_new:
+
+.. rubric:: ``rocksdb_compaction_key_drop_new``
 
 This variable shows the number of key drops during compaction because
 it was overwritten with a newer value.
 
-.. variable:: rocksdb_compaction_key_drop_obsolete
+.. _rocksdb_compaction_key_drop_obsolete:
+
+.. rubric:: ``rocksdb_compaction_key_drop_obsolete``
 
 This variable shows the number of key drops during compaction because
 it was obsolete.
 
-.. variable:: rocksdb_compaction_key_drop_user
+.. _rocksdb_compaction_key_drop_user:
+
+.. rubric:: ``rocksdb_compaction_key_drop_user``
 
 This variable shows the number of key drops during compaction because
 user compaction function has dropped the key.
 
-.. variable:: rocksdb_flush_write_bytes
+.. _rocksdb_flush_write_bytes:
+
+.. rubric:: ``rocksdb_flush_write_bytes``
 
 This variable shows the number of bytes written during flush.
 
-.. variable:: rocksdb_get_hit_l0
+.. _rocksdb_get_hit_l0:
+
+.. rubric:: ``rocksdb_get_hit_l0``
 
 This variable shows the number of ``Get()`` queries served by L0.
 
-.. variable:: rocksdb_get_hit_l1
+.. _rocksdb_get_hit_l1:
+
+.. rubric:: ``rocksdb_get_hit_l1``
 
 This variable shows the number of ``Get()`` queries served by L1.
 
-.. variable:: rocksdb_get_hit_l2_and_up
+.. _rocksdb_get_hit_l2_and_up:
+
+.. rubric:: ``rocksdb_get_hit_l2_and_up``
 
 This variable shows the number of ``Get()`` queries served by L2 and up.
 
-.. variable:: rocksdb_get_updates_since_calls
+.. _rocksdb_get_updates_since_calls:
+
+.. rubric:: ``rocksdb_get_updates_since_calls``
 
 This variable shows the number of calls to ``GetUpdatesSince`` function.
 Useful to keep track of transaction log iterator refreshes
 
-.. variable:: rocksdb_iter_bytes_read
+.. _rocksdb_iter_bytes_read:
+
+.. rubric:: ``rocksdb_iter_bytes_read``
 
 This variable shows the number of uncompressed bytes read from an iterator.
 It includes size of key and value.
 
-.. variable:: rocksdb_memtable_hit
+.. _rocksdb_memtable_hit:
+
+.. rubric:: ``rocksdb_memtable_hit``
 
 This variable shows the number of memtable hits.
 
-.. variable:: rocksdb_memtable_miss
+.. _rocksdb_memtable_miss:
+
+.. rubric:: ``rocksdb_memtable_miss``
 
 This variable shows the number of memtable misses.
 
-.. variable:: rocksdb_no_file_closes
+.. _rocksdb_no_file_closes:
+
+.. rubric:: ``rocksdb_no_file_closes``
 
 This variable shows the number of time file were closed.
 
-.. variable:: rocksdb_no_file_errors
+.. _rocksdb_no_file_errors:
+
+.. rubric:: ``rocksdb_no_file_errors``
 
 This variable shows number of errors trying to read in data from an sst file.
 
-.. variable:: rocksdb_no_file_opens
+.. _rocksdb_no_file_opens:
+
+.. rubric:: ``rocksdb_no_file_opens``
 
 This variable shows the number of time file were opened.
 
-.. variable:: rocksdb_num_iterators
+.. _rocksdb_num_iterators:
+
+.. rubric:: ``rocksdb_num_iterators``
 
 This variable shows the number of currently open iterators.
 
-.. variable:: rocksdb_number_block_not_compressed
+.. _rocksdb_number_block_not_compressed:
+
+.. rubric:: ``rocksdb_number_block_not_compressed``
 
 This variable shows the number of uncompressed blocks.
 
-.. variable:: rocksdb_number_db_next
+.. _rocksdb_number_db_next:
+
+.. rubric:: ``rocksdb_number_db_next``
 
 This variable shows the number of calls to ``next``.
 
-.. variable:: rocksdb_number_db_next_found
+.. _rocksdb_number_db_next_found:
+
+.. rubric:: ``rocksdb_number_db_next_found``
 
 This variable shows the number of calls to ``next`` that returned data.
 
-.. variable:: rocksdb_number_db_prev
+.. _rocksdb_number_db_prev:
+
+.. rubric:: ``rocksdb_number_db_prev``
 
 This variable shows the number of calls to ``prev``.
 
-.. variable:: rocksdb_number_db_prev_found
+.. _rocksdb_number_db_prev_found:
+
+.. rubric:: ``rocksdb_number_db_prev_found``
 
 This variable shows the number of calls to ``prev`` that returned data.
 
-.. variable:: rocksdb_number_db_seek
+.. _rocksdb_number_db_seek:
+
+.. rubric:: ``rocksdb_number_db_seek``
 
 This variable shows the number of calls to ``seek``.
 
-.. variable:: rocksdb_number_db_seek_found
+.. _rocksdb_number_db_seek_found:
+
+.. rubric:: ``rocksdb_number_db_seek_found``
 
 This variable shows the number of calls to ``seek`` that returned data.
 
-.. variable:: rocksdb_number_deletes_filtered
+.. _rocksdb_number_deletes_filtered:
+
+.. rubric:: ``rocksdb_number_deletes_filtered``
 
 This variable shows the number of deleted records that were not required to be
 written to storage because key did not exist.
 
-.. variable:: rocksdb_number_keys_read
+.. _rocksdb_number_keys_read:
+
+.. rubric:: ``rocksdb_number_keys_read``
 
 This variable shows the number of keys read.
 
-.. variable:: rocksdb_number_keys_updated
+.. _rocksdb_number_keys_updated:
+
+.. rubric:: ``rocksdb_number_keys_updated``
 
 This variable shows the number of keys updated, if inplace update is enabled.
 
-.. variable:: rocksdb_number_keys_written
+.. _rocksdb_number_keys_written:
+
+.. rubric:: ``rocksdb_number_keys_written``
 
 This variable shows the number of keys written to the database.
 
-.. variable:: rocksdb_number_merge_failures
+.. _rocksdb_number_merge_failures:
+
+.. rubric:: ``rocksdb_number_merge_failures``
 
 This variable shows the number of failures performing merge operator actions
 in RocksDB.
 
-.. variable:: rocksdb_number_multiget_bytes_read
+.. _rocksdb_number_multiget_bytes_read:
+
+.. rubric:: ``rocksdb_number_multiget_bytes_read``
 
 This variable shows the number of bytes read during RocksDB
 ``MultiGet()`` calls.
 
-.. variable:: rocksdb_number_multiget_get
+.. _rocksdb_number_multiget_get:
+
+.. rubric:: ``rocksdb_number_multiget_get``
 
 This variable shows the number ``MultiGet()`` requests to RocksDB.
 
-.. variable:: rocksdb_number_multiget_keys_read
+.. _rocksdb_number_multiget_keys_read:
+
+.. rubric:: ``rocksdb_number_multiget_keys_read``
 
 This variable shows the keys read via ``MultiGet()``.
 
-.. variable:: rocksdb_number_reseeks_iteration
+.. _rocksdb_number_reseeks_iteration:
+
+.. rubric:: ``rocksdb_number_reseeks_iteration``
 
 This variable shows the number of times reseek happened inside an iteration to
 skip over large number of keys with same userkey.
 
-.. variable:: rocksdb_number_sst_entry_delete
+.. _rocksdb_number_sst_entry_delete:
+
+.. rubric:: ``rocksdb_number_sst_entry_delete``
 
 This variable shows the total number of delete markers written by MyRocks.
 
-.. variable:: rocksdb_number_sst_entry_merge
+.. _rocksdb_number_sst_entry_merge:
+
+.. rubric:: ``rocksdb_number_sst_entry_merge``
 
 This variable shows the total number of merge keys written by MyRocks.
 
-.. variable:: rocksdb_number_sst_entry_other
+.. _rocksdb_number_sst_entry_other:
+
+.. rubric:: ``rocksdb_number_sst_entry_other``
 
 This variable shows the total number of non-delete, non-merge, non-put keys
 written by MyRocks.
 
-.. variable:: rocksdb_number_sst_entry_put
+.. _rocksdb_number_sst_entry_put:
+
+.. rubric:: ``rocksdb_number_sst_entry_put``
 
 This variable shows the total number of put keys written by MyRocks.
 
-.. variable:: rocksdb_number_sst_entry_singledelete
+.. _rocksdb_number_sst_entry_singledelete:
+
+.. rubric:: ``rocksdb_number_sst_entry_singledelete``
 
 This variable shows the total number of single delete keys written by MyRocks.
 
-.. variable:: rocksdb_number_stat_computes
+.. _rocksdb_number_stat_computes:
+
+.. rubric:: ``rocksdb_number_stat_computes``
 
 This variable isn't used anymore and will be removed in future releases.
 
-.. variable:: rocksdb_number_superversion_acquires
+.. _rocksdb_number_superversion_acquires:
+
+.. rubric:: ``rocksdb_number_superversion_acquires``
 
 This variable shows the number of times the superversion structure has been
 acquired in RocksDB, this is used for tracking all of the files for the
 database.
 
-.. variable:: rocksdb_number_superversion_cleanups
+.. _rocksdb_number_superversion_cleanups:
 
-.. variable:: rocksdb_number_superversion_releases
+.. rubric:: ``rocksdb_number_superversion_cleanups``
 
-.. variable:: rocksdb_rate_limit_delay_millis
+.. _rocksdb_number_superversion_releases:
 
-This variable isn't used anymore and will be removed in future releases.
+.. rubric:: ``rocksdb_number_superversion_releases``
 
-.. variable:: rocksdb_row_lock_deadlocks
+.. _rocksdb_rate_limit_delay_millis:
+
+.. rubric:: ``rocksdb_rate_limit_delay_millis``
+
+This variable was removed in *Percona Server for MySQL* :ref:`5.7.23-23`.
+
+.. _rocksdb_row_lock_deadlocks:
+
+.. rubric:: ``rocksdb_row_lock_deadlocks``
 
 This variable shows the total number of deadlocks that have been detected since the instance was started.
 
-.. variable:: rocksdb_row_lock_wait_timeouts
+.. _rocksdb_row_lock_wait_timeouts:
+
+.. rubric:: ``rocksdb_row_lock_wait_timeouts``
 
 This variable shows the total number of row lock wait timeouts that have been detected since the instance was started.
 
-.. variable:: rocksdb_snapshot_conflict_errors
+.. _rocksdb_snapshot_conflict_errors:
+
+.. rubric:: ``rocksdb_snapshot_conflict_errors``
 
 This variable shows the number of snapshot conflict errors occurring during
 write transactions that forces the transaction to rollback.
 
-.. variable:: rocksdb_stall_l0_file_count_limit_slowdowns
+.. _rocksdb_stall_l0_file_count_limit_slowdowns:
+
+.. rubric:: ``rocksdb_stall_l0_file_count_limit_slowdowns``
 
 This variable shows the slowdowns in write due to L0 being close to full.
 
-.. variable:: rocksdb_stall_locked_l0_file_count_limit_slowdowns
+.. _rocksdb_stall_locked_l0_file_count_limit_slowdowns:
+
+.. rubric:: ``rocksdb_stall_locked_l0_file_count_limit_slowdowns``
 
 This variable shows the slowdowns in write due to L0 being close to full and
 compaction for L0 is already in progress.
 
-.. variable:: rocksdb_stall_l0_file_count_limit_stops
+.. _rocksdb_stall_l0_file_count_limit_stops:
+
+.. rubric:: ``rocksdb_stall_l0_file_count_limit_stops``
 
 This variable shows the stalls in write due to L0 being full.
 
-.. variable:: rocksdb_stall_locked_l0_file_count_limit_stops
+.. _rocksdb_stall_locked_l0_file_count_limit_stops:
+
+.. rubric:: ``rocksdb_stall_locked_l0_file_count_limit_stops``
 
 This variable shows the stalls in write due to L0 being full and compaction
 for L0 is already in progress.
 
-.. variable:: rocksdb_stall_pending_compaction_limit_stops
+.. _rocksdb_stall_pending_compaction_limit_stops:
+
+.. rubric:: ``rocksdb_stall_pending_compaction_limit_stops``
 
 This variable shows the stalls in write due to hitting limits set for max
 number of pending compaction bytes.
 
-.. variable:: rocksdb_stall_pending_compaction_limit_slowdowns
+.. _rocksdb_stall_pending_compaction_limit_slowdowns:
+
+.. rubric:: ``rocksdb_stall_pending_compaction_limit_slowdowns``
 
 This variable shows the slowdowns in write due to getting close to limits set
 for max number of pending compaction bytes.
 
-.. variable:: rocksdb_stall_memtable_limit_stops
+.. _rocksdb_stall_memtable_limit_stops:
+
+.. rubric:: ``rocksdb_stall_memtable_limit_stops``
 
 This variable shows the stalls in write due to hitting max number of
 ``memTables`` allowed.
 
-.. variable:: rocksdb_stall_memtable_limit_slowdowns
+.. _rocksdb_stall_memtable_limit_slowdowns:
+
+.. rubric:: ``rocksdb_stall_memtable_limit_slowdowns``
 
 This variable shows the slowdowns in writes due to getting close to
 max number of memtables allowed.
 
-.. variable:: rocksdb_stall_total_stops
+.. _rocksdb_stall_total_stops:
+
+.. rubric:: ``rocksdb_stall_total_stops``
 
 This variable shows the total number of write stalls.
 
-.. variable:: rocksdb_stall_total_slowdowns
+.. _rocksdb_stall_total_slowdowns:
+
+.. rubric:: ``rocksdb_stall_total_slowdowns``
 
 This variable shows the total number of write slowdowns.
 
-.. variable:: rocksdb_stall_micros
+.. _rocksdb_stall_micros:
+
+.. rubric:: ``rocksdb_stall_micros``
 
 This variable shows how long (in microseconds) the writer had to wait for
 compaction or flush to finish.
 
-.. variable:: rocksdb_wal_bytes
+.. _rocksdb_wal_bytes:
+
+.. rubric:: ``rocksdb_wal_bytes``
 
 This variables shows the number of bytes written to WAL.
 
-.. variable:: rocksdb_wal_group_syncs
+.. _rocksdb_wal_group_syncs:
+
+.. rubric:: ``rocksdb_wal_group_syncs``
 
 This variable shows the number of group commit WAL file syncs
 that have occurred.
 
-.. variable:: rocksdb_wal_synced
+.. _rocksdb_wal_synced:
+
+.. rubric:: ``rocksdb_wal_synced``
 
 This variable shows the number of times WAL sync was done.
 
-.. variable:: rocksdb_write_other
+.. _rocksdb_write_other:
+
+.. rubric:: ``rocksdb_write_other``
 
 This variable shows the number of writes processed by another thread.
 
-.. variable:: rocksdb_write_self
+.. _rocksdb_write_self:
+
+.. rubric:: ``rocksdb_write_self``
 
 This variable shows the number of writes that were processed
 by a requesting thread.
 
-.. variable:: rocksdb_write_timedout
+.. _rocksdb_write_timedout:
+
+.. rubric:: ``rocksdb_write_timedout``
 
 This variable shows the number of writes ending up with timed-out.
 
-.. variable:: rocksdb_write_wal
+.. _rocksdb_write_wal:
+
+.. rubric:: ``rocksdb_write_wal``
 
 This variable shows the number of Write calls that request WAL.

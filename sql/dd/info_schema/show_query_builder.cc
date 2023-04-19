@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,7 @@ Item *Select_lex_builder::prepare_like_item(const LEX_CSTRING &field_name,
   return func_like;
 }
 
-// Prepare item representing a equal to comparision condition.
+// Prepare item representing an equal to comparison condition.
 Item *Select_lex_builder::prepare_equal_item(const LEX_CSTRING &field_name,
                                              const LEX_CSTRING &value) {
   /* ... FIELD_NAME ... */
@@ -321,7 +321,7 @@ Query_block *Select_lex_builder::prepare_query_block() {
   if (m_thd->is_error()) return nullptr;
 
   if (query_expression->contextualize(&pc)) return nullptr;
-
+  if (pc.finalize_query_expression()) return nullptr;
   return current_query_block;
 }
 

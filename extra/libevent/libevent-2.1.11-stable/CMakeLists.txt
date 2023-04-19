@@ -19,11 +19,55 @@
 #       start libevent.sln
 #
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wdangling-pointer" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
 IF(HAS_MISSING_PROFILE)
   STRING_APPEND(CMAKE_C_FLAGS " ${HAS_MISSING_PROFILE}")
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+#TODO(Bug#33986250): fix the deprecation for libevent
+IF(WIN32)
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4996")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4996")
+ENDIF()
+
+IF(WIN32_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-assign-enum")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-cast-align")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-cast-qual")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-covered-switch-default")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-disabled-macro-expansion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-documentation-unknown-command")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-double-promotion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-extra-semi-stmt")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-format-non-iso")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-gnu-redeclared-enum")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-implicit-int-conversion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-implicit-int-float-conversion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-keyword-macro")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-missing-noreturn")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-missing-variable-declarations")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-language-extension-token")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-nonportable-system-include-path")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-pedantic")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-redundant-parens")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-reserved-id-macro")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shadow")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-sign-conversion")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shorten-64-to-32")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-switch-enum")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-unreachable-code-return")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-macros")
+ENDIF()
 
 # Don't do this here, it will load policies for an older version of cmake.
 # cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
@@ -816,6 +860,10 @@ set(SRC_CORE
     signal.c
     strlcpy.c)
 
+IF(EVENT__HAVE_STRLCPY)
+  LIST(REMOVE_ITEM SRC_CORE strlcpy.c)
+ENDIF()
+
 if(EVENT__HAVE_SELECT)
     list(APPEND SRC_CORE select.c)
 endif()
@@ -964,10 +1012,15 @@ ENDIF()
 
 if (CMAKE_USE_PTHREADS_INIT)
   set(SRC_PTHREADS evthread_pthread.c)
-  add_library(event_pthreads ${SRC_PTHREADS})
+  add_library(event_pthreads STATIC ${SRC_PTHREADS})
   SET_TARGET_PROPERTIES(event_pthreads
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()
+
+MY_CHECK_C_COMPILER_FLAG("-Warray-parameter" HAVE_ARRAY_PARAMETER)
+IF(HAVE_ARRAY_PARAMETER)
+  TARGET_COMPILE_OPTIONS(event_core PRIVATE "-Wno-array-parameter")
+ENDIF()
 
 # Do not generate legacy event library, and do not install or test anything.
 RETURN()

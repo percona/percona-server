@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,8 @@
 #ifndef MULTI_TRANSPORTER_HPP
 #define MULTI_TRANSPORTER_HPP
 
+#include "util/require.h"
 #include "Transporter.hpp"
-
-#include <NdbTCP.h>
 
 class Multi_Transporter : public Transporter {
   friend class TransporterRegistry;
@@ -37,7 +36,7 @@ private:
    */
   void resetBuffers() override;
 
-  bool configure_derived(const TransporterConfiguration* conf) override
+  bool configure_derived(const TransporterConfiguration* /*conf*/) override
   {
     return true;
   }
@@ -63,7 +62,7 @@ public:
     return bytes_received;
   }
 
-  Transporter* get_send_transporter(Uint32 recBlock, Uint32 sendBlock) override
+  Transporter* get_send_transporter(Uint32 recBlock, Uint32 /*sendBlock*/) override
   {
     /**
      * We hash on receiver instance to avoid any risk of changed signal order
@@ -114,7 +113,7 @@ private:
    * Retrieves the contents of the send buffers and writes it on
    * the external TCP/IP interface.
    */
-  bool doSend(bool need_wakeup = true) override
+  bool doSend(bool /*need_wakeup*/) override
   {
     /* Send only done on real transporters */
     require(false);
@@ -144,9 +143,9 @@ protected:
    * A client connects to the remote server
    * A server accepts any new connections
    */
-  bool connect_server_impl(NDB_SOCKET_TYPE sockfd) override;
-  bool connect_client_impl(NDB_SOCKET_TYPE sockfd) override;
-  bool connect_common(NDB_SOCKET_TYPE sockfd);
+  bool connect_server_impl(ndb_socket_t sockfd) override;
+  bool connect_client_impl(ndb_socket_t sockfd) override;
+  bool connect_common(ndb_socket_t sockfd);
  
   /**
    * Disconnects a TCP/IP node, possibly blocking.

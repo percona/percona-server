@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 
+#include <cstring>
 #include <NdbTCP.h>
 #include <NdbOut.hpp>
 #include "BackupFormat.hpp"
@@ -34,23 +36,36 @@
 #include "kernel/signaldata/FsOpenReq.hpp"
 #include "portlib/ndb_file.h"
 #include "util/ndbxfrm_iterator.h"
-#include "util/ndbxfrm_readfile.h"
+#include "util/ndbxfrm_file.h"
 #include "util/ndb_openssl_evp.h"
 #include "util/ndb_opts.h"
 
 #define JAM_FILE_ID 476
 
-//#define DUMMY_PASSWORD
-
 using byte = unsigned char;
+
+static ndb_key_state opt_backup_key_state("backup", nullptr);
+static ndb_key_option opt_backup_key(opt_backup_key_state);
+static ndb_key_from_stdin_option opt_backup_key_from_stdin(
+    opt_backup_key_state);
 
 static ndb_password_state opt_backup_password_state("backup", nullptr);
 static ndb_password_option opt_backup_password(opt_backup_password_state);
 static ndb_password_from_stdin_option opt_backup_password_from_stdin(
                                           opt_backup_password_state);
 
+/*
+ * At most one of opt_backup_key_state and opt_backup_password_state should be
+ * set.  pwd_key and pwd_key_len will be set to point to whichever key or
+ * password is set.
+ */
+static const byte* pwd_key = nullptr;
+static size_t pwd_key_len;
+
+static void print_utility_help();
+
 static bool opt_print_restored_rows = false;
-static int opt_print_restored_rows_ctl_dir = 0;
+static int opt_print_restored_rows_ctl_dir = -1;
 static int opt_print_restored_rows_fid = -1;
 static bool opt_num_data_words = false;
 static bool opt_show_ignored_rows = false;
@@ -62,60 +77,64 @@ static int opt_verbose_level = 0;
 
 static struct my_option my_long_options[] =
 {
-  // Generic options from NDB_STD_OPTS_COMMON
-  { "usage", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "help", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "version", 'V', "Output version information and exit.", 0, 0, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
 
   // Specific options
-  { "backup-password", 'P', "backup password",
-    nullptr, nullptr, 0,
+  { "backup-key", 'K', "backup key for lcp files",
+    nullptr, nullptr, nullptr,
+    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_backup_key},
+  { "backup-key-from-stdin", NDB_OPT_NOSHORT, "backup key for lcp files",
+    &opt_backup_key_from_stdin.opt_value, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_backup_key_from_stdin},
+  { "backup-password", 'P', "backup password for lcp files",
+    nullptr, nullptr, nullptr,
     GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_backup_password},
   { "backup-password-from-stdin", NDB_OPT_NOSHORT, "backup password",
-    &opt_backup_password_from_stdin.opt_value, nullptr, 0,
+    &opt_backup_password_from_stdin.opt_value, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_backup_password_from_stdin},
   { "print-restored-rows", NDB_OPT_NOSHORT,
     "print restored rows, uses control file ctr/TtabFfrag.ctl as given by "
     "-c, -f, and, -t.",
-    &opt_print_restored_rows, &opt_print_restored_rows, 0, 
+    &opt_print_restored_rows, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "control-directory-number", 'c', "control directory number",
-    &opt_print_restored_rows_ctl_dir, &opt_print_restored_rows_ctl_dir, 0,
-    GET_INT, REQUIRED_ARG, 0, 0, 1, nullptr, 0, nullptr },
+    &opt_print_restored_rows_ctl_dir, nullptr, nullptr,
+    GET_INT, REQUIRED_ARG, opt_print_restored_rows_ctl_dir,
+    opt_print_restored_rows_ctl_dir, 1, nullptr, 0, nullptr },
   { "fragment-id", 'f', "fragment id",
-    &opt_print_restored_rows_fid, &opt_print_restored_rows_fid, 0,
-    GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr },
+    &opt_print_restored_rows_fid, nullptr, nullptr,
+    GET_INT, REQUIRED_ARG, opt_print_restored_rows_fid,
+    opt_print_restored_rows_fid, 0, nullptr, 0, nullptr },
   { "print-header-words", 'h', "print header words",
-    &opt_num_data_words, &opt_num_data_words, 0,
+    &opt_num_data_words, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "show-ignored-rows", 'i', "show ignored rows",
-    &opt_show_ignored_rows, &opt_show_ignored_rows, 0,
+    &opt_show_ignored_rows, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "rowid-file", 'n',
     "file with row id to check, each row id is a line with: page number, "
     "space, index in page.",
-    &opt_file_input, &opt_file_input, 0,
+    &opt_file_input, nullptr, nullptr,
     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "print-rows-per-page", 'p', "print rows per page",
-    &opt_print_rows_per_page, &opt_print_rows_per_page, 0,
+    &opt_print_rows_per_page, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "table-id", 't', "table id",
-    &opt_print_restored_rows_table, &opt_print_restored_rows_table, 0,
-    GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr },
+    &opt_print_restored_rows_table, nullptr, nullptr,
+    GET_INT, REQUIRED_ARG, opt_print_restored_rows_table,
+    opt_print_restored_rows_table, 0, nullptr, 0, nullptr },
   { "print-rows", 'U', "do print rows",
-    &opt_print_rows_flag, &opt_print_rows_flag, 0,
+    &opt_print_rows_flag, nullptr, nullptr,
     GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr },
   { "no-print-rows", 'u', "do not print rows",
-    nullptr, nullptr, 0,
+    nullptr, nullptr, nullptr,
     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "verbose", 'v', "verbosity",
-    &opt_verbose_level, &opt_verbose_level, 0,
+    &opt_verbose_level, nullptr, nullptr,
     GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr },
-  { nullptr, 0, nullptr, nullptr, nullptr, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr}
+  NdbStdOpt::end_of_options
 };
 
 static const char* load_defaults_groups[] = { "ndb_print_backup_file",
@@ -123,29 +142,29 @@ static const char* load_defaults_groups[] = { "ndb_print_backup_file",
 
 static const Uint32 MaxReadWords = 32768;
 
-bool readHeader(ndbxfrm_readfile*, BackupFormat::FileHeader *);
-bool readFragHeader(ndbxfrm_readfile*,
+bool readHeader(ndbxfrm_file*, BackupFormat::FileHeader *);
+bool readFragHeader(ndbxfrm_file*,
                     BackupFormat::DataFile::FragmentHeader *);
-bool readFragFooter(ndbxfrm_readfile*,
+bool readFragFooter(ndbxfrm_file*,
                     BackupFormat::DataFile::FragmentFooter *);
-Int32 readRecord(ndbxfrm_readfile*, Uint32 **, Uint32*, bool print);
+Int32 readRecord(ndbxfrm_file*, Uint32 **, Uint32*, bool print);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::FileHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentFooter &); 
 
-bool readLCPCtlFile(ndbxfrm_readfile* f, BackupFormat::LCPCtlFile *ret);
-bool readTableList(ndbxfrm_readfile*, BackupFormat::CtlFile::TableList **);
-bool readTableDesc(ndbxfrm_readfile*,
+bool readLCPCtlFile(ndbxfrm_file* f, BackupFormat::LCPCtlFile *ret);
+bool readTableList(ndbxfrm_file*, BackupFormat::CtlFile::TableList **);
+bool readTableDesc(ndbxfrm_file*,
                    BackupFormat::CtlFile::TableDescription **);
-bool readGCPEntry(ndbxfrm_readfile*, BackupFormat::CtlFile::GCPEntry **);
+bool readGCPEntry(ndbxfrm_file*, BackupFormat::CtlFile::GCPEntry **);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::LCPCtlFile &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableList &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableDescription &);
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::GCPEntry &); 
 
-Int32 readLogEntry(ndbxfrm_readfile*,
+Int32 readLogEntry(ndbxfrm_file*,
                    Uint32**,
                    Uint32 file_type,
                    Uint32 version);
@@ -178,11 +197,16 @@ static RowEntry **row_all_entries = NULL;
 
 static bool get_one_option(int optid, const struct my_option *opt, char *arg)
 {
-  switch (optid)
-  {
-  case 'u': opt_print_rows_flag = false; break;
-  default:
-    return ndb_std_get_one_option(optid, opt, arg);
+  switch (optid) {
+    case 'u':
+      opt_print_rows_flag = false;
+      break;
+    case '?':
+      print_utility_help();
+      ndb_std_get_one_option(optid, opt, arg);
+      break;
+    default:
+      return ndb_std_get_one_option(optid, opt, arg);
   }
   return false;
 }
@@ -423,6 +447,8 @@ void check_data(const char *file_input)
       }
     }
     fclose(file);
+  } else {
+    ndbout_c("check_data: Failed to open file '%s'", file_input);
   }
 }
 
@@ -488,7 +514,7 @@ void delete_all()
   }
 }
 
-void handle_print_restored_rows(const char *file_input)
+void handle_print_restored_rows()
 {
   ndbout_c("Print restored rows for T%uF%u",
            opt_print_restored_rows_table,
@@ -496,7 +522,7 @@ void handle_print_restored_rows(const char *file_input)
 
   char buf[255];
   ndb_file file;
-  ndbxfrm_readfile fo;
+  ndbxfrm_file fo;
 
   BaseString::snprintf(buf, sizeof(buf),
                        "%u/T%uF%u.ctl",
@@ -506,22 +532,16 @@ void handle_print_restored_rows(const char *file_input)
   int r = file.open(buf, FsOpenReq::OM_READONLY);
   if (r != -1)
   {
-#if !defined(DUMMY_PASSWORD)
-    r = fo.open(file,
-                reinterpret_cast<const byte*>(
-                    opt_backup_password_state.get_password()),
-                opt_backup_password_state.get_password_length());
-#else
-    r = fo.open(file, reinterpret_cast<const byte*>("DUMMY"), 5);
-#endif
+    r = fo.open(file, pwd_key, pwd_key_len);
   }
-  if(r == -1)
+  if(r != 0)
   {
-    ndbout_c("Failed to open file '%s', error: %d",
-             buf, r);
+    // -2 is special failure return for ndbxfrm tool
+    if (r == -2) fo.close(true);
+    ndbout_c("Failed to open ctl file '%s', error: %d", buf, r);
     ndb_end_and_exit(1);
   }
-  ndbxfrm_readfile* f = &fo;
+  ndbxfrm_file* f = &fo;
   BackupFormat::FileHeader fileHeader;
   if (!readHeader(f, &fileHeader))
   {
@@ -544,7 +564,7 @@ void handle_print_restored_rows(const char *file_input)
     ndbout << "Invalid LCP Control file!" << endl;
     ndb_end_and_exit(1);
   }
-  fo.close();
+  fo.close(false);
   file.close();
 
   /**
@@ -557,7 +577,7 @@ void handle_print_restored_rows(const char *file_input)
     ndbout << "Malloc failure" << endl;
     ndb_end_and_exit(1);
   }
-  memset(row_entries, 0, sizeof(RowEntry*) * max_pages);
+  std::memset(row_entries, 0, sizeof(RowEntry*) * max_pages);
 
   row_all_entries = (RowEntry**)malloc(sizeof(RowEntry*) * max_pages);
   if (row_all_entries == NULL)
@@ -565,7 +585,7 @@ void handle_print_restored_rows(const char *file_input)
     ndbout << "Malloc failure" << endl;
     ndb_end_and_exit(1);
   }
-  memset(row_all_entries, 0, sizeof(RowEntry*) * max_pages);
+  std::memset(row_all_entries, 0, sizeof(RowEntry*) * max_pages);
 
   Uint32 last_file = lcpCtlFilePtr.LastDataFileNumber;
   Uint32 num_parts = lcpCtlFilePtr.NumPartPairs;
@@ -578,14 +598,20 @@ void handle_print_restored_rows(const char *file_input)
     Uint32 first_ignore =
       move_part_forward(first_all, lcpCtlFilePtr.partPairs[inx].numParts);
     inx++;
-    memset(&parts_array[0], 0, sizeof(parts_array));
+    std::memset(&parts_array[0], 0, sizeof(parts_array));
     for (Uint32 j = first_change; j != first_all; j = move_part_forward(j,1))
     {
       parts_array[j] = CHANGE_PART;
       assert(j < BackupFormat::NDB_MAX_LCP_PARTS);
     }
-    for (Uint32 j = first_all; j != first_ignore; j = move_part_forward(j,1))
-    {
+    /**
+     * Fill in all parts, including non-partial case where
+     * PartPair covers all parts, such that first_all == first_ignore
+     */
+    assert(num_parts > 0);
+    Uint32 all_part_count = 0;
+    for (Uint32 j = first_all; ((all_part_count++) == 0) || (j != first_ignore);
+         j = move_part_forward(j, 1)) {
       parts_array[j] = ALL_PART;
       assert(j < BackupFormat::NDB_MAX_LCP_PARTS);
     }
@@ -604,7 +630,6 @@ void handle_print_restored_rows(const char *file_input)
              i,
              opt_print_restored_rows_table,
              opt_print_restored_rows_fid);
-    bzero(&fo, sizeof(fo));
     BaseString::snprintf(buf, sizeof(buf),
                          "%u/T%uF%u.Data",
                          i,
@@ -613,22 +638,17 @@ void handle_print_restored_rows(const char *file_input)
     r = file.open(buf, FsOpenReq::OM_READONLY);
     if (r != -1)
     {
-#if !defined(DUMMY_PASSWORD)
-      r = fo.open(file,
-                  reinterpret_cast<const byte*>(
-                      opt_backup_password_state.get_password()),
-                  opt_backup_password_state.get_password_length());
-#else
-      r = fo.open(file, reinterpret_cast<const byte*>("DUMMY"), 5);
-#endif
+      r = fo.open(file, pwd_key, pwd_key_len);
     }
-    if(r == -1)
+    if(r != 0)
     {
-      ndbout_c("Failed to open file '%s', error: %d",
-               buf, r);
+      // -2 is special failure return for ndbxfrm tool
+      if (r == -2) fo.close(true);
+      ndbout_c("Failed to open data file '%s', error: %d", buf, r);
       //ndb_end_and_exit(1);
       continue;
     }
+
     if (!readHeader(f, &fileHeader))
     {
       ndbout << "Invalid file!" << endl;
@@ -741,7 +761,7 @@ void handle_print_restored_rows(const char *file_input)
         }
       }
     }
-    fo.close();
+    fo.close(false);
     file.close();
     ndbout_c("Number of all rows currently are: %u", all_rows_count);
   }
@@ -766,6 +786,7 @@ main(int argc, char * argv[])
   Ndb_opts opts(argc, argv, my_long_options, load_defaults_groups);
   if (opts.handle_options(&get_one_option))
   {
+    print_utility_help();
     opts.usage();
     ndb_end_and_exit(1);
   }
@@ -773,55 +794,82 @@ main(int argc, char * argv[])
   // TODO check valid option combinations
   if (ndb_option::post_process_options())
   {
-    BaseString err_msg = opt_backup_password_state.get_error_message();
+    BaseString err_msg = opt_backup_key_state.get_error_message();
+    if (!err_msg.empty())
+    {
+      fprintf(stderr, "Error: backup key: %s\n", err_msg.c_str());
+    }
+    err_msg = opt_backup_password_state.get_error_message();
     if (!err_msg.empty())
     {
       fprintf(stderr, "Error: backup password: %s\n", err_msg.c_str());
     }
+    print_utility_help();
     opts.usage();
     ndb_end_and_exit(1);
   }
-
-  if (argc != 1)
+  if (opt_backup_key_state.get_key() != nullptr &&
+      opt_backup_password_state.get_password() != nullptr)
   {
+    fprintf(stderr, "Error: Both backup key and backup password are set.\n");
+    return 2;
+  }
+
+  if (opt_backup_key_state.get_key() != nullptr)
+  {
+    if (!ndb_openssl_evp::is_aeskw256_supported())
+    {
+      fprintf(stderr,
+              "Error: Backup key options requires OpenSSL 1.0.2 or newer.\n");
+      return 2;
+    }
+    pwd_key = opt_backup_key_state.get_key();
+    pwd_key_len = opt_backup_key_state.get_key_length();
+  }
+  else
+  {
+    pwd_key = reinterpret_cast<const byte*>(
+                 opt_backup_password_state.get_password());
+    pwd_key_len = opt_backup_password_state.get_password_length();
+  }
+
+  if (opt_print_restored_rows) {
+    if (opt_print_restored_rows_table == -1 ||
+        opt_print_restored_rows_ctl_dir == -1 ||
+        opt_print_restored_rows_fid == -1) {
+      ndbout_c(
+          "Missing table -t or fragment -f or control-directory -c argument");
+      print_utility_help();
+      opts.usage();
+      ndb_end_and_exit(1);
+    }
+    if (argc > 0) {
+      fprintf(stderr, "Ignoring %s for print-restored-rows\n", argv[0]);
+    }
+    handle_print_restored_rows();
+  }
+
+  if (argc != 1) {
     fprintf(stderr, "Error: Need one filename for a backup file to print.\n");
     ndb_end_and_exit(1);
   }
 
   const char *file_name = argv[0];
-
-  if (opt_print_restored_rows)
-  {
-    if (opt_print_restored_rows_table == -1 ||
-        opt_print_restored_rows_fid == -1)
-    {
-      opts.usage();
-      ndb_end_and_exit(1);
-    }
-    handle_print_restored_rows(opt_file_input);
-  }
-
   ndb_file file;
-  ndbxfrm_readfile fo;
+  ndbxfrm_file fo;
 
   int r = file.open(file_name, FsOpenReq::OM_READONLY);
-#if !defined(DUMMY_PASSWORD)
-  r = fo.open(file,
-              reinterpret_cast<const byte*>(
-                  opt_backup_password_state.get_password()),
-              opt_backup_password_state.get_password_length());
-#else
-  r = fo.open(file, reinterpret_cast<const byte*>("DUMMY"), 5);
-#endif
-
-  if(r == -1)
+  r = fo.open(file, pwd_key, pwd_key_len);
+  if(r != 0)
   {
+    // -2 is special failure return for ndbxfrm tool
+    if (r == -2) fo.close(true);
     ndbout_c("Failed to open file '%s', error: %d",
              argv[1], r);
     ndb_end_and_exit(1);
   }
 
-  ndbxfrm_readfile* f = &fo;
+  ndbxfrm_file* f = &fo;
 
   BackupFormat::FileHeader fileHeader;
   if(!readHeader(f, &fileHeader)){
@@ -1008,7 +1056,13 @@ main(int argc, char * argv[])
 	   << fileHeader.FileType << endl;
     break;
   }
-  fo.close();
+  /*
+   * Above error handling is weak, one can not decide if whole file have been
+   * consumed or not.
+   * Closing in abort mode to avoid relax error checking in close (such as
+   * verifying at end of file and checksum is correct).
+   */
+  fo.close(true);
   file.close();
   ndb_end_and_exit(0);
 }
@@ -1033,7 +1087,7 @@ static inline Uint32 Twiddle32(Uint32 x)
 static
 inline
 size_t
-aread(void * buf, size_t sz, size_t n, ndbxfrm_readfile* f)
+aread(void * buf, size_t sz, size_t n, ndbxfrm_file* f)
 {
   byte* byte_buf = static_cast<byte*>(buf);
   ndbxfrm_output_iterator it(byte_buf, byte_buf + sz * n, false);
@@ -1052,7 +1106,7 @@ aread(void * buf, size_t sz, size_t n, ndbxfrm_readfile* f)
 }
 
 bool 
-readHeader(ndbxfrm_readfile* f, BackupFormat::FileHeader * dst){
+readHeader(ndbxfrm_file* f, BackupFormat::FileHeader * dst){
   if(aread(dst, 4, 3, f) != 3)
     RETURN_FALSE();
 
@@ -1118,7 +1172,7 @@ readHeader(ndbxfrm_readfile* f, BackupFormat::FileHeader * dst){
 }
 
 bool 
-readFragHeader(ndbxfrm_readfile* f,
+readFragHeader(ndbxfrm_file* f,
                BackupFormat::DataFile::FragmentHeader * dst)
 {
   if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
@@ -1146,7 +1200,7 @@ readFragHeader(ndbxfrm_readfile* f,
 }
 
 bool 
-readFragFooter(ndbxfrm_readfile* f,
+readFragFooter(ndbxfrm_file* f,
                BackupFormat::DataFile::FragmentFooter * dst)
 { 
   if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
@@ -1179,7 +1233,7 @@ static union {
 } theData;
 
 Int32
-readRecord(ndbxfrm_readfile* f,
+readRecord(ndbxfrm_file* f,
            Uint32 **dst,
            Uint32 *ext_header_type,
            bool print)
@@ -1284,13 +1338,12 @@ readRecord(ndbxfrm_readfile* f,
 }
 
 Int32
-readLogEntry(ndbxfrm_readfile* f,
+readLogEntry(ndbxfrm_file* f,
              Uint32 **dst,
              Uint32 file_type,
              Uint32 version)
 {
-  static_assert(MaxReadWords >= BackupFormat::LogFile::LogEntry::MAX_SIZE,
-                "");
+  static_assert(MaxReadWords >= BackupFormat::LogFile::LogEntry::MAX_SIZE);
   constexpr Uint32 word_size = sizeof(Uint32);
 
   Uint32 len;
@@ -1331,8 +1384,7 @@ readLogEntry(ndbxfrm_readfile* f,
       return -1;
     }
     static_assert(header_len <=
-                    BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS,
-                  "");
+                    BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS);
     constexpr Uint32 header_len_diff =
         BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS - header_len;
     if (1 + len + header_len_diff > MaxReadWords)
@@ -1489,7 +1541,7 @@ Uint32 decompress_part_pairs(
 }
 
 bool 
-readLCPCtlFile(ndbxfrm_readfile* f, BackupFormat::LCPCtlFile *ret)
+readLCPCtlFile(ndbxfrm_file* f, BackupFormat::LCPCtlFile *ret)
 {
   char * struct_dst = (char*)&theData.LCPCtlFile.Checksum;
   size_t struct_sz = sizeof(BackupFormat::LCPCtlFile) -
@@ -1534,7 +1586,7 @@ readLCPCtlFile(ndbxfrm_readfile* f, BackupFormat::LCPCtlFile *ret)
 }
 
 bool 
-readTableList(ndbxfrm_readfile* f, BackupFormat::CtlFile::TableList **ret){
+readTableList(ndbxfrm_file* f, BackupFormat::CtlFile::TableList **ret){
   BackupFormat::CtlFile::TableList * dst = &theData.TableList;
   
   if(aread(dst, 4, 2, f) != 2)
@@ -1560,7 +1612,7 @@ readTableList(ndbxfrm_readfile* f, BackupFormat::CtlFile::TableList **ret){
 }
 
 bool 
-readTableDesc(ndbxfrm_readfile* f,
+readTableDesc(ndbxfrm_file* f,
               BackupFormat::CtlFile::TableDescription **ret)
 {
   BackupFormat::CtlFile::TableDescription * dst = &theData.TableDescription;
@@ -1585,7 +1637,7 @@ readTableDesc(ndbxfrm_readfile* f,
 }
 
 bool 
-readGCPEntry(ndbxfrm_readfile* f, BackupFormat::CtlFile::GCPEntry **ret){
+readGCPEntry(ndbxfrm_file* f, BackupFormat::CtlFile::GCPEntry **ret){
   BackupFormat::CtlFile::GCPEntry * dst = &theData.GcpEntry;
   
   if(aread(dst, 4, 4, f) != 4)
@@ -1685,3 +1737,21 @@ operator<<(NdbOut& ndbout, const BackupFormat::CtlFile::GCPEntry & hf) {
   return ndbout;
 }
 
+void print_utility_help() {
+  fprintf(stdout,
+          "\n"
+          "There are 3 ways ndb_print_backup_file could be used:\n"
+          "1. Can be used to check backup generated files individually (CTL, "
+          "DATA, LOG)\n"
+          "   Usage: ndb_print_backup_file BACKUP-x.x.ctl | BACKUP-x-x.x.Data "
+          "| BACKUP-x.x.log [OPTIONS]\n"
+          "2. Can be used to check LCP Data and CTL files individually\n"
+          "   Usage: ndb_print_backup_file LCP/c/TtFf.ctl | LCP/c/TtFf.Data "
+          "[OPTIONS]\n"
+          "3. Can be used to check a set of LCP CTL + DATA files that will be "
+          "used to restore a fragment\n"
+          "   (Should be run from 'data-dir/ndb_x_fs/LCP' directory)\n"
+          "   Usage: ndb_print_backup_file -c <control-directory-number> -t "
+          "<table-id> -f <fragment-id> --print-restored-rows\n"
+          "\n");
+}

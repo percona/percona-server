@@ -116,3 +116,26 @@ echo == 26 == Bug32175157;
 --replace_regex /.*\[ndb_config\]//
 --error 255
 --exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug32175157 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --mycnf 2>&1
+
+echo == 27 == Bug32210176;
+--replace_regex /.*\[ndb_config\]//
+--error 255
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug32210176 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --mycnf 2>&1
+
+echo == 28 == Bug32258207;
+--replace_regex /.*\[ndb_config\]//
+--error 255
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug32258207 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --mycnf 2>&1
+
+echo == 29 == Bug32871875;
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug32871875 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --query=nodeid,host,AutomaticThreadConfig,CompressedLCP --type=ndbd --mycnf 2> /dev/null
+
+echo == 30 ==;
+exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug56185
+  --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf
+  --mycnf --diff-default --type=DB --rows="\n";
+
+echo == 31 == ndb_config --config-binary-file=ndb_3_config.bin.1 --system;
+exec $NDB_CONFIG
+  --config-binary-file=$MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/ndb_3_config.bin.1
+  --system --query=PrimaryMGMNode;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,12 +181,6 @@ class Group_action {
     @return true if a problem was found when stopping the action.
   */
   virtual bool stop_action_execution(bool killed) = 0;
-
-  /**
-    Returns the name of the action for debug messages and such
-    @return the action name
-  */
-  virtual const char *get_action_name() = 0;
 
   /**
     Gets the info about execution, be it success or failure

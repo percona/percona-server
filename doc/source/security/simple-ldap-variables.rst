@@ -15,104 +15,188 @@ The following variables are static and can only be changed at runtime.
      - Command Line
      - Dynamic
      - Scope
-   * - :variable:`authentication_ldap_simple_bind_root_dn`
+   * - :ref:`authentication_ldap_simple_bind_root_dn`
      - Yes
      - No
      - Global
-   * - :variable:`authentication_ldap_simple_bind_root_pwd`
+   * - :ref:`authentication_ldap_simple_bind_root_pwd`
      - Yes
      - No
      - Global
-   * - :variable:`authentication_ldap_simple_ca_path`
+   * - :ref:`authentication_ldap_simple_ca_path`
      - Yes
      - No
      - Global
-   * - :variable:`authentication_ldap_simple_server_host`
+   * - :ref:`authentication_ldap_simple_server_host`
      - Yes
      - No
      - Global
-   * - :variable:`authentication_ldap_simple_server_port`
+   * - :ref:`authentication_ldap_simple_server_port`
      - Yes
      - No
      - Global
-   * - :variable:`authentication_ldap_simple_ssl`
+   * - :ref:`authentication_ldap_simple_ssl`
      - Yes
      - No
      - Global
-   * - :variable:`authentication_ldap_simple_tls`
+   * - :ref:`authentication_ldap_simple_tls`
      - Yes
      - No
      - Global
      
-.. variable:: authentication_ldap_simple_bind_root_dn
+.. _authentication_ldap_simple_bind_root_dn:
 
-    :cli: ``--authentication-ldap-simple-bind-root-dn=value``
-    :dyn: No
-    :scope: Global
-    :vartype: String
-    :default: Null
-    
+.. rubric:: ``authentication_ldap_simple_bind_root_dn``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--authentication-ldap-simple-bind-root-dn=value``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - Null
+
 The ``root`` credential used to authenticate against an LDAP. This variable is used with
-``authentication_ldap_simple_bind_root_pwd`.
+``authentication_ldap_simple_bind_root_pwd``.
 
-.. variable:: authentication_ldap_simple_bind_root_pwd
+.. _authentication_ldap_simple_bind_root_pwd:
 
-    :cli: ``--authentication-ldap-simple-bind-root-pwd=value``
-    :dyn: No
-    :scope: Global
-    :vartype: String
-    :default: Null
+.. rubric:: ``authentication_ldap_simple_bind_root_pwd``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--authentication-ldap-simple-bind-root-pwd=value``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - Null
     
 The ``root`` password used to authenticate against an LDAP. This variable is used with
-``authentication_ldap_simple_bind_root_dn`.
+``authentication_ldap_simple_bind_root_dn``.
 
-.. variable:: authentication_ldap_simple_ca_path
+.. _authentication_ldap_simple_ca_path:
 
-    :cli: ``--authentication-ldap-simple-ca_path=value``
-    :dyn: No
-    :scope: Global
-    :vartype: String
-    :default: Null
+.. rubric:: ``authentication_ldap_simple_ca_path``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--authentication-ldap-simple-ca_path=value``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - Null
     
 The certificate authority's absolute path used to verify the LDAP certificate.
 
-.. variable:: authentication_ldap_simple_server_host
+.. _authentication_ldap_simple_server_host:
 
-    :cli: ``--authentication-ldap-simple-server-host=value``
-    :dyn: No
-    :scope: Global
-    :vartype: String
-    :default: Null
+.. rubric:: ``authentication_ldap_simple_server_host``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--authentication-ldap-simple-server-host=value``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - Null
     
 The LDAP server host used for LDAP authentication.
 
-.. variable:: authentication_ldap_simple_server_port
+.. _authentication_ldap_simple_server_port:
 
-    :cli: ``--authentication-ldap-simple-server-port=value``
-    :dyn: No
-    :scope: Global
-    :vartype: String
-    :default: Null
+.. rubric:: ``authentication_ldap_simple_server_port``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--authentication-ldap-simple-server-port=value``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - Null
     
 The LDAP server TCP/IP port number used for LDAP authentication.
 
-.. variable:: authentication_ldap_simple_ssl
+.. _authentication_ldap_simple_ssl:
 
-    :cli: ``--authentication-ldap-simple-ssl=value``
-    :dyn: No
-    :scope: Global
-    :vartype: String
-    :default: Null
+.. rubric:: ``authentication_ldap_simple_ssl``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--authentication-ldap-simple-ssl=value``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - Null
     
 If this variable is enabled, the plugin connects to the server with SSL.
 
-.. variable:: authentication_ldap_simple_tls
+.. _authentication_ldap_simple_tls:
 
-    :cli: ``--authentication-ldap-simple-tls=value``
-    :dyn: No
-    :scope: Global
-    :vartype: String
-    :default: Null
+.. rubric:: ``authentication_ldap_simple_tls``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--authentication-ldap-simple-tls=value``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - String
+   * - Default
+     - Null
     
 If this variable is enabled, the plugin connects to the server with TLS.
 

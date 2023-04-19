@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -224,7 +224,7 @@ bool PFS_index_error_log_by_subsys::match(log_sink_pfs_event *row) {
 
   @retval 0    success
 */
-int table_error_log::index_init(uint idx, bool sorted MY_ATTRIBUTE((unused))) {
+int table_error_log::index_init(uint idx, bool sorted [[maybe_unused]]) {
   PFS_index_error_log *result = nullptr;
 
   switch (idx) {
@@ -305,16 +305,16 @@ int table_error_log::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 3: /* ERROR_CODE */
           if (m_header.m_error_code_length > 0) {
-            set_field_varchar_utf8(f, m_header.m_error_code,
-                                   m_header.m_error_code_length);
+            set_field_varchar_utf8mb4(f, m_header.m_error_code,
+                                      m_header.m_error_code_length);
           } else {
             f->set_null();
           }
           break;
         case 4: /* SUBSYSTEM */
           if (m_header.m_subsys_length > 0) {
-            set_field_varchar_utf8(f, m_header.m_subsys,
-                                   m_header.m_subsys_length);
+            set_field_varchar_utf8mb4(f, m_header.m_subsys,
+                                      m_header.m_subsys_length);
           } else {
             f->set_null();
           }

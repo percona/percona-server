@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #define NDB_SLEEP_H
 
 #if defined(_WIN32)
-#include <winbase.h>
+#include <windows.h>
 #else
 #include <sys/select.h>
 #include <time.h>
@@ -41,7 +41,7 @@ static inline void ndb_milli_sleep(time_t milliseconds) {
   struct timeval t;
   t.tv_sec = milliseconds / 1000L;
   t.tv_usec = 1000L * (milliseconds % 1000L);
-  select(0, 0, 0, 0, &t); /* sleep */
+  select(0, nullptr, nullptr, nullptr, &t); /* sleep */
 #endif
 }
 

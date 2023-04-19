@@ -12,68 +12,123 @@ The functionality is disabled by default, and must be enabled by setting ``users
 Version Specific Information
 ============================
 
-  * :rn:`8.0.12-1`:
-     Feature ported from |Percona Server| 5.7.
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 Other Information
 =================
 
   * Author/Origin:
-     *Google*; *Percona* added the ``INFORMATION_SCHEMA`` tables and the :variable:`userstat` variable.
+     *Google*; *Percona* added the ``INFORMATION_SCHEMA`` tables and the :ref:`userstat` variable.
 
 System Variables
 ================
 
-.. variable:: userstat
+.. _userstat:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: BOOLEAN
-     :default: OFF
-     :range: ON/OFF
+.. rubric:: ``userstat``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - BOOLEAN
+   * - Default
+     - OFF
+   * - Range
+     - ON/OFF
 
 Enables or disables collection of statistics. The default is ``OFF``, meaning no statistics are gathered. This is to ensure that the statistics collection doesn't cause any extra load on the server unless desired.
 
-.. variable:: thread_statistics
+.. _thread_statistics:
 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: BOOLEAN
-     :default: OFF
-     :range: ON/OFF
+.. rubric:: ``thread_statistics``
 
-Enables or disables collection of thread statistics. The default is ``OFF``, meaning no thread statistics are gathered. This is to ensure that the statistics collection doesn't cause any extra load on the server unless desired. Variable :variable:`userstat` needs to be enabled as well in order for thread statistics to be collected.
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - BOOLEAN
+   * - Default
+     - OFF
+   * - Range
+     - ON/OFF
+
+Enables or disables collection of thread statistics. The default is ``OFF``, meaning no thread statistics are gathered. This is to ensure that the statistics collection doesn't cause any extra load on the server unless desired. Variable :ref:`userstat` needs to be enabled as well in order for thread statistics to be collected.
 
 INFORMATION_SCHEMA Tables
 =========================
 
-.. table:: INFORMATION_SCHEMA.CLIENT_STATISTICS
+.. _CLIENT_STATISTICS:
 
-  :column CLIENT: The IP address or hostname from which the connection originated.
-  :column TOTAL_CONNECTIONS: The number of connections created for this client.
-  :column CONCURRENT_CONNECTIONS: The number of concurrent connections for this client.
-  :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this client.
-  :column BUSY_TIME: The cumulative number of seconds there was activity on connections from this client.
-  :column CPU_TIME: The cumulative CPU time elapsed, in seconds, while servicing this client``s connections.
-  :column BYTES_RECEIVED: The number of bytes received from this client's connections.
-  :column BYTES_SENT: The number of bytes sent to this client's connections.
-  :column BINLOG_BYTES_WRITTEN:	The number of bytes written to the binary log from this client's connections.
-  :column ROWS_FETCHED: The number of rows fetched by this client's connections.
-  :column ROWS_UPDATED: The number of rows updated by this client's connections.
-  :column TABLE_ROWS_READ: The number of rows read from tables by this client's connections. (It may be different from ``ROWS_FETCHED``.)
-  :column SELECT_COMMANDS: The number of ``SELECT`` commands executed from this client's connections.
-  :column UPDATE_COMMANDS: The number of ``UPDATE`` commands executed from this client's connections.
-  :column OTHER_COMMANDS: The number of other commands executed from this client's connections.
-  :column COMMIT_TRANSACTIONS: The number of ``COMMIT`` commands issued by this client's connections.
-  :column ROLLBACK_TRANSACTIONS: The number of ``ROLLBACK`` commands issued by this client's connections.
-  :column DENIED_CONNECTIONS: The number of connections denied to this client.
-  :column LOST_CONNECTIONS: The number of this client's connections that were terminated uncleanly.
-  :column ACCESS_DENIED: The number of times this client's connections issued commands that were denied.
-  :column EMPTY_QUERIES: The number of times this client's connections sent empty queries to the server.
+.. rubric:: ``INFORMATION_SCHEMA.CLIENT_STATISTICS``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'CLIENT'
+        - 'The IP address or hostname from which the connection originated.'
+      * - 'TOTAL_CONNECTIONS'
+        - 'The number of connections created for this client.'
+      * - 'CONCURRENT_CONNECTIONS'
+        - 'The number of concurrent connections for this client.'
+      * - 'CONNECTED_TIME'
+        - 'The cumulative number of seconds elapsed while there were connections from this client.'
+      * - 'BUSY_TIME'
+        - 'The cumulative number of seconds there was activity on connections from this client.'
+      * - 'CPU_TIME'
+        - 'The cumulative CPU time elapsed, in seconds, while servicing this client's connections.'
+      * - 'BYTES_RECEIVED'
+        - 'The number of bytes received from this client's connections.'
+      * - 'BYTES_SENT'
+        - 'The number of bytes sent to this client's connections.'
+      * - 'BINLOG_BYTES_WRITTEN'
+        - 'The number of bytes written to the binary log from this client's connections.'
+      * - 'ROWS_FETCHED'
+        - 'The number of rows fetched by this client's connections.'
+      * - 'ROWS_UPDATED'
+        - 'The number of rows updated by this client's connections.'
+      * - 'TABLE_ROWS_READ'
+        - 'The number of rows read from tables by this client's connections. (It may be different from ``ROWS_FETCHED``.)'
+      * - 'SELECT_COMMANDS'
+        - 'The number of ``SELECT`` commands executed from this client's connections.'
+      * - 'UPDATE_COMMANDS'
+        - 'The number of ``UPDATE`` commands executed from this client's connections.'
+      * - 'OTHER_COMMANDS'
+        - 'The number of other commands executed from this client's connections.'
+      * - 'COMMIT_TRANSACTIONS'
+        - 'The number of ``COMMIT`` commands issued by this client's connections.'
+      * - 'ROLLBACK_TRANSACTIONS'
+        - 'The number of ``ROLLBACK`` commands issued by this client's connections.'
+      * - 'DENIED_CONNECTIONS'
+        - 'The number of connections denied to this client.'
+      * - 'LOST_CONNECTIONS'
+        - 'The number of this client's connections that were terminated uncleanly.'
+      * - 'ACCESS_DENIED'
+        - 'The number of times this client's connections issued commands that were denied.'
+      * - 'EMPTY_QUERIES'
+        - 'The number of times this client's connections sent empty queries to the server.'
 
 This table holds statistics about client connections. The Percona version of the feature restricts this table's visibility to users who have the ``SUPER`` or ``PROCESS`` privilege.
 
@@ -104,14 +159,28 @@ Example: ::
            EMPTY_QUERIES: 0
 
 
-.. table:: INFORMATION_SCHEMA.INDEX_STATISTICS
+INFORMATION_SCHEMA Tables
+=========================
 
-  :column TABLE_SCHEMA: The schema (database) name.
-  :column TABLE_NAME: The table name.
-  :column INDEX_NAME: The index name (as visible in ``SHOW CREATE TABLE``).
-  :column ROWS_READ: The number of rows read from this index.
+.. _INDEX_STATISTICS:
 
-This table shows statistics on index usage. An older version of the feature contained a single column that had the ``TABLE_SCHEMA``, ``TABLE_NAME`` and ``INDEX_NAME`` columns concatenated together. The |Percona| version of the feature separates these into three columns. Users can see entries only for tables to which they have ``SELECT`` access.
+.. rubric:: ``INFORMATION_SCHEMA.INDEX_STATISTICS``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'TABLE_SCHEMA'
+        - 'The schema (database) name.'
+      * - 'TABLE_NAME'
+        - 'The table name.'
+      * - 'INDEX_NAME'
+        - 'The index name (as visible in ``SHOW CREATE TABLE``).'
+      * - 'ROWS_READ'
+        - 'The number of rows read from this index.'
+
+This table shows statistics on index usage. An older version of the feature contained a single column that had the ``TABLE_SCHEMA``, ``TABLE_NAME`` and ``INDEX_NAME`` columns concatenated together. The *Percona* version of the feature separates these into three columns. Users can see entries only for tables to which they have ``SELECT`` access.
 
 This table makes it possible to do many things that were difficult or impossible previously. For example, you can use it to find unused indexes and generate DROP commands to remove them.
 
@@ -129,14 +198,25 @@ Example: ::
 
    Current implementation of index statistics doesn't support partitioned tables.
 
+.. _TABLE_STATISTICS:
 
-.. table:: INFORMATION_SCHEMA.TABLE_STATISTICS
+.. rubric:: ``INFORMATION_SCHEMA.TABLE_STATISTICS``
 
-  :column TABLE_SCHEMA: The schema (database) name.
-  :column TABLE_NAME: The table name.
-  :column ROWS_READ: The number of rows read from the table.
-  :column ROWS_CHANGED: The number of rows changed in the table.
-  :column ROWS_CHANGED_X_INDEXES: The number of rows changed in the table, multiplied by the number of indexes changed.
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'TABLE_SCHEMA'
+        - 'The schema (database) name.'
+      * - 'TABLE_NAME'
+        - 'The table name.'
+      * - 'ROWS_READ'
+        - 'The number of rows read from the table.'
+      * - 'ROWS_CHANGED'
+        - 'The number of rows changed in the table.'
+      * - 'ROWS_CHANGED_X_INDEXES'
+        - 'The number of rows changed in the table, multiplied by the number of indexes changed.'
 
 This table is similar in function to the ``INDEX_STATISTICS`` table.
 
@@ -154,57 +234,113 @@ Example: ::
 
    Current implementation of table statistics doesn't support partitioned tables.
 
-.. table:: INFORMATION_SCHEMA.THREAD_STATISTICS
+.. _THREAD_STATISTICS:
 
-  :column THREAD_ID: Thread ID
-  :column TOTAL_CONNECTIONS: The number of connections created from this thread.
-  :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this thread.
-  :column BUSY_TIME: The cumulative number of seconds there was activity from this thread.
-  :column CPU_TIME: The cumulative CPU time elapsed while servicing this thread.
-  :column BYTES_RECEIVED: The number of bytes received from this thread.
-  :column BYTES_SENT: The number of bytes sent to this thread.
-  :column BINLOG_BYTES_WRITTEN: The number of bytes written to the binary log from this thread.
-  :column ROWS_FETCHED: The number of rows fetched by this thread.
-  :column ROWS_UPDATED: The number of rows updated by this thread.
-  :column TABLE_ROWS_READ: The number of rows read from tables by this tread. 
-  :column SELECT_COMMANDS: The number of ``SELECT`` commands executed from this thread.
-  :column UPDATE_COMMANDS: The number of ``UPDATE`` commands executed from this thread.
-  :column OTHER_COMMANDS: The number of other commands executed from this thread.
-  :column COMMIT_TRANSACTIONS: The number of ``COMMIT`` commands issued by this thread.
-  :column ROLLBACK_TRANSACTIONS: The number of ``ROLLBACK`` commands issued by this thread.
-  :column DENIED_CONNECTIONS: The number of connections denied to this thread.
-  :column LOST_CONNECTIONS: The number of thread connections that were terminated uncleanly.
-  :column ACCESS_DENIED: The number of times this thread issued commands that were denied.
-  :column EMPTY_QUERIES: The number of times this thread sent empty queries to the server.
-  :column TOTAL_SSL_CONNECTIONS:  The number of thread connections that used SSL.
+.. rubric:: ``INFORMATION_SCHEMA.THREAD_STATISTICS``
 
-In order for this table to be populated with statistics, additional variable :variable:`thread_statistics` should be set to ``ON``.
+.. list-table::
+      :header-rows: 1
 
-.. table:: INFORMATION_SCHEMA.USER_STATISTICS
+      * - Column Name
+        - Description
+      * - 'THREAD_ID'
+        - 'Thread ID'
+      * - 'TOTAL_CONNECTIONS'
+        - 'The number of connections created from this thread.'
+      * - 'CONNECTED_TIME'
+        - 'The cumulative number of seconds elapsed while there were connections from this thread.'
+      * - 'BUSY_TIME'
+        - 'The cumulative number of seconds there was activity from this thread.'
+      * - 'CPU_TIME'
+        - 'The cumulative CPU time elapsed while servicing this thread.'
+      * - 'BYTES_RECEIVED'
+        - 'The number of bytes received from this thread.'
+      * - 'BYTES_SENT'
+        - 'The number of bytes sent to this thread.'
+      * - 'BINLOG_BYTES_WRITTEN'
+        - 'The number of bytes written to the binary log from this thread.'
+      * - 'ROWS_FETCHED'
+        - 'The number of rows fetched by this thread.'
+      * - 'ROWS_UPDATED'
+        - 'The number of rows updated by this thread.'
+      * - 'TABLE_ROWS_READ'
+        - 'The number of rows read from tables by this tread.'
+      * - 'SELECT_COMMANDS'
+        - 'The number of ``SELECT`` commands executed from this thread.'
+      * - 'UPDATE_COMMANDS'
+        - 'The number of ``UPDATE`` commands executed from this thread.'
+      * - 'OTHER_COMMANDS'
+        - 'The number of other commands executed from this thread.'
+      * - 'COMMIT_TRANSACTIONS'
+        - 'The number of ``COMMIT`` commands issued by this thread.'
+      * - 'ROLLBACK_TRANSACTIONS'
+        - 'The number of ``ROLLBACK`` commands issued by this thread.'
+      * - 'DENIED_CONNECTIONS'
+        - 'The number of connections denied to this thread.'
+      * - 'LOST_CONNECTIONS'
+        - 'The number of thread connections that were terminated uncleanly.'
+      * - 'ACCESS_DENIED'
+        - 'The number of times this thread issued commands that were denied.'
+      * - 'EMPTY_QUERIES'
+        - 'The number of times this thread sent empty queries to the server.'
+      * - 'TOTAL_SSL_CONNECTIONS'
+        - 'The number of thread connections that used SSL.'
 
-  :column USER: The username. The value ``#mysql_system_user#`` appears when there is no username (such as for the replica SQL thread).
-  :column TOTAL_CONNECTIONS: The number of connections created for this user.
-  :column CONCURRENT_CONNECTIONS: The number of concurrent connections for this user.
-  :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this user.
-  :column BUSY_TIME: The cumulative number of seconds there was activity on connections from this user.
-  :column CPU_TIME: The cumulative CPU time elapsed, in seconds, while servicing this user's connections.
-  :column BYTES_RECEIVED: The number of bytes received from this user's connections.
-  :column BYTES_SENT: The number of bytes sent to this user's connections.
-  :column BINLOG_BYTES_WRITTEN: The number of bytes written to the binary log from this user's connections.
-  :column ROWS_FETCHED: The number of rows fetched by this user's connections.
-  :column ROWS_UPDATED: The number of rows updated by this user's connections.
-  :column TABLE_ROWS_READ: The number of rows read from tables by this user's connections. (It may be different from ``ROWS_FETCHED``.)
-  :column SELECT_COMMANDS: The number of ``SELECT`` commands executed from this user's connections.
-  :column UPDATE_COMMANDS: The number of ``UPDATE`` commands executed from this user's connections.
-  :column OTHER_COMMANDS: The number of other commands executed from this user's connections.
-  :column COMMIT_TRANSACTIONS: The number of ``COMMIT`` commands issued by this user's connections.
-  :column ROLLBACK_TRANSACTIONS: The number of ``ROLLBACK`` commands issued by this user's connections.
-  :column DENIED_CONNECTIONS: The number of connections denied to this user.
-  :column LOST_CONNECTIONS: The number of this user's connections that were terminated uncleanly.
-  :column ACCESS_DENIED: The number of times this user's connections issued commands that were denied.
-  :column EMPTY_QUERIES: The number of times this user's connections sent empty queries to the server.
+In order for this table to be populated with statistics, additional variable :ref:`thread_statistics` should be set to ``ON``.
 
-This table contains information about user activity. The |Percona| version of the patch restricts this table's visibility to users who have the ``SUPER`` or ``PROCESS`` privilege.
+.. _USER_STATISTICS:
+
+.. rubric:: ``INFORMATION_SCHEMA.USER_STATISTICS``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'USER'
+        - 'The username. The value ``#mysql_system_user#`` appears when there is no username (such as for the replica SQL thread).'
+      * - 'TOTAL_CONNECTIONS'
+        - 'The number of connections created from this user.'
+      * - 'CONCURRENT_CONNECTIONS'
+        - 'The number of concurrent connections for this user.'
+      * - 'CONNECTED_TIME'
+        - 'The cumulative number of seconds elapsed while there were connections from this user.'
+      * - 'BUSY_TIME'
+        - 'The cumulative number of seconds there was activity on connections from this user.'
+      * - 'CPU_TIME'
+        - 'The cumulative CPU time elapsed, in seconds, while servicing this user's connections.'
+      * - 'BYTES_RECEIVED'
+        - 'The number of bytes received from this user's connections.'
+      * - 'BYTES_SENT'
+        - 'The number of bytes sent to this user's connections.'
+      * - 'BINLOG_BYTES_WRITTEN'
+        - 'The number of bytes written to the binary log from this user's connections.'
+      * - 'ROWS_FETCHED'
+        - 'The number of rows fetched by this user's connections.'
+      * - 'ROWS_UPDATED'
+        - 'The number of rows updated by this user's connections.'
+      * - 'TABLE_ROWS_READ'
+        - 'The number of rows read from tables by this user's connections. (It may be different from ``ROWS_FETCHED``.)'
+      * - 'SELECT_COMMANDS'
+        - 'The number of ``SELECT`` commands executed from this user's connections.'
+      * - 'UPDATE_COMMANDS'
+        - 'The number of ``UPDATE`` commands executed from this user's connections.'
+      * - 'OTHER_COMMANDS'
+        - 'The number of other commands executed from this user's connections.'
+      * - 'COMMIT_TRANSACTIONS'
+        - 'The number of ``COMMIT`` commands issued by this user's connections.'
+      * - 'ROLLBACK_TRANSACTIONS'
+        - 'The number of ``ROLLBACK`` commands issued by this user's connections.'
+      * - 'DENIED_CONNECTIONS'
+        - 'The number of connections denied to this user.'
+      * - 'LOST_CONNECTIONS'
+        - 'The number of this user's connections that were terminated uncleanly.'
+      * - 'ACCESS_DENIED'
+        - 'The number of times this user's connections issued commands that were denied.'
+      * - 'EMPTY_QUERIES'
+        - 'The number of times this user's connections sent empty queries to the server.'
+
+This table contains information about user activity. The *Percona* version of the patch restricts this table's visibility to users who have the ``SUPER`` or ``PROCESS`` privilege.
 
 The table gives answers to questions such as which users cause the most load, and whether any users are being abusive. It also lets you measure how close to capacity the server may be. For example, you can use it to find out whether replication is likely to start falling behind.
 
@@ -260,37 +396,82 @@ These commands are another way to display the information you can get from the `
 Status Variables
 ================
 
-.. variable:: Com_show_client_statistics
+.. _Com_show_client_statistics:
 
-   :vartype: numeric
-   :scope: Global/Session
+.. rubric:: ``Com_show_client_statistics``
 
-The :variable:`Com_show_client_statistics` statement counter variable indicates the number of times the statement ``SHOW CLIENT_STATISTICS`` has been executed.
+.. list-table::
+   :header-rows: 1
 
-.. variable:: Com_show_index_statistics
+   * - Option
+     - Description
+   * - Scope
+     - Global/Session
+   * - Data type
+     - numeric
 
-   :vartype: numeric
-   :scope: Global/Session
+The :ref:`Com_show_client_statistics` statement counter variable indicates the number of times the statement ``SHOW CLIENT_STATISTICS`` has been executed.
 
-The :variable:`Com_show_index_statistics` statement counter variable indicates the number of times the statement ``SHOW INDEX_STATISTICS`` has been executed.
+.. _Com_show_index_statistics:
 
-.. variable:: Com_show_table_statistics
+.. rubric:: ``Com_show_index_statistics``
 
-   :vartype: numeric
-   :scope: Global/Session
+.. list-table::
+   :header-rows: 1
 
-The :variable:`Com_show_table_statistics` statement counter variable indicates the number of times the statement ``SHOW TABLE_STATISTICS`` has been executed.
+   * - Option
+     - Description
+   * - Scope
+     - Global/Session
+   * - Data type
+     - numeric
 
-.. variable:: Com_show_thread_statistics
+The :ref:`Com_show_index_statistics` statement counter variable indicates the number of times the statement ``SHOW INDEX_STATISTICS`` has been executed.
 
-   :vartype: numeric
-   :scope: Global/Session
+.. _Com_show_table_statistics:
 
-The :variable:`Com_show_thread_statistics` statement counter variable indicates the number of times the statement ``SHOW THREAD_STATISTICS`` has been executed.
+.. rubric:: ``Com_show_table_statistics``
 
-.. variable:: Com_show_user_statistics
+.. list-table::
+   :header-rows: 1
 
-   :vartype: numeric
-   :scope: Global/Session
+   * - Option
+     - Description
+   * - Scope
+     - Global/Session
+   * - Data type
+     - numeric
 
-The :variable:`Com_show_user_statistics` statement counter variable indicates the number of times the statement ``SHOW USER_STATISTICS`` has been executed.
+The :ref:`Com_show_table_statistics` statement counter variable indicates the number of times the statement ``SHOW TABLE_STATISTICS`` has been executed.
+
+.. _Com_show_thread_statistics:
+
+.. rubric:: ``Com_show_thread_statistics``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global/Session
+   * - Data type
+     - numeric
+
+The :ref:`Com_show_thread_statistics` statement counter variable indicates the number of times the statement ``SHOW THREAD_STATISTICS`` has been executed.
+
+.. _Com_show_user_statistics:
+
+.. rubric:: ``Com_show_user_statistics``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Scope
+     - Global/Session
+   * - Data type
+     - numeric
+
+The :ref:`Com_show_user_statistics` statement counter variable indicates the number of times the statement ``SHOW USER_STATISTICS`` has been executed.

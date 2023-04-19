@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ class UniqueId {
  **/
 class TcpPortPool {
  public:
-  TcpPortPool() {}
+  TcpPortPool() = default;
 
   TcpPortPool(const TcpPortPool &) = delete;
   TcpPortPool &operator=(const TcpPortPool &) = delete;
@@ -82,7 +82,7 @@ class TcpPortPool {
   unsigned number_of_ids_used_{0};
   static const constexpr unsigned kPortsPerFile{10};
   static const constexpr unsigned kPortsStartFrom{100};
-  static const constexpr unsigned kPortsRange{200};
+  static const constexpr unsigned kPortsRange{500};
 };
 
 #endif  // _TCP_PORT_POOL_H_

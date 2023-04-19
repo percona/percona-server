@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,8 +154,8 @@ static int read_from_file(Ha_clone_file from_file, uchar *buffer,
   return (0);
 }
 
-int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
-                              uint &length, const char *src_name) {
+int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *to_buffer,
+                              uint length, const char *src_name) {
   CLONE_OS_CHECK_FILE(from_file);
 
   /* Assert buffer alignment to CLONE_OS_ALIGN[4K] for O_DIRECT */
@@ -166,7 +166,7 @@ int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
   while (len_left > 0) {
     uint ret_length = 0;
     auto error =
-        read_from_file(from_file, to_buffer, length, src_name, ret_length);
+        read_from_file(from_file, to_buffer, len_left, src_name, ret_length);
 
     if (error != 0) {
       DBUG_PRINT("debug", ("Error: clone read failed."
@@ -177,6 +177,7 @@ int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
     }
 
     len_left -= ret_length;
+    to_buffer += ret_length;
   }
 
   return (0);
@@ -298,36 +299,36 @@ int clone_os_copy_buf_to_file(uchar *from_buffer, Ha_clone_file to_file,
   return (0);
 }
 
-int clone_os_send_from_buf(uchar *from_buffer MY_ATTRIBUTE((unused)),
-                           uint length MY_ATTRIBUTE((unused)),
-                           my_socket socket MY_ATTRIBUTE((unused)),
-                           const char *src_name MY_ATTRIBUTE((unused))) {
+int clone_os_send_from_buf(uchar *from_buffer [[maybe_unused]],
+                           uint length [[maybe_unused]],
+                           my_socket socket [[maybe_unused]],
+                           const char *src_name [[maybe_unused]]) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Send");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int clone_os_send_from_file(Ha_clone_file from_file MY_ATTRIBUTE((unused)),
-                            uint length MY_ATTRIBUTE((unused)),
-                            my_socket socket MY_ATTRIBUTE((unused)),
-                            const char *src_name MY_ATTRIBUTE((unused))) {
+int clone_os_send_from_file(Ha_clone_file from_file [[maybe_unused]],
+                            uint length [[maybe_unused]],
+                            my_socket socket [[maybe_unused]],
+                            const char *src_name [[maybe_unused]]) {
   CLONE_OS_CHECK_FILE(from_file);
 
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Send");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int clone_os_recv_to_buf(uchar *to_buffer MY_ATTRIBUTE((unused)),
-                         uint length MY_ATTRIBUTE((unused)),
-                         my_socket socket MY_ATTRIBUTE((unused)),
-                         const char *dest_name MY_ATTRIBUTE((unused))) {
+int clone_os_recv_to_buf(uchar *to_buffer [[maybe_unused]],
+                         uint length [[maybe_unused]],
+                         my_socket socket [[maybe_unused]],
+                         const char *dest_name [[maybe_unused]]) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Receive");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int clone_os_recv_to_file(Ha_clone_file to_file MY_ATTRIBUTE((unused)),
-                          uint length MY_ATTRIBUTE((unused)),
-                          my_socket socket MY_ATTRIBUTE((unused)),
-                          const char *dest_name MY_ATTRIBUTE((unused))) {
+int clone_os_recv_to_file(Ha_clone_file to_file [[maybe_unused]],
+                          uint length [[maybe_unused]],
+                          my_socket socket [[maybe_unused]],
+                          const char *dest_name [[maybe_unused]]) {
   CLONE_OS_CHECK_FILE(to_file);
 
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Receive");

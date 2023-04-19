@@ -1,7 +1,7 @@
 #ifndef SQL_RESOLVER_INCLUDED
 #define SQL_RESOLVER_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 class Item;
 class THD;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 
 struct ORDER;
 template <typename Element_type>
@@ -46,15 +46,15 @@ class mem_root_deque;
   Name resolution functions.
 */
 
-void propagate_nullability(mem_root_deque<TABLE_LIST *> *tables, bool nullable);
+void propagate_nullability(mem_root_deque<Table_ref *> *tables, bool nullable);
 
-bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
+bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
                  mem_root_deque<Item *> *fields, ORDER *order);
 bool validate_gc_assignment(const mem_root_deque<Item *> &fields,
                             const mem_root_deque<Item *> &values, TABLE *tab);
 
 bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
-                        TABLE_LIST *tables, ORDER *order,
+                        Table_ref *tables, ORDER *order,
                         mem_root_deque<Item *> *fields, bool is_group_field,
                         bool is_window_order);
 
@@ -76,6 +76,25 @@ struct ReplaceResult {
 /**
   Walk through the conditions and functions below the given item, and allows the
   given functor to replace it with new items. See ReplaceResult.
+
+  This function is used both during resolving for making permanent changes to
+  the item tree, and during optimization for making non-permanent changes.
+
+  Note that this must not be used for permanent changes during optimization,
+  as all changes done during optimization will be rolled back if a prepared
+  statement is re-executed.
+
+  Note also that if the replaced items have different data types than the
+  original items, it may be necessary to adjust comparators in Item_bool_func2
+  objects higher up in the tree by calling set_cmp_func() on them. This is not
+  done by this function. Partly because it's generally not used for changing
+  data types, except in some special cases (at the time of writing, only in
+  resolving of ROLLUP columns). But also because of the note above about making
+  permanent changes during optimization; set_cmp_func() may make permanent
+  changes to the item, which are not rolled back at the end of execution, so
+  it's not safe to do this unconditionally under optimization. If adjusting the
+  comparators is necessary, the caller of WalkAndReplace() will have to invoke
+  set_cmp_func() manually.
 
   @return true on error.
  */

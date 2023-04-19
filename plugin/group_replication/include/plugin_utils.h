@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,14 +26,18 @@
 #include <errno.h>
 #include <mysql/group_replication_priv.h>
 #include <stddef.h>
+#include <algorithm>
+#include <chrono>
 #include <map>
 #include <queue>
+#include <random>
 #include <string>
 #include <vector>
 
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "plugin/group_replication/include/plugin_psi.h"
+#include "sql/malloc_allocator.h"
 
 void log_primary_member_details();
 
@@ -118,7 +122,7 @@ class Blocked_transaction_handler {
 template <typename T>
 class Synchronized_queue_interface {
  public:
-  virtual ~Synchronized_queue_interface() {}
+  virtual ~Synchronized_queue_interface() = default;
 
   /**
     Checks if the queue is empty
@@ -175,7 +179,7 @@ class Synchronized_queue_interface {
 template <typename T>
 class Synchronized_queue : public Synchronized_queue_interface<T> {
  public:
-  Synchronized_queue() {
+  Synchronized_queue(PSI_memory_key key) : queue(Malloc_allocator<T>(key)) {
     mysql_mutex_init(key_GR_LOCK_synchronized_queue, &lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_GR_COND_synchronized_queue, &cond);
   }
@@ -244,7 +248,7 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
  protected:
   mysql_mutex_t lock;
   mysql_cond_t cond;
-  std::queue<T> queue;
+  std::queue<T, std::list<T, Malloc_allocator<T>>> queue;
 };
 
 /**
@@ -255,9 +259,10 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
 template <typename T>
 class Abortable_synchronized_queue : public Synchronized_queue<T> {
  public:
-  Abortable_synchronized_queue() : Synchronized_queue<T>(), m_abort(false) {}
+  Abortable_synchronized_queue(PSI_memory_key key)
+      : Synchronized_queue<T>(key), m_abort(false) {}
 
-  ~Abortable_synchronized_queue() override {}
+  ~Abortable_synchronized_queue() override = default;
 
   /**
     Inserts an element in the queue.
@@ -356,14 +361,21 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
   /**
    Remove all elements, abort current and future waits on retrieving elements
    from queue.
+
+   @param delete_elements When true, apart from emptying the queue, it also
+                          delete each element.
+                          When false, the delete (memory release) responsibility
+                          belongs to the `push()` caller.
   */
-  void abort() {
+  void abort(bool delete_elements) {
     mysql_mutex_lock(&this->lock);
     while (this->queue.size()) {
       T elem;
       elem = this->queue.front();
       this->queue.pop();
-      delete elem;
+      if (delete_elements) {
+        delete elem;
+      }
     }
     m_abort = true;
     mysql_cond_broadcast(&this->cond);
@@ -784,7 +796,7 @@ class Plugin_waitlock {
  public:
   /**
     Constructor.
-    Instatiate the mutex lock, mutex condition,
+    Instantiate the mutex lock, mutex condition,
     mutex and condition key.
 
     @param  lock  the mutex lock for access to class and condition variables
@@ -886,5 +898,17 @@ class Plugin_waitlock {
   @param[in,out] string_to_escape the string to escape
 */
 void plugin_escape_string(std::string &string_to_escape);
+
+/**
+  Rearranges the given vector elements randomly.
+  @param[in,out] v the vector to shuffle
+*/
+template <typename T>
+void vector_random_shuffle(std::vector<T, Malloc_allocator<T>> *v) {
+  auto seed{std::chrono::system_clock::now().time_since_epoch().count()};
+  std::shuffle(v->begin(), v->end(),
+               std::default_random_engine(
+                   static_cast<std::default_random_engine::result_type>(seed)));
+}
 
 #endif /* PLUGIN_UTILS_INCLUDED */

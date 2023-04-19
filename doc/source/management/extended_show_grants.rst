@@ -4,7 +4,7 @@
 Extended ``SHOW GRANTS``
 ================================================================================
 
-In Oracle |MySQL| ``SHOW GRANTS`` displays only the privileges granted
+In Oracle *MySQL* ``SHOW GRANTS`` displays only the privileges granted
 explicitly to the named account. Other privileges might be available
 to the account, but they are not displayed. For example, if an
 anonymous account exists, the named account might be able to use its
@@ -72,8 +72,7 @@ Although the grant for the ``db2`` database isn't shown, ``grantee`` user has en
 Version-Specific Information
 ================================================================================
 
-  * :rn:`8.0.12-1`:
-    Feature ported from |Percona Server| 5.7.
+  * :ref:`8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 Other reading
 ================================================================================

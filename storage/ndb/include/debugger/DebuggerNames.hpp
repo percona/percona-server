@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -40,16 +40,6 @@ const char *
 getSignalName(GlobalSignalNumber gsn, const char * defualtValue = "Unknown");
 
 /**
- * getGsn
- *
- * NOTES: Very slow
- *
- * RETURNS: Gsn or 0 if none found
- */
-GlobalSignalNumber
-getGsn(const char * signalName);
-
-/**
  * getBlockName
  *
  * NOTES: Very quick
@@ -58,7 +48,7 @@ getGsn(const char * signalName);
  *          defValue if not a valid block number
  */
 const char * 
-getBlockName(BlockNumber blockNo, const char * defValue = 0);
+getBlockName(BlockNumber blockNo, const char * defValue = nullptr);
 
 /**
  * getBlockNo

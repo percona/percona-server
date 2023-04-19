@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,6 +122,10 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_RESTART_TIMEOUT             6100
 #define NDBD_EXIT_RESTART_DURING_SHUTDOWN     6101
 #define NDBD_EXIT_UPGRADE_INITIAL_REQUIRED    6102
+#define NDBD_EXIT_WRONG_FILESYSTEM_PASSWORD   6103
+#define NDBD_EXIT_FS_ENCRYPTION_REQUIRED      6104
+#define NDBD_EXIT_INVALID_SECRETS_FILE        6105
+#define NDBD_EXIT_MISSING_SECRETS_FILE        6106
 
 /* TC  6200-> */
 /* DIH 6300-> */

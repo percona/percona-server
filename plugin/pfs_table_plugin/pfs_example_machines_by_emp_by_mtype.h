@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,9 @@
 #include "plugin/pfs_table_plugin/pfs_example_machine.h"
 
 /* Service handle */
-extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
+extern SERVICE_TYPE(pfs_plugin_column_integer_v1) * col_int_svc;
+extern SERVICE_TYPE(pfs_plugin_column_enum_v1) * col_enum_svc;
+extern SERVICE_TYPE(pfs_plugin_column_string_v2) * col_string_svc;
 
 /* Global share pointer for table */
 extern PFS_engine_table_share_proxy m_by_emp_by_mtype_st_share;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef _WIN32
 
 #include "SysLogHandler.hpp"
+
+#include <time.h>
 
 #include <syslog.h>
 
@@ -78,7 +80,7 @@ SysLogHandler::is_open()
 
 void 
 SysLogHandler::writeHeader(const char* pCategory, Logger::LoggerLevel level,
-                           time_t now)
+                           time_t /*now*/)
 {
   // Save category to be used by writeMessage...
   m_pCategory = pCategory;
@@ -119,7 +121,7 @@ SysLogHandler::writeMessage(const char* pMsg)
 void 
 SysLogHandler::writeFooter()
 {
-  // Need to close it everytime? Do we run out of file descriptors?
+  // Need to close it every time? Do we run out of file descriptors?
   //::closelog();
 }
 
@@ -159,13 +161,13 @@ static const struct syslog_facility {
   { "local5", LOG_LOCAL5 },
   { "local6", LOG_LOCAL6 },
   { "local7", LOG_LOCAL7 },
-  { NULL, -1 }
+  { nullptr, -1 }
 };
 
 bool
 SysLogHandler::setFacility(const BaseString &facility) {
   const struct syslog_facility *c;
-  for(c = facilitynames; c->name != NULL; c++) {
+  for(c = facilitynames; c->name != nullptr; c++) {
     if(facility == c->name) {
       m_facility = c->value;
       close();

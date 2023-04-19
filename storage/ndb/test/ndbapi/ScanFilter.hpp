@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ public:
   /**
    * Create a scan filter for table tab
    * colNo - column to filter on
-   * val - val to use when selecting valu to filter on
+   * val - val to use when selecting value to filter on
    *
    */
   ScanFilter(const NDBT_Table& tab, 

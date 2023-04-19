@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,6 @@
 #include <chrono>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -42,7 +40,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 // AddressSanitizer gets confused by the default, MemoryPoolAllocator
 // Solaris sparc also gets crashes
@@ -167,7 +165,7 @@ std::string http_method_to_string(const HttpMethod::type method);
  * @param http_host   host name of the REST endpoint
  * @param max_wait_time how long should the function wait to the endpoint to
  * become ready before returning false
- * @param step_time   what should be the sleep time beetween the consecutive
+ * @param step_time   what should be the sleep time between the consecutive
  * checks for the endpoint availability
  *
  * @returns true once endpoint is ready to handle requests, false
@@ -237,12 +235,12 @@ class RestApiComponentTest : public RouterComponentTest {
                       const std::string &value_json_pointer,
                       const RestApiTestParams::value_check_func value_check);
 
-  static const std::vector<
-      std::pair<std::string, RestApiTestParams::value_check_func>>
-      kProblemJsonMethodNotAllowed;
+  using json_verifiers_t =
+      std::vector<std::pair<std::string, RestApiTestParams::value_check_func>>;
+
+  static json_verifiers_t get_json_method_not_allowed_verifiers();
 
  protected:
-  TcpPortPool port_pool_;
   const uint16_t http_port_{port_pool_.get_next_available()};
   TempDirectory conf_dir_;
 };

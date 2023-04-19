@@ -28,66 +28,126 @@ Once enabled, data scrubbing works automatically on each tablespace.
 
 To enable data scrubbing, you must enable either one or both of the following variables:
 
-- :variable:`innodb-background-scrub-data-uncompressed`
-- :variable:`innodb-background-scrub-data-compressed`
+- :ref:`innodb-background-scrub-data-uncompressed`
+- :ref:`innodb-background-scrub-data-compressed`
 
 Uncompressed tables can also be scrubbed immediately, independent of key
 rotation or background threads. Setting the variable
-:variable:`innodb-immediate-scrub-data-uncompressed` enables this operation. This variable does not support operations on compressed tables.
+:ref:`innodb-immediate-scrub-data-uncompressed` enables this operation. This variable does not support operations on compressed tables.
 
-For background scrubbing, you must set the :variable:`innodb_encryption_threads` variable to a value greater than **zero** when you enable data scrubbing. Intermediate scrubbing does not use encryption threads. A separate thread performs log scrubbing.
+For background scrubbing, you must set the :ref:`innodb_encryption_threads` variable to a value greater than **zero** when you enable data scrubbing. Intermediate scrubbing does not use encryption threads. A separate thread performs log scrubbing.
 
 System Variables
 --------------------------------------------------------------------------------
 
-.. variable:: innodb_background_scrub_data_compressed
+.. _innodb_background_scrub_data_compressed:
 
-   :cli: ``--innodb-background-scrub-data-compressed``
-   :dyn: Yes
-   :scope: Global
-   :vartype: Boolean
-   :default: ``OFF``
+.. rubric:: ``innodb_background_scrub_data_compressed``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-background-scrub-data-compressed``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
    
 Enables compressed data scrubbing.
 
-.. variable:: innodb_background_scrub_data_uncompressed
+.. _innodb_background_scrub_data_uncompressed:
 
-   :cli: ``--innodb-background-scrub-data-uncompressed``
-   :dyn: Yes
-   :scope: Global
-   :vartype: Boolean
-   :default: ``OFF``
-   
+.. rubric:: ``innodb_background_scrub_data_uncompressed``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-background-scrub-data-uncompressed``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+ 
 Enables uncompressed data scrubbing.
 
-.. variable:: innodb_scrub_log
+.. _innodb_scrub_log:
 
-    :cli: ``--innodb-scrub-log``
-    :dyn: No
-    :scope: Global
-    :vartype: Boolean
-    :default: ``OFF``
-    
+.. rubric:: ``innodb_scrub_log``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-scrub-log``
+   * - Scope
+     - Global
+   * - Dynamic
+     - No
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+
 Enables redo log scrubbing.
 
-.. variable:: innodb_scrub_log_speed
+.. _innodb_scrub_log_speed:
 
-    :cli: ``--innodb-scrub-log-speed``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Numeric
-    :default: 256
-    
+.. rubric:: ``innodb_scrub_log_speed``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-scrub-log-speed``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 256
+ 
 Defines the scrubbing speed in bytes/sec of the redo log.
 
-.. variable:: innodb_immediate_scrub_data_uncompressed
+.. _innodb_immediate_scrub_data_uncompressed:
 
-    :cli: ``--innodb-immediate-scrub-data-uncompressed``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Boolean
-    :default: ``OFF``
-    
+.. rubric:: ``innodb_immediate_scrub_data_uncompressed``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-immediate-scrub-data-uncompressed``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+
 Enables data scrubbing of uncompressed data.
 
 .. seealso::

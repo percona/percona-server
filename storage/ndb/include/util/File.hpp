@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define FILE_H
 
 #include <ndb_global.h>
+#include <time.h>
 
 /**
  * This class provides a file abstraction . It has operations
@@ -58,7 +59,7 @@ public:
    * @param f a pointer to a FILE descriptor.
    * @return the size of the file.
    */
-  static off_t size(FILE* f);
+  static ndb_off_t size(FILE* f);
 
   /**
    * Renames a file.
@@ -197,7 +198,7 @@ public:
    *
    * @return the file size.
    */
-  off_t size() const;
+  ndb_off_t size() const;
 
   /**
    * Returns the filename.
@@ -241,7 +242,7 @@ public:
     if (f)
     {
       fclose(f);
-      f = 0;
+      f = nullptr;
     }
   }
 

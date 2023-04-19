@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,9 @@
 #ifdef _WIN32
 
 #include "EventLogHandler.hpp"
+
+#include <time.h>
+
 #include "message.h"
 
 EventLogHandler::EventLogHandler(const char* source_name)
@@ -70,7 +73,7 @@ check_message_resource(void)
   DWORD last_err = GetLastError();
   fprintf(stderr,
           "This program does not seem to have the message resource "
-          "required for logging to Windows event log, error: %u ", last_err);
+          "required for logging to Windows event log, error: %lu ", last_err);
   if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
                     FORMAT_MESSAGE_ALLOCATE_BUFFER |
                     FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -95,7 +98,7 @@ check_message_resource(void)
 static bool
 setup_eventlogging(const char* source_name)
 {
-  // Check that this binary have mesage resource compiled in
+  // Check that this binary have message resource compiled in
   if (!check_message_resource())
     return false;
 
@@ -115,11 +118,11 @@ setup_eventlogging(const char* source_name)
       fprintf(stderr, "WARNING: Could not create or access the registry key needed for the application\n"
           "to log to the Windows EventLog. Run the application with sufficient\n"
           "privileges once to create the key, or add the key manually, or turn off\n"
-          "logging for that application. [HKLM] key '%s', error: %u\n", sub_key, error);
+          "logging for that application. [HKLM] key '%s', error: %ld\n", sub_key, error);
     }
     else
     {
-      fprintf(stderr, "WARNING: Could neither create or open key '%s', error: %u\n",
+      fprintf(stderr, "WARNING: Could neither create or open key '%s', error: %ld\n",
           sub_key, error);
 
     }
@@ -133,7 +136,7 @@ setup_eventlogging(const char* source_name)
   if (len == 0 || len == sizeof(module_path))
   {
     fprintf(stderr,
-            "Could not extract path of module, module_len: %u, error: %u\n",
+            "Could not extract path of module, module_len: %lu, error: %lu\n",
             len, GetLastError());
     RegCloseKey(key_handle);
     return false;
@@ -143,9 +146,9 @@ setup_eventlogging(const char* source_name)
                       (PBYTE)module_path, len + 1 );
 
   /* Register supported event types */
-  const DWORD event_types= (EVENTLOG_ERROR_TYPE |
-                            EVENTLOG_WARNING_TYPE |
-                            EVENTLOG_INFORMATION_TYPE);
+  DWORD event_types= (EVENTLOG_ERROR_TYPE |
+                      EVENTLOG_WARNING_TYPE |
+                      EVENTLOG_INFORMATION_TYPE);
   (void)RegSetValueEx(key_handle, "TypesSupported", 0, REG_DWORD,
                       (PBYTE)&event_types, sizeof(event_types));
 
@@ -166,7 +169,7 @@ EventLogHandler::open()
   m_event_source = RegisterEventSource(NULL, m_source_name);
   if (!m_event_source)
   {
-    fprintf(stderr, "Failed to register event source, error: %u\n",
+    fprintf(stderr, "Failed to register event source, error: %lu\n",
             GetLastError());
     return false;
   }
@@ -193,8 +196,7 @@ EventLogHandler::is_open()
 }
 
 void 
-EventLogHandler::writeHeader(const char* pCategory, Logger::LoggerLevel level,
-                             time_t now)
+EventLogHandler::writeHeader(const char*, Logger::LoggerLevel level, time_t)
 {
   m_level = level;
 }
@@ -207,6 +209,7 @@ write_event_log(HANDLE eventlog_handle, Logger::LoggerLevel level,
   WORD type;
   switch(level)
   {
+  case Logger::LL_ON:
   case Logger::LL_DEBUG:
   case Logger::LL_INFO:
     type = EVENTLOG_INFORMATION_TYPE;
@@ -219,8 +222,10 @@ write_event_log(HANDLE eventlog_handle, Logger::LoggerLevel level,
   case Logger::LL_ERROR:
   case Logger::LL_ALERT:
   case Logger::LL_CRITICAL:
+  case Logger::LL_ALL:
     type = EVENTLOG_ERROR_TYPE;
     break;
+  default: return false;
   }
 
   if (!ReportEvent(eventlog_handle, type, 0, MSG_EVENTLOG,
@@ -241,7 +246,7 @@ EventLogHandler::writeMessage(const char* msg)
 
   if (!write_event_log(m_event_source, m_level, msg))
   {
-    fprintf(stderr, "Failed to report event to event log, error: %u\n",
+    fprintf(stderr, "Failed to report event to event log, error: %lu\n",
             GetLastError());
   }
 }
@@ -254,7 +259,7 @@ EventLogHandler::writeFooter()
 
   
 bool
-EventLogHandler::setParam(const BaseString &param, const BaseString &value) {
+EventLogHandler::setParam(const BaseString &, const BaseString &) {
   return false;
 }
 

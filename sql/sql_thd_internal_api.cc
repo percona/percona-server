@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 #include <string.h>
 
 #include "m_string.h"
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "pfs_thread_provider.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -53,6 +53,8 @@
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
+#include "sql/resourcegroups/resource_group.h"
+#include "sql/resourcegroups/resource_group_mgr.h"
 #include "sql/rpl_filter.h"  // binlog_filter
 #include "sql/sql_class.h"   // THD
 #include "sql/sql_lex.h"
@@ -64,8 +66,52 @@
 struct mysql_cond_t;
 struct mysql_mutex_t;
 
-void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
-              PSI_thread_key psi_key MY_ATTRIBUTE((unused))) {
+THD *create_internal_thd() {
+  /* For internal threads, use enabled_plugins = false. */
+  THD *thd = new THD(false);
+  thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+  // Skip grants and set the system_user flag in THD.
+  thd->security_context()->skip_grants();
+  thd->thread_stack = reinterpret_cast<char *>(&thd);
+  thd->store_globals();
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(get_thread)();
+  if (psi != nullptr) {
+    /*
+      Associate this THD to the background thread instrumentation,
+      so that system variables and status variables
+      are visible for the background thread.
+    */
+    PSI_THREAD_CALL(set_thread_THD)(psi, thd);
+    thd->set_psi(psi);
+  }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  return thd;
+}
+
+void destroy_internal_thd(THD *thd) {
+  assert(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(get_thread)();
+  if (psi != nullptr) {
+    /*
+      Dissociate this THD from the background thread instrumentation.
+    */
+    PSI_THREAD_CALL(set_thread_THD)(psi, nullptr);
+    thd->set_psi(nullptr);
+  }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  thd->release_resources();
+  delete thd;
+}
+
+void thd_init(THD *thd, char *stack_start) {
   DBUG_TRACE;
   // TODO: Purge threads currently terminate too late for them to be added.
   // Note that P_S interprets all threads with thread_id != 0 as
@@ -76,15 +122,6 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
   }
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_thread *psi;
-  psi = PSI_THREAD_CALL(new_thread)(psi_key, thd, thd->thread_id());
-  if (bound) {
-    PSI_THREAD_CALL(set_thread_os_id)(psi);
-  }
-  PSI_THREAD_CALL(set_thread_THD)(psi, thd);
-  thd->set_psi(psi);
-#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (!thd->system_thread) {
     DBUG_PRINT("info",
@@ -97,22 +134,41 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
   thd->store_globals();
 }
 
+void thd_init(THD *thd, char *stack_start, bool bound [[maybe_unused]],
+              PSI_thread_key psi_key [[maybe_unused]],
+              unsigned int psi_seqnum [[maybe_unused]]) {
+  DBUG_TRACE;
+
+  thd_init(thd, stack_start);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(new_thread)(psi_key, psi_seqnum, thd, thd->thread_id());
+  if (bound) {
+    PSI_THREAD_CALL(set_thread_os_id)(psi);
+  }
+  PSI_THREAD_CALL(set_thread_THD)(psi, thd);
+  thd->set_psi(psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+}
+
 THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
-                PSI_thread_key psi_key) {
+                PSI_thread_key psi_key, unsigned int psi_seqnum) {
   THD *thd = new THD(enable_plugins);
   if (background_thread) {
     thd->system_thread = SYSTEM_THREAD_BACKGROUND;
     // Skip grants and set the system_user flag in THD.
     thd->security_context()->skip_grants();
   }
-  (void)thd_init(thd, reinterpret_cast<char *>(&thd), bound, psi_key);
+  (void)thd_init(thd, reinterpret_cast<char *>(&thd), bound, psi_key,
+                 psi_seqnum);
   return thd;
 }
 
-void destroy_thd(THD *thd) {
+void destroy_thd(THD *thd, bool clear_pfs_events [[maybe_unused]]) {
   thd->release_resources();
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(delete_thread)(thd->get_psi());
+  if (clear_pfs_events) PSI_THREAD_CALL(delete_thread)(thd->get_psi());
   thd->set_psi(nullptr);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
@@ -123,6 +179,8 @@ void destroy_thd(THD *thd) {
   }
   delete thd;
 }
+
+void destroy_thd(THD *thd) { return destroy_thd(thd, true); }
 
 void thd_set_thread_stack(THD *thd, const char *stack_start) {
   thd->thread_stack = stack_start;
@@ -244,6 +302,24 @@ void thd_get_autoinc(const THD *thd, ulong *off, ulong *inc) {
   *inc = thd->variables.auto_increment_increment;
 }
 
+size_t thd_get_tmp_table_size(const THD *thd) {
+  // We are intentionally narrowing the unsigned long long int (type of
+  // thd->variables.tmp_table_size) to size_t here. Issue with the former is
+  // that it represents more memory than one can address, in particular this is
+  // the case with 32-bit builds because unsigned long long int is guaranteed
+  // to be _at least_ 64 bits wide. That is much larger than the available
+  // address space.
+  //
+  // Given that tmp_table_size sysvar is about limiting the consumed (virtual)
+  // memory, size_t is the type which actually only makes sense to use here as
+  // it represents exactly the theoretical maximum sized object
+  if (thd->variables.tmp_table_size < std::numeric_limits<size_t>::max()) {
+    return thd->variables.tmp_table_size;
+  } else {
+    return std::numeric_limits<size_t>::max();
+  }
+}
+
 bool thd_is_strict_mode(const THD *thd) { return thd->is_strict_mode(); }
 
 bool thd_is_error(const THD *thd) { return thd->is_error(); }
@@ -305,6 +381,234 @@ bool thd_is_dd_update_stmt(const THD *thd) {
 }
 
 my_thread_id thd_thread_id(const THD *thd) { return (thd->thread_id()); }
+
+void disable_resource_groups(const char *reason) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (res_grp_mgr->resource_group_support()) {
+    res_grp_mgr->disable_resource_group();
+    res_grp_mgr->set_unsupport_reason(reason);
+  }
+}
+
+#if !defined(NDEBUG) && defined(HAVE_PSI_THREAD_INTERFACE)
+/*
+  Helper function to check if current thread is a system thread.
+
+  @returns true if current thread is a system thread else false.
+*/
+static bool is_system_thread() {
+  ulonglong pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
+  PSI_thread_attrs pfs_thread_attr;
+  memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
+  resourcegroups::Resource_group_mgr::instance()->get_thread_attributes(
+      &pfs_thread_attr, pfs_thread_id);
+  return pfs_thread_attr.m_system_thread;
+}
+#endif
+
+bool bind_thread_to_sys_internal_resource_group() {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (!res_grp_mgr->resource_group_support()) return false;
+
+#ifndef NDEBUG
+  // SYS_internal is allowed to set to only system threads.
+  assert(is_system_thread());
+#endif
+
+  // Apply resource group.
+  res_grp_mgr->sys_internal_resource_group()->controller()->apply_control();
+
+  // Update resource group name in PFS context.
+  ulonglong pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
+  res_grp_mgr->set_res_grp_in_pfs(
+      resourcegroups::SYS_INTERNAL_RESOURCE_GROUP_NAME,
+      strlen(resourcegroups::SYS_INTERNAL_RESOURCE_GROUP_NAME), pfs_thread_id);
+#endif
+
+  return false;
+}
+
+/**
+  Helper method to apply THD resource group to a system thread and save
+  resource group with a system thread.
+
+  @param         thd_resource_grp            THD's resource group.
+  @param[in,out] saved_resource_grp          THD resource group saved with a
+                                             system thread.
+                                             Applied resource group is saved in
+                                             the saved_resource_grp.
+  @param[out]    saved_resource_grp_version  Version of THD resoure group saved
+                                             with a system thread.
+*/
+static void apply_and_save_resource_group(
+    resourcegroups::Resource_group *thd_resource_grp,
+    resourcegroups::Resource_group **saved_resource_grp,
+    uint *saved_resource_grp_version) {
+  if (*saved_resource_grp != nullptr) {
+    // Remove reference from the saved thd resource group.
+    ((*saved_resource_grp)->reference_count())--;
+
+    /*
+      If resource group is inoperative and no other thread is using it
+      then remove the defunct resource group.
+    */
+    if ((*saved_resource_grp)->is_defunct() &&
+        (*saved_resource_grp)->reference_count().load() == 0)
+      delete (*saved_resource_grp);
+  }
+
+  if (thd_resource_grp != nullptr) {
+    // Apply THD resource group to a system thread.
+    thd_resource_grp->controller()->apply_control();
+
+    auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+    if (!res_grp_mgr->is_resource_group_default(thd_resource_grp) &&
+        !res_grp_mgr->is_sys_internal_resource_group(thd_resource_grp)) {
+      /*
+        ALTER or DROP operations on Default and SYS_internal resource groups
+        are not allowed. Reference counter is maintained to handle DROP
+        operations. Hence adding reference to only non-default and non-internal
+        resource group.
+      */
+      (thd_resource_grp->reference_count())++;
+    } else {
+      thd_resource_grp = nullptr;
+    }
+  }
+
+  *saved_resource_grp = thd_resource_grp;
+  *saved_resource_grp_version =
+      (thd_resource_grp != nullptr) ? thd_resource_grp->version() : 0;
+}
+
+bool bind_system_thread_to_thd_resource_group(
+    THD *thd, void **saved_resource_grp, uint *saved_resource_grp_version) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (opt_initialize || !res_grp_mgr->resource_group_support()) return false;
+
+#if !defined(NDEBUG) && defined(HAVE_PSI_THREAD_INTERFACE)
+  // Only system thread can bind to THD resource group.
+  assert(is_system_thread());
+#endif
+
+  resourcegroups::Resource_group **saved_thd_res_grp =
+      pointer_cast<resourcegroups::Resource_group **>(saved_resource_grp);
+
+  resourcegroups::Resource_group *thd_res_grp =
+      thd->resource_group_ctx()->m_cur_resource_group;
+
+  DBUG_EXECUTE_IF("log_resource_group_switch_info", {
+    std::string err("Resource group ");
+    err += (thd_res_grp != *saved_thd_res_grp) ? "switched." : "not switched.";
+    LogErr(ERROR_LEVEL, ER_CONDITIONAL_DEBUG, err.c_str());
+  });
+
+  /*
+    Apply THD's RG if saved resource group and THD's resource group are *not*
+    same or resource group is altered and THD has newer version of RG.
+
+    For performance reasons, binding resource group to system thread is not
+    guarded by the lock or mutex. As a result of concurrent SET/DROP/DISABLE
+    operations, bind operation might use THD's *old* resource group instead of
+    current resource group for current query execution. New resource group is
+    used from the next query execution. In non-TP model, a new resource group is
+    applied to the current query execution immediately. But this can not be
+    achieved for TP without additional performance overhead. Hence, current
+    behavior with TP is acceptable.
+  */
+  if (thd_res_grp != *saved_thd_res_grp ||
+      (thd_res_grp != nullptr &&
+       thd_res_grp->version() != *saved_resource_grp_version)) {
+    if (thd_res_grp == nullptr)
+      thd_res_grp = res_grp_mgr->usr_default_resource_group();
+
+    apply_and_save_resource_group(thd_res_grp, saved_thd_res_grp,
+                                  saved_resource_grp_version);
+  }
+
+  // Bind system thread to THD's resource group.
+  thd->resource_group_ctx()->m_bound_system_thread_os_id = my_thread_os_id();
+
+  return false;
+}
+
+bool unbind_system_thread_from_thd_resource_group(
+    THD *thd, void **saved_resource_grp, uint *saved_resource_grp_version) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (opt_initialize || !res_grp_mgr->resource_group_support()) return false;
+
+#if !defined(NDEBUG) && defined(HAVE_PSI_THREAD_INTERFACE)
+  // Only system thread can bind to THD resource group.
+  assert(is_system_thread());
+#endif
+
+  resourcegroups::Resource_group **saved_thd_res_grp =
+      pointer_cast<resourcegroups::Resource_group **>(saved_resource_grp);
+
+  resourcegroups::Resource_group *thd_res_grp =
+      thd->resource_group_ctx()->m_cur_resource_group;
+
+  /*
+    Apply THD's RG if saved resource group and THD's resource group are not
+    same.
+
+    At bind stage, the system thread is bind to the THD's resource group. But
+    concurrent resource group operations might change THD's resource group
+    before unbind. So check and apply THD's new RG to system thread. Instead of
+    waiting for bind to apply new RG, applying at unbind stage itself to release
+    old RG and move system thread to new RG.
+
+    System thread keeps using THD's RG even after invoking this method. System
+    thread consumes less resourcees after this stage. System thread remembers
+    current THD's RG. If a query from THD using same RG is picked up for the
+    execution, then RG switch in bind stage is not needed. This optimization
+    helps to improve performance.
+
+    For performance reasons unbinding resource group to system thread is
+    not guarded by the lock or mutex. System thread might keep using THD's *old*
+    resource group on unbind operation because of concurrent SET/DROP/DISABLE.
+    New resource group is used from the next query. In non-TP model, a new
+    resource group is applied to the current query execution immediately. But
+    this can not be achieved for TP without additional performance overhead.
+    Hence, current behavior with TP is acceptable.
+  */
+  if (thd_res_grp != *saved_thd_res_grp) {
+    if (thd_res_grp == nullptr)
+      thd_res_grp = res_grp_mgr->usr_default_resource_group();
+
+    apply_and_save_resource_group(thd_res_grp, saved_thd_res_grp,
+                                  saved_resource_grp_version);
+  }
+
+  // Unbind system thread from THD's resource group.
+  thd->resource_group_ctx()->m_bound_system_thread_os_id = 0;
+
+  return false;
+}
+
+bool release_saved_thd_resource_group(void **saved_resource_grp,
+                                      uint *saved_resource_grp_version,
+                                      bool only_if_defunct) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (opt_initialize || !res_grp_mgr->resource_group_support()) return false;
+
+#if !defined(NDEBUG) && defined(HAVE_PSI_THREAD_INTERFACE)
+  // Only system thread can bind to THD resource group.
+  assert(is_system_thread());
+#endif
+
+  resourcegroups::Resource_group **saved_thd_res_grp =
+      pointer_cast<resourcegroups::Resource_group **>(saved_resource_grp);
+
+  if (*saved_thd_res_grp == nullptr) return false;
+
+  if (!only_if_defunct || (*saved_thd_res_grp)->is_defunct())
+    apply_and_save_resource_group(res_grp_mgr->sys_internal_resource_group(),
+                                  saved_thd_res_grp,
+                                  saved_resource_grp_version);
+  return false;
+}
 
 /** Gets page fragmentation statistics. Assigns zeros to stats if thd is
 NULL.

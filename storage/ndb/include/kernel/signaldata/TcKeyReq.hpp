@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,20 +81,20 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( StaticLength = 8 );
-  STATIC_CONST( SignalLength = 25 );
-  STATIC_CONST( MaxKeyInfo = 8 );
-  STATIC_CONST( MaxAttrInfo = 5 );
-  STATIC_CONST( MaxTotalAttrInfo = ((MAX_SEND_MESSAGE_BYTESIZE / 4) - 
-                                    SignalLength ));
+  static constexpr Uint32 StaticLength = 8;
+  static constexpr Uint32 SignalLength = 25;
+  static constexpr Uint32 MaxKeyInfo = 8;
+  static constexpr Uint32 MaxAttrInfo = 5;
+  static constexpr Uint32 MaxTotalAttrInfo =
+      ((MAX_SEND_MESSAGE_BYTESIZE / 4) - SignalLength );
 
   /**
    * Long signal variant of TCKEYREQ
    */
-  STATIC_CONST( KeyInfoSectionNum = 0 );
-  STATIC_CONST( AttrInfoSectionNum = 1 );
+  static constexpr Uint32 KeyInfoSectionNum = 0;
+  static constexpr Uint32 AttrInfoSectionNum = 1;
 
-  STATIC_CONST( UnlockKeyLen = 2 );
+  static constexpr Uint32 UnlockKeyLen = 2;
 
 private:
 
@@ -273,8 +273,8 @@ private:
  * Read committed base is using a bit that is only available
  * in Long TCKEYREQ signals. So this feature is only available
  * when using Long TCKEYREQ signals. Short TCKEYREQ are only
- * used for backwards compatability against old nodes not
- * supporting Read Committed base flag anyways and in special
+ * used for backwards compatibility against old nodes not
+ * supporting Read Committed base flag anyway and in special
  * test cases that also don't use Read Committed base.
 
  R = Read Committed base   - 1  Bit 20

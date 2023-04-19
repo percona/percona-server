@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@
 #include "mysql/harness/logging/eventlog_plugin.h"
 
 #include "eventlog_rc/message.h"
+#include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/logging/supported_logger_options.h"
 #include "mysql/harness/plugin.h"
 
 #include <Windows.h>
@@ -182,5 +184,7 @@ mysql_harness::Plugin harness_plugin_eventlog = {
     nullptr,  // start,
     nullptr,  // stop
     false,    // declares_readiness
+    logger_sink_supported_options.size(),
+    logger_sink_supported_options.data(),
 };
 }

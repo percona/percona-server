@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -195,7 +195,7 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
   /* Convert text to utf8 */
   const CHARSET_INFO *from_cs =
       get_charset(digest_storage->m_charset_number, MYF(0));
-  const CHARSET_INFO *to_cs = &my_charset_utf8_bin;
+  const CHARSET_INFO *to_cs = &my_charset_utf8mb3_bin;
 
   if (from_cs == nullptr) {
     /*
@@ -453,8 +453,8 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
         }
       } while (found_unary);
     }
-    // fallthrough
-    // for case NULL_SYM below
+      /* fall through, for case NULL_SYM below */
+      [[fallthrough]];
     case LEX_HOSTNAME:
     case TEXT_STRING:
     case NCHAR_STRING:

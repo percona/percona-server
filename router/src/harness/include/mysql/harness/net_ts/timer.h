@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <chrono>
 #include <thread>  // this_thread
 
+#include "my_compiler.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/netfwd.h"
 #include "mysql/harness/stdx/expected.h"
@@ -114,13 +115,9 @@ class basic_waitable_timer {
   }
 
   stdx::expected<void, std::error_code> wait() {
-    executor_.dispatch(
-        [this] {
-          while (clock_type::now() < expiry_) {
-            std::this_thread::sleep_for(traits_type::to_wait_duration(expiry_));
-          }
-        },
-        std::allocator<void>{});
+    while (clock_type::now() < expiry_) {
+      std::this_thread::sleep_for(traits_type::to_wait_duration(expiry_));
+    }
 
     return {};
   }

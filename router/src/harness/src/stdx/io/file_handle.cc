@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,9 +61,6 @@ using namespace std::string_literals;
 
 namespace stdx {
 namespace io {
-
-constexpr const file_handle::native_handle_type file_handle::invalid_handle;
-constexpr const flag::value_type flag::unlink_on_first_close;
 
 static std::error_code last_posix_error_code() {
   return {errno, std::generic_category()};
@@ -402,7 +399,7 @@ stdx::expected<file_handle, std::error_code> file_handle::file(
 
   auto st = stat_res.value();
 
-  return {stdx::in_place, handle, st.st_dev, st.st_ino, _caching, flags};
+  return {std::in_place, handle, st.st_dev, st.st_ino, _caching, flags};
 }
 
 /**

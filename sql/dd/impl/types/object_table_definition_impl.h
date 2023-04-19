@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,7 +143,7 @@ class Object_table_definition_impl : public Object_table_definition {
                               Element_definitions *element_defs);
 
  public:
-  Object_table_definition_impl() {}
+  Object_table_definition_impl() = default;
 
   Object_table_definition_impl(const String_type &schema_name,
                                const String_type &table_name,
@@ -152,7 +152,7 @@ class Object_table_definition_impl : public Object_table_definition {
         m_table_name(table_name),
         m_ddl_statement(ddl_statement) {}
 
-  ~Object_table_definition_impl() override {}
+  ~Object_table_definition_impl() override = default;
 
   static void set_dd_tablespace_encrypted(bool is_encrypted) {
     s_dd_tablespace_encrypted = is_encrypted;
@@ -170,8 +170,8 @@ class Object_table_definition_impl : public Object_table_definition {
    */
 
   static const CHARSET_INFO *fs_name_collation() {
-    if (lower_case_table_names == 0) return &my_charset_utf8_bin;
-    return &my_charset_utf8_tolower_ci;
+    if (lower_case_table_names == 0) return &my_charset_utf8mb3_bin;
+    return &my_charset_utf8mb3_tolower_ci;
   }
 
   /**
@@ -187,7 +187,9 @@ class Object_table_definition_impl : public Object_table_definition {
 
     @return Pointer to CHARSET_INFO.
   */
-  static const CHARSET_INFO *name_collation() { return &my_charset_utf8_bin; }
+  static const CHARSET_INFO *name_collation() {
+    return &my_charset_utf8mb3_bin;
+  }
 
   /**
     Convert to lowercase if lower_case_table_names == 2. This is needed

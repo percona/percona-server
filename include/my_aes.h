@@ -1,7 +1,7 @@
 #ifndef MY_AES_INCLUDED
 #define MY_AES_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,9 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
+
+#include <string>
+#include <vector>
 
 /** AES IV size is 16 bytes for all supported ciphers except ECB */
 #define MY_AES_IV_SIZE 16
@@ -82,13 +85,15 @@ extern const char *my_aes_opmode_names[];
   @param [in] iv               16 bytes initialization vector if needed.
   Otherwise NULL
   @param [in] padding          if padding needed.
+  @param kdf_options           KDF options
   @return              size of encrypted data, or negative in case of error
 */
 
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
-                   const unsigned char *iv, bool padding = true);
+                   const unsigned char *iv, bool padding = true,
+                   std::vector<std::string> *kdf_options = nullptr);
 
 /**
   Decrypt an AES encrypted buffer
@@ -101,13 +106,15 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   @param mode           encryption mode
   @param iv             16 bytes initialization vector if needed. Otherwise NULL
   @param padding        if padding needed.
+  @param kdf_options    KDF options
   @return size of original data.
 */
 
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
-                   const unsigned char *iv, bool padding = true);
+                   const unsigned char *iv, bool padding = true,
+                   std::vector<std::string> *kdf_options = nullptr);
 
 /**
   Calculate the size of a buffer large enough for encrypted data.
@@ -117,7 +124,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   @return               size of buffer required to store encrypted data
 */
 
-int my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode);
+longlong my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode);
 
 /**
   Return true if the AES cipher and block mode requires an IV.
@@ -129,5 +136,41 @@ int my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode);
 */
 
 bool my_aes_needs_iv(my_aes_opmode opmode);
+
+/**
+  Encrypt a buffer using AES CBC with no padding
+
+  @param [in] source         Pointer to data for encryption
+  @param [in] source_length  Size of original data
+  @param [out] dest          Buffer to place encrypted data (must be large
+  enough)
+  @param [in] key            Key to be used for encryption
+  @param [in] key_length     Size of the key
+  @param [in] iv             16-bytes initialization vector.
+  @return size of encrypted data, or MY_AES_BAD_DATA in case of an error
+*/
+
+int my_legacy_aes_cbc_nopad_encrypt(const unsigned char *source,
+                                    uint32 source_length, unsigned char *dest,
+                                    const unsigned char *key, uint32 key_length,
+                                    const unsigned char *iv);
+
+/**
+  Decrypt a buffer encrypted with AES CBC with no padding
+
+  @param [in] source         Pointer to data for decryption
+  @param [in] source_length  size of encrypted data
+  @param [out] dest          buffer to place decrypted data (must be large
+  enough)
+  @param [in] key            Key to be used for decryption
+  @param [in] key_length     Size of the key
+  @param [in] iv             16-bytes initialization vector
+  @return size of original data, or MY_AES_BAD_DATA in case of an error
+*/
+
+int my_legacy_aes_cbc_nopad_decrypt(const unsigned char *source,
+                                    uint32 source_length, unsigned char *dest,
+                                    const unsigned char *key, uint32 key_length,
+                                    const unsigned char *iv);
 
 #endif /* MY_AES_INCLUDED */

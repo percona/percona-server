@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <new>
 
 #include <ndb_global.h>
@@ -130,15 +131,13 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
   return 0;
 }
 
-int
-NdbIndexStat::records_in_range(const NdbDictionary::Index* index, 
-                               NdbTransaction* trans,
-                               const NdbRecord* key_record,
-                               const NdbRecord* result_record,
-                               const NdbIndexScanOperation::IndexBound* ib, 
-                               Uint64 table_rows, 
-                               Uint64* count, 
-                               int flags)
+int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
+                                   NdbTransaction* trans,
+                                   const NdbRecord* key_record,
+                                   const NdbRecord* result_record,
+                                   const NdbIndexScanOperation::IndexBound* ib,
+                                   Uint64 /*table_rows*/, Uint64* count,
+                                   int flags [[maybe_unused]])
 {
   DBUG_ENTER("NdbIndexStat::records_in_range");
   Uint64 rows;
@@ -202,11 +201,11 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
   {
     Uint32 out[4] = { 0, 0, 0, 0 };  // rows, in, before, after
     float tot[4] = { 0, 0, 0, 0 };   // totals of above
-    int cnt, ret;
+    int ret;
     bool forceSend = true;
     const Uint32 codeWords= 1;
     Uint32 codeSpace[ codeWords ];
-    NdbInterpretedCode code(NULL, // No table
+    NdbInterpretedCode code(nullptr, // No table
                             &codeSpace[0],
                             codeWords);
     if ((code.interpret_exit_last_row() != 0) ||
@@ -217,7 +216,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
       DBUG_RETURN(-1);
     }
 
-    NdbIndexScanOperation* op= NULL;
+    NdbIndexScanOperation* op= nullptr;
     NdbScanOperation::ScanOptions options;
     NdbOperation::GetValueSpec extraGet;
 
@@ -228,7 +227,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
     /* Read RECORDS_IN_RANGE pseudo column */
     extraGet.column= NdbDictionary::Column::RECORDS_IN_RANGE;
     extraGet.appStorage= (void*) out;
-    extraGet.recAttr= NULL;
+    extraGet.recAttr= nullptr;
 
     options.extraGetValues= &extraGet;
     options.numExtraGetValues= 1;
@@ -240,7 +239,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
     Uint32 emptyMask[keyBitmaskWords];
     memset(&emptyMask[0], 0, keyBitmaskWords << 2);
 
-    if (NULL == 
+    if (nullptr == 
         (op= trans->scanIndex(key_record,
                               result_record,
                               NdbOperation::LM_CommittedRead,
@@ -261,8 +260,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
                            op->getNdbError().code));
       DBUG_RETURN(-1);
     }
-    cnt = 0;
-    const char* dummy_out_ptr= NULL;
+    const char* dummy_out_ptr= nullptr;
     while ((ret = op->nextResult(&dummy_out_ptr,
                                  true, forceSend)) == 0) {
       DBUG_PRINT("info", ("frag rows=%u in=%u before=%u after=%u [error=%d]",
@@ -271,7 +269,6 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
       unsigned i;
       for (i = 0; i < 4; i++)
         tot[i] += (float)out[i];
-      cnt++;
     }
     if (ret == -1) {
       m_impl.setError(op->getNdbError().code, __LINE__);
@@ -295,8 +292,16 @@ int
 NdbIndexStat::create_systables(Ndb* ndb)
 {
   DBUG_ENTER("NdbIndexStat::create_systables");
-  if (m_impl.create_systables(ndb) == -1)
+  if (m_impl.create_systables(ndb) == -1) {
+    if (getNdbError().code == 721 || getNdbError().code == 4244) {
+      // Probably a race between applications which this app has lost. Check if
+      // the tables have been created either way and treat it as success
+      if (check_systables(ndb) == 0) {
+        DBUG_RETURN(0);
+      }
+    }
     DBUG_RETURN(-1);
+  }
   DBUG_RETURN(0);
 }
 
@@ -379,7 +384,7 @@ void
 NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
 {
   NdbMutex_Lock(m_impl.m_query_mutex);
-  const NdbIndexStatImpl::Cache* c = 0;
+  const NdbIndexStatImpl::Cache* c = nullptr;
   switch (type) {
   case CacheBuild:
     c = m_impl.m_cacheBuild;
@@ -398,7 +403,7 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
   info.m_save_time = 0;
   info.m_sort_time = 0;
   info.m_ref_count = 0;
-  while (c != 0)
+  while (c != nullptr)
   {
     info.m_count += 1;
     info.m_valid += c->m_valid;
@@ -445,8 +450,8 @@ NdbIndexStat::read_stat(Ndb* ndb)
 NdbIndexStat::Bound::Bound(const NdbIndexStat* is, void* buffer)
 {
   DBUG_ENTER("NdbIndexStat::Bound::Bound");
-  require(is != 0 && is->m_impl.m_indexSet);
-  require(buffer != 0);
+  require(is != nullptr && is->m_impl.m_indexSet);
+  require(buffer != nullptr);
   Uint8* buf = (Uint8*)buffer;
   // bound impl
   Uint8* buf1 = buf;
@@ -471,7 +476,7 @@ NdbIndexStat::add_bound(Bound& bound_f, const void* value)
   NdbIndexStatImpl::Bound& bound =
     *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
   Uint32 len_out;
-  if (value == 0)
+  if (value == nullptr)
   {
     m_impl.setError(UsageError, __LINE__);
     DBUG_RETURN(-1);
@@ -579,7 +584,7 @@ NdbIndexStat::convert_range(Range& range_f,
 NdbIndexStat::Stat::Stat(void* buffer)
 {
   DBUG_ENTER("NdbIndexStat::Stat::Stat");
-  require(buffer != 0);
+  require(buffer != nullptr);
   Uint8* buf = (Uint8*)buffer;
   // stat impl
   Uint8* buf1 = buf;
@@ -621,7 +626,7 @@ NdbIndexStat::get_empty(const Stat& stat_f, bool* empty)
   DBUG_ENTER("NdbIndexStat::get_empty");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  require(empty != 0);
+  require(empty != nullptr);
   *empty = stat.m_value.m_empty;
   DBUG_PRINT("index_stat", ("empty:%d", *empty));
   DBUG_VOID_RETURN;
@@ -632,7 +637,7 @@ NdbIndexStat::get_numrows(const Stat& stat_f, Uint32* rows)
 {
   DBUG_TRACE;
   const NdbIndexStatImpl::Stat& stat =
-  *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
   require(rows != nullptr);
   *rows = stat.m_value.m_num_rows;
   DBUG_PRINT("index_stat", ("rows:%d", *rows));
@@ -647,7 +652,7 @@ NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
   double x = stat.m_value.m_rir;
   if (x < 1.0)
     x = 1.0;
-  require(rir != 0);
+  require(rir != nullptr);
   *rir = x;
 #ifndef NDEBUG
   char buf[100];
@@ -665,21 +670,14 @@ NdbIndexStat::get_rpk_pruned(const Stat& stat_f,
   DBUG_ENTER("NdbIndexStat::get_rpk_pruned");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  if (unlikely(stat.m_value.m_empty))
-  {
-    // Should preferabley test get_empty() (or get_numrows()) first.
-    *rpk = -1.0; // returns 'unknown'
-  }
-  else
-  {
-    double factor = stat.m_value.m_unq_factor[k];
-    double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
-    if (stat.m_value.m_rir <= stat.m_value.m_unq[k])
-      x = 1.0;
-    assert(stat.m_value.m_num_fragments > 0);
-    double fragments = stat.m_value.m_num_fragments;
-    *rpk = factor * x / fragments;
-  }
+  double factor = stat.m_value.m_unq_factor[k];
+  double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
+  assert(stat.m_value.m_num_fragments > 0);
+  double fragments = stat.m_value.m_num_fragments;
+  x = factor * x / fragments;
+  if (x < 1.0)
+    x = 1.0;
+  *rpk = x;
 #ifndef NDEBUG
   char buf[100];
   sprintf(buf, "%.2f", *rpk);
@@ -702,15 +700,9 @@ NdbIndexStat::get_rpk(const Stat& stat_f,
   DBUG_ENTER("NdbIndexStat::get_rpk");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  if (unlikely(stat.m_value.m_empty))
-  {
-    // Should preferabley test get_empty() (or get_numrows()) first.
-    *rpk = -1.0; // returns 'unknown'
-  }
-  else
   {
     double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
-    if (stat.m_value.m_rir <= stat.m_value.m_unq[k])
+    if (x < 1.0)
       x = 1.0;
     *rpk = x;
     require(stat.m_value.m_unq_factor[k] > 0);
@@ -733,7 +725,7 @@ NdbIndexStat::get_rule(const Stat& stat_f, char* buffer)
   DBUG_ENTER("NdbIndexStat::get_rule");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  require(buffer != 0);
+  require(buffer != nullptr);
   BaseString::snprintf(buffer, RuleBufferBytes, "%s/%s/%s",
                        stat.m_rule[0], stat.m_rule[1], stat.m_rule[2]);
   DBUG_VOID_RETURN;
@@ -781,7 +773,7 @@ bool
 NdbIndexStat::has_listener() const
 {
   DBUG_ENTER("NdbIndexStat::has_listener");
-  if (m_impl.m_eventOp != 0)
+  if (m_impl.m_eventOp != nullptr)
     DBUG_RETURN(true);
   DBUG_RETURN(false);
 }

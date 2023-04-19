@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include "Multi_Transporter.hpp"
@@ -22,7 +23,6 @@
 #include <NdbSleep.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 // End of stuff to be moved
 
 Multi_Transporter::Multi_Transporter(TransporterRegistry &t_reg,
@@ -52,9 +52,9 @@ Multi_Transporter::Multi_Transporter(TransporterRegistry &t_reg,
   m_num_not_used_transporters = 0;
   for (Uint32 i = 0; i < MAX_NODE_GROUP_TRANSPORTERS; i++)
   {
-    m_active_transporters[i] = 0;
-    m_inactive_transporters[i] = 0;
-    m_not_used_transporters[i] = 0;
+    m_active_transporters[i] = nullptr;
+    m_inactive_transporters[i] = nullptr;
+    m_not_used_transporters[i] = nullptr;
   }
 }
 
@@ -68,12 +68,12 @@ Multi_Transporter::resetBuffers()
   send_checksum_state.init();
 }
 
-bool Multi_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
+bool Multi_Transporter::connect_server_impl(ndb_socket_t)
 {
   return true;
 }
 
-bool Multi_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
+bool Multi_Transporter::connect_client_impl(ndb_socket_t)
 {
   return true;
 }
@@ -127,7 +127,7 @@ Multi_Transporter::set_num_inactive_transporters(Uint32 num_used)
         Transporter *t = m_inactive_transporters[i];
         m_not_used_transporters[i] = t;
         require(t);
-        m_inactive_transporters[i] = 0;
+        m_inactive_transporters[i] = nullptr;
         m_num_inactive_transporters--;
         m_num_not_used_transporters++;
       }
@@ -141,7 +141,7 @@ Multi_Transporter::set_num_inactive_transporters(Uint32 num_used)
       {
         Transporter *t = m_not_used_transporters[i];
         m_inactive_transporters[i] = t;
-        m_not_used_transporters[i] = 0;
+        m_not_used_transporters[i] = nullptr;
         require(t);
         m_num_inactive_transporters++;
         m_num_not_used_transporters--;

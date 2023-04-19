@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,6 @@
 
 #ifndef MGMAPI_H
 #define MGMAPI_H
-
-#if defined(__cplusplus)
-#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
-#include <memory> // std::unique_ptr for ndb_mgm_config_unique_ptr
-#endif
-#endif
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -126,7 +120,7 @@
  *   between structs so use ndb_logevent::type to decide which struct
  *   is valid.
  *
- * Sample code for listening to Backup related events.  The availaable log
+ * Sample code for listening to Backup related events.  The available log
  * events are listed in @ref ndb_logevent.h
  *
  * @code
@@ -545,8 +539,8 @@ extern "C" {
   int ndb_mgm_set_configuration_nodeid(NdbMgmHandle handle, int nodeid);
 
   /**
-   * Set local bindaddress
-   * @param arg - Srting of form "host[:port]"
+   * Set local bind address
+   * @param arg - String of form "host[:port]"
    * @note must be called before connect
    * @note Error on binding local address will not be reported until connect
    * @return 0 on success
@@ -580,7 +574,7 @@ extern "C" {
   /**
    * Sets the number of milliseconds for timeout of network operations
    * Default is 60 seconds.
-   * Only increments of 1000 ms are supported. No function is gaurenteed
+   * Only increments of 1000 ms are supported. No function is guaranteed
    * to return in a fraction of a second.
    *
    * @param handle  NdbMgmHandle
@@ -1207,7 +1201,7 @@ extern "C" {
    * Retrieve filedescriptor from NdbLogEventHandle.  May be used in
    * e.g. an application select() statement.
    *
-   * @note Do not attemt to read from it, it will corrupt the parsing.
+   * @note Do not attempt to read from it, it will corrupt the parsing.
    *
    * @return       filedescriptor, -1 on failure.
    */
@@ -1581,26 +1575,6 @@ extern "C" {
 
 #ifdef __cplusplus
 }
-#endif
-
-#if defined(__cplusplus)
-#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
-/*
- * Helper class to ease use of C++11 unique pointer with
- * ndb_mgm_configuration.
- */
-struct ndb_mgm_configuration_deleter
-{
-  void operator()(ndb_mgm_configuration* conf)
-  {
-    ndb_mgm_destroy_configuration(conf);
-  }
-};
-
-using ndb_mgm_config_unique_ptr =
-  std::unique_ptr<ndb_mgm_configuration, ndb_mgm_configuration_deleter>;
-
-#endif
 #endif
 
 /** @} */

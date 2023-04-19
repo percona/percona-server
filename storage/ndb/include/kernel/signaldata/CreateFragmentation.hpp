@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class CreateFragmentationReq {
   friend bool printCREATE_FRAGMENTATION_REQ(FILE *, 
 					    const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
   
   enum RequestInfo {
     RI_CREATE_FRAGMENTATION = 0x0,
@@ -63,6 +63,8 @@ private:
   Uint32 partitionCount;
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_CREATE_FRAGMENTATION_REQ, Local);
+
 class CreateFragmentationRef {
   /**
    * Sender(s)
@@ -77,7 +79,7 @@ class CreateFragmentationRef {
   friend bool printCREATE_FRAGMENTATION_REF(FILE *, 
 					    const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
  
   enum ErrorCode {
     OK = 0
@@ -91,6 +93,8 @@ private:
   Uint32 senderData;
   Uint32 errorCode;
 };
+
+DECLARE_SIGNAL_SCOPE(GSN_CREATE_FRAGMENTATION_REF, Local);
 
 class CreateFragmentationConf {
   /**
@@ -106,7 +110,7 @@ class CreateFragmentationConf {
   friend bool printCREATE_FRAGMENTATION_CONF(FILE *, 
 					     const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   SECTION( FRAGMENTS = 0 );
   
 private:
@@ -116,6 +120,7 @@ private:
   Uint32 noOfFragments;
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_CREATE_FRAGMENTATION_CONF, Local);
 
 #undef JAM_FILE_ID
 

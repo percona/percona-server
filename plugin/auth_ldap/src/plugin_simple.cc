@@ -45,14 +45,17 @@ void update_sysvar(THD *, SYS_VAR *var, void *var_ptr, const void *value) {
   // Update the value
   *(Copy_type *)var_ptr = *(Copy_type *)const_cast<void *>(value);
 
-  if (strcmp(var->name, "authentication_ldap_simple_log_status") == 0)
+  if (strcmp(var->name, "authentication_ldap_simple_log_status") == 0) {
     g_logger_server->set_log_level(
         static_cast<mysql::plugin::auth_ldap::ldap_log_level>(log_status));
-  else {
-    connPool->reconfigure(init_pool_size, max_pool_size,
-                          str_or_empty(server_host), server_port, ssl, tls,
-                          str_or_empty(ca_path), str_or_empty(bind_root_dn),
-                          str_or_empty(bind_root_pwd_real));
+  } else if (strcmp(var->name, "authentication_ldap_group_role_maping") == 0) {
+    connPool->reset_group_role_mapping(str_or_empty(group_role_mapping));
+  } else {
+    connPool->reconfigure(
+        init_pool_size, max_pool_size, str_or_empty(server_host), server_port,
+        str_or_empty(fallback_server_host), fallback_server_port, ssl, tls,
+        str_or_empty(ca_path), str_or_empty(bind_root_dn),
+        str_or_empty(bind_root_pwd_real));
     connPool->debug_info();
   }
 }
@@ -81,14 +84,17 @@ void update_pwd_sysvar(THD *, SYS_VAR *, void * /* unused */,
                        const void *value) {
   pwd_real_set(*static_cast<const char *const *>(value));
 
-  connPool->reconfigure(init_pool_size, max_pool_size,
-                        str_or_empty(server_host), server_port, ssl, tls,
-                        str_or_empty(ca_path), str_or_empty(bind_root_dn),
-                        str_or_empty(bind_root_pwd_real));
+  connPool->reconfigure(
+      init_pool_size, max_pool_size, str_or_empty(server_host), server_port,
+      str_or_empty(fallback_server_host), fallback_server_port, ssl, tls,
+      str_or_empty(ca_path), str_or_empty(bind_root_dn),
+      str_or_empty(bind_root_pwd_real));
   connPool->debug_info();
 }
 
 static int auth_ldap_simple_init(MYSQL_PLUGIN plugin_info) {
+  auth_ldap_simple_plugin_info = plugin_info;
+
   g_logger_server = new mysql::plugin::auth_ldap::Ldap_logger();
   g_logger_server->set_log_level(
       static_cast<mysql::plugin::auth_ldap::ldap_log_level>(log_status));
@@ -102,11 +108,12 @@ static int auth_ldap_simple_init(MYSQL_PLUGIN plugin_info) {
   log_srv_dbg("Creating LDAP connection pool");
   connPool = new mysql::plugin::auth_ldap::Pool(
       init_pool_size, max_pool_size, str_or_empty(server_host), server_port,
-      ssl, tls, str_or_empty(ca_path), str_or_empty(bind_root_dn),
+      str_or_empty(fallback_server_host), fallback_server_port, ssl, tls,
+      str_or_empty(ca_path), str_or_empty(bind_root_dn),
       str_or_empty(bind_root_pwd_real));
+  connPool->reset_group_role_mapping(str_or_empty(group_role_mapping));
   connPool->debug_info();
 
-  auth_ldap_simple_plugin_info = plugin_info;
   log_srv_info("Plugin initialized");
 
   {
@@ -183,7 +190,8 @@ int mpaldap_simple_authenticate(MYSQL_PLUGIN_VIO *vio,
   info->password_used = PASSWORD_USED_YES;
   auto ret = auth_ldap_common_authenticate_user(
       vio, info, static_cast<char *>(static_cast<void *>(password)), connPool,
-      user_search_attr, group_search_attr, group_search_filter, bind_base_dn);
+      user_search_attr, group_search_attr, group_search_filter, bind_base_dn,
+      group_role_mapping);
 
   {
     std::unique_lock<std::mutex> l{active_m};

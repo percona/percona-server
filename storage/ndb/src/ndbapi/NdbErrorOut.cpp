@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -35,7 +35,7 @@
  */
 NdbOut &
 operator<<(NdbOut & out, const NdbError & error){
-  if(error.message != 0)
+  if(error.message != nullptr)
     out << error.code << ": " << error.message;
   else
     out << error.code << ": ";

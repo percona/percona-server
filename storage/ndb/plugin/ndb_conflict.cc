@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@ extern st_ndb_slave_state g_ndb_slave_state;
 #include "storage/ndb/plugin/ndb_mi.h"
 
 extern ulong opt_ndb_slave_conflict_role;
+extern bool opt_ndb_applier_allow_skip_epoch;
 
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
@@ -143,12 +144,12 @@ bool ExceptionsTableWriter::check_pk_columns(
     if (col->getPrimaryKey()) {
       const NdbDictionary::Column *ex_col =
           exceptionsTable->getColumn(fixed_cols + k);
-      if (!(ex_col != NULL && col->getType() == ex_col->getType() &&
+      if (!(ex_col != nullptr && col->getType() == ex_col->getType() &&
             col->getLength() == ex_col->getLength() &&
             col->getNullable() == ex_col->getNullable())) {
         /*
            Primary key type of the original table doesn't match
-           the primary key column of the execption table.
+           the primary key column of the exception table.
            Assume that the table format has been extended and
            check more below.
         */
@@ -199,7 +200,7 @@ bool ExceptionsTableWriter::check_optional_columns(
     /*
       We really need the CHARSET_INFO from when the table was
       created but NdbDictionary::Table doesn't save this. This
-      means we cannot handle tables and execption tables defined
+      means we cannot handle tables and exception tables defined
       with a charset different than the system charset.
     */
     CHARSET_INFO *cs = system_charset_info;
@@ -295,7 +296,7 @@ bool ExceptionsTableWriter::check_optional_columns(
       /*
         We really need the CHARSET_INFO from when the table was
         created but NdbDictionary::Table doesn't save this. This
-        means we cannot handle tables end execption tables defined
+        means we cannot handle tables end exception tables defined
         with a charset different than the system charset.
       */
       CHARSET_INFO *mcs = system_charset_info;
@@ -319,7 +320,7 @@ bool ExceptionsTableWriter::check_optional_columns(
         or have a default value.
       */
       if (column_version != DEFAULT && match_k != -1) {
-        if ((!col->getNullable()) && col->getDefaultValue() == NULL) {
+        if ((!col->getNullable()) && col->getDefaultValue() == nullptr) {
           snprintf(error_details, error_details_len,
                    "Old or new column reference %s in table %s is not nullable "
                    "and doesn't have a default value",
@@ -336,7 +337,7 @@ bool ExceptionsTableWriter::check_optional_columns(
            if column is nullable or has a default value,
            continue checking, but give a warning to user
         */
-        if ((!col->getNullable()) && col->getDefaultValue() == NULL) {
+        if ((!col->getNullable()) && col->getDefaultValue() == nullptr) {
           snprintf(error_details, error_details_len,
                    "Extra column %s in table %s is not nullable and doesn't "
                    "have a default value",
@@ -369,7 +370,7 @@ bool ExceptionsTableWriter::check_optional_columns(
             Check that column is nullable
             or has a default value.
           */
-          if (col->getNullable() || col->getDefaultValue() != NULL) {
+          if (col->getNullable() || col->getDefaultValue() != nullptr) {
             DBUG_PRINT("info", ("Mapping column %s %s(%i) to %s(%i)",
                                 col->getName(), mainTable->getName(), match,
                                 exceptionsTable->getName(), i));
@@ -466,13 +467,13 @@ int ExceptionsTableWriter::init(const NdbDictionary::Table *mainTable,
   DBUG_TRACE;
   const char *ex_tab_name = exceptionsTable->getName();
   const int fixed_cols = 4;
-  *msg = NULL;
+  *msg = nullptr;
   *msg_buf = '\0';
 
   DBUG_PRINT("info",
              ("Checking definition of exceptions table %s", ex_tab_name));
   /*
-    Check that the table have the corrct number of columns
+    Check that the table have the correct number of columns
     and the mandatory columns.
    */
 
@@ -533,7 +534,7 @@ void ExceptionsTableWriter::mem_free(Ndb *ndb) {
   if (m_ex_tab) {
     NdbDictionary::Dictionary *dict = ndb->getDictionary();
     dict->removeTableGlobal(*m_ex_tab, 0);
-    m_ex_tab = 0;
+    m_ex_tab = nullptr;
   }
 }
 
@@ -550,7 +551,7 @@ int ExceptionsTableWriter::writeRow(
        "(%u)",
        op_type, m_op_type_pos, conflict_cause, m_conflict_cause_pos,
        orig_transid, m_orig_transid_pos));
-  assert(write_set != NULL);
+  assert(write_set != nullptr);
   assert(err.code == 0);
   const uchar *rowPtr = (op_type == DELETE_ROW) ? oldRowPtr : newRowPtr;
 
@@ -560,7 +561,7 @@ int ExceptionsTableWriter::writeRow(
 
     /* get insert op */
     NdbOperation *ex_op = trans->getNdbOperation(ex_tab);
-    if (ex_op == NULL) {
+    if (ex_op == nullptr) {
       err = trans->getNdbError();
       break;
     }
@@ -622,7 +623,7 @@ int ExceptionsTableWriter::writeRow(
               m_ex_tab->getColumn(m_orig_transid_pos);
           if (orig_transid == Ndb_binlog_extra_row_info::InvalidTransactionId &&
               col->getNullable()) {
-            if (ex_op->setValue((Uint32)m_orig_transid_pos, (char *)NULL)) {
+            if (ex_op->setValue((Uint32)m_orig_transid_pos, (char *)nullptr)) {
               err = ex_op->getNdbError();
               break;
             }
@@ -644,7 +645,7 @@ int ExceptionsTableWriter::writeRow(
       int nkey = m_pk_cols;
       int k;
       for (k = 0; k < nkey; k++) {
-        assert(rowPtr != NULL);
+        assert(rowPtr != nullptr);
         if (m_key_data_pos[k] != -1) {
           const uchar *data = (const uchar *)NdbDictionary::getValuePtr(
               keyRecord, (const char *)rowPtr, m_key_attrids[k]);
@@ -665,9 +666,9 @@ int ExceptionsTableWriter::writeRow(
         const uchar *default_value = (const uchar *)col->getDefaultValue();
         DBUG_PRINT("info", ("Checking column %s(%i)%s", col->getName(), i,
                             (default_value) ? ", has default value" : ""));
-        assert(rowPtr != NULL);
+        assert(rowPtr != nullptr);
         if (m_data_pos[i] != -1) {
-          const uchar *row_vPtr = NULL;
+          const uchar *row_vPtr = nullptr;
           switch (m_column_version[i]) {
             case DEFAULT:
               row_vPtr = rowPtr;
@@ -678,17 +679,17 @@ int ExceptionsTableWriter::writeRow(
             case NEW:
               if (op_type != DELETE_ROW) row_vPtr = newRowPtr;
           }
-          if (row_vPtr == NULL ||
+          if (row_vPtr == nullptr ||
               (m_col_nullable[m_data_pos[i]] &&
                NdbDictionary::isNull(dataRecord, (const char *)row_vPtr,
                                      m_data_pos[i]))) {
             DBUG_PRINT("info", ("Column %s is set to NULL because it is NULL",
                                 col->getName()));
-            if (ex_op->setValue((Uint32)i, (char *)NULL)) {
+            if (ex_op->setValue((Uint32)i, (char *)nullptr)) {
               err = ex_op->getNdbError();
               break;
             }
-          } else if (write_set != NULL &&
+          } else if (write_set != nullptr &&
                      bitmap_is_set(write_set, m_data_pos[i])) {
             DBUG_PRINT("info", ("Column %s is set", col->getName()));
             const uchar *data = (const uchar *)NdbDictionary::getValuePtr(
@@ -697,7 +698,7 @@ int ExceptionsTableWriter::writeRow(
               err = ex_op->getNdbError();
               break;
             }
-          } else if (default_value != NULL) {
+          } else if (default_value != nullptr) {
             DBUG_PRINT(
                 "info",
                 ("Column %s is not set to NULL because it has a default value",
@@ -712,7 +713,7 @@ int ExceptionsTableWriter::writeRow(
             DBUG_PRINT("info",
                        ("Column %s is set to NULL because it not in write_set",
                         col->getName()));
-            if (ex_op->setValue((Uint32)i, (char *)NULL)) {
+            if (ex_op->setValue((Uint32)i, (char *)nullptr)) {
               err = ex_op->getNdbError();
               break;
             }
@@ -731,7 +732,7 @@ int ExceptionsTableWriter::writeRow(
        */
       NdbDictionary::Dictionary *dict = trans->getNdb()->getDictionary();
       dict->removeTableGlobal(*m_ex_tab, false);
-      m_ex_tab = NULL;
+      m_ex_tab = nullptr;
       return 0;
     }
     return -1;
@@ -771,17 +772,17 @@ st_ndb_slave_state::st_ndb_slave_state()
       trans_in_conflict_count(0),
       trans_conflict_commit_count(0),
       trans_conflict_apply_state(SAS_NORMAL),
-      trans_dependency_tracker(NULL) {
+      trans_dependency_tracker(nullptr) {
   memset(current_violation_count, 0, sizeof(current_violation_count));
   memset(total_violation_count, 0, sizeof(total_violation_count));
 
   /* Init conflict handling state memroot */
   const size_t CONFLICT_MEMROOT_BLOCK_SIZE = 32768;
-  init_alloc_root(PSI_INSTRUMENT_ME, &conflict_mem_root,
-                  CONFLICT_MEMROOT_BLOCK_SIZE, 0);
+  ::new ((void *)&conflict_mem_root)
+      MEM_ROOT(PSI_INSTRUMENT_ME, CONFLICT_MEMROOT_BLOCK_SIZE);
 }
 
-st_ndb_slave_state::~st_ndb_slave_state() { free_root(&conflict_mem_root, 0); }
+st_ndb_slave_state::~st_ndb_slave_state() {}
 
 /**
    resetPerAttemptCounters
@@ -800,6 +801,27 @@ void st_ndb_slave_state::resetPerAttemptCounters() {
 
   conflict_flags = 0;
   current_max_rep_epoch = 0;
+}
+
+/**
+   saveServerId
+
+   Remember we have see server_id when writing into ndb_apply_status
+   This is so we can avoid overwriting any epochs when applying statements
+*/
+void st_ndb_slave_state::saveServerId(Uint32 server_id) {
+  // Just insert the server_id, most of the time it will already exist and thus
+  // the insert will have no effect
+  source_server_ids.insert(server_id);
+}
+
+/**
+   seenServerId
+
+   Check if we have already written an epoch from a server_id
+ */
+bool st_ndb_slave_state::seenServerId(Uint32 server_id) const {
+  return source_server_ids.count(server_id) != 0;
 }
 
 /**
@@ -822,9 +844,9 @@ void st_ndb_slave_state::atTransactionAbort() {
    Called by Slave SQL thread after transaction commit
 */
 void st_ndb_slave_state::atTransactionCommit(Uint64 epoch) {
-  assert(((trans_dependency_tracker == NULL) &&
+  assert(((trans_dependency_tracker == nullptr) &&
           (trans_conflict_apply_state == SAS_NORMAL)) ||
-         ((trans_dependency_tracker != NULL) &&
+         ((trans_dependency_tracker != nullptr) &&
           (trans_conflict_apply_state == SAS_TRACK_TRANS_DEPENDENCIES)));
   assert(trans_conflict_apply_state != SAS_APPLY_TRANS_DEPENDENCIES);
 
@@ -914,7 +936,8 @@ void st_ndb_slave_state::atTransactionCommit(Uint64 epoch) {
 
   current_master_server_epoch_committed = true;
 
-  if (DBUG_EVALUATE_IF("ndb_slave_fail_marking_epoch_committed", true, false)) {
+  if (DBUG_EVALUATE_IF("ndb_replica_fail_marking_epoch_committed", true,
+                       false)) {
     fprintf(stderr,
             "Replica clearing epoch committed flag "
             "for epoch %llu/%llu (%llu)\n",
@@ -1053,23 +1076,43 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (!current_master_server_epoch_committed) {
         /**
            We've moved onto a new epoch without committing
-           the last - probably a bug in transaction retry
+           the last - could be a bug, or perhaps the user
+           has configured slave-skip-errors?
         */
-        ndb_log_error(
-            "NDB Replica: SQL thread stopped as attempting to "
-            "apply new epoch %llu/%llu (%llu) while lower "
-            "received epoch %llu/%llu (%llu) has not been "
-            "committed.  Source Server id : %u.  "
-            "Group Source Log : %s  "
-            "Group Source Log Pos : %." PRIu64,
-            next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-            current_master_server_epoch >> 32,
-            current_master_server_epoch & 0xffffffff,
-            current_master_server_epoch, master_server_id,
-            ndb_mi_get_group_master_log_name(),
-            ndb_mi_get_group_master_log_pos());
-        /* Stop the slave */
-        return false;
+        if (!opt_ndb_applier_allow_skip_epoch) {
+          ndb_log_error(
+              "NDB Replica: SQL thread stopped as attempting to "
+              "apply new epoch %llu/%llu (%llu) while lower "
+              "received epoch %llu/%llu (%llu) has not been "
+              "committed.  Source Server id : %u.  "
+              "Group Source Log : %s  "
+              "Group Source Log Pos : %." PRIu64,
+              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
+              current_master_server_epoch >> 32,
+              current_master_server_epoch & 0xffffffff,
+              current_master_server_epoch, master_server_id,
+              ndb_mi_get_group_master_log_name(),
+              ndb_mi_get_group_master_log_pos());
+          /* Stop the slave */
+          return false;
+        } else {
+          ndb_log_warning(
+              "NDB Replica: SQL thread attempting to "
+              "apply new epoch %llu/%llu (%llu) while lower "
+              "received epoch %llu/%llu (%llu) has not been "
+              "committed.  Source Server id : %u.  "
+              "Group Source Log : %s  "
+              "Group Source Log Pos : %." PRIu64
+              ".  "
+              "Continuing as ndb_applier_allow_skip_epoch set.",
+              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
+              current_master_server_epoch >> 32,
+              current_master_server_epoch & 0xffffffff,
+              current_master_server_epoch, master_server_id,
+              ndb_mi_get_group_master_log_name(),
+              ndb_mi_get_group_master_log_pos());
+          /* Continue */
+        }
       } else {
         /* Normal case of next epoch after committing last */
       }
@@ -1091,6 +1134,10 @@ int st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
                                            Uint64 row_epoch,
                                            bool is_row_server_id_local) {
   DBUG_TRACE;
+
+  /* Save any remote server_id seen */
+  saveServerId(row_server_id);
+
   if (row_server_id == master_server_id) {
     /* This is an apply status write from the immediate master */
 
@@ -1137,6 +1184,9 @@ void st_ndb_slave_state::atResetSlave() {
   max_rep_epoch = 0;
   last_conflicted_epoch = 0;
   last_stable_epoch = 0;
+
+  /* Forget any source server_id's seen */
+  source_server_ids.clear();
 
   /* Reset current master server epoch
    * This avoids warnings when replaying a lower
@@ -1233,8 +1283,8 @@ void st_ndb_slave_state::atEndTransConflictHandling() {
   if (trans_dependency_tracker) {
     current_trans_in_conflict_count =
         trans_dependency_tracker->get_conflict_count();
-    trans_dependency_tracker = NULL;
-    free_root(&conflict_mem_root, MY_MARK_BLOCKS_FREE);
+    trans_dependency_tracker = nullptr;
+    conflict_mem_root.ClearForReuse();
   }
 }
 
@@ -1250,7 +1300,7 @@ void st_ndb_slave_state::atBeginTransConflictHandling() {
      Allocate and initialise Transactional Conflict
      Resolution Handling Structures
   */
-  assert(trans_dependency_tracker == NULL);
+  assert(trans_dependency_tracker == nullptr);
   trans_dependency_tracker =
       DependencyTracker::newDependencyTracker(&conflict_mem_root);
 }
@@ -1375,7 +1425,7 @@ int st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id) {
          considered in-conflict, and any dependent transactions are also
          considered in-conflict.
       */
-      assert(trans_dependency_tracker != NULL);
+      assert(trans_dependency_tracker != nullptr);
       int res = trans_dependency_tracker->mark_conflict(transaction_id);
 
       if (res != 0) {
@@ -1694,7 +1744,7 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
   return r;
 }
 
-static int row_conflict_fn_max_update_only(
+static int row_conflict_fn_max_interpreted_program(
     NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type,
     const NdbRecord *data_record, const uchar *, const uchar *new_data,
     const MY_BITMAP *, const MY_BITMAP *ai_cols, NdbInterpretedCode *code) {
@@ -1787,9 +1837,9 @@ static int row_conflict_fn_max(NDB_CONFLICT_FN_SHARE *cfn_share,
       abort();
       return 1;
     case UPDATE_ROW:
-      return row_conflict_fn_max_update_only(cfn_share, op_type, data_record,
-                                             old_data, new_data, bi_cols,
-                                             ai_cols, code);
+      return row_conflict_fn_max_interpreted_program(
+          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
+          code);
     case DELETE_ROW:
       /* Can't use max of new image, as there's no new image
        * for DELETE
@@ -1813,7 +1863,7 @@ static int row_conflict_fn_max(NDB_CONFLICT_FN_SHARE *cfn_share,
   be checked on return.  For this to work is is vital that the operation
   is run with ignore error option.
 
-  In this variant, replicated DELETEs alway succeed - no filter is added
+  In this variant, replicated DELETEs always succeed - no filter is added
   to them.
 */
 
@@ -1827,13 +1877,62 @@ static int row_conflict_fn_max_del_win(
       abort();
       return 1;
     case UPDATE_ROW:
-      return row_conflict_fn_max_update_only(cfn_share, op_type, data_record,
-                                             old_data, new_data, bi_cols,
-                                             ai_cols, code);
+      return row_conflict_fn_max_interpreted_program(
+          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
+          code);
     case DELETE_ROW:
       /* This variant always lets a received DELETE_ROW
        * succeed.
        */
+      return 0;
+    default:
+      abort();
+      return 1;
+  }
+}
+
+/**
+ *  CFT_NDB_MAX_INS:
+ */
+
+static int row_conflict_fn_max_ins(NDB_CONFLICT_FN_SHARE *cfn_share,
+                                   enum_conflicting_op_type op_type,
+                                   const NdbRecord *data_record,
+                                   const uchar *old_data, const uchar *new_data,
+                                   const MY_BITMAP *bi_cols,
+                                   const MY_BITMAP *ai_cols,
+                                   NdbInterpretedCode *code) {
+  switch (op_type) {
+    case WRITE_ROW:
+    case UPDATE_ROW:
+      return row_conflict_fn_max_interpreted_program(
+          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
+          code);
+    case DELETE_ROW:
+      return row_conflict_fn_old(cfn_share, op_type, data_record, old_data,
+                                 new_data, bi_cols, ai_cols, code);
+    default:
+      abort();
+      return 1;
+  }
+}
+
+/**
+ * CFT_NDB_MAX_DEL_WIN_INS:
+ */
+
+static int row_conflict_fn_max_del_win_ins(
+    NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type op_type,
+    const NdbRecord *data_record, const uchar *old_data, const uchar *new_data,
+    const MY_BITMAP *bi_cols, const MY_BITMAP *ai_cols,
+    NdbInterpretedCode *code) {
+  switch (op_type) {
+    case WRITE_ROW:
+    case UPDATE_ROW:
+      return row_conflict_fn_max_interpreted_program(
+          cfn_share, op_type, data_record, old_data, new_data, bi_cols, ai_cols,
+          code);
+    case DELETE_ROW:
       return 0;
     default:
       abort();
@@ -2022,6 +2121,10 @@ static const st_conflict_fn_arg_def epoch_fn_args[] = {
     {CFAT_END, false}};
 
 static const st_conflict_fn_def conflict_fns[] = {
+    {"NDB$MAX_INS", CFT_NDB_MAX_INS, &resolve_col_args[0],
+     row_conflict_fn_max_ins, CF_USE_INTERP_WRITE},
+    {"NDB$MAX_DEL_WIN_INS", CFT_NDB_MAX_DEL_WIN_INS, &resolve_col_args[0],
+     row_conflict_fn_max_del_win_ins, CF_USE_INTERP_WRITE},
     {"NDB$MAX_DELETE_WIN", CFT_NDB_MAX_DEL_WIN, &resolve_col_args[0],
      row_conflict_fn_max_del_win, 0},
     {"NDB$MAX", CFT_NDB_MAX, &resolve_col_args[0], row_conflict_fn_max, 0},
@@ -2091,7 +2194,7 @@ int parse_conflict_fn_spec(const char *conflict_fn_spec,
 
       if (type == CFAT_END) {
         args[no_args].type = type;
-        error_str = NULL;
+        error_str = nullptr;
         break;
       }
 
@@ -2113,7 +2216,7 @@ int parse_conflict_fn_spec(const char *conflict_fn_spec,
            * Must be at end of args, finish parsing
            */
           args[no_args].type = CFAT_END;
-          error_str = NULL;
+          error_str = nullptr;
           break;
         }
       }
@@ -2222,7 +2325,7 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
 
   NDB_CONFLICT_FN_SHARE *cfn_share = *ppcfn_share;
   const char *ex_suffix = NDB_EXCEPTIONS_TABLE_SUFFIX;
-  if (cfn_share == NULL) {
+  if (cfn_share == nullptr) {
     *ppcfn_share = cfn_share = (NDB_CONFLICT_FN_SHARE *)my_malloc(
         PSI_INSTRUMENT_ME, sizeof(NDB_CONFLICT_FN_SHARE),
         MYF(MY_WME | ME_FATALERROR));
@@ -2249,7 +2352,7 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
     const NDBTAB *ex_tab = ndbtab_g.get_table();
     if (ex_tab) {
       char msgBuf[FN_REFLEN];
-      const char *msg = NULL;
+      const char *msg = nullptr;
       if (cfn_share->m_ex_tab_writer.init(ndbtab, ex_tab, msgBuf,
                                           sizeof(msgBuf), &msg) == 0) {
         /* Ok */
@@ -2303,7 +2406,9 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
   switch (conflict_fn->type) {
     case CFT_NDB_MAX:
     case CFT_NDB_OLD:
-    case CFT_NDB_MAX_DEL_WIN: {
+    case CFT_NDB_MAX_DEL_WIN:
+    case CFT_NDB_MAX_INS:
+    case CFT_NDB_MAX_DEL_WIN_INS: {
       if (num_args != 1) {
         snprintf(msg, msg_len, "Incorrect arguments to conflict function");
         DBUG_PRINT("info", ("%s", msg));
@@ -2369,7 +2474,8 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
         return -1;
       }
     }
-    /* Fall through - for the rest of the EPOCH* processing... */
+      /* Fall through - for the rest of the EPOCH* processing... */
+      [[fallthrough]];
     case CFT_NDB_EPOCH:
     case CFT_NDB_EPOCH_TRANS: {
       if (num_args > 1) {
@@ -2452,6 +2558,12 @@ SHOW_VAR ndb_status_conflict_variables[] = {
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"fn_max_del_win",
      (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"fn_max_ins",
+     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_INS],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"fn_max_del_win_ins",
+     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN_INS],
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"fn_epoch",
      (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH],

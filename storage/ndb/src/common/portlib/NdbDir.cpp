@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include <ndb_global.h>
 #include <NdbDir.hpp>
 
+#include <EventLogger.hpp>
 
 #ifndef _WIN32
 
@@ -56,7 +57,7 @@ class DirIteratorImpl {
 
 public:
   DirIteratorImpl():
-    m_dirp(NULL) {
+    m_dirp(nullptr) {
      m_buf = new char[PATH_MAX];
   }
 
@@ -66,7 +67,7 @@ public:
   }
 
   int open(const char* path){
-    if ((m_dirp = opendir(path)) == NULL){
+    if ((m_dirp = opendir(path)) == nullptr){
       return -1;
     }
     m_path= path;
@@ -77,15 +78,15 @@ public:
   {
     if (m_dirp)
       closedir(m_dirp);
-    m_dirp = NULL;
+    m_dirp = nullptr;
   }
 
   const char* next_entry(bool& is_reg)
   {
     struct dirent* dp = readdir(m_dirp);
 
-    if (dp == NULL)
-      return NULL;
+    if (dp == nullptr)
+      return nullptr;
 
     is_reg = is_regular_file(dp);
     return dp->d_name;
@@ -109,7 +110,7 @@ class DirIteratorImpl {
 public:
   DirIteratorImpl():
     m_first(true),
-    m_find_handle(INVALID_HANDLE_VALUE) {};
+    m_find_handle(INVALID_HANDLE_VALUE) {}
 
   ~DirIteratorImpl() {
     close();
@@ -177,11 +178,11 @@ const char* NdbDir::Iterator::next_file(void)
 {
   bool is_reg;
   const char* name;
-  while((name = m_impl.next_entry(is_reg)) != NULL){
+  while((name = m_impl.next_entry(is_reg)) != nullptr){
     if (is_reg == true)
       return name; // Found regular file
   }
-  return NULL;
+  return nullptr;
 }
 
 const char* NdbDir::Iterator::next_entry(void)
@@ -204,7 +205,8 @@ mode_t NdbDir::o_x(void) { return IF_WIN(0, S_IXOTH); }
 
 
 bool
-NdbDir::create(const char *dir, mode_t mode, bool ignore_existing)
+NdbDir::create(const char *dir, mode_t mode [[maybe_unused]],
+               bool ignore_existing)
 {
 #ifdef _WIN32
   if (CreateDirectory(dir, NULL) == 0)
@@ -213,9 +215,8 @@ NdbDir::create(const char *dir, mode_t mode, bool ignore_existing)
         GetLastError() == ERROR_ALREADY_EXISTS)
       return true;
 
-    fprintf(stderr,
-            "Failed to create directory '%s', error: %d\n",
-            dir, GetLastError());
+    g_eventLogger->info("Failed to create directory '%s', error: %d", dir,
+                        GetLastError());
     return false;
   }
 #else
@@ -227,9 +228,8 @@ NdbDir::create(const char *dir, mode_t mode, bool ignore_existing)
          error == EISDIR))
       return true;
 
-    fprintf(stderr,
-            "Failed to create directory '%s', error: %d\n",
-            dir, errno);
+    g_eventLogger->info("Failed to create directory '%s', error: %d", dir,
+                        errno);
     return false;
   }
 #endif
@@ -241,9 +241,10 @@ NdbDir::Temp::Temp()
 {
 #ifdef _WIN32
   DWORD len = GetTempPath(0, NULL);
-  m_path = new char[len];
-  if (GetTempPath(len, (char*)m_path) == 0)
+  char *tmp = new char[len];
+  if (GetTempPath(len, tmp) == 0)
     abort();
+  m_path = tmp;
 #else
   char* tmp = getenv("TMPDIR");
   if (tmp)
@@ -286,7 +287,7 @@ NdbDir::remove_recursive(const char* dir, bool only_contents)
   char path[PATH_MAX];
   if (snprintf(path, sizeof(path),
                "%s%s", dir, DIR_SEPARATOR) < 0) {
-    fprintf(stderr, "Too long path to remove: '%s'\n", dir);
+    g_eventLogger->info("Too long path to remove: '%s'", dir);
     return false;
   }
   int start_len = (int)strlen(path);
@@ -297,12 +298,11 @@ loop:
   {
     if (iter.open(path) != 0)
     {
-      fprintf(stderr, "Failed to open iterator for '%s'\n",
-              path);
+      g_eventLogger->info("Failed to open iterator for '%s'", path);
       return false;
     }
 
-    while ((name = iter.next_entry()) != NULL)
+    while ((name = iter.next_entry()) != nullptr)
     {
       if ((strcmp(".", name) == 0) || (strcmp("..", name) == 0))
         continue;
@@ -311,8 +311,7 @@ loop:
       if ((end_len = snprintf(path + len, sizeof(path) - len,
                               "%s", name)) < 0)
       {
-        fprintf(stderr, "Too long path detected: '%s'+'%s'\n",
-                path, name);
+        g_eventLogger->info("Too long path detected: '%s'+'%s'", path, name);
         return false;
       }
 
@@ -329,8 +328,8 @@ loop:
       if (snprintf(path + pos, sizeof(path) - pos,
                    "%s", DIR_SEPARATOR) < 0)
       {
-        fprintf(stderr, "Too long path detected: '%s'+'%s'\n",
-                path, DIR_SEPARATOR);
+        g_eventLogger->info("Too long path detected: '%s'+'%s'", path,
+                            DIR_SEPARATOR);
         return false;
       }
 
@@ -353,9 +352,8 @@ loop:
 
   if (only_contents == false && NdbDir::remove(dir) == false)
   {
-    fprintf(stderr,
-            "Failed to remove directory '%s', error: %d\n",
-            dir, errno);
+    g_eventLogger->info("Failed to remove directory '%s', error: %d", dir,
+                        errno);
     return false;
   }
 
@@ -421,6 +419,7 @@ gone(const char *dir) {
 
 TAPTEST(DirIterator)
 {
+  ndb_init();
   NdbDir::Temp tempdir;
   char path[PATH_MAX];
   snprintf(path, sizeof(path),"%s%s%s",
@@ -440,7 +439,7 @@ TAPTEST(DirIterator)
     CHECK(iter.open(path) == 0);
     const char* name;
     int num_files = 0;  
-    while((name = iter.next_file()) != NULL)
+    while((name = iter.next_file()) != nullptr)
     {
       //printf("%s\n", name);
       num_files++;
@@ -468,7 +467,7 @@ TAPTEST(DirIterator)
   CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
-  // Remove non exisiting directory(again)
+  // Remove non existing directory(again)
   CHECK(!NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
@@ -504,6 +503,7 @@ TAPTEST(DirIterator)
   CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
+  ndb_end(0);
   return 1; // OK
 }
 #endif

@@ -25,6 +25,7 @@
 
 /* MySQL header files */
 #include "my_stacktrace.h"
+#include "sql/debug_sync.h"
 #include "sql/sql_array.h"
 
 /* MyRocks header files */
@@ -33,6 +34,7 @@
 #include "./rdb_datadic.h"
 #include "./rdb_psi.h"
 #include "./rdb_utils.h"
+#include "./sql_dd.h"
 
 namespace myrocks {
 
@@ -47,6 +49,54 @@ void dbug_modify_key_varchar8(String *on_disk_rec) {
   on_disk_rec->append(res.data(), res.size());
 }
 
+int Rdb_convert_to_record_value_decoder::decode_instant(
+    uchar *const buf, Rdb_field_encoder *field_dec) {
+  // m_instant_default_value store default value for instant cols
+  if (field_dec->m_instant_default_value) {  // default value isn't null
+    // BLOB/JSON doesn't support default value
+    assert(field_dec->m_field_type != MYSQL_TYPE_BLOB ||
+           field_dec->m_field_type != MYSQL_TYPE_JSON);
+
+    if (field_dec->maybe_null()) {
+      // This sets the NULL-bit of this record
+      buf[field_dec->m_field_null_offset] &= ~(field_dec->m_field_null_mask);
+    }
+
+    if (field_dec->m_field_type == MYSQL_TYPE_VARCHAR) {
+      if (field_dec->m_instant_default_value_len > field_dec->m_field_length) {
+        assert(false);
+        // The data on disk is longer than table DDL allows?
+        return HA_ERR_ROCKSDB_CORRUPT_DATA;
+      }
+
+      // store length first
+      if (field_dec->m_field_length_bytes == 1) {
+        buf[field_dec->m_field_offset] = field_dec->m_instant_default_value_len;
+      } else {
+        assert(field_dec->m_field_length_bytes == 2);
+        int2store(buf + field_dec->m_field_offset,
+                  field_dec->m_instant_default_value_len);
+      }
+
+      // copy data
+      memcpy(buf + field_dec->m_field_offset + field_dec->m_field_length_bytes,
+             field_dec->m_instant_default_value,
+             field_dec->m_instant_default_value_len);
+
+    } else {  // fixed-length type
+      memcpy(buf + field_dec->m_field_offset,
+             field_dec->m_instant_default_value,
+             field_dec->m_instant_default_value_len);
+    }
+  } else {  // default value is null
+    if (field_dec->maybe_null()) {
+      // This sets the NULL-bit of this record
+      buf[field_dec->m_field_null_offset] |= field_dec->m_field_null_mask;
+    }
+  }
+
+  return HA_EXIT_SUCCESS;
+}
 /*
   Convert field from rocksdb storage format into Mysql Record format
   @param    buf         OUT          start memory to fill converted data
@@ -235,19 +285,34 @@ int Rdb_value_field_iterator<value_field_decoder>::next() {
     m_field_dec = m_field_iter->m_field_enc;
     bool decode = m_field_iter->m_decode;
     bool maybe_null = m_field_dec->maybe_null();
-    // This is_null value is bind to how stroage format store its value
-    m_is_null = maybe_null && ((m_null_bytes[m_field_dec->m_null_offset] &
-                                m_field_dec->m_null_mask) != 0);
 
-    // Skip the bytes we need to skip
+    // For non-instant cols, Skip the bytes we need to skip
     int skip = m_field_iter->m_skip;
-    if (skip && !m_value_slice_reader->read(skip)) {
+    if (skip && !m_field_dec->m_is_instant_field &&
+        !m_value_slice_reader->read(skip)) {
+      assert(false);
       return HA_ERR_ROCKSDB_CORRUPT_DATA;
+    } else if (skip && m_field_dec->m_is_instant_field) {
+      // For instant cols, skip the bytes if record contains that cols data
+      m_value_slice_reader->read(
+          std::min<int32_t>(skip, m_value_slice_reader->remaining_bytes()));
     }
 
-    // Decode each field
-    err = value_field_decoder::decode(m_buf, m_table, m_field_dec,
-                                      m_value_slice_reader, decode, m_is_null);
+    // If a row is inserted after instant ddl, value_slice will contain instant
+    // column data
+    if (!m_field_dec->m_is_instant_field ||
+        m_value_slice_reader->remaining_bytes() > 0) {
+      // This is_null value is bind to how stroage format store its value
+      m_is_null = maybe_null && ((m_null_bytes[m_field_dec->m_null_offset] &
+                                  m_field_dec->m_null_mask) != 0);
+
+      // Decode each field
+      err = value_field_decoder::decode(
+          m_buf, m_table, m_field_dec, m_value_slice_reader, decode, m_is_null);
+    } else if (m_field_dec->m_is_instant_field && decode) {
+      err = value_field_decoder::decode_instant(m_buf, m_field_dec);
+    }
+
     if (err != HA_EXIT_SUCCESS) {
       return err;
     }
@@ -290,7 +355,7 @@ bool Rdb_value_field_iterator<value_field_decoder>::is_null() const {
   @param    table      IN      Current open table
 */
 Rdb_converter::Rdb_converter(const THD *thd, const Rdb_tbl_def *tbl_def,
-                             TABLE *table)
+                             TABLE *table, const dd::Table *dd_table)
     : m_thd(thd), m_tbl_def(tbl_def), m_table(table) {
   assert(thd != nullptr);
   assert(tbl_def != nullptr);
@@ -301,11 +366,14 @@ Rdb_converter::Rdb_converter(const THD *thd, const Rdb_tbl_def *tbl_def,
   m_maybe_unpack_info = false;
   m_row_checksums_checked = 0;
   m_null_bytes = nullptr;
-  setup_field_encoders();
+  setup_field_encoders(dd_table);
   m_lookup_bitmap = {nullptr, 0, 0, nullptr, nullptr};
 }
 
 Rdb_converter::~Rdb_converter() {
+  for (uint i = 0; i < m_table->s->fields; i++) {
+    my_free(m_encoder_arr[i].m_instant_default_value);
+  }
   my_free(m_encoder_arr);
   m_encoder_arr = nullptr;
   // These are needed to suppress valgrind errors in rocksdb.partition
@@ -423,7 +491,7 @@ void Rdb_converter::setup_field_decoders(const MY_BITMAP *field_map,
   }
 }
 
-void Rdb_converter::setup_field_encoders() {
+void Rdb_converter::setup_field_encoders(const dd::Table *dd_table) {
   uint null_bytes_length = 0;
   uchar cur_null_mask = 0x1;
 
@@ -437,6 +505,19 @@ void Rdb_converter::setup_field_encoders() {
 #endif
   if (m_encoder_arr == nullptr) {
     return;
+  }
+
+  // whether table contains instant cols
+  bool is_instant_table = false;
+  // num of cols before first instant cols append
+  uint instant_cols = 0;
+  if (!rocksdb_disable_instant_ddl && dd_table != nullptr) {
+    // check whether table contain instant col
+    is_instant_table = dd_table_has_instant_cols(*dd_table);
+    if (is_instant_table) {
+      dd_table->se_private_data().get(
+          dd_table_key_strings[DD_TABLE_INSTANT_COLS], &instant_cols);
+    }
   }
 
   for (uint i = 0; i < m_table->s->fields; i++) {
@@ -493,6 +574,18 @@ void Rdb_converter::setup_field_encoders() {
       m_encoder_arr[i].m_field_length_bytes = -1;
     }
 
+    m_encoder_arr[i].m_is_instant_field = false;
+    m_encoder_arr[i].m_instant_default_value = nullptr;
+    // currently instant ddl only support append column
+    if (is_instant_table && i >= instant_cols) {
+      m_encoder_arr[i].m_is_instant_field = true;
+      dd::Column *column =
+          const_cast<dd::Column *>(dd_find_column(dd_table, field->field_name));
+      dd_table_get_instant_default(
+          *column, &m_encoder_arr[i].m_instant_default_value,
+          &m_encoder_arr[i].m_instant_default_value_len);
+    }
+
     auto maybe_null = field->is_nullable();
     if (maybe_null) {
       m_encoder_arr[i].m_null_mask = cur_null_mask;
@@ -517,6 +610,14 @@ void Rdb_converter::setup_field_encoders() {
   }
 
   m_null_bytes_length_in_record = null_bytes_length;
+  // Current myrocks store 1 bit per nullable field in null flags
+  // if later myrocks changes to use different length null bytes, please also
+  // update ha_rocksdb::rocksdb_support_instant()
+  // For temporary table, its null_fields value maybe different than normal
+  // table. see create_tmp_table()
+  assert(m_table->s->table_category == TABLE_CATEGORY_TEMPORARY ||
+         ceil((double)m_table->s->null_fields / 8) ==
+             (uint)m_null_bytes_length_in_record);
 }
 
 /*
@@ -690,6 +791,7 @@ int Rdb_converter::verify_row_debug_checksum(
         my_core::my_checksum(0, rdb_slice_to_uchar_ptr(value),
                              value->size() - RDB_CHECKSUM_CHUNK_SIZE);
 
+    DEBUG_SYNC(const_cast<THD *>(m_thd), "myrocks_verify_row_debug_checksum");
     DBUG_EXECUTE_IF("myrocks_simulate_bad_pk_checksum1", stored_key_chksum++;);
 
     if (stored_key_chksum != computed_key_chksum) {
@@ -733,7 +835,7 @@ int Rdb_converter::encode_value_slice(
   // Currently only primary key will store value slice
   assert(pk_def->m_index_type == Rdb_key_def::INDEX_TYPE_PRIMARY ||
          pk_def->m_index_type == Rdb_key_def::INDEX_TYPE_HIDDEN_PRIMARY);
-  DBUG_ASSERT_IMP(m_maybe_unpack_info, pk_unpack_info);
+  assert_IMP(m_maybe_unpack_info, pk_unpack_info);
 
   bool has_ttl = pk_def->has_ttl();
   bool has_ttl_column = !pk_def->m_ttl_column.empty();
@@ -753,10 +855,30 @@ int Rdb_converter::encode_value_slice(
     if (has_ttl_column) {
       assert(pk_def->get_ttl_field_index() != UINT_MAX);
       Field *const field = m_table->field[pk_def->get_ttl_field_index()];
-      assert(field->pack_length_in_rec() == ROCKSDB_SIZEOF_TTL_RECORD);
-      assert(field->real_type() == MYSQL_TYPE_LONGLONG);
+      assert(field->real_type() == MYSQL_TYPE_LONGLONG ||
+             field->type() == MYSQL_TYPE_TIMESTAMP);
 
-      uint64 ts = uint8korr(field->field_ptr());
+      uint64 ts;
+
+      if (field->type() == MYSQL_TYPE_TIMESTAMP) {
+        /*
+          Timestamp packed length can be 4 to 7 bytes depending on precision.
+          The first four bytes is the unix time network byte order and is used
+          for MYSQL_TYPE_TIMESTAMP and MYSQL_TYPE_TIMESTAMP2. The optional
+          remaining bytes are for fractional seconds. Only the first four bytes
+          are needed.
+         */
+        assert(field->real_type() == MYSQL_TYPE_TIMESTAMP ||
+               field->real_type() == MYSQL_TYPE_TIMESTAMP2);
+        assert(field->pack_length_in_rec() >= 4);
+        assert(field->key_type() == HA_KEYTYPE_BINARY);
+        ts = (uint64)rdb_netbuf_to_uint32(field->field_ptr());
+      } else {
+        assert(field->key_type() == HA_KEYTYPE_ULONGLONG);
+        assert(field->pack_length_in_rec() == ROCKSDB_SIZEOF_TTL_RECORD);
+        ts = uint8korr(field->field_ptr());
+      }
+
 #ifndef NDEBUG
       ts += rdb_dbug_set_ttl_rec_ts();
 #endif
@@ -861,6 +983,8 @@ int Rdb_converter::encode_value_slice(
   }
 
   if (store_row_debug_checksums) {
+    DEBUG_SYNC(const_cast<THD *>(m_thd), "rocksdb.encode_value_slice");
+
     const ha_checksum key_crc32 = my_core::my_checksum(
         0, rdb_slice_to_uchar_ptr(&pk_packed_slice), pk_packed_slice.size());
     const ha_checksum val_crc32 =

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,10 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
     if (next + char_len > end || char_len == 0) {
       break;
     } else {
-      /* Skip SPACE */
-      if (char_len == 1 && *next == ' ') {
+      /* Skip SPACE and control characters */
+      int ctype = 0;
+      cs->cset->ctype(cs, &ctype, (uchar *)next, (uchar *)end);
+      if (char_len == 1 && (*next == ' ' || ctype & _MY_CTR)) {
         start = next + 1;
         next = start;
         n_chars = 0;
@@ -221,7 +223,7 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
             ret = ngram_parse(param, reinterpret_cast<char *>(word.pos),
                               word.len, &bool_info);
           } else {
-            /* Term serach */
+            /* Term search */
             ret = ngram_term_convert(param, reinterpret_cast<char *>(word.pos),
                                      word.len, &bool_info);
             assert(bool_info.quot == nullptr);

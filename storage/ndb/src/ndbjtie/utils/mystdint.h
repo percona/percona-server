@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
  * single place with the presence or absence of the <stdint.h> file.
  *
  * While JTie applications (like NDB JTie) may have their own type aliases
- * for exact-width types, it is preferrable not use these as the basis for
+ * for exact-width types, it is preferable not use these as the basis for
  * JTie's implementation and tests itself -- for platform testing has proven
  * much easier with a self-contained, standalone-compilable and -testable
  * JTie unit tests, where problematic patterns can be readily identified.

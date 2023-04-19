@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <cstring>
 #include <iostream>
 #include <locale>
+#include <memory>
 #include <sstream>
 
 #include <m_string.h>
@@ -137,23 +138,67 @@ static const char *log_label_from_prio(int prio) {
   }
 }
 
+/**
+  Base for line_item_set[_with_key]. Stripped down version of that in
+  log_builtins.cc.
+*/
+static log_item_data *kr_line_item_set_with_key(log_line *ll, log_item_type t,
+                                                const char *k [[maybe_unused]],
+                                                uint32 alloc) {
+  if ((ll == nullptr) || (ll->count >= LOG_ITEM_MAX)) return nullptr;
+
+  log_item *li = &(ll->item[ll->count++]);
+  int c = log_item_wellknown_by_type(t);
+
+  li->alloc = alloc;
+  /*
+    keyring does not currently support generic types, so we always take
+    the key from the well-known array to be sure to use the canonical form.
+  */
+  li->key = log_item_wellknown_keys[c].name;
+  if ((li->item_class = log_item_wellknown_keys[c].item_class) == LOG_CSTRING)
+    li->item_class = LOG_LEX_STRING;
+  ll->seen |= (li->type = t);
+  return &li->data;
+}
+
+/**
+  Release any of key and value on a log-item that were dynamically allocated.
+
+  @param  li  log-item to release the payload of
+*/
+static void kr_log_item_free(log_item *li) {
+  char *fa = nullptr;
+  if ((li->alloc & LOG_ITEM_FREE_VALUE) && (li->item_class == LOG_LEX_STRING) &&
+      ((fa = const_cast<char *>(li->data.data_string.str)) != nullptr)) {
+    delete[] fa;
+    li->alloc &= ~LOG_ITEM_FREE_VALUE;
+  }
+}
+
+/**
+  Release all log line items (key/value pairs) in log line ll.
+  This frees whichever keys and values were dynamically allocated.
+
+  @param         ll    log_line
+*/
+static void kr_log_line_item_free_all(log_line *ll) {
+  while (ll->count > 0) kr_log_item_free(&(ll->item[--ll->count]));
+  ll->seen = LOG_ITEM_END;
+}
+
 namespace keyring_common {
 namespace service_definition {
 
 /* log_builtins */
+DEFINE_METHOD(log_item_data *, Log_builtins_keyring::line_item_set_with_key,
+              (log_line * ll, log_item_type t, const char *key, uint32 alloc)) {
+  return kr_line_item_set_with_key(ll, t, key, alloc);
+}
+
 DEFINE_METHOD(log_item_data *, Log_builtins_keyring::line_item_set,
               (log_line * ll, log_item_type t)) {
-  log_item *li = nullptr;
-  if ((ll == nullptr) || (ll->count >= LOG_ITEM_MAX)) return nullptr;
-  li = &(ll->item[ll->count]);
-  int c = log_item_wellknown_by_type(t);
-  li->alloc = LOG_ITEM_FREE_NONE;
-  li->key = log_item_wellknown_keys[c].name;
-  li->type = t;
-  ll->seen |= t;
-  ll->count++;
-
-  return &li->data;
+  return kr_line_item_set_with_key(ll, t, nullptr, LOG_ITEM_FREE_NONE);
 }
 
 DEFINE_METHOD(log_line *, Log_builtins_keyring::line_init, ()) {
@@ -261,20 +306,22 @@ DEFINE_METHOD(int, Log_builtins_keyring::line_submit, (log_line * ll)) {
       const char format[] = "%Y-%m-%d %X";
       time_t t(time(nullptr));
       tm tm(*localtime(&t));
-      std::locale loc(std::cout.getloc());
-      std::ostringstream sout;
-      const std::time_put<char> &tput =
-          std::use_facet<std::time_put<char>>(loc);
-      tput.put(sout.rdbuf(), sout, '\0', &tm, &format[0], &format[11]);
-      std::string time_string = sout.str().c_str();
+
+      const size_t date_length{50};
+      std::unique_ptr<char[]> date{new char[date_length]};
+      strftime(date.get(), date_length, format, &tm);
+
+      std::string time_string = date.get();
 
       (void)snprintf(buff_line, buff_size, "%s [%.*s] [MY-%06u] [Keyring] %.*s",
                      time_string.c_str(), (int)label_len, label, errcode,
                      (int)msg_len, msg);
       std::cout << buff_line << std::endl;
       if (line_buffer) delete[] line_buffer;
+      kr_log_line_item_free_all(ll);
       return out_fields;
     }
+    kr_log_line_item_free_all(ll);
     return 0;
   }
   return 0;

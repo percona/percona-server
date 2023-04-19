@@ -5,7 +5,7 @@
 Using Simple LDAP Authentication
 ======================================================
 
-This feature was implemented in |Percona Server| version :rn:`8.0.19-10`.
+This feature was implemented in :ref:`8.0.19-10`.
 
 LDAP (Lightweight Directory Access Protocol) provides an alternative method to
 access existing directory servers, which maintain information about
@@ -41,7 +41,7 @@ The installation adds the following variables:
       -
       - global
       - Yes
-      - String
+      - string
     * - authentication_ldap_simple_bind_root_dn
       - Root distinguished name (DN)
       -
@@ -52,7 +52,7 @@ The installation adds the following variables:
       - string
     * - authentication_ldap_simple_bind_root_pwd
       - Password for the root distinguished name
-      -
+      - 
       -
       -
       - global
@@ -176,7 +176,7 @@ or ::
 
 If a MySQL user `rshimek` has the following entry in the LDAP directory:
 
-.. code-block:: guess
+.. code-block:: text
 
     uid=rshimek, ou=users, dc=hr, dc=com
 

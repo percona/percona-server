@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,18 @@
 
 #include "plugin/group_replication/include/member_version.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
+
+/**
+ * Specific Member versions.
+ *
+ * Add here specific versions that you want to use in the code to do
+ * comparisons.
+ */
+
+/**
+ * @brief First member version where we have XCom's single leader
+ */
+#define FIRST_PROTOCOL_WITH_SUPPORT_FOR_CONSENSUS_LEADERS 0x080027
 
 /**
  * Converts the given GCS protocol version into the respective MySQL version.

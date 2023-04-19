@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,7 +197,7 @@ private:
   void execAPI_REGREF    (const Uint32 * theData);
   void execDUMP_STATE_ORD(const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execNODE_FAILREP  (const NdbApiSignal*, const LinearSectionPtr ptr[]);
-  void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
 
   void check_wait_for_hb(NodeId nodeId);
 
@@ -304,7 +304,7 @@ private:
 
     inline void init(GlobalSignalNumber aGsn, const Uint32* aData) {
       gsn = aGsn;
-      if (aData != NULL)
+      if (aData != nullptr)
         memcpy(&data, aData, sizeof(data));
       else
         memset(&data, 0, sizeof(data));

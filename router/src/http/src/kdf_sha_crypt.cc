@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,13 +41,6 @@
 #include <openssl/sha.h>
 
 #include "base64.h"
-
-constexpr char ShaCryptMcfType::kTypeSha256[];
-constexpr char ShaCryptMcfType::kTypeSha512[];
-constexpr char ShaCryptMcfType::kTypeCachingSha2Password[];
-constexpr unsigned long ShaCryptMcfAdaptor::kDefaultRounds;
-constexpr unsigned long ShaCryptMcfAdaptor::kMinRounds;
-constexpr unsigned long ShaCryptMcfAdaptor::kMaxRounds;
 
 std::string ShaCrypt::salt() {
   // 12 byte input, generate 16 byte output

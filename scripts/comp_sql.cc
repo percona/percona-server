@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@
 FILE *in;
 FILE *out;
 
-static void die(const char *fmt, ...) MY_ATTRIBUTE((noreturn))
+[[noreturn]] static void die(const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
 
 static void die(const char *fmt, ...) {

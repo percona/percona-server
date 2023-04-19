@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,8 +153,10 @@ class Hint_scanner {
 
             ptr++;  // skip closing quote
 
-            if (thd->charset_is_system_charset && double_separators == 0)
+            if (thd->charset_is_system_charset && double_separators == 0) {
+              yytext = thd->strmake(yytext, yyleng);  // null-terminate it.
               return ret;
+            }
 
             LEX_STRING s;
             if (!thd->charset_is_system_charset) {
@@ -363,7 +365,7 @@ class Hint_scanner {
     @param byte         A byte to compare with the byte we skip.
                         Unused in non-debug builds.
   */
-  void skip_byte(char byte MY_ATTRIBUTE((unused))) {
+  void skip_byte(char byte [[maybe_unused]]) {
     assert(peek_byte() == byte);
     skip_byte();
   }
@@ -374,7 +376,7 @@ class Hint_scanner {
     @param str          A string of characters to compare with the next byte.
                         Unused in non-debug builds.
   */
-  void skip_byte(const char *str MY_ATTRIBUTE((unused))) {
+  void skip_byte(const char *str [[maybe_unused]]) {
     assert(strchr(str, peek_byte()));
     skip_byte();
   }

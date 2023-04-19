@@ -204,21 +204,25 @@ The time zone system tables are the following:
 * ``time_zone_transition``
 * ``time_zone_transition_type``
 
-If you install the server using either the source distribution or generic binary distribution files, the installation creates the time zone tables, but the tables are not populated. 
+If you install the server using either the source distribution or the
+generic binary distribution files, the installation creates the time zone
+tables, but the tables are not populated.
 
 The `mysql_tzinfo_to_sql
 <https://dev.mysql.com/doc/refman/8.0/en/mysql-tzinfo-to-sql.html>`_ program
 populates the tables from the ``zoneinfo`` directory data available in Linux.
 
-A common method to populate the tables is to add the zoneinfo directory path to ``mysql_tzinfo_to_sql`` and then send the output into ``mysql``. 
+A common method to populate the tables is to add the zoneinfo directory path
+to ``mysql_tzinfo_to_sql`` and then send the output into
+the `mysql system schema <https://dev.mysql.com/doc/refman/8.0/en/system-schema.html>`__.
 
-The example assumes you are running the command with the ``root`` account. You must use an account with the privileges able to modify MySQL system tables.
+The example assumes you are running the command with the ``root`` account.
+The account must have the privileges for modifying the ``mysql``
+system schema.
 
 .. code-block:: bash
 
-    $ mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p rootpassword
-
-
+    $ mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p -D mysql
 
 
 

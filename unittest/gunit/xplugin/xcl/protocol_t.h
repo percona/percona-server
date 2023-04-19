@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -96,17 +96,16 @@ class Xcl_protocol_impl_tests : public Test {
                            const uint32_t expected_payload_size,
                            const int32_t error_code = 0) {
     EXPECT_CALL(*m_mock_connection, write(_, 5))
-        .WillOnce(Invoke(
-            [this, id, expected_payload_size, error_code](
-                const uchar *data,
-                const std::size_t size MY_ATTRIBUTE((unused))) -> XError {
-              EXPECT_EQ(data[4], id);
-              auto header = this->extract_header_from_message(data);
+        .WillOnce(Invoke([this, id, expected_payload_size, error_code](
+                             const uchar *data, const std::size_t size
+                             [[maybe_unused]]) -> XError {
+          EXPECT_EQ(data[4], id);
+          auto header = this->extract_header_from_message(data);
 
-              EXPECT_EQ(expected_payload_size,
-                        *reinterpret_cast<int32_t *>(header.data()) - 1);
-              return XError{error_code, ""};
-            }));
+          EXPECT_EQ(expected_payload_size,
+                    *reinterpret_cast<int32_t *>(header.data()) - 1);
+          return XError{error_code, ""};
+        }));
   }
 
   template <typename Message_type>
@@ -151,17 +150,16 @@ class Xcl_protocol_impl_tests : public Test {
     const std::uint8_t header_size = 5;
 
     EXPECT_CALL(*m_mock_connection, write(_, header_size + payload_size))
-        .WillOnce(Invoke(
-            [this, id, payload_size, error_code](
-                const uchar *data,
-                const std::size_t size MY_ATTRIBUTE((unused))) -> XError {
-              EXPECT_EQ(data[4], id);
-              auto header = this->extract_header_from_message(data);
+        .WillOnce(Invoke([this, id, payload_size, error_code](
+                             const uchar *data, const std::size_t size
+                             [[maybe_unused]]) -> XError {
+          EXPECT_EQ(data[4], id);
+          auto header = this->extract_header_from_message(data);
 
-              EXPECT_EQ(payload_size,
-                        *reinterpret_cast<int32_t *>(header.data()) - 1);
-              return XError{error_code, ""};
-            }));
+          EXPECT_EQ(payload_size,
+                    *reinterpret_cast<int32_t *>(header.data()) - 1);
+          return XError{error_code, ""};
+        }));
   }
 
   template <typename Message_type_id>
@@ -170,27 +168,26 @@ class Xcl_protocol_impl_tests : public Test {
     const int32_t expected_header_size = 5;
 
     EXPECT_CALL(*m_mock_connection, read(_, expected_header_size))
-        .WillOnce(
-            Invoke([id, payload_size, error_code](
-                       uchar *data, const std::size_t data_length MY_ATTRIBUTE(
-                                        (unused))) -> XError {
-              // 1byte(type)+ payload_size-bytes(protobuf-msg-payload)
-              *reinterpret_cast<int32_t *>(data) = 1 + payload_size;
+        .WillOnce(Invoke([id, payload_size, error_code](
+                             uchar *data, const std::size_t data_length
+                             [[maybe_unused]]) -> XError {
+          // 1byte(type)+ payload_size-bytes(protobuf-msg-payload)
+          *reinterpret_cast<int32_t *>(data) = 1 + payload_size;
 
 #ifdef WORDS_BIGENDIAN
-              std::swap(data[0], data[3]);
-              std::swap(data[1], data[2]);
+          std::swap(data[0], data[3]);
+          std::swap(data[1], data[2]);
 #endif
 
-              data[4] = static_cast<uchar>(id);
+          data[4] = static_cast<uchar>(id);
 
-              return XError{error_code, ""};
-            }));
+          return XError{error_code, ""};
+        }));
   }
 
   template <typename Message_type>
   void expect_read_message_without_payload(const Message_type &message
-                                               MY_ATTRIBUTE((unused)),
+                                           [[maybe_unused]],
                                            const int32_t error_code = 0) {
     expect_read_header(Server_message<Message_type>::get_id(), 0, error_code);
   }
@@ -211,9 +208,8 @@ class Xcl_protocol_impl_tests : public Test {
 
     EXPECT_CALL(*m_mock_connection, read(_, message_payload.size()))
         .WillOnce(
-            Invoke([message_payload](uchar *data,
-                                     const std::size_t data_length MY_ATTRIBUTE(
-                                         (unused))) -> XError {
+            Invoke([message_payload](uchar *data, const std::size_t data_length
+                                     [[maybe_unused]]) -> XError {
               std::copy(message_payload.begin(), message_payload.end(), data);
               return {};
             }));

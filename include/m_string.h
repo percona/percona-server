@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,14 +90,14 @@ static inline void bchange(uchar *dst, size_t old_length, const uchar *src,
   be used instead, but this is clearer and faster.
 */
 static inline const char *strend(const char *s) {
-  while (*s++)
-    ;
+  while (*s++) {
+  }
   return s - 1;
 }
 
 static inline char *strend(char *s) {
-  while (*s++)
-    ;
+  while (*s++) {
+  }
   return s - 1;
 }
 
@@ -114,7 +114,7 @@ static inline const char *strcend(const char *s, char c) {
 
 /*
   strfill(dest, len, fill) makes a string of fill-characters. The result
-  string is of length == len. The des+len character is allways set to NULL.
+  string is of length == len. The des+len character is always set to NULL.
   strfill() returns pointer to dest+len;
 */
 static inline char *strfill(char *s, size_t len, char fill) {
@@ -131,8 +131,8 @@ static inline char *strfill(char *s, size_t len, char fill) {
   into dst, which seems useful.
 */
 static inline char *my_stpmov(char *dst, const char *src) {
-  while ((*dst++ = *src++))
-    ;
+  while ((*dst++ = *src++)) {
+  }
   return dst - 1;
 }
 
@@ -275,13 +275,6 @@ static inline int is_prefix(const char *s, const char *t) {
   while (*t)
     if (*s++ != *t++) return 0;
   return 1; /* WRONG */
-}
-
-/*
-   Replace the deprecated character set name "utf8" with "utf8mb3".
- */
-static inline const char *replace_utf8_utf8mb3(const char *csname) {
-  return (native_strcasecmp(csname, "utf8") != 0) ? csname : "utf8mb3";
 }
 
 /* Conversion routines */

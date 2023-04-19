@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "resource_group_sql_cmd.h"
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -62,6 +63,20 @@ class Resource_group {
   void set_type(Type type) { m_type = type; }
 
   void set_enabled(bool enabled) { m_enabled = enabled; }
+
+  /**
+    Method to check if resource group is defunct.
+
+    @returns true if resource group is defunct else false.
+  */
+
+  bool is_defunct() const { return m_defunct; }
+
+  /**
+    Method to mark resource group defunct.
+  */
+
+  void set_defunct() { m_defunct = true; }
 
   Thread_resource_control *controller() { return &m_thread_resource_control; }
 
@@ -103,6 +118,7 @@ class Resource_group {
   void add_pfs_thread_id(const ulonglong pfs_thread_id) {
     std::unique_lock<std::mutex> lock(m_set_mutex);
     (void)m_pfs_thread_id_set.insert(pfs_thread_id);
+    m_reference_count++;
   }
 
   /**
@@ -114,6 +130,7 @@ class Resource_group {
   void remove_pfs_thread_id(const ulonglong pfs_thread_id) {
     std::unique_lock<std::mutex> lock(m_set_mutex);
     (void)m_pfs_thread_id_set.erase(pfs_thread_id);
+    m_reference_count--;
   }
 
   /**
@@ -122,6 +139,7 @@ class Resource_group {
 
   void clear() {
     std::unique_lock<std::mutex> lock(m_set_mutex);
+    m_reference_count -= m_pfs_thread_id_set.size();
     (void)m_pfs_thread_id_set.clear();
   }
 
@@ -136,7 +154,11 @@ class Resource_group {
     for (auto pfs_thread_id : m_pfs_thread_id_set) control_func(pfs_thread_id);
   }
 
-  ~Resource_group() {}
+  std::atomic<ulonglong> &reference_count() { return m_reference_count; }
+
+  uint &version() { return m_version; }
+
+  ~Resource_group() = default;
 
  private:
   /**
@@ -155,6 +177,11 @@ class Resource_group {
   bool m_enabled;
 
   /**
+    Whether resource group is defunct or operative.
+  */
+  bool m_defunct{false};
+
+  /**
     Thread resource controller object.
   */
   Thread_resource_control m_thread_resource_control;
@@ -168,6 +195,25 @@ class Resource_group {
     Mutex protecting the resource group set.
   */
   std::mutex m_set_mutex;
+
+  /**
+    Count of threads referencing resource group. Count includes threads
+    associated with this resource group (i.e. threads in m_pfs_thread_id_set)
+    and other threads referencing this resource group (Only system threads
+    internally switched to refer user resource group to execute user queries
+    in some cases. User resource group maintains counter of even such
+    references.)
+  */
+  std::atomic<ulonglong> m_reference_count{0};
+
+  /**
+    Version number of a Resource group in-memory instance. Version number is
+    incremented on thread resource controls alter. If other threads (only
+    system threads internally switched to refer user resource group to execute
+    user queries for now) references this resource group, then resource group
+    is re-applied by threads on version number mismatch.
+  */
+  uint m_version{0};
 
   /**
     Disable copy construction and assignment.

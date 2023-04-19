@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #ifndef MYSQLROUTER_KDF_PBKDF2_INCLUDED
 #define MYSQLROUTER_KDF_PBKDF2_INCLUDED
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -164,7 +165,7 @@ class HTTP_AUTH_BACKEND_LIB_EXPORT Pbkdf2McfAdaptor {
   }
 
   /**
-   * checkum.
+   * checksum.
    *
    * RFC4648 base64 encoded
    */

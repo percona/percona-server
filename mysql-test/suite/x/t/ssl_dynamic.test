@@ -61,7 +61,7 @@ ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
 
 --echo Ssl connection by sha256 plugin  -> failure
 --error 1
---exec $MYSQLXTEST -uxuser_sha256 -psha256 $XSSLPARAM
+--exec $MYSQLXTEST -uxuser_sha256 -psha256 --history-protocol=false $XSSLPARAM
 
 --echo # cleanup
 SET GLOBAL ssl_ca = @orig_ssl_ca;

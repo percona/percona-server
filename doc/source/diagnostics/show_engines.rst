@@ -29,6 +29,5 @@ After the Change: ::
 Version-Specific Information
 ============================
 
-  * :rn:`8.0.12-1`:
-    Feature ported from |Percona Server| 5.7
+  * `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 

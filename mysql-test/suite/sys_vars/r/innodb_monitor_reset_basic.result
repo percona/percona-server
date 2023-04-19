@@ -192,7 +192,6 @@ log_max_modified_age_sync	disabled
 log_waits	disabled
 log_write_requests	disabled
 log_writes	disabled
-log_lsn_tracked	disabled
 log_flush_total_time	disabled
 log_flush_max_time	disabled
 log_flush_avg_time	disabled
@@ -238,8 +237,6 @@ compress_pages_compressed	disabled
 compress_pages_decompressed	disabled
 compression_pad_increments	disabled
 compression_pad_decrements	disabled
-pages_encrypted	disabled
-pages_decrypted	disabled
 index_page_splits	disabled
 index_page_merge_attempts	disabled
 index_page_merge_successful	disabled

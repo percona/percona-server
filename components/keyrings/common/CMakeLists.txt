@@ -1,4 +1,4 @@
-# Copyright (c) 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,10 @@ SET(KEYRING_COMMON_SOURCES
   # Component implementation helpers
   component_helpers/src/keyring_log_builtins_definition.cc
   # Config file reader
-  config/config_reader.cc
   # Data representation
   data/data.cc
   data/meta.cc
+  data/pfs_string.cpp
   # File reader/writer
   data_file/reader.cc
   data_file/writer.cc
@@ -46,9 +46,18 @@ SET (KEYRING_COMMON_DEPENDENCIES
   GenError
   )
 
+IF(COMPONENT_COMPILE_VISIBILITY)
+  SET(COMPILE_OPTIONS_ARG COMPILE_OPTIONS "${COMPONENT_COMPILE_VISIBILITY}")
+ENDIF()
+
+INCLUDE_DIRECTORIES(SYSTEM
+        ${BOOST_PATCHES_DIR}
+        ${BOOST_INCLUDE_DIR})
+
 ADD_CONVENIENCE_LIBRARY(
   keyring_common
   ${KEYRING_COMMON_SOURCES}
+  ${COMPILE_OPTIONS_ARG}
   DEPENDENCIES ${KEYRING_COMMON_DEPENDENCIES}
   LINK_LIBRARIES library_mysys
 )

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,8 @@ class Table {
     } else {
       WRITE_VAL("\t[meta][charset result] number: %d\n", cs_info->number);
       WRITE_VAL("\t[meta][charset result] name: %s\n", cs_info->csname);
-      WRITE_VAL("\t[meta][charset result] collation: %s\n", cs_info->name);
+      WRITE_VAL("\t[meta][charset result] collation: %s\n",
+                cs_info->m_coll_name);
       WRITE_VAL("\t[meta][charset result] sort order: %s\n",
                 cs_info->sort_order);
       WRITE_STR("\n");
@@ -313,9 +314,8 @@ static int handle_start_column_metadata(void *pctx, uint num_cols, uint,
   WRITE_STR("handle_start_column_metadata\n");
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info",
-             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info", ("resultcs->m_coll_name: %s", resultcs->m_coll_name));
 
   ctx->tables.push_back(Table(num_cols, resultcs));
   ctx->current_col = 0;
@@ -727,7 +727,7 @@ static void set_query_in_com_data(union COM_DATA *cmd, const char *query) {
 
 static void run_cmd(MYSQL_SESSION session, enum_server_command cmd,
                     COM_DATA *data, Server_context *ctx,
-                    bool generates_result_set, void *p MY_ATTRIBUTE((unused))) {
+                    bool generates_result_set, void *p [[maybe_unused]]) {
   char buffer[STRING_BUFFER_SIZE];
   WRITE_DASHED_LINE();
 
@@ -738,7 +738,7 @@ again:
   print_cmd(cmd, data);
   ctx->cmd = cmd;
   int fail = command_service_run_command(session, cmd, data,
-                                         &my_charset_utf8_general_ci,
+                                         &my_charset_utf8mb3_general_ci,
                                          &protocol_callbacks, txt_or_bin, ctx);
   if (fail) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "run_statement code: %d\n",
@@ -1955,7 +1955,7 @@ static int test_sql_service_plugin_init(void *p) {
   return 0;
 }
 
-static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
+static int test_sql_service_plugin_deinit(void *p [[maybe_unused]]) {
   DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,9 +34,8 @@ template<class T> struct ParserRow;
 
 //#define PARSER_DEBUG
 #ifdef PARSER_DEBUG
-#include "NdbOut.hpp"
-#define DEBUG(x) \
-  ndbout_c("%s:%d:%s", __FILE__, __LINE__, x);
+#include <EventLogger.hpp>
+#define DEBUG(x) g_eventLogger->info("%s:%d:%s", __FILE__, __LINE__, x);
 #else 
 #define DEBUG(x)
 #endif
@@ -71,12 +70,12 @@ public:
    */
   class Context {
   public:
-    Context() { m_mutex= NULL; }
+    Context() { m_mutex= nullptr; }
     ParserStatus m_status;
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
     char * m_currentToken;
-    STATIC_CONST(MaxParseBytes = 512);
+    static constexpr Uint32 MaxParseBytes = 512;
     char m_tokenBuffer[ MaxParseBytes ];
     NdbMutex *m_mutex;
 
@@ -92,7 +91,7 @@ public:
   /**
    * Run parser
    */
-  bool run(Context &, T &, volatile bool * stop = 0) const;
+  bool run(Context &, T &, volatile bool * stop = nullptr) const;
 
   /**
    * Parse only one entry and return Properties object representing
@@ -214,7 +213,7 @@ Parser<T>::parse(Context &ctx, T &t) {
 
   if(impl->run((ParserImpl::Context*)&ctx, &p, &stop)){
     const ParserRow<T> * cmd = ctx.m_currentCmd; // Cast to correct type
-    if(cmd == 0){
+    if(cmd == nullptr){
       /**
        * Should happen if run returns true
        */
@@ -223,7 +222,7 @@ Parser<T>::parse(Context &ctx, T &t) {
 
     for(unsigned i = 0; i<ctx.m_aliasUsed.size(); i++){
       const ParserRow<T> * alias = ctx.m_aliasUsed[i];
-      if(alias->function != 0){
+      if(alias->function != nullptr){
 	/**
 	 * Report alias usage with callback (if specified by user)
 	 */
@@ -232,7 +231,7 @@ Parser<T>::parse(Context &ctx, T &t) {
       }
     }
 
-    if(cmd->function == 0){
+    if(cmd->function == nullptr){
       DEBUG("CommandWithoutFunction");
       ctx.m_status = CommandWithoutFunction;
       return p;
@@ -240,7 +239,7 @@ Parser<T>::parse(Context &ctx, T &t) {
     return p;
   }
   DEBUG("");
-  return NULL;
+  return nullptr;
 }
 
 #endif

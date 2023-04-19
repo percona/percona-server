@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replciation */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -68,7 +68,7 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "  SSL_CRL_PATH VARCHAR(255) not null,\n"
     "  CONNECTION_RETRY_INTERVAL INTEGER not null,\n"
     "  CONNECTION_RETRY_COUNT BIGINT unsigned not null,\n"
-    "  HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null\n"
+    "  HEARTBEAT_INTERVAL DOUBLE(10,3) not null\n"
     "  COMMENT 'Number of seconds after which a heartbeat will be sent .',\n"
     "  TLS_VERSION VARCHAR(255) not null,\n"
     "  PUBLIC_KEY_PATH VARCHAR(512) not null,\n"
@@ -80,8 +80,11 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "  ZSTD_COMPRESSION_LEVEL INTEGER not null\n"
     "  COMMENT 'Compression level associated with zstd compression "
     "algorithm.',\n"
-    "  TLS_CIPHERSUITES TEXT CHARACTER SET utf8 COLLATE utf8_bin NULL,\n"
+    "  TLS_CIPHERSUITES TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NULL,\n"
     "  SOURCE_CONNECTION_AUTO_FAILOVER ENUM('1','0') not null,\n"
+    "  GTID_ONLY ENUM('1','0') not null\n"
+    "  COMMENT 'Indicates if this channel only uses GTIDs and does not persist "
+    "positions.',\n"
     "  PRIMARY KEY (channel_name) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -130,7 +133,7 @@ table_replication_connection_configuration::
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_connection_configuration::
-    ~table_replication_connection_configuration() {}
+    ~table_replication_connection_configuration() = default;
 
 void table_replication_connection_configuration::reset_position(void) {
   m_pos.m_index = 0;
@@ -182,8 +185,9 @@ int table_replication_connection_configuration::rnd_pos(const void *pos) {
   return res;
 }
 
-int table_replication_connection_configuration::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_replication_connection_configuration::index_init(uint idx
+                                                           [[maybe_unused]],
+                                                           bool) {
   PFS_index_rpl_connection_config *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_rpl_connection_config);
@@ -320,6 +324,8 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
     m_row.source_connection_auto_failover = PS_RPL_NO;
   }
 
+  m_row.gtid_only = mi->is_gtid_only_mode() ? PS_RPL_YES : PS_RPL_NO;
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -337,20 +343,21 @@ int table_replication_connection_configuration::read_row_values(
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name */
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /** host */
-          set_field_char_utf8(f, m_row.host, m_row.host_length);
+          set_field_char_utf8mb4(f, m_row.host, m_row.host_length);
           break;
         case 2: /** port */
           set_field_ulong(f, m_row.port);
           break;
         case 3: /** user */
-          set_field_char_utf8(f, m_row.user, m_row.user_length);
+          set_field_char_utf8mb4(f, m_row.user, m_row.user_length);
           break;
         case 4: /** network_interface */
-          set_field_char_utf8(f, m_row.network_interface,
-                              m_row.network_interface_length);
+          set_field_char_utf8mb4(f, m_row.network_interface,
+                                 m_row.network_interface_length);
           break;
         case 5: /** auto_position */
           set_field_enum(f, m_row.auto_position);
@@ -359,33 +366,34 @@ int table_replication_connection_configuration::read_row_values(
           set_field_enum(f, m_row.ssl_allowed);
           break;
         case 7: /**ssl_ca_file */
-          set_field_varchar_utf8(f, m_row.ssl_ca_file,
-                                 m_row.ssl_ca_file_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_ca_file,
+                                    m_row.ssl_ca_file_length);
           break;
         case 8: /** ssl_ca_path */
-          set_field_varchar_utf8(f, m_row.ssl_ca_path,
-                                 m_row.ssl_ca_path_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_ca_path,
+                                    m_row.ssl_ca_path_length);
           break;
         case 9: /** ssl_certificate */
-          set_field_varchar_utf8(f, m_row.ssl_certificate,
-                                 m_row.ssl_certificate_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_certificate,
+                                    m_row.ssl_certificate_length);
           break;
         case 10: /** ssl_cipher */
-          set_field_varchar_utf8(f, m_row.ssl_cipher, m_row.ssl_cipher_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_cipher,
+                                    m_row.ssl_cipher_length);
           break;
         case 11: /** ssl_key */
-          set_field_varchar_utf8(f, m_row.ssl_key, m_row.ssl_key_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_key, m_row.ssl_key_length);
           break;
         case 12: /** ssl_verify_server_certificate */
           set_field_enum(f, m_row.ssl_verify_server_certificate);
           break;
         case 13: /** ssl_crl_file */
-          set_field_varchar_utf8(f, m_row.ssl_crl_file,
-                                 m_row.ssl_crl_file_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_crl_file,
+                                    m_row.ssl_crl_file_length);
           break;
         case 14: /** ssl_crl_path */
-          set_field_varchar_utf8(f, m_row.ssl_crl_path,
-                                 m_row.ssl_crl_path_length);
+          set_field_varchar_utf8mb4(f, m_row.ssl_crl_path,
+                                    m_row.ssl_crl_path_length);
           break;
         case 15: /** connection_retry_interval */
           set_field_ulong(f, m_row.connection_retry_interval);
@@ -397,23 +405,23 @@ int table_replication_connection_configuration::read_row_values(
           set_field_double(f, m_row.heartbeat_interval);
           break;
         case 18: /** tls_version */
-          set_field_varchar_utf8(f, m_row.tls_version,
-                                 m_row.tls_version_length);
+          set_field_varchar_utf8mb4(f, m_row.tls_version,
+                                    m_row.tls_version_length);
           break;
         case 19: /** master_public_key_path */
-          set_field_varchar_utf8(f, m_row.public_key_path,
-                                 m_row.public_key_path_length);
+          set_field_varchar_utf8mb4(f, m_row.public_key_path,
+                                    m_row.public_key_path_length);
           break;
         case 20: /** get_master_public_key */
           set_field_enum(f, m_row.get_public_key);
           break;
         case 21: /** network_namespace */
-          set_field_varchar_utf8(f, m_row.network_namespace,
-                                 m_row.network_namespace_length);
+          set_field_varchar_utf8mb4(f, m_row.network_namespace,
+                                    m_row.network_namespace_length);
           break;
         case 22: /** compression_algorithm */
-          set_field_char_utf8(f, m_row.compression_algorithm,
-                              m_row.compression_algorithm_length);
+          set_field_char_utf8mb4(f, m_row.compression_algorithm,
+                                 m_row.compression_algorithm_length);
           break;
         case 23: /** zstd_compression_level */
           set_field_ulong(f, m_row.zstd_compression_level);
@@ -428,6 +436,9 @@ int table_replication_connection_configuration::read_row_values(
           break;
         case 25: /** source_connection_auto_failover */
           set_field_enum(f, m_row.source_connection_auto_failover);
+          break;
+        case 26: /** gtid_only */
+          set_field_enum(f, m_row.gtid_only);
           break;
         default:
           assert(false);

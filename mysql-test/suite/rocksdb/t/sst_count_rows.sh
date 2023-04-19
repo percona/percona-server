@@ -3,6 +3,8 @@
 sst_dump=$2
 wait_for_no_more_deletes=$3
 wait_for_no_more_rows=$4
+zenfs_util=$5
+zenfs_device=$6
 num_retries=240
 retry=0
 
@@ -11,6 +13,12 @@ echo "wait_for_delete: $wait_for_no_more_deletes"
 while : ; do
   TOTAL_D=0
   TOTAL_E=0
+  if [ $zenfs_util != "" ]
+  then
+    rm -rf $1
+    mkdir -p $1/mysqld.1/data
+    $zenfs_util backup --zbd=$zenfs_device --path=$1/mysqld.1/data --backup_path=./ --force > /dev/null
+  fi
   for f in `ls $1/mysqld.1/data/.rocksdb/*.sst`
   do
     # excluding system cf
@@ -38,6 +46,11 @@ while : ; do
   sleep 1
   retry=$(($retry + 1))
 done
+
+if [ $zenfs_util != "" ]
+then
+  rm -rf $1
+fi
 
 if [ "$TOTAL_E" = "0" ]
 then

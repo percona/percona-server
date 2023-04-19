@@ -6,7 +6,7 @@ Stack Trace
 
 Developers use the stack trace in the debug process, either an interactive investigation or during the post-mortem. No configuration is required to generate a stack trace. 
 
-Implemented in |Percona Server| 8.0.21-12, stack trace adds the following: 
+Implemented in *Percona Server for MySQL* 8.0.21-12, stack trace adds the following: 
 
 .. tabularcolumns:: |p{5cm}|p{11cm}|
 

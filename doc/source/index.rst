@@ -35,6 +35,27 @@ Installation
    installation
    installation/post-installation
 
+In-place upgrades
+================================================================================
+
+.. toctree::
+   :maxdepth: 2
+   :glob:
+
+   upgrading_guide
+   upgrading_using_percona_repos
+   upgrading_tokudb_myrocks
+   upgrading_using_standalone_packages
+
+Run in Docker
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   installation/docker
+
 Scalability Improvements
 ================================================================================
 
@@ -51,6 +72,7 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/adaptive_network_buffers
    performance/aio_page_requests
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
@@ -67,17 +89,18 @@ Flexibility Improvements
    :maxdepth: 1
    :glob:
 
-   flexibility/log_warnings_suppress
-   flexibility/improved_memory_engine
-   flexibility/extended_mysqldump
-   flexibility/extended_select_into_outfile
-   flexibility/extended_mysqlbinlog
-   flexibility/proxy_protocol_support
+   flexibility/binlogging_replication_improvements  
    flexibility/compressed_columns
-   flexibility/innodb_fts_improvements
-   flexibility/binlogging_replication_improvements
+    flexibility/extended_mysqlbinlog  
+    flexibility/extended_mysqldump
+   flexibility/extended_select_into_outfile  
    flexibility/extended_set_var
+   flexibility/improved_memory_engine   
+   flexibility/log_warnings_suppress
+   flexibility/binlog_space
+   flexibility/proxy_protocol_support
    flexibility/sequence_table
+   flexibility/slowlog_rotation
 
 Reliability Improvements
 ================================================================================
@@ -123,6 +146,9 @@ Security Improvements
   security/data-at-rest-encryption
   security/vault
   security/using-keyring-plugin
+  security/using-kmip
+  security/encryption-functions
+  security/using-amz-kms
   security/rotating-master-key
   security/encrypting-tables
   security/encrypting-tablespaces
@@ -136,6 +162,7 @@ Security Improvements
   security/verifying-encryption
   security/ssl-improvement
   security/data-masking
+  security/system-variables
 
 Diagnostics Improvements
 ================================================================================
@@ -155,6 +182,25 @@ Diagnostics Improvements
    diagnostics/stacktrace
    diagnostics/libcoredumper
 
+Percona MyRocks
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   MyRocks Introduction <myrocks/index>
+   MyRocks Installation <myrocks/install>
+   MyRocks Supported Features <myrocks/added-features>
+   MyRocks Limitations <myrocks/limitations>
+   MyRocks Differences <myrocks/differences>
+   MyRocks Information Schema Tables <myrocks/information-schema-tables>
+   MyRocks Server Variables <myrocks/variables>
+   MyRocks Status Variables <myrocks/status_variables>
+   MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
+   MyRocks Data Loading <myrocks/data_loading>
+   MyRocks ZenFS <myrocks/zenfs>
+   
 TokuDB
 ================================================================================
 
@@ -177,21 +223,14 @@ TokuDB
    tokudb/tokudb_faq
    tokudb/removing_tokudb
 
-Percona MyRocks
+Release notes
 ================================================================================
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
-   MyRocks Introduction <myrocks/index>
-   MyRocks Installation <myrocks/install>
-   MyRocks Limitations <myrocks/limitations>
-   MyRocks Differences <myrocks/differences>
-   MyRocks Server Variables <myrocks/variables>
-   MyRocks Status Variables <myrocks/status_variables>
-   MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
-   MyRocks Data Loading <myrocks/data_loading>
+   release-notes/release-notes_index
 
 Reference
 ================================================================================
@@ -200,7 +239,6 @@ Reference
    :maxdepth: 1
    :glob:
 
-   release-notes/release-notes_index
    upstream-bug-fixes
    ps-variables
    development

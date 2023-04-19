@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ Driver::run() {
 }
 
 // ----------------------------------------------------------------------
-// intializers/finalizers
+// initializers/finalizers
 // ----------------------------------------------------------------------
 
 void
@@ -176,7 +176,7 @@ Driver::initProperties() {
         }
     }
 
-    if (!msg.tellp()) { // or msg.str().empty() if ambigous
+    if (!msg.tellp()) { // or msg.str().empty() if ambiguous
         cout << "   [ok]" << endl;
     } else {
         setIgnoredSettings();
@@ -249,7 +249,7 @@ Driver::addLoads() {
             msg << "[SKIPPING] unknown load:        '" << name << "'" << endl;
         }
 
-        if (!msg.tellp()) { // or msg.str().empty() if ambigous
+        if (!msg.tellp()) { // or msg.str().empty() if ambiguous
             cout << "          [ok: " << name << "]" << endl;
         } else {
             setIgnoredSettings();

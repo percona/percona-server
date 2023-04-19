@@ -1,6 +1,6 @@
 #ifndef SQL_RELOAD_INCLUDED
 #define SQL_RELOAD_INCLUDED
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
-bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
+bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
                            int *write_to_binlog);
 
 bool is_reload_request_denied(THD *thd, unsigned long op_type);
 
-bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables);
+bool flush_tables_with_read_lock(THD *thd, Table_ref *all_tables);
 
-bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables);
+bool flush_tables_for_export(THD *thd, Table_ref *all_tables);
 
 #endif

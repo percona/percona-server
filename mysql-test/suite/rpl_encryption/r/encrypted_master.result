@@ -10,14 +10,14 @@ connection server_2;
 include/stop_slave_sql.inc
 connection server_1;
 SET @binlog_checksum.save= @@global.binlog_checksum;
-SET @master_verify_checksum.save= @@global.master_verify_checksum;
+SET @source_verify_checksum.save= @@global.source_verify_checksum;
 SET @binlog_row_image.save= @@global.binlog_row_image;
 ####################################################
 # Test 1: simple binlog, no checksum
 ####################################################
 connection server_1;
 SET GLOBAL binlog_checksum= NONE;
-SET GLOBAL master_verify_checksum= 0;
+SET GLOBAL source_verify_checksum= 0;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 CREATE DATABASE database_name_to_encrypt;
 USE database_name_to_encrypt;
@@ -162,7 +162,7 @@ DROP SERVER server_name_to_encrypt;
 ####################################################
 connection server_1;
 SET GLOBAL binlog_checksum= CRC32;
-SET GLOBAL master_verify_checksum= 1;
+SET GLOBAL source_verify_checksum= 1;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 CREATE DATABASE database_name_to_encrypt;
 USE database_name_to_encrypt;
@@ -307,7 +307,7 @@ DROP SERVER server_name_to_encrypt;
 ####################################################
 connection server_1;
 SET GLOBAL binlog_checksum= NONE;
-SET GLOBAL master_verify_checksum= 0;
+SET GLOBAL source_verify_checksum= 0;
 SET GLOBAL binlog_row_image= MINIMAL;
 SET binlog_row_image= MINIMAL;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -476,6 +476,6 @@ Pattern "TIMESTAMP" found
 ##########
 connection server_1;
 SET GLOBAL binlog_checksum= @binlog_checksum.save;
-SET GLOBAL master_verify_checksum= @master_verify_checksum.save;
+SET GLOBAL source_verify_checksum= @source_verify_checksum.save;
 SET GLOBAL binlog_row_image= @binlog_row_image.save;
 include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ namespace service_implementation {
     @retval  1 Key found, check out parameters
 */
 template <typename Backend, typename Data_extension = data::Data>
-bool init_reader_template(
+int init_reader_template(
     const char *data_id, const char *auth_id,
     std::unique_ptr<Iterator<Data_extension>> &it,
     Keyring_operations<Backend, Data_extension> &keyring_operations,
@@ -157,7 +157,7 @@ bool fetch_length_template(
       return true;
     }
 
-    Data data;
+    Data_extension data;
     Metadata metadata;
     if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
       return true;
@@ -203,7 +203,7 @@ bool fetch_template(
       return true;
     }
 
-    Data data;
+    Data_extension data;
     Metadata metadata;
     if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
       return true;
@@ -223,7 +223,7 @@ bool fetch_template(
     memset(data_buffer, 0, data_buffer_length);
     memset(data_type_buffer, 0, data_type_buffer_length);
 
-    memcpy(data_buffer, data.data().c_str(), data.data().length());
+    memcpy(data_buffer, data.data().decode().c_str(), data.data().length());
     *data_size = data.data().length();
 
     memcpy(data_type_buffer, data.type().c_str(), data.type().length());

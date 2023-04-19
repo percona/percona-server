@@ -1,11 +1,11 @@
 .. _compressed_columns:
 
 ================================================================================
-|feature|
+Compressed columns with dictionaries
 ================================================================================
 
 The ``per-column compression`` feature is a data type modifier, independent from
-user-level SQL and |InnoDB| data compression, that causes the data stored in the
+user-level SQL and *InnoDB* data compression, that causes the data stored in the
 column to be compressed on writing to storage and decompressed on reading. For
 all other purposes, the data type is identical to the one without the modifier,
 i.e. no new data types are created. Compression is done by using the ``zlib``
@@ -20,7 +20,7 @@ This feature provides:
 * a better compression ratio for text data which consist of a large number of
   predefined words (e.g. JSON or XML) using compression methods with static
   dictionaries
-* a way to select columns in the table to compress (in contrast to the |InnoDB|
+* a way to select columns in the table to compress (in contrast to the *InnoDB*
   row compression method)
 
 .. To Reviewer: Is the following statement still relevant?
@@ -69,8 +69,8 @@ To decompress a column, specify a value other than ``COMPRESSED`` to
 compression/decompression request in an ``ALTER TABLE``, it is forced to the
 ``COPY`` algorithm.
 
-Two new variables: :variable:`innodb_compressed_columns_zip_level` and
-:variable:`innodb_compressed_columns_threshold` have been implemented.
+Two new variables: :ref:`innodb_compressed_columns_zip_level` and
+:ref:`innodb_compressed_columns_threshold` have been implemented.
 
 .. _compression_dictionary:
 
@@ -88,23 +88,23 @@ the same effect. However, the latter is more compact. Quote symbol
 quoting is handled by regular SQL quoting. The maximum supported dictionary length
 is 32506 bytes (``zlib`` limitation).
 
-The compression dictionary is stored in a new system |InnoDB| table.  As this
+The compression dictionary is stored in a new system *InnoDB* table.  As this
 table is of the data dictionary kind, concurrent reads are allowed, but writes
 are serialized, and reads are blocked by writes. Table read through old read
-views are not supported, similar to |InnoDB| internal DDL transactions.
+views are not supported, similar to *InnoDB* internal DDL transactions.
 
-Interaction with :variable:`innodb_force_recovery` variable
+Interaction with `innodb_force_recovery` variable
 -----------------------------------------------------------
 
 Compression dictionary operations are treated like DDL operations with the
-exception when :variable:`innodb_force_value` is set to ``3``: with values
+exception when `innodb_force_value` is set to ``3``: with values
 less than ``3``, compression dictionary operations are allowed, and with
 values >= ``3``, they are forbidden.
 
 .. note::
 
-  Prior to |Percona Server| :rn:`8.0.15-6` using Compression dictionary operations
-  with :variable:`innodb_force_recovery` variable set to value > 0 would result in
+  Prior to :ref:`8.0.15-6` using Compression dictionary operations
+  with `innodb_force_recovery` variable set to value > 0 would result in
   an error.
 
 Example
@@ -176,21 +176,42 @@ INFORMATION_SCHEMA Tables
 
 This feature implements two new ``INFORMATION_SCHEMA`` tables.
 
-.. table:: INFORMATION_SCHEMA.COMPRESSION_DICTIONARY
+.. _COMPRESSION_DICTIONARY:
 
-   :column BIGINT(21)_UNSIGNED dict_version: dictionary version
-   :column VARCHAR(64) dict_name: dictionary name
-   :column BLOB dict_data: compression dictionary string
+.. rubric:: ``INFORMATION_SCHEMA.COMPRESSION_DICTIONARY``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'BIGINT(21)_UNSIGNED dict_version'
+        - 'dictionary version'
+      * - 'VARCHAR(64) dict_name'
+        - 'dictionary name'
+      * - 'BLOB dict_data'
+        - 'compression dictionary string'
 
 This table provides a view over the internal compression dictionary. The
 ``SUPER`` privilege is required to query it.
 
-.. table:: INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES
+.. _COMPRESSION_DICTIONARY_TABLES:
 
-   :column BIGINT(21)_UNSIGNED table_schema: table schema
-   :column BIGINT(21)_UNSIGNED table_name: table ID from ``INFORMATION_SCHEMA.INNODB_SYS_TABLES``
-   :column BIGINT(21)_UNSIGNED column_name: column position (starts from ``0`` as in ``INFORMATION_SCHEMA.INNODB_SYS_COLUMNS``)
-   :column BIGINT(21)_UNSIGNED dict_name: dictionary ID
+.. rubric:: ``INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES``
+
+.. list-table::
+      :header-rows: 1
+
+      * - Column Name
+        - Description
+      * - 'BIGINT(21)_UNSIGNED table_schema'
+        - 'table schema'
+      * - 'BIGINT(21)_UNSIGNED table_name'
+        - 'table ID from ``INFORMATION_SCHEMA.INNODB_SYS_TABLES``'
+      * - 'BIGINT(21)_UNSIGNED column_name'
+        - 'column position (starts from ``0`` as in ``INFORMATION_SCHEMA.INNODB_SYS_COLUMNS``)'
+      * - 'BIGINT(21)_UNSIGNED dict_name'
+        - 'dictionary ID'
 
 This table provides a view over the internal table that stores the mapping
 between the compression dictionaries and the columns using them. The ``SUPER``
@@ -219,20 +240,20 @@ COLUMN_FORMAT DEFAULT``.
 mysqldump command line parameters
 =================================
 
-By default, with no additional options, ``mysqldump`` will generate a |MySQL|
+By default, with no additional options, ``mysqldump`` will generate a *MySQL*
 compatible SQL output.
 
 All ``/*!50633 COLUMN_FORMAT COMPRESSED */`` and ``/*!50633 COLUMN_FORMAT
 COMPRESSED WITH COMPRESSION_DICTIONARY <dictionary> */`` won't be in the dump.
 
-When a new option :option:`enable-compressed-columns` is specified, all
+When a new option :ref:`enable-compressed-columns` is specified, all
 ``/*!50633 COLUMN_FORMAT COMPRESSED */`` will be left intact and all ``/*!50633
 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY <dictionary> */`` will be
 transformed into ``/*!50633 COLUMN_FORMAT COMPRESSED */``. In this mode the
 dump will contain the necessary SQL statements to create compressed columns,
 but without dictionaries.
 
-When a new :option:`enable-compressed-columns-with-dictionaries` option is
+When a new :ref:`enable-compressed-columns-with-dictionaries` option is
 specified, dump will contain all compressed column attributes and compression
 dictionary.
 
@@ -245,18 +266,18 @@ first time.
   /*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS <dictionary>; */
   /*!50633 CREATE COMPRESSION_DICTIONARY <dictionary>(...); */
 
-Two new options :option:`add-drop-compression-dictionary` and
-:option:`skip-add-drop-compression-dictionary` will control if ``/*!50633 DROP
+Two new options :ref:`add-drop-compression-dictionary` and
+:ref:`skip-add-drop-compression-dictionary` will control if ``/*!50633 DROP
 COMPRESSION_DICTIONARY IF EXISTS <dictionary> */`` part from previous paragraph
-will be skipped or not. By default, :option:`add-drop-compression-dictionary`
+will be skipped or not. By default, :ref:`add-drop-compression-dictionary`
 mode will be used.
 
-When both :option:`enable-compressed-columns-with-dictionaries` and
+When both :ref:`enable-compressed-columns-with-dictionaries` and
 ``--tab=<dir>`` (separate file for each table) options are specified, necessary
 compression dictionaries will be created in each output file using the
 following fragment (regardless of the values of
-:option:`add-drop-compression-dictionary` and
-:option:`skip-add-drop-compression-dictionary` options).
+:ref:`add-drop-compression-dictionary` and
+:ref:`skip-add-drop-compression-dictionary` options).
 
 .. code-block:: mysql
 
@@ -265,46 +286,73 @@ following fragment (regardless of the values of
 Version Specific Information
 ============================
 
-  * :rn:`8.0.13-3`
-    Feature ported from |Percona Server| 5.7.
+  * :ref:`8.0.13-3`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 System Variables
 ================
 
-.. variable:: innodb_compressed_columns_zip_level
+.. _innodb_compressed_columns_zip_level:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :vartype: Numeric
-   :default: 6
-   :range: ``0``-``9``
+.. rubric:: ``innodb_compressed_columns_zip_level``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 6
+   * - Range
+     - ``0``-``9``
 
 This variable is used to specify the compression level used for compressed
 columns. Specifying ``0`` will use no compression, ``1`` the fastest and ``9``
 the best compression. Default value is ``6``.
 
-.. variable:: innodb_compressed_columns_threshold
+.. _innodb_compressed_columns_threshold:
 
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :vartype: Numeric
-   :default: 96
-   :range: ``1`` - ``2^64-1`` (or ``2^32-1`` for 32-bit release)
+.. rubric:: ``innodb_compressed_columns_threshold``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - Yes
+   * - Config file
+     - Yes
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 96
+   * - Range
+     - ``1`` - ``2^64-1`` (or ``2^32-1`` for 32-bit release)
 
 By default a value being inserted will be compressed if its length exceeds
-:variable:`innodb_compressed_columns_threshold` bytes. Otherwise, it will be
+:ref:`innodb_compressed_columns_threshold` bytes. Otherwise, it will be
 stored in raw (uncompressed) form.
 
 Please also notice that because of the nature of some data, its compressed
 representation can be longer than the original value. In this case it does not
-make sense to store such values in compressed form as |Percona Server| would
+make sense to store such values in compressed form as *Percona Server for MySQL* would
 have to waste both memory space and CPU resources for unnecessary
 decompression. Therefore, even if the length of such non-compressible values
-exceeds :variable:`innodb_compressed_columns_threshold`, they will be stored in
+exceeds :ref:`innodb_compressed_columns_threshold`, they will be stored in
 an uncompressed form (however, an attempt to compress them will still be made).
 
 This parameter can be tuned in order to skip unnecessary attempts of data
@@ -315,5 +363,3 @@ compression ratio of their first N bytes.
 
    How to find a good/optimal dictionary for zlib 'setDictionary' when processing a given set of data?
       http://stackoverflow.com/questions/2011653/how-to-find-a-good-optimal-dictionary-for-zlib-setdictionary-when-processing-a
-
-.. |feature| replace:: Compressed columns with dictionaries

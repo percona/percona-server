@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
+
+#include <chrono>
 
 #include <mysql/psi/mysql_thread.h>
 
@@ -49,10 +51,10 @@
 // This is the "global Ndb object", it's main purpose is to open the connection
 // to NDB and keep it open. It also serves as a "factory" for releasing
 // resources
-Ndb *g_ndb = NULL;
+Ndb *g_ndb = nullptr;
 
-Ndb_cluster_connection *g_ndb_cluster_connection = NULL;
-static Ndb_cluster_connection **g_pool = NULL;
+Ndb_cluster_connection *g_ndb_cluster_connection = nullptr;
+static Ndb_cluster_connection **g_pool = nullptr;
 static uint g_pool_alloc = 0;
 static uint g_pool_pos = 0;
 static mysql_mutex_t g_pool_mutex;
@@ -191,14 +193,12 @@ static const char *get_processinfo_path() { return mysqld_unix_port; }
 */
 extern int global_flag_skip_waiting_for_clean_cache;
 
-int ndbcluster_connect(int (*connect_callback)(void),
-                       ulong wait_connected,  // Timeout in seconds
+int ndbcluster_connect(ulong wait_connected,  // Timeout in seconds
                        uint connection_pool_size,
                        const char *connection_pool_nodeids_str,
                        bool optimized_node_select, const char *connect_string,
                        uint force_nodeid, uint recv_thread_activation_threshold,
                        uint data_node_neighbour) {
-  const char mysqld_name[] = "mysqld";
   int res;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d", connect_string,
@@ -243,7 +243,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
   }
   {
     char buf[128];
-    snprintf(buf, sizeof(buf), "%s --server-id=%lu", mysqld_name, server_id);
+    snprintf(buf, sizeof(buf), "mysqld --server-id=%lu", server_id);
     g_ndb_cluster_connection->set_name(buf);
     snprintf(buf, sizeof(buf), "%s%s", processinfo_path, server_id_string);
     g_ndb_cluster_connection->set_service_uri("mysql", processinfo_host,
@@ -303,8 +303,8 @@ int ndbcluster_connect(int (*connect_callback)(void),
       }
       {
         char buf[128];
-        snprintf(buf, sizeof(buf), "%s --server-id=%lu (connection %u)",
-                 mysqld_name, server_id, i + 1);
+        snprintf(buf, sizeof(buf), "mysqld --server-id=%lu (connection %u)",
+                 server_id, i + 1);
         g_pool[i]->set_name(buf);
         const char *uri_sep = server_id ? ";" : "?";
         snprintf(buf, sizeof(buf), "%s%s%sconnection=%u", processinfo_path,
@@ -320,7 +320,6 @@ int ndbcluster_connect(int (*connect_callback)(void),
   }
 
   if (res == 0) {
-    connect_callback();
     for (uint i = 0; i < g_pool_alloc; i++) {
       int node_id = g_pool[i]->node_id();
       if (node_id == 0) {
@@ -344,7 +343,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
         waited = NdbTick_Elapsed(start, now).seconds();
       } while (res != 0 && waited < wait_connected);
 
-      const char *msg = 0;
+      const char *msg = nullptr;
       if (res == 0) {
         msg = "all storage nodes connected";
       } else if (res > 0) {
@@ -356,7 +355,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
     }
   } else if (res == 1) {
     for (uint i = 0; i < g_pool_alloc; i++) {
-      if (g_pool[i]->start_connect_thread(i == 0 ? connect_callback : NULL)) {
+      if (g_pool[i]->start_connect_thread()) {
         ndb_log_error("connection[%u], failed to start connect thread", i);
         DBUG_PRINT("error",
                    ("g_ndb_cluster_connection->start_connect_thread()"));
@@ -385,7 +384,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
 void ndbcluster_disconnect(void) {
   DBUG_TRACE;
   if (g_ndb) delete g_ndb;
-  g_ndb = NULL;
+  g_ndb = nullptr;
   {
     if (g_pool) {
       /* first in pool is the main one, wait with release */
@@ -394,13 +393,13 @@ void ndbcluster_disconnect(void) {
       }
       my_free(g_pool);
       mysql_mutex_destroy(&g_pool_mutex);
-      g_pool = 0;
+      g_pool = nullptr;
     }
     g_pool_alloc = 0;
     g_pool_pos = 0;
   }
   if (g_ndb_cluster_connection) delete g_ndb_cluster_connection;
-  g_ndb_cluster_connection = NULL;
+  g_ndb_cluster_connection = nullptr;
 }
 
 Ndb_cluster_connection *ndb_get_cluster_connection() {
@@ -492,10 +491,10 @@ static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] = {
     {"ndb_transid", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
      MY_I_S_UNSIGNED, "", 0},
 
-    {0, 0, MYSQL_TYPE_NULL, 0, 0, "", 0}};
+    {nullptr, 0, MYSQL_TYPE_NULL, 0, 0, "", 0}};
 
 static int ndb_transid_mysql_connection_map_fill_table(THD *thd,
-                                                       TABLE_LIST *tables,
+                                                       Table_ref *tables,
                                                        Item *) {
   DBUG_TRACE;
 
@@ -506,7 +505,7 @@ static int ndb_transid_mysql_connection_map_fill_table(THD *thd,
   for (uint i = 0; i < g_pool_alloc; i++) {
     if (g_pool[i]) {
       g_pool[i]->lock_ndb_objects();
-      const Ndb *p = g_pool[i]->get_next_ndb_object(0);
+      const Ndb *p = g_pool[i]->get_next_ndb_object(nullptr);
       while (p) {
         Uint64 connection_id = p->getCustomData64();
         if ((connection_id == self) || all) {
@@ -550,10 +549,37 @@ struct st_mysql_plugin ndb_transid_mysql_connection_map_table = {
     "Map between MySQL connection ID and NDB transaction ID",
     PLUGIN_LICENSE_GPL,
     ndb_transid_mysql_connection_map_init,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     0x0001,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
     0};
+
+/**
+  @brief Check if there are any live data nodes in cluster with the given
+  cluster connection
+
+  @param connection         Cluster connection that needs to be checked.
+  @param max_wait_seconds   Maximum time to wait for the connection to get
+                            ready
+
+  @return true if a live data node is found within the given time
+*/
+bool ndb_connection_is_ready(Ndb_cluster_connection *connection,
+                             uint max_wait_seconds) {
+  const auto timeout_time =
+      std::chrono::steady_clock::now() + std::chrono::seconds(max_wait_seconds);
+
+  while (std::chrono::steady_clock::now() < timeout_time) {
+    if (connection->get_no_ready() > 0) {
+      // At least one data node is alive
+      return true;
+    }
+    ndb_milli_sleep(100);
+  }
+
+  // Could not find alive data node(s) within given time
+  return false;
+}

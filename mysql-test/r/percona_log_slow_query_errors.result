@@ -1,0 +1,14 @@
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SET SESSION log_query_errors="1146";
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1 (i int);
+SET SESSION log_query_errors="ALL";
+SELECT j from t1;
+ERROR 42S22: Unknown column 'j' in 'field list'
+[log_grep.inc] file: mysqld-slow.log pattern: SELECT \* FROM t1
+[log_grep.inc] lines:   1
+[log_grep.inc] file: mysqld-slow.log pattern: SELECT j from t1
+[log_grep.inc] lines:   1
+DROP TABLE t1;

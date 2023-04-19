@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,16 +40,17 @@ Is the entry point. Forwards the job to explain_query_expression().
 
 (2) explain_query_expression()
 
-Is for a Query_expression, prepares, optimizes, explains one JOIN for
-each "top-level" Query_blocks of the unit (like: all SELECTs of a
-UNION; but not subqueries), and one JOIN for the fake Query_block of
-UNION); each JOIN explain (JOIN::exec()) calls explain_query_specification()
+Is for a Query_expression, prepares, optimizes, explains one JOIN for each
+"top-level" Query_blocks of the unit (like: all SELECTs of a UNION; but not
+subqueries), and one or more JOIN for the post processing block Query_block of
+set operations (e.g. UNION), see query_term.h; each JOIN explain (JOIN::exec())
+calls explain_query_specification()
 
 (3) explain_query_specification()
 
-Is for a single Query_block (fake or not). It needs a prepared and
-optimized JOIN, for which it builds the EXPLAIN rows. But it also
-launches the EXPLAIN process for "inner units" (==subqueries of this
+Is for a single Query_block (post processing or not, see query_term.h).
+It needs a prepared and optimized JOIN, for which it builds the EXPLAIN rows.
+But it also launches the EXPLAIN process for "inner units" (==subqueries of this
 Query_block), by calling explain_query_expression() for each of them.
 */
 
@@ -59,20 +60,20 @@ Query_block), by calling explain_query_expression() for each of them.
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"  // Query_result_send
-#include "sql/row_iterator.h"
-#include "sql/sql_cmd.h"  // Sql_cmd
+#include "sql/sql_cmd.h"       // Sql_cmd
+#include "sql/sql_opt_exec_shared.h"
 #include "sys/types.h"
 
 class Item;
-class JOIN;
-class QEP_TAB;
 class Query_block;
 class Query_expression;
+class Query_term;
+class String;
 class THD;
 struct AccessPath;
 struct TABLE;
 template <class T>
-class List;
+class mem_root_deque;
 
 extern const char *join_type_str[];
 
@@ -84,7 +85,9 @@ class Modification_plan {
       mod_type;  ///< Modification type - MT_INSERT/MT_UPDATE/etc
   TABLE *table;  ///< Table to modify
 
-  QEP_TAB *tab;               ///< QUICK access method + WHERE clause
+  enum join_type type = JT_UNKNOWN;
+  AccessPath *range_scan{nullptr};
+  Item *condition{nullptr};
   uint key;                   ///< Key to use
   ha_rows limit;              ///< Limit
   bool need_tmp_table;        ///< Whether tmp table needs to be used
@@ -94,10 +97,11 @@ class Modification_plan {
   bool zero_result;           ///< true <=> plan will not be executed
   ha_rows examined_rows;  ///< # of rows expected to be examined in the table
 
-  Modification_plan(THD *thd_arg, enum_mod_type mt, QEP_TAB *qep_tab,
-                    uint key_arg, ha_rows limit_arg, bool need_tmp_table_arg,
-                    bool need_sort_arg, bool used_key_is_modified_arg,
-                    ha_rows rows);
+  Modification_plan(THD *thd_arg, enum_mod_type mt, TABLE *table_arg,
+                    enum join_type type_arg, AccessPath *quick_arg,
+                    Item *condition_arg, uint key_arg, ha_rows limit_arg,
+                    bool need_tmp_table_arg, bool need_sort_arg,
+                    bool used_key_is_modified_arg, ha_rows rows);
 
   Modification_plan(THD *thd_arg, enum_mod_type mt, TABLE *table_arg,
                     const char *message_arg, bool zero_result_arg,
@@ -155,26 +159,19 @@ class Query_result_explain final : public Query_result_send {
            interceptor->start_execution(thd);
   }
 
-  bool optimize() override {
-    return Query_result_send::optimize() || interceptor->optimize();
-  }
-
-  void cleanup(THD *thd) override {
-    Query_result_send::cleanup(thd);
-    interceptor->cleanup(thd);
+  void cleanup() override {
+    Query_result_send::cleanup();
+    interceptor->cleanup();
   }
 };
 
-bool explain_no_table(THD *explain_thd, const THD *query_thd,
-                      Query_block *query_block, const char *message,
-                      enum_parsing_context ctx);
 bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
                                        const Modification_plan *plan,
                                        Query_block *select);
 bool explain_query(THD *explain_thd, const THD *query_thd,
                    Query_expression *unit);
 bool explain_query_specification(THD *explain_thd, const THD *query_thd,
-                                 Query_block *query_block,
+                                 Query_term *query_term,
                                  enum_parsing_context ctx);
 
 class Sql_cmd_explain_other_thread final : public Sql_cmd {
@@ -192,5 +189,9 @@ class Sql_cmd_explain_other_thread final : public Sql_cmd {
   /// connection_id in EXPLAIN FOR CONNECTION \<connection_id\>
   my_thread_id m_thread_id;
 };
+
+// Used to generate the "query" field in JSON explain object.
+void print_query_for_explain(const THD *query_thd, Query_expression *unit,
+                             String *str);
 
 #endif /* OPT_EXPLAIN_INCLUDED */

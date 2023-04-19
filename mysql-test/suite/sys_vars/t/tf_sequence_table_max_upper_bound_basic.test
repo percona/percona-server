@@ -151,7 +151,7 @@ SET global.tf_sequence_table_max_upper_bound = 8000;
 --Error ER_UNKNOWN_TABLE
 SELECT global.tf_sequence_table_max_upper_bound;
 --Error ER_BAD_FIELD_ERROR
-SELECT tf_sequence_table_max_upper_bound = @@session.tf_sequence_table_max_upper_bound;
+SELECT tf_sequence_table_max_upper_bound;
 
 
 --echo ##############################

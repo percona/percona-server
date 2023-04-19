@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,14 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
 #include "sql/sql_plist.h"
-#include "unittest/gunit/test_utils.h"
+#include "template_utils.h"
 
 namespace sql_plist_unittest {
 
@@ -73,8 +70,8 @@ class IPListTest : public ::testing::Test {
   I_P_ListCountedPushBack<int>::Type::Iterator m_int_list_iter;
 
  private:
-  // Declares (but does not define) copy constructor and assignment operator.
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(IPListTest);
+  IPListTest(IPListTest const &) = delete;
+  IPListTest &operator=(IPListTest const &) = delete;
 };
 
 // Allow construction of test messages via the << operator.

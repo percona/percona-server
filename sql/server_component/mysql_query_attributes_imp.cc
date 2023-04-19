@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ class iterator {
     Create a cursor.
 
     The name is expected to be in UTF8mb4's primary collation.
-    Sets the iterator to the first maching element (if any) or at eof.
+    Sets the iterator to the first matching element (if any) or at eof.
 
     @param hthd the thread handle
     @param name the query attribute name to look for and set the iterator to
@@ -214,7 +214,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
       break;
     case MYSQL_TYPE_LONGLONG:
       if (param->length == 8) {
-        int32 value = sint8korr(param->value);
+        longlong value = sint8korr(param->value);
         str = new String[1];
         str->set_int(value, param->unsigned_type != 0, cs);
       }

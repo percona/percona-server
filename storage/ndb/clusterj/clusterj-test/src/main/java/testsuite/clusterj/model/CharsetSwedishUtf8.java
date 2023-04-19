@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+ *  Copyright (c) 2014, 2022, Oracle and/or its affiliates.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ drop table if exists charsetswedishutf8;
 create table charsetswedishutf8 (
  id int not null primary key,
  swedishcolumn char(4) COLLATE latin1_swedish_ci,
- utfcolumn char(4) COLLATE utf8_general_ci
+ utfcolumn char(4) COLLATE utf8mb3_general_ci
 ) ENGINE=ndbcluster;
 
 */

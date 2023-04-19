@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,23 +65,23 @@ class Schema;
 
 typedef std::set<handlerton *> post_ddl_htons_t;
 
-static TABLE_LIST *rename_tables(
-    THD *thd, TABLE_LIST *table_list, bool *int_commit_done,
+static Table_ref *rename_tables(
+    THD *thd, Table_ref *table_list, bool *int_commit_done,
     post_ddl_htons_t *post_ddl_htons,
     Foreign_key_parents_invalidator *fk_invalidator);
 
-static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
+static Table_ref *reverse_table_list(Table_ref *table_list);
 
 namespace {
 struct table_list_hash {
-  size_t operator()(const TABLE_LIST *table) const {
+  size_t operator()(const Table_ref *table) const {
     return static_cast<size_t>(murmur3_32(table->mdl_request.key.ptr(),
                                           table->mdl_request.key.length(), 0));
   }
 };
 
 struct table_list_equal {
-  bool operator()(const TABLE_LIST *a, const TABLE_LIST *b) const {
+  bool operator()(const Table_ref *a, const Table_ref *b) const {
     return a->mdl_request.key.is_equal(&b->mdl_request.key);
   }
 };
@@ -89,7 +89,7 @@ struct table_list_equal {
 
 /**
   Check if connection owns SNRW metadata lock on table or view.
-  Report apropriate error if not.
+  Report appropriate error if not.
 
   @note Unlike find_table_for_mdl_upgrade() this call can handle views.
 */
@@ -117,7 +117,7 @@ static bool check_if_owns_upgradable_mdl(THD *thd, const char *db,
 */
 
 static void find_and_set_explicit_duration_for_schema_mdl(
-    THD *thd, TABLE_LIST *table,
+    THD *thd, Table_ref *table,
     Prealloced_array<MDL_request *, 1> *schema_reqs) {
   auto same_db = [table](const MDL_request *mdl_request) {
     return table->db_length == mdl_request->key.db_name_length() &&
@@ -152,8 +152,8 @@ static void find_and_set_explicit_duration_for_schema_mdl(
   @return True - on failure, false - on success.
 */
 
-bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
-  TABLE_LIST *ren_table = nullptr;
+bool mysql_rename_tables(THD *thd, Table_ref *table_list) {
+  Table_ref *ren_table = nullptr;
   DBUG_TRACE;
 
   mysql_ha_rm_tables(thd, table_list);
@@ -260,10 +260,10 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
       RENAMES TABLES under LOCK TABLES hard to use in 3rd-party online
       ALTER TABLE tools.
     */
-    malloc_unordered_set<TABLE_LIST *, table_list_hash, table_list_equal>
+    malloc_unordered_set<Table_ref *, table_list_hash, table_list_equal>
         new_names(PSI_INSTRUMENT_ME);
 
-    TABLE_LIST *new_table;
+    Table_ref *new_table;
     for (ren_table = table_list; ren_table; ren_table = new_table->next_local) {
       new_table = ren_table->next_local;
 
@@ -292,7 +292,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
     return true;
 
   const dd::Table *table_def = nullptr;
-  for (TABLE_LIST *table = table_list; table && table->next_local;
+  for (Table_ref *table = table_list; table && table->next_local;
        table = table->next_local) {
     if (thd->dd_client()->acquire(table->db, table->table_name, &table_def)) {
       return true;
@@ -327,7 +327,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
   if ((ren_table = rename_tables(thd, table_list, &int_commit_done,
                                  &post_ddl_htons, &fk_invalidator))) {
     /* Rename didn't succeed;  rename back the tables in reverse order */
-    TABLE_LIST *table;
+    Table_ref *table;
 
     if (int_commit_done) {
       /* Reverse the table list */
@@ -371,7 +371,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
 
     for (ren_table = table_list; ren_table;
          ren_table = ren_table->next_local->next_local) {
-      TABLE_LIST *new_table = ren_table->next_local;
+      Table_ref *new_table = ren_table->next_local;
       assert(new_table);
 
       uncommitted_tables.add_table(ren_table);
@@ -425,9 +425,9 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
         on them are acquired at LOCK TABLES time and are unaffected by
         RENAME TABLES.
       */
-      malloc_unordered_set<TABLE_LIST *, table_list_hash, table_list_equal>
+      malloc_unordered_set<Table_ref *, table_list_hash, table_list_equal>
           to_release(PSI_INSTRUMENT_ME), to_keep(PSI_INSTRUMENT_ME);
-      TABLE_LIST *new_table;
+      Table_ref *new_table;
       for (ren_table = table_list; ren_table;
            ren_table = new_table->next_local) {
         new_table = ren_table->next_local;
@@ -442,12 +442,12 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
 
       error = thd->locked_tables_list.reopen_tables(thd);
 
-      for (TABLE_LIST *t : to_release) {
+      for (Table_ref *t : to_release) {
         // Also releases locks with EXPLICIT duration for the same name.
         thd->mdl_context.release_all_locks_for_name(t->mdl_request.ticket);
       }
 
-      for (TABLE_LIST *t : to_keep) {
+      for (Table_ref *t : to_keep) {
         thd->mdl_context.set_lock_duration(t->mdl_request.ticket, MDL_EXPLICIT);
         t->mdl_request.ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
         find_and_set_explicit_duration_for_schema_mdl(thd, t, &schema_reqs);
@@ -482,15 +482,15 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
         Prune list of duplicates first as setting explicit duration for the
         same MDL ticket twice is disallowed.
       */
-      malloc_unordered_set<TABLE_LIST *, table_list_hash, table_list_equal>
+      malloc_unordered_set<Table_ref *, table_list_hash, table_list_equal>
           to_keep(PSI_INSTRUMENT_ME);
-      TABLE_LIST *new_table;
+      Table_ref *new_table;
       for (ren_table = table_list; ren_table;
            ren_table = new_table->next_local) {
         new_table = ren_table->next_local;
         to_keep.insert(new_table);
       }
-      for (TABLE_LIST *t : to_keep) {
+      for (Table_ref *t : to_keep) {
         thd->mdl_context.set_lock_duration(t->mdl_request.ticket, MDL_EXPLICIT);
         t->mdl_request.ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
         find_and_set_explicit_duration_for_schema_mdl(thd, t, &schema_reqs);
@@ -513,11 +513,11 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
   RETURN
     pointer to new (reversed) list
 */
-static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list) {
-  TABLE_LIST *prev = nullptr;
+static Table_ref *reverse_table_list(Table_ref *table_list) {
+  Table_ref *prev = nullptr;
 
   while (table_list) {
-    TABLE_LIST *next = table_list->next_local;
+    Table_ref *next = table_list->next_local;
     table_list->next_local = prev;
     prev = table_list;
     table_list = next;
@@ -548,7 +548,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list) {
   @return False on success, True if rename failed.
 */
 
-static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
+static bool do_rename(THD *thd, Table_ref *ren_table, const char *new_db,
                       const char *new_table_name, const char *new_table_alias,
                       bool *int_commit_done,
                       std::set<handlerton *> *post_ddl_htons,
@@ -736,9 +736,37 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
         }
       }
 
-      if (lock_check_constraint_names_for_rename(thd, ren_table->db, old_alias,
-                                                 from_table, new_db, new_alias))
+      if (lock_check_constraint_names_for_rename(
+              thd, ren_table->db, old_alias, from_table, new_db, new_alias)) {
+        /*
+          Preserve the invariant that FK invalidator is empty after each
+          step of non-atomic RENAME TABLE.
+        */
+        fk_invalidator->clear();
         return true;
+      }
+
+      /*
+        Orphan non-self-referencing foreign keys may become non-orphan/adopted
+        self-referencing foreign keys. Check that table has compatible
+        referenced column and parent key for such foreign key. Also, update
+        DD.UNIQUE_CONSTRAINT_NAME.
+      */
+      if ((hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&
+          adjust_adopted_self_ref_fk_for_simple_rename_table(
+              thd, ren_table->db, old_alias, new_db, new_alias, hton)) {
+        if (*int_commit_done) {
+          Implicit_substatement_state_guard substatement_guard(thd);
+          trans_rollback_stmt(thd);
+          trans_rollback(thd);
+          /*
+            Preserve the invariant that FK invalidator is empty after each
+            step of non-atomic RENAME TABLE.
+          */
+          fk_invalidator->clear();
+        }
+        return true;
+      }
 
       /*
         We commit changes to data-dictionary immediately after renaming
@@ -820,7 +848,8 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
 
       break;
     }
-    case dd::enum_table_type::SYSTEM_VIEW:  // Fall through
+    case dd::enum_table_type::SYSTEM_VIEW:
+      [[fallthrough]];
     case dd::enum_table_type::USER_VIEW: {
       // Changing the schema of a view is not allowed.
       if (strcmp(ren_table->db, new_db)) {
@@ -892,13 +921,13 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
           goes wrong.
 */
 
-static TABLE_LIST *rename_tables(
-    THD *thd, TABLE_LIST *table_list, bool *int_commit_done,
-    post_ddl_htons_t *post_ddl_htons,
-    Foreign_key_parents_invalidator *fk_invalidator)
+static Table_ref *rename_tables(THD *thd, Table_ref *table_list,
+                                bool *int_commit_done,
+                                post_ddl_htons_t *post_ddl_htons,
+                                Foreign_key_parents_invalidator *fk_invalidator)
 
 {
-  TABLE_LIST *ren_table, *new_table;
+  Table_ref *ren_table, *new_table;
 
   DBUG_TRACE;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,10 +34,10 @@ class Base {
   int id() const { return 1; }
 
   // Needed to make compiler understand that it's a polymorphic class.
-  virtual ~Base() {}
+  virtual ~Base() = default;
 
   // To silence -Wdeprecated-copy.
-  Base() {}
+  Base() = default;
   Base(const Base &) = default;
 };
 
@@ -122,6 +122,11 @@ TEST(TemplateUtilsTest, FindTrimmedRangeString) {
   s = " ba  r   ";
   EXPECT_EQ(std::make_pair(s.begin() + 1, s.begin() + 6),
             myu::FindTrimmedRange(s.begin(), s.end(), myu::IsSpace));
+
+  auto begin_end = myu::FindTrimmedRange(s.cbegin(), s.cend(), myu::IsSpace);
+  EXPECT_NE(begin_end.first, begin_end.second);
+  EXPECT_EQ(std::string("ba  r"),
+            std::string(begin_end.first, begin_end.second));
 }
 
 using StrVec = std::vector<std::string>;

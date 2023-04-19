@@ -281,13 +281,11 @@ set optimizer_switch='mrr=on,mrr_cost_based=off';
 --echo # Check statistics without hint
 FLUSH STATUS;
 SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
---skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
---skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 set optimizer_switch=default;
@@ -328,13 +326,11 @@ FLUSH STATUS;
 --disable_result_log
 SELECT /*+ SET_VAR(sort_buffer_size=32768) */f1 FROM t1 ORDER BY f1;
 --enable_result_log
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Sort_merge_passes';
 FLUSH STATUS;
 --disable_result_log
 SELECT f1 FROM t1 ORDER BY f1;
 --enable_result_log
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Sort_merge_passes';
 DROP TABLE t1;
 CALL test_hint("SET_VAR(sort_buffer_size=32768)", "sort_buffer_size");
@@ -355,7 +351,6 @@ INSERT INTO t1 VALUES (1, 'string');
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
---skip_if_hypergraph  # Does not support these hints.
 --error ER_TOO_BIG_SELECT
 SELECT /*+ SET_VAR(sql_big_selects=0) SET_VAR(max_join_size=1) */ * FROM t1 a, t1 b;
 DROP TABLE t1;
@@ -437,9 +432,11 @@ INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
                                   (11.0, 11, NULL);
 ANALYZE TABLE t1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT
 id, AVG(id) over w `avg`, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt
 FROM t1 WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT /*+ SET_VAR(windowing_use_high_precision=OFF)*/
 d, AVG(d) over w `avg`, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt
 FROM t1 WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
@@ -487,3 +484,16 @@ SELECT @@time_zone;
 DROP TABLE t1;
 
 SET time_zone = default;
+
+--echo #
+--echo # Bug #34370403 Error switch hint parse
+--echo #
+
+CREATE TABLE t(c1 int);
+ANALYZE TABLE t;
+explain select /*+ set_var(optimizer_switch='prefer_ordering_index=off') */ *
+from t;
+set @@character_set_client=@@character_set_system;
+explain select /*+ set_var(optimizer_switch='prefer_ordering_index=off') */ *
+from t;
+DROP TABLE t;

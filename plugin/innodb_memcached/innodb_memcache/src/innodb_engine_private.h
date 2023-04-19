@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ static void innodb_clean_engine(
     void *conn             /*!< in: item to free */
 );
 /*******************************************************************/ /**
- Free value assocaited with key */
+ Free value associated with key */
 static void innodb_free_item(
     /*=====================*/
     void *item); /*!< in: Item to be freed */

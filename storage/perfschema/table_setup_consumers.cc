@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@
 #include "storage/perfschema/pfs_events_waits.h"
 #include "storage/perfschema/pfs_instr.h"
 
-#define COUNT_SETUP_CONSUMERS 15
+#define COUNT_SETUP_CONSUMERS 16
 
 static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS] = {
     {{STRING_WITH_LEN("events_stages_current")},
@@ -54,6 +54,10 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS] = {
      &flag_events_stages_history_long,
      false,
      true},
+    {{STRING_WITH_LEN("events_statements_cpu")},
+     &flag_events_statements_cpu,
+     false,
+     false},
     {{STRING_WITH_LEN("events_statements_current")},
      &flag_events_statements_current,
      false,
@@ -187,7 +191,7 @@ int table_setup_consumers::rnd_pos(const void *pos) {
   return 0;
 }
 
-int table_setup_consumers::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_setup_consumers::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_setup_consumers *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_setup_consumers);
@@ -224,7 +228,7 @@ int table_setup_consumers::read_row_values(TABLE *table, unsigned char *,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row->m_name.str, m_row->m_name.length);
+          set_field_varchar_utf8mb4(f, m_row->m_name.str, m_row->m_name.length);
           break;
         case 1: /* ENABLED */
           set_field_enum(f, (*m_row->m_enabled_ptr) ? ENUM_YES : ENUM_NO);
@@ -249,8 +253,6 @@ int table_setup_consumers::update_row_values(TABLE *table,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0: /* NAME */
-          return HA_ERR_WRONG_COMMAND;
         case 1: /* ENABLED */
         {
           value = (enum_yes_no)get_field_enum(f);
@@ -258,7 +260,7 @@ int table_setup_consumers::update_row_values(TABLE *table,
           break;
         }
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }

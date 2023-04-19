@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -689,7 +689,20 @@ sub combinations_from_file($) {
     foreach my $option ($group->options()) {
       push(@{ $comb->{comb_opt} }, $option->option());
     }
-    push(@combinations, $comb);
+    if ($::opt_only_combinations) {
+      for my $only_combination (split(",", $::opt_only_combinations)) {
+        if ($comb->{name} eq $only_combination) {
+          mtr_report(" - Only-combination '$only_combination' added");
+          push(@combinations, $comb);
+        }
+      }
+    } else {
+      push(@combinations, $comb);
+    }
+  }
+
+  if ($::opt_only_combinations && !@combinations) {
+    mtr_error("Couldn't find '$::opt_only_combinations' for $combination_file file.");
   }
 
   return @combinations;

@@ -9,7 +9,7 @@
 # the current server options do not concide with the next test options.
 #
 --let $restart_parameters= restart:--log-error=$log_error_path
---let $restart_hide_args= 1
+--let $do_not_echo_parameters= 1
 --source include/restart_mysqld.inc
 
 SET @innodb_lock_wait_timeout_saved = @@GLOBAL.innodb_lock_wait_timeout;

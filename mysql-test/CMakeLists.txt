@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +47,10 @@ IF(INSTALL_MYSQLTESTDIR)
       COMPONENT TestReadme
       RENAME LICENSE-test
       )
-    INSTALL(FILES ${CMAKE_SOURCE_DIR}/README
+    INSTALL(FILES ${CMAKE_SOURCE_DIR}/README.md
       DESTINATION ${INSTALL_DOCREADMEDIR}
       COMPONENT TestReadme
-      RENAME README-test
+      RENAME README.md-test
       )
   ENDIF()
 ENDIF()
@@ -123,35 +123,6 @@ ADD_CUSTOM_TARGET(test-mtr
 ## ADD_TEST(xxx perl ./mysql-test-run.pl --force
 ##          ${VS_CONFIG} ${DEBUG_SERVER} ${EXP})
 
-
-# Process .in files with includes in collections/
-
-MACRO(PROCESS_COLLECTION_INCLUDE collin collection)
-  FILE(STRINGS ${collin} inlines)
-  FOREACH(line ${inlines})
-    IF(${line} MATCHES "#include .*")
-      STRING(REPLACE "#include " "collections/" incfile ${line})
-      FILE(READ ${incfile} contents)
-      FILE(APPEND ${collection} "${contents}")
-    ELSE()
-      FILE(APPEND ${collection} "${line}\n")
-    ENDIF()
-  ENDFOREACH()
-ENDMACRO()
-
-# For internal testing in PB2, append collections files
-IF(DEFINED ENV{PB2WORKDIR})
-  FILE(GLOB infiles "collections/*.in")
-  FOREACH(collin ${infiles})
-    STRING(REPLACE ".in" "" collection ${collin})
-    STRING(REPLACE ".in" ".done" colldone ${collin})
-    # Only generate file once
-    IF(NOT EXISTS ${colldone})
-      PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
-      FILE(APPEND ${colldone} "${collin}\n")
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
 
 # With different MAX_INDEXES values, server might behave differently in
 # certain cases. 'max_indexes.inc' file should be updated accordingly to

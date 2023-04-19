@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,8 @@ static char *group_replication_switch_to_multi_primary_mode(
 
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
-      &group_action, &execution_message_area);
+      &group_action, &execution_message_area,
+      Group_action_message::ACTION_UDF_SWITCH_TO_MULTI_PRIMARY_MODE);
   if (log_group_action_result_message(
           &execution_message_area,
           "group_replication_switch_to_multi_primary_mode", result, length)) {

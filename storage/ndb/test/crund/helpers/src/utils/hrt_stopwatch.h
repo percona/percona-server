@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,13 +83,13 @@ extern int hrt_sw_pushmark(hrt_stopwatch* sw);
 extern void hrt_sw_popmark(hrt_stopwatch* sw);
 
 /**
- * Returns the real time amount between two timemarks in microseonds
+ * Returns the real time amount between two timemarks in microseconds
  * (i.e., y - x).
  */
 extern double hrt_sw_rtmicros(const hrt_stopwatch* sw, int y, int x);
 
 /**
- * Returns the cpu time amount between two timemarks in microseonds
+ * Returns the cpu time amount between two timemarks in microseconds
  * (i.e., y - x).
  */
 extern double hrt_sw_ctmicros(const hrt_stopwatch* sw, int y, int x);

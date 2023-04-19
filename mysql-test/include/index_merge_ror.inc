@@ -133,6 +133,10 @@ analyze table t1;
 --echo # One row results tests for cases where a single row matches all conditions
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
   explain select key1,key2 from t1 where key1=100 and key2=100;
 }
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -141,6 +145,7 @@ if (!$skip_ror_EXPLAIN_for_MyRocks)
   explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
   # Mask cost values since it varies between runs how much of the indexes
   # are cached in InnoDB's buffer pool
+  --skip_if_hypergraph  # Depends on the query plan.
   --replace_regex /(_cost": )"[0-9.]+"/\1"#"/
   explain format=json select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 }
@@ -163,6 +168,10 @@ analyze table t1;
 --echo #  ROR-intersection, not covering
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
   explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
 }
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
@@ -170,6 +179,10 @@ select key1,key2,filler1 from t1 where key1=100 and key2=100;
 --echo #  ROR-intersection, covering
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
   explain select key1,key2 from t1 where key1=100 and key2=100;
 }
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -258,6 +271,10 @@ select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=1
 --echo # ROR-intersection with empty result
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
+  if ($index_merge_random_rows_in_EXPLAIN)
+  {
+    --replace_column 10 # 11 #
+  }
   explain select key1,key2 from t1 where key1=100 and key2=100;
 }
 select key1,key2 from t1 where key1=100 and key2=100;

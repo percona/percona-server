@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -58,7 +58,7 @@ Plugin_table table_replication_applier_global_filters::m_table_def(
     "  FILTER_RULE LONGTEXT not null,\n"
     "  CONFIGURED_BY ENUM('STARTUP_OPTIONS',\n"
     "                     'CHANGE_REPLICATION_FILTER') not null,\n"
-    "  ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0\n",
+    "  ACTIVE_SINCE TIMESTAMP(6) not null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -92,7 +92,7 @@ table_replication_applier_global_filters::
       m_next_pos(0) {}
 
 table_replication_applier_global_filters::
-    ~table_replication_applier_global_filters() {}
+    ~table_replication_applier_global_filters() = default;
 
 void table_replication_applier_global_filters::reset_position(void) {
   m_pos.m_index = 0;
@@ -183,7 +183,8 @@ int table_replication_applier_global_filters::read_row_values(
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* filter_name */
-          set_field_char_utf8(f, m_row.filter_name, m_row.filter_name_length);
+          set_field_char_utf8mb4(f, m_row.filter_name,
+                                 m_row.filter_name_length);
           break;
         case 1: /* filter_rule */
           if (!m_row.filter_rule.is_empty())

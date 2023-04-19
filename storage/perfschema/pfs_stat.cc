@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -398,6 +398,29 @@ void PFS_memory_monitoring_stat::reset() {
   m_high_size_used = 0;
 }
 
+void PFS_session_all_memory_stat::reset() {
+  m_controlled.reset();
+  m_total.reset();
+}
+
+void PFS_session_all_memory_stat::count_controlled_alloc(size_t size) {
+  m_controlled.count_alloc(size);
+  m_total.count_alloc(size);
+}
+
+void PFS_session_all_memory_stat::count_uncontrolled_alloc(size_t size) {
+  m_total.count_alloc(size);
+}
+
+void PFS_session_all_memory_stat::count_controlled_free(size_t size) {
+  m_controlled.count_free(size);
+  m_total.count_free(size);
+}
+
+void PFS_session_all_memory_stat::count_uncontrolled_free(size_t size) {
+  m_total.count_free(size);
+}
+
 void PFS_memory_monitoring_stat::normalize(bool global) {
   if (m_free_count_capacity > m_missing_free_count_capacity) {
     m_free_count_capacity -= m_missing_free_count_capacity;
@@ -428,14 +451,6 @@ void PFS_memory_monitoring_stat::normalize(bool global) {
     }
   }
 }
-
-// Missing overload for Studio 12.6 Sun C++ 5.15
-#if defined(__SUNPRO_CC) && (__SUNPRO_CC == 0x5150)
-inline size_t &operator+=(size_t &target, const std::atomic<size_t> &val) {
-  target += val.load();
-  return target;
-}
-#endif
 
 void memory_partial_aggregate(PFS_memory_safe_stat *from,
                               PFS_memory_shared_stat *stat) {

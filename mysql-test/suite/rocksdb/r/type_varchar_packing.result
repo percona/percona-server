@@ -608,6 +608,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_cp932;
 # Testing character set "dec8" collation "dec8_bin" padding "PAD SPACE"
 CREATE TABLE t_dec8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET dec8 COLLATE dec8_bin;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_dec8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_dec8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_dec8.PRIMARY'
@@ -629,6 +632,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_dec8;
 # Testing character set "dec8" collation "dec8_swedish_ci" padding "PAD SPACE"
 CREATE TABLE t_dec8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET dec8 COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_dec8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_dec8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_dec8.PRIMARY'
@@ -1007,6 +1013,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_hebrew;
 # Testing character set "hp8" collation "hp8_bin" padding "PAD SPACE"
 CREATE TABLE t_hp8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET hp8 COLLATE hp8_bin;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_bin' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_hp8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_hp8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_hp8.PRIMARY'
@@ -1028,6 +1037,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_hp8;
 # Testing character set "hp8" collation "hp8_english_ci" padding "PAD SPACE"
 CREATE TABLE t_hp8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET hp8 COLLATE hp8_english_ci;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_hp8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_hp8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_hp8.PRIMARY'
@@ -1553,6 +1565,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_latin7;
 # Testing character set "macce" collation "macce_bin" padding "PAD SPACE"
 CREATE TABLE t_macce (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET macce COLLATE macce_bin;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_macce VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macce VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_macce.PRIMARY'
@@ -1574,6 +1589,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_macce;
 # Testing character set "macce" collation "macce_general_ci" padding "PAD SPACE"
 CREATE TABLE t_macce (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET macce COLLATE macce_general_ci;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_macce VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macce VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_macce.PRIMARY'
@@ -1595,6 +1613,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_macce;
 # Testing character set "macroman" collation "macroman_bin" padding "PAD SPACE"
 CREATE TABLE t_macroman (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET macroman COLLATE macroman_bin;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_macroman VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macroman VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_macroman.PRIMARY'
@@ -1616,6 +1637,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_macroman;
 # Testing character set "macroman" collation "macroman_general_ci" padding "PAD SPACE"
 CREATE TABLE t_macroman (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET macroman COLLATE macroman_general_ci;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_macroman VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macroman VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_macroman.PRIMARY'
@@ -1763,6 +1787,9 @@ c          	11	6320202020202020202020	c	1	63	c          	11	63202020202020202020
 DROP TABLE t_tis620;
 # Testing character set "ucs2" collation "ucs2_bin" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_bin;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1784,6 +1811,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_croatian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_croatian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_croatian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1805,6 +1835,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_czech_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_czech_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1826,6 +1859,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_danish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_danish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1847,6 +1883,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_esperanto_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_esperanto_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_esperanto_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1868,6 +1907,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_estonian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_estonian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_estonian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1889,6 +1931,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_general_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_general_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1910,6 +1955,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_general_mysql500_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_general_mysql500_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_mysql500_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1931,6 +1979,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_german2_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_german2_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_german2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1952,6 +2003,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_hungarian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_hungarian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_hungarian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1973,6 +2027,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_icelandic_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_icelandic_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_icelandic_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -1994,6 +2051,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_latvian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_latvian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_latvian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2015,6 +2075,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_lithuanian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_lithuanian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_lithuanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2036,6 +2099,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_persian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_persian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2057,6 +2123,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_polish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_polish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2078,6 +2147,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_romanian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_romanian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_romanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2099,6 +2171,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_roman_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_roman_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_roman_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2120,6 +2195,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_sinhala_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_sinhala_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_sinhala_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2141,6 +2219,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_slovak_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_slovak_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_slovak_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2162,6 +2243,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_slovenian_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_slovenian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_slovenian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2183,6 +2267,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_spanish2_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_spanish2_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_spanish2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2204,6 +2291,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_spanish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_spanish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_spanish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2225,6 +2315,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_swedish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_swedish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2246,6 +2339,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_turkish_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_turkish_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_turkish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2267,6 +2363,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_unicode_520_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_unicode_520_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_520_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2288,6 +2387,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_unicode_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_unicode_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -2309,6 +2411,9 @@ c          	22	00630020002000200020002000200020002000200020	c	2	0063	c          
 DROP TABLE t_ucs2;
 # Testing character set "ucs2" collation "ucs2_vietnamese_ci" padding "PAD SPACE"
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET ucs2 COLLATE ucs2_vietnamese_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_vietnamese_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
@@ -3504,6 +3609,678 @@ a 	8	0000006100000020	a	4	00000061	a 	8	0000006100000020	a	4	00000061
 b  	12	000000620000002000000020	b	4	00000062	b  	12	000000620000002000000020	b	4	00000062
 c          	44	0000006300000020000000200000002000000020000000200000002000000020000000200000002000000020	c	4	00000063	c          	44	0000006300000020000000200000002000000020000000200000002000000020000000200000002000000020	c	4	00000063
 DROP TABLE t_utf32;
+# Testing character set "utf8mb3" collation "utf8mb3_bin" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_bin;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_croatian_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_croatian_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_croatian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_czech_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_czech_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_danish_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_danish_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_esperanto_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_esperanto_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_esperanto_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_estonian_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_estonian_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_general_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_general_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_general_mysql500_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_general_mysql500_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_general_mysql500_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_german2_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_german2_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_german2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_hungarian_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_hungarian_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_icelandic_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_icelandic_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_latvian_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_latvian_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_lithuanian_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_lithuanian_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_persian_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_persian_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_polish_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_polish_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_romanian_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_romanian_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_roman_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_roman_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_sinhala_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_sinhala_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_sinhala_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_slovak_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_slovak_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_slovenian_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_slovenian_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_spanish2_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_spanish2_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_spanish_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_spanish_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_swedish_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_swedish_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_tolower_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_tolower_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_turkish_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_turkish_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_unicode_520_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_unicode_520_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_unicode_520_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_unicode_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_unicode_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
+# Testing character set "utf8mb3" collation "utf8mb3_vietnamese_ci" padding "PAD SPACE"
+CREATE TABLE t_utf8mb3 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb3 COLLATE utf8mb3_vietnamese_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_vietnamese_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_utf8mb3 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb3 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb3 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb3 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb3 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb3.PRIMARY'
+INSERT INTO t_utf8mb3 VALUES('c          ', 'c          ', 'c          ', 'c          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb3;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb3;
 # Testing character set "utf8mb4" collation "utf8mb4_0900_ai_ci" padding "NO PAD"
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
@@ -3542,6 +4319,44 @@ a          	11	6120202020202020202020	a	1	61	a          	11	61202020202020202020
 b	1	62	b	1	62	b	1	62	b	1	62
 b  	3	622020	b	1	62	b  	3	622020	b	1	62
 DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_bg_0900_ai_ci" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_bg_0900_ai_ci;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_bg_0900_as_cs" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_bg_0900_as_cs;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
 # Testing character set "utf8mb4" collation "utf8mb4_bin" padding "PAD SPACE"
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_bin;
 INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
@@ -3562,6 +4377,44 @@ a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
 a 	2	6120	a	1	61	a 	2	6120	a	1	61
 b  	3	622020	b	1	62	b  	3	622020	b	1	62
 c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_bs_0900_ai_ci" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_bs_0900_ai_ci;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_bs_0900_as_cs" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_bs_0900_as_cs;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
 DROP TABLE t_utf8mb4;
 # Testing character set "utf8mb4" collation "utf8mb4_croatian_ci" padding "PAD SPACE"
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_croatian_ci;
@@ -3843,6 +4696,44 @@ a 	2	6120	a	1	61	a 	2	6120	a	1	61
 b  	3	622020	b	1	62	b  	3	622020	b	1	62
 c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
 DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_gl_0900_ai_ci" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_gl_0900_ai_ci;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_gl_0900_as_cs" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_gl_0900_as_cs;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
 # Testing character set "utf8mb4" collation "utf8mb4_hr_0900_ai_ci" padding "NO PAD"
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_hr_0900_ai_ci;
 INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
@@ -4024,6 +4915,120 @@ b  	3	622020	b	1	62	b  	3	622020	b	1	62
 DROP TABLE t_utf8mb4;
 # Testing character set "utf8mb4" collation "utf8mb4_lv_0900_ai_ci" padding "NO PAD"
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_lv_0900_ai_ci;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_mn_cyrl_0900_ai_ci" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_mn_cyrl_0900_ai_ci;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_mn_cyrl_0900_as_cs" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_mn_cyrl_0900_as_cs;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_nb_0900_ai_ci" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_nb_0900_ai_ci;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_nb_0900_as_cs" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_nb_0900_as_cs;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_nn_0900_ai_ci" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_nn_0900_ai_ci;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_nn_0900_as_cs" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_nn_0900_as_cs;
 INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
 INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
@@ -4325,6 +5330,44 @@ a 	2	6120	a	1	61	a 	2	6120	a	1	61
 b  	3	622020	b	1	62	b  	3	622020	b	1	62
 c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
 DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_sr_latn_0900_ai_ci" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_sr_latn_0900_ai_ci;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
+# Testing character set "utf8mb4" collation "utf8mb4_sr_latn_0900_as_cs" padding "NO PAD"
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_sr_latn_0900_as_cs;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+INSERT INTO t_utf8mb4 VALUES('a          ', 'a          ', 'a          ', 'a          ');
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a	1	61	a	1	61	a	1	61	a	1	61
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a          	11	6120202020202020202020	a	1	61	a          	11	6120202020202020202020	a	1	61
+b	1	62	b	1	62	b	1	62	b	1	62
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+DROP TABLE t_utf8mb4;
 # Testing character set "utf8mb4" collation "utf8mb4_sv_0900_ai_ci" padding "NO PAD"
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8mb4 COLLATE utf8mb4_sv_0900_ai_ci;
 INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
@@ -4487,676 +5530,4 @@ a          	11	6120202020202020202020	a	1	61	a          	11	61202020202020202020
 b	1	62	b	1	62	b	1	62	b	1	62
 b  	3	622020	b	1	62	b  	3	622020	b	1	62
 DROP TABLE t_utf8mb4;
-# Testing character set "utf8" collation "utf8_bin" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_bin;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_croatian_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_croatian_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_croatian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_czech_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_czech_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_danish_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_danish_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_esperanto_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_esperanto_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_esperanto_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_estonian_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_estonian_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_general_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_general_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_general_mysql500_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_general_mysql500_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_mysql500_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_german2_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_german2_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_german2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_hungarian_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_hungarian_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_icelandic_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_icelandic_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_latvian_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_latvian_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_lithuanian_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_lithuanian_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_persian_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_persian_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_polish_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_polish_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_romanian_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_romanian_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_roman_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_roman_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_sinhala_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_sinhala_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_sinhala_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_slovak_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_slovak_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_slovenian_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_slovenian_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_spanish2_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_spanish2_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_spanish_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_spanish_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_swedish_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_swedish_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_tolower_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_tolower_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_turkish_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_turkish_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_unicode_520_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_unicode_520_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_unicode_520_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_unicode_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_unicode_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
-# Testing character set "utf8" collation "utf8_vietnamese_ci" padding "PAD SPACE"
-CREATE TABLE t_utf8 (pk_varchar VARCHAR(64), pk_char CHAR(64), d_varchar VARCHAR(64), d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_vietnamese_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_vietnamese_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
-INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
-INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
-INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
-INSERT INTO t_utf8 VALUES('a          ', 'a          ', 'a          ', 'a          ');
-ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
-INSERT INTO t_utf8 VALUES('c          ', 'c          ', 'c          ', 'c          ');
-SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
-pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
-a		2	6109	a		2	6109	a		2	6109	a		2	6109
-a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
-a 	2	6120	a	1	61	a 	2	6120	a	1	61
-b  	3	622020	b	1	62	b  	3	622020	b	1	62
-c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
-DROP TABLE t_utf8;
 DROP TABLE collations;

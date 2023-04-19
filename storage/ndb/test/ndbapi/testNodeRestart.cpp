@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -40,6 +42,7 @@
 #include <NdbHost.h>
 #include <BlockNumbers.h>
 #include <NdbConfig.hpp>
+#include <NdbSleep.h>
 
 static int
 changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
@@ -96,7 +99,7 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
       break;
     }
     g_err << "Restarting nodes to apply config change" << endl;
-    sleep(3); //Give MGM server time to restart
+    NdbSleep_SecSleep(3); //Give MGM server time to restart
     if (restarter.restartAll())
     {
       g_err << "Failed to restart nodes." << endl;
@@ -1324,7 +1327,7 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
     {
       return NDBT_FAILED;
     }
-    sleep(2);
+    NdbSleep_SecSleep(2);
   }
   if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
     return NDBT_FAILED;
@@ -1351,7 +1354,7 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
   {
     return NDBT_FAILED;
   }
-  sleep(3);
+  NdbSleep_SecSleep(3);
   if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
     return NDBT_FAILED;
   if (restarter.waitClusterStarted())
@@ -1389,7 +1392,7 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
   {
     return NDBT_FAILED;
   }
-  sleep(3);
+  NdbSleep_SecSleep(3);
   if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
     return NDBT_FAILED;
   if (restarter.waitClusterStarted())
@@ -1697,8 +1700,8 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
   {
     int partition0[256];
     int partition1[256];
-    memset(partition0, 0, sizeof(partition0));
-    memset(partition1, 0, sizeof(partition1));
+    std::memset(partition0, 0, sizeof(partition0));
+    std::memset(partition1, 0, sizeof(partition1));
     Bitmask<4> nodesmask;
     
     Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
@@ -1805,8 +1808,8 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
   {
     int partition0[256];
     int partition1[256];
-    memset(partition0, 0, sizeof(partition0));
-    memset(partition1, 0, sizeof(partition1));
+    std::memset(partition0, 0, sizeof(partition0));
+    std::memset(partition1, 0, sizeof(partition1));
     Bitmask<4> nodesmask;
     
     Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
@@ -2453,7 +2456,7 @@ runInitialNodeRestartTest(NDBT_Context* ctx, NDBT_Step* step)
     int lcpdump = DumpStateOrd::DihMinTimeBetweenLCP;
     res.dumpStateAllNodes(&lcpdump, 1);
   }
-  sleep(10);
+  NdbSleep_SecSleep(10);
   int node = res.getRandomNotMasterNodeId(rand());
   ndbout_c("node: %d", node);
 
@@ -3257,7 +3260,7 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
   bool lcp = ctx->getProperty("LCP", (unsigned)0);
   
   int nodegroups[MAX_NDB_NODES];
-  bzero(nodegroups, sizeof(nodegroups));
+  std::memset(nodegroups, 0, sizeof(nodegroups));
   
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {
@@ -3921,7 +3924,7 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
   Bitmask<255> part2mask;
   Bitmask<255> part3mask;
   Uint32 ng_count[MAX_NDB_NODE_GROUPS];
-  memset(ng_count, 0, sizeof(ng_count));
+  std::memset(ng_count, 0, sizeof(ng_count));
 
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {
@@ -6977,7 +6980,7 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
     g_err << "Failed to set config in ndb_mgmd." << endl;
     return NDBT_FAILED;
   }
-  sleep(5); //Give MGM server time to restart
+  NdbSleep_SecSleep(5); //Give MGM server time to restart
   g_err << "Restarting node " << nodeId << " to apply config change.." << endl;
   if (restarter->restartOneDbNode(nodeId, initial_nr, false, true))
   {
@@ -7945,7 +7948,7 @@ runBug16895311_create(NDBT_Context* ctx, NDBT_Step* step)
     (void)pDic->dropTable(bug.tabname);
     NdbDictionary::Table tab;
     tab.setName(bug.tabname);
-    const char* csname = "utf8_unicode_ci";
+    const char* csname = "utf8mb3_unicode_ci";
     bug.cs = get_charset_by_name(csname, MYF(0));
     require(bug.cs != 0);
     // can hit too small xfrm buffer in 2 ways
@@ -8189,6 +8192,16 @@ runBug18044717(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int runRestartAllNodes(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  CHECK(restarter.restartAll() == 0, "-");
+  CHECK(restarter.waitClusterNoStart() == 0, "-");
+  CHECK(restarter.startAll() == 0, "-");
+  CHECK(restarter.waitClusterStarted() == 0, "-");
+  CHK_NDB_READY(GETNDB(step));
+  return NDBT_OK;
+}
 
 
 static int createEvent(Ndb *pNdb,
@@ -9330,7 +9343,7 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
  * The test loops for more than 2048 times to ensure that we come
  * to a situation with a large number of parts in each LCP and in
  * particular for the last one that we are to restore. The number
- * 2058 is somewhat arbitrarily choosen to ensure this.
+ * 2058 is somewhat arbitrarily chosen to ensure this.
  *
  * The test case is hardcoded to make those special LCPs in node 2.
  *
@@ -9945,7 +9958,7 @@ int runCreateCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout_c("Using non case-sensitive charset");
       charsetName = "latin1_swedish_ci";
-//    charsetName = "utf8_unicode_ci";
+//    charsetName = "utf8mb3_unicode_ci";
     }
     else
     {
@@ -10394,7 +10407,7 @@ int runChangePkCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
         /**
          * For case-sensitive collations, we must use correct case
          * when specifying keys.
-         * For case-insenstive collations, we do not need to, so use
+         * For case-insensitive collations, we do not need to, so use
          * the 'to' case for the key, and the 'to' value.
          */
         const char toCaseKey = ((cycle? 'A' : 'a') + i);
@@ -10542,6 +10555,95 @@ int runClearErrorInsert(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int runWatchdogSlowShutdown(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Steps
+   * 1 Set low watchdog threshold
+   * 2 Get error reporter to be slow during shutdown
+   * 3 Trigger shutdown
+   *
+   * Expectation
+   * - Shutdown triggered, but slow
+   * - Watchdog detects and also attempts shutdown
+   * - No crash results, shutdown completes eventually
+   */
+
+  NdbRestarter restarter;
+
+  /* 1 Set low watchdog threshold */
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetWatchdogInterval, 2000 };
+    CHECK((restarter.dumpStateAllNodes(dumpVals, 2) == NDBT_OK),
+          "Failed to set watchdog thresh");
+  }
+
+  /* 2 Use error insert to get error reporter to be slow
+   *   during shutdown
+   */
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetErrorHandlingError, 1 };
+    CHECK((restarter.dumpStateAllNodes(dumpVals, 2) == NDBT_OK),
+          "Failed to set error handling mode");
+  }
+
+  /* 3 Trigger shutdown */
+  const int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Injecting crash in node " << nodeId << endl;
+  /* First request a 'NOSTART' restart on error insert */
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+    CHECK((restarter.dumpStateOneNode(nodeId, dumpVals, 2) == NDBT_OK),
+          "Failed to request error insert restart");
+  }
+
+  /* Next cause an error insert failure */
+  CHECK((restarter.insertErrorInNode(nodeId, 9999) == NDBT_OK),
+        "Failed to request node crash");
+
+  /* Expect shutdown to be stalled, and shortly after, watchdog
+   * to detect this and act
+   */
+  g_err << "Waiting for node " << nodeId << " to stop." << endl;
+  CHECK((restarter.waitNodesNoStart(&nodeId, 1) == NDBT_OK),
+        "Timeout waiting for node to stop");
+
+  g_err << "Waiting for node " << nodeId << " to start." << endl;
+  CHECK((restarter.startNodes(&nodeId, 1) == NDBT_OK),
+        "Timeout waiting for node to start");
+
+  CHECK((restarter.waitClusterStarted() == NDBT_OK),
+        "Timeout waiting for cluster to start");
+
+  g_err << "Success" << endl;
+  return NDBT_OK;
+}
+
+int runWatchdogSlowShutdownCleanup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  g_err << "Cleaning up" << endl;
+
+  /* Cleanup special measures */
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetWatchdogInterval};
+    if (restarter.dumpStateAllNodes(dumpVals, 1) != NDBT_OK)
+    {
+      g_err << "Failed to clear interval" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetErrorHandlingError};
+    if (restarter.dumpStateAllNodes(dumpVals, 1) != NDBT_OK)
+    {
+      g_err << "Failed to clear error handlng" << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -10855,6 +10957,7 @@ TESTCASE("Bug18612SR",
 	 "Test bug with partitioned clusters"){
   INITIALIZER(runLoadTable);
   STEP(runBug18612SR);
+  FINALIZER(runRestartAllNodes);
   FINALIZER(runClearTable);
 }
 TESTCASE("Bug20185",
@@ -11392,6 +11495,12 @@ TESTCASE("ChangeNumLogPartsINR",
   STEP(runPkUpdateUntilStopped);
   STEP(runChangeNumLogPartsINR);
   FINALIZER(runClearTable);
+}
+TESTCASE("WatchdogSlowShutdown",
+         "Watchdog reacts to slow exec thread shutdown")
+{
+  INITIALIZER(runWatchdogSlowShutdown);
+  FINALIZER(runWatchdogSlowShutdownCleanup);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart)

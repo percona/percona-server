@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include "storage/ndb/plugin/ndb_local_connection.h"
+#include "storage/ndb/plugin/ndb_anyvalue.h"
 
 #include "sql/mysqld.h"  // next_query_id()
 #include "sql/sql_class.h"
@@ -31,14 +32,16 @@
 
 class Ndb_local_connection::Impl {
  public:
-  Impl(THD *thd_arg) : connection(thd_arg) {}
+  explicit Impl(THD *thd_arg) : connection(thd_arg) {}
   Ed_connection connection;
 };
 
 Ndb_local_connection::Ndb_local_connection(THD *thd_arg)
-    : m_thd(thd_arg), impl(std::make_unique<Impl>(thd_arg)) {
+    : saved_thd_server_id(thd_arg->server_id),
+      saved_thd_options(thd_arg->variables.option_bits),
+      m_thd(thd_arg),
+      impl(std::make_unique<Impl>(thd_arg)) {
   assert(thd_arg);
-
   /*
     System(or daemon) threads report error to log file
     all other threads use push_warning
@@ -46,59 +49,77 @@ Ndb_local_connection::Ndb_local_connection(THD *thd_arg)
   m_push_warnings = (thd_arg->get_command() != COM_DAEMON);
 }
 
-Ndb_local_connection::~Ndb_local_connection() = default;
+Ndb_local_connection::~Ndb_local_connection() {
+  m_thd->server_id = saved_thd_server_id;
+  m_thd->variables.option_bits = saved_thd_options;
+}
 
 static inline bool should_ignore_error(const uint *ignore_error_list,
                                        uint error) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %u", error));
   const uint *ignore_error = ignore_error_list;
-  while (*ignore_error) {
+  while (*ignore_error != 0) {
     DBUG_PRINT("info", ("ignore_error: %u", *ignore_error));
-    if (*ignore_error == error) return true;
+    if (*ignore_error == error) {
+      return true;
+    }
     ignore_error++;
   }
   DBUG_PRINT("info", ("Don't ignore error"));
   return false;
 }
 
-class Suppressor {
- public:
-  virtual ~Suppressor() {}
-  virtual bool should_ignore_error(Ed_connection &con) const = 0;
-};
+void Ndb_local_connection::set_binlog_options(bool log_replica_updates,
+                                              unsigned int op_anyvalue) {
+  bool disable_binlog = false;
 
-bool Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
-                                         const uint *ignore_mysql_errors,
-                                         const Suppressor *suppressor) {
+  if (ndbcluster_anyvalue_is_reserved(op_anyvalue)) {
+    if (ndbcluster_anyvalue_is_nologging(op_anyvalue)) disable_binlog = true;
+  } else {
+    unsigned int req_server_id = ndbcluster_anyvalue_get_serverid(op_anyvalue);
+    if (req_server_id != 0) {
+      m_thd->server_id = req_server_id;
+      if (!log_replica_updates) disable_binlog = true;
+    }
+  }
+
+  if (disable_binlog) m_thd->variables.option_bits &= ~OPTION_BIN_LOG;
+}
+
+uint Ndb_local_connection::execute_query(const std::string &sql_query) {
   DBUG_TRACE;
 
+  uint result = 0;
+  const LEX_STRING sql_text{const_cast<char *>(sql_query.c_str()),
+                            sql_query.length()};
   if (impl->connection.execute_direct(sql_text)) {
-    /* Error occured while executing the query */
-    const uint last_errno = impl->connection.get_last_errno();
-    assert(last_errno);  // last_errno must have been set
+    /* Error occurred while executing the query */
+    result = impl->connection.get_last_errno();
+    assert(result);  // last_errno must have been set
+
+    // catch some SQL parse errors in debug
+    assert(result != ER_PARSE_ERROR && result != ER_EMPTY_QUERY);
+  }
+  return result;
+}
+
+bool Ndb_local_connection::check_query_error(const std::string &sql_query,
+                                             uint last_errno,
+                                             const uint *ignore_mysql_errors) {
+  if (last_errno) {
     const char *last_errmsg = impl->connection.get_last_error();
 
-    DBUG_PRINT("error", ("Query '%s' failed, error: '%d: %s'", sql_text.str,
-                         last_errno, last_errmsg));
+    DBUG_PRINT("error", ("Query '%s' failed, error: '%d: %s'",
+                         sql_query.c_str(), last_errno, last_errmsg));
 
     // catch some SQL parse errors in debug
     assert(last_errno != ER_PARSE_ERROR && last_errno != ER_EMPTY_QUERY);
 
-    /* Check if this is a MySQL level errors that should be ignored */
+    /* Check if it was a MySQL error that should be ignored */
     if (ignore_mysql_errors &&
         should_ignore_error(ignore_mysql_errors, last_errno)) {
-      /* MySQL level error suppressed -> return success */
-      m_thd->clear_error();
-      return false;
-    }
-
-    /*
-      Call the suppressor to check if it want to silence
-      this error
-    */
-    if (suppressor && suppressor->should_ignore_error(impl->connection)) {
-      /* Error suppressed -> return sucess */
+      /* MySQL error suppressed -> return success */
       m_thd->clear_error();
       return false;
     }
@@ -108,7 +129,7 @@ bool Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
       push_warning(m_thd, Sql_condition::SL_WARNING, last_errno, last_errmsg);
     } else {
       // Print the error to log file
-      ndb_log_error("Query '%s' failed, error: %d: %s", sql_text.str,
+      ndb_log_error("Query '%s' failed, error: %d: %s", sql_query.c_str(),
                     last_errno, last_errmsg);
     }
 
@@ -118,14 +139,23 @@ bool Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
   return false;  // Success
 }
 
+/* Execute query, ignoring particular errors.
+   The query may be written to the binlog.
+*/
+bool Ndb_local_connection::execute_query(const std::string &sql_query,
+                                         const uint *ignore_mysql_errors) {
+  uint result = execute_query(sql_query);
+  return check_query_error(sql_query, result, ignore_mysql_errors);
+}
+
 /*
   Execute the query with even higher isolation than what execute_query
-  provides to avoid that for example THD's status variables are changed
+  provides to avoid that for example THD's status variables are changed.
+  The query will not ever be written to binlog.
 */
 
-bool Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
-                                             const uint *ignore_mysql_errors,
-                                             const Suppressor *suppressor) {
+bool Ndb_local_connection::execute_query_iso(const std::string &sql_query,
+                                             const uint *ignore_mysql_errors) {
   /* Don't allow queries to affect THD's status variables */
   struct System_status_var save_thd_status_var = m_thd->status_var;
 
@@ -135,7 +165,9 @@ bool Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
 
   /* Turn off binlogging */
   ulonglong save_thd_options = m_thd->variables.option_bits;
-  assert(sizeof(save_thd_options) == sizeof(m_thd->variables.option_bits));
+  static_assert(
+      sizeof(save_thd_options) == sizeof(m_thd->variables.option_bits),
+      "Mismatched type for variable used to save option_bits");
   m_thd->variables.option_bits &= ~OPTION_BIN_LOG;
 
   /*
@@ -145,7 +177,7 @@ bool Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
   */
   m_thd->set_query_id(next_query_id());
 
-  bool result = execute_query(sql_text, ignore_mysql_errors, suppressor);
+  bool result = execute_query(sql_query, ignore_mysql_errors);
 
   /* Restore THD settings */
   m_thd->variables.option_bits = save_thd_options;
@@ -154,106 +186,82 @@ bool Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
   return result;
 }
 
-bool Ndb_local_connection::truncate_table(const char *db, const char *table,
+bool Ndb_local_connection::truncate_table(const std::string &db,
+                                          const std::string &table,
                                           bool ignore_no_such_table) {
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
+  DBUG_PRINT("enter", ("db: '%s', table: '%s'", db.c_str(), table.c_str()));
 
   // Create the SQL string
-  String sql_text(100);
-  sql_text.append(STRING_WITH_LEN("TRUNCATE TABLE "));
-  sql_text.append(db);
-  sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table);
+  const std::string query = "TRUNCATE TABLE " + db + "." + table;
 
   // Setup list of errors to ignore
   uint ignore_mysql_errors[2] = {0, 0};
-  if (ignore_no_such_table) ignore_mysql_errors[0] = ER_NO_SUCH_TABLE;
+  if (ignore_no_such_table) {
+    ignore_mysql_errors[0] = ER_NO_SUCH_TABLE;
+  }
 
-  return execute_query_iso(sql_text.lex_string(), ignore_mysql_errors, NULL);
+  return execute_query_iso(query, ignore_mysql_errors);
 }
 
 bool Ndb_local_connection::delete_rows(const std::string &db,
                                        const std::string &table,
-                                       int ignore_no_such_table,
+                                       bool ignore_no_such_table,
                                        const std::string &where) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: '%s', table: '%s'", db.c_str(), table.c_str()));
 
   // Create the SQL string
-  std::string sql_text;
-  sql_text.reserve(db.length() + table.length() + 32 + where.length());
-  sql_text.append("DELETE FROM ");
-  sql_text.append(db).append(".").append(table);
-  sql_text.append(" WHERE ").append(where);
+  const std::string query =
+      "DELETE FROM " + db + "." + table + " WHERE " + where;
 
   // Setup list of errors to ignore
   uint ignore_mysql_errors[2] = {0, 0};
-  if (ignore_no_such_table) ignore_mysql_errors[0] = ER_NO_SUCH_TABLE;
+  if (ignore_no_such_table) {
+    ignore_mysql_errors[0] = ER_NO_SUCH_TABLE;
+  }
 
-  const LEX_STRING lex_string = {const_cast<char *>(sql_text.c_str()),
-                                 sql_text.length()};
-  return execute_query_iso(lex_string, ignore_mysql_errors, NULL);
+  return execute_query_iso(query, ignore_mysql_errors);
 }
 
 bool Ndb_local_connection::create_util_table(const std::string &table_def_sql) {
   DBUG_TRACE;
-  // Don't ignore any errors
-  uint ignore_mysql_errors[1] = {0};
-  MYSQL_LEX_STRING sql_text = {const_cast<char *>(table_def_sql.c_str()),
-                               table_def_sql.length()};
-
-  return execute_query_iso(sql_text, ignore_mysql_errors, nullptr);
+  return execute_query_iso(table_def_sql, nullptr);
 }
 
 bool Ndb_local_connection::run_acl_statement(const std::string &acl_sql) {
   DBUG_TRACE;
-  uint ignore_mysql_errors[2] = {ER_NO_SUCH_TABLE, ER_NONEXISTING_TABLE_GRANT};
-  MYSQL_LEX_STRING sql_text = {const_cast<char *>(acl_sql.c_str()),
-                               acl_sql.length()};
+  const uint ignore_mysql_errors[3] = {ER_NO_SUCH_TABLE,
+                                       ER_NONEXISTING_TABLE_GRANT, 0};
   m_thd->set_query_id(next_query_id());
-  return execute_query(sql_text, ignore_mysql_errors, nullptr);
+  return execute_query(acl_sql, ignore_mysql_errors);
+}
+
+bool Ndb_local_connection::try_create_user(const std::string &sql) {
+  DBUG_TRACE;
+  const uint ignore_mysql_errors[4] = {
+      ER_USER_ALREADY_EXISTS, ER_USER_DOES_NOT_EXIST, ER_CANNOT_USER, 0};
+  m_thd->set_query_id(next_query_id());
+  uint result = execute_query(sql);
+  (void)check_query_error(sql, result, ignore_mysql_errors);
+  return (bool)result;
 }
 
 bool Ndb_local_connection::create_database(const std::string &database_name) {
   DBUG_TRACE;
-  // Don't ignore any errors
-  uint ignore_mysql_errors[1] = {0};
   const std::string create_db_sql = "CREATE DATABASE `" + database_name + "`";
-  MYSQL_LEX_STRING sql_text = {const_cast<char *>(create_db_sql.c_str()),
-                               create_db_sql.length()};
-
-  return execute_query_iso(sql_text, ignore_mysql_errors, nullptr);
+  return execute_query_iso(create_db_sql, nullptr);
 }
 
 bool Ndb_local_connection::drop_database(const std::string &database_name) {
   DBUG_TRACE;
-  // Don't ignore any errors
-  uint ignore_mysql_errors[1] = {0};
   const std::string drop_db_sql = "DROP DATABASE `" + database_name + "`";
-  MYSQL_LEX_STRING sql_text = {const_cast<char *>(drop_db_sql.c_str()),
-                               drop_db_sql.length()};
-
-  return execute_query_iso(sql_text, ignore_mysql_errors, nullptr);
+  return execute_query_iso(drop_db_sql, nullptr);
 }
 
 bool Ndb_local_connection::execute_database_ddl(const std::string &ddl_query) {
   DBUG_TRACE;
-  // Don't ignore any errors
-  uint ignore_mysql_errors[1] = {0};
-  MYSQL_LEX_STRING sql_text = {const_cast<char *>(ddl_query.c_str()),
-                               ddl_query.length()};
-
-  return execute_query_iso(sql_text, ignore_mysql_errors, nullptr);
-}
-
-bool Ndb_local_connection::raw_run_query(const char *query, size_t query_length,
-                                         const int *suppress_errors) {
-  DBUG_TRACE;
-
-  LEX_STRING sql_text = {const_cast<char *>(query), query_length};
-
-  return execute_query_iso(sql_text, (const uint *)suppress_errors, NULL);
+  return execute_query_iso(ddl_query, nullptr);
 }
 
 Ed_result_set *Ndb_local_connection::get_results() {
@@ -273,7 +281,6 @@ Ndb_privilege_upgrade_connection::~Ndb_privilege_upgrade_connection() {
 
 bool Ndb_privilege_upgrade_connection::migrate_privilege_table(
     const std::string &table) {
-  std::string query = "ALTER TABLE mysql." + table + " ENGINE=innodb;";
-  LEX_STRING sql_text = {const_cast<char *>(query.c_str()), query.length()};
-  return execute_query(sql_text, nullptr, nullptr);
+  const std::string query = "ALTER TABLE mysql." + table + " ENGINE=innodb;";
+  return execute_query(query, nullptr);
 }

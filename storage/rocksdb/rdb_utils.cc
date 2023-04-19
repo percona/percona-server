@@ -33,6 +33,11 @@
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
 
+/* RocksDB includes */
+#include "rocksdb/env.h"
+#include "rocksdb/file_system.h"
+#include "rocksdb/io_status.h"
+
 namespace myrocks {
 
 /*
@@ -276,12 +281,21 @@ std::string rdb_hexdump(const char *data, const std::size_t data_len,
   return str;
 }
 
+// Return dir + '/' + file
+std::string rdb_concat_paths(const std::string &dir, const std::string &file) {
+  std::string result;
+  result.reserve(dir.length() + file.length() + 2);
+  result = dir;
+  result += FN_LIBCHAR;
+  result += file;
+  return result;
+}
+
 /*
   Attempt to access the database subdirectory to see if it exists
 */
 bool rdb_database_exists(const std::string &db_name) {
-  const std::string dir =
-      std::string(mysql_real_data_home) + FN_DIRSEP + db_name;
+  const auto dir = rdb_concat_paths(mysql_real_data_home, db_name);
   MY_DIR *const dir_info =
       my_dir(dir.c_str(), MYF(MY_DONT_SORT | MY_WANT_STAT));
   if (dir_info == nullptr) {
@@ -329,7 +343,13 @@ bool Regex_list_handler::set_patterns(
     // Note that this means the delimiter can not be part of a regular
     // expression.  This is currently not a problem as we are using the comma
     // character as a delimiter and commas are not valid in table names.
-    m_pattern.reset(new std::regex(norm_pattern, flags));
+
+    // std::regex implementation on MacOS X does not allow empty strings in
+    // constructors
+    if (norm_pattern.empty())
+      m_pattern.reset(new std::regex);
+    else
+      m_pattern.reset(new std::regex(norm_pattern, flags));
   } catch (const std::regex_error &e) {
     // This pattern is invalid.
     pattern_valid = false;
@@ -391,14 +411,29 @@ std::vector<std::string> split_into_vector(const std::string &input,
   return elems;
 }
 
-bool rdb_check_rocksdb_corruption() {
-  return !my_access(myrocks::rdb_corruption_marker_file_name().c_str(), F_OK);
+bool rdb_has_rocksdb_corruption() {
+  rocksdb::DBOptions *rocksdb_db_options = get_rocksdb_db_options();
+  assert(rocksdb_db_options->env != nullptr);
+  const std::string fileName(myrocks::rdb_corruption_marker_file_name());
+
+  const auto &fs = rocksdb_db_options->env->GetFileSystem();
+  rocksdb::IOStatus io_s =
+      fs->FileExists(fileName, rocksdb::IOOptions(), nullptr);
+
+  return io_s.ok();
 }
 
 void rdb_persist_corruption_marker() {
-  const std::string &fileName = myrocks::rdb_corruption_marker_file_name();
-  int fd = my_open(fileName.c_str(), O_CREAT | O_SYNC, MYF(MY_WME));
-  if (fd < 0) {
+  rocksdb::DBOptions *rocksdb_db_options = get_rocksdb_db_options();
+  assert(rocksdb_db_options->env != nullptr);
+  const std::string fileName(myrocks::rdb_corruption_marker_file_name());
+
+  const auto &fs = rocksdb_db_options->env->GetFileSystem();
+  std::unique_ptr<rocksdb::FSWritableFile> file;
+  rocksdb::IOStatus io_s =
+      fs->NewWritableFile(fileName, rocksdb::FileOptions(), &file, nullptr);
+
+  if (!io_s.ok()) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
                     "Can't create file %s to mark rocksdb as corrupted.",
                     fileName.c_str());
@@ -410,10 +445,10 @@ void rdb_persist_corruption_marker() {
                     fileName.c_str());
   }
 
-  int ret = my_close(fd, MYF(MY_WME));
-  if (ret) {
-    LogPluginErrMsg(ERROR_LEVEL, 0, "Error (%d) closing the file %s", ret,
-                    fileName.c_str());
+  io_s = file->Close(rocksdb::IOOptions(), nullptr);
+  if (!io_s.ok()) {
+    LogPluginErrMsg(ERROR_LEVEL, 0, "Error (%s) closing the file %s",
+                    io_s.ToString().c_str(), fileName.c_str());
   }
 }
 

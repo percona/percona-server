@@ -3,7 +3,7 @@
 <charsets max-id="99">
 
 <copyright>
-  Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -336,7 +336,7 @@ To make maintaining easier please:
   <family>Cyrillic</family>
   <description>KOI8-U Ukrainian</description>
   <alias>koi8-u</alias>
-  <collation name="koi8u_general_ci"	id="22"	order="Ukranian"	flag="primary"/>
+  <collation name="koi8u_general_ci"	id="22"	order="Ukrainian"	flag="primary"/>
   <collation name="koi8u_bin"		id="75"	order="Binary"	flag="binary"/>
 </charset>
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ class PasswordVault {
    *
    * @param section_name The name of the configuration section for which to
    *   retrieve the password.
-   * @param out_password Output paramter. The password in clear text if the
+   * @param out_password Output parameter. The password in clear text if the
    *   section name was found in the vault.
    * @return true if a password was retrieved for the given section, false if
    *   the section name could not be found in the vault.

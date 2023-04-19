@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef DBTUP_H
 #define DBTUP_H
 
+#include "util/require.h"
+#include <cstring>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include <ndb_limits.h>
@@ -57,7 +59,6 @@
 
 #define JAM_FILE_ID 414
 
-extern EventLogger* g_eventLogger;
 
 #ifdef VM_TRACE
 inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
@@ -129,7 +130,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 
           /* DATA STRUCTURE TYPES */
           /* WHEN ATTRIBUTE INFO IS SENT WITH A ATTRINFO-SIGNAL THE         */
-          /* VARIABLE TYPE IS SPECIFYED. THIS MUST BE DONE TO BE ABLE TO    */
+          /* VARIABLE TYPE IS SPECIFIED. THIS MUST BE DONE TO BE ABLE TO    */
           /* NOW HOW MUCH DATA OF A ATTRIBUTE TO READ FROM ATTRINFO.        */
 
           /* WHEN A REQUEST CAN NOT BE EXECUTED BECAUSE OF A ERROR THE      */
@@ -373,7 +374,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   /* Operation record used during alter table. */
   struct AlterTabOperation {
-    AlterTabOperation() { memset(this, 0, sizeof(AlterTabOperation)); }
+    AlterTabOperation() { std::memset(this, 0, sizeof(AlterTabOperation)); }
     Uint32 nextAlterTabOp;
     Uint32 newNoOfAttrs;
     Uint32 newNoOfCharsets;
@@ -432,7 +433,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   // Scan Lock
   struct ScanLock {
-    STATIC_CONST( TYPE_ID = RT_DBTUP_SCAN_LOCK);
+    static constexpr Uint32 TYPE_ID = RT_DBTUP_SCAN_LOCK;
     Uint32 m_magic;
 
     ScanLock() :
@@ -451,7 +452,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     };
     Uint32 prevList;
   };
-  STATIC_CONST( DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX = 2);
+  static constexpr Uint32 DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX = 2;
   typedef Ptr<ScanLock> ScanLockPtr;
   typedef TransientPool<ScanLock> ScanLock_pool;
   typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
@@ -468,7 +469,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   // Tup scan, similar to Tux scan.  Later some of this could
   // be moved to common superclass.
   struct ScanOp {
-    STATIC_CONST( TYPE_ID = RT_DBTUP_SCAN_OPERATION);
+    static constexpr Uint32 TYPE_ID = RT_DBTUP_SCAN_OPERATION;
     Uint32 m_magic;
     ScanOp() :
       m_magic(Magic::make(TYPE_ID)),
@@ -492,7 +493,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       Current = 2,              // at current before locking
       Blocked = 3,              // at current waiting for ACC lock
       Locked = 4,               // at current and locked or no lock needed
-      Next = 5,                 // looking for next extry
+      Next = 5,                 // looking for next entry
       Last = 6,                 // after last entry
       Aborting = 7,             // lock wait at scan close
       Invalid = 9               // cannot return REF to LQH currently
@@ -539,7 +540,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     };
     Uint32 prevList;
   };
-  STATIC_CONST(DBTUP_SCAN_OPERATION_TRANSIENT_POOL_INDEX = 3);
+  static constexpr Uint32 DBTUP_SCAN_OPERATION_TRANSIENT_POOL_INDEX = 3;
   typedef Ptr<ScanOp> ScanOpPtr;
   typedef TransientPool<ScanOp> ScanOp_pool;
   typedef DLList<ScanOp_pool> ScanOp_list;
@@ -606,9 +607,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   typedef DLFifoList<Page_request_pool> Page_request_list;
   typedef LocalDLFifoList<Page_request_pool> Local_page_request_list;
 
-  STATIC_CONST( EXTENT_SEARCH_MATRIX_COLS = 4 ); // Guarantee size
-  STATIC_CONST( EXTENT_SEARCH_MATRIX_ROWS = 5 ); // Total size
-  STATIC_CONST( EXTENT_SEARCH_MATRIX_SIZE = 20 );
+  static constexpr Uint32 EXTENT_SEARCH_MATRIX_COLS = 4; // Guarantee size
+  static constexpr Uint32 EXTENT_SEARCH_MATRIX_ROWS = 5; // Total size
+  static constexpr Uint32 EXTENT_SEARCH_MATRIX_SIZE = 20;
   
   struct Extent_info
   {
@@ -689,7 +690,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     /**
      * 
      */
-    STATIC_CONST( SZ = EXTENT_SEARCH_MATRIX_SIZE );
+    static constexpr Uint32 SZ = EXTENT_SEARCH_MATRIX_SIZE;
     Extent_info_list::Head m_free_extents[SZ];
     Uint32 m_total_extent_free_space_thresholds[EXTENT_SEARCH_MATRIX_ROWS];
     Uint32 m_page_free_bits_map[EXTENT_SEARCH_MATRIX_COLS];
@@ -718,13 +719,18 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   };
   
   void dump_disk_alloc(Disk_alloc_info&);
+  void printPtr(EventLogger *logger, int idx, const Ptr<Dbtup::Page> &ptr);
+  void printPtr(EventLogger *logger, int idx,
+                const Ptr<Dbtup::Page_request> &ptr);
+  void printPtr(EventLogger *logger, const char *msg, int idx,
+                const Ptr<Dbtup::Extent_info> &ptr);
 
-  STATIC_CONST( FREE_PAGE_BIT =   0x80000000 );
-  STATIC_CONST( LCP_SCANNED_BIT = 0x40000000 );
-  STATIC_CONST( LAST_LCP_FREE_BIT = 0x40000000 );
-  STATIC_CONST( FREE_PAGE_RNIL =  0x3fffffff );
-  STATIC_CONST( PAGE_BIT_MASK =   0x3fffffff );
-  STATIC_CONST( MAX_PAGES_IN_DYN_ARRAY = (RNIL & PAGE_BIT_MASK));
+  static constexpr Uint32 FREE_PAGE_BIT = 0x80000000;
+  static constexpr Uint32 LCP_SCANNED_BIT = 0x40000000;
+  static constexpr Uint32 LAST_LCP_FREE_BIT = 0x40000000;
+  static constexpr Uint32 FREE_PAGE_RNIL = 0x3fffffff;
+  static constexpr Uint32 PAGE_BIT_MASK = 0x3fffffff;
+  static constexpr Uint32 MAX_PAGES_IN_DYN_ARRAY = (RNIL & PAGE_BIT_MASK);
 
 #define NUM_TUP_FRAGMENT_MUTEXES 4
 struct Fragrecord {
@@ -747,7 +753,7 @@ struct Fragrecord {
   Uint32 m_max_page_cnt;
   Uint32 m_free_page_id_list;
   DynArr256::Head m_page_map;
-  Page_fifo::Head thFreeFirst;   // pages with atleast 1 free record
+  Page_fifo::Head thFreeFirst;   // pages with at least 1 free record
 
   Uint32 m_lcp_scan_op;
   Local_key m_lcp_keep_list_head;
@@ -902,7 +908,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   }
 
 struct Operationrec {
-  STATIC_CONST( TYPE_ID = RT_DBTUP_OPERATION);
+  static constexpr Uint32 TYPE_ID = RT_DBTUP_OPERATION;
   Uint32 m_magic;
 
   Operationrec() :
@@ -1072,7 +1078,7 @@ struct Operationrec {
   {
     return opPtrP->op_type;
   }
-  STATIC_CONST(DBTUP_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0);
+  static constexpr Uint32 DBTUP_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0;
   typedef Ptr<Operationrec> OperationrecPtr;
   typedef TransientPool<Operationrec> Operationrec_pool;
   OperationrecPtr prepare_oper_ptr;
@@ -1176,17 +1182,17 @@ TupTriggerData_pool c_triggerPool;
   /* REFERENCE INFORMATION. ONE RECORD      */
   /* PER TABLE REFERENCE.                   */
   /* ************************************** */
-  STATIC_CONST( MM = 0 );
-  STATIC_CONST( DD = 1 );
-  STATIC_CONST( DYN_BM_LEN_BITS = 8 );
-  STATIC_CONST( DYN_BM_LEN_MASK = ((1 << DYN_BM_LEN_BITS) - 1));
+  static constexpr Uint32 MM = 0;
+  static constexpr Uint32 DD = 1;
+  static constexpr Uint32 DYN_BM_LEN_BITS = 8;
+  static constexpr Uint32 DYN_BM_LEN_MASK = ((1 << DYN_BM_LEN_BITS) - 1);
 
   /* Array length in the data structures like
      dynTabDescriptor, dynVarSizeMask, dynFixSizeMask, etc.
      1 for dynamic main memory data,
      2 for dynamic main memory and dynamic disk data.
   */
-  STATIC_CONST( NO_DYNAMICS = 2 );
+  static constexpr Uint32 NO_DYNAMICS = 2;
   
   struct Tablerec {
     Tablerec(TupTriggerData_pool & triggerPool) :
@@ -1308,6 +1314,12 @@ TupTriggerData_pool c_triggerPool;
       return no;
     }
 
+    Uint32 get_checksum_length() const {
+      if (m_bits & TR_Checksum)
+        return 1;
+      return 0;
+    }
+
     struct {
       Uint16 m_no_of_fixsize;
       Uint16 m_no_of_varsize;
@@ -1387,7 +1399,7 @@ TupTriggerData_pool c_triggerPool;
     It is more space efficient to store dynamic fixed-size attributes
     of more than about 16 words as variable-sized internally.
    */
-  STATIC_CONST(InternalMaxDynFix= 16);
+  static constexpr Uint32 InternalMaxDynFix = 16;
 
   struct Disk_undo 
   {
@@ -1458,7 +1470,7 @@ TupTriggerData_pool c_triggerPool;
   typedef Ptr<Tablerec> TablerecPtr;
 
   struct storedProc {
-    STATIC_CONST(TYPE_ID = RT_DBTUP_STORED_PROCEDURE);
+    static constexpr Uint32 TYPE_ID = RT_DBTUP_STORED_PROCEDURE;
     Uint32 m_magic;
 
     storedProc() :
@@ -1471,12 +1483,13 @@ TupTriggerData_pool c_triggerPool;
     }
 
     Uint32 storedProcIVal;
+    Uint32 storedParamNo; // Current attrInfo param being used
     Uint32 nextPool;
     Uint16 storedCode;
   };
   typedef Ptr<storedProc> StoredProcPtr;
   typedef TransientPool<storedProc> StoredProc_pool;
-  STATIC_CONST(DBTUP_STORED_PROCEDURE_TRANSIENT_POOL_INDEX = 1);
+  static constexpr Uint32 DBTUP_STORED_PROCEDURE_TRANSIENT_POOL_INDEX = 1;
 
   StoredProc_pool c_storedProcPool;
   RSS_AP_SNAPSHOT(c_storedProcPool);
@@ -1485,7 +1498,7 @@ TupTriggerData_pool c_triggerPool;
 
 /* **************************** TABLE_DESCRIPTOR RECORD ******************************** */
 /* THIS VARIABLE IS USED TO STORE TABLE DESCRIPTIONS. A TABLE DESCRIPTION IS STORED AS A */
-/* CONTIGUOS ARRAY IN THIS VARIABLE. WHEN A NEW TABLE IS ADDED A CHUNK IS ALLOCATED IN   */
+/* CONTIGUOUS ARRAY IN THIS VARIABLE. WHEN A NEW TABLE IS ADDED A CHUNK IS ALLOCATED IN  */
 /* THIS RECORD. WHEN ATTRIBUTES ARE ADDED TO THE TABLE, A NEW CHUNK OF PROPER SIZE IS    */
 /* ALLOCATED AND ALL DATA IS COPIED TO THIS NEW CHUNK AND THEN THE OLD CHUNK IS PUT IN   */
 /* THE FREE LIST. EACH TABLE IS DESCRIBED BY A NUMBER OF TABLE DESCRIPTIVE ATTRIBUTES    */
@@ -1629,7 +1642,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   {
     Uint32 m_page_no;
     Uint32 m_page_idx;
-    STATIC_CONST( SZ32 = 2 );
+    static constexpr Uint32 SZ32 = 2;
 
     void copyout(Local_key* dst) const {
       dst->m_page_no = m_page_no;
@@ -1644,7 +1657,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   
   struct Disk_part_ref
   {
-    STATIC_CONST( SZ32 = 2 );
+    static constexpr Uint32 SZ32 = 2;
   };
 
   struct Tuple_header
@@ -1670,7 +1683,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
       Uint32 m_null_bits[1];
     };
 
-    STATIC_CONST( HeaderSize = 2 );
+    static constexpr Uint32 HeaderSize = 2;
     
     /*
      Header bits.
@@ -1692,20 +1705,20 @@ typedef Ptr<HostBuffer> HostBufferPtr;
      rows. This information would be useful for reads since they'd know the
      proper state of the row. (Related Bug #27584165)
     */
-    STATIC_CONST( TUP_VERSION_MASK = 0xFFFF );
-    STATIC_CONST( COPY_TUPLE  = 0x00010000 ); // Is this a copy tuple
-    STATIC_CONST( DISK_PART   = 0x00020000 ); // Is there a disk part
-    STATIC_CONST( DISK_ALLOC  = 0x00040000 ); // Is disk part allocated
-    STATIC_CONST( DISK_INLINE = 0x00080000 ); // Is disk inline
-    STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
-    STATIC_CONST( NOT_USED_BIT= 0x00200000 ); //
-    STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
-    STATIC_CONST( FREE        = 0x00800000 ); // Is free
-    STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
-    STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
-    STATIC_CONST( REORG_MOVE  = 0x08000000 ); // Tuple will be moved in reorg
-    STATIC_CONST( LCP_DELETE  = 0x10000000 ); // Tuple deleted at LCP start
-    STATIC_CONST( DELETE_WAIT = 0x20000000 ); // Waiting for delete tuple page
+    static constexpr Uint32 TUP_VERSION_MASK = 0xFFFF;
+    static constexpr Uint32 COPY_TUPLE = 0x00010000; // Is this a copy tuple
+    static constexpr Uint32 DISK_PART = 0x00020000; // Is there a disk part
+    static constexpr Uint32 DISK_ALLOC = 0x00040000; // Is disk part allocated
+    static constexpr Uint32 DISK_INLINE = 0x00080000; // Is disk inline
+    static constexpr Uint32 ALLOC = 0x00100000; // Is record allocated now
+    static constexpr Uint32 NOT_USED_BIT = 0x00200000; //
+    static constexpr Uint32 MM_GROWN = 0x00400000; // Has MM part grown
+    static constexpr Uint32 FREE = 0x00800000; // Is free
+    static constexpr Uint32 LCP_SKIP = 0x01000000; // Should not be returned in LCP
+    static constexpr Uint32 VAR_PART = 0x04000000; // Is there a varpart
+    static constexpr Uint32 REORG_MOVE = 0x08000000; // Tuple will be moved in reorg
+    static constexpr Uint32 LCP_DELETE = 0x10000000; // Tuple deleted at LCP start
+    static constexpr Uint32 DELETE_WAIT = 0x20000000; // Waiting for delete tuple page
 
     Tuple_header() {}
     Uint32 get_tuple_version() const { 
@@ -1761,9 +1774,13 @@ typedef Ptr<HostBuffer> HostBufferPtr;
       return m_first_words + tabPtrP->m_offsets[MM].m_disk_ref_offset;
     }
 
+    static Uint32 get_mm_gci_pos(const Tablerec* tabPtrP) {
+      return Tuple_header::HeaderSize + tabPtrP->get_checksum_length();
+    }
+
     Uint32 *get_mm_gci(const Tablerec* tabPtrP){
       /* Mandatory position even if TR_RowGCI isn't set (happens in restore */
-      return m_data + (tabPtrP->m_bits & Tablerec::TR_Checksum);
+      return m_data + tabPtrP->get_checksum_length();
     }
 
     Uint32 *get_dd_gci(const Tablerec* tabPtrP, Uint32 mm){
@@ -1780,7 +1797,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     Uint32 m_len;
     Uint32 m_data[1]; // Only used for easy offset handling
 
-    STATIC_CONST( SZ32 = 1 );
+    static constexpr Uint32 SZ32 = 1;
   };
 
   static constexpr Uint32 MAX_EXPANDED_TUPLE_SIZE_IN_WORDS =
@@ -1802,7 +1819,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 
     /* Null bits and dynamic columns bits.  Dynamic columns do not have null
        bits so total number of bits will not be more than
-       MAX_ATTRIBUTES_IN_TABLE.  But since bits are splitted on two parts an
+       MAX_ATTRIBUTES_IN_TABLE.  But since bits are split on two parts an
        extra word for padding may be needed.
      */
     ndb_ceil_div(MAX_ATTRIBUTES_IN_TABLE, 32) + 1 +
@@ -1826,7 +1843,7 @@ struct KeyReqStruct {
     changeMask()
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    memset(this, 0xf3, sizeof(* this));
+    std::memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = _jamBuffer;
     m_when = when;
@@ -1839,7 +1856,7 @@ struct KeyReqStruct {
     changeMask(false)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    memset(this, 0xf3, sizeof(* this));
+    std::memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = _jamBuffer;
     m_when = KRS_PREPARE;
@@ -1851,7 +1868,7 @@ struct KeyReqStruct {
     changeMask(false)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    memset(this, 0xf3, sizeof(* this));
+    std::memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = tup->jamBuffer();
     m_when = KRS_PREPARE;
@@ -1863,7 +1880,7 @@ struct KeyReqStruct {
     changeMask()
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    memset(this, 0xf3, sizeof(* this));
+    std::memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = tup->jamBuffer();
     m_when = when;
@@ -2490,7 +2507,7 @@ private:
 // ------------------
 //
 // <---- TUPKEYCONF
-// After successful prepartion to delete the tuple LQH is informed
+// After successful preparation to delete the tuple LQH is informed
 // of this.
 //
 // Interpreted Delete with Read
@@ -2659,8 +2676,7 @@ private:
 			 Uint32 tmpAreaSz);
 
   const Uint32 * lookupInterpreterParameter(Uint32 paramNo,
-                                            const Uint32 * subptr,
-                                            Uint32 sublen) const;
+                                            const Uint32 * subptr) const;
 
 // *****************************************************************
 // Signal Sending methods.
@@ -3125,13 +3141,17 @@ private:
   void flush_read_buffer(KeyReqStruct *, const Uint32* outBuf,
 			 Uint32 resultRef, Uint32 resultData, Uint32 routeRef);
 public:
-  Uint32 copyAttrinfo(Uint32 storedProcId);
+  Uint32 copyAttrinfo(Uint32 storedProcId,
+                      bool interpretedFlag);
   void copyAttrinfo(Uint32 expectedLen,
                     Uint32 attrInfoIVal);
+
+  void nextAttrInfoParam(Uint32 storedProcId);
   /**
    * Used by Restore...
    */
   Uint32 read_lcp_keys(Uint32, const Uint32 * src, Uint32 len, Uint32 *dst);
+  Uint32 get_pages_allocated() const;
 private:
 
 //------------------------------------------------------------------
@@ -3163,12 +3183,6 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void initOperationrec(Signal* signal);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void getStoredProcAttrInfo(Uint32 storedId,
-                             KeyReqStruct* req_struct,
-                             Uint32& attrInfoIVal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -3342,7 +3356,7 @@ private:
                         Tablerec* regTabPtr);
 
   void ndbmtd_buffer_suma_trigger(Signal* signal, Uint32 len,
-                                  LinearSectionPtr ptr[]);
+                                  LinearSectionPtr ptr[3]);
   void flush_ndbmtd_suma_buffer(Signal*);
 
   struct SumaTriggerBuffer
@@ -3911,11 +3925,11 @@ private:
    *   - clogMemBuffer also used for before values
    */
   static_assert(sizeof(clogMemBuffer) >=
-      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE), "");
+      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
   static_assert(sizeof(coutBuffer) >=
-      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE), "");
+      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
   static_assert(sizeof(cinBuffer) >=
-      sizeof(Uint32) * (MAX_KEY_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_INDEX), "");
+      sizeof(Uint32) * (MAX_KEY_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_INDEX));
 
   Uint32 ctemp_page[ZWORDS_ON_PAGE];
   Uint32 ctemp_var_record[ZWORDS_ON_PAGE];
@@ -3941,7 +3955,7 @@ private:
 #endif
 
   void expand_tuple(KeyReqStruct*,
-                    Uint32 sizes[4],
+                    Uint32 sizes[2],
                     Tuple_header *org, 
 		    const Tablerec*,
                     bool disk,
@@ -3958,7 +3972,7 @@ private:
   Uint32* get_default_ptr(const Tablerec*, Uint32&);
   Uint32 get_len(Ptr<Page>* pagePtr, Var_part_ref ref);
 
-  STATIC_CONST( COPY_TUPLE_HEADER32 = 4 );
+  static constexpr Uint32 COPY_TUPLE_HEADER32 = 4;
 
   Tuple_header* alloc_copy_tuple(const Tablerec* tabPtrP, Local_key* ptr){
     Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr,
@@ -3966,7 +3980,7 @@ private:
     if (unlikely(dst == 0))
       return 0;
 #ifdef HAVE_VALGRIND
-    bzero(dst, tabPtrP->total_rec_size);
+    std::memset(dst, 0, tabPtrP->total_rec_size);
 #endif
     Uint32 count = tabPtrP->m_no_of_attributes;
     ChangeMask * mask = (ChangeMask*)(dst + COPY_TUPLE_HEADER32);
@@ -4753,7 +4767,7 @@ Dbtup::tuxGetNode(Uint32 attrDataOffset,
                   Uint32*& node)
 {
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, pageId);
+  ndbrequire(c_page_pool.getPtr(pagePtr, pageId));
   node= ((Fix_page*)pagePtr.p)->
     get_ptr(pageOffset, tuxFixHeaderSize) + attrDataOffset;
   NDB_PREFETCH_READ((void*)node);

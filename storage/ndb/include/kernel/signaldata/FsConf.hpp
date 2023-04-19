@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,8 +94,13 @@ private:
   Uint32 file_size_lo;
 };
 
-
-
+DECLARE_SIGNAL_SCOPE(GSN_FSOPENCONF, Local);
+DECLARE_SIGNAL_SCOPE(GSN_FSCLOSECONF, Local);
+DECLARE_SIGNAL_SCOPE(GSN_FSREADCONF, Local);
+DECLARE_SIGNAL_SCOPE(GSN_FSWRITECONF, Local);
+DECLARE_SIGNAL_SCOPE(GSN_FSSYNCCONF, Local);
+DECLARE_SIGNAL_SCOPE(GSN_FSREMOVECONF, Local);
+DECLARE_SIGNAL_SCOPE(GSN_FSAPPENDCONF, Local);
 
 #undef JAM_FILE_ID
 

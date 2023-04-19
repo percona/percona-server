@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -61,35 +61,35 @@ trx_t *row_vers_impl_x_locked(const rec_t *rec, const dict_index_t *index,
 
 /** Finds out if we must preserve a delete marked earlier version of a clustered
  index record, because it is >= the purge view.
- @param[in]	trx_id		Transaction id in the version
- @param[in]	name		Table name
- @param[in,out]	mtr		Mini-transaction  holding the latch on the
+ @param[in]     trx_id          Transaction id in the version
+ @param[in]     name            Table name
+ @param[in,out] mtr             Mini-transaction  holding the latch on the
                                  clustered index record; it will also hold
                                   the latch on purge_view
  @return true if earlier version should be preserved */
-ibool row_vers_must_preserve_del_marked(trx_id_t trx_id,
-                                        const table_name_t &name, mtr_t *mtr);
+bool row_vers_must_preserve_del_marked(trx_id_t trx_id,
+                                       const table_name_t &name, mtr_t *mtr);
 
 /** Finds out if a version of the record, where the version >= the current
  purge view, should have ientry as its secondary index entry. We check
  if there is any not delete marked version of the record where the trx
  id >= purge view, and the secondary index entry == ientry; exactly in
- this case we return TRUE.
+ this case we return true.
  @return true if earlier version should have */
-ibool row_vers_old_has_index_entry(
-    ibool also_curr,           /*!< in: TRUE if also rec is included in the
-                             versions to search; otherwise only versions
-                             prior to it are searched */
-    const rec_t *rec,          /*!< in: record in the clustered index; the
-                               caller must have a latch on the page */
-    mtr_t *mtr,                /*!< in: mtr holding the latch on rec; it will
-                               also hold the latch on purge_view */
-    dict_index_t *index,       /*!< in: the secondary index */
-    const dtuple_t *ientry,    /*!< in: the secondary index entry */
-    roll_ptr_t roll_ptr,       /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id,           /*!< in: transaction ID on the purging record */
-    row_prebuilt_t *prebuilt); /*!< in: compress_heap must be taken from
-                               here */
+bool row_vers_old_has_index_entry(
+    bool also_curr,         /*!< in: true if also rec is included in the
+                           versions to search; otherwise only versions
+                           prior to it are searched */
+    const rec_t *rec,       /*!< in: record in the clustered index; the
+                            caller must have a latch on the page */
+    mtr_t *mtr,             /*!< in: mtr holding the latch on rec; it will
+                            also hold the latch on purge_view */
+    dict_index_t *index,    /*!< in: the secondary index */
+    const dtuple_t *ientry, /*!< in: the secondary index entry */
+    roll_ptr_t roll_ptr,    /*!< in: roll_ptr for the purge record */
+    trx_id_t trx_id,        /*!< in: transaction ID on the purging record */
+    row_prebuilt_t *prebuilt);  /*!< in: compress_heap must be taken from
+                                here */
 
 /** Constructs the version of a clustered index record which a consistent
  read should see. We assume that the trx id stored in rec is such that

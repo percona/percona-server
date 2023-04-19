@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,12 +32,12 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/components/service.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/pfs_notification.h"
 #include "mysql/components/services/pfs_resource_group.h"
-#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/components/services/registry.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/debug_sync.h"
@@ -59,6 +59,7 @@ namespace resourcegroups {
 
 extern const char *SYS_DEFAULT_RESOURCE_GROUP_NAME;
 extern const char *USR_DEFAULT_RESOURCE_GROUP_NAME;
+extern const char *SYS_INTERNAL_RESOURCE_GROUP_NAME;
 
 /**
   This is a singleton class that provides various functionalities related to
@@ -91,7 +92,8 @@ class Resource_group_mgr {
   /**
     Reason for resource group not being supported.
 
-    @return pointer to string which indicate reason for resource group unsupport
+    @return pointer to string which indicate reason for resource group
+            unsupported
   */
 
   const char *unsupport_reason() { return m_unsupport_reason.c_str(); }
@@ -99,7 +101,7 @@ class Resource_group_mgr {
   /**
     Set reason for resource group not being supported.
 
-    @param  reason string representing reason for resource group unsupport.
+    @param  reason string representing reason for resource group unsupported.
   */
 
   void set_unsupport_reason(const std::string &reason) {
@@ -180,6 +182,13 @@ class Resource_group_mgr {
   void remove_resource_group(const std::string &name);
 
   /**
+    Extract(unlink) the resource group from the map identified by it's name.
+
+    @param name of the resource group.
+  */
+  void extract_resource_group(const std::string &name);
+
+  /**
     Create an in-memory resource group identified by its attributes
     and add it to the resource group map.
 
@@ -246,6 +255,16 @@ class Resource_group_mgr {
   }
 
   /**
+    Return the SYS_internal resource group instance.
+
+    @return pointer to the SYS_internal resource group.
+  */
+
+  Resource_group *sys_internal_resource_group() {
+    return m_sys_internal_resource_group;
+  }
+
+  /**
     Return the USR_default resource group instance.
 
     @return pointer to the USR_default resource group.
@@ -275,6 +294,18 @@ class Resource_group_mgr {
   bool is_resource_group_default(const Resource_group *res_grp) {
     return (res_grp == m_usr_default_resource_group ||
             res_grp == m_sys_default_resource_group);
+  }
+
+  /**
+    Check if a given Resource group is SYS_internal.
+
+    @param  res_grp  Resource group instance.
+
+    @return true if resource is SYS_internal else false.
+  */
+
+  bool is_sys_internal_resource_group(const Resource_group *res_grp) const {
+    return (res_grp == m_sys_internal_resource_group);
   }
 
   /**
@@ -319,11 +350,11 @@ class Resource_group_mgr {
   }
 
   /**
-    String corressponding to the type of resource group.
+    String corresponding to the type of resource group.
 
     @param type Type of resource group.
 
-    @return string corressponding to resource group type.
+    @return string corresponding to resource group type.
   */
 
   const char *resource_group_type_str(const Type &type) {
@@ -418,6 +449,9 @@ class Resource_group_mgr {
   Resource_group *m_usr_default_resource_group;
   Resource_group *m_sys_default_resource_group;
 
+  /** Pointer to SYS_internal resource group. */
+  Resource_group *m_sys_internal_resource_group;
+
   /**
     Map mapping resource group name with it's corresponding in-memory
     Resource_group object
@@ -447,7 +481,7 @@ class Resource_group_mgr {
 
   /**
     Value indicating the number of vcpus in the system. This is initialized
-    during startup so that we do not call the platform API everytime
+    during startup so that we do not call the platform API every time
     which is expensive.
   */
   uint32_t m_num_vcpus;
@@ -461,12 +495,13 @@ class Resource_group_mgr {
         m_notify_handle(0),
         m_usr_default_resource_group(nullptr),
         m_sys_default_resource_group(nullptr),
+        m_sys_internal_resource_group(nullptr),
         m_resource_group_hash(nullptr),
         m_thread_priority_available(false),
         m_resource_group_support(false),
         m_num_vcpus(0) {}
 
-  ~Resource_group_mgr() {}
+  ~Resource_group_mgr() = default;
 
   // Disable copy construction and assignment for Resource_group_mgr class.
   Resource_group_mgr(const Resource_group_mgr &) = delete;

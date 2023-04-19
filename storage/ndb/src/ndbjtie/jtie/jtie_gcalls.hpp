@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@
 //     of the C function as template arguments
 //
 // - In addition, by the C++ rules on matching formal and actual template
-//   paramters for function types, *six* separate, "overloaded" definitions
+//   parameters for function types, *six* separate, "overloaded" definitions
 //   are needed for each n-ary wrapper function template:
 //
 //     Category:                        Template Parameter Signature:
@@ -137,7 +137,7 @@
 //
 //   This way, the application can choose between a reference or pointer
 //   type mapping of the result/parameter (reference conversion checking
-//   for NULL and rasing a proper Java exception).
+//   for NULL and raising a proper Java exception).
 
 // ---------------------------------------------------------------------------
 // List Generation Macros
@@ -780,6 +780,12 @@ struct ArrayHelper< C * > {
     static C *
     ccreate(int32_t p0) {
         TRACE("C * ArrayHelper::ccreate(int32_t)");
+        if (p0 < 0) throw std::bad_array_new_length();
+        if constexpr (INT32_MAX > SIZE_MAX / sizeof(C))
+        {
+            if (uint32(p0) > SIZE_MAX / sizeof(C))
+                throw std::bad_array_new_length();
+        }
         // ISO C++: 'new' throws std::bad_alloc if unsuccessful
         return new C[p0];
     }

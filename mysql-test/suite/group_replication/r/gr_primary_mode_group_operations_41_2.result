@@ -50,6 +50,7 @@ SET @@GLOBAL.read_only= 0;
 LOCK TABLE t1 READ;
 [connection server_1]
 COMMIT;
+SET DEBUG_SYNC='RESET';
 [connection server_2]
 include/assert.inc [The stage should be "Multi-primary Switch: applying buffered transactions"]
 include/assert.inc [The estimated work is 1]

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -78,7 +78,7 @@ NdbSchemaOp* getNdbSchemaOp();
 
 Return Value    Return a pointer to a NdbSchemaOp object if getNdbSchemaOp was sussesful.
                 Return NULL: In all other case. 	
-Parameters:     tableId : Id of the database table beeing deleted.
+Parameters:     tableId : Id of the database table being deleted.
 ************************************************************************************************/
 NdbSchemaOp*
 NdbSchemaCon::getNdbSchemaOp()

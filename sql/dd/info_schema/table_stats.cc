@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,9 @@ namespace {
     - None of the innodb_read_only, read_only, super_read_only
       or transactional_read_only is ON, OR
 
+    - Not in multi transaction mode.
+      i.e., not in START TRANSACTION or AUTOCOMMIT=0.
+
     - Table is not a partitioned table.
 
     - Table is not a performance schema table.
@@ -72,6 +75,7 @@ inline bool can_persist_I_S_dynamic_statistics(THD *thd,
   return (thd->variables.information_schema_stats_expiry &&
           !thd->variables.transaction_read_only && !super_read_only &&
           !thd->in_sub_stmt && !read_only && !partition_name &&
+          !thd->in_multi_stmt_transaction_mode() &&
           (strcmp(schema_name, "performance_schema") != 0));
 }
 
@@ -309,7 +313,7 @@ static bool report_error_except_ignore_dup(THD *thd, const char *object_type) {
 namespace dd {
 namespace info_schema {
 
-bool update_table_stats(THD *thd, TABLE_LIST *table) {
+bool update_table_stats(THD *thd, Table_ref *table) {
   // Update the object properties
   HA_CREATE_INFO create_info;
 
@@ -335,7 +339,7 @@ bool update_table_stats(THD *thd, TABLE_LIST *table) {
          report_error_except_ignore_dup(thd, "table");
 }
 
-bool update_index_stats(THD *thd, TABLE_LIST *table) {
+bool update_index_stats(THD *thd, Table_ref *table) {
   // Update the object properties
   TABLE *analyze_table = table->table;
   KEY *key_info = analyze_table->s->key_info;
@@ -709,8 +713,8 @@ ulonglong Table_statistics::read_stat_by_open_table(
     goto end;
   }
 
-  TABLE_LIST *table_list;
-  table_list = lex->query_block->table_list.first;
+  Table_ref *table_list;
+  table_list = lex->query_block->get_table_list();
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
 
   /*
@@ -885,7 +889,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   }
 
 end:
-  lex->cleanup(thd, true);
+  lex->cleanup(true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);

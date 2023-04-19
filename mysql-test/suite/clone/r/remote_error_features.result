@@ -152,7 +152,7 @@ DROP TABLE t1;
 SET GLOBAL innodb_redo_log_encrypt = ON;
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
-ON
+1
 SELECT @@global.innodb_undo_log_encrypt ;
 @@global.innodb_undo_log_encrypt
 0
@@ -178,7 +178,7 @@ SET GLOBAL innodb_redo_log_encrypt = OFF;
 SET GLOBAL innodb_undo_log_encrypt = ON;
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
-OFF
+0
 SELECT @@global.innodb_undo_log_encrypt ;
 @@global.innodb_undo_log_encrypt
 1

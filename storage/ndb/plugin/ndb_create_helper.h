@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ class Ndb_create_helper {
   /**
    * @brief Failed to create the table because some create
    * option is missing. The error code for
-   * missing create option together with descrption will
+   * missing create option together with description will
    * be pushed as warning and the "Can't create table" error set.
    *
    * @description Describes which create option is missing.

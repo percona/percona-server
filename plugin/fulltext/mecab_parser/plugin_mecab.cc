@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,8 +68,8 @@ static bool mecab_parser_check_and_set_charset(const char *charset) {
   static const char *mecab_charset_values[mecab_charset_count][2] = {
       {"euc-jp", "ujis"},
       {"sjis", "sjis"},
-      {"utf-8", "utf8"},
-      {"utf8", "utf8"}};
+      {"utf-8", "utf8mb4"},
+      {"utf8", "utf8mb4"}};
 
   for (int i = 0; i < mecab_charset_count; i++) {
     if (native_strcasecmp(charset, mecab_charset_values[i][0]) == 0) {
@@ -185,6 +185,8 @@ static int mecab_parse(MeCab::Lattice *mecab_lattice,
   int token_num = 0;
   int ret = 0;
   bool term_converted = false;
+  const CHARSET_INFO *cs = param->cs;
+  char *end = const_cast<char *>(doc) + len;
 
   try {
     mecab_lattice->set_sentence(doc, len);
@@ -221,12 +223,19 @@ static int mecab_parse(MeCab::Lattice *mecab_lattice,
 
   for (const MeCab::Node *node = mecab_lattice->bos_node(); node != NULL;
        node = node->next) {
-    bool_info->position = position;
-    position += node->rlength;
+    int ctype = 0;
+    cs->cset->ctype(cs, &ctype, reinterpret_cast<const uchar *>(node->surface),
+                    reinterpret_cast<const uchar *>(end));
 
-    param->mysql_add_word(param, const_cast<char *>(node->surface),
-                          node->length,
-                          term_converted ? &token_info : bool_info);
+    /* Skip control characters */
+    if (!(ctype & _MY_CTR)) {
+      bool_info->position = position;
+      position += node->rlength;
+
+      param->mysql_add_word(param, const_cast<char *>(node->surface),
+                            node->length,
+                            term_converted ? &token_info : bool_info);
+    }
   }
 
   if (term_converted) {
@@ -249,27 +258,27 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info = {FT_TOKEN_WORD, 0, 0, 0, 0, 0,
                                            ' ',           0};
   int ret = 0;
-  const char *csname = NULL;
 
-  /* Mecab supports utf8mb4(utf8), eucjpms(ujis) and cp932(sjis). */
-  if (strcmp(param->cs->csname, MY_UTF8MB4) == 0) {
-    csname = "utf8";
-  } else if (strcmp(param->cs->csname, "eucjpms") == 0) {
-    csname = "ujis";
-  } else if (strcmp(param->cs->csname, "cp932") == 0) {
-    csname = "sjis";
-  } else {
-    csname = param->cs->csname;
+  /* Mecab supports utf8mb4/utf8mb3, eucjpms(ujis) and cp932(sjis). */
+  std::string param_csname = param->cs->csname;
+  if (param_csname == "eucjpms") {
+    param_csname = "ujis";
+  } else if (param_csname == "cp932") {
+    param_csname = "sjis";
   }
 
   /* Check charset */
-  if (strcmp(mecab_charset, csname) != 0) {
+  bool matching_charset =
+      (mecab_charset == param_csname) ||
+      (std::string(mecab_charset) == "utf8mb4" && param_csname == "utf8mb3");
+
+  if (!matching_charset) {
     char error_msg[128];
 
     snprintf(error_msg, 127,
              "Fulltext index charset '%s'"
              " doesn't match mecab charset '%s'.",
-             param->cs->csname, mecab_charset);
+             param_csname.c_str(), mecab_charset);
     my_message(ER_ERROR_ON_WRITE, error_msg, MYF(0));
 
     return (1);

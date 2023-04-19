@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "sql/binlog/group_commit/bgc_ticket_manager.h"  // Bgc_ticket_manager
 #include "sql/binlog_ostream.h"
 #include "sql/rpl_gtid.h"   // Gtid_set
 #include "sql/sql_class.h"  // THD
@@ -174,7 +175,7 @@ void Session_consistency_gtids_ctx::register_ctx_change_listener(
 
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
     Session_consistency_gtids_ctx::Ctx_change_listener *listener
-        MY_ATTRIBUTE((unused))) {
+    [[maybe_unused]]) {
   assert(m_listener == listener || m_listener == nullptr);
 
   if (m_gtid_set) delete m_gtid_set;
@@ -190,7 +191,7 @@ Last_used_gtid_tracker_ctx::Last_used_gtid_tracker_ctx() {
   m_last_used_gtid = std::unique_ptr<Gtid>(new Gtid{0, 0});
 }
 
-Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() {}
+Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() = default;
 
 void Last_used_gtid_tracker_ctx::set_last_used_gtid(const Gtid &gtid) {
   (*m_last_used_gtid).set(gtid.sidno, gtid.gno);
@@ -256,4 +257,74 @@ Transaction_compression_ctx::get_compressor(THD *thd) {
     }
   }
   return m_compressor;
+}
+
+binlog::BgcTicket Binlog_group_commit_ctx::get_session_ticket() {
+  return this->m_session_ticket;
+}
+
+void Binlog_group_commit_ctx::set_session_ticket(binlog::BgcTicket ticket) {
+  if (Binlog_group_commit_ctx::manual_ticket_setting()->load()) {
+    assert(this->m_session_ticket.is_set() == false);
+    this->m_session_ticket = ticket;
+  }
+}
+
+void Binlog_group_commit_ctx::assign_ticket() {
+  if (this->m_session_ticket.is_set()) {
+    return;
+  }
+  auto ticket_opaque =
+      binlog::Bgc_ticket_manager::instance().assign_session_to_ticket();
+  this->m_session_ticket = ticket_opaque;
+}
+
+bool Binlog_group_commit_ctx::has_waited() { return this->m_has_waited; }
+
+void Binlog_group_commit_ctx::mark_as_already_waited() {
+  this->m_has_waited = true;
+}
+
+void Binlog_group_commit_ctx::reset() {
+  this->m_session_ticket = binlog::BgcTicket(binlog::BgcTicket::kTicketUnset);
+  this->m_has_waited = false;
+}
+
+std::string Binlog_group_commit_ctx::to_string() const {
+  std::ostringstream oss;
+  this->format(oss);
+  return oss.str();
+}
+
+void Binlog_group_commit_ctx::format(std::ostream &out) const {
+  out << "Binlog_group_commit_ctx (" << std::hex << this << std::dec
+      << "):" << std::endl
+      << " · m_session_ticket: " << this->m_session_ticket << std::endl
+      << " · m_has_waited: " << this->m_has_waited << std::endl
+      << " · manual_ticket_setting(): " << manual_ticket_setting()->load()
+      << std::flush;
+}
+
+memory::Aligned_atomic<bool> &Binlog_group_commit_ctx::manual_ticket_setting() {
+  static memory::Aligned_atomic<bool> flag{false};
+  return flag;
+}
+
+void Rpl_thd_context::init() {
+  m_dependency_tracker_ctx.set_last_session_sequence_number(0);
+  m_tx_rpl_delegate_stage_status = TX_RPL_STAGE_INIT;
+}
+
+void Rpl_thd_context::set_tx_rpl_delegate_stage_status(
+    enum_transaction_rpl_delegate_status status) {
+  m_tx_rpl_delegate_stage_status = status;
+}
+
+Rpl_thd_context::enum_transaction_rpl_delegate_status
+Rpl_thd_context::get_tx_rpl_delegate_stage_status() {
+  return m_tx_rpl_delegate_stage_status;
+}
+
+Binlog_group_commit_ctx &Rpl_thd_context::binlog_group_commit_ctx() {
+  return this->m_binlog_group_commit_ctx;
 }

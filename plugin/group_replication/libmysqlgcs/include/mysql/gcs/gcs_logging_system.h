@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@
 */
 class Gcs_log_event {
  public:
-  explicit Gcs_log_event() {}
+  explicit Gcs_log_event() = default;
 
   /**
     Set whether the message is ready to be consumed or not.
@@ -168,7 +168,7 @@ class Gcs_log_event {
   usually the terminal, a file or a remote process.
 
   By default, the circular buffer has DEFAULT_ASYNC_BUFFERS entries and this
-  value can be changed by providing different contructor's paramaters. Note
+  value can be changed by providing different contructor's parameters. Note
   that, however, this is not currently exposed to the end-user. If there is no
   free slot available, the caller thread will be temporarily blocked until it
   can copy its message into a free slot. Only one thread will read the entries
@@ -196,7 +196,7 @@ class Gcs_async_buffer {
   std::vector<Gcs_log_event> m_buffer;
 
   /**
-    Number of avaiable slots in the buffer.
+    Number of available slots in the buffer.
   */
   int m_buffer_size;
 
@@ -387,7 +387,7 @@ class Gcs_async_buffer {
 class Gcs_output_sink : public Sink_interface {
  public:
   explicit Gcs_output_sink();
-  ~Gcs_output_sink() override {}
+  ~Gcs_output_sink() override = default;
 
   /**
     Output sink initialization method.
@@ -450,7 +450,7 @@ class Gcs_output_sink : public Sink_interface {
 class Gcs_default_logger : public Logger_interface {
  public:
   explicit Gcs_default_logger(Gcs_async_buffer *sink);
-  ~Gcs_default_logger() override {}
+  ~Gcs_default_logger() override = default;
 
   /**
     Default logger initialization method.
@@ -509,7 +509,7 @@ class Gcs_default_logger : public Logger_interface {
 class Gcs_default_debugger {
  public:
   explicit Gcs_default_debugger(Gcs_async_buffer *sink);
-  virtual ~Gcs_default_debugger() {}
+  virtual ~Gcs_default_debugger() = default;
 
   /**
     Default debugger initialization method.
@@ -747,7 +747,7 @@ class Gcs_debug_manager : public Gcs_debug_options {
 class Gcs_file_sink : public Sink_interface {
  public:
   Gcs_file_sink(const std::string &file_name, const std::string &dir_name);
-  ~Gcs_file_sink() override {}
+  ~Gcs_file_sink() override = default;
 
   /**
     File sink initialization method.

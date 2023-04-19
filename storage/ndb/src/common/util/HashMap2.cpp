@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,16 +20,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
-#include <HashMap2.hpp>
-
 #ifdef TEST_HASHMAP2
+#include <HashMap2.hpp>
 #include <NdbTap.hpp>
 
 struct TestHeapAllocator
 {
   static const int DEBUG_ALLOC=0;
-  static void* alloc(void* ignore, size_t bytes)
+  static void* alloc(void*, size_t bytes)
   {
     void* p = ::malloc(bytes);
     if (DEBUG_ALLOC)
@@ -40,7 +38,7 @@ struct TestHeapAllocator
     return p;
   }
 
-  static void* mem_calloc(void* ignore, size_t nelem, size_t bytes)
+  static void* mem_calloc(void*, size_t nelem, size_t bytes)
   {
     void* p = ::calloc(nelem, bytes);
     if (DEBUG_ALLOC)
@@ -51,7 +49,7 @@ struct TestHeapAllocator
     return p;
   }
 
-  static void mem_free(void* ignore, void* mem)
+  static void mem_free(void*, void* mem)
   {
     if (DEBUG_ALLOC)
     {
@@ -136,7 +134,7 @@ TAPTEST(HashMap2)
     {
       pool[i].a = i;
       pool[i].b = 3 * i;
-      pool[i].next = NULL;
+      pool[i].next = nullptr;
     }
 
     /* Add the pool elements to the hash table */
@@ -148,7 +146,7 @@ TAPTEST(HashMap2)
     /* Now attempt to add a duplicate */
     pool[100].a = 0;
     pool[100].b = 999;
-    pool[100].next = NULL;
+    pool[100].next = nullptr;
 
     OK(hash1.getElementCount() == 100);
 
@@ -180,7 +178,7 @@ TAPTEST(HashMap2)
 
     hash1.reset();
     it.reset();
-    OK( it.next() == NULL );
+    OK( it.next() == nullptr );
   }
 
   printf("int -> int (Static, !unique) \n");
@@ -199,7 +197,7 @@ TAPTEST(HashMap2)
     {
       pool[i].a = i;
       pool[i].b = 3 * i;
-      pool[i].next = NULL;
+      pool[i].next = nullptr;
     }
 
     /* Add the pool elements to the hash table */
@@ -211,7 +209,7 @@ TAPTEST(HashMap2)
     /* Now attempt to add a duplicate */
     pool[100].a = 0;
     pool[100].b = 999;
-    pool[100].next = NULL;
+    pool[100].next = nullptr;
 
     OK(hash1.getElementCount() == 100);
 
@@ -242,7 +240,7 @@ TAPTEST(HashMap2)
     {
       pool[i].a = i;
       pool[i].b = 3 * i;
-      pool[i].next = NULL;
+      pool[i].next = nullptr;
     }
 
     /* Add the pool elements to the hash table */
@@ -254,7 +252,7 @@ TAPTEST(HashMap2)
     /* Now attempt to add a duplicate */
     pool[100].a = 0;
     pool[100].b = 999;
-    pool[100].next = NULL;
+    pool[100].next = nullptr;
 
     OK(hash1.getElementCount() == 100);
 
@@ -284,7 +282,7 @@ TAPTEST(HashMap2)
       {
         pool[i].a = i;
         pool[i].b = 3 * i;
-        pool[i].next = NULL;
+        pool[i].next = nullptr;
       }
 
       /* Add the pool elements to the hash table */
@@ -296,7 +294,7 @@ TAPTEST(HashMap2)
       /* Now attempt to add a duplicate */
       pool[100].a = 0;
       pool[100].b = 999;
-      pool[100].next = NULL;
+      pool[100].next = nullptr;
 
       OK(hash1.getElementCount() == 100);
 
@@ -332,7 +330,7 @@ TAPTEST(HashMap2)
       {
         pool[i].a = i;
         pool[i].b = 3 * i;
-        pool[i].next = NULL;
+        pool[i].next = nullptr;
       }
 
       /* Add the pool elements to the hash table */
@@ -344,7 +342,7 @@ TAPTEST(HashMap2)
       /* Now attempt to add a duplicate */
       pool[100].a = 0;
       pool[100].b = 999;
-      pool[100].next = NULL;
+      pool[100].next = nullptr;
 
       OK(hash1.getElementCount() == 100);
 
@@ -366,7 +364,7 @@ TAPTEST(HashMap2)
       {
         pool2[i].a = i;
         pool2[i].b = 4 * i;
-        pool2[i].next = NULL;
+        pool2[i].next = nullptr;
       }
 
       for (int k=0; k < 4; k++)

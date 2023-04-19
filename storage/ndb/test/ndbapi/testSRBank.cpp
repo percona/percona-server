@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,8 +217,8 @@ runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 /**
- * Verify Bank consisteny after load has been stopped.
- * Then, unconditionaly drop the Bank-DB
+ * Verify Bank consistency after load has been stopped.
+ * Then, unconditionally drop the Bank-DB
  */
 int 
 runVerifyAndDropBank(NDBT_Context* ctx, NDBT_Step* step)

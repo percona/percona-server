@@ -18,7 +18,7 @@
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // check_global_access
@@ -128,6 +128,8 @@ static bool tokudb_backup_safe_slave = false;
 static ulonglong tokudb_backup_safe_slave_timeout = 0;
 static bool sql_thread_started = false;
 
+static bool tokudb_backup_enabled = false;
+
 static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version,
                         PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
                         "version of the tokudb backup plugin", nullptr, nullptr,
@@ -189,6 +191,10 @@ static MYSQL_SYSVAR_BOOL(safe_slave, tokudb_backup_safe_slave,
                          "Wait until there is no temporary slave tables.",
                          nullptr, nullptr, false);
 
+static MYSQL_SYSVAR_BOOL(enabled, tokudb_backup_enabled, 0,
+                         "enable tokudb_backup plugin", nullptr, nullptr,
+                         false);
+
 static MYSQL_SYSVAR_ULONGLONG(
     safe_slave_timeout, tokudb_backup_safe_slave_timeout, PLUGIN_VAR_OPCMDARG,
     "The maximum amount of seconds to wait for slave temp tables disappear "
@@ -206,6 +212,7 @@ static struct SYS_VAR *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(last_error),
     MYSQL_SYSVAR(last_error_string),
     MYSQL_SYSVAR(exclude),
+    MYSQL_SYSVAR(enabled),
     nullptr,
 };
 
@@ -251,7 +258,7 @@ static int tokudb_backup_progress_fun(float progress,
       static_cast<char *>(my_realloc(tokudb_backup_mem_key, be->_the_string,
                                      len, MYF(MY_FAE + MY_ALLOW_ZERO_PTR)));
   float percentage = progress * 100;
-  int r MY_ATTRIBUTE((unused)) =
+  int r [[maybe_unused]] =
       snprintf(be->_the_string, len, "tokudb backup about %.0f%% done: %s",
                percentage, progress_string);
   assert(0 < r && (size_t)r <= len);
@@ -279,7 +286,7 @@ static void tokudb_backup_set_error_string(THD *thd, int error,
   char *error_string =
       static_cast<char *>(my_malloc(tokudb_backup_mem_key, n + 1, MYF(MY_FAE)));
 
-  int r MY_ATTRIBUTE((unused)) =
+  int r [[maybe_unused]] =
       snprintf(error_string, n + 1, error_fmt, s1, s2, s3);
   assert(0 < r && (size_t)r <= n);
   tokudb_backup_set_error(thd, error, error_string);
@@ -433,7 +440,7 @@ static bool tokudb_backup_wait_for_safe_slave(THD *thd,
   if (sql_thread_started && !tokudb_backup_stop_slave_sql_thread(thd))
     return false;
 
-  while (atomic_slave_open_temp_tables.load() && n_attemts--) {
+  while (atomic_replica_open_temp_tables.load() && n_attemts--) {
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_begin");
     if (!tokudb_backup_start_slave_sql_thread(thd)) return false;
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_slave_started");
@@ -442,7 +449,7 @@ static bool tokudb_backup_wait_for_safe_slave(THD *thd,
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_end");
   }
 
-  if (!n_attemts && atomic_slave_open_temp_tables.load() &&
+  if (!n_attemts && atomic_replica_open_temp_tables.load() &&
       sql_thread_started &&
       !tokudb_backup_check_slave_sql_thread_running(thd) &&
       !tokudb_backup_start_slave_sql_thread(thd)) {
@@ -858,32 +865,22 @@ class source_dirs {
   }
 
   const char *find_plug_in_sys_var(const char *name, THD *thd) {
-    const char *result = nullptr;
-    String name_to_find(name, &my_charset_bin);
-    LEX_STRING component_name = name_to_find.lex_string();
-
-    // 5.7 change the interface to get_system_var and requires a
-    // Parse_context, which is something that must be provided (not nullptr)
-    // and something that we do not have available to us. We now
-    // re-implement some of what get_system_var does to get at these
-    // variables
-    sys_var *var = find_sys_var(thd, component_name.str, component_name.length);
-
-    if (!var) {
+    auto var_tracker = System_variable_tracker::make_tracker(name);
+    if (var_tracker.access_system_variable(thd)) {
       return nullptr;
     }
 
-    Item_func_get_system_var *item = new Item_func_get_system_var(
-        var, OPT_GLOBAL, &component_name, nullptr, 0);
-    item->resolve_type(thd);
-    item->quick_fix_field();
-    String scratch;
-    String *str = item->val_str(&scratch);
-    if (str) {
-      result = my_strdup(tokudb_backup_mem_key, str->ptr(), MYF(MY_FAE));
+    auto item = Item_func_get_system_var(var_tracker, OPT_GLOBAL);
+
+    item.resolve_type(thd);
+    item.quick_fix_field();
+    String str;
+
+    if (!item.val_str(&str)) {
+      return nullptr;
     }
 
-    return result;
+    return my_strdup(tokudb_backup_mem_key, str.ptr(), MYF(MY_FAE));
   }
 
   // is directory "a" a child of directory "b"
@@ -1278,6 +1275,22 @@ static void tokudb_backup_update_throttle(
 
 static int tokudb_backup_plugin_init(MY_ATTRIBUTE((__unused__)) void *p) {
   DBUG_ENTER(__FUNCTION__);
+
+  if (!tokudb_backup_enabled) {
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0,
+        "As of Percona Server 8.0.26-16, the TokuDB storage engine and backup "
+        "plugins have been deprecated. They will be completely removed in a "
+        "future release. If you need to continue to use them in order to "
+        "migrate to another storage engine, set the tokudb_enabled and "
+        "tokudb_backup_enabled options to TRUE in your my.cnf file and restart "
+        "your server instance. Please see this blog post for more information "
+        "https://www.percona.com/blog/2021/05/21/"
+        "tokudb-support-changes-and-future-removal-from-percona-server-for-"
+        "mysql-8-0");
+    DBUG_RETURN(true);
+  }
+
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) {
     DBUG_RETURN(true);
   }

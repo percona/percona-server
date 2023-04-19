@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ class Create_field;
 class Field;
 class String;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 class handler;
 
 /**
@@ -51,7 +51,7 @@ class Internal_error_handler {
     return m_prev_internal_handler;
   }
 
-  virtual ~Internal_error_handler() {}
+  virtual ~Internal_error_handler() = default;
 
  public:
   /**
@@ -199,10 +199,10 @@ class MDL_deadlock_and_lock_abort_error_handler
 
 */
 class View_error_handler : public Internal_error_handler {
-  TABLE_LIST *m_top_view;
+  Table_ref *m_top_view;
 
  public:
-  View_error_handler(TABLE_LIST *top_view) : m_top_view(top_view) {}
+  View_error_handler(Table_ref *top_view) : m_top_view(top_view) {}
   bool handle_condition(THD *thd, uint sql_errno, const char *,
                         Sql_condition::enum_severity_level *level,
                         const char *message) override;

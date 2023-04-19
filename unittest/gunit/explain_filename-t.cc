@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class PartitionTest : public ::testing::Test {
     m_charset = system_charset_info;
     m_locale = my_default_lc_messages;
 
-    system_charset_info = &my_charset_utf8_bin;
+    system_charset_info = &my_charset_utf8mb3_bin;
     my_default_lc_messages = &my_locale_en_US;
 
     /* Populate the necessary error messages */

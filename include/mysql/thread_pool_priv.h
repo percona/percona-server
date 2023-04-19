@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -108,6 +108,7 @@ THD *thd_get_current_thd();
 void thd_lock_data(THD *thd);
 void thd_unlock_data(THD *thd);
 bool thd_is_transaction_active(THD *thd);
+bool thd_in_active_multi_stmt_transaction(const THD *);
 int thd_connection_has_data(THD *thd);
 void thd_set_net_read_write(THD *thd, uint val);
 uint thd_get_net_read_write(THD *thd);

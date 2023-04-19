@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,13 +72,13 @@ extern int hrt_gsw_pushmark(void);
 extern void hrt_gsw_popmark(void);
 
 /**
- * Returns the real time amount between two timemarks in microseonds
+ * Returns the real time amount between two timemarks in microseconds
  * (i.e., y - x).
  */
 extern double hrt_gsw_rtmicros(int y, int x);
 
 /**
- * Returns the cpu time amount between two timemarks in microseonds
+ * Returns the cpu time amount between two timemarks in microseconds
  * (i.e., y - x).
  */
 extern double hrt_gsw_ctmicros(int y, int x);

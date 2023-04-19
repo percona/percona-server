@@ -32,7 +32,7 @@
 #    ...
 #    - saving '<some path>' to '<some path>'
 #    main.1st                                 [ pass ]      2
-#
+
 #    - PRINT_SEARCH_RESULT is set - the result of the search will
 #    get printed.
 #
@@ -59,27 +59,35 @@ perl;
     use strict;
     die "SEARCH_FILE not set" unless $ENV{'SEARCH_FILE'};
     my $print_search_result=   $ENV{PRINT_SEARCH_RESULT} or 0;
+    my $abort_on=              $ENV{ABORT_ON} or "NOT_FOUND";
     my @search_files=          glob($ENV{'SEARCH_FILE'});
     my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
     my $inverse_search=        $ENV{'INVERSE_SEARCH'} || 0;
     my $file_content=          "";
     my $found=                  0;
     foreach my $search_file (@search_files) {
-    open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
-
-    my $scalar_content= join("", <FILE>);
-    if ( ($inverse_search == 0) && (not $scalar_content =~ m{$search_pattern}) ) {
-           die("# ERROR: The file '$search_file' does not contain the expected pattern  $search_pattern\n->$scalar_content<-\n");
+       open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
+       while ( read(FILE, $file_content, 50000, 0) ) {
+          if ( $file_content =~ m{$search_pattern} ) {
+             $found= 1;
+             last;
+          }
+       }
+       close(FILE);
     }
 
-    if ( ($inverse_search == 1) && ($scalar_content =~ m{$search_pattern}) ) {
-           die("# ERROR: The file '$search_file' contains the prohibited pattern $search_pattern\n->$file_content<-\n");
-    }
-    close(FILE);
-    }
-    if ( $print_search_result ) {
+    if ( $print_search_result == 0 ) {
+      if ( $abort_on eq "NOT_FOUND" and $found == 0 ) {
+        print join(":", @search_files);
+        die ("# ERROR: None of the files contain the expected pattern $search_pattern\n");
+      }
+      if ( $abort_on eq "FOUND" and $found ) {
+        die ("# ERROR: Some of the files contain pattern that we expected not to find $search_pattern\n");
+      }
+    } else {
        my $res=$found ? "FOUND" : "NOT FOUND";
        $ENV{SEARCH_FILE} =~ s{^.*?([^/\\]+)$}{$1};
        print "$res /$search_pattern/ in $ENV{SEARCH_FILE}\n";
     }
+
 EOF

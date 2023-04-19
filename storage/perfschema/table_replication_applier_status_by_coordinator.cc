@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -123,7 +123,7 @@ bool PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi) {
     mysql_mutex_lock(&mi->rli->data_lock);
 
     if (mi->rli->slave_running) {
-      PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+      PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
       if (psi != nullptr) {
         row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -151,7 +151,7 @@ table_replication_applier_status_by_coordinator::
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_applier_status_by_coordinator::
-    ~table_replication_applier_status_by_coordinator() {}
+    ~table_replication_applier_status_by_coordinator() = default;
 
 void table_replication_applier_status_by_coordinator::reset_position(void) {
   m_pos.m_index = 0;
@@ -275,7 +275,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
   m_row.thread_id_is_null = true;
 
   if (mi->rli->slave_running) {
-    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+    PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -345,7 +345,8 @@ int table_replication_applier_status_by_coordinator::read_row_values(
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* channel_name */
-          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          set_field_char_utf8mb4(f, m_row.channel_name,
+                                 m_row.channel_name_length);
           break;
         case 1: /*thread_id*/
           if (!m_row.thread_id_is_null) {
@@ -361,15 +362,15 @@ int table_replication_applier_status_by_coordinator::read_row_values(
           set_field_ulong(f, m_row.last_error_number);
           break;
         case 4: /*last_error_message*/
-          set_field_varchar_utf8(f, m_row.last_error_message,
-                                 m_row.last_error_message_length);
+          set_field_varchar_utf8mb4(f, m_row.last_error_message,
+                                    m_row.last_error_message_length);
           break;
         case 5: /*last_error_timestamp*/
           set_field_timestamp(f, m_row.last_error_timestamp);
           break;
         case 6: /*last_processed_trx*/
-          set_field_char_utf8(f, m_row.last_processed_trx,
-                              m_row.last_processed_trx_length);
+          set_field_char_utf8mb4(f, m_row.last_processed_trx,
+                                 m_row.last_processed_trx_length);
           break;
         case 7: /*last_processed_trx_original_commit_timestamp*/
           set_field_timestamp(
@@ -387,8 +388,8 @@ int table_replication_applier_status_by_coordinator::read_row_values(
           set_field_timestamp(f, m_row.last_processed_trx_end_buffer_timestamp);
           break;
         case 11: /*processing_trx*/
-          set_field_char_utf8(f, m_row.processing_trx,
-                              m_row.processing_trx_length);
+          set_field_char_utf8mb4(f, m_row.processing_trx,
+                                 m_row.processing_trx_length);
           break;
         case 12: /*processing_trx_original_commit_timestamp*/
           set_field_timestamp(f,

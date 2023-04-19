@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ struct QueryNode  // Effectively used as a base class for QN_xxxNode
   static const QueryNode* nextQueryNode(const QueryNode* node)
   {
     const Uint32 len = QueryNode::getLength(node->len);
-    return (const QueryNode*)((Uint32*)node + len);
+    return (const QueryNode *)((const Uint32 *)node + len);
   }
 
   static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o;}
@@ -107,7 +107,7 @@ struct DABits
     NI_LINKED_ATTR    = 0x10,  // List of attributes to be used by children
 
     NI_ATTR_INTERPRET = 0x20,  // Is attr-info a interpreted program
-    NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
+    //NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
     NI_ATTR_LINKED    = 0x80,  // Does attrinfo contain linked values
 
     /**
@@ -169,7 +169,7 @@ struct DABits
     /**
      * These 2 must match their resp. QueryNode-definitions
      */
-    PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
+    //PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
     PI_KEY_PARAMS  = 0x4, // key-info parameters  (NI_KEY_PARAMS)
 
     /**
@@ -198,7 +198,7 @@ struct QN_LookupNode // Is a QueryNode subclass
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   /**
    * See DABits::NodeInfoBits
@@ -228,7 +228,7 @@ struct QN_LookupParameters // Is a QueryNodeParameters subclass
   Uint32 len;
   Uint32 requestInfo;
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 3 );
+  static constexpr Uint32 NodeSize = 3;
 
   /**
    * See DABits::ParamInfoBits
@@ -245,7 +245,7 @@ struct QN_ScanFragNode_v1 // Is a QueryNode subclass
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   /**
    * See DABits::NodeInfoBits
@@ -262,7 +262,7 @@ struct QN_ScanFragParameters_v1 // Is a QueryNodeParameters subclass
   Uint32 len;
   Uint32 requestInfo;
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 3 );
+  static constexpr Uint32 NodeSize = 3;
 
   /**
    * See DABits::ParamInfoBits
@@ -279,7 +279,7 @@ struct QN_ScanIndexNode_v1
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   enum ScanIndexBits
   {
@@ -293,7 +293,7 @@ struct QN_ScanIndexNode_v1
     // Do pattern contain parameters
     SI_PRUNE_PARAMS = 0x20000,
 
-    // Is prune pattern dependant on parent key (or only on parameters / constants)
+    // Is prune pattern dependent on parent key (or only on parameters / constants)
     SI_PRUNE_LINKED = 0x40000,
 
     // Should it be parallel scan (can also be set as in parameters)
@@ -318,9 +318,9 @@ struct QN_ScanIndexParameters_v1
   Uint32 requestInfo;
   Uint32 batchSize;    // (bytes << 11) | (rows)
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
   // Number of bits for representing row count in 'batchSize'.
-  STATIC_CONST ( BatchRowBits = 11 );
+  static constexpr Uint32 BatchRowBits = 11;
 
   enum ScanIndexParamBits
   {
@@ -355,7 +355,7 @@ struct QN_ScanFragNode // Note: Same layout as old QN_ScanIndexNode_v1
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   enum ScanFragBits    // Note: Same enum as old ScanIndexBits_v1
   {
@@ -369,7 +369,7 @@ struct QN_ScanFragNode // Note: Same layout as old QN_ScanIndexNode_v1
     // Do pattern contain parameters
     SF_PRUNE_PARAMS = 0x20000,
 
-    // Is prune pattern dependant on parent key (or only on parameters / constants)
+    // Is prune pattern dependent on parent key (or only on parameters / constants)
     SF_PRUNE_LINKED = 0x40000,
 
     // Should it be parallel scan (can also be set as in parameters)
@@ -400,7 +400,7 @@ struct QN_ScanFragParameters
   Uint32 unused1;
   Uint32 unused2;
 
-  STATIC_CONST ( NodeSize = 8 );
+  static constexpr Uint32 NodeSize = 8;
 
   enum ScanFragParamBits
   {
@@ -503,7 +503,7 @@ struct QueryPattern
 
   /**
    * Move to grand-parent no
-   * (0 == imediate parent)
+   * (0 == immediate parent)
    */
   static Uint32 parent(Uint32 no) { return (P_PARENT << 16) | no;}
 };

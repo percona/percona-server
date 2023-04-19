@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,45 +31,47 @@
 #include <string.h>
 
 #include <atomic>
+#include <iterator>
 #include <map>
 #include <utility>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/components/services/bits/psi_bits.h"
-#include "mysql/psi/mysql_table.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_table.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_grant_all_columns
 #include "sql/binlog.h"
 #include "sql/create_field.h"
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd.h"            // dd::get_dictionary
-#include "sql/dd/dictionary.h"    // dd::Dictionary
-#include "sql/dd/types/column.h"  // dd::Column
-#include "sql/dd/types/table.h"   // dd::Table
-#include "sql/dd_sql_view.h"      // update_referencing_views_metadata
-#include "sql/debug_sync.h"       // DEBUG_SYNC
-#include "sql/derror.h"           // ER_THD
+#include "sql/dd/dd.h"          // dd::get_dictionary
+#include "sql/dd/dictionary.h"  // dd::Dictionary
+#include "sql/dd_sql_view.h"    // update_referencing_views_metadata
+#include "sql/debug_sync.h"     // DEBUG_SYNC
+#include "sql/derror.h"         // ER_THD
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/lock.h"  // mysql_unlock_tables
+#include "sql/locked_tables_list.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // stage_update
 #include "sql/nested_join.h"
@@ -78,28 +80,31 @@
 #include "sql/partition_info.h"  // partition_info
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_has_bug
+#include "sql/rpl_replica.h"  // rpl_master_has_bug
+#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/select_lex_visitor.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"  // setup_fields
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_gipk.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_resolver.h"  // validate_gc_assignment
 #include "sql/sql_select.h"    // check_privileges_for_list
 #include "sql/sql_show.h"      // store_create_info
 #include "sql/sql_table.h"     // quick_rm_table
-#include "sql/sql_update.h"    // records_are_comparable
 #include "sql/sql_view.h"      // check_key_in_view
+#include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
+#include "sql/visible_fields.h"
 #include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
@@ -108,10 +113,10 @@ namespace dd {
 class Table;
 }  // namespace dd
 
-static bool check_view_insertability(THD *thd, TABLE_LIST *view,
-                                     const TABLE_LIST *insert_table_ref);
+static bool check_view_insertability(THD *thd, Table_ref *view,
+                                     const Table_ref *insert_table_ref);
 
-static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
+static void prepare_for_positional_update(TABLE *table, Table_ref *tables);
 
 /**
   Check that insert fields are from a single table of a multi-table view.
@@ -128,8 +133,8 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
 */
 
 static bool check_single_table_insert(const mem_root_deque<Item *> &fields,
-                                      TABLE_LIST *view,
-                                      TABLE_LIST **insert_table_ref) {
+                                      Table_ref *view,
+                                      Table_ref **insert_table_ref) {
   // It is join view => we need to find the table for insert
   *insert_table_ref = nullptr;  // reset for call to check_single_table()
   table_map tables = 0;
@@ -157,12 +162,12 @@ static bool check_single_table_insert(const mem_root_deque<Item *> &fields,
   Resolved reference to base table is returned in lex->insert_table_leaf.
 */
 
-static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
+static bool check_insert_fields(THD *thd, Table_ref *table_list,
                                 mem_root_deque<Item *> *fields) {
   LEX *const lex = thd->lex;
 
 #ifndef NDEBUG
-  TABLE_LIST *const saved_insert_table_leaf = lex->insert_table_leaf;
+  Table_ref *const saved_insert_table_leaf = lex->insert_table_leaf;
 #endif
 
   TABLE *table = table_list->table;
@@ -235,12 +240,12 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
           const Item *item2 = *j;
           if (item1->eq(item2, true)) {
             my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), item1->item_name.ptr());
-            break;
+            return true;
           }
         }
       }
-      assert(thd->is_error());
-      return true;
+      // A duplicate column name should have been found by now.
+      assert(false);
     }
   }
   /* Mark all generated columns for write*/
@@ -270,7 +275,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
   @return false if success, true if error
 */
 
-static bool check_valid_table_refs(const TABLE_LIST *view,
+static bool check_valid_table_refs(const Table_ref *view,
                                    const mem_root_deque<Item *> &values,
                                    table_map map) {
   if (!view->is_view())  // Ignore check if called with base table.
@@ -494,7 +499,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
   Query_block *const query_block = lex->query_block;
 
-  TABLE_LIST *const table_list = lex->insert_table;
+  Table_ref *const table_list = lex->insert_table;
   TABLE *const insert_table = lex->insert_table_leaf->table;
 
   if (duplicates == DUP_UPDATE || duplicates == DUP_REPLACE)
@@ -674,7 +679,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
     const bool transactional_table = insert_table->file->has_transactions();
 
-    const bool changed MY_ATTRIBUTE((unused)) =
+    const bool changed [[maybe_unused]] =
         info.stats.copied || info.stats.deleted || info.stats.updated;
 
     if (!has_error ||
@@ -816,8 +821,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
   @retval true if table is not insertable-into (no error is reported)
 */
 
-static bool check_view_insertability(THD *thd, TABLE_LIST *view,
-                                     const TABLE_LIST *insert_table_ref) {
+static bool check_view_insertability(THD *thd, Table_ref *view,
+                                     const Table_ref *insert_table_ref) {
   DBUG_TRACE;
 
   const uint num = view->view_query()->query_block->num_visible_fields();
@@ -896,7 +901,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
 
   @return false if success, true if error
 */
-static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr) {
+static bool fix_join_cond_for_insert(THD *thd, Table_ref *tr) {
   if (tr->join_cond() && !tr->join_cond()->fixed) {
     Column_privilege_tracker column_privilege(thd, SELECT_ACL);
 
@@ -906,7 +911,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr) {
 
   if (tr->nested_join == nullptr) return false;
 
-  for (TABLE_LIST *ti : tr->nested_join->join_list) {
+  for (Table_ref *ti : tr->nested_join->m_tables) {
     if (fix_join_cond_for_insert(thd, ti)) return true; /* purecov: inspected */
   }
   return false;
@@ -917,21 +922,19 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr) {
 
   @param table     table(TABLE object) we insert into,
                    might be NULL in case of view
-  @param tables (TABLE_LIST object) or view we insert into
+  @param tables (Table_ref object) or view we insert into
 */
 
-static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables) {
+static void prepare_for_positional_update(TABLE *table, Table_ref *tables) {
   if (table) {
     table->prepare_for_position();
     return;
   }
 
   assert(tables->is_view());
-  for (TABLE_LIST *tbl : *tables->view_tables) {
+  for (Table_ref *tbl : *tables->view_tables) {
     prepare_for_positional_update(tbl->table, tbl);
   }
-
-  return;
 }
 
 static bool allocate_column_bitmap(THD *thd, TABLE *table, MY_BITMAP **bitmap) {
@@ -1022,7 +1025,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   Name_resolution_context *const context = &select->context;
   Name_resolution_context_state ctx_state;
 
-  TABLE_LIST *const table_list = lex->query_tables;
+  Table_ref *const table_list = lex->query_tables;
   lex->insert_table = table_list;
 
   const bool insert_into_view = table_list->is_view();
@@ -1041,7 +1044,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   lex->in_update_value_clause = false;
 
   // first_query_block_table is the first table after the table inserted into
-  TABLE_LIST *first_query_block_table = table_list->next_local;
+  Table_ref *first_query_block_table = table_list->next_local;
 
   // Setup the insert table only
   table_list->next_local = nullptr;
@@ -1049,7 +1052,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   // The VALUES table should only be available from within the update
   // expressions (i.e. the rhs of ODKU updates). The context must be restored
   // before resolve_update_expressions for ODKU statements.
-  TABLE_LIST *next_name_resolution_table =
+  Table_ref *next_name_resolution_table =
       table_list->next_name_resolution_table;
   table_list->next_name_resolution_table = nullptr;
 
@@ -1286,7 +1289,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   if (!select_insert) {
     // Duplicate tables in subqueries in VALUES clause are not allowed.
-    TABLE_LIST *const duplicate =
+    Table_ref *const duplicate =
         unique_table(lex->insert_table_leaf, table_list->next_global, true);
     if (duplicate != nullptr) {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
@@ -1295,9 +1298,15 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   } else {
     ulong added_options = SELECT_NO_UNLOCK;
 
-    // Is inserted table used somewhere in other parts of query
-    if (unique_table(lex->insert_table_leaf, table_list->next_global, false)) {
-      // Using same table for INSERT and SELECT, buffer the selection
+    // The result needs to be buffered if the target table is used somewhere
+    // in other parts of query.
+    // This is not an issue if a secondary engine is involved, as the target
+    // table will always be in the primary engine, and the source table will
+    // be in the secondary engine, so they are always different for this
+    // particular case.
+    if (unique_table(lex->insert_table_leaf, table_list->next_global, false) &&
+        thd->secondary_engine_optimization() !=
+            Secondary_engine_optimization::SECONDARY) {
       added_options |= OPTION_BUFFER_RESULT;
     }
     /*
@@ -1322,7 +1331,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
                             &update_field_list, &update_value_list, duplicates);
     if (result == nullptr) return true; /* purecov: inspected */
 
-    if (unit->is_union()) {
+    if (unit->is_set_operation()) {
       /*
         Update values may not have references to SELECT tables, so it is
         safe to resolve them before the query expression.
@@ -1338,7 +1347,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     }
 
     // Remove the insert table from the first query block
-    select->table_list.first = first_query_block_table;
+    select->m_table_list.first = first_query_block_table;
     context->table_list = first_query_block_table;
     context->first_name_resolution_table = first_query_block_table;
 
@@ -1346,13 +1355,14 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       return true;
 
     /* Restore the insert table but not the name resolution context */
-    if (first_query_block_table != select->table_list.first) {
+    if (first_query_block_table != select->get_table_list()) {
       // If we have transformation of the top block table list
       // by Query_block::transform_grouped_to_derived, we must update:
-      first_query_block_table = select->table_list.first;
+      first_query_block_table = select->get_table_list();
       ctx_state.update_next_local(first_query_block_table);
     }
-    select->table_list.first = context->table_list = table_list;
+    select->m_table_list.first = table_list;
+    context->table_list = table_list;
     table_list->next_local = first_query_block_table;
 
     if (field_count != unit->num_visible_fields()) {
@@ -1371,7 +1381,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   if (duplicates == DUP_UPDATE) {
     if (select_insert) {
-      if (!unit->is_union() && !select->is_grouped()) {
+      if (!unit->is_set_operation() && !select->is_grouped()) {
         /*
           Make one context out of the two separate name resolution contexts:
           the INSERT table and the tables in the SELECT part,
@@ -1393,7 +1403,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       table_list->next_name_resolution_table = next_name_resolution_table;
     }
 
-    if (!unit->is_union() && resolve_update_expressions(thd)) return true;
+    if (!unit->is_set_operation() && resolve_update_expressions(thd))
+      return true;
   }
 
   if (insert_table->triggers) {
@@ -1407,12 +1418,13 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     if (insert_table->triggers->mark_fields(TRG_EVENT_INSERT)) return true;
   }
 
-  if (!unit->is_union() && select->apply_local_transforms(thd, false))
+  if (!unit->is_set_operation() && select->apply_local_transforms(thd, false))
     return true; /* purecov: inspected */
 
   if (select_insert) {
     // Restore the insert table and the name resolution context
-    select->table_list.first = context->table_list = table_list;
+    select->m_table_list.first = table_list;
+    context->table_list = table_list;
     table_list->next_local = first_query_block_table;
     ctx_state.restore_state(context, table_list);
   }
@@ -1530,8 +1542,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     unit->set_prepared();
   } else {
     if (!is_regular()) {
-      for (TABLE_LIST *tr = lex->insert_table->first_leaf_table();
-           tr != nullptr; tr = tr->next_leaf)
+      for (Table_ref *tr = lex->insert_table->first_leaf_table(); tr != nullptr;
+           tr = tr->next_leaf)
         if (tr->save_properties()) return true;
     }
   }
@@ -1568,14 +1580,15 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   if (insert_field_list.empty()) {
-    TABLE_LIST *insert_table = lex->query_block->table_list.first;
+    Table_ref *insert_table = lex->query_block->get_table_list();
     Field_iterator_table_ref it;
     it.set(insert_table);
 
     for (it.set(insert_table); !it.end_of_fields(); it.next()) {
-      Item *item = it.create_item(current_thd);
+      if (it.field() != nullptr && it.field()->is_hidden_by_system()) continue;
+      Item *item = it.create_item(thd);
       if (item == nullptr) return true;
-      values_field_list.push_back(down_cast<Item_field *>(item));
+      values_field_list.push_back(down_cast<Item_field *>(item->real_item()));
     }
   } else {
     for (Item *item : insert_field_list) {
@@ -1675,8 +1688,8 @@ bool Sql_cmd_insert_base::resolve_values_table_columns(THD *thd) {
 bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
   DBUG_TRACE;
 
-  TABLE_LIST *const insert_table_ref = lex->query_tables;
-  TABLE_LIST *const insert_table_leaf = lex->insert_table_leaf;
+  Table_ref *const insert_table_ref = lex->query_tables;
+  Table_ref *const insert_table_leaf = lex->insert_table_leaf;
 
   const bool select_insert = insert_many_values.empty();
 
@@ -1700,21 +1713,24 @@ bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
 
   lex->in_update_value_clause = false;
 
-  if (select_insert) {
+  if (select_insert && !lex->using_hypergraph_optimizer) {
     /*
       Traverse the update values list and substitute fields from the
       select for references (Item_ref objects) to them. This is done in
       order to get correct values from those fields when the select
       employs a temporary table.
+
+      This is not necessary for the hypergraph optimizer, since it changes the
+      Item_field objects to point directly to the fields in the temporary table
+      when the temporary table is created.
     */
     Query_block *const select = lex->query_block;
 
-    for (auto it = update_value_list.begin(); it != update_value_list.end();
-         ++it) {
-      Item *new_item = (*it)->transform(&Item::update_value_transformer,
-                                        pointer_cast<uchar *>(select));
+    for (Item *&it : update_value_list) {
+      Item *new_item = it->transform(&Item::update_value_transformer,
+                                     pointer_cast<uchar *>(select));
       if (new_item == nullptr) return true;
-      *it = new_item;
+      it = new_item;
     }
   }
 
@@ -1796,14 +1812,13 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
   MY_BITMAP *save_read_set, *save_write_set;
   ulonglong prev_insert_id = table->file->next_insert_id;
   ulonglong insert_id_for_cur_row = 0;
-  MEM_ROOT mem_root;
   DBUG_TRACE;
 
   /* Here we are using separate MEM_ROOT as this memory should be freed once we
      exit write_record() function. This is marked as not instumented as it is
      allocated for very short time in a very specific case.
   */
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
   info->stats.records++;
   save_read_set = table->read_set;
   save_write_set = table->write_set;
@@ -1896,6 +1911,9 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
           So here we recalculate data for generated columns.
         */
         if (table->vfield) {
+          // Dont save old value while re-calculating generated fields.
+          // Before image will already be saved in the first calculation.
+          table->blobs_need_not_keep_old_value();
           update_generated_write_fields(table->write_set, table);
         }
 
@@ -1989,7 +2007,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
             should satisfy the CHECK OPTION.
           */
           {
-            const TABLE_LIST *inserted_view =
+            const Table_ref *inserted_view =
                 table->pos_in_table_list->belong_to_view;
             if (inserted_view != nullptr) {
               res = inserted_view->view_check_option(thd);
@@ -2054,7 +2072,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
         goto ok_or_after_trg_err;
       } else /* DUP_REPLACE */
       {
-        TABLE_LIST *view = table->pos_in_table_list->belong_to_view;
+        Table_ref *view = table->pos_in_table_list->belong_to_view;
 
         if (view && view->replace_filter) {
           const size_t record_length = table->s->reclength;
@@ -2186,7 +2204,6 @@ ok_or_after_trg_err:
   if (!table->file->has_transactions())
     thd->get_transaction()->mark_modified_non_trans_table(
         Transaction_ctx::STMT);
-  free_root(&mem_root, MYF(0));
   return trg_error;
 
 err : {
@@ -2201,7 +2218,6 @@ before_trg_err:
   table->file->restore_auto_increment(prev_insert_id);
   if (key) my_safe_afree(key, table->s->max_unique_length, MAX_KEY_LENGTH);
   table->column_bitmaps_set(save_read_set, save_write_set);
-  free_root(&mem_root, MYF(0));
   return true;
 }
 
@@ -2217,7 +2233,7 @@ before_trg_err:
 */
 
 bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
-                                            TABLE_LIST *table_list) {
+                                            Table_ref *table_list) {
   MY_BITMAP *write_set = entry->fields_set_during_insert;
 
   for (Field **field = entry->field; *field; field++) {
@@ -2335,11 +2351,11 @@ bool Query_result_insert::start_execution(THD *thd) {
   return false;
 }
 
-void Query_result_insert::cleanup(THD *thd) {
+void Query_result_insert::cleanup() {
   DBUG_TRACE;
   // table_list and table may be out of synch:
-  if (thd->lex->insert_table_leaf != nullptr &&
-      thd->lex->insert_table_leaf->table == nullptr)
+  if (current_thd->lex->insert_table_leaf != nullptr &&
+      current_thd->lex->insert_table_leaf->table == nullptr)
     table = nullptr;
   if (table != nullptr) {
     table->next_number_field = nullptr;
@@ -2348,7 +2364,7 @@ void Query_result_insert::cleanup(THD *thd) {
   }
   info.cleanup();
   update.cleanup();
-  thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
+  current_thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
 }
 
 bool Query_result_insert::send_data(THD *thd,
@@ -2440,19 +2456,13 @@ void Query_result_insert::store_values(THD *thd,
   check_that_all_fields_are_given_values(thd, table, table_list);
 }
 
-void Query_result_insert::send_error(THD *, uint errcode, const char *err) {
-  DBUG_TRACE;
-
-  my_message(errcode, err, MYF(0));
-}
-
 bool Query_result_insert::stmt_binlog_is_trans() const {
   return table->file->has_transactions();
 }
 
 bool Query_result_insert::send_eof(THD *thd) {
   ulonglong id, row_count;
-  bool changed MY_ATTRIBUTE((unused));
+  bool changed [[maybe_unused]];
   THD::killed_state killed_status = thd->killed;
   DBUG_TRACE;
   DBUG_PRINT("enter",
@@ -2477,7 +2487,7 @@ bool Query_result_insert::send_eof(THD *thd) {
          thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
   /*
-    Write to binlog before commiting transaction.  No statement will
+    Write to binlog before committing transaction.  No statement will
     be written by the binlog_query() below in RBR mode.  All the
     events are in the transaction cache and will be written when
     ha_autocommit_or_rollback() is issued below.
@@ -2566,7 +2576,7 @@ void Query_result_insert::abort_result_set(THD *thd) {
     and the end of the function.
    */
   if (table != nullptr) {
-    bool changed MY_ATTRIBUTE((unused));
+    bool changed [[maybe_unused]];
     bool transactional_table;
     /*
       Try to end the bulk insert which might have been started before.
@@ -2634,8 +2644,8 @@ void Query_result_insert::abort_result_set(THD *thd) {
   @param [in] thd               Thread object
   @param [in] create_info       Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
-  @param [in] create_table      Pointer to TABLE_LIST object providing database
-                                and name for table to be created or to be open
+  @param [in] create_table      Pointer to Table_ref object providing
+  database and name for table to be created or to be open
   @param [in,out] alter_info    Initial list of columns and indexes for the
                                 table to be created
   @param [in] items             The source table columns. Corresponding column
@@ -2662,7 +2672,7 @@ void Query_result_insert::abort_result_set(THD *thd) {
 */
 
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
-                                      TABLE_LIST *create_table,
+                                      Table_ref *create_table,
                                       Alter_info *alter_info,
                                       const mem_root_deque<Item *> &items,
                                       handlerton **post_ddl_ht) {
@@ -2749,6 +2759,17 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           thd, create_table->db, create_table->table_name, alter_info))
     return nullptr;
 
+  /*
+    If mode to generate invisible primary key is active then, generate primary
+    key for the table.
+  */
+  if (is_generate_invisible_primary_key_mode_active(thd) &&
+      is_candidate_table_for_invisible_primary_key_generation(create_info,
+                                                              alter_info)) {
+    if (validate_and_generate_invisible_primary_key(thd, alter_info))
+      return nullptr;
+  }
+
   DEBUG_SYNC(thd, "create_table_select_before_create");
 
   /*
@@ -2808,10 +2829,10 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   return table;
 }
 
-Query_result_create::Query_result_create(TABLE_LIST *table_arg,
+Query_result_create::Query_result_create(Table_ref *table_arg,
                                          mem_root_deque<Item *> *fields,
                                          enum_duplicates duplic,
-                                         TABLE_LIST *select_tables_arg)
+                                         Table_ref *select_tables_arg)
     : Query_result_insert(nullptr,  // table_list_par
                           nullptr,  // target_columns
                           fields,
@@ -2863,7 +2884,7 @@ bool Query_result_create::create_table_for_query_block(THD *thd) {
     if ((*f)->gcol_info && !(*f)->is_field_for_functional_index()) {
       /*
         Generated columns are not allowed to be given a value for CREATE TABLE
-        .. SELECT statment.
+        .. SELECT statement.
       */
       my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
                (*f)->field_name, (*f)->table->s->table_name.str);
@@ -2977,7 +2998,7 @@ bool Query_result_create::start_execution(THD *thd) {
 int Query_result_create::binlog_show_create_table(THD *thd) {
   DBUG_TRACE;
 
-  TABLE_LIST *save_next_global = create_table->next_global;
+  Table_ref *save_next_global = create_table->next_global;
   create_table->next_global = select_tables;
   int error = thd->decide_logging_format(create_table);
   create_table->next_global = save_next_global;
@@ -3016,12 +3037,13 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
   char buf[2048];
   String query(buf, sizeof(buf), system_charset_info);
   int result;
-  TABLE_LIST tmp_table_list(table);
+  Table_ref tmp_table_list(table);
 
   query.length(0);  // Have to zero it since constructor doesn't
 
   result = store_create_info(thd, &tmp_table_list, &query, create_info,
-                             /* show_database */ true);
+                             /* show_database */ true,
+                             /* SHOW CREATE TABLE */ false);
   assert(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open()) {
@@ -3061,35 +3083,12 @@ void Query_result_create::store_values(THD *thd,
     columns defined in CREATE TABLE SELECT. Hence calling set_function_defaults
     explicitly.
   */
-  if (info.function_defaults_apply_on_columns(table->write_set))
-    info.set_function_defaults(table);
+  if (info.function_defaults_apply_on_columns(table->write_set)) {
+    if (info.set_function_defaults(table)) return;
+  }
 
   fill_record_n_invoke_before_triggers(thd, table_fields, values, table,
                                        TRG_EVENT_INSERT, table->s->fields);
-}
-
-void Query_result_create::send_error(THD *thd, uint errcode, const char *err) {
-  DBUG_TRACE;
-
-  DBUG_PRINT("info",
-             ("Current statement %s row-based",
-              thd->is_current_stmt_binlog_format_row() ? "is" : "is NOT"));
-  DBUG_PRINT("info",
-             ("Current table (at %p) %s a temporary (or non-existant) table",
-              table, table && !table->s->tmp_table ? "is NOT" : "is"));
-  /*
-    This will execute any rollbacks that are necessary before writing
-    the transcation cache.
-
-    We disable the binary log since nothing should be written to the
-    binary log.  This disabling is important, since we potentially do
-    a "roll back" of non-transactional tables by removing the table,
-    and the actual rollback might generate events that should not be
-    written to the binary log.
-
-  */
-  Disable_binlog_guard binlog_guard(thd);
-  Query_result_insert::send_error(thd, errcode, err);
 }
 
 bool Query_result_create::stmt_binlog_is_trans() const {
@@ -3185,8 +3184,6 @@ bool Query_result_create::send_eof(THD *thd) {
   if (error)
     abort_result_set(thd);
   else {
-    bool commit_error = false;
-
     DBUG_EXECUTE_IF("crash_after_create_select_insert", DBUG_SUICIDE(););
     /*
       Do an implicit commit at end of statement for non-temporary tables.
@@ -3199,29 +3196,19 @@ bool Query_result_create::send_eof(THD *thd) {
     */
     if (!table->s->tmp_table) {
       thd->get_stmt_da()->set_overwrite_status(true);
-      commit_error = trans_commit_stmt(thd) || trans_commit_implicit(thd);
+      error = trans_commit_stmt(thd) || trans_commit_implicit(thd);
       thd->get_stmt_da()->set_overwrite_status(false);
     }
 
-    if (m_plock) {
+    if (!error && m_plock) {
       mysql_unlock_tables(thd, *m_plock);
       *m_plock = nullptr;
       m_plock = nullptr;
     }
 
-    if (commit_error) {
-      assert(!table->s->tmp_table);
-      assert(table == thd->open_tables);
-      close_thread_table(thd, &thd->open_tables);
-      /*
-        Remove TABLE and TABLE_SHARE objects for the table which creation
-        might have been rolled back from the caches.
-      */
-      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
-                       create_table->table_name, false);
+    if (!error && m_post_ddl_ht) {
+      m_post_ddl_ht->post_ddl(thd);
     }
-
-    if (m_post_ddl_ht) m_post_ddl_ht->post_ddl(thd);
 
     fk_invalidator.invalidate(thd);
   }

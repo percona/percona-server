@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -223,7 +223,7 @@ int initSequence(RandomSequence *seq, SequenceValues *inputValues)
    seq->length = totalLength;
    seq->values = (unsigned int *)calloc(totalLength, sizeof(unsigned int));
 
-   if( seq->values == 0 ) return(-1);
+   if( seq->values == nullptr ) return(-1);
 
    /*----------------------*/
    /* set the array values */

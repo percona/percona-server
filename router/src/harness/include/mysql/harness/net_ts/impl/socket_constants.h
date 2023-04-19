@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,7 @@ static constexpr message_flags message_waitall = MSG_WAITALL;
 enum class wait_type {
   wait_read = POLLIN,
   wait_write = POLLOUT,
-  wait_error = POLLERR,
+  wait_error = POLLERR | POLLHUP,
 };
 
 }  // namespace socket

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 #
 
 # ==== Purpose ====
@@ -27,7 +27,9 @@ if ($event_scheduler_running == 1)
 --source include/wait_condition.inc
 if (!$success)
 {
-  SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+  # For NDB tests CONNECTION_ID() can be different "before" and "after" the test,
+  # so replacing it with 0.
+  SELECT IF(ID != CONNECTION_ID(), ID, 0) AS FIXED_ID, USER, HOST, DB, COMMAND, STATE, INFO FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY FIXED_ID ASC;
 }
 
 # We want to ensure all slave configuration is restored. But SHOW
@@ -170,6 +172,9 @@ if ($proceed_with_check_of_files) {
   # "rpl.rpl_extra_row_data" will fail.
   SET @sql_log_bin_save = @@sql_log_bin;
   SET SESSION sql_log_bin = 0;
+  # Checking needs to create temporary tables without primary key
+  SET SESSION sql_require_primary_key = 0;
+  SET SESSION sql_generate_invisible_primary_key = 0;
 
   USE test;
 
@@ -253,7 +258,7 @@ EOF
       --enable_abort_on_error
     }
 
-    SELECT filename FROM file_tbl
+    SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ filename FROM file_tbl
       WHERE filename NOT LIKE 'check-mysqld_%'
       AND filename NOT LIKE 'mysql%.sock%'
       AND filename NOT LIKE 'file_list_%.flist'

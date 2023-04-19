@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,7 +142,7 @@ int xcom_set_ssl_mode(int mode);
   Note that only the server_key_file/server_cert_file and the client_key_file/
   client_cert_file are required and the rest of the pointers can be NULL.
   If the key is provided along with the certificate, either the key file or
-  the other can be ommited.
+  the other can be omitted.
 
   The caller can free the parameters after the call if this is necessary.
 

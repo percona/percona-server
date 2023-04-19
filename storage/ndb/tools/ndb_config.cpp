@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,11 +73,17 @@
 
 #include <NdbOut.hpp>
 #include <mgmapi.h>
+#include "storage/ndb/include/mgmcommon/NdbMgm.hpp"
 #include "../src/mgmapi/mgmapi_configuration.hpp"
-#include "../src/mgmsrv/ConfigInfo.hpp"
+#include "mgmcommon/ConfigInfo.hpp"
+#include "mgmcommon/InitConfigFileParser.hpp"
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
+#include "NdbToolsProgramExitCodes.hpp"
 #include <inttypes.h>
+#include "util/cstrbuf.h"
+#include "mgmcommon/ConfigRetriever.hpp"
+#include "mgmcommon/Config.hpp"
 
 #include "my_alloc.h"
 
@@ -93,6 +99,7 @@ static const char * g_type = 0;
 static const char * g_host = 0;
 static const char * g_field_delimiter=",";
 static const char * g_row_delimiter=" ";
+static const char * g_config_binary_file = nullptr;
 static const char * g_config_file = 0;
 static int g_mycnf = 0;
 static int g_configinfo = 0;
@@ -104,61 +111,72 @@ const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_config"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "nodes", NDB_OPT_NOSHORT, "Print nodes",
-    (uchar**) &g_nodes, (uchar**) &g_nodes,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    &g_nodes, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "connections", NDB_OPT_NOSHORT, "Print connections",
-    (uchar**) &g_connections, (uchar**) &g_connections,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    &g_connections, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "system", NDB_OPT_NOSHORT, "Print system",
-    (uchar**) &g_system, (uchar**) &g_system,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    &g_system, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "query", 'q', "Query option(s)",
-    (uchar**) &g_query, (uchar**) &g_query,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    &g_query, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "host", NDB_OPT_NOSHORT, "Host",
-    (uchar**) &g_host, (uchar**) &g_host,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    &g_host, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "type", NDB_OPT_NOSHORT, "Type of node/connection",
-    (uchar**) &g_type, (uchar**) &g_type,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    &g_type, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "nodeid", NDB_OPT_NOSHORT, "Nodeid",
-    (uchar**) &g_nodeid, (uchar**) &g_nodeid,
-    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    &g_nodeid, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "fields", 'f', "Field separator",
-    (uchar**) &g_field_delimiter, (uchar**) &g_field_delimiter,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    &g_field_delimiter, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "rows", 'r', "Row separator",
-    (uchar**) &g_row_delimiter, (uchar**) &g_row_delimiter,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    &g_row_delimiter, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
+  { "config-binary-file", NDB_OPT_NOSHORT,
+    "Binary config file (i.e. ndb_1_config.bin.2)",
+    &g_config_binary_file, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "config-file", NDB_OPT_NOSHORT, "Path to config.ini",
-    (uchar**) &g_config_file, (uchar**) &g_config_file,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    &g_config_file, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "mycnf", NDB_OPT_NOSHORT, "Read config from my.cnf",
-    (uchar**) &g_mycnf, (uchar**) &g_mycnf,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    &g_mycnf, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "cluster-config-suffix", NDB_OPT_NOSHORT,
     "Override defaults-group-suffix when reading cluster configuration in "
-    "my.cnf.",
-    &g_cluster_config_suffix, &g_cluster_config_suffix,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    "my.cnf.", &g_cluster_config_suffix, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "configinfo", NDB_OPT_NOSHORT, "Print configinfo",
-    (uchar**) &g_configinfo, (uchar**) &g_configinfo,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    &g_configinfo, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "xml", NDB_OPT_NOSHORT, "Print configinfo in xml format",
-    (uchar**) &g_xml, (uchar**) &g_xml,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    &g_xml, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "config_from_node", NDB_OPT_NOSHORT, "Use current config from node with given nodeid",
-    (uchar**) &g_config_from_node, (uchar**) &g_config_from_node,
-    0, GET_INT, REQUIRED_ARG, INT_MIN, INT_MIN, 0, 0, 0, 0},
+    &g_config_from_node, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+     INT_MIN, INT_MIN, 0, nullptr, 0, nullptr},
   { "query_all", 'a', "Query all the options",
-    (uchar**)&g_query_all, (uchar**)&g_query_all,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &g_query_all, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   { "diff_default", NDB_OPT_NOSHORT, "print parameters that are different from default",
-    (uchar**)&g_diff_default, (uchar**)&g_diff_default,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    &g_diff_default, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
+  NdbStdOpt::end_of_options
 };
 
 static void short_usage_sub(void)
@@ -171,6 +189,40 @@ static void usage_extra()
   char desc[] =
     "This program will retreive config options for a ndb cluster\n";
   puts(desc);
+}
+
+/*
+ * Sort all parameters in ConfigInfo::m_NoOfParams by name (_fname) and
+ * section (_section).  Put mandatory parameters first and experimental
+ * or internal parameters (name starting with _) last.
+ */
+
+static std::vector<const ConfigInfo::ParamInfo*> SortedParamInfo(ConfigInfo::m_NoOfParams);
+
+static
+bool paraminfo_order(const ConfigInfo::ParamInfo* x, const ConfigInfo::ParamInfo* y)
+{
+  // Move mandatory parameters first
+  int cmp = int(x->_default != MANDATORY) - int(y->_default != MANDATORY);
+  if (cmp != 0) return (cmp < 0);
+
+  // Move parameters with names starting with _ last
+  cmp = int(x->_fname[0] == '_') - int(y->_fname[0] == '_');
+  if (cmp != 0) return (cmp < 0);
+
+  cmp = native_strcasecmp(x->_fname, y->_fname);
+  if (cmp != 0) return (cmp < 0);
+
+  cmp = native_strcasecmp(x->_section, y->_section);
+  return (cmp < 0);
+}
+
+static
+void sort_paraminfo()
+{
+  for (int i = 0; i < ConfigInfo::m_NoOfParams; i++)
+    SortedParamInfo[i] = &ConfigInfo::m_ParamInfo[i];
+  std::sort(SortedParamInfo.begin(), SortedParamInfo.end(), paraminfo_order);
 }
 
 /**
@@ -225,18 +277,30 @@ static int parse_query(Vector<Apply*>&, int &argc, char**& argv);
 static int parse_where(Vector<Match*>&, int &argc, char**& argv);
 static int eval(const ndb_mgm_configuration_iterator&, const Vector<Match*>&);
 static int apply(const ndb_mgm_configuration_iterator&, const Vector<Apply*>&);
-static int print_diff(const ndb_mgm_configuration_iterator&);
+static int print_diff(int section, const ndb_mgm_configuration_iterator&);
 static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
 
-static ndb_mgm_config_unique_ptr get_config()
+static ndb_mgm_configuration* load_binary_config(const char* config_name)
+{
+  BaseString err;
+  ndb_mgm::config_ptr config =
+      ConfigRetriever::getConfig(config_name, err);
+  if (config) return config.release();
+  fprintf(stderr, "Error: %s\n", err.c_str());
+  return nullptr;
+}
+
+static ndb_mgm::config_ptr get_config()
 {
   ndb_mgm_configuration* conf;
   if (g_config_file || g_mycnf)
     conf = load_configuration();
+  else if (g_config_binary_file)
+    conf = load_binary_config(g_config_binary_file);
   else
     conf = fetch_configuration(g_config_from_node);
-  return ndb_mgm_config_unique_ptr(conf);
+  return ndb_mgm::config_ptr(conf);
 }
 
 int
@@ -288,25 +352,74 @@ main(int argc, char** argv){
     exit(255);
   }
 
+  if (!g_nodes && !g_connections && !g_system && !g_diff_default)
+  {
+    // Default to --nodes, unless --diff-default
+    g_nodes = true;
+  }
+
+  if (g_type != nullptr)
+  {
+    // Normalize node type to one of DB, API, MGM.
+    ndb_mgm_node_type type = ndb_mgm_match_node_type(g_type);
+    switch (type)
+    {
+    case NDB_MGM_NODE_TYPE_NDB: g_type = "DB"; break;
+    case NDB_MGM_NODE_TYPE_API: g_type = "API"; break;
+    case NDB_MGM_NODE_TYPE_MGM: g_type = "MGM"; break;
+    default:
+      if (g_nodes)
+      {
+        fprintf(stderr, "Unknown node type '%s'.\n", g_type);
+        return NdbToolsProgramExitCode::WRONG_ARGS;
+      }
+    }
+  }
+
+  if(strcmp(g_row_delimiter, "\\n") == 0)
+    g_row_delimiter = "\n";
+  if(strcmp(g_field_delimiter, "\\n") == 0)
+    g_field_delimiter = "\n";
+
+  const ndb_mgm::config_ptr conf = get_config();
+  if (conf == nullptr)
+  {
+    exit(255);
+  }
+
+  if (g_diff_default)
+  {
+    sort_paraminfo();
+
+    if (!g_nodes && !g_connections && !g_system)
+    {
+      g_nodes = g_connections = g_system = true;
+    }
+
+    std::vector<int> sections;
+    if (g_system) sections.push_back(CFG_SECTION_SYSTEM);
+    if (g_nodes) sections.push_back(CFG_SECTION_NODE);
+    if (g_connections) sections.push_back(CFG_SECTION_CONNECTION);
+
+    for (auto section : sections)
+    {
+      ndb_mgm_configuration_iterator iter(conf.get(), section);
+      for (iter.first(); iter.valid(); iter.next())
+      {
+        print_diff(section, iter);
+      }
+    }
+    return NdbToolsProgramExitCode::OK;
+  }
+
   g_section = CFG_SECTION_NODE; //default
   if (g_connections)
     g_section = CFG_SECTION_CONNECTION;
   else if (g_system)
     g_section = CFG_SECTION_SYSTEM;
 
-  ndb_mgm_config_unique_ptr conf = get_config();
-  if (!conf)
-  {
-    exit(255);
-  }
-
   Vector<Apply*> select_list;
   Vector<Match*> where_clause;
-
-  if(strcmp(g_row_delimiter, "\\n") == 0)
-    g_row_delimiter = "\n";
-  if(strcmp(g_field_delimiter, "\\n") == 0)
-    g_field_delimiter = "\n";
 
   if (g_query_all)
   {
@@ -341,8 +454,8 @@ main(int argc, char** argv){
   }
 
   ndb_mgm_configuration_iterator iter(conf.get(), g_section);
+
   bool prev= false;
-  iter.first();
   for(iter.first(); iter.valid(); iter.next())
   {
     if(eval(iter, where_clause))
@@ -351,10 +464,6 @@ main(int argc, char** argv){
         printf("%s", g_row_delimiter);
       prev= true;
       apply(iter, select_list);
-      if (g_diff_default)
-      {
-        print_diff(iter);
-      }
     }
   }
   printf("\n");
@@ -372,123 +481,122 @@ main(int argc, char** argv){
 
 static
 int
-print_diff(const ndb_mgm_configuration_iterator& iter)
+print_diff(int section, const ndb_mgm_configuration_iterator& iter)
 {
-  //works better with this --diff_default --fields=" " --rows="\n"
   Uint32 val32;
   Uint64 val64;
   const char* config_value;
-  const char* node_type = nullptr;
-  char str[300] = {0};
+  const char* section_name = nullptr;
 
-  if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
+  require(iter.get(CFG_TYPE_OF_SECTION, &val32) == 0);
+  if (section == CFG_SECTION_NODE)
   {
-    if (val32 == 0)
-      node_type = "DB";
-    else if (val32 == 1)
-      node_type = "API";
-    else if (val32 == 2)
-      node_type = "MGM";
+    if (val32 == NODE_TYPE_DB)
+      section_name = "DB";
+    else if (val32 == NODE_TYPE_API)
+      section_name = "API";
+    else if (val32 == NODE_TYPE_MGM)
+      section_name = "MGM";
+    else assert(val32 < 3);
+  }
+  else if (section == CFG_SECTION_CONNECTION)
+  {
+    if (val32 == CONNECTION_TYPE_TCP)
+      section_name = "TCP";
+    else if (val32 == CONNECTION_TYPE_SHM)
+      section_name = "SHM";
+    else if (val32 == CONNECTION_TYPE_SCI)
+      section_name = "SCI";
+    else if (val32 == CONNECTION_TYPE_OSE)
+      section_name = "OSE";
+    else assert(val32 < 4);
+  }
+  else if (section == CFG_SECTION_SYSTEM)
+  {
+    assert(val32 == CFG_SECTION_SYSTEM);
+    section_name = "SYSTEM";
+  }
+  require(section_name != nullptr);
+
+  if (g_type && native_strcasecmp(g_type, section_name) != 0)
+  {
+    // Ignore this section
+    return 0;
   }
 
-
-  if (iter.get(3, &val32) == 0)
+  if (section == CFG_SECTION_NODE)
   {
-    printf("config of node id %d that is different from default", val32);
-    printf("%s", g_row_delimiter);
-    printf("CONFIG_PARAMETER");
-    printf("%s", g_field_delimiter);
-    printf("ACTUAL_VALUE");
-    printf("%s", g_field_delimiter);
-    printf("DEFAULT_VALUE");
-    printf("%s", g_row_delimiter);
+    if (iter.get(CFG_NODE_ID, &val32) != 0) { val32 = 0; }
+    printf("config of [%s] node id %d that is different from default",
+           section_name, val32);
   }
-
-  for (int p = 0; p < ConfigInfo::m_NoOfParams; p++)
+  else if (section == CFG_SECTION_CONNECTION)
   {
-    if ((g_section == CFG_SECTION_CONNECTION &&
-        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-        strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
-        ||
-        (g_section == CFG_SECTION_NODE &&
-        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
-        strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
-        strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
-        ||
-        (g_section == CFG_SECTION_SYSTEM))
+    Uint32 node1, node2;
+    if (iter.get(CFG_CONNECTION_NODE_1, &node1) != 0) { node1 = 0; }
+    if (iter.get(CFG_CONNECTION_NODE_2, &node2) != 0) { node2 = 0; }
+    printf("config of [%s] connection between node id %d and %d that is "
+           "different from default", section_name, node1, node2);
+  }
+  else if (section == CFG_SECTION_SYSTEM)
+  {
+    printf("config of [%s] system", section_name);
+  }
+  printf("%s", g_row_delimiter);
+  printf("CONFIG_PARAMETER");
+  printf("%s", g_field_delimiter);
+  printf("ACTUAL_VALUE");
+  printf("%s", g_field_delimiter);
+  printf("DEFAULT_VALUE");
+  printf("%s", g_row_delimiter);
+
+  for (auto p : SortedParamInfo)
+  {
+    if (p->_type == ConfigInfo::CI_SECTION) continue;
+    if (native_strcasecmp(section_name, p->_section) != 0) continue;
+
+    cstrbuf<20 + 1> str_buf; // enough for 64-bit decimal number
+    const char* str = nullptr;
+    if (iter.get(p->_paramId, &val32) == 0)
     {
-      if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &val32) == 0)
-      {
-        sprintf(str, "%u", val32);
-      }
-      else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &val64) == 0)
-      {
-        sprintf(str, "%llu", val64);
-      }
-      else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &config_value) == 0)
-      {
-        strncpy(str, config_value,300);
-      }
-      else
-      {
-        continue;
-      }
-
-      if ((MANDATORY != ConfigInfo::m_ParamInfo[p]._default)
-          && (ConfigInfo::m_ParamInfo[p]._default)
-          && strlen(ConfigInfo::m_ParamInfo[p]._default) > 0
-          && !strcmp(node_type, ConfigInfo::m_ParamInfo[p]._section)
-          && strcmp(str, ConfigInfo::m_ParamInfo[p]._default)          )
-      {
-        char parse_str[300] = {0};
-        bool convert_bytes = false;
-        uint64 memory_convert = 0;
-        uint64 def_value = 0;
-        uint len = strlen(ConfigInfo::m_ParamInfo[p]._default) - 1;
-        strncpy(parse_str, ConfigInfo::m_ParamInfo[p]._default,299);
-        if (parse_str[len] == 'M' || parse_str[len] == 'm')
-        {
-          memory_convert = 1048576;
-          convert_bytes = true;
-        }
-        if (parse_str[len] == 'K' || parse_str[len] == 'k')
-        {
-          memory_convert = 1024;
-          convert_bytes = true;
-        }
-        if (parse_str[len] == 'G' || parse_str[len] == 'g')
-        {
-          memory_convert = 1099511627776ULL;
-          convert_bytes = true;
-        }
-
-        if (convert_bytes)
-        {
-          parse_str[len] = '\0';
-          def_value = atoi(parse_str);
-          memory_convert = memory_convert * def_value;
-          BaseString::snprintf(parse_str, 299, "%" PRIu64, memory_convert);
-          if (!strcmp(str, parse_str))
-          {
-            continue;
-          }
-        }
-
-        if ((!strcmp("true", ConfigInfo::m_ParamInfo[p]._default) && !strcmp(str, "1")) ||
-            (!strcmp("true", ConfigInfo::m_ParamInfo[p]._default) && !strcmp(str, "0")))
-        {
-          continue;
-        }
-
-        printf("%s", ConfigInfo::m_ParamInfo[p]._fname);
-        printf("%s", g_field_delimiter);
-        printf("%s", str);
-        printf("%s", g_field_delimiter);
-        printf("%s", ConfigInfo::m_ParamInfo[p]._default);
-        printf("%s", g_row_delimiter);
-      }
+      require(str_buf.appendf("%u", val32) == 0);
+      str = str_buf.c_str();
     }
+    else if (iter.get(p->_paramId, &val64) == 0)
+    {
+      require(str_buf.appendf("%ju", uintmax_t{val64}) == 0);
+      str = str_buf.c_str();
+    }
+    else if (iter.get(p->_paramId, &config_value) == 0)
+    {
+      str = config_value;
+    }
+    else
+    {
+      continue;
+    }
+    require(str != nullptr);
+
+    auto normalized_str = ConfigInfo::normalizeParamValue(*p, str);
+    require(normalized_str.has_value());
+    if (p->_default != MANDATORY && p->_default != nullptr)
+    {
+      auto normalized_def =
+          ConfigInfo::normalizeParamValue(*p, p->_default);
+      require(normalized_def.has_value());
+      if (normalized_str == normalized_def) continue; // default value in config
+    }
+
+    printf("%s", p->_fname);
+    printf("%s", g_field_delimiter);
+    printf("%s", normalized_str.value().c_str());
+    printf("%s", g_field_delimiter);
+    if (MANDATORY == p->_default) printf("(mandatory)");
+    else if (nullptr == p->_default) printf("(null)");
+    else printf("%s", p->_default);
+    printf("%s", g_row_delimiter);
   }
+  printf("\n");
   return 0;
 }
 
@@ -869,10 +977,9 @@ noconnect:
   return conf;
 }
 
-#include "../src/mgmsrv/Config.hpp"
+#include "mgmcommon/Config.hpp"
 #include <EventLogger.hpp>
 
-extern EventLogger *g_eventLogger;
 
 static ndb_mgm_configuration*
 load_configuration()

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #define MY_BIT_NONE (~(uint)0)
 
 #include <assert.h>
+#include <limits.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -60,9 +61,8 @@ extern bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern bool bitmap_is_set_all(const MY_BITMAP *map);
 extern bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2);
+extern bool bitmap_is_valid(const MY_BITMAP *map);
 extern bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
-extern bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
-extern bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_get_first_set(const MY_BITMAP *map);
@@ -77,10 +77,9 @@ extern void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_xor(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_invert(MY_BITMAP *map);
 extern void bitmap_copy(MY_BITMAP *map, const MY_BITMAP *map2);
+extern uint bitmap_n_copy(MY_BITMAP *dst, const MY_BITMAP *src,
+                          uint max_bits_to_copy = UINT_MAX);
 
-extern uint bitmap_lock_set_next(MY_BITMAP *map);
-extern void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit);
-/* Fast, not thread safe, bitmap functions */
 #define bitmap_buffer_size(bits) (((bits) + 31) / 32) * 4
 #define no_bytes_in_map(map) (((map)->n_bits + 7) / 8)
 #define no_words_in_map(map) (((map)->n_bits + 31) / 32)

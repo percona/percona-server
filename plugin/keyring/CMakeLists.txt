@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,6 @@ MYSQL_ADD_PLUGIN(keyring_file
   common/keyring_key.cc
   common/keys_container.cc
   common/keys_iterator.cc
-  common/system_keys_container.cc
-  common/system_key_adapter.cc
   converter.cc
   digest.cc
   file_io.cc

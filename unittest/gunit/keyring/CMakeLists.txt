@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,10 @@
 
 SET(TESTS
   keyring-api
-  keys_container
-  system_keys_container
   buffered_file_io
   converter
   file_io
 )
-# This compiler fails to handle some of the mock functions involved.
-IF(MY_COMPILER_IS_SUNPRO)
-  LIST(REMOVE_ITEM TESTS keys_container)
-ENDIF()
-
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file_tests")
 
@@ -47,8 +40,6 @@ LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_keys_container.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_key_adapter.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/converter.cc
   ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
@@ -61,7 +52,6 @@ LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_2_0.cc
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/buffered_file_io_10.cc
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/psi_memory_key.cc
-  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/uuid.cc
   )
 
 IF(WIN32)

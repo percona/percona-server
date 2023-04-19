@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,14 +69,14 @@ class Shared_mem_listener {
       : m_shared_mem_name(*shared_memory_base_name),
         m_connect_file_map(0),
         m_connect_map(0),
-        m_connect_named_mutex(NULL),
+        m_connect_named_mutex(nullptr),
         m_event_connect_request(0),
         m_event_connect_answer(0),
         m_sa_event(0),
         m_sa_mapping(0),
         m_sa_mutex(0),
-        m_temp_buffer(0),
         m_connect_number(1),
+        m_temp_buffer(0),
         m_handle_client_file_map(0),
         m_handle_client_map(0),
         m_event_client_wrote(0),

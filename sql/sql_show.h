@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/status_var.h"
@@ -47,15 +48,19 @@ struct LEX;
 struct ST_SCHEMA_TABLE;
 struct System_status_var;
 struct TABLE;
-struct TABLE_LIST;
+class Table_ref;
 typedef enum enum_mysql_show_type SHOW_TYPE;
-enum enum_schema_table_state : int;
 enum enum_schema_tables : int;
 enum enum_var_type : int;
-enum enum_field_types : int;
 
-bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                       HA_CREATE_INFO *create_info_arg, bool show_database);
+/** Characters shown for the command in 'show processlist'. */
+constexpr const size_t PROCESS_LIST_WIDTH{100};
+/* Characters shown for the command in 'information_schema.processlist' */
+constexpr const size_t PROCESS_LIST_INFO_WIDTH{65535};
+
+bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
+                       HA_CREATE_INFO *create_info_arg, bool show_database,
+                       bool for_show_create_stmt);
 
 void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length, const CHARSET_INFO *from_cs,
@@ -64,11 +69,12 @@ void append_identifier(const THD *thd, String *packet, const char *name,
 void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length);
 
-void mysqld_list_fields(THD *thd, TABLE_LIST *table, const char *wild);
-bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
+void mysqld_list_fields(THD *thd, Table_ref *table, const char *wild);
+bool mysqld_show_create(THD *thd, Table_ref *table_list);
 bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 
-void mysqld_list_processes(THD *thd, const char *user, bool verbose);
+void mysqld_list_processes(THD *thd, const char *user, bool verbose,
+                           bool has_cursor);
 bool mysqld_show_privileges(THD *thd);
 void calc_sum_of_all_status(System_status_var *to);
 void append_definer(const THD *thd, String *buffer,
@@ -78,12 +84,13 @@ bool add_status_vars(const SHOW_VAR *list);
 void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
-bool get_status_var(THD *thd, SHOW_VAR *list, const char *name,
-                    char *const buff, enum_var_type var_type, size_t *length);
+bool get_recursive_status_var(THD *thd, const char *name, char *const value,
+                              enum_var_type var_type, size_t *length,
+                              const CHARSET_INFO **charset);
 void reset_status_vars();
 ulonglong get_status_vars_version(void);
 bool show_create_trigger(THD *thd, const sp_name *trg_name);
-void view_store_options(const THD *thd, TABLE_LIST *table, String *buff);
+void view_store_options(const THD *thd, Table_ref *table, String *buff);
 
 bool schema_table_store_record(THD *thd, TABLE *table);
 
@@ -116,9 +123,7 @@ ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char *table_name);
 ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
 bool make_schema_query_block(THD *thd, Query_block *sel,
                              enum enum_schema_tables schema_table_idx);
-bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list);
-bool get_schema_tables_result(JOIN *join,
-                              enum enum_schema_table_state executed_place);
+bool mysql_schema_table(THD *thd, LEX *lex, Table_ref *table_list);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 const char *get_one_variable(THD *thd, const SHOW_VAR *variable,
@@ -141,7 +146,7 @@ int get_quote_char_for_identifier(const THD *thd, const char *name,
 void show_sql_type(enum_field_types type, bool is_array, uint metadata,
                    String *str, const CHARSET_INFO *field_cs = nullptr);
 
-bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
+bool do_fill_information_schema_table(THD *thd, Table_ref *table_list,
                                       Item *condition);
 
 extern TYPELIB grant_types;
@@ -164,14 +169,12 @@ class Sql_cmd_show : public Sql_cmd_select {
   bool execute(THD *thd) override;
 
  protected:
-  // Use for SHOW commands that operate on a single table.
-  bool check_privileges_for_table(THD *thd, bool is_temporary);
   enum_sql_command m_sql_command;
 };
 
 /**
   Common base class: Represents commands that are not represented by
-  a plan that iss equivalent to a SELECT statement.
+  a plan that is equivalent to a SELECT statement.
 
   This class has a common execution framework with an execute() function
   that calls check_privileges() and execute_inner().
@@ -520,7 +523,6 @@ class Sql_cmd_show_processlist : public Sql_cmd_show {
 
  private:
   bool use_pfs() { return m_use_pfs; }
-  bool execute_with_performance_schema(THD *thd);
 
   const bool m_verbose{false};
   bool m_use_pfs{false};

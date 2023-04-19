@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,9 @@
 namespace keyring_common_unit {
 class Memory_backend final {
  public:
-  Memory_backend() {}
+  Memory_backend() = default;
 
-  virtual ~Memory_backend() {}
+  virtual ~Memory_backend() = default;
 
   bool get(const keyring_common::meta::Metadata &metadata,
            keyring_common::data::Data &data) const {
@@ -62,9 +62,9 @@ class Memory_backend final {
     if (!key) return true;
     if (!keyring_common::utils::get_random_data(key, length)) return true;
 
-    std::string key_str;
+    pfs_string key_str;
     key_str.assign(reinterpret_cast<const char *>(key.get()), length);
-    data.set_data(key_str);
+    data.set_data(keyring_common::data::Sensitive_data{key_str});
     if (!cache_.store(metadata, data)) return true;
 
     return false;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,8 +43,8 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
 
   /** @brief Constructor
    *
-   * It add apropriate entries to the Windows registry and registers the Router
-   * as the eventlog messsages source.
+   * It adds appropriate entries to the Windows registry and registers the
+   * Router as the event log messages source.
    *
    * @param format_messages flag indicating if the logged messages should be
    * formatted
@@ -64,7 +64,7 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
   ~EventlogHandler() override;
 
   // does nothing for the eventlog handler
-  void reopen(const std::string dst MY_ATTRIBUTE((unused)) = "") override {}
+  void reopen(const std::string dst [[maybe_unused]] = "") override {}
 
  private:
   void do_log(const mysql_harness::logging::Record &record) noexcept override;

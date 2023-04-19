@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ bool mdl_lock_schema(THD *thd, const char *schema_name,
     // Lower case table names == 2 is tested on OSX.
     /* purecov: begin tested */
     my_stpcpy(name_buf, converted_name);
-    my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
+    my_casedn_str(&my_charset_utf8mb3_tolower_ci, name_buf);
     converted_name = name_buf;
     /* purecov: end */
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,6 +40,7 @@ enum class Result {
   RECORD_FILE_FULL = HA_ERR_RECORD_FILE_FULL,
   TABLE_CORRUPT = HA_ERR_TABLE_CORRUPT,
   TABLE_EXIST = HA_ERR_TABLE_EXIST,
+  TOO_BIG_ROW = HA_ERR_TOO_BIG_ROW,
   UNSUPPORTED = HA_ERR_UNSUPPORTED,
   WRONG_COMMAND = HA_ERR_WRONG_COMMAND,
   WRONG_INDEX = HA_ERR_WRONG_INDEX,

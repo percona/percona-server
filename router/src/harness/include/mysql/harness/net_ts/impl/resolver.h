@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,6 @@
 
 #include "mysql/harness/net_ts/impl/socket_error.h"  // socket::last_error_code
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/type_traits.h"  // stdx::in_place
 
 namespace net {
 namespace ip {
@@ -57,7 +56,7 @@ enum class resolver_errc {
   bad_address_family =
       EAI_ADDRFAMILY,  //!< address family for NAME not supported
 #endif
-  fail = EAI_FAIL,             //!< non recoverable faile on name resolution
+  fail = EAI_FAIL,             //!< non recoverable failed on name resolution
   bad_family = EAI_FAMILY,     //!< ai_family not supported
   out_of_memory = EAI_MEMORY,  //!< memory allocation failed
 #ifdef EAI_NODATA
@@ -91,7 +90,7 @@ enum class resolver_errc {
 #endif
 #ifdef EAI_INTR
   // glibc
-  interrupted = EAI_INTR,  //!< interruped
+  interrupted = EAI_INTR,  //!< interrupted
 #endif
 #ifdef EAI_IDN_ENCODE
   // glibc
@@ -155,7 +154,7 @@ inline stdx::expected<void, std::error_code> gethostname(char *buf,
   }
 
   // POSIX says that it is unspecified if the returned string contains
-  // a \0 char if truncation occured.
+  // a \0 char if truncation occurred.
   //
   // Looks like only Solaris doesn't add \0 and doesn't return an error.
   //
@@ -262,7 +261,7 @@ getaddrinfo(const char *node, const char *service,
 #endif
   }
 
-  return {stdx::in_place, ainfo, &::freeaddrinfo};
+  return {std::in_place, ainfo, &::freeaddrinfo};
 }
 
 inline stdx::expected<const char *, std::error_code> inetntop(int af,

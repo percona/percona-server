@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 
 class Item;
 class THD;
-struct TABLE_LIST;
+class Table_ref;
 
 enum class enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 template <class T>
@@ -44,9 +44,9 @@ class mem_root_deque;
 
 class Sql_cmd_handler_open : public Sql_cmd {
  public:
-  Sql_cmd_handler_open() {}
+  Sql_cmd_handler_open() = default;
 
-  ~Sql_cmd_handler_open() override {}
+  ~Sql_cmd_handler_open() override = default;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_HA_OPEN; }
 
@@ -71,7 +71,7 @@ class Sql_cmd_handler_read : public Sql_cmd {
         m_key_expr(key_expr),
         m_rkey_mode(rkey_mode) {}
 
-  ~Sql_cmd_handler_read() override {}
+  ~Sql_cmd_handler_read() override = default;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_HA_READ; }
 
@@ -103,9 +103,9 @@ class Sql_cmd_handler_read : public Sql_cmd {
 
 class Sql_cmd_handler_close : public Sql_cmd {
  public:
-  Sql_cmd_handler_close() {}
+  Sql_cmd_handler_close() = default;
 
-  ~Sql_cmd_handler_close() override {}
+  ~Sql_cmd_handler_close() override = default;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_HA_CLOSE; }
 
@@ -113,10 +113,10 @@ class Sql_cmd_handler_close : public Sql_cmd {
 };
 
 void mysql_ha_flush(THD *thd);
-void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
+void mysql_ha_flush_tables(THD *thd, Table_ref *all_tables);
 void mysql_ha_flush_table(THD *thd, const char *db_name,
                           const char *table_name);
-void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
+void mysql_ha_rm_tables(THD *thd, Table_ref *tables);
 void mysql_ha_rm_temporary_tables(THD *thd);
 void mysql_ha_cleanup(THD *thd);
 void mysql_ha_set_explicit_lock_duration(THD *thd);

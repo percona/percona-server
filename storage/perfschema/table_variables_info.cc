@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -87,8 +87,12 @@ PFS_engine_table *table_variables_info::create(PFS_engine_table_share *) {
 
 ha_rows table_variables_info::get_row_count(void) {
   mysql_mutex_lock(&LOCK_plugin_delete);
+#ifndef NDEBUG
+  extern mysql_mutex_t LOCK_plugin;
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
+#endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  ha_rows system_var_count = get_system_variable_hash_records();
+  ha_rows system_var_count = get_system_variable_count();
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return system_var_count;
@@ -182,23 +186,23 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* VARIABLE_NAME */
-          set_field_varchar_utf8(f, m_row.m_variable_name,
-                                 m_row.m_variable_name_length);
+          set_field_varchar_utf8mb4(f, m_row.m_variable_name,
+                                    m_row.m_variable_name_length);
           break;
         case 1: /* VARIABLE_SOURCE */
           set_field_enum(f, m_row.m_variable_source);
           break;
         case 2: /* VARIABLE_PATH */
-          set_field_varchar_utf8(f, m_row.m_variable_path,
-                                 m_row.m_variable_path_length);
+          set_field_varchar_utf8mb4(f, m_row.m_variable_path,
+                                    m_row.m_variable_path_length);
           break;
         case 3: /* MIN_VALUE */
-          set_field_varchar_utf8(f, m_row.m_min_value,
-                                 m_row.m_min_value_length);
+          set_field_varchar_utf8mb4(f, m_row.m_min_value,
+                                    m_row.m_min_value_length);
           break;
         case 4: /* MAX_VALUE */
-          set_field_varchar_utf8(f, m_row.m_max_value,
-                                 m_row.m_max_value_length);
+          set_field_varchar_utf8mb4(f, m_row.m_max_value,
+                                    m_row.m_max_value_length);
           break;
         case 5: /* SET_TIME */
           if (m_row.m_set_time != 0) {
@@ -209,16 +213,16 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 6: /* SET_USER */
           if (m_row.m_set_user_str_length != 0) {
-            set_field_char_utf8(f, m_row.m_set_user_str,
-                                m_row.m_set_user_str_length);
+            set_field_char_utf8mb4(f, m_row.m_set_user_str,
+                                   m_row.m_set_user_str_length);
           } else {
             f->set_null();
           }
           break;
         case 7: /* SET_HOST */
           if (m_row.m_set_host_str_length != 0) {
-            set_field_char_utf8(f, m_row.m_set_host_str,
-                                m_row.m_set_host_str_length);
+            set_field_char_utf8mb4(f, m_row.m_set_host_str,
+                                   m_row.m_set_host_str_length);
           } else {
             f->set_null();
           }

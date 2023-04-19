@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ extern void EXAMPLE_IMPORT do_magic();
 #define EXAMPLE_API
 #endif
 
-static const char *requires[] = {
+static const char *requires_plugins[] = {
     "routertestplugin_magic (>>1.0)",
 };
 
@@ -72,8 +72,8 @@ Plugin EXAMPLE_API harness_plugin_routertestplugin_example = {
     ARCHITECTURE_DESCRIPTOR,
     "An example plugin",
     VERSION_NUMBER(1, 0, 0),
-    sizeof(requires) / sizeof(*requires),
-    requires,
+    sizeof(requires_plugins) / sizeof(*requires_plugins),
+    requires_plugins,
     0,
     nullptr,  // conflicts
     init,     // init
@@ -81,6 +81,8 @@ Plugin EXAMPLE_API harness_plugin_routertestplugin_example = {
     start,    // start
     nullptr,  // stop
     false,    // declares_readiness
+    0,
+    nullptr,
 };
 }
 

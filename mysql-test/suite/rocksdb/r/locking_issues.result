@@ -1,3 +1,5 @@
+SET @rocksdb_flush_log_at_trx_commit_saved = @@global.rocksdb_flush_log_at_trx_commit;
+SET @@global.rocksdb_flush_log_at_trx_commit = 2;
 
 -----------------------------------------------------------------------
 - Locking issues case 1.1:
@@ -429,3 +431,4 @@ COMMIT;
 DROP TABLE t1;
 DROP TABLE t2;
 SET GLOBAL rocksdb_lock_scanned_rows=0;
+SET @@global.rocksdb_flush_log_at_trx_commit = @rocksdb_flush_log_at_trx_commit_saved;

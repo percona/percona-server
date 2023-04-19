@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ class HARNESS_EXPORT TCPAddress {
   }
 
   /**
-   * @brief Function for performing comparision of TCPAddresses
+   * @brief Function for performing comparison of TCPAddresses
    */
   friend bool operator<(const TCPAddress &left, const TCPAddress &right) {
     if (left.addr_ < right.addr_)

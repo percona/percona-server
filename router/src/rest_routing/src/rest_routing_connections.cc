@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,6 @@
 #include "rest_routing_connections.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -35,16 +33,6 @@
 
 #include "mysqlrouter/rest_api_utils.h"
 #include "mysqlrouter/routing_component.h"
-
-constexpr const char RestRoutingConnections::kKeyBytesFromServer[];
-constexpr const char RestRoutingConnections::kKeyBytesToServer[];
-constexpr const char RestRoutingConnections::kKeyDestinationAddress[];
-constexpr const char RestRoutingConnections::kKeyTimeConnectedToServer[];
-constexpr const char RestRoutingConnections::kKeyTimeLastReceivedFromServer[];
-constexpr const char RestRoutingConnections::kKeyTimeLastSentToServer[];
-constexpr const char RestRoutingConnections::kKeyTimeStarted[];
-constexpr const char RestRoutingConnections::kKeySourceAddress[];
-constexpr const char RestRoutingConnections::path_regex[];
 
 bool RestRoutingConnections::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,

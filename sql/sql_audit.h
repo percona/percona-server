@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 
 class THD;
 class Security_context;
-struct TABLE_LIST;
+class Table_ref;
 
 static const size_t MAX_USER_HOST_SIZE = 512;
 
@@ -157,7 +157,7 @@ int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
 
   @return 0 - continue server flow, otherwise abort.
 */
-int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table);
+int mysql_audit_table_access_notify(THD *thd, Table_ref *table);
 
 /**
   Call audit plugins of GLOBAL VARIABLE audit class.

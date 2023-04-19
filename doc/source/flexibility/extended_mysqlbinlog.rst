@@ -4,13 +4,13 @@
 Extended ``mysqlbinlog``
 ========================
 
-|Percona Server| has implemented compression support for
+*Percona Server for MySQL* has implemented compression support for
 :command:`mysqlbinlog`. This is similar to support that both ``mysql`` and
 ``mysqldump`` programs include (the ``-C``, ``--compress`` options "Use
 compression in server/client protocol"). Using the compressed protocol helps
 reduce the bandwidth use and speed up transfers. 
 
-|Percona Server| has also implemented support for ``SSL``.
+*Percona Server for MySQL* has also implemented support for ``SSL``.
 :command:`mysqlbinlog` now accepts the ``SSL`` connection options as all the
 other client programs. This feature can be useful with
 ``--read-from-remote-server`` option. Following ``SSL`` options are now
@@ -32,5 +32,5 @@ available:
 Version Specific Information
 ============================
 
-* :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7
+* `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7
 

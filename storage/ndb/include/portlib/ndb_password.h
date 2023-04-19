@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,5 +57,4 @@ enum class ndb_get_password_error : int {
 };
 int ndb_get_password_from_tty(const char prompt[], char buf[], size_t size);
 int ndb_get_password_from_stdin(const char prompt[], char buf[], size_t size);
-
 #endif

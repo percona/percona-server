@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+#ifdef _WIN32_WINNT
+#if (_WIN32_WINNT < 0x0602)
+#undef _WIN32_WINNT
+// We need at least _WIN32_WINNT_WIN8 i.e. 0x0602 for
+// EnumDynamicTimeZoneInformation
+#define _WIN32_WINNT 0x0602
+#endif  // (_WIN32_WINNT < 0x0602)
+#endif  // _WIN32_WINNT
+
 #include <gtest/gtest.h>
 #include <stdlib.h>
-#include "my_config.h"
+
 #include "test_utils.h"
 
 #include <mysql/components/services/log_shared.h>
-#include "../sql/log.h"
+#include "sql/log.h"
 
 // CET: 32 bytes
 //   date (10), 'T', time (8), '.', microseconds (6), timezone offset (6)
@@ -55,6 +62,24 @@ class LogTimestampTest : public ::testing::Test {
 TEST_F(LogTimestampTest, iso8601) {
   char time_buff[iso8601_size];
 #ifdef WIN32
+  DYNAMIC_TIME_ZONE_INFORMATION original_dti = {};
+  DWORD original_dti_result = GetDynamicTimeZoneInformation(&original_dti);
+  EXPECT_NE(original_dti_result, TIME_ZONE_ID_INVALID);
+
+  if (original_dti.DaylightDate.wMonth == 0) {
+    /*
+      Current system time zone does not support Daylight savings. If the Windows
+      system time zone has no daylight saving, then attempting to set TZ to a
+      timezone that does have daylight saving will result in localtime_r
+      producing inaccurate results. Skipping the test.
+      Bug#34380460 will be tracking this issue.
+    */
+    GTEST_SKIP()
+        << "Current system time zone does not support Daylight savings. If the "
+           "Windows system time zone has no daylight saving, then attempting "
+           "to set TZ to a timezone that does have daylight saving will result "
+           "in localtime_r producing inaccurate results. Skipping the test. ";
+  }
   char tz[] = "TZ=CET-1CES";
 #else
   char tz[] = "TZ=CET";
@@ -62,7 +87,7 @@ TEST_F(LogTimestampTest, iso8601) {
   int time_buff_len;
 
   EXPECT_EQ(((iso8601_size)-1), LEN_MS_CET);
-  EXPECT_EQ(((LEN_MS_CET)-5), LEN_MS_UTC);
+  EXPECT_EQ(((LEN_MS_CET)-5), LEN_MS_UTC);  // timezone "Z" instead of "+12:34"
 
   // set up timezone (central european time)
   putenv(tz);

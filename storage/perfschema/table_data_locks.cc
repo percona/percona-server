@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -290,11 +290,11 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* ENGINE */
-          set_field_varchar_utf8(f, m_row->m_engine);
+          set_field_varchar_utf8mb4(f, m_row->m_engine);
           break;
         case 1: /* ENGINE_LOCK_ID */
-          set_field_varchar_utf8(f, m_row->m_hidden_pk.m_engine_lock_id,
-                                 m_row->m_hidden_pk.m_engine_lock_id_length);
+          set_field_varchar_utf8mb4(f, m_row->m_hidden_pk.m_engine_lock_id,
+                                    m_row->m_hidden_pk.m_engine_lock_id_length);
           break;
         case 2: /* ENGINE_TRANSACTION_ID */
           if (m_row->m_transaction_id != 0) {
@@ -318,41 +318,41 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 5: /* OBJECT_SCHEMA */
-          m_row->m_index_row.set_field(1, f);
+          m_row->m_index_row.set_nullable_field(1, f);
           break;
         case 6: /* OBJECT_NAME  */
-          m_row->m_index_row.set_field(2, f);
+          m_row->m_index_row.set_nullable_field(2, f);
           break;
         case 7: /* PARTITION_NAME */
           if (m_row->m_partition_name_length > 0) {
-            set_field_varchar_utf8(f, m_row->m_partition_name,
-                                   m_row->m_partition_name_length);
+            set_field_varchar_utf8mb4(f, m_row->m_partition_name,
+                                      m_row->m_partition_name_length);
           } else {
             f->set_null();
           }
           break;
         case 8: /* SUBPARTITION_NAME */
           if (m_row->m_sub_partition_name_length > 0) {
-            set_field_varchar_utf8(f, m_row->m_sub_partition_name,
-                                   m_row->m_sub_partition_name_length);
+            set_field_varchar_utf8mb4(f, m_row->m_sub_partition_name,
+                                      m_row->m_sub_partition_name_length);
           } else {
             f->set_null();
           }
           break;
         case 9: /* INDEX_NAME */
-          m_row->m_index_row.set_field(3, f);
+          m_row->m_index_row.set_nullable_field(3, f);
           break;
         case 10: /* OBJECT_INSTANCE_BEGIN */
           set_field_ulonglong(f, (intptr)m_row->m_identity);
           break;
         case 11: /* LOCK_TYPE */
-          set_field_varchar_utf8(f, m_row->m_lock_type);
+          set_field_varchar_utf8mb4(f, m_row->m_lock_type);
           break;
         case 12: /* LOCK_MODE */
-          set_field_varchar_utf8(f, m_row->m_lock_mode);
+          set_field_varchar_utf8mb4(f, m_row->m_lock_mode);
           break;
         case 13: /* LOCK_STATUS */
-          set_field_varchar_utf8(f, m_row->m_lock_status);
+          set_field_varchar_utf8mb4(f, m_row->m_lock_status);
           break;
         case 14: /* LOCK_DATA */
           if (m_row->m_lock_data != nullptr) {

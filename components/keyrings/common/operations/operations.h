@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,8 @@
 
 #include <memory> /* std::unique_ptr */
 
-#include "components/keyrings/common/data/data.h"
+#include "components/keyrings/common/data/data_extension.h"
+#include "components/keyrings/common/data/meta.h"
 #include "components/keyrings/common/memstore/cache.h"
 #include "components/keyrings/common/memstore/iterator.h"
 
@@ -493,7 +494,7 @@ class Keyring_operations {
     load_cache();
   }
 
-  ~Keyring_operations() {}
+  ~Keyring_operations() = default;
 
   /**
     Insert API to populate cache
@@ -532,6 +533,27 @@ class Keyring_operations {
       if ((*backend_).get(metadata, fetched_data)) return true;
     }
     data = fetched_data.get_data();
+    return false;
+  }
+
+  /**
+    Get Backend-specific data extension
+
+    @param [in]  metadata Key to the data
+    @param [out] data     Fetched data extension
+
+    @returns status of search operation
+      @retval false Success - data contains required information
+      @retval true  Failure - data is not valid
+
+    NOTE: get_data_extension NEVER returns data.
+          It only returns Data extension information.
+  */
+  bool get_data_extension(const meta::Metadata &metadata,
+                          Data_extension &data) {
+    if (!metadata.valid()) return true;
+    if (!cache_.get(metadata, data)) return true;
+    if (cache_data_) data.set_data(data::Data{});
     return false;
   }
 
@@ -609,8 +631,9 @@ class Keyring_operations {
   */
   bool generate(const meta::Metadata &metadata, const data::Type type,
                 size_t length) {
-    Data_extension generated_data("", type);
     if (!metadata.valid()) return true;
+    data::Data g_data(type);
+    Data_extension generated_data(g_data);
     if (cache_.get(metadata, generated_data)) return true;
     if ((*backend_).generate(metadata, generated_data, length)) return true;
     if (!cache_data_) generated_data.set_data(data::Data{});
@@ -719,8 +742,31 @@ class Keyring_operations {
     if (cache_data_) {
       if (!(*it).data(cache_.version(), data)) return true;
     } else {
+      cache_.get(metadata, data);
       if ((*backend_).get(metadata, data)) return true;
     }
+    return !metadata.valid();
+  }
+
+  /**
+    Get metadata from iterator
+
+    @param [in]  it        Forward iterator to metadata
+    @param [out] metadata  Metadata for given key
+    @param [out] data      Extension for given key
+
+    @returns Status
+      @retval false Success
+      @retval true  Failure
+  */
+  bool get_iterator_metadata(
+      std::unique_ptr<iterator::Iterator<Data_extension>> &it,
+      meta::Metadata &metadata, Data_extension &data) {
+    if (!valid() || it.get() == nullptr || !(*it).valid(cache_.version()))
+      return true;
+    if (!(*it).metadata(cache_.version(), metadata)) return true;
+    if (!(*it).data(cache_.version(), data)) return true;
+    if (cache_data_) data.set_data(data::Data{});
     return !metadata.valid();
   }
 

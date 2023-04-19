@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ NdbApiSignal::NdbApiSignal(BlockReference ref)
     theData[i] = 0x13579753;
   
   setDataPtr(&theData[0]);
-  theNextSignal = 0;
+  theNextSignal = nullptr;
 }
 
 NdbApiSignal::NdbApiSignal(Ndb* ndb)
@@ -87,7 +87,7 @@ NdbApiSignal::NdbApiSignal(Ndb* ndb)
   assert(theSendersBlockRef != 0);
   
   setDataPtr(&theData[0]);
-  theNextSignal = 0;
+  theNextSignal = nullptr;
 }
 
 /**

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,7 @@ public: /* Public methods */
 
   /**
    * A configuration binary is created from the contents of the ConfigObject.
-   * This returns a pointer to a contiguos memory area that has to be free'd
+   * This returns a pointer to a contiguous memory area that has to be free'd
    * by the caller.
    */
   Uint32 get_v2_packed_size(Uint32 node_id) const;

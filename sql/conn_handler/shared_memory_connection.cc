@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,7 +221,7 @@ Channel_info *Shared_mem_listener::listen_for_connection_event() {
   if (connection_events_loop_aborted()) return NULL;
 
   char connect_number_char[22];
-  char *p = longlong10_to_str(m_connect_number, connect_number_char, -10);
+  longlong10_to_str(m_connect_number, connect_number_char, -10);
 
   /*
     The name of event and file-mapping events create agree next rule:

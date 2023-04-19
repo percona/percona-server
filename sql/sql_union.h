@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,8 @@
 #ifndef SQL_UNION_INCLUDED
 #define SQL_UNION_INCLUDED
 
-#include "my_base.h"
-#include "my_compiler.h"
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "sql/query_result.h"  // Query_result_interceptor
 #include "sql/table.h"
@@ -33,20 +33,17 @@
 class Item;
 class Query_expression;
 class THD;
-template <class T>
-class List;
+template <class Element_type>
+class mem_root_deque;
 
 class Query_result_union : public Query_result_interceptor {
  protected:
   Temp_table_param tmp_table_param;
-  /// Count of rows successfully stored in tmp table
-  ha_rows m_rows_in_table;
 
  public:
   TABLE *table;
 
-  Query_result_union()
-      : Query_result_interceptor(), m_rows_in_table(0), table(nullptr) {}
+  Query_result_union() : Query_result_interceptor(), table(nullptr) {}
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
                Query_expression *u) override;
   /**
@@ -58,23 +55,36 @@ class Query_result_union : public Query_result_interceptor {
 
     @return false on success, true on failure
   */
-  virtual bool postponed_prepare(THD *thd MY_ATTRIBUTE((unused)),
+  virtual bool postponed_prepare(THD *thd [[maybe_unused]],
                                  const mem_root_deque<Item *> &types
-                                     MY_ATTRIBUTE((unused))) {
+                                 [[maybe_unused]]) {
     return false;
   }
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
   virtual bool flush();
-  void cleanup(THD *) override { (void)reset(); }
+  void cleanup() override { (void)reset(); }
   bool reset() override;
   bool create_result_table(THD *thd, const mem_root_deque<Item *> &column_types,
                            bool is_distinct, ulonglong options,
                            const char *alias, bool bit_fields_as_long,
-                           bool create_table);
-  friend bool TABLE_LIST::create_materialized_table(THD *thd);
-  friend bool TABLE_LIST::optimize_derived(THD *thd);
-  const ha_rows *row_count() const override { return &m_rows_in_table; }
+                           bool create_table, Query_term_set_op *op = nullptr);
+  friend bool Table_ref::create_materialized_table(THD *thd);
+  friend bool Table_ref::optimize_derived(THD *thd);
+  uint get_hidden_field_count() const {
+    return tmp_table_param.hidden_field_count;
+  }
+  bool skip_create_table() const { return tmp_table_param.skip_create_table; }
+
+  /// Set an effective LIMIT for the number of rows coming out of a materialized
+  /// temporary table used for implementing INTERSECT or EXCEPT: informs
+  /// TableScanIterator::TableScanIterator how many rows to read from the
+  /// materialized table. For UNION and simple tables the limitation is enforced
+  /// earlier, at materialize time, but this is not possible for INTERSECT and
+  /// EXCEPT due to the use of cardinality counters.
+  ///
+  /// @param limit_rows the effective limit, or HA_POS_ERROR if none.
+  void set_limit(ha_rows limit_rows) override;
 };
 
 #endif /* SQL_UNION_INCLUDED */

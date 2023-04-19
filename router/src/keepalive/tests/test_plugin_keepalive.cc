@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,16 @@
 */
 
 ////////////////////////////////////////
+// Standard include files
+#include <climits>
+#include <fstream>
+#include <iostream>
+
+////////////////////////////////////////
+// Third-party include files
+#include <gtest/gtest.h>
+
+////////////////////////////////////////
 // Harness interface include files
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader.h"
@@ -32,19 +42,6 @@
 ////////////////////////////////////////
 // Test system include files
 #include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
-// Standard include files
-#include <climits>
-#include <fstream>
-#include <iostream>
-
-using std::cout;
-using std::endl;
 
 using mysql_harness::Loader;
 using mysql_harness::Path;
@@ -63,20 +60,15 @@ class KeepalivePluginTest : public ::testing::Test {
     test_data_dir_ = mysql_harness::get_tests_data_dir(here.str());
     params["prefix"] = test_data_dir_;
     params["log_level"] = "info";
-    config_.reset(new mysql_harness::LoaderConfig(
-        params, std::vector<std::string>(), mysql_harness::Config::allow_keys));
-
+    config_ = std::make_unique<mysql_harness::LoaderConfig>(
+        params, std::vector<std::string>(), mysql_harness::Config::allow_keys);
     config_->read(Path(test_data_dir_).join("keepalive.cfg"));
-    loader = new Loader("harness", *config_);
+    loader_ = std::make_unique<Loader>("harness", *config_);
   }
 
-  void TearDown() override {
-    std::cout.rdbuf(orig_cout_);
-    delete loader;
-    loader = nullptr;
-  }
+  void TearDown() override { std::cout.rdbuf(orig_cout_); }
 
-  Loader *loader;
+  std::unique_ptr<Loader> loader_;
   std::unique_ptr<mysql_harness::LoaderConfig> config_;
   std::string test_data_dir_;
 
@@ -86,17 +78,17 @@ class KeepalivePluginTest : public ::testing::Test {
 };
 
 TEST_F(KeepalivePluginTest, Available) {
-  auto lst = loader->available();
+  auto lst = loader_->available();
   EXPECT_EQ(1U, lst.size());
 
-  EXPECT_SECTION_AVAILABLE("keepalive", loader);
+  EXPECT_SECTION_AVAILABLE("keepalive", loader_.get());
 }
 
 TEST_F(KeepalivePluginTest, CheckLog) {
   auto logging_folder = Path(test_data_dir_).join("/var/log/keepalive");
   const auto log_file = Path::make_path(logging_folder, "harness", "log");
   init_test_logger({"keepalive"},
-                   loader->get_config().get_default("logging_folder"),
+                   loader_->get_config().get_default("logging_folder"),
                    "harness");
 
   // Make sure log file is empty
@@ -104,7 +96,7 @@ TEST_F(KeepalivePluginTest, CheckLog) {
   fs.open(log_file.str(), std::fstream::trunc | std::ofstream::out);
   fs.close();
 
-  ASSERT_NO_THROW(loader->start());
+  ASSERT_NO_THROW(loader_->start());
 
   std::ifstream ifs_log(log_file.str());
   std::string line;

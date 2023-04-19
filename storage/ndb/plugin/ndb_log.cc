@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ void ndb_log_print(enum ndb_log_loglevel loglevel, const char *prefix,
 static void ndb_log_detect_prefix(const char *fmt, const char **prefix,
                                   const char **fmt_start) {
   // Check if string starts with "NDB <subsystem>:" by reading
-  // at most 15 chars whithout colon, then a colon and space
+  // at most 15 chars without colon, then a colon and space
   char subsystem[16], colon[2];
   if (sscanf(fmt, "NDB %15[^:]%1[:] ", subsystem, colon) == 2) {
     static const char *allowed_prefixes[] = {
@@ -149,7 +149,7 @@ static void ndb_log_detect_prefix(const char *fmt, const char **prefix,
 
   // Format string specifier accepted as is and no prefix was used
   // this would be the default case
-  *prefix = NULL;
+  *prefix = nullptr;
   *fmt_start = fmt;
   return;
 }

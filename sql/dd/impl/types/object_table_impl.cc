@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,9 @@ Object_table_impl::Object_table_impl()
   m_target_def.add_option(static_cast<int>(Common_option::ENGINE), "ENGINE",
                           "ENGINE=INNODB");
   m_target_def.add_option(static_cast<int>(Common_option::CHARSET), "CHARSET",
-                          "DEFAULT CHARSET=utf8");
+                          "DEFAULT CHARSET=utf8mb3");
   m_target_def.add_option(static_cast<int>(Common_option::COLLATION),
-                          "COLLATION", "COLLATE=utf8_bin");
+                          "COLLATION", "COLLATE=utf8mb3_bin");
   m_target_def.add_option(static_cast<int>(Common_option::ROW_FORMAT),
                           "ROW_FORMAT", "ROW_FORMAT=DYNAMIC");
   m_target_def.add_option(static_cast<int>(Common_option::STATS_PERSISTENT),

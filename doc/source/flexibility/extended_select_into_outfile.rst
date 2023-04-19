@@ -4,7 +4,7 @@
 Extended ``SELECT INTO OUTFILE/DUMPFILE``
 ===========================================
 
-|Percona Server| has extended the ``SELECT INTO ... OUTFILE`` and ``SELECT INTO
+*Percona Server for MySQL* has extended the ``SELECT INTO ... OUTFILE`` and ``SELECT INTO
 DUMPFILE`` `commands <http://dev.mysql.com/doc/refman/8.0/en/select-into.html>`_
 to add the support for UNIX sockets and named pipes. Before this was implemented
 the database would return an error for such files.
@@ -17,9 +17,9 @@ space and I/O.
 Version Specific Information
 ============================
 
-* :rn:`8.0.12-1` - Feature ported from |Percona Server| 5.7.
+* `8.0.12-1`: The feature was ported from *Percona Server for MySQL* 5.7.
 
 Other Reading
 =============
 
-* |MySQL| bug: :mysqlbug:`44835`
+* *MySQL* bug: :mysqlbug:`44835`

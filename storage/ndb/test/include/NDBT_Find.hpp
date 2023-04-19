@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
   given paths. Adds platform specific searc locations when
   necessary.
   Returns the full absolute path to the binary in 'name' if
-  found, otherwise porint error mesage and 'abort' 
+  found, otherwise print error message and 'abort' 
 */
 void NDBT_find_binary(BaseString& name,
                      const char* binary_name,

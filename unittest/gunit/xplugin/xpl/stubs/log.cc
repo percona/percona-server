@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,10 @@ bool log_item_set_lexstring(log_item_data *, char const *, size_t) {
 void log_line_exit(log_line *) {}
 log_line *log_line_init() { return nullptr; }
 log_item_data *log_line_item_set(log_line *, enum_log_item_type) {
+  return nullptr;
+}
+log_item_data *log_line_item_set_with_key(log_line *, log_item_type,
+                                          const char *, uint32) {
   return nullptr;
 }
 log_item_type_mask log_line_item_types_seen(log_line *, log_item_type_mask) {

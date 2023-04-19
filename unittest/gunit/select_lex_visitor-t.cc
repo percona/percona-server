@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ class Remembering_visitor : public Select_lex_visitor {
     return m_saw_query_block_query_expression;
   }
 
-  ~Remembering_visitor() override {}
+  ~Remembering_visitor() override = default;
 
  private:
   bool m_saw_query_block, m_saw_query_block_query_expression;
@@ -121,6 +121,7 @@ TEST_F(SelectLexVisitorTest, SelectLex) {
 
   LEX lex;
   query_block.include_down(&lex, &unit);
+  unit.set_query_term(&query_block);
   List<Item> items;
   JOIN join(thd(), &query_block);
   join.where_cond = &where;

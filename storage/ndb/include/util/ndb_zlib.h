@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,10 @@ public:
   ndb_zlib();
   ~ndb_zlib();
 
+  void reset();
   int set_memory(void* mem, size_t size);
+  int set_pkcs_padding() { pkcs_padded = true; return 0; }
+  size_t get_random_access_block_size() const { return 0; }
 
   int deflate_init();
   int deflate(output_iterator* out, input_iterator* in);
@@ -49,8 +52,8 @@ public:
   int inflate(output_iterator* out, input_iterator* in);
   int inflate_end();
 
-  off_t get_input_position() const { return file.total_in; }
-  off_t get_output_position() const { return file.total_out; }
+  ndb_off_t get_input_position() const { return file.total_in; }
+  ndb_off_t get_output_position() const { return file.total_out; }
 private:
   // RFC1950 ZLIB Compressed Data Format Specification version 3.3
   // RFC1951 DEFLATE Compressed Data Format Specification version 1.3
@@ -72,6 +75,9 @@ private:
 
   enum operation_mode { NO_OP, DEFLATE, INFLATE };
   operation_mode m_op_mode;
+  bool pkcs_padded;
+  byte padding;
+  unsigned padding_left;
   z_stream file;
 };
 

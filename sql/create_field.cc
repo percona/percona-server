@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,11 @@
 #include "template_utils.h"
 
 #include <cmath>
+#include <optional>
+
+static constexpr const size_t MAX_BIT_FIELD_LENGTH{64};
+/** YYYYMMDDHHMMSS */
+static constexpr const size_t MAX_DATETIME_COMPRESSED_WIDTH{14};
 
 /**
     Constructs a column definition from an object representing an actual
@@ -99,6 +104,9 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
     }
     case MYSQL_TYPE_YEAR:
       m_max_display_width_in_codepoints = 4;  // set default value
+      break;
+    case MYSQL_TYPE_LONGLONG:
+      is_unsigned = old_field->is_unsigned();
       break;
     default:
       break;
@@ -192,7 +200,7 @@ bool Create_field::init(
     List<String> *fld_interval_list, const CHARSET_INFO *fld_charset,
     bool has_explicit_collation, uint fld_geom_type,
     const LEX_CSTRING *fld_zip_dict_name, Value_generator *fld_gcol_info,
-    Value_generator *fld_default_val_expr, Nullable<gis::srid_t> srid,
+    Value_generator *fld_default_val_expr, std::optional<gis::srid_t> srid,
     dd::Column::enum_hidden_type hidden, bool is_array_arg) {
   uint sign_len, allowed_type_modifier = 0;
   ulong max_field_charlength = MAX_FIELD_CHARLENGTH;
@@ -312,7 +320,8 @@ bool Create_field::init(
     const ulonglong ull_length =
         my_strtoull(display_width_in_codepoints, nullptr, 10);
     if ((errno != 0) || (ull_length > MAX_FIELD_BLOBLENGTH)) {
-      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
+      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
+               static_cast<unsigned long>(MAX_FIELD_BLOBLENGTH));
       return true;
     }
     m_max_display_width_in_codepoints = static_cast<size_t>(ull_length);
@@ -464,7 +473,7 @@ bool Create_field::init(
     case MYSQL_TYPE_TIMESTAMP:
       /* Add flags for TIMESTAMP for 4.0 MYD and 4.0 InnoDB compatibility */
       flags |= ZEROFILL_FLAG | UNSIGNED_FLAG;
-      /* Fall through */
+      [[fallthrough]];
     case MYSQL_TYPE_TIMESTAMP2:
       if (display_width_in_codepoints == nullptr) {
         m_max_display_width_in_codepoints =
@@ -475,7 +484,6 @@ bool Create_field::init(
           and 19 as length of 4.1 compatible representation.  Silently
           shrink it to MAX_DATETIME_COMPRESSED_WIDTH.
         */
-        assert(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
         if (m_max_display_width_in_codepoints !=
             UINT_MAX) /* avoid overflow; is safe because of min() */
           m_max_display_width_in_codepoints =
@@ -494,7 +502,7 @@ bool Create_field::init(
     case MYSQL_TYPE_DATE:
       /* Old date type. */
       sql_type = MYSQL_TYPE_NEWDATE;
-      /* fall through */
+      [[fallthrough]];
     case MYSQL_TYPE_NEWDATE:
       m_max_display_width_in_codepoints = MAX_DATE_WIDTH;
       break;

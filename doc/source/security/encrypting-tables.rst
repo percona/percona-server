@@ -37,7 +37,7 @@ unencrypted table remains unencrypted.
 
 .. seealso::
 
-  |MySQL| Documentation:
+  *MySQL* Documentation:
   -  `File-Per-Table Encryption <https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html#innodb-data-encryption-enabling-disabling>`__
 
 .. seealso::

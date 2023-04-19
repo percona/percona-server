@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ private:
     Int32 adjusted_group; // Proximity group adjusted via ndbapi calls
     Uint32 id;
     /**
-     * Counts how many times node was choosen for hint when
+     * Counts how many times node was chosen for hint when
      * more than one were possible.
      */
     Uint32 hint_count;

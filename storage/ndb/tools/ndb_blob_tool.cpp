@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <ndb_limits.h>
@@ -375,35 +376,52 @@ checkpart(const Blob &b,
       Uint32 bytesRead = partSize;
       if (partReadBlobHandle->readData(buf, bytesRead) != 0)
       {
-        g_info << "Failed to define read" << endl;
-        *partOk = false;
+	const NdbError error = tx->getNdbError();
+	if (error.status == NdbError::TemporaryError) {break;}
+
+        if (error.code == 4267 || error.code == 626) {
+          g_info << "Part not found" << endl;
+          /* Missing part */
+          *partOk = false;
+        }
+        else {
+          g_err << "Unexpected error on reading part"
+                << p
+                << endl;
+          g_err << error << endl;
+          ret = -1;
+        }
       }
       else
       {
         if (tx->execute(Commit) != 0)
         {
-          if (tx->getNdbError().code == 626)
+	  const NdbError error = tx->getNdbError();
+	  if (error.code == 4267 || error.code == 626)
           {
-            g_info << "Part not found (626)" << endl;
+	    g_info << "Part not found" << endl;
             /* Missing part */
             *partOk = false;
           }
           else
           {
-            g_err << "Unexpected error on reading part "
+            g_err << "Unexpected error on commiting read-part "
                   << p
                   << endl;
-            g_err << tx->getNdbError() << endl;
+            g_err << error << endl;
             ret = -1;
           }
         }
       }
     } while (false);
 
-    const NdbError error = tx->getNdbError();
-    tx->close();
-    if (error.code == 0 || error.status != NdbError::TemporaryError)
-      break;
+    if (tx != nullptr) {
+      const NdbError error = tx->getNdbError();
+      tx->close();
+
+      if (error.code == 0 || error.status != NdbError::TemporaryError)
+	break;
+    }
   }
   return ret; // set to -1 on error in CHK2
 }
@@ -1028,39 +1046,39 @@ doall()
 static struct my_option
 my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_blob_tool"),
-  { "database", 'd',
-    "Name of database table is in",
-    (uchar**) &opt_dbname, (uchar**) &opt_dbname, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "check-orphans", NDB_OPT_NOSHORT,
-    "Check for orphan blob parts",
-    (uchar **)&opt_check_orphans, (uchar **)&opt_check_orphans, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "delete-orphans", NDB_OPT_NOSHORT,
-    "Delete orphan blob parts",
-    (uchar **)&opt_delete_orphans, (uchar **)&opt_delete_orphans, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "check-missing", NDB_OPT_NOSHORT,
-    "Check for missing Blob parts",
-    (uchar **)&opt_check_missing, (uchar **)&opt_check_missing, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "add-missing", NDB_OPT_NOSHORT,
-    "Write missing Blob parts",
-    (uchar **)&opt_add_missing, (uchar **)&opt_add_missing, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
+  { "database", 'd', "Name of database table is in",
+    &opt_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "check-orphans", NDB_OPT_NOSHORT, "Check for orphan blob parts",
+    &opt_check_orphans, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "delete-orphans", NDB_OPT_NOSHORT, "Delete orphan blob parts",
+    &opt_delete_orphans, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "check-missing", NDB_OPT_NOSHORT, "Check for missing Blob parts",
+    &opt_check_missing, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "add-missing", NDB_OPT_NOSHORT, "Write missing Blob parts",
+    &opt_add_missing, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "dump-file", NDB_OPT_NOSHORT,
-    "Write orphan keys (table key and part number) into file",
-    (uchar **)&opt_dump_file, (uchar **)&opt_dump_file, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "verbose", 'v',
-    "Verbose messages",
-    (uchar **)&opt_verbose, (uchar **)&opt_verbose, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0,
-    0,
-    0, 0, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
+   "Write orphan keys (table key and part number) into file",
+    &opt_dump_file, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "verbose", 'v', "Verbose messages",
+    &opt_verbose, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::end_of_options
 };
 
 static void
@@ -1133,7 +1151,7 @@ main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+  opts.set_usage_funcs(short_usage_sub, usage);
   int ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0)
     return NDBT_ProgramExit(NDBT_WRONGARGS);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -394,7 +394,7 @@ bool Group_check::is_fd_on_source(Item *item) {
         @todo make table_ref non-NULL for gcols, then use it for 'tl'.
         Do the same in Item_field::used_tables_for_level().
       */
-      TABLE_LIST *const tl = item_field->field->table->pos_in_table_list;
+      Table_ref *const tl = item_field->field->table->pos_in_table_list;
 
       if (tested_map_for_keys & tl->map()) continue;
       tested_map_for_keys |= tl->map();
@@ -441,7 +441,7 @@ bool Group_check::is_fd_on_source(Item *item) {
     // Build En+2
     uint last_fd = fd.size();
 
-    find_fd_in_joined_table(select->join_list);  // [OUTER] JOIN ON
+    find_fd_in_joined_table(select->m_current_table_nest);  // [OUTER] JOIN ON
 
     if (select->where_cond())  // WHERE
       find_fd_in_cond(select->where_cond(), 0, false);
@@ -534,7 +534,7 @@ void Group_check::add_to_fd(Item *item, bool local_column,
   item = item->real_item();  // for merged view containing mat table
   if (item->type() == Item::FIELD_ITEM) {
     Item_field *const item_field = (Item_field *)item;
-    TABLE_LIST *const tl = item_field->field->table->pos_in_table_list;
+    Table_ref *const tl = item_field->field->table->pos_in_table_list;
     if (tl->uses_materialization() &&  // materialized table
         !tl->is_table_function())      // there's no underlying query expr
       add_to_source_of_mat_table(item_field, tl);
@@ -553,7 +553,7 @@ void Group_check::find_group_in_fd(Item *item) {
   if (select->is_grouped()) {
     /*
       See if we now have all of query expression's GROUP BY list; an
-      implicitely grouped query has an empty group list.
+      implicitly grouped query has an empty group list.
     */
     bool missing = false;
     int j = 0;
@@ -610,14 +610,14 @@ Item *Group_check::select_expression(uint idx) {
    @param  tl          mat table
 */
 void Group_check::add_to_source_of_mat_table(Item_field *item_field,
-                                             TABLE_LIST *tl) {
+                                             Table_ref *tl) {
   Query_expression *const mat_query_expression = tl->derived_query_expression();
   // Query expression underlying 'tl':
   Query_block *const mat_query_block =
       mat_query_expression->first_query_block();
-  if (mat_query_expression->is_union() ||
+  if (mat_query_expression->is_set_operation() ||
       mat_query_block->olap != UNSPECIFIED_OLAP_TYPE)
-    return;  // If UNION or ROLLUP, no FD
+    return;  // If UNION, EXCEPT, INTERSECT or ROLLUP, no FD
   // Grab Group_check for this subquery.
   Group_check *mat_gc = nullptr;
   uint j;
@@ -763,7 +763,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       todo When we eliminate all uses of cached_table, we can probably add a
       derived_table_ref field to Item_view_ref objects and use it here.
     */
-    TABLE_LIST *const tl = item->cached_table;
+    Table_ref *const tl = item->cached_table;
     assert(tl->is_view_or_derived());
     /*
       We might find expression-based FDs in the result of the view's query
@@ -796,7 +796,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       @todo make table_ref non-NULL for gcols, then use it for 'tl'.
       Do the same in Item_field::used_tables_for_level().
     */
-    TABLE_LIST *const tl = item_field->field->table->pos_in_table_list;
+    Table_ref *const tl = item_field->field->table->pos_in_table_list;
     if (item_field->field->is_gcol())  // Generated column
     {
       assert(!tl->uses_materialization());
@@ -1101,8 +1101,8 @@ void Group_check::find_fd_in_cond(Item *cond, table_map weak_tables,
    @param  join_list  members of the join nest
 */
 void Group_check::find_fd_in_joined_table(
-    mem_root_deque<TABLE_LIST *> *join_list) {
-  for (const TABLE_LIST *table : *join_list) {
+    mem_root_deque<Table_ref *> *join_list) {
+  for (const Table_ref *table : *join_list) {
     if (table->is_sj_or_aj_nest()) {
       /*
         We can ignore this nest as:
@@ -1122,7 +1122,7 @@ void Group_check::find_fd_in_joined_table(
     table_map used_tables;
     NESTED_JOIN *nested_join = table->nested_join;
     if (nested_join) {
-      find_fd_in_joined_table(&nested_join->join_list);
+      find_fd_in_joined_table(&nested_join->m_tables);
       used_tables = nested_join->used_tables;
     } else
       used_tables = table->map();

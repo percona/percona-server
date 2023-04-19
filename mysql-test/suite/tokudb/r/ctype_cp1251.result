@@ -51,11 +51,11 @@ AAA	BBB
 select * from t1 where lower(b)='bbb';
 a	b
 aaa	bbb
-select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
-charset(a)	charset(b)	charset(binary 'ccc')
+select charset(a), charset(b), charset(cast('ccc' as binary)) from t1 limit 1;
+charset(a)	charset(b)	charset(cast('ccc' as binary))
 cp1251	binary	binary
-select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
-collation(a)	collation(b)	collation(binary 'ccc')
+select collation(a), collation(b), collation(cast('ccc' as binary)) from t1 limit 1;
+collation(a)	collation(b)	collation(cast('ccc' as binary))
 cp1251_bin	binary	binary
 drop table t1;
 create table t1 (

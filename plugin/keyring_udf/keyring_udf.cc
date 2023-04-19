@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,10 +21,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <algorithm>  // std::min
+#include <optional>
 
 #include <stdio.h>
 #include <sys/types.h>
-#include <boost/optional/optional.hpp>
 #include <memory>
 #include <new>
 
@@ -196,8 +196,8 @@ static uint get_args_count_from_validation_request(int to_validate) {
   return args_count;
 }
 
-static bool validate(UDF_ARGS *args, uint expected_arg_count, int to_validate,
-                     char *message) {
+static bool validate_compile_time(UDF_ARGS *args, uint expected_arg_count,
+                                  int to_validate, char *message) {
   THD *thd = current_thd;
   MYSQL_SECURITY_CONTEXT sec_ctx;
   my_svc_bool has_current_user_execute_privilege = 0;
@@ -226,41 +226,28 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count, int to_validate,
     return true;
   }
 
-  if (to_validate & VALIDATE_KEY_ID &&
-      (args->args[0] == nullptr || args->arg_type[0] != STRING_RESULT)) {
+  if (to_validate & VALIDATE_KEY_ID && args->arg_type[0] != STRING_RESULT) {
     strcpy(message,
            "Mismatch encountered. A string argument is expected "
            "for key id.");
     return true;
   }
 
-  if (to_validate & VALIDATE_KEY_TYPE &&
-      (args->args[1] == nullptr || args->arg_type[1] != STRING_RESULT)) {
+  if (to_validate & VALIDATE_KEY_TYPE && args->arg_type[1] != STRING_RESULT) {
     strcpy(message,
            "Mismatch encountered. A string argument is expected "
            "for key type.");
     return true;
   }
 
-  if (to_validate & VALIDATE_KEY_LENGTH) {
-    if (args->args[2] == nullptr || args->arg_type[2] != INT_RESULT) {
-      strcpy(message,
-             "Mismatch encountered. An integer argument is expected "
-             "for key length.");
-      return true;
-    }
-    long long key_length = *reinterpret_cast<long long *>(args->args[2]);
-
-    if (key_length > MAX_KEYRING_UDF_KEY_TEXT_LENGTH) {
-      sprintf(message, "%s%d",
-              "The key is to long. The max length of the key is ",
-              MAX_KEYRING_UDF_KEY_TEXT_LENGTH);
-      return true;
-    }
+  if (to_validate & VALIDATE_KEY_LENGTH && args->arg_type[2] != INT_RESULT) {
+    strcpy(message,
+           "Mismatch encountered. An integer argument is expected "
+           "for key length.");
+    return true;
   }
 
-  if (to_validate & VALIDATE_KEY &&
-      (args->args[2] == nullptr || args->arg_type[2] != STRING_RESULT)) {
+  if (to_validate & VALIDATE_KEY && args->arg_type[2] != STRING_RESULT) {
     strcpy(message,
            "Mismatch encountered. A string argument is expected "
            "for key.");
@@ -269,20 +256,38 @@ static bool validate(UDF_ARGS *args, uint expected_arg_count, int to_validate,
   return false;
 }
 
+static bool validate_run_time(UDF_ARGS *args, int to_validate) {
+  if (to_validate & VALIDATE_KEY_ID && args->args[0] == nullptr) return true;
+
+  if (to_validate & VALIDATE_KEY_TYPE && args->args[1] == nullptr) return true;
+
+  if (to_validate & VALIDATE_KEY_LENGTH) {
+    if (args->args[2] == nullptr) return true;
+    long long key_length = *reinterpret_cast<long long *>(args->args[2]);
+
+    if (key_length > MAX_KEYRING_UDF_KEY_TEXT_LENGTH) return true;
+  }
+
+  if (to_validate & VALIDATE_KEY && args->args[2] == nullptr) return true;
+  return false;
+}
+
 static bool keyring_udf_func_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message, int to_validate,
-    const boost::optional<size_t> max_lenth_to_return,
+    const std::optional<size_t> max_lenth_to_return,
     const size_t size_of_memory_to_allocate) {
   initid->ptr = nullptr;
   uint expected_arg_count = get_args_count_from_validation_request(to_validate);
 
-  if (validate(args, expected_arg_count, to_validate, message)) return true;
+  if (validate_compile_time(args, expected_arg_count, to_validate, message))
+    return true;
 
-  if (max_lenth_to_return)
-    initid->max_length = *max_lenth_to_return;  // if no max_length_to_return
-                                                // passed to the function  it
-                                                // means that max_length stays
-                                                // default
+  if (max_lenth_to_return.has_value())
+    initid->max_length =
+        max_lenth_to_return.value();  // if no max_length_to_return
+                                      // passed to the function  it
+                                      // means that max_length stays
+                                      // default
   initid->maybe_null = true;
 
   if (size_of_memory_to_allocate != 0) {
@@ -294,8 +299,9 @@ static bool keyring_udf_func_init(
   }
 
   for (uint index = 0; index < expected_arg_count; index++) {
-    udf_metadata_service->argument_set(args, type, index,
-                                       static_cast<void *>(charset));
+    if (args->arg_type[index] == STRING_RESULT)
+      udf_metadata_service->argument_set(args, type, index,
+                                         static_cast<void *>(charset));
   }
 
   return false;
@@ -324,6 +330,12 @@ long long keyring_key_store(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   char *key = args->args[2];
   char *key_type = args->args[1];
 
+  if (validate_run_time(args,
+                        VALIDATE_KEY_ID | VALIDATE_KEY_TYPE | VALIDATE_KEY)) {
+    *error = 1;
+    return 0;
+  }
+
   if (get_current_user(&current_user)) {
     *error = 1;
     return 0;
@@ -337,7 +349,7 @@ long long keyring_key_store(UDF_INIT *, UDF_ARGS *args, unsigned char *,
 
   if (keyring_writer_service->store(key_id, current_user.c_str(),
                                     reinterpret_cast<unsigned char *>(key),
-                                    strlen(key), key_type) == true) {
+                                    strlen(key), key_type) != 0) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), "keyring_key_store");
     *error = 1;
     return 0;
@@ -446,8 +458,13 @@ char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
   char *key = nullptr;
   size_t key_len = 0;
 
-  if (fetch("keyring_key_fetch", args->args[0], &key, NULL, &key_len)) {
-    if (key != NULL) my_free(key);
+  if (validate_run_time(args, VALIDATE_KEY_ID)) {
+    *error = 1;
+    return nullptr;
+  }
+
+  if (fetch("keyring_key_fetch", args->args[0], &key, nullptr, &key_len)) {
+    if (key != nullptr) my_free(key);
     *error = 1;
     return nullptr;
   }
@@ -491,9 +508,15 @@ PLUGIN_EXPORT
 char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
                              unsigned long *length, unsigned char *is_null,
                              unsigned char *error) {
-  char *key_type = NULL;
-  if (fetch("keyring_key_type_fetch", args->args[0], NULL, &key_type, NULL)) {
-    if (key_type != NULL) my_free(key_type);
+  if (validate_run_time(args, VALIDATE_KEY_ID)) {
+    *error = 1;
+    return nullptr;
+  }
+
+  char *key_type = nullptr;
+  if (fetch("keyring_key_type_fetch", args->args[0], nullptr, &key_type,
+            nullptr)) {
+    if (key_type != nullptr) my_free(key_type);
     *error = 1;
     return nullptr;
   }
@@ -516,7 +539,7 @@ PLUGIN_EXPORT
 bool keyring_key_length_fetch_init(UDF_INIT *initid, UDF_ARGS *args,
                                    char *message) {
   return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
-                               boost::none, 0);
+                               std::optional<size_t>(), 0);
 }
 
 PLUGIN_EXPORT
@@ -540,12 +563,17 @@ long long keyring_key_length_fetch(UDF_INIT *, UDF_ARGS *args,
   size_t key_len = 0;
   char *key = nullptr;
 
+  if (validate_run_time(args, VALIDATE_KEY_ID)) {
+    *error = 1;
+    return 0;
+  }
+
   *error =
       fetch("keyring_key_length_fetch", args->args[0], &key, nullptr, &key_len);
 
   if (*error == 0 && key == nullptr) *is_null = 1;
 
-  if (key != NULL) my_free(key);
+  if (key != nullptr) my_free(key);
 
   // For the UDF 0 == failure.
   return (*error) ? 0 : key_len;
@@ -567,13 +595,18 @@ void keyring_key_remove_deinit(UDF_INIT *) {}
 PLUGIN_EXPORT
 long long keyring_key_remove(UDF_INIT *, UDF_ARGS *args, unsigned char *,
                              unsigned char *error) {
+  if (validate_run_time(args, VALIDATE_KEY_ID)) {
+    *error = 1;
+    return 0;
+  }
+
   std::string current_user;
   if (get_current_user(&current_user)) {
     *error = 1;
     return 0;
   }
   char *key_id = args->args[0];
-  if (keyring_writer_service->remove(key_id, current_user.c_str()) == true) {
+  if (keyring_writer_service->remove(key_id, current_user.c_str()) != 0) {
     //  if (my_key_remove(args->args[0], current_user.c_str())) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0),
              "keyring_key_remove");
@@ -604,6 +637,12 @@ void keyring_key_generate_deinit(UDF_INIT *) {}
 PLUGIN_EXPORT
 long long keyring_key_generate(UDF_INIT *, UDF_ARGS *args, unsigned char *,
                                unsigned char *error) {
+  if (validate_run_time(
+          args, VALIDATE_KEY_ID | VALIDATE_KEY_TYPE | VALIDATE_KEY_LENGTH)) {
+    *error = 1;
+    return 0;
+  }
+
   std::string current_user;
   if (get_current_user(&current_user)) return 0;
 
@@ -612,7 +651,7 @@ long long keyring_key_generate(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   long long key_length = *reinterpret_cast<long long *>(args->args[2]);
 
   if (keyring_generator_service->generate(key_id, current_user.c_str(),
-                                          key_type, key_length) == true) {
+                                          key_type, key_length) != 0) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0),
              "keyring_key_generate");
     *error = 1;

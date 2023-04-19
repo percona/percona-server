@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class Ndb_DDL_stmt {
 
 /* DDL Transaction context class to log the DDLs being executed.
 
-   A DDL can be executed by making a single request or mutliple requests to
+   A DDL can be executed by making a single request or multiple requests to
    the Storage Engine depending on the nature of the DDL. For example, a
    CREATE TABLE query can be done in a single request to the SE but a ALTER
    TABLE COPY would require more than a single request. These requests are
@@ -125,7 +125,7 @@ class Ndb_DDL_transaction_ctx {
          If the DDL is already committed, it implies that the stmts so far were
          committed and this is a new stmt. This happens when the SQL Layer is
          calling commit on individual stmts rather than at the end of
-         transaction. We should treat all such stmts as mini transactions but
+         transaction. We should treat all such stmts as mini-transactions but
          still maintain the log for the overall DDL transaction.
 
          In both the cases, mark the DDL as in progress and mark this as the

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,20 +50,29 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_auth_realm_export.h"
-#include "mysqlrouter/plugin_config.h"
+#include "mysqlrouter/supported_http_options.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 using namespace std::string_literals;
 
 static constexpr const char kSectionName[]{"http_auth_realm"};
+static std::vector<std::string> registered_realms;
 
-class HttpAuthRealmPluginConfig : public mysqlrouter::BasePluginConfig {
+using StringOption = mysql_harness::StringOption;
+
+#define GET_OPTION_CHECKED(option, section, name, value) \
+  static_assert(mysql_harness::str_in_collection(        \
+      http_auth_realm_suported_options, name));          \
+  option = get_option(section, name, value);
+
+class HttpAuthRealmPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   std::string method;
@@ -72,11 +81,12 @@ class HttpAuthRealmPluginConfig : public mysqlrouter::BasePluginConfig {
 
   explicit HttpAuthRealmPluginConfig(
       const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        backend(get_option_string(section, "backend")),
-        method(get_option_string(section, "method")),
-        require(get_option_string(section, "require")),
-        name(get_option_string(section, "name")) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(backend, section, "backend", StringOption{});
+    GET_OPTION_CHECKED(method, section, "method", StringOption{});
+    GET_OPTION_CHECKED(require, section, "require", StringOption{});
+    GET_OPTION_CHECKED(name, section, "name", StringOption{});
+  }
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string, std::string> defaults{
@@ -118,7 +128,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       }
     }
 
-    auth_realms = std::make_shared<HttpAuthRealmComponent::value_type>();
+    auto &auth_realm_component = HttpAuthRealmComponent::get_instance();
+
     for (const mysql_harness::ConfigSection *section :
          info->config->sections()) {
       if (section->name != kSectionName) {
@@ -158,11 +169,13 @@ static void init(mysql_harness::PluginFuncEnv *env) {
             "] does not match any http_auth_backend. " + backend_msg);
       }
 
-      auth_realms->insert({section->key, std::make_shared<HttpAuthRealm>(
-                                             config.name, config.require,
-                                             config.method, config.backend)});
+      const std::string realm_name = section->key;
+      auth_realm_component.add_realm(
+          realm_name,
+          std::make_shared<HttpAuthRealm>(config.name, config.require,
+                                          config.method, config.backend));
+      registered_realms.push_back(realm_name);
     }
-    HttpAuthRealmComponent::get_instance().init(auth_realms);
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::exception &exc) {
@@ -170,6 +183,16 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   } catch (...) {
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
+}
+
+static void deinit(mysql_harness::PluginFuncEnv *) {
+  auto &auth_realm_component = HttpAuthRealmComponent::get_instance();
+
+  for (const auto &realm : registered_realms) {
+    auth_realm_component.remove_realm(realm);
+  }
+
+  registered_realms.clear();
 }
 
 static const std::array<const char *, 1> required = {{
@@ -183,13 +206,17 @@ mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
     "HTTP_AUTH_REALM",                       // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
-    nullptr,  // deinit
+    deinit,   // deinit
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
+    http_auth_realm_suported_options.size(),
+    http_auth_realm_suported_options.data(),
 };
 }

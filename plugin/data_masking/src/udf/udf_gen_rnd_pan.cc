@@ -55,8 +55,8 @@ static void gen_rnd_pan_deinit(UDF_INIT *initid) {
  * @return A random, but valid, payment card number.
  */
 static char *gen_rnd_pan(UDF_INIT *initid,
-                         UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                         char *result MY_ATTRIBUTE((unused)),
+                         UDF_ARGS *args [[maybe_unused]],
+                         char *result [[maybe_unused]],
                          unsigned long *length, char *is_null, char *is_error) {
   DBUG_ENTER("gen_rnd_pan");
 

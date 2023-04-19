@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #include <assert.h>
 #include <sys/types.h>  // TODO: replace with cstdint
+
+#include <optional>
 
 #include "field_types.h"
 #include "lex_string.h"
@@ -84,7 +86,6 @@ class PT_field_def_base;
 class PT_frame;
 class PT_group;
 class PT_insert_values_list;
-class PT_internal_variable_name;
 class PT_into_destination;
 class PT_isolation_level;
 class PT_item_list;
@@ -94,7 +95,6 @@ class PT_key_part_specification;
 class PT_limit_clause;
 class PT_locking_clause;
 class PT_locking_clause_list;
-class PT_option_value_following_option_type;
 class PT_option_value_list_head;
 class PT_option_value_no_option_type;
 class PT_order;
@@ -115,6 +115,7 @@ class PT_role_or_privilege;
 class PT_select_var;
 class PT_select_var_list;
 class PT_set;
+class PT_set_scoped_system_variable;
 class PT_start_option_value_list;
 class PT_start_option_value_list_following_option_type;
 class PT_sub_partition;
@@ -321,15 +322,12 @@ struct Value_or_default {
   T value;  ///< undefined if is_default is true
 };
 
-enum class Explain_format_type {
-  // DEFAULT will be changed during parsing to TRADITIONAL
-  // for regular EXPLAIN, or TREE for EXPLAIN ANALYZE.
-  DEFAULT,
-  TRADITIONAL,
-  JSON,
-  TREE,
-  TREE_WITH_EXECUTE
+struct Bipartite_name {
+  LEX_CSTRING prefix;  ///< prefix is optional: prefix.str can be nullptr
+  LEX_CSTRING name;
 };
+
+enum class Set_operator { UNION, EXCEPT, INTERSECT };
 
 // Compatibility with Bison 2.3:
 #ifndef YYSTYPE_IS_DECLARED
@@ -367,6 +365,10 @@ union YYSTYPE {
   udf_func *udf;
   LEX_USER *lex_user;
   List<LEX_USER> *user_list;
+  LEX_MFA *lex_mfa;
+  struct {
+    LEX_MFA *mfa2, *mfa3;
+  } lex_mfas;
   sys_var_with_base variable;
   enum_var_type var_type;
   keytype key_type;
@@ -399,6 +401,7 @@ union YYSTYPE {
   sp_head *sphead;
   index_hint_type index_hint;
   enum_filetype filetype;
+  enum_source_type source_type;
   fk_option m_fk_option;
   enum_yes_no_unknown m_yes_no_unk;
   enum_condition_item_name da_condition_item_name;
@@ -443,8 +446,7 @@ union YYSTYPE {
   PT_table_reference *table_reference;
   PT_joined_table *join_table;
   PT_joined_table_type join_type;
-  PT_internal_variable_name *internal_variable_name;
-  PT_option_value_following_option_type *option_value_following_option_type;
+  PT_set_scoped_system_variable *option_value_following_option_type;
   PT_option_value_no_option_type *option_value_no_option_type;
   PT_option_value_list_head *option_value_list;
   PT_start_option_value_list *start_option_value_list;
@@ -465,6 +467,10 @@ union YYSTYPE {
   PT_query_expression *query_expression;
   PT_derived_table *derived_table;
   PT_query_expression_body *query_expression_body;
+  struct {
+    PT_query_expression_body *body;
+    bool is_parenthesized;
+  } query_expression_body_opt_parens;
   PT_query_primary *query_primary;
   PT_subquery *subquery;
   PT_key_part_specification *key_part;
@@ -485,7 +491,7 @@ union YYSTYPE {
   } column_row_value_list_pair;
   struct {
     PT_item_list *column_list;
-    PT_query_primary *insert_query_expression;
+    PT_query_expression_body *insert_query_expression;
   } insert_query_expression;
   struct {
     Item *offset;
@@ -497,10 +503,6 @@ union YYSTYPE {
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
   PT_alter_instance *alter_instance_cmd;
-  struct {
-    enum alter_instance_action_enum alter_instance_action;
-    uint key_id;
-  } alter_instance_action;
   PT_create_index_stmt *create_index_stmt;
   PT_table_constraint_def *table_constraint_def;
   List<PT_key_part_specification> *index_column_list;
@@ -581,7 +583,7 @@ union YYSTYPE {
     Mem_root_array<PT_create_table_option *> *opt_create_table_options;
     PT_partition *opt_partitioning;
     On_duplicate on_duplicate;
-    PT_query_primary *opt_query_expression;
+    PT_query_expression_body *opt_query_expression;
   } create_table_tail;
   Lock_strength lock_strength;
   Locked_row_action locked_row_action;
@@ -604,10 +606,14 @@ union YYSTYPE {
     Item *where;
   } wild_or_where;
   Show_cmd_type show_cmd_type;
+  struct Histogram_param {
+    int num_buckets;
+    LEX_STRING data;
+  } histogram_param;
   struct {
     Sql_cmd_analyze_table::Histogram_command command;
     List<String> *columns;
-    int num_buckets;
+    Histogram_param *param;
   } histogram;
   Acl_type acl_type;
   Mem_root_array<LEX_CSTRING> *lex_cstring_list;
@@ -679,6 +685,11 @@ union YYSTYPE {
   Mem_root_array<ulonglong> *thread_id_list_type;
   Explain_format_type explain_format_type;
   struct {
+    Explain_format_type explain_format_type;
+    bool is_analyze;
+    bool is_explicit;
+  } explain_options_type;
+  struct {
     Item *set_var;
     Item *set_expr;
     String *set_expr_str;
@@ -695,6 +706,8 @@ union YYSTYPE {
     Create_col_name_list *column_list;
   } insert_update_values_reference;
   my_thread_id query_id;
+  Bipartite_name bipartite_name;
+  Set_operator query_operator;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

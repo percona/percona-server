@@ -40,27 +40,51 @@ before you convert the tablespace.
 You must have the SYSTEM_VARIABLES_ADMIN privilege or the SUPER privilege to set
 these variables.
 
-.. variable:: innodb_encryption_threads
+.. _innodb_encryption_threads:
 
-    :cli: ``--innodb-encryption-threads``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Numeric
-    :default: 0
+.. rubric:: ``innodb_encryption_threads``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-encryption-threads``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 0
 
 This variable works in combination with the
-:variable:`default_table_encryption` variable set to ``ONLINE_TO_KEYRING``.
+:ref:`default_table_encryption` variable set to ``ONLINE_TO_KEYRING``.
 This variable
 configures the number of threads for background encryption. For the online
 encryption, the value must be greater than **zero**. 
 
-.. variable:: innodb_online_encryption_rotate_key_age
+.. _innodb_online_encryption_rotate_key_age:
 
-    :cli: ``--innodb-online-encryption-rotate-key-age``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Numeric
-    :default: 1
+.. rubric:: ``innodb_online_encryption_rotate_key_age``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-online-encryption-rotate-key-age``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 1
 
 Defines the rotation for the re-encryption of a table encrypted using KEYRING.
 The value of this variable determines the how frequently the encrypted tables
@@ -75,24 +99,48 @@ following intervals:
 
 You should select the value which best fits your operational requirements.
 
-.. variable:: innodb_encryption_rotation_iops
+.. _innodb_encryption_rotation_iops:
 
-    :cli: ``--innodb-encryption-rotation-iops``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Numeric
-    :default: 100
-    
+.. rubric:: ``innodb_encryption_rotation_iops``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-encryption-rotation-iops``
+   * - Scope
+     - Global
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 100
+
 Defines the number of input/output operations per second (iops) available for
 use by a key rotation processes.
 
-.. variable:: innodb_default_encryption_key_id
+.. _innodb_default_encryption_key_id:
 
-    :cli: ``--innodb-default-encryption-key-id``
-    :dyn: Yes
-    :scope: session
-    :vartype: Numeric
-    :default: 0
+.. rubric:: ``innodb_default_encryption_key_id``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - Command-line
+     - ``--innodb-default-encryption-key-id``
+   * - Scope
+     - Session
+   * - Dynamic
+     - Yes
+   * - Data type
+     - Numeric
+   * - Default
+     - 0
     
 Defines the default encryption ID used to encrypt tablespaces.
 

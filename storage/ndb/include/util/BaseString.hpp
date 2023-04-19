@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define __UTIL_BASESTRING_HPP_INCLUDED__
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <util/Vector.hpp>
 #include "Bitmask.hpp"
 
@@ -71,6 +72,11 @@ public:
   /** @brief Assigns from a char * */
   BaseString& assign(const char* s);
 
+  /** @brief Assigns one char */
+  BaseString& assign(char c);
+  /** @brief Assigns a sequence of repeated char */
+  BaseString& assign(size_t n, char c);
+
   /** @brief Assigns from another BaseString */
   BaseString& assign(const BaseString& str);
 
@@ -81,7 +87,7 @@ public:
   BaseString& assign(const BaseString& str, size_t n);
 
   /** 
-   * Assings from a Vector of BaseStrings, each Vector entry
+   * Assigns from a Vector of BaseStrings, each Vector entry
    * separated by separator.
    *
    * @param vector Vector of BaseStrings to append
@@ -95,6 +101,8 @@ public:
 
   /** @brief Appends a char to the end */
   BaseString& append(char c);
+  /** @brief Appends a char repeatably to the end */
+  BaseString& append(size_t n, char c);
 
   /** @brief Appends another BaseString to the end */
   BaseString& append(const BaseString& str);
@@ -153,7 +161,7 @@ public:
         int maxSize = -1) const;
 
   /**
-   * Returns the index of the first occurance of the character c.
+   * Returns the index of the first occurrence of the character c.
    *
    * @params c character to look for
    * @params pos position to start searching from
@@ -162,7 +170,7 @@ public:
   ssize_t indexOf(char c, size_t pos = 0) const;
 
   /**
-   * Returns the index of the first occurance of the string needle
+   * Returns the index of the first occurrence of the string needle
    *
    * @params needle string to search for
    * @params pos position to start searching from
@@ -171,7 +179,7 @@ public:
   ssize_t indexOf(const char * needle, size_t pos = 0) const;
 
   /**
-   * Returns the index of the last occurance of the character c.
+   * Returns the index of the last occurrence of the character c.
    *
    * @params c character to look for
    * @returns index of character, of -1 if no character found
@@ -237,6 +245,12 @@ public:
     ATTRIBUTE_FORMAT(printf, 3, 4);
   static int vsnprintf(char *str, size_t size, const char *format, va_list ap)
     ATTRIBUTE_FORMAT(printf, 3, 0);
+
+  /**
+   * Append to a character buf
+   */
+  static int snappend(char *str, size_t size, const char *format, ...)
+      ATTRIBUTE_FORMAT(printf, 3, 4);
 
   template<unsigned size>
   static BaseString getText(const Bitmask<size>& mask) {
@@ -351,7 +365,7 @@ BaseString::operator!=(const char *str) const
 inline bool
 operator!(const BaseString& str)
 {
-    return str.m_chr == NULL;
+    return str.m_chr == nullptr;
 }
 
 inline BaseString&

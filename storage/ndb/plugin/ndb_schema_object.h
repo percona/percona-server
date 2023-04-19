@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ class NDB_SCHEMA_OBJECT {
   mutable struct State {
     // Mutex protecting state
     std::mutex m_lock;
-    // Condition for communication betwen client and coordinator
+    // Condition for communication between client and coordinator
     std::condition_variable m_cond;
 
     // Use counter controlling lifecycle of the NDB_SCHEMA_OBJECT
@@ -86,9 +86,9 @@ class NDB_SCHEMA_OBJECT {
 
     // List of participant nodes in schema operation.
     // Used like this:
-    // 1) When coordinator recieves the schema op event it adds all the
+    // 1) When coordinator receives the schema op event it adds all the
     //    nodes currently subscribed as participants
-    // 2) When coordinator recieves reply or failure from a participant it will
+    // 2) When coordinator receives reply or failure from a participant it will
     //    be removed from the list
     // 3) When list of participants is empty the coordinator will
     //    send the final ack, clearing all slock bits(thus releasing also any
@@ -105,8 +105,15 @@ class NDB_SCHEMA_OBJECT {
     std::unordered_map<uint32, Participant> m_participants;
 
     // Set after coordinator has received replies from all participants and
-    // recieved the final ack which cleared all the slock bits
+    // received the final ack which cleared all the slock bits
     bool m_coordinator_completed{false};
+
+    enum object_state {
+      init = 0,
+      coord_receive_event = 1,
+      client_timedout = 2
+    };
+    enum object_state m_schema_obj_state { init };
   } state;
 
   uint increment_use_count() const;
@@ -215,8 +222,10 @@ class NDB_SCHEMA_OBJECT {
      @param participant_node_id The nodeid of the node who reported result
      @param result The result received
      @param message The message describing the result if != 0
+
+     @return true if node was registered as participant, false otherwise
    */
-  void result_received_from_node(uint32 participant_node_id, uint32 result,
+  bool result_received_from_node(uint32 participant_node_id, uint32 result,
                                  const std::string &message) const;
 
   /**
@@ -243,6 +252,26 @@ class NDB_SCHEMA_OBJECT {
   bool check_coordinator_completed() const;
 
   /**
+     @brief This function is used by coordinator to acknowledge that it
+     received the schema operation sent by the schema distribution client
+     by changing the state of schema object to coord_receive_event. If the
+     state of schema object is client_timedout then return false.
+
+     @return true if the state is set to coord_receive_event
+  */
+  bool set_coordinator_received_schema_op();
+
+  /**
+     @brief When the schema distribution timeout expires scheam dict client
+     uses this function to Check if the schema operation has been received by
+     the coordinator. Change the state of schema object to
+     client_timedout if the coordinator did not receive the event.
+
+     @return true if coordinator received the schema operation.
+  */
+  bool has_coordinator_received_schema_op() const;
+
+  /**
      @brief Check if any client should wakeup after subscribers have changed.
      This happens when node unsubscribes(one subscriber shutdown or fail) or
      when cluster connection is lost(all subscribers are removed)
@@ -260,7 +289,7 @@ class NDB_SCHEMA_OBJECT {
      participants which haven't already completed as timedout.
      @param result The result to set on the participant
      @param message The message to set on the participant
-     @return true if timeout occured (and all participants have completed)
+     @return true if timeout occurred (and all participants have completed)
    */
   bool check_timeout(int timeout_seconds, uint32 result,
                      const char *message) const;

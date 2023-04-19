@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,21 +58,10 @@ size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   uint *errors);
 
 /**
-  convert a hex digit into number.
-*/
-
-inline int hexchar_to_int(char c) {
-  if (c <= '9' && c >= '0') return c - '0';
-  c |= 32;
-  if (c <= 'f' && c >= 'a') return c - 'a' + 10;
-  return -1;
-}
-
-/**
-  Return a LEX_CSTRING handle to a std::string like (meaning someting
+  Return a LEX_CSTRING handle to a std::string like (meaning something
   which has the c_str() and length() member functions). Note that the
   std::string-like object retains ownership of the character array,
-  and consquently the returned LEX_CSTRING is only valid as long as the
+  and consequently the returned LEX_CSTRING is only valid as long as the
   std::string-like object is valid.
 
   @param s std::string-like object
@@ -161,7 +150,7 @@ bool lex_string_strmake(MEM_ROOT *mem_root, LEX_CSTRING *lex_str,
    @param mem_root Where to allocate
    @param s        Source string to copy.
 
-   @return LEX_STRING_TYPE refering to the mem_root allocated string.
+   @return LEX_STRING_TYPE referring to the mem_root allocated string.
  */
 template <class LEX_STRING_TYPE>
 inline LEX_STRING_TYPE LexStringDupRoot(MEM_ROOT *mem_root, LEX_STRING_TYPE s) {
@@ -177,7 +166,7 @@ inline LEX_STRING_TYPE LexStringDupRoot(MEM_ROOT *mem_root, LEX_STRING_TYPE s) {
    @param mem_root Where to allocate
    @param s        Source string to copy.
 
-   @return LEX_STRING_TYPE refering to the mem_root allocated string,
+   @return LEX_STRING_TYPE referring to the mem_root allocated string,
    or EMPTY_CSTR.
  */
 template <class LEX_STRING_TYPE>

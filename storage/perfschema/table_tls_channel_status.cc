@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,17 +172,17 @@ int table_tls_channel_status::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case tls_channel_status_offsets::FO_CHANNEL:
-          set_field_varchar_utf8(
+          set_field_varchar_utf8mb4(
               f, m_row->m_interface.c_str(),
               static_cast<uint>(m_row->m_interface.length()));
           break;
         case tls_channel_status_offsets::FO_PROPERTY:
-          set_field_varchar_utf8(
+          set_field_varchar_utf8mb4(
               f, m_row->m_property_name.c_str(),
               static_cast<uint>(m_row->m_property_name.length()));
           break;
         case tls_channel_status_offsets::FO_VALUE:
-          set_field_varchar_utf8(
+          set_field_varchar_utf8mb4(
               f, m_row->m_property_value.c_str(),
               static_cast<uint>(m_row->m_property_value.length()));
           break;

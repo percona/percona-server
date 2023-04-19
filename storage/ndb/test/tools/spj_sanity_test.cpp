@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <new>
 #include <mysql.h>
 #include <mysqld_error.h>
@@ -172,7 +173,7 @@ namespace SPJSanityTest{
 
     explicit GenericRow<FieldType>(int rowNo){
       /* Attribute values are chosen such that rows are sorted on 
-       * all attribtes, and that any pair of consecutive columns can be
+       * all attributes, and that any pair of consecutive columns can be
        * used as a foreign key to the table itself.*/
       for(int i = 0; i<size; i++){
         m_values[i] = FieldType(i+rowNo);
@@ -334,7 +335,7 @@ namespace SPJSanityTest{
   class Query;
 
   /** Class representing a single NdbQueryOperation. 'Row'
-   * is a template argument, to allow different table defintions.*/
+   * is a template argument, to allow different table definitions.*/
   class Operation{
   public:
 
@@ -943,7 +944,7 @@ namespace SPJSanityTest{
     const NdbQueryOperand* high[Key::size+1];
     // Code below assume that we use primary key index.
     require(strcmp(m_indexName, "PRIMARY")==0);
-    /* Tables are alway sorted on all columns. Using these bounds,
+    /* Tables are always sorted on all columns. Using these bounds,
      we therefore get m_upperBoundRowNo - m_lowerBoundRowNo +1 rows.*/
     const Key& lowKey = *new Key(Row(m_lowerBoundRowNo).getPrimaryKey());
     const Key& highKey = *new Key(Row(m_upperBoundRowNo).getPrimaryKey());

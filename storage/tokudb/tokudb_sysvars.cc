@@ -65,6 +65,7 @@ bool debug_pause_background_job_manager = false;
 #endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 bool directio = false;
 bool enable_partial_eviction = false;
+bool enabled = false;
 // file system reserve as a percentage of total disk space
 int fs_reserve_percent = 0;
 uint fsync_log_period = 0;
@@ -174,6 +175,9 @@ static void enable_partial_eviction_update(TOKUDB_UNUSED(THD *thd),
 static MYSQL_SYSVAR_BOOL(enable_partial_eviction, enable_partial_eviction, 0,
                          "enable partial node eviction", NULL,
                          enable_partial_eviction_update, false);
+
+static MYSQL_SYSVAR_BOOL(enabled, enabled, 0, "enable storage engine", NULL,
+                         NULL, false);
 
 static MYSQL_SYSVAR_INT(fs_reserve_percent, fs_reserve_percent,
                         PLUGIN_VAR_READONLY,
@@ -507,7 +511,7 @@ SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(cleaner_iterations), MYSQL_SYSVAR(cleaner_period),
     MYSQL_SYSVAR(client_pool_threads),
     MYSQL_SYSVAR(compress_buffers_before_eviction), MYSQL_SYSVAR(data_dir),
-    MYSQL_SYSVAR(debug), MYSQL_SYSVAR(directio),
+    MYSQL_SYSVAR(debug), MYSQL_SYSVAR(directio), MYSQL_SYSVAR(enabled),
     MYSQL_SYSVAR(enable_partial_eviction), MYSQL_SYSVAR(force_recovery),
     MYSQL_SYSVAR(fs_reserve_percent), MYSQL_SYSVAR(fsync_log_period),
     MYSQL_SYSVAR(log_dir), MYSQL_SYSVAR(max_lock_memory),

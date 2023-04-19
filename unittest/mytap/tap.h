@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,8 +239,8 @@ void diag(char const *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
    @param fmt Bail out message in printf() format.
 */
 
-void BAIL_OUT(char const *fmt, ...)
-    MY_ATTRIBUTE((noreturn, format(printf, 1, 2)));
+[[noreturn]] void BAIL_OUT(char const *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    Print summary report and return exit status.
@@ -268,8 +268,8 @@ int exit_status(void);
    around it.
  */
 
-void skip_all(char const *reason, ...)
-    MY_ATTRIBUTE((noreturn, format(printf, 1, 2)));
+[[noreturn]] void skip_all(char const *reason, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    Start section of tests that are not yet ready.

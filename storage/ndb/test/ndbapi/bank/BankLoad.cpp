@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -538,7 +538,7 @@ int Bank::loadAccount (int numAccounts){
     // and all other accounts have 10000
     // This set the total balance for the entire bank to 
     // 10000000 + (10000 * numAccounts-1)
-    // Since no money should dissapear from to the bank nor
+    // Since no money should disappear from to the bank nor
     // any money should be added this is a rule that can be checked when 
     // validating the db
     int balance;

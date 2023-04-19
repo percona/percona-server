@@ -7,17 +7,17 @@ Encrypting Binary Log Files and Relay Log Files
 Binary log file and relay log file encryption at rest ensures the
 server-generated binary logs are encrypted in persistent storage.
 
-Upgrading from |Percona Server| 8.0.15-5 to any Higher Version
+Upgrading from *Percona Server for MySQL* 8.0.15-5 to any Higher Version
 ----------------------------------------------------------------
 
-Starting from the release :rn:`8.0.15-5`, |Percona Server| uses the upstream
+Starting from the release :ref:`8.0.15-5`, *Percona Server for MySQL* uses the upstream
 implementation of binary log file and relay log file encryption.
 
-The :variable:`encrypt-binlog` variable is
+The :ref:`encrypt-binlog` variable is
 removed, and the related command-line option `--encrypt-binlog` is not
 supported. It is important to remove the `encrypt-binlog` variable from your
 configuration file before you attempt to upgrade either from another release
-in the |Percona Server| |version| series or from |Percona Server| 5.7.
+in the *Percona Server for MySQL* 8.0 series or from *Percona Server for MySQL* 5.7.
 Otherwise, a server boot error is generated, and reports an unknown
 variable.
 
@@ -41,7 +41,7 @@ is stored in the keyring.
 Implementation
 ---------------
 
-After you have enabled the :variable:``binlog_encryption`` variable and the keyring is
+After you have enabled the :ref:``binlog_encryption`` variable and the keyring is
 available, you can encrypt the data content for new binary log files and relay
 log files. Only the data content is encrypted. Attempting a binary log file or
 relay log file encryption without the keyring generates a MySQL error.
@@ -52,7 +52,7 @@ log events to a replica using SSL connections to encrypt the stream. The events
 are re-executed on the replica.  The source and replicas can use separate
 keyring storages and different keyring plugins.
 
-When the :variable:`binlog_encryption` is set to ``OFF``, the server rotates the
+When the :ref:`binlog_encryption` is set to ``OFF``, the server rotates the
 binary log files and the relay log files and all new log files are unencrypted.
 The encrypted files are not unencrypted, but the server can read the files.
 
@@ -67,7 +67,7 @@ use ``mysqlbinlog`` with the ``--read-from-remote-server`` option.
 Enabling Binary Log Encryption
 -------------------------------
 
-In versions |Percona Server| 8.0.15-5 and later, set the `binlog_encryption` variable
+In versions *Percona Server for MySQL* 8.0.15-5 and later, set the `binlog_encryption` variable
 to ``ON`` in a startup configuration file, such as :file:`my.cnf`. The variable
 is set to ``OFF`` by default.
 
@@ -99,20 +99,33 @@ file is encrypted or unencrypted.
 Binary log file variables
 --------------------------
 
-.. variable:: encrypt_binlog
+.. _encrypt_binlog:
 
-      :version-info:  removed in :rn:`8.0.15-5`
-      :cli: ``--encrypt-binlog``
-      :dyn: No
-      :scope: Global
-      :vartype: Boolean
-      :default: ``OFF``
+.. rubric:: ``encrypt_binlog``
+ 
+.. list-table::
+   :header-rows: 1
 
-The variable enables or disables the binary log file and relay log file encryption.
+   * - Option
+     - Description
+   * - Command-line
+     - ``--encrypt-binlog``
+   * - Dynamic
+     - No
+   * - Scope
+     - Global
+   * - Data type
+     - Boolean
+   * - Default
+     - ``OFF``
+
+The variable was removed in :ref:`8.0.15-5`.
+
+This variable enables or disables the binary log file and relay log file encryption.
 
 .. seealso::
 
-    |MySQL| Documentation:
+    *MySQL* Documentation:
     `Encrypting Binary Log Files and Relay Log Files <https://dev.mysql.com/doc/refman/8.0/en/replication-binlog-encryption.html>`_
 
 .. seealso::

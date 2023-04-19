@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 #include <time.h>
 
 #include <algorithm>
+#include <cinttypes>
 
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -55,19 +56,7 @@
 
 #if HAVE_LIBCOREDUMPER
 #include <coredumper/coredumper.h>
-#endif
-// my_print_buildID
-#ifdef __linux__
-#include <elf.h>
-#include <sys/stat.h>
 #include "my_io.h"
-#include "my_sys.h"
-#include "mysql/service_mysql_alloc.h"
-#if defined(__x86_64__)
-#define ElfW(type) Elf64_##type
-#else
-#define ElfW(type) Elf32_##type
-#endif
 #endif
 
 #include "my_thread.h"
@@ -96,8 +85,8 @@ static const char *heap_start;
 extern char *__bss_start;
 #endif /* __linux */
 
-static inline bool ptr_sane(const char *p MY_ATTRIBUTE((unused)),
-                            const char *heap_end MY_ATTRIBUTE((unused))) {
+static inline bool ptr_sane(const char *p [[maybe_unused]],
+                            const char *heap_end [[maybe_unused]]) {
 #ifdef __linux__
   return p && p >= heap_start && p <= heap_end;
 #else
@@ -233,21 +222,7 @@ static bool my_demangle_symbol(char *line) {
     }
   }
   if (demangled) my_safe_printf_stderr("%s %s %s\n", line, demangled, end + 1);
-#elif defined(__SUNPRO_CC)  // Solaris has different formatting .....
-  char *begin = strchr(line, '\'');
-  char *end = begin ? strchr(begin, '+') : NULL;
-  if (begin && end) {
-    *begin++ = *end++ = '\0';
-    int status = 0;
-    demangled = my_demangle(begin, &status);
-    if (!demangled || status) {
-      demangled = NULL;
-      begin[-1] = ' ';
-      end[-1] = '+';
-    }
-  }
-  if (demangled) my_safe_printf_stderr("%s %s+%s\n", line, demangled, end);
-#else                       // !__APPLE__ and !__SUNPRO_CC
+#else  // !__APPLE__
   char *begin = strchr(line, '(');
   char *end = begin ? strchr(begin, '+') : nullptr;
 
@@ -278,68 +253,6 @@ static void my_demangle_symbols(char **addrs, int n) {
 }
 
 #endif /* HAVE_ABI_CXA_DEMANGLE */
-#ifdef __linux__
-void my_print_buildID() {
-  int readlink_bytes;
-  char proc_path[FN_REFLEN];
-  char mysqld_path[PATH_MAX + 1] = {0};
-  FILE *mysqld;
-  struct stat statbuf;
-  ElfW(Ehdr) *ehdr = 0;
-  ElfW(Phdr) *phdr = 0;
-  ElfW(Nhdr) *nhdr = 0;
-  unsigned char *build_id;
-  char buff[3];
-  uint i;
-  uint bytes_read;
-  snprintf(proc_path, sizeof(proc_path), "/proc/%d/exe", getpid());
-  readlink_bytes = readlink(proc_path, mysqld_path, sizeof(mysqld_path));
-  if (readlink_bytes < 1) {
-    my_safe_printf_stderr("Error reading process path\n");
-    return;
-  }
-  if (!(mysqld = fopen(mysqld_path, "r"))) {
-    my_safe_printf_stderr("Error opening mysql binary\n");
-    return;
-  }
-  if (fstat(fileno(mysqld), &statbuf) < 0) {
-    my_safe_printf_stderr("Error running fstat on mysql binary\n");
-    fclose(mysqld);
-    return;
-  }
-  ehdr = (ElfW(Ehdr) *)my_mmap(0, statbuf.st_size, PROT_READ | PROT_WRITE,
-                               MAP_PRIVATE, fileno(mysqld), 0);
-  phdr = (ElfW(Phdr) *)(ehdr->e_phoff + (size_t)ehdr);
-  while (phdr->p_type != PT_NOTE) {
-    ++phdr;
-  }
-  nhdr = (ElfW(Nhdr) *)(phdr->p_offset + (size_t)ehdr);
-  bytes_read = sizeof(ElfW(Nhdr));
-  while (nhdr->n_type != NT_GNU_BUILD_ID) {
-    nhdr = (ElfW(Nhdr) *)((size_t)nhdr + sizeof(ElfW(Nhdr)) + nhdr->n_namesz +
-                          nhdr->n_descsz);
-    bytes_read += nhdr->n_namesz + nhdr->n_descsz;
-    if (bytes_read > phdr->p_filesz) {
-      my_safe_printf_stderr("Build ID: Not Available \n");
-      fclose(mysqld);
-      return;
-    }
-  }
-  build_id =
-      (unsigned char *)my_malloc(PSI_NOT_INSTRUMENTED, nhdr->n_descsz, MYF(0));
-  memcpy(build_id, (void *)((size_t)nhdr + sizeof(ElfW(Nhdr)) + nhdr->n_namesz),
-         nhdr->n_descsz);
-  my_safe_printf_stderr("Build ID: ");
-  for (i = 0; i < nhdr->n_descsz; ++i) {
-    snprintf(buff, sizeof(buff), "%02hhx", build_id[i]);
-    my_safe_printf_stderr("%s", buff);
-  }
-  my_free(build_id);
-  fclose(mysqld);
-  my_safe_printf_stderr("\n");
-}
-#endif /* __linux__ */
-
 void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
 #if defined(__FreeBSD__)
   static char procname_buffer[2048];
@@ -421,7 +334,7 @@ void my_write_core(int sig) {
 #pragma comment(lib, "dbghelp")
 #endif
 
-static EXCEPTION_POINTERS *exception_ptrs;
+static thread_local EXCEPTION_POINTERS *exception_ptrs;
 
 #define MODULE64_SIZE_WINXP 576
 #define STACKWALK_MAX_FRAMES 64
@@ -513,22 +426,32 @@ static void get_symbol_path(char *path, size_t size) {
 #define SYMOPT_NO_PROMPTS 0
 #endif
 
-void my_print_stacktrace(const uchar *unused1, ulong unused2) {
+void my_print_stacktrace(const uchar * /* stack_bottom */,
+                         ulong /* thread_stack */) {
   HANDLE hProcess = GetCurrentProcess();
   HANDLE hThread = GetCurrentThread();
-  static IMAGEHLP_MODULE64 module = {sizeof(module)};
+  static IMAGEHLP_MODULE64 module{};
+  module.SizeOfStruct = sizeof(module);
+
   static IMAGEHLP_SYMBOL64_PACKAGE package;
   DWORD64 addr;
   DWORD machine;
   int i;
   CONTEXT context;
-  STACKFRAME64 frame = {0};
+  STACKFRAME64 frame{};
   static char symbol_path[MAX_SYMBOL_PATH];
 
-  if (!exception_ptrs) return;
+  if (exception_ptrs) {
+    /* Copy context, as stackwalking on original will unwind the stack */
+    context = *(exception_ptrs->ContextRecord);
+  } else {
+    /*
+      We are to print stack outside the signal handler, let's just capture the
+      current context.
+    */
+    RtlCaptureContext(&context);
+  }
 
-  /* Copy context, as stackwalking on original will unwind the stack */
-  context = *(exception_ptrs->ContextRecord);
   /*Initialize symbols.*/
   SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_NO_PROMPTS | SYMOPT_DEFERRED_LOADS |
                 SYMOPT_DEBUG);
@@ -538,13 +461,19 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
   /*Prepare stackframe for the first StackWalk64 call*/
   frame.AddrFrame.Mode = frame.AddrPC.Mode = frame.AddrStack.Mode =
       AddrModeFlat;
-#if (defined _M_X64)
+#if (defined _M_IX86)
+  machine = IMAGE_FILE_MACHINE_I386;
+  frame.AddrFrame.Offset = context.Ebp;
+  frame.AddrPC.Offset = context.Eip;
+  frame.AddrStack.Offset = context.Esp;
+#elif (defined _M_X64)
   machine = IMAGE_FILE_MACHINE_AMD64;
   frame.AddrFrame.Offset = context.Rbp;
   frame.AddrPC.Offset = context.Rip;
   frame.AddrStack.Offset = context.Rsp;
 #else
   /*There is currently no need to support IA64*/
+  /* Warning C4068: unknown pragma 'error' */
 #pragma error("unsupported architecture")
 #endif
 
@@ -555,7 +484,9 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
   for (i = 0; i < STACKWALK_MAX_FRAMES; i++) {
     DWORD64 function_offset = 0;
     DWORD line_offset = 0;
-    IMAGEHLP_LINE64 line = {sizeof(line)};
+    IMAGEHLP_LINE64 line{};
+    line.SizeOfStruct = sizeof(line);
+
     BOOL have_module = false;
     BOOL have_symbol = false;
     BOOL have_source = false;
@@ -569,7 +500,7 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
         SymGetSymFromAddr64(hProcess, addr, &function_offset, &(package.sym));
     have_source = SymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
 
-    my_safe_printf_stderr("%p    ", addr);
+    my_safe_printf_stderr("%llx    ", addr);
     if (have_module) {
       char *base_image_name = strrchr(module.ImageName, '\\');
       if (base_image_name)
@@ -590,7 +521,7 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
         base_file_name++;
       else
         base_file_name = line.FileName;
-      my_safe_printf_stderr("[%s:%u]", base_file_name, line.LineNumber);
+      my_safe_printf_stderr("[%s:%lu]", base_file_name, line.LineNumber);
     }
     my_safe_printf_stderr("%s", "\n");
   }
@@ -601,7 +532,7 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
   file name is constructed from executable name plus
   ".dmp" extension
 */
-void my_write_core(int unused) {
+void my_write_core(int /* sig */) {
   char path[MAX_PATH];
   // See comment below for clarification about size of dump_fname
   char dump_fname[MAX_PATH + 1 + 10 + 4 + 1] = "core.dmp";
@@ -617,7 +548,7 @@ void my_write_core(int unused) {
     // 1 byte for termitated \0. Such size of output buffer guarantees
     // that there is enough space to place a result of string formatting
     // performed by snprintf().
-    snprintf(dump_fname, sizeof(dump_fname), "%s.%u.dmp", module_name,
+    snprintf(dump_fname, sizeof(dump_fname), "%s.%lu.dmp", module_name,
              GetCurrentProcessId());
   }
   my_create_minidump(dump_fname, 0, 0);
@@ -656,12 +587,12 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid) {
       my_safe_printf_stderr("Minidump written to %s\n",
                             _fullpath(path, name, sizeof(path)) ? path : name);
     } else {
-      my_safe_printf_stderr("MiniDumpWriteDump() failed, last error %d\n",
+      my_safe_printf_stderr("MiniDumpWriteDump() failed, last error %lu\n",
                             GetLastError());
     }
     CloseHandle(hFile);
   } else {
-    my_safe_printf_stderr("CreateFile(%s) failed, last error %d\n", name,
+    my_safe_printf_stderr("CreateFile(%s) failed, last error %lu\n", name,
                           GetLastError());
   }
 }

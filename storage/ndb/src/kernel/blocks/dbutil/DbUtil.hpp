@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@
  *
  * @section secSequence   Module: The Sequence Service
  *
- * A sequence is a varaible stored in the database.  Each time it is 
+ * A sequence is a variable stored in the database.  Each time it is 
  * requested with "NextVal" it returns a unique number.  If requested 
  * with "CurrVal" it returns the current number.
  * 
@@ -206,10 +206,8 @@ public:
     Uint32 prevList;
 
     void print() const {
-      ndbout << "[-Prepare-" << endl
-	     << " clientRef: " << clientRef
-	     << ", clientData: " << clientData
-	     << "]" << endl;
+      g_eventLogger->info("[-Prepare-\n clientRef: %u, clientData: %u]",
+                          clientRef, clientData);
     }
   };
   typedef ArrayPool<Prepare> Prepare_pool;

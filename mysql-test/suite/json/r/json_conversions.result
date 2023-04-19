@@ -157,6 +157,7 @@ _mpy multipolygon,
 _gco geometrycollection);
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 00:00:00' at row 1 is superfluous and is deprecated. Please remove.
 # ----------------------------------------------------------------------
 #  I N S E R T   F R O M   J S O N   C O L U M N
 # ----------------------------------------------------------------------
@@ -18313,3 +18314,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 "Testcase for Set"
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
+#
+# Bug #34416304 WriteRowToChunk : Assertion `!thd->is_error()' failed
+#
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field

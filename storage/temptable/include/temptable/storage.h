@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -181,6 +181,9 @@ class Storage {
 
   /** Delete all elements in the storage. After this `size()` will be zero. */
   void clear();
+
+  /** A simple getter. */
+  size_t number_of_elements_per_page() const;
 
  private:
   /** Align elements to this number of bytes. */
@@ -634,6 +637,10 @@ inline void Storage::clear() {
   m_first_page = nullptr;
   m_last_page = nullptr;
   m_number_of_elements = 0;
+}
+
+inline size_t Storage::number_of_elements_per_page() const {
+  return m_number_of_elements_per_page;
 }
 
 inline size_t Storage::page_size() const {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@
 
 class Find_thd_user_var : public Find_THD_Impl {
  public:
-  Find_thd_user_var(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
+  explicit Find_thd_user_var(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
 
   bool operator()(THD *thd) override {
     if (thd != m_unsafe_thd) {
@@ -56,7 +56,6 @@ class Find_thd_user_var : public Find_THD_Impl {
       return false;
     }
 
-    mysql_mutex_lock(&thd->LOCK_thd_data);
     return true;
   }
 
@@ -233,7 +232,7 @@ int table_uvar_by_thread::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_uvar_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_uvar_by_thread *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_uvar_by_thread);
@@ -287,13 +286,12 @@ int table_uvar_by_thread::materialize(PFS_thread *thread) {
   }
 
   Find_thd_user_var finder(unsafe_thd);
-  THD *safe_thd = Global_THD_manager::get_instance()->find_thd(&finder);
-  if (safe_thd == nullptr) {
+  THD_ptr safe_thd = Global_THD_manager::get_instance()->find_thd(&finder);
+  if (!safe_thd) {
     return 1;
   }
 
-  m_THD_cache.materialize(thread, safe_thd);
-  mysql_mutex_unlock(&safe_thd->LOCK_thd_data);
+  m_THD_cache.materialize(thread, safe_thd.get());
   return 0;
 }
 
@@ -335,8 +333,8 @@ int table_uvar_by_thread::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_thread_internal_id);
           break;
         case 1: /* VARIABLE_NAME */
-          set_field_varchar_utf8(f, m_row.m_variable_name->m_str,
-                                 m_row.m_variable_name->m_length);
+          set_field_varchar_utf8mb4(f, m_row.m_variable_name->m_str,
+                                    m_row.m_variable_name->m_length);
           break;
         case 2: /* VARIABLE_VALUE */
           if (m_row.m_variable_value->get_value_length() > 0) {

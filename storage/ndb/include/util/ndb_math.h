@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define NDB_MATH_H
 
 #include <type_traits>
+#include "util/require.h"
 
 /**
  * Greatest common divisor, gcd.
@@ -62,12 +63,22 @@ inline Int lcm(Int x, Int y)
 template<typename T>
 static constexpr inline T ndb_ceil_div(const T p, const T q)
 {
-  static_assert(std::is_integral<T>::value,
+  static_assert(std::is_integral_v<T>,
                 "Integral type required for ndb_ceil_div().");
   if (p == 0)
   {
     return 0;
   }
+#if defined(__GNUC__) && (__GNUC__ <= 8)
+  // Nothing, broken build: calling non-constexpr function require_failed().
+#else
+  if constexpr (std::is_signed_v<T>)
+  {
+    // Negative values not supported
+    require(p >= 0);
+    require(q >= 0);
+  }
+#endif
   return 1 + (p - 1) / q;
 }
 

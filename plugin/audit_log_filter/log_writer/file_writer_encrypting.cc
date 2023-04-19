@@ -30,6 +30,7 @@ namespace {
 
 const size_t kEvpKeyLength = 32;
 const size_t kEncryptChunkSize = 1024 * 1024;
+const char magic[] = "Salted__";
 
 }  // namespace
 
@@ -146,7 +147,15 @@ bool FileWriterEncrypting::open() noexcept {
     return false;
   }
 
-  return FileWriterDecoratorBase::open();
+  if (!FileWriterDecoratorBase::open()) {
+    return false;
+  }
+
+  FileWriterDecoratorBase::write(magic, sizeof(magic) - 1);
+  FileWriterDecoratorBase::write(
+      reinterpret_cast<const char *>(keyring_salt.data()), keyring_salt.size());
+
+  return true;
 }
 
 void FileWriterEncrypting::close() noexcept {

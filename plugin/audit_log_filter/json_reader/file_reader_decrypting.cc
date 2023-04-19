@@ -147,6 +147,20 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
     return false;
   }
 
+  const size_t file_salt_size = keyring_salt.size() + 8;  // "Salted__"
+  size_t actual_file_salt_size = 0;
+  assert(m_in_buf_size > file_salt_size);
+  auto status = FileReaderDecoratorBase::read(m_in_buff.get(), file_salt_size,
+                                              &actual_file_salt_size);
+
+  if (status != ReadStatus::Ok || file_salt_size != actual_file_salt_size ||
+      memcmp(m_in_buff.get() + 8, keyring_salt.data(), keyring_salt.size()) !=
+          0) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Bad magic number");
+    close();
+    return false;
+  }
+
   return true;
 }
 

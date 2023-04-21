@@ -74,10 +74,12 @@ static void audit_log_flush(audit_log_buffer_t *log) {
   }
 
   if (log->flush_pos >= log->write_pos % log->size) {
-    log->state = log_record_state_t::INCOMPLETE;
+    log->state = (log->write_pos % log->size == 0)
+                     ? log_record_state_t::COMPLETE
+                     : log_record_state_t::INCOMPLETE;
     mysql_mutex_unlock(&log->mutex);
     log->write_func(log->write_func_data, log->buf + log->flush_pos,
-                    log->size - log->flush_pos, log_record_state_t::INCOMPLETE);
+                    log->size - log->flush_pos, log->state);
     mysql_mutex_lock(&log->mutex);
     log->flush_pos = 0;
     log->write_pos %= log->size;
@@ -163,6 +165,14 @@ void audit_log_buffer_resume(audit_log_buffer_t *log) noexcept {
 
 int audit_log_buffer_write(audit_log_buffer_t *log, const char *buf,
                            size_t len) {
+  DBUG_EXECUTE_IF("audit_log_write_full_buffer", {
+    if (len > log->size) {
+      len = log->size - log->write_pos;
+    } else {
+      return 0;
+    }
+  });
+
   if (len > log->size) {
     if (!log->drop_if_full) {
       /* pause flushing thread and write out one record bypassing the buffer */

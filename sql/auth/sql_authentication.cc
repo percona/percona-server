@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2204,6 +2204,11 @@ acl_authenticate(THD *thd, enum_server_command command,
   DBUG_ENTER("acl_authenticate");
   compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
   assert(command == COM_CONNECT || command == COM_CHANGE_USER);
+
+  DBUG_EXECUTE_IF("acl_authenticate_begin", {
+    const char act[] = "now SIGNAL conn2_in_acl_auth WAIT_FOR conn1_reached_kill";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
   server_mpvio_initialize(thd, &mpvio, &charset_adapter);
   /*

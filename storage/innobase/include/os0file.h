@@ -1,7 +1,15 @@
 /***********************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, 2017, Percona Inc.
+||||||| 863f74007be
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
+>>>>>>> mysql/5.7
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are

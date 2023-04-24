@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 

@@ -1,6 +1,12 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
    Copyright (c) 2016, Percona Inc. All Rights Reserved.
+||||||| 863f74007be
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> mysql/5.7
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

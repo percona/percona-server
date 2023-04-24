@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9951,9 +9951,12 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     m_dependency_tracker.update_max_committed(thd);
     mysql_mutex_unlock(&LOCK_slave_trans_dep_tracker);
   }
-  if (thd->get_transaction()->m_flags.commit_low)
+
+  bool all = thd->get_transaction()->m_flags.real_commit;
+  bool committed_low = thd->get_transaction()->m_flags.commit_low;
+
+  if (committed_low)
   {
-    const bool all= thd->get_transaction()->m_flags.real_commit;
     /*
       Now flush error and sync erros are ignored and we are continuing and
       committing. And at this time, commit_error cannot be COMMIT_ERROR.
@@ -9974,6 +9977,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     */
     if (ha_commit_low(thd, all, false))
       thd->commit_error= THD::CE_COMMIT_ERROR;
+<<<<<<< HEAD
 
     sunlock();
     /*
@@ -9994,10 +9998,28 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
       thd->get_transaction()->m_flags.run_hooks= false;
     }
-  }
-  else if (thd->get_transaction()->m_flags.xid_written)
-    dec_prep_xids(thd);
+||||||| 863f74007be
+    /*
+      Decrement the prepared XID counter after storage engine commit
+    */
+    if (thd->get_transaction()->m_flags.xid_written)
+      dec_prep_xids(thd);
+    /*
+      If commit succeeded, we call the after_commit hook
 
+      TODO: This hook here should probably move outside/below this
+            if and be the only after_commit invocation left in the
+            code.
+    */
+    if ((thd->commit_error != THD::CE_COMMIT_ERROR) &&
+        thd->get_transaction()->m_flags.run_hooks)
+    {
+      (void) RUN_HOOK(transaction, after_commit, (thd, all));
+      thd->get_transaction()->m_flags.run_hooks= false;
+    }
+=======
+>>>>>>> mysql/5.7
+  }
   /*
     If the ordered commit didn't updated the GTIDs for this thd yet
     at process_commit_stage_queue (i.e. --binlog-order-commits=0)
@@ -10015,6 +10037,22 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     }
     else
       gtid_state->update_on_rollback(thd);
+  }
+  /*
+    Decrement the prepared XID counter after commit
+  */
+  if (thd->get_transaction()->m_flags.xid_written)
+    dec_prep_xids(thd);
+
+  DEBUG_SYNC(thd, "after_dec_prep_xids");
+  /*
+    If the transaction was committed successfully, run the after_commit
+  */
+  if (committed_low && (thd->commit_error != THD::CE_COMMIT_ERROR) &&
+      thd->get_transaction()->m_flags.run_hooks)
+  {
+    (void) RUN_HOOK(transaction, after_commit, (thd, all));
+    thd->get_transaction()->m_flags.run_hooks = false;
   }
 
   DBUG_EXECUTE_IF("leaving_finish_commit",

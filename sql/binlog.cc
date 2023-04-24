@@ -9977,48 +9977,8 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     */
     if (ha_commit_low(thd, all, false))
       thd->commit_error= THD::CE_COMMIT_ERROR;
-<<<<<<< HEAD
 
     sunlock();
-    /*
-      Decrement the prepared XID counter after storage engine commit
-    */
-    if (thd->get_transaction()->m_flags.xid_written)
-      dec_prep_xids(thd);
-    /*
-      If commit succeeded, we call the after_commit hook
-
-      TODO: This hook here should probably move outside/below this
-            if and be the only after_commit invocation left in the
-            code.
-    */
-    if ((thd->commit_error != THD::CE_COMMIT_ERROR) &&
-        thd->get_transaction()->m_flags.run_hooks)
-    {
-      (void) RUN_HOOK(transaction, after_commit, (thd, all));
-      thd->get_transaction()->m_flags.run_hooks= false;
-    }
-||||||| 863f74007be
-    /*
-      Decrement the prepared XID counter after storage engine commit
-    */
-    if (thd->get_transaction()->m_flags.xid_written)
-      dec_prep_xids(thd);
-    /*
-      If commit succeeded, we call the after_commit hook
-
-      TODO: This hook here should probably move outside/below this
-            if and be the only after_commit invocation left in the
-            code.
-    */
-    if ((thd->commit_error != THD::CE_COMMIT_ERROR) &&
-        thd->get_transaction()->m_flags.run_hooks)
-    {
-      (void) RUN_HOOK(transaction, after_commit, (thd, all));
-      thd->get_transaction()->m_flags.run_hooks= false;
-    }
-=======
->>>>>>> mysql/5.7
   }
   /*
     If the ordered commit didn't updated the GTIDs for this thd yet

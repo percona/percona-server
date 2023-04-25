@@ -9862,6 +9862,7 @@ int ha_rocksdb::index_next_same(uchar *const buf,
 
   if (m_full_key_lookup) {
 #ifndef NDEBUG
+    assert(active_index != MAX_KEY);
     uint len = calculate_key_len(table, active_index, HA_WHOLE_KEY);
     assert(len == keylen);
 #endif
@@ -11406,9 +11407,6 @@ void ha_rocksdb::check_build_decoder() {
 int ha_rocksdb::index_init(uint idx, bool sorted) {
   DBUG_ENTER_FUNC();
 
-  m_need_build_decoder = true;
-  active_index = idx;
-
   THD *thd = ha_thd();
   if (thd && thd->killed) {
     DBUG_RETURN(HA_ERR_QUERY_INTERRUPTED);
@@ -11416,6 +11414,8 @@ int ha_rocksdb::index_init(uint idx, bool sorted) {
 
   Rdb_transaction *const tx = get_or_create_tx(thd);
   assert(tx != nullptr);
+
+  m_need_build_decoder = true;
 
   active_index = idx;
   if (idx != table->s->primary_key &&

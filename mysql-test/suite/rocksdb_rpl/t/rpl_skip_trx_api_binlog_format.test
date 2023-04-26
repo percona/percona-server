@@ -5,7 +5,7 @@
 --source include/master-slave.inc
 
 call mtr.add_suppression("Masters binlog format is not ROW and storage engine can not handle non-ROW events at this time.*");
-call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 # We have two combinations we need to test here :
 # 1) rsta=on and sro=off
@@ -28,7 +28,7 @@ insert into t1 values(1);
 
 # on slave, wait till we hit the binlog format mismatch error
 connection slave;
-let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR); # 1756
+let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR); # 1756
 let $show_slave_sql_error=0;
 source include/wait_for_slave_sql_error.inc;
 
@@ -73,7 +73,7 @@ insert into t1 values(1), (2), (3), (4);
 
 # on slave, wait till we hit the binlog format mismatch error
 connection slave;
-let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR); # 1756
+let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR); # 1756
 let $show_slave_sql_error=0;
 source include/wait_for_slave_sql_error.inc;
 

@@ -25,7 +25,7 @@
 
 #include <assert.h>
 #include <algorithm>
-#include <limits>  // std::numeric_limits
+#include <limits>
 
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"

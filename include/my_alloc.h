@@ -32,7 +32,6 @@
 
 #include <string.h>
 
-#include <cstdint>  // std::uintptr_t
 #include <memory>
 #include <new>
 #include <type_traits>

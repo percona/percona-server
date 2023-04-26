@@ -1630,7 +1630,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS 
 #       This comment refers to InnoDB and is probably not valid for other engines.
 explain select * from t1 where (pktail2ok=1 and pk1< 50000) or key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	PRIMARY,key1,pktail2ok	pktail2ok,key1	8,4	NULL	ROWS	100.00	Using sort_union(pktail2ok,key1); Using where
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,key1,pktail2ok	PRIMARY,key1	4,4	NULL	ROWS	100.00	Using union(PRIMARY,key1); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (((`test`.`t1`.`pktail2ok` = 1) and (`test`.`t1`.`pk1` < 50000)) or (`test`.`t1`.`key1` = 10))
 explain select * from t1 where pktail3bad=1 and key1=10;

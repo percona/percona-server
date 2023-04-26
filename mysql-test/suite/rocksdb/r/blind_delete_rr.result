@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 set @save_rocksdb_blind_delete_primary_key=@@session.rocksdb_blind_delete_primary_key;
@@ -76,9 +76,9 @@ SELECT count(*) FROM t1;
 count(*)
 7000
 [connection slave]
-call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.*Error_code.*");
-call mtr.add_suppression("Slave: Can't find record in 't1'.*");
-call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t1.*Error_code.*");
+call mtr.add_suppression("Replica: Can't find record in 't1'.*");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/wait_for_slave_sql_error.inc [errno=1032]
 [connection slave]
 set @save_rocksdb_read_free_rpl=@@global.rocksdb_read_free_rpl;

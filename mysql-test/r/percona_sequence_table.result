@@ -542,7 +542,7 @@ Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt`.`value`) AS `t1.a
 EXPLAIN FORMAT=TREE SELECT t1.a * 10 + value FROM t1, SEQUENCE_TABLE(3) AS tt;
 EXPLAIN
 -> Inner hash join (no condition)
-    -> Table scan on t1  (cost=0.28 rows=3)
+    -> Table scan on t1  (cost=0.275 rows=3)
     -> Hash
         -> Materialize table function
 
@@ -576,10 +576,10 @@ EXPLAIN FORMAT=TREE SELECT tt1.a * 10 + value FROM (SELECT 0 AS a UNION SELECT 1
 EXPLAIN
 -> Inner hash join (no condition)
     -> Table scan on tt1  (cost=1.15..2.84 rows=3)
-        -> Union materialize with deduplication  (cost=0.30..0.30 rows=3)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+        -> Union materialize with deduplication  (cost=0.3..0.3 rows=3)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
     -> Hash
         -> Materialize table function
 
@@ -610,8 +610,8 @@ EXPLAIN FORMAT=TREE SELECT tt1.column_0 * 10 + value FROM (VALUES ROW(0), ROW(1)
 EXPLAIN
 -> Inner hash join (no condition)
     -> Table scan on tt1  (cost=1.15..2.84 rows=3)
-        -> Materialize  (cost=0.30..0.30 rows=3)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=3)
+        -> Materialize  (cost=0.3..0.3 rows=3)
+            -> Rows fetched before execution  (cost=0..0 rows=3)
     -> Hash
         -> Materialize table function
 
@@ -640,7 +640,7 @@ Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt2`.`value`) AS `tt1
 EXPLAIN FORMAT=TREE SELECT tt1.a * 10 + value FROM (SELECT * FROM t1) AS tt1, SEQUENCE_TABLE(3) AS tt2;
 EXPLAIN
 -> Inner hash join (no condition)
-    -> Table scan on t1  (cost=0.28 rows=3)
+    -> Table scan on t1  (cost=0.275 rows=3)
     -> Hash
         -> Materialize table function
 
@@ -669,7 +669,7 @@ Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt2`.`value`) AS `tt1
 EXPLAIN FORMAT=TREE SELECT tt1.a * 10 + value FROM (TABLE t1) AS tt1, SEQUENCE_TABLE(3) AS tt2;
 EXPLAIN
 -> Inner hash join (no condition)
-    -> Table scan on t1  (cost=0.28 rows=3)
+    -> Table scan on t1  (cost=0.275 rows=3)
     -> Hash
         -> Materialize table function
 

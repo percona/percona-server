@@ -1,10 +1,8 @@
+--source include/add_mtr_suppression_for_innodb_readonly.inc
+
 --disable_query_log
-call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
-call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
-call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode");
 call mtr.add_suppression("innodb_force_recovery is on. We do not allow database modifications by the user. Shut down mysqld and edit my.cnf to set innodb_force_recovery=0");
 --enable_query_log
-
 
 CREATE COMPRESSION_DICTIONARY d1('blah');
 CREATE TABLE `t1` (`a` text COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`) ENGINE=InnoDB;

@@ -112,7 +112,7 @@ let $wait_condition=
     (INFO = "CREATE TABLE t (a INT)" OR INFO IS NULL);
 --source include/wait_condition.inc
 
---error ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP
+--error ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP
 STOP SLAVE SQL_THREAD;
 UNLOCK INSTANCE;
 

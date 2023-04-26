@@ -19,8 +19,7 @@ GRANT SELECT ON `bug_test`.* TO `test`@`localhost`
 # Start the dump tests
 # ----- Test 1 -----
 # GTID enabled on the server, --set-gtid-purged is set to it's default value (AUTO).
-# Should fail because of insufficient privileges.
-# Start the dump
+# Should succeed
 # ----- Test 1 succeeded -----
 # ----- Test 2 -----
 # GTID enabled on the server, --set-gtid-purged is set to OFF

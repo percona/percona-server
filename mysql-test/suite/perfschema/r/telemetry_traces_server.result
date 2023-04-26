@@ -247,9 +247,9 @@ CALL obfuscate_this_2(1);
 SET PASSWORD FOR internal@localhost='internal';
 # statements in non-default character set should be logged correctly by telemetry
 SET CHARACTER SET cp1250_latin2;
-SELECT '£¥ª¯';
-£¥ª¯
-£¥ª¯
+SELECT 'ï¿½ï¿½ï¿½ï¿½';
+ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½ï¿½ï¿½
 SET CHARACTER SET default;
 # COM_QUIT command should be processed by telemetry (appear in the log)
 # check telemetry session refcount with 'api' session created (should be 2)

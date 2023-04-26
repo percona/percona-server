@@ -4,14 +4,15 @@
 --source include/have_debug.inc
 --source include/have_rocksdb.inc
 --source include/have_binlog_format_mixed_or_statement.inc
---source include/not_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
+--source include/rpl_connection_slave.inc
+--source include/not_mts_replica_parallel_workers.inc
+--source include/rpl_connection_master.inc
 
---connection master
 set session sql_log_bin=0;
 call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
+call mtr.add_suppression("Recovery from source pos .* and file master-bin.000001");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
 set session sql_log_bin=1;
@@ -19,7 +20,7 @@ set session sql_log_bin=1;
 --connection slave
 set session sql_log_bin=0;
 call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
+call mtr.add_suppression("Recovery from source pos .* and file master-bin.000001");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
 set session sql_log_bin=1;

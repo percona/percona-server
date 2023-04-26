@@ -314,8 +314,8 @@ ENDIF()
 # Suppress warnings for gcc-12 or newer
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
   IF(HAVE_AVX512F)
-    MESSAGE(STATUS "AVX-512: add -Wno-uninitialized for xxhash.cc (check https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105593)")
-    ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-uninitialized -Wno-maybe-uninitialized FILES rocksdb/util/xxhash.cc ${BUNDLED_LZ4_PATH}/xxhash.c)
+    MESSAGE(STATUS "AVX-512: add -Wno-uninitialized flag (check https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105593)")
+    append_cflags_if_supported(-Wno-maybe-uninitialized -Wno-uninitialized)
   ENDIF()
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/db/blob/blob_file_reader.cc)
 ENDIF()
@@ -340,17 +340,8 @@ INCLUDE_DIRECTORIES(
   ${ROCKSDB_ROOT}/third-party/gtest-1.8.1/fused-src
 )
 
-IF(BUILD_BUNDLED_ZSTD)
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${ZSTD_INCLUDE_DIR}/dictBuilder)
-ENDIF()
-
-# add bundled compression code
-SET(ZSTD_SOURCES ${BUNDLED_LZ4_PATH}/xxhash.c)
-
 SET(ROCKSDB_SOURCES
   ${ROCKSDB_SOURCES}
-  ${ZSTD_SOURCES}
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
   logger.h
   rdb_datadic.cc rdb_datadic.h
@@ -399,7 +390,6 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/utilities/blob_db/blob_dump_tool.cc
     ${ROCKSDB_LIB_SOURCES}
-    ${ZSTD_SOURCES}
   )
   MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump.cc ${ROCKSDB_TOOL_SOURCES})
   TARGET_LINK_LIBRARIES(sst_dump ${rocksdb_static_libs})
@@ -416,7 +406,7 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
       MESSAGE(FATAL_ERROR "Cannot find system gflags library.")
     ENDIF()
 
-    MYSQL_ADD_EXECUTABLE(zenfs ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs/util/zenfs.cc ${ROCKSDB_LIB_SOURCES} ${ZENFS_PLUGIN_SOURCES} ${ZSTD_SOURCES})
+    MYSQL_ADD_EXECUTABLE(zenfs ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs/util/zenfs.cc ${ROCKSDB_LIB_SOURCES} ${ZENFS_PLUGIN_SOURCES})
     TARGET_LINK_LIBRARIES(zenfs ${rocksdb_static_libs} ${GFLAGS_SYSTEM_LIBRARY})
 
     EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/tmp_gen/rocksdb/plugin")

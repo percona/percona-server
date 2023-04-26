@@ -9,7 +9,7 @@ SET @@session.transaction_isolation = "REPEATABLE-READ";
 SET @@session.binlog_format = STATEMENT;
 REPLACE INTO t1(a) SELECT a FROM t2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on source and the replica.
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT);

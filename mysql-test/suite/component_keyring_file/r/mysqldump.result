@@ -39,7 +39,7 @@ SHOW CREATE TABLE db1.i2;
 Table	Create Table
 i2	CREATE TABLE `i2` (
   `f1` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='y'
 SHOW CREATE TABLE db1.i3;
 Table	Create Table
 i3	CREATE TABLE `i3` (
@@ -80,7 +80,7 @@ Table	Create Table
 i_part2	CREATE TABLE `i_part2` (
   `id` int DEFAULT NULL,
   `name` varchar(50) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='y'
 /*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
@@ -144,7 +144,7 @@ SHOW CREATE TABLE db1.i2;
 Table	Create Table
 i2	CREATE TABLE `i2` (
   `f1` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 SHOW CREATE TABLE db1.i3;
 Table	Create Table
 i3	CREATE TABLE `i3` (
@@ -185,7 +185,7 @@ Table	Create Table
 i_part2	CREATE TABLE `i_part2` (
   `id` int DEFAULT NULL,
   `name` varchar(50) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 /*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
@@ -250,7 +250,7 @@ SHOW CREATE TABLE db1.i2;
 Table	Create Table
 i2	CREATE TABLE `i2` (
   `f1` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 SHOW CREATE TABLE db1.i3;
 Table	Create Table
 i3	CREATE TABLE `i3` (
@@ -270,7 +270,7 @@ SHOW CREATE TABLE db1.i_ts3;
 Table	Create Table
 i_ts3	CREATE TABLE `i_ts3` (
   `f1` int DEFAULT NULL
-) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.i_ts4;
 Table	Create Table
 i_ts4	CREATE TABLE `i_ts4` (
@@ -291,7 +291,7 @@ Table	Create Table
 i_part2	CREATE TABLE `i_part2` (
   `id` int DEFAULT NULL,
   `name` varchar(50) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 /*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,

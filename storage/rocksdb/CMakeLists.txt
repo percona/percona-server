@@ -110,10 +110,6 @@ ELSE()
   # split the list into lines
   STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 
-  # Statically include all RocksDB source
-  SET(ROCKSDB_SOURCES
-    ${ROCKSDB_LIB_SOURCES}
-  )
 ENDIF()
 
 # This is a strong requirement coming from RocksDB. No conditional checks here.
@@ -286,17 +282,7 @@ INCLUDE_DIRECTORIES(
   ${ROCKSDB_ROOT}/third-party/gtest-1.8.1/fused-src
 )
 
-IF(BUILD_BUNDLED_ZSTD)
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${ZSTD_INCLUDE_DIR}/dictBuilder)
-ENDIF()
-
-# add bundled compression code
-SET(ZSTD_SOURCES ${BUNDLED_LZ4_PATH}/xxhash.c)
-
-SET(ROCKSDB_SOURCES
-  ${ROCKSDB_SOURCES}
-  ${ZSTD_SOURCES}
+SET(ROCKSDB_SE_SOURCES
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
   logger.h
   rdb_datadic.cc rdb_datadic.h
@@ -334,19 +320,22 @@ IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
   SET(rocksdb_static_libs ${rocksdb_static_libs} "-lrt")
 ENDIF()
 
+ADD_LIBRARY(rocksdb_sources ${ROCKSDB_LIB_SOURCES})
+TARGET_LINK_LIBRARIES(rocksdb_sources ${rocksdb_static_libs})
+
 IF (ROCKSDB_DYNAMIC_PLUGIN)
-  MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT
-    MODULE_ONLY LINK_LIBRARIES ${rocksdb_static_libs})
+  MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE DEFAULT
+    MODULE_ONLY LINK_LIBRARIES rocksdb_sources)
 ELSE()
-  MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT
-    STATIC_ONLY LINK_LIBRARIES ${rocksdb_static_libs})
+  MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE MANDATORY
+    STATIC_ONLY LINK_LIBRARIES rocksdb_sources)
     # to fix linkage error on partition_base
     TARGET_LINK_LIBRARIES(rocksdb_se sql_main)
 ENDIF()
 
 IF (NOT HAVE_EXTERNAL_ROCKSDB)
   # TODO: read this file list from src.mk:TOOL_SOURCES
-  SET(ROCKSDB_TOOL_SOURCES
+  ADD_LIBRARY(rocksdb_tool
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_tool.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_cmd.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
@@ -354,9 +343,11 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
     ${ROCKSDB_LIB_SOURCES}
     ${ZSTD_SOURCES}
   )
-  MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(sst_dump ${rocksdb_static_libs})
+  TARGET_LINK_LIBRARIES(rocksdb_tool rocksdb_sources)
 
-  MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(ldb ${rocksdb_static_libs})
+  MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump.cc)
+  TARGET_LINK_LIBRARIES(sst_dump rocksdb_tool)
+
+  MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb.cc)
+  TARGET_LINK_LIBRARIES(ldb rocksdb_tool)
 ENDIF()

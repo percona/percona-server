@@ -5635,7 +5635,6 @@ static bool add_set_gtid_purged(MYSQL *mysql_con) {
   setting the SET @@GLOBAL.GTID_PURGED in the output.
 
   @param[in]          mysql_con     the connection to the server
-
   @param[in]          is_gtid_enabled  true if server has gtid_mode on
 
   @retval             false         successful according to the value
@@ -5918,7 +5917,6 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str,
 }
 
 int main(int argc, char **argv) {
-  bool server_with_gtids_and_opt_purge_not_off = false;
   bool server_has_gtid_enabled = false;
   char bin_log_name[FN_REFLEN];
   int exit_code, md_result_fd = 0;
@@ -5955,15 +5953,7 @@ int main(int argc, char **argv) {
 
   if (opt_slave_data && do_stop_slave_sql(mysql)) goto err;
 
-  server_has_gtid_enabled = get_gtid_mode(mysql);
-
-  server_with_gtids_and_opt_purge_not_off =
-      (server_has_gtid_enabled &&
-       (opt_set_gtid_purged_mode != SET_GTID_PURGED_OFF));
-
-  if ((opt_lock_all_tables || opt_master_data ||
-       (opt_single_transaction &&
-        (flush_logs || server_with_gtids_and_opt_purge_not_off))) &&
+  if ((opt_lock_all_tables || opt_master_data || opt_single_transaction) &&
       do_flush_tables_read_lock(mysql))
     goto err;
 
@@ -5971,9 +5961,7 @@ int main(int argc, char **argv) {
     Flush logs before starting transaction since
     this causes implicit commit starting mysql-5.5.
   */
-  if (opt_lock_all_tables || opt_master_data ||
-      (opt_single_transaction &&
-       (flush_logs || server_with_gtids_and_opt_purge_not_off)) ||
+  if (opt_lock_all_tables || opt_master_data || opt_single_transaction ||
       opt_delete_master_logs) {
     if (flush_logs || opt_delete_master_logs) {
       if (mysql_refresh(mysql, REFRESH_LOG)) {
@@ -5999,7 +5987,9 @@ int main(int argc, char **argv) {
 
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required.
    */
-  if (process_set_gtid_purged(mysql, server_has_gtid_enabled)) goto err;
+  server_has_gtid_enabled = get_gtid_mode(mysql);
+  if (process_set_gtid_purged(mysql, server_has_gtid_enabled))
+    goto err;
 
   if (opt_master_data && do_show_master_status(mysql)) goto err;
   if (opt_slave_data && do_show_slave_status(mysql)) goto err;

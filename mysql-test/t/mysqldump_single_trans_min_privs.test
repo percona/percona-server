@@ -28,9 +28,7 @@ let $mysqldumpfile = $MYSQLTEST_VARDIR/tmp/bug35020512_dump.sql;
 --echo # Start the dump tests
 --echo # ----- Test 1 -----
 --echo # GTID enabled on the server, --set-gtid-purged is set to it's default value (AUTO).
---echo # Should fail because of insufficient privileges.
---echo # Start the dump
---error 2
+--echo # Should succeed
 --exec $MYSQL_DUMP bug_test -utest --single-transaction --no-tablespaces> $mysqldumpfile
 --echo # ----- Test 1 succeeded -----
 

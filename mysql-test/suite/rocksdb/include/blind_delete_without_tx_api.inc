@@ -97,9 +97,9 @@ SELECT count(*) FROM t2;
 DELETE FROM t1 WHERE id = 10;
 SELECT count(*) FROM t1;
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.*Error_code.*");
-call mtr.add_suppression("Slave: Can't find record in 't1'.*");
-call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t1.*Error_code.*");
+call mtr.add_suppression("Replica: Can't find record in 't1'.*");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 # wait until we have the expected error
 --let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
 --source include/wait_for_slave_sql_error.inc

@@ -3,7 +3,6 @@ ERROR HY000: Variable 'audit_log_filter_buffer_size' is a read only variable
 SELECT @@global.audit_log_filter_buffer_size;
 @@global.audit_log_filter_buffer_size
 1048576
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
 # restart: --audit-log-filter-buffer-size=4096
 SELECT @@global.audit_log_filter_buffer_size;
 @@global.audit_log_filter_buffer_size

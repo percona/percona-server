@@ -1,12 +1,11 @@
---disable_query_log
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
---enable_query_log
-
 --let $restart_parameters="restart: --audit_log_filter_format=JSON --audit_log_filter_file=audit_filter.json.log --audit_log_filter_format_unix_timestamp=ON"
 --source include/restart_mysqld.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
+
+# Delete rotated xml formatted logs
+--remove_files_wildcard $audit_filter_log_path audit_filter.????????T??????.log
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
@@ -26,7 +25,7 @@ SET GLOBAL audit_log_filter_format_unix_timestamp=OFF;
 --source check_all_events_with_tag.inc
 
 # Verify already rotated log with 'time' attributes contains valid JSON
---let $audit_filter_log_name=
+--let $audit_filter_log_format = json
 --source validate_logs_format.inc
 
 --let $restart_parameters="restart:"

@@ -1,3 +1,5 @@
+--source include/have_debug.inc
+
 --echo #
 --echo # Check wrong argument number
 --error 1123

@@ -1,6 +1,5 @@
 --let $audit_filter_log_path = `SELECT @@global.datadir`
-
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
@@ -23,6 +22,7 @@ if (`SELECT @@global.audit_log_filter_compression = 'GZIP'`) {
 --source decompress_rotated_log.inc
 }
 
+--let $audit_filter_log_format = `SELECT IF(STRCMP(SUBSTRING_INDEX(@@global.audit_log_filter_file, "xml", 1), @@global.audit_log_filter_file), "xml", "json")`
 --source validate_logs_format.inc
 
 --echo #

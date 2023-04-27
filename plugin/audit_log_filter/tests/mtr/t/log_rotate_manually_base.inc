@@ -1,8 +1,3 @@
-
---disable_query_log
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
---enable_query_log
-
 SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
 SELECT audit_log_filter_set_user('%', 'log_general');
 
@@ -18,6 +13,8 @@ SELECT audit_log_rotate();
 SELECT audit_log_rotate();
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
+--let $audit_filter_log_format = xml
 --source validate_logs_format.inc
 
 --echo #

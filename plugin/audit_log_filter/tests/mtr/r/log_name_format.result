@@ -14,6 +14,9 @@ SELECT audit_log_rotate();
 audit_log_rotate()
 <file_name>
 #
+# After rotation during server restart
+# restart: 
+#
 # With compression
 # restart: --audit-log-filter-compression=GZIP
 SELECT audit_log_rotate();

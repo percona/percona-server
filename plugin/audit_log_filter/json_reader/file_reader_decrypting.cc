@@ -76,7 +76,7 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
 
   const auto *encryption_options = file_info->encryption_options.get();
 
-  if (!encryption_options->check_valid()) {
+  if (encryption_options == nullptr || !encryption_options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Invalid options provided for id %s",
                     file_info->encryption_options_id.c_str());

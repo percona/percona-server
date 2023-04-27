@@ -1,0 +1,61 @@
+# Make sure there is separate record with actual parameters in audit log
+# for each prepared statement execution.
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": { "name": "insert" }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_prepared', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_prepared');
+
+--source clean_current_audit_log.inc
+
+CREATE TABLE t1 (c1 INT);
+PREPARE prepared_stmt FROM 'INSERT INTO t1 VALUES (?)';
+
+SET @c = 1;
+EXECUTE prepared_stmt USING @c;
+SET @c = 2;
+EXECUTE prepared_stmt USING @c;
+SET @c = 3;
+EXECUTE prepared_stmt USING @c;
+
+DEALLOCATE PREPARE prepared_stmt;
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let audit_filter_log_path = $audit_filter_log_path
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
+--let audit_filter_log_name = $audit_filter_log_name
+
+perl;
+  use strict;
+  use warnings;
+
+  die "Log path is not set" if (!$ENV{audit_filter_log_path});
+  die "Log name is not set" if (!$ENV{audit_filter_log_name});
+
+  my $full_log_name = "$ENV{audit_filter_log_path}/$ENV{audit_filter_log_name}";
+
+  open(my $fh, '<:encoding(UTF-8)', $full_log_name)
+    or die "Could not open file '$full_log_name' $!";
+
+  my @rows = <$fh>;
+  my @result = map { s/^\s+|\s+$//g; "$_\n" } grep(/INSERT INTO t1 VALUES/, @rows);
+
+  print @result;
+
+  close($fh);
+EOF
+
+--echo #
+--echo # Cleanup
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+
+DROP TABLE t1;

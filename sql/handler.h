@@ -1557,6 +1557,7 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   const dd::Tablespace *old_ts_def,
                                   dd::Tablespace *new_ts_def);
 
+
 /**
   SE interface for getting tablespace extension.
   @return Extension of tablespace datafile name.
@@ -3129,6 +3130,12 @@ struct HA_CREATE_INFO {
   bool m_implicit_tablespace_autoextend_size_change{true};
 
   /**
+    Contains the actual user table which is being altered. If the system tables
+    are being altered, then this will be empty.
+  */
+  std::string actual_user_table_name{};
+
+  /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
     This function separates code from mysql_prepare_alter_table() to be
     used by upgrade code as well to reduce code duplication.
@@ -3940,7 +3947,8 @@ class ha_statistics {
 
   @return Length of used key parts.
 */
-uint calculate_key_len(TABLE *table, uint key, key_part_map keypart_map);
+uint calculate_key_len(TABLE *table, uint key, key_part_map keypart_map,
+                       uint *count = nullptr);
 /*
   bitmap with first N+1 bits set
   (keypart_map for a key prefix of [0..N] keyparts)
@@ -5220,6 +5228,10 @@ class handler {
   */
 
   virtual bool is_ignorable_error(int error);
+  MY_NODISCARD virtual bool continue_partition_copying_on_error(
+      int error [[maybe_unused]]) {
+    return false;
+  }
 
   /**
     @brief Determine whether an error is fatal or not.

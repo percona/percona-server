@@ -16262,6 +16262,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   DBUG_TRACE;
 
   /*
+   This change is necessary for MyRocks at
+   https://github.com/facebook/mysql-5.6/commit/1046d4f7074
+
+   Populate the actual user table name which is getting altered.
+   This flag will be used to put some additional constraints on user tables.*/
+  if (!dd::get_dictionary()->is_system_table_name(table_list->db,
+                                                  table_list->table_name)) {
+    create_info->actual_user_table_name = table_list->table_name;
+  }
+  /*
     Check if we attempt to alter mysql.slow_log or
     mysql.general_log table and return an error if
     it is the case.
@@ -18654,7 +18664,7 @@ static int copy_data_between_tables(
         /* Not a duplicate key error. */
         to->file->print_error(error, MYF(0));
         break;
-      } else {
+      } else if (!to->file->continue_partition_copying_on_error(error)) {
         /* Report duplicate key error. */
         uint key_nr = to->file->get_dup_key(error);
         if ((int)key_nr >= 0) {

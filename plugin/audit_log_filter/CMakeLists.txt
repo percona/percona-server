@@ -40,12 +40,12 @@ IF(WITH_PERCONA_AUDIT_LOG_FILTER)
       log_record_formatter/new.cc
       log_record_formatter/old.cc
       log_record_formatter/json.cc
-      log_record_formatter/csv.cc
       log_writer.cc
       log_writer/base.cc
       log_writer/file.cc
       log_writer/syslog.cc
       log_writer/file_handle.cc
+      log_writer/file_name.cc
       log_writer/file_writer.cc
       log_writer/file_writer_decorator_base.cc
       log_writer/file_writer_buffering.cc
@@ -78,7 +78,7 @@ IF(WITH_PERCONA_AUDIT_LOG_FILTER)
   )
 
   MYSQL_ADD_PLUGIN(audit_log_filter ${AUDIT_LOG_FILTER_SOURCES}
-                   LINK_LIBRARIES ${ZLIB_LIBRARY} ${SSL_LIBRARIES}
+                   LINK_LIBRARIES ${SSL_LIBRARIES} extra::rapidjson ext::zlib
                    MODULE_ONLY MODULE_OUTPUT_NAME "audit_log_filter")
 
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)

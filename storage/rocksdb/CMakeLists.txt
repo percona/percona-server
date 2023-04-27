@@ -1,4 +1,4 @@
-# TODO: Copyrights
+RETURN()
 
 # by default MyRocks is not built
 IF (NOT DEFINED WITH_ROCKSDB)

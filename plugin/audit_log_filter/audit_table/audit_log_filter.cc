@@ -20,7 +20,6 @@
 
 namespace audit_log_filter::audit_table {
 namespace {
-inline constexpr const char *kAuditDbName = "mysql";
 inline constexpr const char *kAuditFilterTableName = "audit_log_filter";
 
 /*
@@ -55,9 +54,8 @@ const size_t kKeyFilterNameNameLength = 11;
 
 }  // namespace
 
-const char *AuditLogFilter::get_table_db_name() noexcept {
-  return kAuditDbName;
-}
+AuditLogFilter::AuditLogFilter(std::string db_name)
+    : AuditTableBase{std::move(db_name)} {}
 
 const char *AuditLogFilter::get_table_name() noexcept {
   return kAuditFilterTableName;
@@ -75,15 +73,15 @@ TableResult AuditLogFilter::index_scan_locate_record_by_rule_name(
     TableAccessContext *ta_context, TA_key *key,
     const std::string &rule_name) noexcept {
   my_service<SERVICE_TYPE(table_access_index_v1)> index_srv(
-      "table_access_index_v1", SysVars::get_comp_regystry_srv());
+      "table_access_index_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(mysql_charset)> charset_srv(
-      "mysql_charset", SysVars::get_comp_regystry_srv());
+      "mysql_charset", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(mysql_string_factory)> string_srv(
-      "mysql_string_factory", SysVars::get_comp_regystry_srv());
+      "mysql_string_factory", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_convert_srv(
-      "mysql_string_charset_converter", SysVars::get_comp_regystry_srv());
+      "mysql_string_charset_converter", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(field_varchar_access_v1)> varchar_srv(
-      "field_varchar_access_v1", SysVars::get_comp_regystry_srv());
+      "field_varchar_access_v1", SysVars::get_comp_registry_srv());
 
   if (index_srv->init(ta_context->ta_session, ta_context->ta_table,
                       kKeyFilterNameName, kKeyFilterNameNameLength,
@@ -111,7 +109,7 @@ void AuditLogFilter::index_scan_end(TableAccessContext *ta_context,
                                     TA_key key) noexcept {
   if (key != nullptr) {
     my_service<SERVICE_TYPE(table_access_index_v1)> index_srv(
-        "table_access_index_v1", SysVars::get_comp_regystry_srv());
+        "table_access_index_v1", SysVars::get_comp_registry_srv());
     index_srv->end(ta_context->ta_session, ta_context->ta_table, key);
   }
 }
@@ -122,9 +120,9 @@ TableResult AuditLogFilter::get_next_pk_value(TableAccessContext *ta_context,
   next_pk = 1;
 
   my_service<SERVICE_TYPE(table_access_index_v1)> index_srv(
-      "table_access_index_v1", SysVars::get_comp_regystry_srv());
+      "table_access_index_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(field_integer_access_v1)> integer_srv(
-      "field_integer_access_v1", SysVars::get_comp_regystry_srv());
+      "field_integer_access_v1", SysVars::get_comp_registry_srv());
 
   if (index_srv->init(ta_context->ta_session, ta_context->ta_table,
                       kKeyFilterPrimaryName, kKeyFilterPrimaryNameLength,
@@ -175,19 +173,19 @@ TableResult AuditLogFilter::load_filters(
   }
 
   my_service<SERVICE_TYPE(mysql_charset)> charset_srv(
-      "mysql_charset", SysVars::get_comp_regystry_srv());
+      "mysql_charset", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(mysql_string_factory)> string_srv(
-      "mysql_string_factory", SysVars::get_comp_regystry_srv());
+      "mysql_string_factory", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_convert_srv(
-      "mysql_string_charset_converter", SysVars::get_comp_regystry_srv());
+      "mysql_string_charset_converter", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(field_varchar_access_v1)> varchar_srv(
-      "field_varchar_access_v1", SysVars::get_comp_regystry_srv());
+      "field_varchar_access_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(field_integer_access_v1)> integer_srv(
-      "field_integer_access_v1", SysVars::get_comp_regystry_srv());
+      "field_integer_access_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(table_access_scan_v1)> scan_srv(
-      "table_access_scan_v1", SysVars::get_comp_regystry_srv());
+      "table_access_scan_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(field_any_access_v1)> any_srv(
-      "field_any_access_v1", SysVars::get_comp_regystry_srv());
+      "field_any_access_v1", SysVars::get_comp_registry_srv());
 
   if (scan_srv->init(ta_context->ta_session, ta_context->ta_table)) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -234,9 +232,10 @@ TableResult AuditLogFilter::load_filters(
         filter_filter_value.get(), buff_filter_filter_value,
         sizeof(buff_filter_filter_value), utf8);
 
-    AuditRule rule{static_cast<uint64_t>(filter_id), buff_filter_name_value};
+    auto rule = std::make_shared<AuditRule>(static_cast<uint64_t>(filter_id),
+                                            buff_filter_name_value);
 
-    if (AuditRuleParser::parse(buff_filter_filter_value, rule)) {
+    if (AuditRuleParser::parse(buff_filter_filter_value, rule.get())) {
       container.insert({buff_filter_name_value, std::move(rule)});
     } else {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -297,19 +296,19 @@ TableResult AuditLogFilter::insert_filter(
   }
 
   my_service<SERVICE_TYPE(mysql_charset)> charset_srv(
-      "mysql_charset", SysVars::get_comp_regystry_srv());
+      "mysql_charset", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(mysql_string_factory)> string_srv(
-      "mysql_string_factory", SysVars::get_comp_regystry_srv());
+      "mysql_string_factory", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(mysql_string_charset_converter)> string_convert_srv(
-      "mysql_string_charset_converter", SysVars::get_comp_regystry_srv());
+      "mysql_string_charset_converter", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(field_varchar_access_v1)> varchar_srv(
-      "field_varchar_access_v1", SysVars::get_comp_regystry_srv());
+      "field_varchar_access_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(field_integer_access_v1)> integer_srv(
-      "field_integer_access_v1", SysVars::get_comp_regystry_srv());
+      "field_integer_access_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(table_access_update_v1)> table_update_srv(
-      "table_access_update_v1", SysVars::get_comp_regystry_srv());
+      "table_access_update_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(table_access_v1)> table_access_srv(
-      "table_access_v1", SysVars::get_comp_regystry_srv());
+      "table_access_v1", SysVars::get_comp_registry_srv());
 
   CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
   HStringContainer filter_name_value{string_srv};
@@ -372,9 +371,9 @@ TableResult AuditLogFilter::delete_filter(
   }
 
   my_service<SERVICE_TYPE(table_access_update_v1)> table_update_srv(
-      "table_access_update_v1", SysVars::get_comp_regystry_srv());
+      "table_access_update_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(table_access_v1)> table_access_srv(
-      "table_access_v1", SysVars::get_comp_regystry_srv());
+      "table_access_v1", SysVars::get_comp_registry_srv());
 
   auto rc = table_update_srv->delete_row(ta_context->ta_session,
                                          ta_context->ta_table);

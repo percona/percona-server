@@ -152,7 +152,8 @@ void FileWriterBuffering::flush_worker() noexcept {
   }
 
   if (m_flush_pos >= m_write_pos % m_size) {
-    m_state = FileBufferState::INCOMPLETE;
+    m_state = (m_write_pos % m_size == 0) ? FileBufferState::COMPLETE
+                                          : FileBufferState::INCOMPLETE;
     mysql_mutex_unlock(&m_mutex);
     FileWriterDecoratorBase::write(m_buf + m_flush_pos, m_size - m_flush_pos);
     mysql_mutex_lock(&m_mutex);
@@ -174,6 +175,14 @@ void FileWriterBuffering::flush_worker() noexcept {
 }
 
 void FileWriterBuffering::write(const char *record, size_t size) noexcept {
+  DBUG_EXECUTE_IF("audit_log_write_full_buffer", {
+    if (size > m_size) {
+      size = m_size - m_write_pos;
+    } else {
+      return;
+    }
+  });
+
   if (size > m_size) {
     if (!m_drop_if_full) {
       /* pause flushing thread and write out one record bypassing the buffer */

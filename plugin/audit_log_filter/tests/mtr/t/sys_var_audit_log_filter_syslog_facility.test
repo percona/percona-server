@@ -1,84 +1,11 @@
 
-SET @start_value = @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_USER;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_AUTHPRIV;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_CRON;
-SELECT @@global.audit_log_filter_syslog_facility;
-
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL audit_log_filter_syslog_facility=LOG_DAEMON;
 SELECT @@global.audit_log_filter_syslog_facility;
 
-SET GLOBAL audit_log_filter_syslog_facility=LOG_FTP;
+--let $restart_parameters="restart: --audit-log-filter-syslog-facility=LOG_DAEMON"
+--source include/restart_mysqld.inc
 SELECT @@global.audit_log_filter_syslog_facility;
 
-SET GLOBAL audit_log_filter_syslog_facility=LOG_KERN;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LPR;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_MAIL;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_NEWS;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_SYSLOG;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_AUTH;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_UUCP;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LOCAL0;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LOCAL1;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LOCAL2;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LOCAL3;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LOCAL4;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LOCAL5;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LOCAL6;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility=LOG_LOCAL7;
-SELECT @@global.audit_log_filter_syslog_facility;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL audit_log_filter_syslog_facility=LOG_UNKNOWN;
-SELECT @@global.audit_log_filter_syslog_facility;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL audit_log_filter_syslog_facility='';
-SELECT @@global.audit_log_filter_syslog_facility;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL audit_log_filter_syslog_facility='str';
-SELECT @@global.audit_log_filter_syslog_facility;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL audit_log_filter_syslog_facility=-1;
-SELECT @@global.audit_log_filter_syslog_facility;
-
---error ER_WRONG_TYPE_FOR_VAR
-SET GLOBAL audit_log_filter_syslog_facility=0.5;
-SELECT @@global.audit_log_filter_syslog_facility;
-
-SET GLOBAL audit_log_filter_syslog_facility = @start_value;
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc

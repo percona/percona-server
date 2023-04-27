@@ -2,10 +2,6 @@
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 
---disable_query_log
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
---enable_query_log
-
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
 
@@ -14,7 +10,8 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --let $restart_parameters="restart: --audit_log_filter_format=OLD"
 --source include/restart_mysqld.inc
 
---let $new_name_suffix = xml.NEW
+--let $renamed_prefix = renamed_audit
+--let $new_file_name = $renamed_prefix.xml.NEW
 --source rename_rotated_log.inc
 
 --source generate_audit_events.inc
@@ -22,7 +19,7 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --let $restart_parameters="restart: --audit_log_filter_format=JSON"
 --source include/restart_mysqld.inc
 
---let $new_name_suffix = xml.OLD
+--let $new_file_name = $renamed_prefix.xml.OLD
 --source rename_rotated_log.inc
 
 --source generate_audit_events.inc
@@ -30,17 +27,20 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --let $restart_parameters="restart: --audit_log_filter_format=NEW"
 --source include/restart_mysqld.inc
 
---let $new_name_suffix = json.JSON
+--let $new_file_name = $renamed_prefix.json.JSON
 --source rename_rotated_log.inc
 
 # Make sure all rotated logs have valid format
---let $audit_filter_log_name = audit_filter.xml.NEW
+--let $audit_filter_log_check_one = renamed_audit.xml.NEW
+--let $audit_filter_log_format = xml
 --source validate_logs_format.inc
 
---let $audit_filter_log_name = audit_filter.xml.OLD
+--let $audit_filter_log_check_one = renamed_audit.xml.OLD
+--let $audit_filter_log_format = xml
 --source validate_logs_format.inc
 
---let $audit_filter_log_name = audit_filter.json.JSON
+--let $audit_filter_log_check_one = renamed_audit.json.JSON
+--let $audit_filter_log_format = json
 --source validate_logs_format.inc
 
 --echo #
@@ -50,6 +50,6 @@ DELETE FROM mysql.audit_log_filter;
 SELECT audit_log_filter_flush();
 
 --let $log_base_name = audit_filter
---remove_file $audit_filter_log_path$log_base_name.xml.NEW
---remove_file $audit_filter_log_path$log_base_name.xml.OLD
---remove_file $audit_filter_log_path$log_base_name.json.JSON
+--remove_file $audit_filter_log_path$renamed_prefix.xml.NEW
+--remove_file $audit_filter_log_path$renamed_prefix.xml.OLD
+--remove_file $audit_filter_log_path$renamed_prefix.json.JSON

@@ -73,6 +73,7 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
 
   const std::regex user_name_all_regex("^%$");
   const std::regex user_name_regex("(.*)@(.*)");
+  const std::regex deprecated_symbols_regex("[\\*|\\%]");
 
   auto user_info_data = std::make_unique<UserNameInfo>();
 
@@ -106,6 +107,18 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
         return nullptr;
       }
 
+      if (std::regex_search(user_name_match.str(), deprecated_symbols_regex)) {
+        std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                      "Wrong argument: bad user name format");
+        return nullptr;
+      }
+
+      if (std::regex_search(user_host_match.str(), deprecated_symbols_regex)) {
+        std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                      "Wrong argument: bad host name format");
+        return nullptr;
+      }
+
       strncpy(user_info_data->username, user_name_match.str().c_str(),
               user_name_match.str().length() + 1);
       strncpy(user_info_data->userhost, user_host_match.str().c_str(),
@@ -123,7 +136,7 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
 }
 
 bool has_audit_admin_privilege(char *message) {
-  const auto *reg_srv = SysVars::get_comp_regystry_srv();
+  const auto *reg_srv = SysVars::get_comp_registry_srv();
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
       "mysql_current_thread_reader", reg_srv);
@@ -179,7 +192,7 @@ AuditUdf::~AuditUdf() { deinit(); }
 
 bool AuditUdf::init(UdfFuncInfo *begin, UdfFuncInfo *end) {
   my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
-      "udf_registration", SysVars::get_comp_regystry_srv());
+      "udf_registration", SysVars::get_comp_registry_srv());
 
   for (UdfFuncInfo *it = begin; it != end; ++it) {
     if (udf_registration_srv->udf_register(it->udf_name, STRING_RESULT,
@@ -200,7 +213,7 @@ void AuditUdf::deinit() noexcept {
   if (!m_active_udf_names.empty()) {
     int was_present = 0;
     my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
-        "udf_registration", SysVars::get_comp_regystry_srv());
+        "udf_registration", SysVars::get_comp_registry_srv());
 
     for (const auto &name : m_active_udf_names) {
       udf_registration_srv->udf_unregister(name.c_str(), &was_present);
@@ -278,9 +291,16 @@ char *AuditUdf::audit_log_filter_set_filter_udf(
     unsigned char *is_null, unsigned char *error) noexcept {
   *is_null = 0;
   *error = 0;
-  AuditRule rule{udf_args->args[0]};
+  auto rule = std::make_unique<AuditRule>(udf_args->args[0]);
 
-  if (!AuditRuleParser::parse(udf_args->args[1], rule)) {
+  if (rule == nullptr) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Internal error");
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: Internal error");
+    *length = std::strlen(result);
+    return result;
+  }
+
+  if (!AuditRuleParser::parse(udf_args->args[1], rule.get())) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong argument: incorrect rule definition '%s'",
                     udf_args->args[1]);
@@ -290,7 +310,8 @@ char *AuditUdf::audit_log_filter_set_filter_udf(
     return result;
   }
 
-  audit_table::AuditLogFilter audit_log_filter;
+  audit_table::AuditLogFilter audit_log_filter{
+      SysVars::get_config_database_name()};
 
   auto check_result = audit_log_filter.check_name_exists(udf_args->args[0]);
 
@@ -389,8 +410,9 @@ char *AuditUdf::audit_log_filter_remove_filter_udf(
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogFilter audit_log_filter;
-  audit_table::AuditLogUser audit_log_user;
+  audit_table::AuditLogFilter audit_log_filter{
+      SysVars::get_config_database_name()};
+  audit_table::AuditLogUser audit_log_user{SysVars::get_config_database_name()};
 
   auto check_result = audit_log_filter.check_name_exists(udf_args->args[0]);
 
@@ -513,8 +535,9 @@ char *AuditUdf::audit_log_filter_set_user_udf(AuditUdf *udf [[maybe_unused]],
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogFilter audit_log_filter;
-  audit_table::AuditLogUser audit_log_user;
+  audit_table::AuditLogFilter audit_log_filter{
+      SysVars::get_config_database_name()};
+  audit_table::AuditLogUser audit_log_user{SysVars::get_config_database_name()};
 
   std::string filter_name{udf_args->args[1]};
 
@@ -628,7 +651,7 @@ char *AuditUdf::audit_log_filter_remove_user_udf(
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogUser audit_log_user;
+  audit_table::AuditLogUser audit_log_user{SysVars::get_config_database_name()};
 
   auto *user_info_data = reinterpret_cast<UserNameInfo *>(initid->ptr);
 
@@ -763,7 +786,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
   *error = 0;
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
   MYSQL_THD thd;
 
@@ -914,7 +937,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
   reader_context->batch_reader_args = std::move(reader_args);
 
-  if (!AuditLogReader::read(reader_context)) {
+  if (!log_reader->read(reader_context)) {
     if (reader_context != nullptr) {
       log_reader->close_reader_session(reader_context);
       SysVars::set_log_reader_context(thd, nullptr);
@@ -941,7 +964,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
 void AuditUdf::audit_log_read_udf_deinit(UDF_INIT *initid [[maybe_unused]]) {
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
   MYSQL_THD thd;
 
@@ -1239,7 +1262,7 @@ void AuditUdf::audit_log_encryption_password_set_udf_deinit(UDF_INIT *) {}
 bool AuditUdf::set_return_value_charset(
     UDF_INIT *initid, const std::string &charset_name) noexcept {
   my_service<SERVICE_TYPE(mysql_udf_metadata)> udf_metadata_srv(
-      "mysql_udf_metadata", SysVars::get_comp_regystry_srv());
+      "mysql_udf_metadata", SysVars::get_comp_registry_srv());
   char *charset = const_cast<char *>(charset_name.c_str());
   return !udf_metadata_srv->result_set(initid, "charset",
                                        static_cast<void *>(charset));
@@ -1248,7 +1271,7 @@ bool AuditUdf::set_return_value_charset(
 bool AuditUdf::set_args_charset(UDF_ARGS *udf_args,
                                 const std::string &charset_name) noexcept {
   my_service<SERVICE_TYPE(mysql_udf_metadata)> udf_metadata_srv(
-      "mysql_udf_metadata", SysVars::get_comp_regystry_srv());
+      "mysql_udf_metadata", SysVars::get_comp_registry_srv());
   char *charset = const_cast<char *>(charset_name.c_str());
   for (uint index = 0; index < udf_args->arg_count; ++index) {
     if (udf_args->arg_type[index] == STRING_RESULT &&

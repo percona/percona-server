@@ -435,7 +435,7 @@ explain select * from t0,t1 where t0.key1 = 5 and
 --echo # Fix for bug#1974
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 10 #
+  --replace_column 10 # 11 #
 }
 explain select * from t0,t1 where t0.key1 < 3 and
   (t1.key1 = t0.key1 or t1.key8 = t0.key1);
@@ -455,6 +455,9 @@ alter table t3 add keyA int not null, add index iA(keyA);
 alter table t3 add keyB int not null, add index iB(keyB);
 alter table t3 add keyC int not null, add index iC(keyC);
 update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
+
+# reset default engine after restart
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
 -- disable_query_log
 -- disable_result_log

@@ -16,6 +16,12 @@ SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
 SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=0;
 SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
 
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=1000000;
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=1000001;
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+
 SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=-1;
 SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
 

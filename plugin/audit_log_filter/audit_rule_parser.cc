@@ -35,7 +35,7 @@ namespace audit_log_filter {
 namespace {}  // namespace
 
 bool AuditRuleParser::parse(const char *rule_str,
-                            AuditRule &audit_rule) noexcept {
+                            AuditRule *audit_rule) noexcept {
   rapidjson::Document json_doc;
   json_doc.Parse(rule_str);
 
@@ -43,7 +43,7 @@ bool AuditRuleParser::parse(const char *rule_str,
 }
 
 bool AuditRuleParser::parse(rapidjson::Document &json_doc,
-                            AuditRule &audit_rule) noexcept {
+                            AuditRule *audit_rule) noexcept {
   // Do basic check of rule structure
   if (json_doc.HasParseError()) {
     return false;
@@ -71,7 +71,7 @@ bool AuditRuleParser::parse(rapidjson::Document &json_doc,
 }
 
 bool AuditRuleParser::parse_default_log_action_json(
-    const rapidjson::Document &json_doc, AuditRule &audit_rule) noexcept {
+    const rapidjson::Document &json_doc, AuditRule *audit_rule) noexcept {
   /*
    * Parsing default 'log' action.
    *
@@ -95,7 +95,7 @@ bool AuditRuleParser::parse_default_log_action_json(
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Wrong JSON filter '%s' format, "
                       "the 'log' member must be of type bool",
-                      audit_rule.get_rule_name().c_str());
+                      audit_rule->get_rule_name().c_str());
       return false;
     }
 
@@ -104,13 +104,13 @@ bool AuditRuleParser::parse_default_log_action_json(
     should_log_unmatched = false;
   }
 
-  audit_rule.set_should_log_unmatched(should_log_unmatched);
+  audit_rule->set_should_log_unmatched(should_log_unmatched);
 
   return true;
 }
 
 bool AuditRuleParser::parse_event_class_json(
-    const rapidjson::Document &json_doc, AuditRule &audit_rule) noexcept {
+    const rapidjson::Document &json_doc, AuditRule *audit_rule) noexcept {
   /*
    * Parsing event class name
    *
@@ -147,7 +147,7 @@ bool AuditRuleParser::parse_event_class_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "'class' array element must be of object type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return false;
       }
 
@@ -159,7 +159,7 @@ bool AuditRuleParser::parse_event_class_json(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "'class' must be an object or an array",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return false;
   }
 
@@ -167,14 +167,14 @@ bool AuditRuleParser::parse_event_class_json(
 }
 
 bool AuditRuleParser::parse_event_class_obj_json(
-    const rapidjson::Value &event_class_json, AuditRule &audit_rule) noexcept {
+    const rapidjson::Value &event_class_json, AuditRule *audit_rule) noexcept {
   assert(event_class_json.IsObject());
 
   if (!event_class_json.HasMember("name")) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "no name provided for event class",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return false;
   }
 
@@ -182,7 +182,7 @@ bool AuditRuleParser::parse_event_class_obj_json(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "'abort' condition should be set for subclass only",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return false;
   }
 
@@ -194,7 +194,7 @@ bool AuditRuleParser::parse_event_class_obj_json(
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Wrong JSON filter '%s' format, "
                       "'log' must be of bool type",
-                      audit_rule.get_rule_name().c_str());
+                      audit_rule->get_rule_name().c_str());
       return false;
     }
   }
@@ -209,7 +209,7 @@ bool AuditRuleParser::parse_event_class_obj_json(
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Wrong JSON filter '%s' format, "
                       "failed to parse 'print' replacement rule",
-                      audit_rule.get_rule_name().c_str());
+                      audit_rule->get_rule_name().c_str());
       return false;
     }
   }
@@ -222,7 +222,7 @@ bool AuditRuleParser::parse_event_class_obj_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "replacement rule not expected for event class",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return false;
       }
 
@@ -235,13 +235,13 @@ bool AuditRuleParser::parse_event_class_obj_json(
       }
     }
 
-    audit_rule.add_action_for_event(
+    audit_rule->add_action_for_event(
         std::make_shared<EventFieldActionLog>(
             std::make_unique<EventFieldConditionBool>(should_log)),
         event_class_name);
 
     if (replace_field != nullptr) {
-      audit_rule.add_action_for_event(replace_field, event_class_name);
+      audit_rule->add_action_for_event(replace_field, event_class_name);
     }
   } else if (event_class_json["name"].IsArray()) {
     // There may be no event subclass specified in case event class name is
@@ -251,7 +251,7 @@ bool AuditRuleParser::parse_event_class_obj_json(
           ERROR_LEVEL, ER_LOG_PRINTF_MSG,
           "Wrong JSON filter '%s' format, there must be no 'event' in "
           "case class names provided as an array of strings",
-          audit_rule.get_rule_name().c_str());
+          audit_rule->get_rule_name().c_str());
       return false;
     }
 
@@ -265,22 +265,22 @@ bool AuditRuleParser::parse_event_class_obj_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, event class name "
                         "within an array should be of a string type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return false;
       }
 
       const std::string event_class_name = it->GetString();
-      audit_rule.add_action_for_event(log_action, event_class_name);
+      audit_rule->add_action_for_event(log_action, event_class_name);
 
       if (replace_field != nullptr) {
-        audit_rule.add_action_for_event(replace_field, event_class_name);
+        audit_rule->add_action_for_event(replace_field, event_class_name);
       }
     }
   } else {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, event class name type "
                     "must be either string or an array of strings",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return false;
   }
 
@@ -289,7 +289,7 @@ bool AuditRuleParser::parse_event_class_obj_json(
 
 bool AuditRuleParser::parse_event_subclass_json(
     const std::string &class_name, const rapidjson::Value &event_subclass_json,
-    AuditRule &audit_rule) noexcept {
+    AuditRule *audit_rule) noexcept {
   /*
    * Parse event subclass, 'event' may be an object or an array of objects
    *
@@ -318,7 +318,7 @@ bool AuditRuleParser::parse_event_subclass_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "'event' array element must be of object type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return false;
       }
 
@@ -330,7 +330,7 @@ bool AuditRuleParser::parse_event_subclass_json(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, type of 'event' "
                     "must be either an object or an array of objects",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return false;
   }
 
@@ -339,14 +339,14 @@ bool AuditRuleParser::parse_event_subclass_json(
 
 bool AuditRuleParser::parse_event_subclass_obj_json(
     const std::string &class_name, const rapidjson::Value &event_subclass_json,
-    AuditRule &audit_rule) noexcept {
+    AuditRule *audit_rule) noexcept {
   assert(event_subclass_json.IsObject());
 
   if (!event_subclass_json.HasMember("name")) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "no name provided for event subclass",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return false;
   }
 
@@ -361,7 +361,7 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, event subclass name "
                         "within an array should be of a string type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return false;
       }
 
@@ -371,7 +371,7 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, event subclass name type "
                     "must be either string or an array of strings",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return false;
   }
 
@@ -382,7 +382,7 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, there must be only one "
                     "condition provided, 'log' or 'abort'",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return false;
   }
 
@@ -411,7 +411,7 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "unknown tag '%s'",
-                        audit_rule.get_rule_name().c_str(),
+                        audit_rule->get_rule_name().c_str(),
                         it->name.GetString());
         return false;
       }
@@ -423,7 +423,7 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "bad format for '%s' action",
-                        audit_rule.get_rule_name().c_str(),
+                        audit_rule->get_rule_name().c_str(),
                         it->name.GetString());
         return false;
       }
@@ -442,7 +442,7 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Wrong JSON filter '%s' format, "
                       "failed to parse 'filter' replacement rule",
-                      audit_rule.get_rule_name().c_str());
+                      audit_rule->get_rule_name().c_str());
       return false;
     }
 
@@ -451,7 +451,7 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
 
   for (const auto &subclass_name : subclass_names) {
     for (const auto &action_ptr : actions_list) {
-      audit_rule.add_action_for_event(action_ptr, class_name, subclass_name);
+      audit_rule->add_action_for_event(action_ptr, class_name, subclass_name);
     }
   }
 
@@ -459,7 +459,7 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
 }
 
 std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition(
-    const rapidjson::Value &condition_json, AuditRule &audit_rule) noexcept {
+    const rapidjson::Value &condition_json, AuditRule *audit_rule) noexcept {
   auto cond_type = get_condition_type(condition_json, audit_rule);
 
   if (cond_type == EventFieldConditionType::Unknown) {
@@ -470,7 +470,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition(
 }
 
 EventFieldConditionType AuditRuleParser::get_condition_type(
-    const rapidjson::Value &json, AuditRule &audit_rule) noexcept {
+    const rapidjson::Value &json, AuditRule *audit_rule) noexcept {
   /*
    * There may be either bool or one of the condition objects provided:
    *
@@ -493,7 +493,7 @@ EventFieldConditionType AuditRuleParser::get_condition_type(
         ERROR_LEVEL, ER_LOG_PRINTF_MSG,
         "Wrong JSON filter '%s' format, "
         "there must be only one condition specified for 'log' field",
-        audit_rule.get_rule_name().c_str());
+        audit_rule->get_rule_name().c_str());
     return EventFieldConditionType::Unknown;
   }
 
@@ -503,7 +503,7 @@ EventFieldConditionType AuditRuleParser::get_condition_type(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "the 'log' condition name must be of string type",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return EventFieldConditionType::Unknown;
   }
 
@@ -526,14 +526,14 @@ EventFieldConditionType AuditRuleParser::get_condition_type(
   LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                   "Wrong JSON filter '%s' format, "
                   "unknown 'log' condition name '%s'",
-                  audit_rule.get_rule_name().c_str(), condition_name.c_str());
+                  audit_rule->get_rule_name().c_str(), condition_name.c_str());
 
   return EventFieldConditionType::Unknown;
 }
 
 std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
     const rapidjson::Value &condition_json,
-    const EventFieldConditionType cond_type, AuditRule &audit_rule) noexcept {
+    const EventFieldConditionType cond_type, AuditRule *audit_rule) noexcept {
   assert(condition_json.IsBool() || condition_json.IsObject());
 
   switch (cond_type) {
@@ -556,7 +556,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "condition definition 'field' must be of object type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -568,7 +568,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
                         "Wrong JSON filter '%s' format, "
                         "event field definition 'field' must have field 'name' "
                         "and 'value' provided as strings",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -609,7 +609,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "condition definition 'and' must be of array type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -621,7 +621,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
           LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                           "Wrong JSON filter '%s' format, "
                           "a member of 'and' condition must be of object type",
-                          audit_rule.get_rule_name().c_str());
+                          audit_rule->get_rule_name().c_str());
           return nullptr;
         }
 
@@ -645,7 +645,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
                         "Wrong JSON filter '%s' format, "
                         "there should be at least two fields provided for "
                         "'and' condition",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -668,7 +668,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "condition definition 'or' must be of array type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -680,7 +680,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
           LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                           "Wrong JSON filter '%s' format, "
                           "a member of 'or' condition must be of object type",
-                          audit_rule.get_rule_name().c_str());
+                          audit_rule->get_rule_name().c_str());
           return nullptr;
         }
 
@@ -704,7 +704,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
                         "Wrong JSON filter '%s' format, "
                         "there should be at least two fields provided for "
                         "'or' condition",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -722,7 +722,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "condition definition 'not' must be of object type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -759,7 +759,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
             ERROR_LEVEL, ER_LOG_PRINTF_MSG,
             "Wrong JSON filter '%s' format, "
             "condition definition 'variable' must be of object type",
-            audit_rule.get_rule_name().c_str());
+            audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -771,7 +771,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
                         "Wrong JSON filter '%s' format, "
                         "event field definition 'variable' must have field "
                         "'name' and 'value' provided as strings",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -810,12 +810,12 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
 std::unique_ptr<EventFilterFunctionBase> AuditRuleParser::parse_function(
     const rapidjson::Value &function_json,
     const FunctionReturnType expected_return_type,
-    AuditRule &audit_rule) noexcept {
+    AuditRule *audit_rule) noexcept {
   if (!function_json.IsObject()) {
     LogPluginErrMsg(
         ERROR_LEVEL, ER_LOG_PRINTF_MSG,
         "Wrong JSON filter '%s' format, 'function' must be of object type",
-        audit_rule.get_rule_name().c_str());
+        audit_rule->get_rule_name().c_str());
     return nullptr;
   }
 
@@ -823,7 +823,7 @@ std::unique_ptr<EventFilterFunctionBase> AuditRuleParser::parse_function(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "missing 'function' name or not a string",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return nullptr;
   }
 
@@ -834,7 +834,7 @@ std::unique_ptr<EventFilterFunctionBase> AuditRuleParser::parse_function(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "unknown function name '%s'",
-                    audit_rule.get_rule_name().c_str(), func_name.c_str());
+                    audit_rule->get_rule_name().c_str(), func_name.c_str());
     return nullptr;
   }
 
@@ -845,7 +845,7 @@ std::unique_ptr<EventFilterFunctionBase> AuditRuleParser::parse_function(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "wrong function args format provided",
-                    audit_rule.get_rule_name().c_str());
+                    audit_rule->get_rule_name().c_str());
     return nullptr;
   }
 
@@ -853,7 +853,7 @@ std::unique_ptr<EventFilterFunctionBase> AuditRuleParser::parse_function(
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong JSON filter '%s' format, "
                     "invalid arguments for '%s' function",
-                    audit_rule.get_rule_name().c_str(), func_name.c_str());
+                    audit_rule->get_rule_name().c_str(), func_name.c_str());
     return nullptr;
   }
 
@@ -924,7 +924,7 @@ bool AuditRuleParser::parse_function_args_json(
 
 std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
     const EventActionType action_type, const rapidjson::Value &action_json,
-    AuditRule &audit_rule) noexcept {
+    AuditRule *audit_rule) noexcept {
   assert(action_json.IsObject());
 
   switch (action_type) {
@@ -951,7 +951,7 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
         LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Wrong JSON filter '%s' format, "
                         "'abort' must be of bool or object type",
-                        audit_rule.get_rule_name().c_str());
+                        audit_rule->get_rule_name().c_str());
         return nullptr;
       }
 
@@ -1220,10 +1220,10 @@ std::shared_ptr<AuditRule> AuditRuleParser::make_replacement_rule(
                         d.GetAllocator());
   d["filter"]["class"].CopyFrom(rule_json, d.GetAllocator());
 
-  auto rule = AuditRule{};
+  auto rule = std::make_shared<AuditRule>();
 
-  if (AuditRuleParser::parse(d, rule)) {
-    return std::make_shared<AuditRule>(std::move(rule));
+  if (AuditRuleParser::parse(d, rule.get())) {
+    return rule;
   }
 
   return nullptr;

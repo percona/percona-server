@@ -4,7 +4,6 @@
 # Creating manifest file for current MySQL server instance
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
 OK

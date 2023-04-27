@@ -1,0 +1,11 @@
+#
+# before shutdown, one active log
+audit_filter.log
+#
+# after shutdown, one rotated log
+audit_filter.<timestamp>.log
+#
+# after restart, one active and one rotated log
+# restart: 
+audit_filter.<timestamp>.log
+audit_filter.log

@@ -20,13 +20,16 @@
 #include "plugin/audit_log_filter/audit_rule.h"
 
 #include <map>
+#include <memory>
 #include <string>
 
 namespace audit_log_filter::audit_table {
 
 class AuditLogFilter : public AuditTableBase {
  public:
-  using AuditRulesContainer = std::map<std::string, AuditRule>;
+  using AuditRulesContainer = std::map<std::string, std::shared_ptr<AuditRule>>;
+
+  explicit AuditLogFilter(std::string db_name);
 
   /**
    * @brief Load filtering rules list.
@@ -92,13 +95,6 @@ class AuditLogFilter : public AuditTableBase {
    */
   TableResult get_next_pk_value(TableAccessContext *ta_context,
                                 long long &next_pk) noexcept;
-
-  /**
-   * @brief Get database name.
-   *
-   * @return Database name
-   */
-  [[nodiscard]] const char *get_table_db_name() noexcept override;
 
   /**
    * @brief Get table name.

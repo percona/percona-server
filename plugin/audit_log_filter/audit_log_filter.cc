@@ -176,7 +176,9 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Initializing Audit Event Filter...");
 
-  SysVars::validate();
+  if (!SysVars::validate()) {
+    return 1;
+  }
 
   auto comp_registry_srv = SysVars::get_comp_regystry_srv();
 

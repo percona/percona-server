@@ -57,8 +57,10 @@ class SysVars {
 
   /**
    * @brief Validate system variables settings.
+   *
+   * @return true in case of success, false otherwise
    */
-  static void validate() noexcept;
+  [[nodiscard]] static bool validate() noexcept;
 
   /**
    * @brief Get log file directory name.
@@ -73,6 +75,13 @@ class SysVars {
    * @return Audit log filter file base name
    */
   [[nodiscard]] static const std::string &get_file_name() noexcept;
+
+  /**
+   * @brief Get database name where to search for config tables.
+   *
+   * @return Database name
+   */
+  [[nodiscard]] static const char *get_config_database_name() noexcept;
 
   /**
    * @brief Get audit log filter handler type.

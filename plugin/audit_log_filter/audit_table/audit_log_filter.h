@@ -28,6 +28,8 @@ class AuditLogFilter : public AuditTableBase {
  public:
   using AuditRulesContainer = std::map<std::string, AuditRule>;
 
+  explicit AuditLogFilter(std::string db_name);
+
   /**
    * @brief Load filtering rules list.
    *
@@ -92,13 +94,6 @@ class AuditLogFilter : public AuditTableBase {
    */
   TableResult get_next_pk_value(TableAccessContext *ta_context,
                                 long long &next_pk) noexcept;
-
-  /**
-   * @brief Get database name.
-   *
-   * @return Database name
-   */
-  [[nodiscard]] const char *get_table_db_name() noexcept override;
 
   /**
    * @brief Get table name.

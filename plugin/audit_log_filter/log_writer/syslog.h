@@ -18,6 +18,8 @@
 
 #include "base.h"
 
+#include <string>
+
 namespace audit_log_filter::log_writer {
 
 template <>
@@ -68,6 +70,10 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
    * @return Current log file size in bytes
    */
   [[nodiscard]] uint64_t get_log_size() const noexcept override { return 0; }
+
+ private:
+  const std::string m_tag;
+  const int m_priority;
 };
 
 using LogWriterSyslog = LogWriter<AuditLogHandlerType::Syslog>;

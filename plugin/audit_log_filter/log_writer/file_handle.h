@@ -140,12 +140,12 @@ class FileHandle {
    * @brief Find path to not rotated log file if any.
    *
    * @param working_dir_name Working directory name
-   * @param base_file_name Base file name
+   * @param file_name Log file name
    * @return Path to not rotated log file
    */
   static std::filesystem::path get_not_rotated_file_path(
       const std::string &working_dir_name,
-      const std::string &base_file_name) noexcept;
+      const std::string &file_name) noexcept;
 
   /**
    * @brief Get list of currently existent audit log file names.

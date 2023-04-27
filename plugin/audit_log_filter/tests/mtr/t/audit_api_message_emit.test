@@ -1,5 +1,4 @@
 --source include/have_debug.inc
---source include/have_debug_sync.inc
 
 SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
 

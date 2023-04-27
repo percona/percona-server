@@ -159,7 +159,6 @@ my $opt_valgrind_clients   = 0;
 my $opt_valgrind_mysqld    = 0;
 my $opt_valgrind_mysqltest = 0;
 my $opt_accept_fail        = 0;
-my $opt_fs_cleanup_hook = undef;
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -333,7 +332,6 @@ our $exe_mysql_migrate_keyring;
 our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
 our $exe_mysqltest;
-our $exe_mysql_zenfs;
 our $exe_openssl;
 our $glob_mysql_test_dir;
 our $mysql_version_extra;
@@ -366,8 +364,6 @@ use constant { MYSQLTEST_PASS        => 0,
                MYSQLTEST_SKIPPED     => 62,
                MYSQLTEST_NOSKIP_PASS => 63,
                MYSQLTEST_NOSKIP_FAIL => 64 };
-
-use constant DEFAULT_WORKER_ID => 1;
 
 sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
 
@@ -1768,7 +1764,6 @@ sub command_line_setup {
 
     # Misc
     'accept-test-fail'      => \$opt_accept_fail,
-    'fs-cleanup-hook=s'     => \$opt_fs_cleanup_hook,
     'charset-for-testdb=s'  => \$opt_charset_for_testdb,
     'colored-diff'          => \$opt_colored_diff,
     'comment=s'             => \$opt_comment,
@@ -2709,7 +2704,6 @@ sub executable_setup () {
     mtr_exe_exists("$path_client_bindir/mysql_migrate_keyring");
   $exe_mysql_keyring_encryption_test =
     mtr_exe_exists("$path_client_bindir/mysql_keyring_encryption_test");
-  $exe_mysql_zenfs = mtr_exe_maybe_exists("$path_client_bindir/zenfs");
 
   # For custom OpenSSL builds, look for the my_openssl executable.
   $exe_openssl =
@@ -3285,7 +3279,6 @@ sub environment_setup {
     client_arguments_no_grp_suffix("mysql_config_editor");
   $ENV{'MYSQL_SECURE_INSTALLATION'} =
     "$path_client_bindir/mysql_secure_installation";
-  $ENV{'MYSQL_ZENFS'} = $exe_mysql_zenfs;
   $ENV{'OPENSSL_EXECUTABLE'} = $exe_openssl;
 
   my $exe_mysqld = find_mysqld($basedir);
@@ -3527,9 +3520,6 @@ sub remove_stale_vardir () {
   # Remove the "tmp" dir
   mtr_verbose("Removing $opt_tmpdir/");
   rmtree("$opt_tmpdir/");
-  for (my $worker = 1; $worker <= $opt_parallel; ++$worker) {
-    invoke_fs_cleanup_hook($worker);
-  }
 }
 
 # Create var and the directories needed in var
@@ -6078,20 +6068,6 @@ sub clean_dir {
     $dir);
 }
 
-sub invoke_fs_cleanup_hook($) {
-  my ($worker_id) = @_;
-
-  if (defined $opt_fs_cleanup_hook and $opt_fs_cleanup_hook ne '') {
-    mtr_report(" - executing custom fs-cleanup hook for worker $worker_id");
-    my $hook_command_line = $opt_fs_cleanup_hook;
-    if (substr($opt_fs_cleanup_hook, 0, 1) eq '@') {
-      $hook_command_line = substr($opt_fs_cleanup_hook, 1) . ' ' . $worker_id;
-    }
-    mtr_verbose(" - $hook_command_line");
-    system($hook_command_line);
-  }
-}
-
 sub clean_datadir {
   my ($tinfo) = @_;
 
@@ -6118,7 +6094,6 @@ sub clean_datadir {
         !$bootstrap_opts) {
       mtr_verbose(" - removing '$mysqld_dir'");
       rmtree($mysqld_dir);
-      invoke_fs_cleanup_hook($tinfo->{worker} || DEFAULT_WORKER_ID);
     }
   }
 
@@ -6134,13 +6109,12 @@ sub clean_datadir {
 }
 
 # Save datadir before it's removed
-sub save_datadir_after_failure($$$) {
-  my ($dir, $savedir, $worker) = @_;
+sub save_datadir_after_failure($$) {
+  my ($dir, $savedir) = @_;
 
   mtr_report(" - saving '$dir'");
   my $dir_name = basename($dir);
   rename("$dir", "$savedir/$dir_name");
-  invoke_fs_cleanup_hook($worker);
 }
 
 sub remove_ndbfs_from_ndbd_datadir {
@@ -6186,14 +6160,12 @@ sub after_failure ($) {
         }
       }
 
-      save_datadir_after_failure($cluster_dir, $save_dir,
-                                 $tinfo->{worker} || DEFAULT_WORKER_ID);
+      save_datadir_after_failure($cluster_dir, $save_dir);
     }
   } else {
     foreach my $mysqld (mysqlds()) {
       my $data_dir = $mysqld->value('datadir');
-      save_datadir_after_failure(dirname($data_dir), $save_dir,
-                                 $tinfo->{worker} || DEFAULT_WORKER_ID);
+      save_datadir_after_failure(dirname($data_dir), $save_dir);
       save_secondary_engine_logdir($save_dir) if $tinfo->{'secondary-engine'};
     }
   }
@@ -8164,9 +8136,6 @@ Misc options
   warnings              Scan the log files for warnings. Use --nowarnings
                         to turn off.
   xml-report=FILE       Generate a XML report file compatible with JUnit.
-  fs-cleanup-hook=COMMAND
-                        Execute custom command (e.g. external storage cleanup)
-                        upon test failure (Currently used for ZenFS storages).
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.

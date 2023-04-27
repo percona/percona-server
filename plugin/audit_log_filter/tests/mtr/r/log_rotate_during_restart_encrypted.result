@@ -1,0 +1,24 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+#
+# before shutdown, one active log
+audit_filter.log.<keyring_id>.enc
+#
+# after shutdown, one rotated log
+audit_filter.<timestamp>.log.<keyring_id>.enc
+#
+# after restart, one active and one rotated log
+# restart: 
+audit_filter.<timestamp>.log.<keyring_id>.enc
+audit_filter.log.<keyring_id>.enc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

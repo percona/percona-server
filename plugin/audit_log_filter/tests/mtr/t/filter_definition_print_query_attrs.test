@@ -102,7 +102,7 @@ DELETE FROM t1;
 --replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
---let $audit_filter_log_name=
+--let $audit_filter_log_format = json
 --source validate_logs_format.inc
 
 --echo #

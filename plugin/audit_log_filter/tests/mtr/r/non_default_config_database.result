@@ -1,0 +1,42 @@
+USE test;
+CREATE TABLE audit_log_filter(
+filter_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+name VARCHAR(255) COLLATE utf8_bin NOT NULL,
+filter JSON NOT NULL,
+PRIMARY KEY (`filter_id`),
+UNIQUE KEY `filter_name` (`name`)
+) Engine=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci;
+Warnings:
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+CREATE TABLE audit_log_user(
+username VARCHAR(32) COLLATE utf8_bin NOT NULL,
+userhost VARCHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+filtername VARCHAR(255) COLLATE utf8_bin NOT NULL,
+PRIMARY KEY (username, userhost),
+FOREIGN KEY `filter_name` (filtername) REFERENCES test.audit_log_filter(name)
+) Engine=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci;
+Warnings:
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+# restart: --audit-log-filter-database=test --audit-log-filter-format=NEW --audit-log-filter-file=audit_filter.xml.log
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT * FROM test.audit_log_filter;
+filter_id	name	filter
+1	log_all	{"filter": {"log": true}}
+SELECT * FROM test.audit_log_user;
+username	userhost	filtername
+%	%	log_all
+SELECT audit_log_rotate();
+audit_log_rotate()
+<file_name>
+Rotated files Ok
+#
+# Cleanup
+# restart: 
+DROP TABLE audit_log_user;
+DROP TABLE audit_log_filter;

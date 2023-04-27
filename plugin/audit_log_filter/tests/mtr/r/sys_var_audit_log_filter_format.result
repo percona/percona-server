@@ -3,7 +3,6 @@ ERROR HY000: Variable 'audit_log_filter_format' is a read only variable
 SELECT @@global.audit_log_filter_format;
 @@global.audit_log_filter_format
 NEW
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
 # restart: --audit-log-filter-format=NEW
 SELECT @@global.audit_log_filter_format;
 @@global.audit_log_filter_format

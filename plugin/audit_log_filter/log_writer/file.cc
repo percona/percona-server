@@ -160,7 +160,7 @@ bool LogWriterFile::do_open_file() noexcept {
   init_formatter();
 
   if (is_new_file) {
-    write(get_formatter()->get_file_header(), false);
+    do_write(get_formatter()->get_file_header(), false);
     m_is_log_empty = true;
   }
 
@@ -174,7 +174,7 @@ bool LogWriterFile::do_close_file() noexcept {
     return true;
   }
 
-  write(get_formatter()->get_file_footer(), false);
+  do_write(get_formatter()->get_file_footer(), false);
   m_file_writer->close();
   m_is_opened = false;
 
@@ -183,8 +183,12 @@ bool LogWriterFile::do_close_file() noexcept {
 
 void LogWriterFile::write(const std::string &record,
                           const bool print_separator) noexcept {
-  std::lock_guard<std::recursive_mutex> write_guard{m_write_lock};
+  std::lock_guard<std::mutex> write_guard{m_write_lock};
+  do_write(record, print_separator);
+}
 
+void LogWriterFile::do_write(const std::string &record,
+                             bool print_separator) noexcept {
   if (print_separator && !m_is_log_empty) {
     const auto separator = get_formatter()->get_record_separator();
     m_file_writer->write(separator.c_str(), separator.length());
@@ -204,7 +208,7 @@ void LogWriterFile::write(const std::string &record,
 
   if (file_size_limit > 0 && !m_is_rotating &&
       file_size_limit < get_log_size()) {
-    rotate(nullptr);
+    do_rotate(nullptr);
     prune();
   }
 }
@@ -214,8 +218,11 @@ uint64_t LogWriterFile::get_log_size() const noexcept {
 }
 
 void LogWriterFile::rotate(FileRotationResult *result) noexcept {
-  std::lock_guard<std::recursive_mutex> write_guard{m_write_lock};
+  std::lock_guard<std::mutex> write_guard{m_write_lock};
+  do_rotate(result);
+}
 
+void LogWriterFile::do_rotate(FileRotationResult *result) noexcept {
   m_is_rotating = true;
   const auto current_log_path = m_file_handle.get_file_path();
 
@@ -242,10 +249,6 @@ void LogWriterFile::rotate(FileRotationResult *result) noexcept {
 }
 
 void LogWriterFile::prune() noexcept {
-  if (SysVars::get_rotate_on_size() == 0) {
-    return;
-  }
-
   const auto log_max_size = SysVars::get_log_max_size();
   const auto prune_seconds = SysVars::get_log_prune_seconds();
 

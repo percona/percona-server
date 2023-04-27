@@ -28,7 +28,7 @@ perl;
 
   my $actual_log_size = 0;
   my $log_max_size = $ENV{'log_max_size'};
-  my $log_base_name = $ENV{'log_name'} =~ s/\.log//r;
+  my $log_base_name = $ENV{'log_name'} =~ s/\..*//r;
 
   opendir(my $dh, $ENV{'log_path'}) || die "Can't opendir $ENV{'log_path'}: $!";
 

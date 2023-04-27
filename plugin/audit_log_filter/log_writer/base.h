@@ -91,7 +91,7 @@ class LogWriterBase {
    * @param record Audit record represented as an instance of
    *               @ref AuditRecordVariant
    */
-  void write(AuditRecordVariant record) noexcept;
+  void write(const AuditRecordVariant &record) noexcept;
 
   /**
    * @brief Write audit record to log.

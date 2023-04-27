@@ -28,6 +28,8 @@ class AuditLogUser : public AuditTableBase {
   using AuditUsersContainer =
       std::map<std::pair<std::string, std::string>, std::string>;
 
+  explicit AuditLogUser(std::string db_name);
+
   /**
    * @brief Load user list.
    *
@@ -99,13 +101,6 @@ class AuditLogUser : public AuditTableBase {
    * @param key Table access key
    */
   void index_scan_end(TableAccessContext *ta_context, TA_key key) noexcept;
-
-  /**
-   * @brief Get database name.
-   *
-   * @return Database name
-   */
-  [[nodiscard]] const char *get_table_db_name() noexcept override;
 
   /**
    * @brief Get table name.

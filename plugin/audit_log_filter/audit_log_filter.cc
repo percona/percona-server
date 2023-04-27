@@ -19,7 +19,6 @@
 #include "plugin/audit_log_filter/audit_keyring.h"
 #include "plugin/audit_log_filter/audit_log_filter.h"
 #include "plugin/audit_log_filter/audit_log_reader.h"
-#include "plugin/audit_log_filter/audit_rule.h"
 #include "plugin/audit_log_filter/audit_rule_registry.h"
 #include "plugin/audit_log_filter/audit_udf.h"
 #include "plugin/audit_log_filter/log_record_formatter.h"
@@ -27,15 +26,14 @@
 #include "plugin/audit_log_filter/log_writer/file_handle.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
-#include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/mysql_connection_attributes_iterator.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
-#include <mysql/components/services/security_context.h>
 
 #include "mysql/plugin.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 
+#include <scope_guard.h>
 #include <array>
 #include <memory>
 #include <variant>
@@ -57,9 +55,48 @@ namespace {
 
 AuditLogFilter *audit_log_filter = nullptr;
 
+void deinit_logging_service(SERVICE_TYPE(registry) * reg_srv,
+                            SERVICE_TYPE(log_builtins) * *log_bi,
+                            SERVICE_TYPE(log_builtins_string) * *log_bs) {
+  using log_builtins_t = SERVICE_TYPE_NO_CONST(log_builtins);
+  using log_builtins_string_t = SERVICE_TYPE_NO_CONST(log_builtins_string);
+
+  if (*log_bi != nullptr) {
+    reg_srv->release(
+        reinterpret_cast<my_h_service>(const_cast<log_builtins_t *>(*log_bi)));
+  }
+
+  if (*log_bs != nullptr) {
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<log_builtins_string_t *>(*log_bs)));
+  }
+
+  *log_bi = nullptr;
+  *log_bs = nullptr;
+}
+
+bool init_logging_service(SERVICE_TYPE(registry) * reg_srv,
+                          SERVICE_TYPE(log_builtins) * *log_bi,
+                          SERVICE_TYPE(log_builtins_string) * *log_bs) {
+  my_h_service log_srv = nullptr;
+  my_h_service log_str_srv = nullptr;
+
+  if (!reg_srv->acquire("log_builtins.mysql_server", &log_srv) &&
+      !reg_srv->acquire("log_builtins_string.mysql_server", &log_str_srv)) {
+    *log_bi = reinterpret_cast<SERVICE_TYPE(log_builtins) *>(log_srv);
+    *log_bs =
+        reinterpret_cast<SERVICE_TYPE(log_builtins_string) *>(log_str_srv);
+  } else {
+    deinit_logging_service(reg_srv, log_bi, log_bs);
+    return false;
+  }
+
+  return true;
+}
+
 bool init_abort_exempt_privilege() {
   my_service<SERVICE_TYPE(dynamic_privilege_register)> reg_priv_srv(
-      "dynamic_privilege_register", SysVars::get_comp_regystry_srv());
+      "dynamic_privilege_register", SysVars::get_comp_registry_srv());
 
   if (reg_priv_srv.is_valid() && !reg_priv_srv->register_privilege(
                                      STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"))) {
@@ -71,34 +108,11 @@ bool init_abort_exempt_privilege() {
 
 void deinit_abort_exempt_privilege() {
   my_service<SERVICE_TYPE(dynamic_privilege_register)> reg_priv_srv(
-      "dynamic_privilege_register", SysVars::get_comp_regystry_srv());
+      "dynamic_privilege_register", SysVars::get_comp_registry_srv());
 
   if (reg_priv_srv.is_valid()) {
     reg_priv_srv->unregister_privilege(STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"));
   }
-}
-
-bool check_abort_exempt_privilege(MYSQL_THD thd) {
-  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_srv(
-      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
-  my_service<SERVICE_TYPE(global_grants_check)> grants_check_srv(
-      "global_grants_check", SysVars::get_comp_regystry_srv());
-
-  bool has_system_user_grant = false;
-  bool has_abort_exempt_grant = false;
-
-  if (security_context_srv.is_valid() && grants_check_srv.is_valid()) {
-    Security_context_handle ctx;
-
-    if (!security_context_srv->get(thd, &ctx)) {
-      has_system_user_grant = grants_check_srv->has_global_grant(
-          ctx, STRING_WITH_LEN("SYSTEM_USER"));
-      has_abort_exempt_grant = grants_check_srv->has_global_grant(
-          ctx, STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"));
-    }
-  }
-
-  return has_system_user_grant && has_abort_exempt_grant;
 }
 
 }  // namespace
@@ -173,16 +187,24 @@ static std::array udfs_list{
  *         code otherwise
  */
 int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
+  const auto *comp_registry_srv = SysVars::acquire_comp_registry_srv();
+
+  auto comp_scope_guard = create_scope_guard([&] {
+    if (comp_registry_srv != nullptr) {
+      deinit_logging_service(comp_registry_srv, &log_bi, &log_bs);
+      SysVars::release_comp_registry_srv();
+    }
+  });
+
+  if (comp_registry_srv == nullptr ||
+      !init_logging_service(comp_registry_srv, &log_bi, &log_bs)) {
+    return 1;
+  }
+
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Initializing Audit Event Filter...");
 
-  SysVars::validate();
-
-  auto comp_registry_srv = SysVars::get_comp_regystry_srv();
-
-  if (comp_registry_srv == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to acquire components registry service");
+  if (!SysVars::validate()) {
     return 1;
   }
 
@@ -226,12 +248,6 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  if (!audit_rule_registry->load()) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to load filtering rules");
-    return 1;
-  }
-
   auto formatter = get_log_record_formatter(SysVars::get_format_type());
 
   if (formatter == nullptr) {
@@ -263,17 +279,21 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  if (!log_reader->init()) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_strerror(errbuf, sizeof(errbuf), errno);
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Cannot open log reader, error: %s", errbuf);
-    return 1;
-  }
+  log_reader->reset();
 
   audit_log_filter =
       new AuditLogFilter(std::move(audit_rule_registry), std::move(audit_udf),
                          std::move(log_writer), std::move(log_reader));
+
+  if (audit_log_filter == nullptr || !audit_log_filter->init()) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failed to init plugin instance");
+    return 1;
+  }
+
+  // In case of successful initialization,
+  // prevent comp_registry_srv from being released by the comp_scope_guard.
+  comp_registry_srv = nullptr;
 
   if (SysVars::get_log_disabled()) {
     LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
@@ -306,6 +326,9 @@ int audit_log_filter_deinit(void *arg [[maybe_unused]]) {
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Uninstalled Audit Event Filter");
 
+  deinit_logging_service(SysVars::get_comp_registry_srv(), &log_bi, &log_bs);
+  SysVars::release_comp_registry_srv();
+
   delete audit_log_filter;
   audit_log_filter = nullptr;
 
@@ -337,10 +360,47 @@ AuditLogFilter::AuditLogFilter(
       m_log_reader{std::move(log_reader)},
       m_is_active{true} {}
 
+bool AuditLogFilter::init() noexcept {
+  const auto *reg_srv = SysVars::get_comp_registry_srv();
+
+  if (reg_srv->acquire(
+          "mysql_thd_security_context",
+          reinterpret_cast<my_h_service *>(
+              const_cast<SERVICE_TYPE_NO_CONST(mysql_thd_security_context) **>(
+                  &m_security_context_srv))) ||
+      reg_srv->acquire("mysql_security_context_options",
+                       reinterpret_cast<my_h_service *>(
+                           const_cast<SERVICE_TYPE_NO_CONST(
+                               mysql_security_context_options) **>(
+                               &m_security_context_opts_srv))) ||
+      reg_srv->acquire(
+          "global_grants_check",
+          reinterpret_cast<my_h_service *>(
+              const_cast<SERVICE_TYPE_NO_CONST(global_grants_check) **>(
+                  &m_grants_check_srv)))) {
+    return false;
+  }
+
+  return m_security_context_srv != nullptr &&
+         m_security_context_opts_srv != nullptr &&
+         m_grants_check_srv != nullptr;
+}
+
 void AuditLogFilter::deinit() noexcept {
   m_is_active = false;
   m_audit_udf->deinit();
   m_log_writer->close();
+
+  const auto *reg_srv = SysVars::get_comp_registry_srv();
+  reg_srv->release(reinterpret_cast<my_h_service>(
+      const_cast<SERVICE_TYPE_NO_CONST(mysql_thd_security_context) *>(
+          m_security_context_srv)));
+  reg_srv->release(reinterpret_cast<my_h_service>(
+      const_cast<SERVICE_TYPE_NO_CONST(mysql_security_context_options) *>(
+          m_security_context_opts_srv)));
+  reg_srv->release(reinterpret_cast<my_h_service>(
+      const_cast<SERVICE_TYPE_NO_CONST(global_grants_check) *>(
+          m_grants_check_srv)));
 }
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
@@ -351,10 +411,12 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
 
   SysVars::inc_events_total();
 
+  Security_context_handle ctx;
   std::string user_name;
   std::string user_host;
 
-  if (!get_connection_user(thd, user_name, user_host)) {
+  if (!get_security_context(thd, &ctx) ||
+      !get_connection_user(ctx, user_name, user_host)) {
     return 0;
   }
 
@@ -367,7 +429,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     return 0;
   }
 
-  auto *filter_rule = m_audit_rules_registry->get_rule(rule_name);
+  auto filter_rule = m_audit_rules_registry->get_rule(rule_name);
 
   if (filter_rule == nullptr) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -388,7 +450,8 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   }
 
   // Apply filtering rule
-  AuditAction filter_result = AuditEventFilter::apply(filter_rule, audit_record);
+  AuditAction filter_result =
+      AuditEventFilter::apply(filter_rule.get(), audit_record);
 
   if (filter_result == AuditAction::Skip) {
     SysVars::inc_events_filtered();
@@ -396,7 +459,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   }
 
   if (filter_result == AuditAction::Block &&
-      !check_abort_exempt_privilege(thd)) {
+      !check_abort_exempt_privilege(ctx)) {
     auto ev_name = std::visit(
         [](const auto &rec) -> std::string_view { return rec.event_class_name; },
         audit_record);
@@ -418,7 +481,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
 
 void AuditLogFilter::send_audit_start_event() noexcept {
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
   MYSQL_THD thd;
 
@@ -439,7 +502,7 @@ void AuditLogFilter::send_audit_start_event() noexcept {
 
 void AuditLogFilter::send_audit_stop_event() noexcept {
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
   MYSQL_THD thd;
 
@@ -481,6 +544,7 @@ void AuditLogFilter::on_audit_log_rotate_requested(
     log_writer::FileRotationResult *result) noexcept {
   if (m_is_active) {
     m_log_writer->rotate(result);
+    m_log_writer->prune();
   }
 }
 
@@ -496,14 +560,14 @@ void AuditLogFilter::on_encryption_password_prune_requested() noexcept {
 
 void AuditLogFilter::on_audit_log_rotated() noexcept {
   if (m_is_active) {
-    m_log_reader->init();
+    m_log_reader->reset();
   }
 }
 
 void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
                                           AuditRecordVariant &audit_record) {
   my_service<SERVICE_TYPE(mysql_connection_attributes_iterator)> attrs_service(
-      "mysql_connection_attributes_iterator", SysVars::get_comp_regystry_srv());
+      "mysql_connection_attributes_iterator", SysVars::get_comp_registry_srv());
 
   if (!attrs_service.is_valid()) {
     return;
@@ -535,37 +599,19 @@ void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
   attrs_service->deinit(iterator);
 }
 
-bool AuditLogFilter::get_connection_user(
-    MYSQL_THD thd, std::string &user_name, std::string &user_host) noexcept {
-  my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
-      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
-  my_service<SERVICE_TYPE(mysql_security_context_options)>
-      security_context_opts_service("mysql_security_context_options",
-                                    SysVars::get_comp_regystry_srv());
-
-  if (!security_context_service.is_valid() ||
-      !security_context_opts_service.is_valid()) {
-    return false;
-  }
-
-  Security_context_handle ctx;
-
-  if (security_context_service->get(thd, &ctx)) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Can not get security context");
-    return false;
-  }
-
+bool AuditLogFilter::get_connection_user(Security_context_handle &ctx,
+                                         std::string &user_name,
+                                         std::string &user_host) noexcept {
   MYSQL_LEX_CSTRING user{"", 0};
   MYSQL_LEX_CSTRING host{"", 0};
 
-  if (security_context_opts_service->get(ctx, "priv_user", &user)) {
+  if (m_security_context_opts_srv->get(ctx, "user", &user)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Can not get user name from security context");
     return false;
   }
 
-  if (security_context_opts_service->get(ctx, "priv_host", &host)) {
+  if (m_security_context_opts_srv->get(ctx, "host", &host)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Can not get user host from security context");
     return false;
@@ -577,6 +623,26 @@ bool AuditLogFilter::get_connection_user(
 
   user_name = user.str;
   user_host = host.str;
+
+  return true;
+}
+
+bool AuditLogFilter::check_abort_exempt_privilege(
+    Security_context_handle &ctx) noexcept {
+  bool has_system_user_grant =
+      m_grants_check_srv->has_global_grant(ctx, STRING_WITH_LEN("SYSTEM_USER"));
+  bool has_abort_exempt_grant = m_grants_check_srv->has_global_grant(
+      ctx, STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"));
+
+  return has_system_user_grant && has_abort_exempt_grant;
+}
+
+bool AuditLogFilter::get_security_context(
+    MYSQL_THD thd, Security_context_handle *ctx) noexcept {
+  if (m_security_context_srv->get(thd, ctx)) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot get security context");
+    return false;
+  }
 
   return true;
 }

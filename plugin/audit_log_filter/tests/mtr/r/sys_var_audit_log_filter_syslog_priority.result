@@ -1,59 +1,10 @@
-SET @start_value = @@global.audit_log_filter_syslog_priority;
-SET GLOBAL audit_log_filter_syslog_priority=LOG_INFO;
+SET GLOBAL audit_log_filter_syslog_priority=LOG_WARNING;
+ERROR HY000: Variable 'audit_log_filter_syslog_priority' is a read only variable
 SELECT @@global.audit_log_filter_syslog_priority;
 @@global.audit_log_filter_syslog_priority
 LOG_INFO
-SET GLOBAL audit_log_filter_syslog_priority=LOG_ALERT;
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_ALERT
-SET GLOBAL audit_log_filter_syslog_priority=LOG_CRIT;
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_CRIT
-SET GLOBAL audit_log_filter_syslog_priority=LOG_ERR;
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_ERR
-SET GLOBAL audit_log_filter_syslog_priority=LOG_WARNING;
+# restart: --audit-log-filter-syslog-priority=LOG_WARNING
 SELECT @@global.audit_log_filter_syslog_priority;
 @@global.audit_log_filter_syslog_priority
 LOG_WARNING
-SET GLOBAL audit_log_filter_syslog_priority=LOG_NOTICE;
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_NOTICE
-SET GLOBAL audit_log_filter_syslog_priority=LOG_EMERG;
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_EMERG
-SET GLOBAL audit_log_filter_syslog_priority=LOG_DEBUG;
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_DEBUG
-SET GLOBAL audit_log_filter_syslog_priority=LOG_UNKNOWN;
-ERROR 42000: Variable 'audit_log_filter_syslog_priority' can't be set to the value of 'LOG_UNKNOWN'
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_DEBUG
-SET GLOBAL audit_log_filter_syslog_priority='';
-ERROR 42000: Variable 'audit_log_filter_syslog_priority' can't be set to the value of ''
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_DEBUG
-SET GLOBAL audit_log_filter_syslog_priority='str';
-ERROR 42000: Variable 'audit_log_filter_syslog_priority' can't be set to the value of 'str'
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_DEBUG
-SET GLOBAL audit_log_filter_syslog_priority=-1;
-ERROR 42000: Variable 'audit_log_filter_syslog_priority' can't be set to the value of '-1'
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_DEBUG
-SET GLOBAL audit_log_filter_syslog_priority=0.5;
-ERROR 42000: Incorrect argument type to variable 'audit_log_filter_syslog_priority'
-SELECT @@global.audit_log_filter_syslog_priority;
-@@global.audit_log_filter_syslog_priority
-LOG_DEBUG
-SET GLOBAL audit_log_filter_syslog_priority = @start_value;
+# restart:

@@ -57,8 +57,10 @@ class SysVars {
 
   /**
    * @brief Validate system variables settings.
+   *
+   * @return true in case of success, false otherwise
    */
-  static void validate() noexcept;
+  [[nodiscard]] static bool validate() noexcept;
 
   /**
    * @brief Get log file directory name.
@@ -73,6 +75,13 @@ class SysVars {
    * @return Audit log filter file base name
    */
   [[nodiscard]] static const std::string &get_file_name() noexcept;
+
+  /**
+   * @brief Get database name where to search for config tables.
+   *
+   * @return Database name
+   */
+  [[nodiscard]] static const char *get_config_database_name() noexcept;
 
   /**
    * @brief Get audit log filter handler type.
@@ -137,11 +146,11 @@ class SysVars {
   [[nodiscard]] static ulonglong get_log_prune_seconds() noexcept;
 
   /**
-   * @brief Get the ident value for syslog.
+   * @brief Get the syslog messages tag value.
    *
-   * @return Ident value for syslog
+   * @return Syslog tag value
    */
-  [[nodiscard]] static const char *get_syslog_ident() noexcept;
+  [[nodiscard]] static const char *get_syslog_tag() noexcept;
 
   /**
    * @brief Get the facility value for syslog.
@@ -388,12 +397,23 @@ class SysVars {
   static std::string get_encryption_options_id() noexcept;
 
   /**
+   * @brief Acquire component registry service.
+   *
+   * @return component registry service instance
+   */
+  static comp_registry_srv_t *acquire_comp_registry_srv() noexcept;
+
+  /**
+   * @brief Release component registry service.
+   */
+  static void release_comp_registry_srv() noexcept;
+
+  /**
    * @brief Get component registry service instance.
    *
    * @return component registry service instance
    */
-  static decltype(get_component_registry_service().get())
-  get_comp_regystry_srv() noexcept;
+  static comp_registry_srv_t *get_comp_registry_srv() noexcept;
 };
 
 }  // namespace audit_log_filter

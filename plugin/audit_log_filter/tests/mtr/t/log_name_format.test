@@ -1,10 +1,6 @@
 --source include/have_component_keyring_file.inc
 --source suite/component_keyring_file/inc/setup_component.inc
 
---disable_query_log
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
---enable_query_log
-
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 
@@ -17,6 +13,12 @@ SELECT audit_log_rotate();
 
 --let $with_compression = 0
 --let $with_encryption = 0
+--source check_logs_name_format.inc
+
+--echo #
+--echo # After rotation during server restart
+--let $restart_parameters="restart: "
+--source include/restart_mysqld.inc
 --source check_logs_name_format.inc
 
 --echo #

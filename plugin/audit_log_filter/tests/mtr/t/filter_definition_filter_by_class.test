@@ -1,6 +1,5 @@
 
 --source include/have_debug.inc
---source include/have_debug_sync.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`

@@ -290,7 +290,8 @@ char *AuditUdf::audit_log_filter_set_filter_udf(
     return result;
   }
 
-  audit_table::AuditLogFilter audit_log_filter;
+  audit_table::AuditLogFilter audit_log_filter{
+      SysVars::get_config_database_name()};
 
   auto check_result = audit_log_filter.check_name_exists(udf_args->args[0]);
 
@@ -389,8 +390,9 @@ char *AuditUdf::audit_log_filter_remove_filter_udf(
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogFilter audit_log_filter;
-  audit_table::AuditLogUser audit_log_user;
+  audit_table::AuditLogFilter audit_log_filter{
+      SysVars::get_config_database_name()};
+  audit_table::AuditLogUser audit_log_user{SysVars::get_config_database_name()};
 
   auto check_result = audit_log_filter.check_name_exists(udf_args->args[0]);
 
@@ -513,8 +515,9 @@ char *AuditUdf::audit_log_filter_set_user_udf(AuditUdf *udf [[maybe_unused]],
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogFilter audit_log_filter;
-  audit_table::AuditLogUser audit_log_user;
+  audit_table::AuditLogFilter audit_log_filter{
+      SysVars::get_config_database_name()};
+  audit_table::AuditLogUser audit_log_user{SysVars::get_config_database_name()};
 
   std::string filter_name{udf_args->args[1]};
 
@@ -628,7 +631,7 @@ char *AuditUdf::audit_log_filter_remove_user_udf(
   *is_null = 0;
   *error = 0;
 
-  audit_table::AuditLogUser audit_log_user;
+  audit_table::AuditLogUser audit_log_user{SysVars::get_config_database_name()};
 
   auto *user_info_data = reinterpret_cast<UserNameInfo *>(initid->ptr);
 

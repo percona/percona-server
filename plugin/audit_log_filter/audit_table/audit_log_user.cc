@@ -21,7 +21,6 @@
 
 namespace audit_log_filter::audit_table {
 namespace {
-inline constexpr const char *kAuditDbName = "mysql";
 inline constexpr const char *kAuditUserTableName = "audit_log_user";
 
 /*
@@ -53,7 +52,8 @@ const size_t kKeyPrimaryLength = 7;
 
 }  // namespace
 
-const char *AuditLogUser::get_table_db_name() noexcept { return kAuditDbName; }
+AuditLogUser::AuditLogUser(std::string db_name)
+    : AuditTableBase{std::move(db_name)} {}
 
 const char *AuditLogUser::get_table_name() noexcept {
   return kAuditUserTableName;

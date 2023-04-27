@@ -24,6 +24,9 @@ const size_t kAccessedTableCount = 1;
 
 }  // namespace
 
+AuditTableBase::AuditTableBase(std::string db_name)
+    : m_db_name{std::move(db_name)} {}
+
 TableAccessContext::~TableAccessContext() {
   ta_table = nullptr;
   table_ticket = 0;
@@ -65,7 +68,7 @@ std::unique_ptr<TableAccessContext> AuditTableBase::open_table() noexcept {
   }
 
   ta_context->table_ticket = table_access_srv->add(
-      ta_context->ta_session, get_table_db_name(), strlen(get_table_db_name()),
+      ta_context->ta_session, m_db_name.c_str(), m_db_name.length(),
       get_table_name(), strlen(get_table_name()), TA_WRITE);
 
   if (table_access_srv->begin(ta_context->ta_session) != 0) {

@@ -35,6 +35,8 @@
 namespace audit_log_filter {
 namespace {
 
+const size_t kMaxDbNameLength = 64;
+
 bool has_system_variables_privilege(MYSQL_THD thd) {
   my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
       "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
@@ -183,6 +185,9 @@ SHOW_VAR status_vars[] = {
  */
 char *log_file_full_path;
 const char default_log_file_name[] = "audit_filter.log";
+// TODO: PS-8742
+// char *config_database_name;
+const char default_config_database_name[] = "mysql";
 ulong log_handler_type = static_cast<ulong>(AuditLogHandlerType::File);
 ulong log_format_type = static_cast<ulong>(AuditLogFormatType::New);
 ulong log_strategy_type =
@@ -597,6 +602,17 @@ MYSQL_SYSVAR_BOOL(format_unix_timestamp, json_with_unix_timestamp,
                   format_unix_timestamp_update_func, false);
 
 /*
+ * The audit_log_filter.database variable specifies which database the plugin
+ * uses to find its tables. Defaults to 'mysql'.
+ */
+// TODO: PS-8742
+// MYSQL_SYSVAR_STR(database, config_database_name,
+//                 PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+//                     PLUGIN_VAR_MEMALLOC,
+//                 "Specifies which database the plugin uses to find its
+//                 tables.", nullptr, nullptr, default_config_database_name);
+
+/*
  * Internally used as a storage for log reader context data.
  */
 MYSQL_THDVAR_STR(log_reader_context,
@@ -624,6 +640,7 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(read_buffer_size),
                        MYSQL_SYSVAR(log_reader_context),
                        MYSQL_SYSVAR(format_unix_timestamp),
+                       // MYSQL_SYSVAR(database),  TODO: PS-8742
                        nullptr};
 
 #ifndef NDEBUG
@@ -662,7 +679,16 @@ SHOW_VAR *SysVars::get_status_var_defs() noexcept { return status_vars; }
 
 SYS_VAR **SysVars::get_sys_var_defs() noexcept { return sys_vars; }
 
-void SysVars::validate() noexcept {
+bool SysVars::validate() noexcept {
+  auto *db_name = get_config_database_name();
+
+  if (db_name == nullptr || strlen(db_name) == 0 ||
+      strlen(db_name) > kMaxDbNameLength) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Bad audit_log_filter_database value");
+    return false;
+  }
+
   if (SysVars::get_log_max_size() > 0 && SysVars::get_log_prune_seconds() > 0) {
     LogPluginErrMsg(
         WARNING_LEVEL, ER_LOG_PRINTF_MSG,
@@ -670,6 +696,8 @@ void SysVars::validate() noexcept {
         "set to non-zero, audit_log_filter_max_size takes precedence and "
         "audit_log_filter_prune_seconds is ignored");
   }
+
+  return true;
 }
 
 const std::string &SysVars::get_file_dir() noexcept {
@@ -680,6 +708,11 @@ const std::string &SysVars::get_file_dir() noexcept {
 const std::string &SysVars::get_file_name() noexcept {
   static std::string log_file_name{get_log_file_name_value(log_file_full_path)};
   return log_file_name;
+}
+
+const char *SysVars::get_config_database_name() noexcept {
+  // TODO: PS-8742
+  return default_config_database_name;
 }
 
 AuditLogHandlerType SysVars::get_handler_type() noexcept {

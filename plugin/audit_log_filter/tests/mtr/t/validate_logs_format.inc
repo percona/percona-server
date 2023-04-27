@@ -5,6 +5,9 @@
 # ==== Usage ====
 #
 # --let $audit_filter_log_path = audit logs path
+# --let $audit_filter_log_name = audit logs base name
+# --let $audit_filter_log_format = audit logs format
+# --let $audit_filter_log_check_one = log file name to check
 # --source validate_logs_format.inc
 #
 # Parameters:
@@ -12,36 +15,50 @@
 # $audit_filter_log_path
 #   The audit logs path.
 # $audit_filter_log_name
-#   The audit log file name, optional.
+#   The audit log file base name.
+# $audit_filter_log_format
+#   The audit logs format, 'xml' or 'json'.
+# $audit_filter_log_check_one
+#   Check only this one log file, if provided.
 
 --let audit_filter_log_path = $audit_filter_log_path
 --let audit_filter_log_name = $audit_filter_log_name
+--let audit_filter_log_format = $audit_filter_log_format
+--let audit_filter_log_check_one = $audit_filter_log_check_one
 
 perl;
+  use strict;
+  use warnings;
   use JSON;
   use XML::Parser;
 
-  my $file_name = $ENV{'audit_filter_log_name'};
-  my $dir_name = $ENV{'audit_filter_log_path'};
+  my $dir_name = $ENV{'audit_filter_log_path'} or die "Missing audit_filter_log_path\n";
+  my $base_file_name = $ENV{'audit_filter_log_name'} =~ s/\..*$//r;
+  my $format_name = $ENV{'audit_filter_log_format'} or die "Missing audit_filter_log_format\n";
+  my $check_one_log_name = $ENV{'audit_filter_log_check_one'};
 
-  if ($file_name) {
-    if ($file_name =~ m/\.xml\./) {
-      validate_xml("$dir_name$file_name");
+  die "Bad log format: $format_name\n" if ($format_name !~ m/^xml$|^json$/);
+
+  if ($check_one_log_name) {
+    if ($format_name eq "xml") {
+      validate_xml("$dir_name$check_one_log_name");
     }
     else {
-      validate_json("$dir_name$file_name");
+      validate_json("$dir_name$check_one_log_name");
     }
     print "File format Ok\n";
   }
   else {
+    die "Missing audit_filter_log_name\n" if (!$base_file_name);
+
     my $logs_counter = 0;
 
     opendir(my $dh, $dir_name) or die "Can't opendir $dir_name: $!";
 
     while (readdir $dh) {
-      if ($_ =~ /audit_filter\.\d{8}T\d{6}\.(xml|json)\.log/) {
+      if ($_ =~ /$base_file_name\.\d{8}T\d{6}/) {
         $logs_counter += 1;
-        if ($_ =~ m/\.xml\./) {
+        if ($format_name eq "xml") {
           validate_xml("$dir_name$_");
         }
         else {

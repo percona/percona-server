@@ -20,6 +20,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 
 namespace audit_log_filter::audit_table {
 
@@ -72,7 +73,7 @@ class HStringContainer {
 
 class AuditTableBase {
  public:
-  AuditTableBase() = default;
+  explicit AuditTableBase(std::string db_name);
   virtual ~AuditTableBase() = default;
 
  protected:
@@ -84,13 +85,6 @@ class AuditTableBase {
   std::unique_ptr<TableAccessContext> open_table() noexcept;
 
  private:
-  /**
-   * @brief Get database name.
-   *
-   * @return Database name
-   */
-  [[nodiscard]] virtual const char *get_table_db_name() noexcept = 0;
-
   /**
    * @brief Get table name.
    *
@@ -112,6 +106,9 @@ class AuditTableBase {
    * @return Number of table fields
    */
   [[nodiscard]] virtual size_t get_table_field_count() noexcept = 0;
+
+ private:
+  const std::string m_db_name;
 };
 
 }  // namespace audit_log_filter::audit_table

@@ -81,7 +81,7 @@ bool FileWriterEncrypting::open() noexcept {
   std::string keyring_key_id = SysVars::get_encryption_options_id();
   const auto options = audit_keyring::get_encryption_options(keyring_key_id);
 
-  if (!options->check_valid()) {
+  if (options == nullptr || !options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to fetch options for id %s",
                     keyring_key_id.c_str());

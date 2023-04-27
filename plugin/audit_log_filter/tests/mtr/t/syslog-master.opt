@@ -1,4 +1,4 @@
 --audit_log_filter_handler=SYSLOG
---audit_log_filter_syslog_ident=audit_filter
+--audit_log_filter_syslog_tag=audit_filter
 --audit_log_filter_syslog_facility=LOG_AUTH
 --audit_log_filter_syslog_priority=LOG_INFO

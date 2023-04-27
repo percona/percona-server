@@ -2,8 +2,6 @@
 SET GLOBAL audit_log_filter_format=NEW;
 SELECT @@global.audit_log_filter_format;
 
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
-
 --let $restart_parameters="restart: --audit-log-filter-format=NEW"
 --source include/restart_mysqld.inc
 SELECT @@global.audit_log_filter_format;

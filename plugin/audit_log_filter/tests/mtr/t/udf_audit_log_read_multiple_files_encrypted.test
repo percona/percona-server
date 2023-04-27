@@ -1,12 +1,10 @@
+--source include/have_debug.inc
 --source include/have_component_keyring_file.inc
 --source suite/component_keyring_file/inc/setup_component.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 
-# Remove rotated non-encrypted log, it isn't related to the test
---remove_files_wildcard $audit_filter_log_path audit_filter.????????T??????.json.log
---remove_files_wildcard $audit_filter_log_path audit_filter.????????T??????.json.log.gz
-
+--source clean_all_audit_logs.inc
 --source udf_audit_log_read_multiple_files_base.inc
 
 --source suite/component_keyring_file/inc/teardown_component.inc

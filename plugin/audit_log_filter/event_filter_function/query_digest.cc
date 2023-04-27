@@ -45,7 +45,7 @@ bool EventFilterFunctionQueryDigest::validate_args(
 }
 
 std::string EventFilterFunctionQueryDigest::get_query_digest() const noexcept {
-  auto *comp_registry_srv = SysVars::get_comp_regystry_srv();
+  auto *comp_registry_srv = SysVars::get_comp_registry_srv();
 
   my_service<SERVICE_TYPE(mysql_charset)> charset_srv("mysql_charset",
                                                       comp_registry_srv);

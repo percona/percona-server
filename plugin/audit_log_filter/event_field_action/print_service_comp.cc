@@ -52,7 +52,7 @@ bool EventFieldActionPrintServiceComp::apply(const AuditRecordFieldsList &fields
                                              AuditRecordVariant &audit_record,
                                              AuditRule *audit_rule
                                              [[maybe_unused]]) const noexcept {
-  auto *comp_reg_srv = SysVars::get_comp_regystry_srv();
+  auto *comp_reg_srv = SysVars::get_comp_registry_srv();
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
       "mysql_current_thread_reader", comp_reg_srv);

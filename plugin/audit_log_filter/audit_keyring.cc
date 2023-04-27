@@ -45,8 +45,14 @@ const std::string kOptionsKeyTimestampFormat{"%Y%m%dT%H%M%S"};
 constexpr auto file_opt_id_pattern(R"(.*\.(\d{8}T\d{6}-\d+)\.enc)");
 constexpr auto keyring_opt_id_pattern(R"(.*\-(\d{8}T\d{6}\-\d+).*)");
 
-using OptionsIdListEl = std::pair<ulonglong, std::string>;
-using OptionsIdList = std::vector<OptionsIdListEl>;
+struct OptionInfo {
+  ulonglong timestamp;
+  ulonglong seq_num;
+  ulonglong data_age_days;
+  std::string data_id;
+};
+
+using OptionsIdList = std::vector<OptionInfo>;
 
 void get_random_string(std::string &str) {
   static const char alphanumerics[] =
@@ -66,7 +72,7 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
   list.clear();
 
   my_service<SERVICE_TYPE(keyring_keys_metadata_iterator)> iterator_srv(
-      "keyring_keys_metadata_iterator", SysVars::get_comp_regystry_srv());
+      "keyring_keys_metadata_iterator", SysVars::get_comp_registry_srv());
 
   if (!iterator_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -93,7 +99,7 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
   std::string auth_id;
   bool is_iter_valid = iterator_srv->is_valid(forward_iterator);
 
-  const std::regex timestamp_regex(R"(.*-(\d{8}T\d{6})-.*)");
+  const std::regex timestamp_regex(R"(.*-(\d{8}T\d{6})-(\d*).*)");
   auto time_now = std::time(nullptr);
 
   DBUG_EXECUTE_IF("audit_log_filter_debug_timestamp", {
@@ -120,17 +126,21 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
         std::istringstream ss(pieces_match[1].str());
         ss >> std::get_time(&tm, kOptionsKeyTimestampFormat.c_str());
         tm.tm_isdst = -1;
-        ulonglong data_age_days = (time_now - timelocal(&tm)) / (60 * 60 * 24);
+        const auto timestamp = timelocal(&tm);
+        ulonglong data_age_days = (time_now - timestamp) / (60 * 60 * 24);
+        auto seq_num = std::stoull(pieces_match[2].str());
 
-        list.emplace_back(data_age_days, data_id);
+        list.push_back({static_cast<ulonglong>(timestamp), seq_num,
+                        data_age_days, data_id});
       }
     }
 
     is_iter_valid = !iterator_srv->next(forward_iterator);
   }
 
-  std::make_heap(list.begin(), list.end(), [](const auto &a, const auto &b) {
-    return a.first < b.first;
+  std::sort(list.begin(), list.end(), [](const auto &a, const auto &b) {
+    return (a.timestamp == b.timestamp) ? a.seq_num < b.seq_num
+                                        : a.timestamp < b.timestamp;
   });
 
   return true;
@@ -146,7 +156,7 @@ bool get_active_keyring_options_key(std::string &options_id) {
   }
 
   if (!id_list.empty()) {
-    options_id = id_list.back().second;
+    options_id = id_list.back().data_id;
   }
 
   return true;
@@ -155,7 +165,7 @@ bool get_active_keyring_options_key(std::string &options_id) {
 bool get_keyring_options(const std::string &options_id,
                          std::string &options_json_str) {
   my_service<SERVICE_TYPE(keyring_reader_with_status)> reader_srv(
-      "keyring_reader_with_status", SysVars::get_comp_regystry_srv());
+      "keyring_reader_with_status", SysVars::get_comp_registry_srv());
 
   if (!reader_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -224,7 +234,7 @@ bool get_keyring_options(const std::string &options_id,
 
 bool generate_keyring_options_id(std::string &options_id) {
   my_service<SERVICE_TYPE(keyring_reader_with_status)> reader_srv(
-      "keyring_reader_with_status", SysVars::get_comp_regystry_srv());
+      "keyring_reader_with_status", SysVars::get_comp_registry_srv());
 
   if (!reader_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -275,7 +285,7 @@ bool generate_keyring_options_id(std::string &options_id) {
 bool set_keyring_options(const std::string &options_id,
                          const std::string &options_json_str) {
   my_service<SERVICE_TYPE(keyring_writer)> writer_srv(
-      "keyring_writer", SysVars::get_comp_regystry_srv());
+      "keyring_writer", SysVars::get_comp_registry_srv());
 
   if (!writer_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -307,7 +317,7 @@ bool generate_keyring_options(std::string &options_id) {
 
   const auto options = encryption::EncryptionOptions::generate(password);
 
-  if (!options->check_valid()) {
+  if (options == nullptr || !options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to generate options");
     return false;
@@ -320,7 +330,7 @@ bool generate_keyring_options(std::string &options_id) {
 
 bool check_keyring_initialized() noexcept {
   my_service<SERVICE_TYPE(keyring_component_status)> component_status(
-      "keyring_component_status", SysVars::get_comp_regystry_srv());
+      "keyring_component_status", SysVars::get_comp_registry_srv());
 
   if (!component_status.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -349,13 +359,7 @@ bool check_generate_initial_encryption_options() noexcept {
 
 std::unique_ptr<encryption::EncryptionOptions>
 get_encryption_options() noexcept {
-  std::string options_id;
-
-  if (!get_active_keyring_options_key(options_id)) {
-    return {};
-  }
-
-  return get_encryption_options(options_id);
+  return get_encryption_options(SysVars::get_encryption_options_id());
 }
 
 std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(
@@ -364,7 +368,7 @@ std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(
 
   if (options_id.empty() ||
       !get_keyring_options(options_id, options_json_str)) {
-    return {};
+    return nullptr;
   }
 
   return encryption::EncryptionOptions::from_json_string(options_json_str);
@@ -381,7 +385,7 @@ bool set_encryption_options(const std::string &password) noexcept {
 
   const auto options = encryption::EncryptionOptions::generate(password);
 
-  if (!options->check_valid()) {
+  if (options == nullptr || !options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to generate options");
     return false;
@@ -413,7 +417,7 @@ void prune_encryption_options(
   }
 
   my_service<SERVICE_TYPE(keyring_writer)> writer_srv(
-      "keyring_writer", SysVars::get_comp_regystry_srv());
+      "keyring_writer", SysVars::get_comp_registry_srv());
 
   if (!writer_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -435,21 +439,21 @@ void prune_encryption_options(
 
   for (const auto &el : id_list) {
     std::smatch keyring_match;
-    if (!std::regex_match(el.second, keyring_match, keyring_opt_id_regex) ||
+    if (!std::regex_match(el.data_id, keyring_match, keyring_opt_id_regex) ||
         used_opts_ids.count(keyring_match[1].str())) {
       // options_id is still used by some encrypted log
       // or failed to match key_id
       continue;
     }
 
-    if (el.first < remove_after_days) {
+    if (el.data_age_days < remove_after_days) {
       break;
     }
 
-    if (writer_srv->remove(el.second.c_str(), kAuthId)) {
+    if (writer_srv->remove(el.data_id.c_str(), kAuthId)) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to remove options with ID: %s",
-                      el.second.c_str());
+                      el.data_id.c_str());
     }
   }
 }

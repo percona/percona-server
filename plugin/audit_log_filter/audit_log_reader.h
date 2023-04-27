@@ -21,9 +21,11 @@
 #include "plugin/audit_log_filter/json_reader/audit_json_read_stream.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
+#include <atomic>
 #include <deque>
 #include <map>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -67,9 +69,11 @@ class AuditLogReader {
  public:
   AuditLogReader() = default;
 
+  void reset() noexcept;
+
   bool init() noexcept;
 
-  static bool read(AuditLogReaderContext *reader_context) noexcept;
+  bool read(AuditLogReaderContext *reader_context) noexcept;
 
   AuditLogReaderContext *init_reader_session(
       MYSQL_THD thd, const AuditLogReaderArgs *reader_args) noexcept;
@@ -82,6 +86,8 @@ class AuditLogReader {
  private:
   std::map<std::string, std::unique_ptr<FileInfo>>
       m_first_timestamp_to_file_map;
+  std::shared_mutex m_reader_mutex;
+  std::atomic<bool> m_reload_requested;
 };
 
 }  // namespace audit_log_filter

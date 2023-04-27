@@ -1,15 +1,31 @@
 
 --disable_query_log
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
 call mtr.add_suppression("Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero");
 --enable_query_log
 
-# Restart with both max_size and prune_seconds being set, there must be a warning in error log
---let $restart_parameters="restart: --audit-log-filter-max-size=4096 --audit-log-filter-prune-seconds=1000"
+--echo #
+--echo # Only one of max_size and prune_seconds may be set at any time
+SET GLOBAL audit_log_filter_prune_seconds=100;
+SET GLOBAL audit_log_filter_max_size=4096;
+SELECT @@global.audit_log_filter_max_size;
+SELECT @@global.audit_log_filter_prune_seconds;
+
+SET GLOBAL audit_log_filter_prune_seconds=100;
+SELECT @@global.audit_log_filter_max_size;
+SELECT @@global.audit_log_filter_prune_seconds;
+
+--echo #
+--echo # When non-zero prune_seconds provided during startup, default max_size ignored and it gets set to 0
+--let $restart_parameters="restart: --audit-log-filter-prune-seconds=100"
 --source include/restart_mysqld.inc
 
-#--let $log_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
-#--let LOGF= $log_file
+SELECT @@global.audit_log_filter_max_size;
+SELECT @@global.audit_log_filter_prune_seconds;
+
+--echo #
+--echo # When both prune_seconds and max_size are provided during startup, max_size takes precedence, there will be warning in error log
+--let $restart_parameters="restart: --audit-log-filter-max-size=4096 --audit-log-filter-prune-seconds=100"
+--source include/restart_mysqld.inc
 
 --let $assert_text = ER_WARN_ADUIT_FILTER_MAX_SIZE_AND_PRUNE_SECONDS_LOG in error log
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -21,12 +37,7 @@ call mtr.add_suppression("Both audit_log_filter_max_size and audit_log_filter_pr
 SELECT @@global.audit_log_filter_max_size;
 SELECT @@global.audit_log_filter_prune_seconds;
 
-# Warning returned to a client in case both are set at runtime
-SET GLOBAL audit_log_filter_max_size=0;
-SET GLOBAL audit_log_filter_max_size=4096;
-
-SET GLOBAL audit_log_filter_prune_seconds=0;
-SET GLOBAL audit_log_filter_prune_seconds=1000;
-
-SELECT @@global.audit_log_filter_max_size;
-SELECT @@global.audit_log_filter_prune_seconds;
+--echo #
+--echo # Cleanup
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc

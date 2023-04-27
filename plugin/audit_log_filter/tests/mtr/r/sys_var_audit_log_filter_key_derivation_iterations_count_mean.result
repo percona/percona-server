@@ -23,6 +23,16 @@ Warning	1292	Truncated incorrect audit_log_filter_key_derivation_iterations_coun
 SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
 @@global.audit_log_filter_key_derivation_iterations_count_mean
 1000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=1000000;
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000000
+SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=1000001;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter_key_derivation_iterations_count_mean value: '1000001'
+SELECT @@global.audit_log_filter_key_derivation_iterations_count_mean;
+@@global.audit_log_filter_key_derivation_iterations_count_mean
+1000000
 SET GLOBAL audit_log_filter_key_derivation_iterations_count_mean=-1;
 Warnings:
 Warning	1292	Truncated incorrect audit_log_filter_key_derivation_iterations_count_mean value: '-1'

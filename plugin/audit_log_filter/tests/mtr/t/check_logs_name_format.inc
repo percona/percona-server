@@ -35,8 +35,17 @@ perl;
   my $with_compression = $ENV{'with_compression'} || 0;
   my $with_encryption = $ENV{'with_encryption'} || 0;
 
-  my $log_base_name = $ENV{'audit_filter_log_name'} =~ s/\.log//r;
+  my $log_base_name = "";
+  my $log_extensions = "";
   my $logs_count = 0;
+
+  if ($ENV{'audit_filter_log_name'} =~ m/(.*?)\.(.*)/) {
+    $log_base_name = $1;
+    $log_extensions = "\.$2";
+  }
+  else {
+    $log_base_name = $ENV{'audit_filter_log_name'};
+  }
 
   opendir(my $dh, $audit_filter_log_path) or die "Can't opendir $audit_filter_log_path: $!";
 
@@ -47,22 +56,22 @@ perl;
       if ($with_compression && $with_encryption) {
         die "Bad log name format: $filename"
             if ($filename !~ /^$audit_filter_log_name\.gz\.(\d{8}T\d{6})-\d\.enc$/ &&
-                $filename !~ /^$log_base_name\.(\d{8}T\d{6})\.log\.gz\.(\d{8}T\d{6})-\d\.enc/);
+                $filename !~ /^$log_base_name\.(\d{8}T\d{6})$log_extensions\.gz\.(\d{8}T\d{6})-\d\.enc/);
       }
       elsif ($with_compression) {
         die "Bad log name format: $filename"
             if ($filename !~ /^$audit_filter_log_name\.gz$/ &&
-                $filename !~ /^$log_base_name\.(\d{8}T\d{6})\.log\.gz/);
+                $filename !~ /^$log_base_name\.(\d{8}T\d{6})$log_extensions\.gz/);
       }
       elsif ($with_encryption) {
         die "Bad log name format: $filename"
             if ($filename !~ /^$audit_filter_log_name\.(\d{8}T\d{6})-\d\.enc$/ &&
-                $filename !~ /^$log_base_name\.(\d{8}T\d{6})\.log\.(\d{8}T\d{6})-\d\.enc/);
+                $filename !~ /^$log_base_name\.(\d{8}T\d{6})$log_extensions\.(\d{8}T\d{6})-\d\.enc/);
       }
       else {
         die "Bad log name format: $filename"
             if ($filename !~ /^$audit_filter_log_name$/ &&
-                $filename !~ /^$log_base_name\.(\d{8}T\d{6})\.log/);
+                $filename !~ /^$log_base_name\.(\d{8}T\d{6})$log_extensions/);
       }
     }
   }

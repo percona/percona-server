@@ -24,25 +24,22 @@ namespace audit_log_filter::log_writer {
 
 LogWriterSyslog::LogWriter(
     std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter)
-    : LogWriterBase{std::move(formatter)} {}
+    : LogWriterBase{std::move(formatter)},
+      m_tag{SysVars::get_syslog_tag()},
+      m_priority{SysVars::get_syslog_priority() |
+                 SysVars::get_syslog_facility()} {}
 
 bool LogWriterSyslog::init() noexcept {
   return true;  // nothing to do
 }
 
-bool LogWriterSyslog::open() noexcept {
-  openlog(SysVars::get_syslog_ident(), 0, SysVars::get_syslog_facility());
-  return true;
-}
+bool LogWriterSyslog::open() noexcept { return true; }
 
-bool LogWriterSyslog::close() noexcept {
-  closelog();
-  return true;
-}
+bool LogWriterSyslog::close() noexcept { return true; }
 
 void LogWriterSyslog::write(const std::string &record,
                             bool print_separator [[maybe_unused]]) noexcept {
-  syslog(SysVars::get_syslog_priority(), "%s", record.c_str());
+  syslog(m_priority, "%s: %s", m_tag.c_str(), record.c_str());
 }
 
 }  // namespace audit_log_filter::log_writer

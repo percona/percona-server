@@ -1,3 +1,5 @@
+--source include/have_debug.inc
+
 --echo #
 --echo # Check wrong argument number
 --error 1123
@@ -45,6 +47,25 @@ SELECT audit_log_filter_set_user('root@localhost', '');
 --echo # Wrong user_name format
 --error 1123
 SELECT audit_log_filter_set_user('aaaaaa', 'filter_1');
+
+--echo #
+--echo # Wildcards are not allowed in user or host name
+--error 1123
+SELECT audit_log_filter_set_user('user%@localhost', 'filter_1');
+--error 1123
+SELECT audit_log_filter_set_user('user*@localhost', 'filter_1');
+--error 1123
+SELECT audit_log_filter_set_user('user@host%', 'filter_1');
+--error 1123
+SELECT audit_log_filter_set_user('user@host*', 'filter_1');
+--error 1123
+SELECT audit_log_filter_set_user('user@%', 'filter_1');
+--error 1123
+SELECT audit_log_filter_set_user('user@*', 'filter_1');
+--error 1123
+SELECT audit_log_filter_set_user('%@localhost', 'filter_1');
+--error 1123
+SELECT audit_log_filter_set_user('*@localhost', 'filter_1');
 
 --disable_query_log
 call mtr.add_suppression("Failed to check filtering rule name existence");

@@ -72,6 +72,7 @@ my $config= My::ConfigFactory->new_config
   vardir => "/path/to/var",
   baseport => 10987,
   #hosts => [ 'host1', 'host2' ],
+  worker => 1,
  }
 );
 
@@ -117,6 +118,7 @@ my $config2= My::ConfigFactory->new_config
   vardir => "/path/to/var",
   baseport => 10987,
   #hosts => [ 'host1', 'host2' ],
+  worker => 1,
  }
 );
 

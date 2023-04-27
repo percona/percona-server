@@ -1,16 +1,6 @@
 source include/master-slave.inc;
 
---connection master
-set session sql_log_bin=0;
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-set session sql_log_bin=1;
-
---connection slave
-set session sql_log_bin=0;
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-set session sql_log_bin=1;
-
---connection master
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 
 eval CREATE TABLE t1 (
  a int unsigned not null auto_increment primary key,

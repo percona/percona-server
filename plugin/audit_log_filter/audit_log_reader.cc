@@ -53,11 +53,21 @@ void AuditLogReader::set_files_to_read_list(
   }
 }
 
+void AuditLogReader::reset() noexcept { m_reload_requested = true; }
+
 bool AuditLogReader::init() noexcept {
   if (SysVars::get_format_type() != AuditLogFormatType::Json) {
     // Not supported for other log formats
     return true;
   }
+
+  std::unique_lock lock(m_reader_mutex);
+
+  if (!m_reload_requested) {
+    return true;
+  }
+
+  m_reload_requested = false;
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
       "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
@@ -98,8 +108,16 @@ bool AuditLogReader::init() noexcept {
         continue;
       }
 
+      bool is_current_log =
+          log_name.find(log_current_file_name) != std::string::npos;
       bool is_compressed = log_name.find(".gz") != std::string::npos;
       bool is_encrypted = log_name.find(".enc") != std::string::npos;
+
+      if (is_current_log && is_encrypted) {
+        // TODO: Improve handling of currently opened encrypted log
+        continue;
+      }
+
       auto encryption_options_id =
           audit_keyring::get_options_id_for_file_name(log_name);
 
@@ -150,6 +168,12 @@ bool AuditLogReader::init() noexcept {
 }
 
 bool AuditLogReader::read(AuditLogReaderContext *reader_context) noexcept {
+  std::shared_lock lock(m_reader_mutex);
+
+  if (m_reload_requested) {
+    return false;
+  }
+
   reader_context->is_batch_end = false;
   reader_context->audit_json_handler->iterative_parse_init();
 
@@ -192,6 +216,11 @@ bool AuditLogReader::read(AuditLogReaderContext *reader_context) noexcept {
 
 AuditLogReaderContext *AuditLogReader::init_reader_session(
     MYSQL_THD thd, const AuditLogReaderArgs *reader_args) noexcept {
+  if (m_reload_requested && !init()) {
+    return nullptr;
+  }
+
+  std::shared_lock lock(m_reader_mutex);
   auto reader_context = std::make_unique<AuditLogReaderContext>();
 
   if (reader_context == nullptr) {

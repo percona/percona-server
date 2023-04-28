@@ -265,13 +265,7 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  if (!log_reader->init()) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_strerror(errbuf, sizeof(errbuf), errno);
-    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Cannot open log reader, error: %s", errbuf);
-    return 1;
-  }
+  log_reader->reset();
 
   audit_log_filter =
       new AuditLogFilter(std::move(audit_rule_registry), std::move(audit_udf),
@@ -498,7 +492,7 @@ void AuditLogFilter::on_encryption_password_prune_requested() noexcept {
 
 void AuditLogFilter::on_audit_log_rotated() noexcept {
   if (m_is_active) {
-    m_log_reader->init();
+    m_log_reader->reset();
   }
 }
 

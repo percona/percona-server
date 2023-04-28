@@ -917,7 +917,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
   reader_context->batch_reader_args = std::move(reader_args);
 
-  if (!AuditLogReader::read(reader_context)) {
+  if (!log_reader->read(reader_context)) {
     if (reader_context != nullptr) {
       log_reader->close_reader_session(reader_context);
       SysVars::set_log_reader_context(thd, nullptr);

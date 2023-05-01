@@ -92,7 +92,9 @@ bool AuditLogReader::init() noexcept {
     log_base_file_name.replace_extension();
   }
 
-  m_first_timestamp_to_file_map.clear();
+  std::vector<std::string> all_files;
+  std::vector<std::string> new_files;
+  std::vector<std::string> removed_files;
 
   for (const auto &entry :
        std::filesystem::directory_iterator{SysVars::get_file_dir()}) {
@@ -100,67 +102,93 @@ bool AuditLogReader::init() noexcept {
 
     if (entry.is_regular_file() &&
         log_name.find(log_base_file_name) != std::string::npos) {
-      if (std::any_of(m_first_timestamp_to_file_map.cbegin(),
-                      m_first_timestamp_to_file_map.cend(),
-                      [&log_name](const auto &entry) {
-                        return entry.second->name == log_name;
-                      })) {
+      all_files.push_back(std::move(log_name));
+    }
+  }
+
+  std::copy_if(all_files.cbegin(), all_files.cend(),
+               std::back_inserter(new_files), [this](const auto &name) {
+                 return !std::any_of(m_first_timestamp_to_file_map.cbegin(),
+                                     m_first_timestamp_to_file_map.cend(),
+                                     [&name](const auto &entry) {
+                                       return entry.second->name == name;
+                                     });
+               });
+
+  std::for_each(m_first_timestamp_to_file_map.cbegin(),
+                m_first_timestamp_to_file_map.cend(),
+                [&all_files, &removed_files](const auto &pair) {
+                  if (!std::any_of(all_files.cbegin(), all_files.cend(),
+                                   [&pair](const auto &name) {
+                                     return name == pair.second->name;
+                                   })) {
+                    removed_files.push_back(pair.second->name);
+                  }
+                });
+
+  for (const auto &log_name : new_files) {
+    bool is_current_log =
+        log_name.find(log_current_file_name) != std::string::npos;
+    bool is_compressed = log_name.find(".gz") != std::string::npos;
+    bool is_encrypted = log_name.find(".enc") != std::string::npos;
+
+    if (is_current_log && is_encrypted) {
+      // TODO: Improve handling of currently opened encrypted log
+      continue;
+    }
+
+    auto encryption_options_id =
+        audit_keyring::get_options_id_for_file_name(log_name);
+
+    assert(!is_encrypted || !encryption_options_id.empty());
+
+    auto file_info = std::make_unique<FileInfo>(log_name, encryption_options_id,
+                                                is_compressed, is_encrypted);
+
+    if (file_info->is_encrypted && !file_info->encryption_options_id.empty()) {
+      file_info->encryption_options = audit_keyring::get_encryption_options(
+          file_info->encryption_options_id);
+
+      if (file_info->encryption_options == nullptr) {
         continue;
       }
+    }
 
-      bool is_current_log =
-          log_name.find(log_current_file_name) != std::string::npos;
-      bool is_compressed = log_name.find(".gz") != std::string::npos;
-      bool is_encrypted = log_name.find(".enc") != std::string::npos;
+    if (!json_reader_stream->open(file_info.get())) {
+      continue;
+    }
 
-      if (is_current_log && is_encrypted) {
-        // TODO: Improve handling of currently opened encrypted log
-        continue;
-      }
+    auto json_reader_guard =
+        create_scope_guard([&] { json_reader_stream->close(); });
 
-      auto encryption_options_id =
-          audit_keyring::get_options_id_for_file_name(log_name);
+    rapidjson::Document json_doc;
+    json_doc.ParseStream(*json_reader_stream);
 
-      assert(!is_encrypted || !encryption_options_id.empty());
+    if (json_doc.HasParseError() || json_doc.Empty() || !json_doc.IsArray() ||
+        json_doc.GetArray().Empty()) {
+      continue;
+    }
 
-      auto file_info = std::make_unique<FileInfo>(
-          log_name, encryption_options_id, is_compressed, is_encrypted);
+    auto first_event = json_doc.GetArray().Begin();
 
-      if (file_info->is_encrypted &&
-          !file_info->encryption_options_id.empty()) {
-        file_info->encryption_options = audit_keyring::get_encryption_options(
-            file_info->encryption_options_id);
+    if (!first_event->IsObject() || !first_event->HasMember("timestamp") ||
+        !first_event->GetObject()["timestamp"].IsString()) {
+      continue;
+    }
 
-        if (file_info->encryption_options == nullptr) {
-          continue;
-        }
-      }
+    m_first_timestamp_to_file_map.emplace(
+        first_event->GetObject()["timestamp"].GetString(),
+        std::move(file_info));
+  }
 
-      if (!json_reader_stream->open(file_info.get())) {
-        continue;
-      }
+  for (const auto &log_name : removed_files) {
+    auto it = std::find_if(
+        m_first_timestamp_to_file_map.cbegin(),
+        m_first_timestamp_to_file_map.cend(),
+        [log_name](const auto &pair) { return pair.second->name == log_name; });
 
-      auto json_reader_guard =
-          create_scope_guard([&] { json_reader_stream->close(); });
-
-      rapidjson::Document json_doc;
-      json_doc.ParseStream(*json_reader_stream);
-
-      if (json_doc.HasParseError() || json_doc.Empty() || !json_doc.IsArray() ||
-          json_doc.GetArray().Empty()) {
-        continue;
-      }
-
-      auto first_event = json_doc.GetArray().Begin();
-
-      if (!first_event->IsObject() || !first_event->HasMember("timestamp") ||
-          !first_event->GetObject()["timestamp"].IsString()) {
-        continue;
-      }
-
-      m_first_timestamp_to_file_map.emplace(
-          first_event->GetObject()["timestamp"].GetString(),
-          std::move(file_info));
+    if (it != m_first_timestamp_to_file_map.cend()) {
+      m_first_timestamp_to_file_map.erase(it);
     }
   }
 

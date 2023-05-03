@@ -228,12 +228,6 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  if (!audit_rule_registry->load()) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to load filtering rules");
-    return 1;
-  }
-
   auto formatter = get_log_record_formatter(SysVars::get_format_type());
 
   if (formatter == nullptr) {

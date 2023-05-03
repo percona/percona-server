@@ -21,6 +21,7 @@
 
 #include "mysql/plugin.h"
 
+#include <atomic>
 #include <map>
 #include <shared_mutex>
 #include <string>
@@ -63,6 +64,7 @@ class AuditRuleRegistry {
                         std::string &rule_name) noexcept;
 
  private:
+  std::atomic<bool> m_is_initialised{false};
   std::shared_mutex m_registry_mutex;
   audit_table::AuditLogUser::AuditUsersContainer m_audit_users;
   audit_table::AuditLogFilter::AuditRulesContainer m_audit_filter_rules;

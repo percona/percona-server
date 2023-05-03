@@ -18,7 +18,6 @@
 #include "plugin/audit_log_filter/audit_rule.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
-#include <mutex>
 #include <string>
 #include <tuple>
 
@@ -42,6 +41,14 @@ AuditRule *AuditRuleRegistry::get_rule(const std::string &rule_name) noexcept {
 bool AuditRuleRegistry::lookup_rule_name(const std::string &user_name,
                                          const std::string &host_name,
                                          std::string &rule_name) noexcept {
+  if (!m_is_initialised) {
+    m_is_initialised = true;
+    if (!load()) {
+      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                   "Failed to load filtering rules");
+    }
+  }
+
   std::shared_lock lock(m_registry_mutex);
 
   if (m_audit_users.count(std::make_pair(user_name, host_name)) != 0) {

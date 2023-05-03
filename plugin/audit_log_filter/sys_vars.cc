@@ -185,8 +185,7 @@ SHOW_VAR status_vars[] = {
  */
 char *log_file_full_path;
 const char default_log_file_name[] = "audit_filter.log";
-// TODO: PS-8742
-// char *config_database_name;
+char *config_database_name;
 const char default_config_database_name[] = "mysql";
 ulong log_handler_type = static_cast<ulong>(AuditLogHandlerType::File);
 ulong log_format_type = static_cast<ulong>(AuditLogFormatType::New);
@@ -605,12 +604,11 @@ MYSQL_SYSVAR_BOOL(format_unix_timestamp, json_with_unix_timestamp,
  * The audit_log_filter.database variable specifies which database the plugin
  * uses to find its tables. Defaults to 'mysql'.
  */
-// TODO: PS-8742
-// MYSQL_SYSVAR_STR(database, config_database_name,
-//                 PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
-//                     PLUGIN_VAR_MEMALLOC,
-//                 "Specifies which database the plugin uses to find its
-//                 tables.", nullptr, nullptr, default_config_database_name);
+MYSQL_SYSVAR_STR(database, config_database_name,
+                 PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                     PLUGIN_VAR_MEMALLOC,
+                 "Specifies which database the plugin uses to find its tables.",
+                 nullptr, nullptr, default_config_database_name);
 
 /*
  * Internally used as a storage for log reader context data.
@@ -640,7 +638,7 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(read_buffer_size),
                        MYSQL_SYSVAR(log_reader_context),
                        MYSQL_SYSVAR(format_unix_timestamp),
-                       // MYSQL_SYSVAR(database),  TODO: PS-8742
+                       MYSQL_SYSVAR(database),
                        nullptr};
 
 #ifndef NDEBUG
@@ -711,8 +709,7 @@ const std::string &SysVars::get_file_name() noexcept {
 }
 
 const char *SysVars::get_config_database_name() noexcept {
-  // TODO: PS-8742
-  return default_config_database_name;
+  return config_database_name;
 }
 
 AuditLogHandlerType SysVars::get_handler_type() noexcept {

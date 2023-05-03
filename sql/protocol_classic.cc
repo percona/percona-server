@@ -3408,19 +3408,13 @@ bool Protocol_text::store_null() {
 }
 
 int Protocol_classic::shutdown(bool) {
-<<<<<<< HEAD
-  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio, SHUT_RDWR) : 0;
-||||||| ce0de82d3aa
-  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
-=======
 #ifdef USE_PPOLL_IN_VIO
   // Test code calls this directly, so we need to set it here as well
   if (m_thd->net.vio && !m_thd->net.vio->thread_id.has_value()) {
     m_thd->net.vio->thread_id = m_thd->real_id;
   }
 #endif /* USE_PPOLL_IN_VIO */
-  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
->>>>>>> mysql-8.0.33
+  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio, SHUT_RDWR) : 0;
 }
 
 bool Protocol_classic::store_string(const char *from, size_t length,

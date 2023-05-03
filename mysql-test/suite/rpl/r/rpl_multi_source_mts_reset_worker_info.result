@@ -6,14 +6,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection slave]
 call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
-<<<<<<< HEAD
-call mtr.add_suppression("Could not delete from Slave Workers info repository");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-||||||| ce0de82d3aa
-call mtr.add_suppression("Could not delete from Slave Workers info repository");
-=======
 call mtr.add_suppression("Could not delete from Replica Workers info repository");
->>>>>>> mysql-8.0.33
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/stop_slave.inc
 RESET SLAVE ALL;
 Warnings:

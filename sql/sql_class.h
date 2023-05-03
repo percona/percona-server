@@ -3015,13 +3015,6 @@ class THD : public MDL_context_owner,
   /** number of name_const() substitutions, see sp_head.cc:subst_spvars() */
   uint query_name_consts;
 
-<<<<<<< HEAD
-  /*
-    If we do a purge of binary logs, log index info of the threads
-    that are currently reading it needs to be adjusted. To do that
-    each thread that is using LOG_INFO needs to adjust the pointer to it
-  */
-  LOG_INFO *current_linfo;
 
   /*
     Used to update global user stats.  The global user stats are updated
@@ -3065,15 +3058,6 @@ class THD : public MDL_context_owner,
   // milliseconds before every SQL command.
   ulonglong query_delay_millis;
 
-||||||| ce0de82d3aa
-  /*
-    If we do a purge of binary logs, log index info of the threads
-    that are currently reading it needs to be adjusted. To do that
-    each thread that is using LOG_INFO needs to adjust the pointer to it
-  */
-  LOG_INFO *current_linfo;
-=======
->>>>>>> mysql-8.0.33
   /* Used by the sys_var class to store temporary values */
   union {
     bool bool_value;

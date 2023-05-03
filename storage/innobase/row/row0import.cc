@@ -4393,15 +4393,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   /* Prevent DDL operations while we are checking. */
   rw_lock_s_lock_func(dict_operation_lock, 0, UT_LOCATION_HERE);
 
-<<<<<<< HEAD
-  row_import cfg;
-||||||| ce0de82d3aa
-  row_import cfg;
-  ulint space_flags = 0;
-=======
   row_import cfg{};
-  ulint space_flags = 0;
->>>>>>> mysql-8.0.33
 
   /* Read CFP file */
   if (dd_is_table_in_encrypted_tablespace(table)) {

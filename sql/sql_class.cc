@@ -1,12 +1,6 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
-   Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| ce0de82d3aa
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
-=======
    Copyright (c) 2000, 2023, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.33
+   Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -724,15 +718,9 @@ THD::THD(bool enable_plugins)
       m_is_plugin_fake_ddl(false),
       m_inside_system_variable_global_update(false),
       bind_parameter_values(nullptr),
-<<<<<<< HEAD
       bind_parameter_values_count(0),
-      is_rpl_stmt_event_format_used(true) {
-||||||| ce0de82d3aa
-      bind_parameter_values_count(0) {
-=======
-      bind_parameter_values_count(0),
+      is_rpl_stmt_event_format_used(true),
       external_store_() {
->>>>>>> mysql-8.0.33
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -1515,6 +1503,7 @@ extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
                                        uint64_t value) {
   assert(thd);
   assert(!thd_is_background_thread(thd));
+  (void)thd;
   thd->mark_innodb_used(trx_id);
   switch (type) {
     case MYSQL_TRX_STAT_IO_READ_BYTES:

@@ -199,7 +199,7 @@ struct row_log_t {
   is being created online */
   dict_table_t *table;
 
- /** index to be built */
+  /** index to be built */
   dict_index_t *index;
 
   /** Whether the definition of the PRIMARY KEY has remained the same */
@@ -229,7 +229,7 @@ struct row_log_t {
   row_log_apply_ops() */
   row_log_buf_t head;
 
-   /** reader context; temporary buffer used in encryption, decryption or NULL */
+  /** reader context; temporary buffer used in encryption, decryption or NULL */
   byte *crypt_head;
 
   /** number of non-virtual column in old table */

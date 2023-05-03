@@ -26,7 +26,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "m_ctype.h"
 #include "my_sys.h"
 #include "myisampack.h"
-#include "mysql/innodb_priv.h"
 #include "mysys_err.h"
 #include "sql/sql_plugin.h"
 
@@ -38,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "read0i_s.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/field.h"
+#include "sql/sql_show.h" /* schema_table_store_record */
 #include "sql/table.h"
 #include "srv0start.h" /* for srv_was_started */
 #include "trx0i_s.h"

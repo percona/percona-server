@@ -288,14 +288,8 @@ static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 mysql_cond_t resume_encryption_cond;
 mysql_mutex_t resume_encryption_cond_m;
-<<<<<<< HEAD
-bool innodb_inited = false;
-||||||| ce0de82d3aa
-static bool innodb_inited = false;
-=======
 os_event_t recovery_lock_taken;
-static bool innodb_inited = false;
->>>>>>> mysql-8.0.33
+bool innodb_inited = false;
 
 [[maybe_unused]] static inline bool EQ_CURRENT_THD(THD *thd) {
   return thd == current_thd;
@@ -1792,15 +1786,7 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
     mysql_cond_destroy(&commit_cond);
     mysql_mutex_destroy(&resume_encryption_cond_m);
     mysql_cond_destroy(&resume_encryption_cond);
-<<<<<<< HEAD
-||||||| ce0de82d3aa
-
-    os_event_global_destroy();
-=======
     os_event_destroy(recovery_lock_taken);
-
-    os_event_global_destroy();
->>>>>>> mysql-8.0.33
   }
 
   os_event_global_destroy();
@@ -2866,7 +2852,6 @@ bool Encryption::is_none(const char *algorithm) noexcept {
   return (false);
 }
 
-<<<<<<< HEAD
 /** Check if the NO algorithm was explicitly specified.
 @param[in]      algorithm       Encryption algorithm to check
 @return true if no algorithm explicitly requested */
@@ -2879,39 +2864,6 @@ bool Encryption::none_explicitly_specified(bool explicit_encryption,
   return false;
 }
 
-dberr_t Encryption::set_algorithm(const char *option,
-                                  Encryption *encryption) noexcept {
-  if (is_none(option)) {
-    encryption->m_type = NONE;
-
-  } else if (innobase_strcasecmp(option, "y") == 0) {
-    encryption->m_type = AES;
-
-  } else {
-    return (DB_UNSUPPORTED);
-  }
-
-  return (DB_SUCCESS);
-}
-
-||||||| ce0de82d3aa
-dberr_t Encryption::set_algorithm(const char *option,
-                                  Encryption *encryption) noexcept {
-  if (is_none(option)) {
-    encryption->m_type = NONE;
-
-  } else if (innobase_strcasecmp(option, "y") == 0) {
-    encryption->m_type = AES;
-
-  } else {
-    return (DB_UNSUPPORTED);
-  }
-
-  return (DB_SUCCESS);
-}
-
-=======
->>>>>>> mysql-8.0.33
 dberr_t Encryption::validate(const char *option) noexcept {
   return (is_none(option) || (innobase_strcasecmp(option, "y") == 0))
              ? DB_SUCCESS
@@ -22385,6 +22337,8 @@ static void innodb_sched_priority_purge_update(THD *thd, SYS_VAR *var,
   srv_sched_priority_purge = priority;
 }
 
+extern std::atomic<ulint> io_tid_i;
+
 /** Update the innodb_sched_priority_io variable and set the thread priorities
 accordingly.
 @param[in]	thd	thread handle
@@ -22395,7 +22349,7 @@ static void innodb_sched_priority_io_update(THD *thd, SYS_VAR *var,
                                             void *var_ptr, const void *save) {
   const ulint priority = *static_cast<const ulint *>(save);
 
-  for (ulint i = 0; i < srv_n_file_io_threads; i++) {
+  for (ulint i = 0; i < io_tid_i.load(); i++) {
     const ulint actual_priority =
         os_thread_set_priority(srv_io_tids[i], priority);
     if (UNIV_UNLIKELY(actual_priority != priority)) {

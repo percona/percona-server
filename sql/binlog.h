@@ -44,7 +44,7 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"          // Item_result
+#include "mysql_com.h"  // Item_result
 #include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
@@ -300,6 +300,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
                                   uint32 new_index_number);
   int generate_new_name(char *new_name, const char *log_name,
                         uint32 new_index_number = 0);
+#if defined(MYSQL_SERVER)
   /**
    * Read binary log stream header and Format_desc event from
    * binlog_file_reader. Check for LOG_EVENT_BINLOG_IN_USE_F flag.
@@ -309,6 +310,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
    *                 while reading log events
    */
   bool read_binlog_in_use_flag(Binlog_file_reader &binlog_file_reader);
+#endif /* defined(MYSQL_SERVER) */
 
  protected:
   /**
@@ -961,12 +963,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   const char *get_name() const { return name; }
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
   inline mysql_mutex_t *get_commit_lock() { return &LOCK_commit; }
-<<<<<<< HEAD
-  inline mysql_mutex_t *get_sync_lock() { return &LOCK_sync; }
-||||||| ce0de82d3aa
-=======
   inline mysql_mutex_t *get_after_commit_lock() { return &LOCK_after_commit; }
->>>>>>> mysql-8.0.33
+  inline mysql_mutex_t *get_sync_lock() { return &LOCK_sync; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
   inline Binlog_ofile *get_binlog_file() { return m_binlog_file; }
 
@@ -1051,12 +1049,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
-<<<<<<< HEAD
-
- private:
-  void publish_coordinates_for_global_status(void) const;
-||||||| ce0de82d3aa
-=======
 
  public:
   /**
@@ -1102,7 +1094,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
   // Set of log info objects that are in usage and might prevent some other
   // operations from executing.
   std::set<LOG_INFO *> log_info_set;
->>>>>>> mysql-8.0.33
+
+ private:
+  void publish_coordinates_for_global_status(void) const;
 };
 
 struct LOAD_FILE_INFO {

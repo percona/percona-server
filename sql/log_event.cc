@@ -1,13 +1,7 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates.
    Copyright (c) 2009, 2016, MariaDB
-||||||| ce0de82d3aa
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
-=======
-   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.33
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4870,8 +4864,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
               "time. Query: '");
           message.append(thd->query().str);
           message.append("'");
-          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                      ER_THD(thd, ER_SLAVE_FATAL_ERROR), message.c_ptr());
+          rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                      ER_THD(thd, ER_REPLICA_FATAL_ERROR), message.c_ptr());
           thd->is_slave_error = true;
           goto end;
         }
@@ -5571,8 +5565,7 @@ int Start_encryption_log_event::do_update_pos(Relay_log_info *rli) {
 
 #ifndef MYSQL_SERVER
 void Start_encryption_log_event::print(
-    FILE *file [[maybe_unused]],
-    PRINT_EVENT_INFO *print_event_info) const {
+    FILE *file [[maybe_unused]], PRINT_EVENT_INFO *print_event_info) const {
   // Need 2 characters per one hex + 2 for 0x + 1 for \0
   char nonce_buf[NONCE_LENGTH * 2 + 2 + 1];
   str_to_hex(nonce_buf, reinterpret_cast<const char *>(nonce), NONCE_LENGTH);

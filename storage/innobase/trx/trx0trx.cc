@@ -1289,8 +1289,10 @@ static void trx_assign_id_for_rw(trx_t *trx) {
 
   if (trx->preallocated_id) {
     // preallocated_id might not be received in ascending order,
-    // so we need to maintain ordering in rw_trx_ids and update min_active_trx_id
-    auto upper_bound_it = std::upper_bound(trx_sys->rw_trx_ids.begin(), trx_sys->rw_trx_ids.end(), trx->id);
+    // so we need to maintain ordering in rw_trx_ids and update
+    // min_active_trx_id
+    auto upper_bound_it = std::upper_bound(trx_sys->rw_trx_ids.begin(),
+                                           trx_sys->rw_trx_ids.end(), trx->id);
     trx_sys->rw_trx_ids.insert(upper_bound_it, trx->id);
   } else {
     // The id is known to be greatest

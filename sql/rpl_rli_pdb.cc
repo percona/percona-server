@@ -694,22 +694,10 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
   */
   set_group_master_log_name(c_rli->get_group_master_log_name());
 
-<<<<<<< HEAD
-  DBUG_PRINT("mts", ("Committing worker-id %lu group master log pos %llu "
-                     "group master log name %s checkpoint sequence number %lu.",
-                     id, get_group_master_log_pos(),
-                     get_group_master_log_name(), worker_checkpoint_seqno));
-||||||| ce0de82d3aa
-  DBUG_PRINT("mts", ("Committing worker-id %lu group master log pos %llu "
-                     "group master log name %s checkpoint sequence number %lu.",
-                     id, group_master_log_pos, group_master_log_name,
-                     worker_checkpoint_seqno));
-=======
   DBUG_PRINT("mta", ("Committing worker-id %lu group source log pos %llu "
                      "group source log name %s checkpoint sequence number %lu.",
-                     id, group_master_log_pos, group_master_log_name,
-                     worker_checkpoint_seqno));
->>>>>>> mysql-8.0.33
+                     id, get_group_master_log_pos(),
+                     get_group_master_log_name(), worker_checkpoint_seqno));
 
   DBUG_EXECUTE_IF("mta_debug_concurrent_access",
                   { mta_debug_concurrent_access++; };);

@@ -35,14 +35,7 @@ namespace binary_log_debug {
 bool debug_query_mts_corrupt_db_names = false;
 bool debug_checksum_test = false;
 bool debug_simulate_invalid_address = false;
-<<<<<<< HEAD
-bool debug_pretend_version_50034_in_binlog = false;
 bool debug_expect_unknown_event = false;
-||||||| ce0de82d3aa
-bool debug_pretend_version_50034_in_binlog = false;
-=======
-
->>>>>>> mysql-8.0.33
 }  // namespace binary_log_debug
 
 namespace binary_log {

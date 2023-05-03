@@ -1529,8 +1529,8 @@ inline void trx_stats::bump_io_read(trx_t *trx, ulint n) noexcept {
   if (UNIV_LIKELY_NULL(trx)) bump_io_read(*trx, n);
 }
 
-inline void trx_stats::bump_innodb_enter_wait(const trx_t &trx, ulint us) const
-    noexcept {
+inline void trx_stats::bump_innodb_enter_wait(const trx_t &trx,
+                                              ulint us) const noexcept {
   if (UNIV_LIKELY(!take_stats)) return;
   thd_report_innodb_stat(trx.mysql_thd, trx.id,
                          MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS, us);
@@ -1546,8 +1546,7 @@ inline void trx_stats::stop_lock_wait(const trx_t &trx) noexcept {
 #pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
-  ut_d(lock_que_wait_ustarted =
-           std::chrono::steady_clock::time_point{});
+  ut_d(lock_que_wait_ustarted = std::chrono::steady_clock::time_point{});
 #pragma GCC diagnostic pop
 }
 

@@ -14,17 +14,9 @@
 # via replication
 
 --connection slave
-<<<<<<< HEAD
 --source include/only_mts_replica_parallel_workers.inc
-call mtr.add_suppression("Slave SQL for channel '': Worker.*failed executing transaction");
-call mtr.add_suppression("Slave SQL for channel '':.*The slave coordinator and worker threads are stopped");
-||||||| ce0de82d3aa
-call mtr.add_suppression("Slave SQL for channel '': Worker.*failed executing transaction");
-call mtr.add_suppression("Slave SQL for channel '':.*The slave coordinator and worker threads are stopped");
-=======
 call mtr.add_suppression("Replica SQL for channel '': Worker.*failed executing transaction");
 call mtr.add_suppression("Replica SQL for channel '':.*The replica coordinator and worker threads are stopped");
->>>>>>> mysql-8.0.33
 
 --eval CREATE TABLE t (a TEXT) select "a" as a
 
@@ -83,7 +75,7 @@ DROP TABLE t;
 # printed three times.
 
 # Steps that are executed above ensure that MTS slave stops with an error.
-# Following lines check that "The slave coordinator and worker threads are
+# Following lines check that "The replica coordinator and worker threads are
 # stopped..." error message is printed only once in the error log.
 
 --let $expected_errno= convert_error(ER_MTA_INCONSISTENT_DATA)

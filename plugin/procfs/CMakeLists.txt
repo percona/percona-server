@@ -1,5 +1,6 @@
 MYSQL_ADD_PLUGIN(procfs procfs.cc
-  MODULE_ONLY)
+  MODULE_ONLY
+  LINK_LIBRARIES extra::rapidjson)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 

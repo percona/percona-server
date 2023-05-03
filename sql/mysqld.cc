@@ -10106,12 +10106,6 @@ static int show_resource_group_support(THD *, SHOW_VAR *var, char *buf) {
   return 0;
 }
 
-<<<<<<< HEAD
-/*
-  Variables shown by SHOW STATUS in alphabetical order
-*/
-||||||| ce0de82d3aa
-=======
 static int show_telemetry_traces_support(THD * /*unused*/, SHOW_VAR *var,
                                          char *buf) {
   var->type = SHOW_BOOL;
@@ -10124,7 +10118,9 @@ static int show_telemetry_traces_support(THD * /*unused*/, SHOW_VAR *var,
   return 0;
 }
 
->>>>>>> mysql-8.0.33
+/*
+  Variables shown by SHOW STATUS in alphabetical order
+*/
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,

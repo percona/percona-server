@@ -21,17 +21,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 [Unit]
-<<<<<<< HEAD
 Description=Percona MySQL Router
-After=network.target
-||||||| ce0de82d3aa
-Description=MySQL Router
-After=network.target
-=======
-Description=MySQL Router
 After=network-online.target
 Wants=network-online.target
->>>>>>> mysql-8.0.33
 After=syslog.target
 
 

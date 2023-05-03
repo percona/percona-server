@@ -1072,19 +1072,13 @@ static rec_t *rec_convert_dtuple_to_rec_new(byte *buf,
                               &extra_size);
   rec = buf + extra_size;
 
-<<<<<<< HEAD
 #ifdef UNIV_DEBUG
   /* Suppress Valgrind warnings in mach_read_from_1() called from
    * rec_set_bit_field_1() */
   mach_write_to_1(rec - REC_NEW_INFO_BITS, 0xFF);
 #endif /* UNIV_DEBUG */
 
-  bool instant = rec_convert_dtuple_to_rec_comp(
-||||||| ce0de82d3aa
-  bool instant = rec_convert_dtuple_to_rec_comp(
-=======
   auto rec_state = rec_convert_dtuple_to_rec_comp(
->>>>>>> mysql-8.0.33
       rec, index, dtuple->fields, dtuple->n_fields, nullptr, status, false,
       index->table->current_row_version);
 

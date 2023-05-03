@@ -60,14 +60,8 @@ TARGET_LINK_LIBRARIES(router_lib
   ${CMAKE_DL_LIBS}
   harness-library
   harness_stdx
-<<<<<<< HEAD
-  perconaserverclient
-||||||| ce0de82d3aa
-  mysqlclient
-=======
   harness_tls
-  mysqlclient
->>>>>>> mysql-8.0.33
+  perconaserverclient
   ${SSL_LIBRARIES}
   io_component
   extra::rapidjson

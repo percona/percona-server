@@ -1701,14 +1701,6 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_data_pending_writes = os_n_pending_writes;
 
   export_vars.innodb_data_pending_fsyncs =
-<<<<<<< HEAD
-      log_pending_flushes() + fil_n_pending_tablespace_flushes;
-  export_vars.innodb_adaptive_hash_hash_searches = btr_cur_n_sea;
-  export_vars.innodb_adaptive_hash_non_hash_searches = btr_cur_n_non_sea;
-  export_vars.innodb_background_log_sync = srv_log_writes_and_flush;
-||||||| ce0de82d3aa
-      log_pending_flushes() + fil_n_pending_tablespace_flushes;
-=======
       log_pending_flushes() + fil_n_pending_tablespace_flushes.load();
 
   // Check against unsigned underflow in debug - values close to max value
@@ -1716,7 +1708,10 @@ void srv_export_innodb_status(void) {
   // on failure
   ut_ad(export_vars.innodb_data_pending_fsyncs <=
         std::numeric_limits<ulint>::max() - 1000);
->>>>>>> mysql-8.0.33
+
+  export_vars.innodb_adaptive_hash_hash_searches = btr_cur_n_sea;
+  export_vars.innodb_adaptive_hash_non_hash_searches = btr_cur_n_non_sea;
+  export_vars.innodb_background_log_sync = srv_log_writes_and_flush;
 
   export_vars.innodb_data_fsyncs = os_n_fsyncs;
 
@@ -2803,7 +2798,8 @@ void undo_rotate_default_master_key() {
 
     space = fil_space_get(undo_space->id());
 
-    if (space == nullptr || space->m_encryption_metadata.m_type != Encryption::AES) {
+    if (space == nullptr ||
+        space->m_encryption_metadata.m_type != Encryption::AES) {
       continue;
     }
 

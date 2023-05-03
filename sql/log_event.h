@@ -1515,7 +1515,7 @@ class Start_encryption_log_event final
   Start_encryption_log_event(const char *buf,
                              const Format_description_event *description_event);
 
-  Log_event_type get_type_code() noexcept {
+  Log_event_type get_type_code() const override {
     return binary_log::START_5_7_ENCRYPTION_EVENT;
   }
 
@@ -1524,8 +1524,8 @@ class Start_encryption_log_event final
  protected:
 #ifdef MYSQL_SERVER
   virtual int do_update_pos(Relay_log_info *rli) override;
-  virtual enum_skip_reason do_shall_skip(
-      Relay_log_info *rli [[maybe_unused]]) noexcept override {
+  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli
+                                         [[maybe_unused]]) noexcept override {
     return Log_event::EVENT_SKIP_NOT;
   }
 #endif

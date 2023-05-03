@@ -228,7 +228,6 @@ opt_always_activate_roles_on_login is set to true.
 
  */
 
-<<<<<<< HEAD
 static const char *command_array[] = {"SELECT",
                                       "INSERT",
                                       "UPDATE",
@@ -266,11 +265,6 @@ TYPELIB utility_user_privileges_typelib = {array_elements(command_array) - 1,
                                            "utility_user_privileges_typelib",
                                            command_array, nullptr};
 
-namespace {
-||||||| ce0de82d3aa
-namespace {
-=======
->>>>>>> mysql-8.0.33
 /**
   Class to handle sanity checks for GRANT ... AS ... statement
 */

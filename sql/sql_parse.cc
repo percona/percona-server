@@ -1972,25 +1972,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       break;
     }
     case COM_CHANGE_USER: {
-<<<<<<< HEAD
-||||||| ce0de82d3aa
-      /*
-        LOCK_thd_security_ctx protects the THD's security-context from
-        inspection by SHOW PROCESSLIST while we're updating it. Nested
-        acquiring of LOCK_thd_data is fine (see below).
-      */
-      MUTEX_LOCK(grd_secctx, &thd->LOCK_thd_security_ctx);
-
-=======
       MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(thd->m_statement_psi, false);
-      /*
-        LOCK_thd_security_ctx protects the THD's security-context from
-        inspection by SHOW PROCESSLIST while we're updating it. Nested
-        acquiring of LOCK_thd_data is fine (see below).
-      */
-      MUTEX_LOCK(grd_secctx, &thd->LOCK_thd_security_ctx);
 
->>>>>>> mysql-8.0.33
       int auth_rc;
       thd->status_var.com_other++;
 

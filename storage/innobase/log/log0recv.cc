@@ -3897,43 +3897,7 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   /* Now wait for currently in progress batches to finish. */
   buf_flush_wait_LRU_batch_end();
 
-<<<<<<< HEAD
-  MetadataRecover *metadata;
-||||||| ce0de82d3aa
-  mutex_exit(&recv_sys->writer_mutex);
-
-  uint32_t count = 0;
-
-  while (recv_writer_is_active()) {
-    ++count;
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (count >= 600) {
-      ib::info(ER_IB_MSG_738);
-      count = 0;
-    }
-  }
-
-  MetadataRecover *metadata;
-=======
-  mutex_exit(&recv_sys->writer_mutex);
-
-  uint32_t count = 0;
-
-  while (recv_writer_is_active()) {
-    ++count;
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (count >= 600) {
-      ib::info(ER_IB_MSG_738);
-      count = 0;
-    }
-  }
-
   MetadataRecover *metadata{};
->>>>>>> mysql-8.0.33
 
   if (!aborting) {
     std::swap(metadata, recv_sys->metadata_recover);

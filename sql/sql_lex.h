@@ -2803,8 +2803,8 @@ class Query_tables_list {
     @retval false if the statement is not marked as unsafe.
     @retval true if it is.
   */
-  inline bool is_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) const
-      noexcept {
+  inline bool is_stmt_unsafe(
+      enum_binlog_stmt_unsafe unsafe_type) const noexcept {
     return ((binlog_stmt_flags & (1U << unsafe_type)) != 0);
   }
 

@@ -123,11 +123,5 @@ FOREACH(file ${ABI_HEADERS})
       "ABI check found difference between ${file}.pp and ${abi_check_out}, "
       "compilation error file can be found here: ${errorfile}")
   ENDIF()
-<<<<<<< HEAD
   FILE(REMOVE ${errorfile})
-  FILE(REMOVE ${abi_check_out})
-||||||| ce0de82d3aa
-  FILE(REMOVE ${abi_check_out})
-=======
->>>>>>> mysql-8.0.33
 ENDFOREACH()

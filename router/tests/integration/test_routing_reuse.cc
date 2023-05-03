@@ -500,7 +500,7 @@ class SharedServer {
   }
 
  private:
-  TempDirectory mysqld_dir_{"mysqld"};
+  TempDirectory mysqld_dir_{MYSQLD_BIN};
 
   integration_tests::Procs procs_;
   TcpPortPool &port_pool_;

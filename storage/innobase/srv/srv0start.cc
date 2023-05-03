@@ -218,41 +218,6 @@ or other policy for timed out wait is applied. */
 static constexpr uint32_t SHUTDOWN_SLEEP_ROUNDS =
     60 * 1000 * 1000 / SHUTDOWN_SLEEP_TIME_US;
 
-<<<<<<< HEAD
-static std::atomic<ulint> io_tid_i(0);
-
-/** I/o-handler thread function.
-@param[in]      segment         The AIO segment the thread will work on */
-static void io_handler_thread(ulint segment) {
-  const auto tid_i = io_tid_i.fetch_add(1, std::memory_order_relaxed);
-  ut_ad(tid_i < srv_n_file_io_threads);
-  srv_io_tids[tid_i] = os_thread_get_tid();
-  const auto actual_priority =
-      os_thread_set_priority(srv_io_tids[tid_i], srv_sched_priority_io);
-  if (UNIV_UNLIKELY(actual_priority != srv_sched_priority_purge))
-    ib::warn() << "Failed to set I/O thread priority to "
-               << srv_sched_priority_master << " the current priority is "
-               << actual_priority;
-
-  while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
-         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free() ||
-         buf_flush_active_lru_managers() > 0) {
-    fil_aio_wait(segment);
-  }
-}
-
-||||||| ce0de82d3aa
-/** I/o-handler thread function.
-@param[in]      segment         The AIO segment the thread will work on */
-static void io_handler_thread(ulint segment) {
-  while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
-         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free()) {
-    fil_aio_wait(segment);
-  }
-}
-
-=======
->>>>>>> mysql-8.0.33
 /** Create undo tablespace.
 @param[in]  undo_space  Undo Tablespace
 @return DB_SUCCESS or error code */
@@ -1543,67 +1508,11 @@ static dberr_t srv_init_abort_low(bool create_new_db,
   return (err);
 }
 
-<<<<<<< HEAD
-/** Enable encryption of system tablespace if requested. At
-startup load the encryption information from first datafile
-to tablespace object
-@return DB_SUCCESS on succes, others on failure */
-static dberr_t srv_sys_enable_encryption(bool create_new_db) {
-  fil_space_t *space = fil_space_get(TRX_SYS_SPACE);
-  dberr_t err = DB_SUCCESS;
-
-  if (create_new_db && srv_sys_tablespace_encrypt) {
-    fsp_flags_set_encryption(space->flags);
-    srv_sys_space.set_flags(space->flags);
-
-    err = fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
-    ut_ad(err == DB_SUCCESS);
-  } else {
-    const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
-    const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
-
-    if (is_encrypted && !srv_sys_tablespace_encrypt) {
-      ib::error() << "The system tablespace is encrypted but"
-                  << " --innodb_sys_tablespace_encrypt is"
-                  << " OFF. Enable the option and start server";
-      return (DB_ERROR);
-    }
-
-    if (!is_encrypted && srv_sys_tablespace_encrypt) {
-      ib::error() << "The system tablespace is not encrypted but"
-                  << " --innodb_sys_tablespace_encrypt is"
-                  << " ON. This instance was not bootstrapped"
-                  << " with --innodb_sys_tablespace_encrypt=ON."
-                  << " Disable this option and start server";
-      return (DB_ERROR);
-    }
-
-    if (is_encrypted) {
-      fsp_flags_set_encryption(space->flags);
-      srv_sys_space.set_flags(space->flags);
-
-      err = fil_set_encryption(space->id, Encryption::AES,
-                               srv_sys_space.m_files.begin()->m_encryption_key,
-                               srv_sys_space.m_files.begin()->m_encryption_iv);
-      ut_ad(err == DB_SUCCESS);
-    }
-  }
-
-  return (err);
-}
-
-dberr_t srv_start(bool create_new_db) {
-  lsn_t flushed_lsn;
-||||||| ce0de82d3aa
-dberr_t srv_start(bool create_new_db) {
-  lsn_t flushed_lsn;
-=======
 /** Recreate REDO log files.
 @param[in,out] flushed_lsn flushed_lsn
 @return DB_SUCCESS or error code */
 static dberr_t recreate_redo_files(lsn_t &flushed_lsn) {
   ut_d(log_sys->disable_redo_writes = true);
->>>>>>> mysql-8.0.33
 
   /* Emit a message to the error log. */
   const auto target_size = log_sys->m_capacity.target_physical_capacity();
@@ -1651,6 +1560,54 @@ static dberr_t recreate_redo_files(lsn_t &flushed_lsn) {
   }
 
   return DB_SUCCESS;
+}
+
+/** Enable encryption of system tablespace if requested. At
+startup load the encryption information from first datafile
+to tablespace object
+@return DB_SUCCESS on succes, others on failure */
+static dberr_t srv_sys_enable_encryption(bool create_new_db) {
+  fil_space_t *space = fil_space_get(TRX_SYS_SPACE);
+  dberr_t err = DB_SUCCESS;
+
+  if (create_new_db && srv_sys_tablespace_encrypt) {
+    fsp_flags_set_encryption(space->flags);
+    srv_sys_space.set_flags(space->flags);
+
+    err = fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
+    ut_ad(err == DB_SUCCESS);
+  } else {
+    const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
+    const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
+
+    if (is_encrypted && !srv_sys_tablespace_encrypt) {
+      ib::error() << "The system tablespace is encrypted but"
+                  << " --innodb_sys_tablespace_encrypt is"
+                  << " OFF. Enable the option and start server";
+      return (DB_ERROR);
+    }
+
+    if (!is_encrypted && srv_sys_tablespace_encrypt) {
+      ib::error() << "The system tablespace is not encrypted but"
+                  << " --innodb_sys_tablespace_encrypt is"
+                  << " ON. This instance was not bootstrapped"
+                  << " with --innodb_sys_tablespace_encrypt=ON."
+                  << " Disable this option and start server";
+      return (DB_ERROR);
+    }
+
+    if (is_encrypted) {
+      fsp_flags_set_encryption(space->flags);
+      srv_sys_space.set_flags(space->flags);
+
+      err = fil_set_encryption(space->id, Encryption::AES,
+                               srv_sys_space.m_files.begin()->m_encryption_key,
+                               srv_sys_space.m_files.begin()->m_encryption_iv);
+      ut_ad(err == DB_SUCCESS);
+    }
+  }
+
+  return (err);
 }
 
 dberr_t srv_start(bool create_new_db) {
@@ -2652,33 +2609,9 @@ void srv_start_threads() {
     return;
   }
 
-<<<<<<< HEAD
-  if (!bootstrap && srv_force_recovery < SRV_FORCE_NO_TRX_UNDO &&
-      trx_sys_need_rollback()) {
-    /* Rollback all recovered transactions that are
-    not in committed nor in XA PREPARE state. */
-    srv_threads.m_trx_recovery_rollback = os_thread_create(
-        trx_recovery_rollback_thread_key, 0, trx_recovery_rollback_thread);
-
-    srv_threads.m_trx_recovery_rollback.start();
-  }
-
   /* Enable row log encryption if it is set */
   log_tmp_enable_encryption_if_set();
 
-||||||| ce0de82d3aa
-  if (!bootstrap && srv_force_recovery < SRV_FORCE_NO_TRX_UNDO &&
-      trx_sys_need_rollback()) {
-    /* Rollback all recovered transactions that are
-    not in committed nor in XA PREPARE state. */
-    srv_threads.m_trx_recovery_rollback = os_thread_create(
-        trx_recovery_rollback_thread_key, 0, trx_recovery_rollback_thread);
-
-    srv_threads.m_trx_recovery_rollback.start();
-  }
-
-=======
->>>>>>> mysql-8.0.33
   /* Create the master thread which does purge and other utility
   operations */
   srv_threads.m_master =

@@ -116,32 +116,16 @@ DROP TABLE t1;
 --error ER_REPLICA_CONFIGURATION
 START SLAVE;
 
-<<<<<<< HEAD
 # Change replication source should fail as slave not configured
---error ER_SLAVE_CONFIGURATION
-||||||| ce0de82d3aa
-# Change master should fail as slave not configured
---error ER_SLAVE_CONFIGURATION
-=======
-# Change master should fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
->>>>>>> mysql-8.0.33
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
 # Start slave for channel should fail as not configured
 --error ER_REPLICA_CONFIGURATION
 START SLAVE FOR CHANNEL 'any_channel';
 
-<<<<<<< HEAD
 # Change replication source for channel should fail as slave not configured
---error ER_SLAVE_CONFIGURATION
-||||||| ce0de82d3aa
-# Change master for channel should fail as slave not configured
---error ER_SLAVE_CONFIGURATION
-=======
-# Change master for channel should fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
->>>>>>> mysql-8.0.33
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 
 # Set original slave's server_id into @@GLOBAL.server_id
@@ -151,32 +135,16 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 --error ER_REPLICA_CONFIGURATION
 START SLAVE;
 
-<<<<<<< HEAD
 # Change replication source should still fail as slave not configured
---error ER_SLAVE_CONFIGURATION
-||||||| ce0de82d3aa
-# Change master should still fail as slave not configured
---error ER_SLAVE_CONFIGURATION
-=======
-# Change master should still fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
->>>>>>> mysql-8.0.33
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
 # Start slave for channel should still fail as not configured
 --error ER_REPLICA_CONFIGURATION
 START SLAVE FOR CHANNEL 'any_channel';
 
-<<<<<<< HEAD
 # Change replication source for channel should still fail as slave not configured
---error ER_SLAVE_CONFIGURATION
-||||||| ce0de82d3aa
-# Change master for channel should still fail as slave not configured
---error ER_SLAVE_CONFIGURATION
-=======
-# Change master for channel should still fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
->>>>>>> mysql-8.0.33
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 
 # Set server_id to 0 with PERSIST option

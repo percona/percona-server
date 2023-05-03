@@ -150,7 +150,7 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 
 # Add suppressions on replica server.
 CALL mtr.add_suppression("Consider raising the value of the replica_transaction_retries variable");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 CALL mtr.add_suppression("Worker .* failed executing transaction");
 
 

@@ -30,14 +30,8 @@ __pycache__/
 heatwaveml.*
 automl.egg-info/
 _userconf.sh
-<<<<<<< HEAD
-scalability_jobs_*
-||||||| ce0de82d3aa
-scalability_jobs_*
-=======
 scalability_jobs_*
 # Configuration files for Eclipse
 .cproject
 .project
 .settings/
->>>>>>> mysql-8.0.33

@@ -3,7 +3,7 @@
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
 
-call mtr.add_suppression("Slave:*");
+call mtr.add_suppression("Replica:*");
 
 create table a(id int);
 insert into a values(11);

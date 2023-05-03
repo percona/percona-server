@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-Copyright (c) 2009, 2017, Percona Inc.
-||||||| ce0de82d3aa
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2023, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.0.33
+Copyright (c) 2009, 2017, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -535,13 +527,12 @@ class IORequest {
   /** Disable transformations. */
   void disable_compression() { m_type |= NO_COMPRESSION; }
 
-<<<<<<< HEAD
   /** Disable encryption of a page in encrypted tablespace */
   void disable_encryption() noexcept { m_type |= NO_ENCRYPTION; }
 
   /** Set encryption algorithm
   @param[in] type               The encryption algorithm to use */
-  void encryption_algorithm(Encryption::Type type) {
+  void set_encryption_algorithm(Encryption::Type type) {
     if (type == Encryption::NONE) {
       return;
     }
@@ -549,39 +540,6 @@ class IORequest {
     m_encryption.set_type(type);
   }
 
-  /** Set encryption key and iv
-  @param[in] key                The encryption key to use
-  @param[in] key_len    length of the encryption key
-  @param[in] iv         The encryption iv to use */
-  void encryption_key(const byte *key, ulint key_len, const byte *iv) {
-    m_encryption.set_key(key);
-    m_encryption.set_key_length(key_len);
-    m_encryption.set_initial_vector(iv);
-  }
-
-||||||| ce0de82d3aa
-  /** Set encryption algorithm
-  @param[in] type               The encryption algorithm to use */
-  void encryption_algorithm(Encryption::Type type) {
-    if (type == Encryption::NONE) {
-      return;
-    }
-
-    m_encryption.set_type(type);
-  }
-
-  /** Set encryption key and iv
-  @param[in] key                The encryption key to use
-  @param[in] key_len    length of the encryption key
-  @param[in] iv         The encryption iv to use */
-  void encryption_key(const byte *key, ulint key_len, const byte *iv) {
-    m_encryption.set_key(key);
-    m_encryption.set_key_length(key_len);
-    m_encryption.set_initial_vector(iv);
-  }
-
-=======
->>>>>>> mysql-8.0.33
   /** Get the encryption algorithm.
   @return the encryption algorithm */
   [[nodiscard]] Encryption encryption_algorithm() const {
@@ -1687,8 +1645,9 @@ Requests a synchronous read operation of page 0 of IBD file.
 @param[in]      n               number of bytes to read
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 [[nodiscard]] dberr_t os_file_read_func(IORequest &type, const char *file_name,
-                          os_file_t file, void *buf, os_offset_t offset,
-                          ulint n, trx_t *trx);
+                                        os_file_t file, void *buf,
+                                        os_offset_t offset, ulint n,
+                                        trx_t *trx);
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1701,9 +1660,9 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 [[nodiscard]] dberr_t os_file_read_first_page_func(IORequest &type,
-                                                  const char *file_name,
-                                                  os_file_t file, void *buf,
-                                                  ulint n, bool exit_on_err);
+                                                   const char *file_name,
+                                                   os_file_t file, void *buf,
+                                                   ulint n, bool exit_on_err);
 
 /** Copy data from one file to another file. Data is read/written
 at current file offset.

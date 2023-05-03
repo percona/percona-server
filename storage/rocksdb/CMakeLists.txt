@@ -373,7 +373,7 @@ IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
 ENDIF()
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-ldl" ${PLUGIN_LD})
+SET(rocksdb_static_libs ${rocksdb_static_libs} ext::zlib ext::zstd ext::lz4 extra::rapidjson "-ldl" ${PLUGIN_LD})
 IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
   SET(rocksdb_static_libs ${rocksdb_static_libs} "-lrt")
 ENDIF()

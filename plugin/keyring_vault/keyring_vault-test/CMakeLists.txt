@@ -34,5 +34,5 @@ MYSQL_ADD_EXECUTABLE(keyring_vault-test
                ADD_TEST keyring_vault-test)
 
 TARGET_LINK_LIBRARIES(keyring_vault-test strings mysys sql_main minchassis)
-TARGET_LINK_LIBRARIES(keyring_vault-test binlog rpl master slave)
+TARGET_LINK_LIBRARIES(keyring_vault-test binlog rpl rpl_source rpl_replica)
 TARGET_LINK_LIBRARIES(keyring_vault-test ${CURL_LIBRARY} ${SSL_LIBRARIES})

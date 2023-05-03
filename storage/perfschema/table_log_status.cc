@@ -225,18 +225,10 @@ int table_log_status::make_row() {
   */
   {
     Log_resource *res;
-<<<<<<< HEAD
     res = Log_resource_factory::get_wrapper(gtid_state, &mysql_bin_log,
                                             &json_local);
-    if ((error = DBUG_EVALUATE_IF("log_status_oom_gtid", 1, !res))) {
-||||||| ce0de82d3aa
-    res = Log_resource_factory::get_wrapper(gtid_state, &json_local);
-    if ((error = DBUG_EVALUATE_IF("log_status_oom_gtid", 1, !res))) {
-=======
-    res = Log_resource_factory::get_wrapper(gtid_state, &json_local);
     error = DBUG_EVALUATE_IF("log_status_oom_gtid", 1, !res);
     if (error) {
->>>>>>> mysql-8.0.33
       my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0), "LOCAL",
                "failed to allocate memory to collect "
                "gtid_executed information");

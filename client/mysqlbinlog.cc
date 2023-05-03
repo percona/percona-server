@@ -2920,8 +2920,8 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
     return error || rewrite_db(buffer, length);
   }
 
-  bool start_decryption(
-      binary_log::Start_encryption_event *see [[maybe_unused]]) {
+  bool start_decryption(binary_log::Start_encryption_event *see
+                        [[maybe_unused]]) {
     m_binlog_5_7_encrypted = true;
     return false;
   }

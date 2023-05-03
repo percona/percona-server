@@ -883,14 +883,7 @@ class MysqlClient {
       return stdx::make_unexpected(make_mysql_error_code(m_.get()));
     }
 
-<<<<<<< HEAD
-    mysql_free_result(res);
-    return {res};
-||||||| ce0de82d3aa
-    return {res};
-=======
     return {std::in_place, m_.get(), res};
->>>>>>> mysql-8.0.33
   }
 
   stdx::expected<Statement::ResultSet, MysqlError> list_fields(
@@ -901,14 +894,7 @@ class MysqlClient {
       return stdx::make_unexpected(make_mysql_error_code(m_.get()));
     }
 
-<<<<<<< HEAD
-    mysql_free_result(res);
-    return {m_.get()};
-||||||| ce0de82d3aa
-    return {m_.get()};
-=======
     return {std::in_place, m_.get(), res};
->>>>>>> mysql-8.0.33
   }
 
   template <class T, class N>

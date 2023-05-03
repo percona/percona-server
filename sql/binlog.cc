@@ -4213,7 +4213,6 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     // This is not a fatal error; the log may just be truncated.
     // @todo but what other errors could happen? IO error?
     LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_RELAY_LOG, -1);
-    sql_print_warning(relaylog_file_reader.get_error_str());
   }
 
 #ifndef NDEBUG
@@ -4450,7 +4449,6 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
 
     // @todo but what other errors could happen? IO error?
     LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_BINARY_LOG, -1);
-    sql_print_warning(binlog_file_reader.get_error_str());
   }
 
   if (all_gtids)
@@ -12029,8 +12027,8 @@ static int show_binlog_vars(THD *thd, SHOW_VAR *var,
   return 0;
 }
 
-static int show_binlog_snapshot_gtid_executed(
-    THD *thd, SHOW_VAR *var, char *buff [[maybe_unused]]) {
+static int show_binlog_snapshot_gtid_executed(THD *thd, SHOW_VAR *var,
+                                              char *buff [[maybe_unused]]) {
   mysql_mutex_assert_owner(&LOCK_status);
 
   const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);

@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| ce0de82d3aa
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-=======
 Copyright (c) 1995, 2023, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.33
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2495,16 +2489,10 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
     compressed_block = os_file_compress_page(type, frame, &n);
   }
 
-<<<<<<< HEAD
-  space->get_encryption_info(type.get_encryption_info());
-  type.encryption_algorithm(Encryption::AES);
+  type.get_encryption_info().set(space->m_encryption_metadata);
+  type.set_encryption_algorithm(Encryption::AES);
   page_size_t page_size(space->flags);
 
-||||||| ce0de82d3aa
-  space->get_encryption_info(type.get_encryption_info());
-=======
-  type.get_encryption_info().set(space->m_encryption_metadata);
->>>>>>> mysql-8.0.33
   auto e_block = os_file_encrypt_page(type, frame, n);
 
   if (compressed_block != nullptr) {
@@ -2979,14 +2967,8 @@ static bool is_dblwr_page_corrupted(byte *page, fil_space_t *space,
     IORequest req_type;
     size_t z_page_size;
 
-<<<<<<< HEAD
-    space->get_encryption_info(en);
-    req_type.encryption_algorithm(Encryption::AES);
-||||||| ce0de82d3aa
-    space->get_encryption_info(en);
-=======
     en.set(space->m_encryption_metadata);
->>>>>>> mysql-8.0.33
+    req_type.set_encryption_algorithm(Encryption::AES);
     fil_node_t *node = space->get_file_node(&page_no);
     req_type.block_size(node->block_size);
 

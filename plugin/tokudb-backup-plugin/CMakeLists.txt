@@ -1,3 +1,5 @@
+RETURN()  # Disable TokuDB
+
 # TokuDB only supports x86-64 and cmake-2.8.9+
 IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND
     NOT CMAKE_VERSION VERSION_LESS "2.8.9" AND

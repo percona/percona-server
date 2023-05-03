@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-Copyright (c) 2009, 2016, Percona Inc.
-||||||| ce0de82d3aa
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2023, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.0.33
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -6603,11 +6595,23 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
   return true;
 }
 
+std::atomic<ulint> io_tid_i(0);
+
 /** I/o-handler thread function.
 @param[in]      segment         The AIO segment the thread will work on */
 static void io_handler_thread(ulint segment) {
+  const auto tid_i = io_tid_i.fetch_add(1, std::memory_order_relaxed);
+  srv_io_tids[tid_i] = os_thread_get_tid();
+  const auto actual_priority =
+      os_thread_set_priority(srv_io_tids[tid_i], srv_sched_priority_io);
+  if (UNIV_UNLIKELY(actual_priority != srv_sched_priority_purge))
+    ib::warn() << "Failed to set I/O thread priority to "
+               << srv_sched_priority_master << " the current priority is "
+               << actual_priority;
+
   while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
-         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free()) {
+         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free() ||
+         buf_flush_active_lru_managers() > 0) {
     fil_aio_wait(segment);
   }
 }
@@ -6899,14 +6903,8 @@ ulint AIO::get_segment_no_from_slot(const AIO *array, const Slot *slot) {
 Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
                         pfs_os_file_t file, const char *name, void *buf,
                         os_offset_t offset, ulint len,
-<<<<<<< HEAD
                         const file::Block *e_block, space_id_t space_id) {
-||||||| ce0de82d3aa
-                        const file::Block *e_block) {
-=======
-                        const file::Block *e_block) {
   ut_a(!type.is_log());
->>>>>>> mysql-8.0.33
 #ifdef WIN_ASYNC_IO
   ut_a((len & 0xFFFFFFFFUL) == len);
 #endif /* WIN_ASYNC_IO */
@@ -7358,15 +7356,9 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
 
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
-<<<<<<< HEAD
                     bool read_only, fil_node_t *m1, void *m2,
                     space_id_t space_id, trx_t *trx, bool should_buffer) {
-||||||| ce0de82d3aa
-                    bool read_only, fil_node_t *m1, void *m2) {
-=======
-                    bool read_only, fil_node_t *m1, void *m2) {
   ut_a(!type.is_log());
->>>>>>> mysql-8.0.33
 #ifdef WIN_ASYNC_IO
   BOOL ret = TRUE;
 #endif /* WIN_ASYNC_IO */

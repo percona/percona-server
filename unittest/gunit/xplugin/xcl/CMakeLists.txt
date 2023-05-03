@@ -67,16 +67,8 @@ TARGET_LINK_LIBRARIES(${XCL_UNIT_TESTS}
   ${MYSQLX_CLIENT_FULL_LIB}
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_LIBRARY}
-<<<<<<< HEAD
-  ${LZ4_LIBRARY}
-  perconaserverclient
-||||||| ce0de82d3aa
-  ${LZ4_LIBRARY}
-  mysqlclient
-=======
   ext::lz4
-  mysqlclient
->>>>>>> mysql-8.0.33
+  perconaserverclient
   gtest
   gmock
 )

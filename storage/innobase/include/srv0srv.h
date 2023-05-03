@@ -650,7 +650,6 @@ extern ulint srv_show_locks_held;
 
 extern ulint srv_lock_table_size;
 
-<<<<<<< HEAD
 extern ulint srv_cleaner_max_lru_time; /*!< the maximum time limit for a
                                       single LRU tail flush iteration by the
                                       page cleaner thread */
@@ -667,11 +666,6 @@ extern ulong srv_empty_free_list_algorithm;
 /*!< Empty free list for a query thread
 handling algorithm option */
 
-extern ulint srv_n_file_io_threads;
-||||||| ce0de82d3aa
-extern ulint srv_n_file_io_threads;
-=======
->>>>>>> mysql-8.0.33
 extern bool srv_random_read_ahead;
 extern ulong srv_read_ahead_threshold;
 extern ulong srv_n_read_io_threads;

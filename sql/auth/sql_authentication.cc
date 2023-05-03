@@ -1083,10 +1083,6 @@ plugin_ref Cached_authentication_plugins::get_cached_plugin_ref(
   return cached_plugin;
 }
 
-<<<<<<< HEAD
-external_roles_t g_external_roles;
-||||||| ce0de82d3aa
-=======
 /*
   Fetch the SSL security level
 */
@@ -1118,7 +1114,7 @@ int security_level(void) {
   return current_sec_level;
 }
 
->>>>>>> mysql-8.0.33
+external_roles_t g_external_roles;
 Cached_authentication_plugins *g_cached_authentication_plugins = nullptr;
 
 bool disconnect_on_expired_password = true;

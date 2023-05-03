@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,14 @@ namespace binary_log_debug {
 bool debug_query_mts_corrupt_db_names = false;
 bool debug_checksum_test = false;
 bool debug_simulate_invalid_address = false;
+<<<<<<< HEAD
 bool debug_pretend_version_50034_in_binlog = false;
 bool debug_expect_unknown_event = false;
+||||||| ce0de82d3aa
+bool debug_pretend_version_50034_in_binlog = false;
+=======
+
+>>>>>>> mysql-8.0.33
 }  // namespace binary_log_debug
 
 namespace binary_log {

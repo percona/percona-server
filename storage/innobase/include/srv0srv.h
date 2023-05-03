@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -650,6 +650,7 @@ extern ulint srv_show_locks_held;
 
 extern ulint srv_lock_table_size;
 
+<<<<<<< HEAD
 extern ulint srv_cleaner_max_lru_time; /*!< the maximum time limit for a
                                       single LRU tail flush iteration by the
                                       page cleaner thread */
@@ -667,6 +668,10 @@ extern ulong srv_empty_free_list_algorithm;
 handling algorithm option */
 
 extern ulint srv_n_file_io_threads;
+||||||| ce0de82d3aa
+extern ulint srv_n_file_io_threads;
+=======
+>>>>>>> mysql-8.0.33
 extern bool srv_random_read_ahead;
 extern ulong srv_read_ahead_threshold;
 extern ulong srv_n_read_io_threads;
@@ -914,9 +919,7 @@ extern mysql_pfs_key_t dict_stats_thread_key;
 extern mysql_pfs_key_t fts_optimize_thread_key;
 extern mysql_pfs_key_t fts_parallel_merge_thread_key;
 extern mysql_pfs_key_t fts_parallel_tokenization_thread_key;
-extern mysql_pfs_key_t io_handler_thread_key;
 extern mysql_pfs_key_t io_ibuf_thread_key;
-extern mysql_pfs_key_t io_log_thread_key;
 extern mysql_pfs_key_t io_read_thread_key;
 extern mysql_pfs_key_t io_write_thread_key;
 extern mysql_pfs_key_t log_writer_thread_key;

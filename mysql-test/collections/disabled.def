@@ -42,8 +42,15 @@ innodb.slow_shutdown                              : Bug#31763837 mtr hits this d
 innodb.upgrade_fts_aux                            : Bug#33034679 Test needs an upgrade of its 5.7 data files
 innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has changed - crashed_datadir.zip needs to be recreated.
 innodb.log_logical_size                           : WL#12527 Test is shaky - needs to be fixed.
+<<<<<<< HEAD
 # innodb_fts suite test
 innodb_fts.sync_block : BUG#2232 percona https://jira.percona.com/browse/PS-2232
+||||||| ce0de82d3aa
+=======
+innodb.doublewrite_on_to_reduced                  : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
+innodb.doublewrite_reduced                        : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
+innodb.doublewrite_reduced_odirect                : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
+>>>>>>> mysql-8.0.33
 
 # keyring tests
 keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
@@ -99,7 +106,6 @@ rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until 
 rpl_nogtid.rpl_semi_sync_group_commit_deadlock : BUG#80581 percona https://bugs.mysql.com/bug.php?id=80581
 rpl_nogtid.rpl_semi_sync_non_group_commit_deadlock : BUG#80581 percona https://bugs.mysql.com/bug.php?id=80581
 rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG INJECTION WITH SELF LOGGING ENGINES IS BROKEN
-rpl_nogtid.rpl_gipk_cross_version_schema_changes  : BUG#34668313 Fix rpl_gipk_cross_version_schema_changes & binlog_mysqlbinlog_source_gipk_info
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.

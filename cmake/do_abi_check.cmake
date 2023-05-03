@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -123,6 +123,11 @@ FOREACH(file ${ABI_HEADERS})
       "ABI check found difference between ${file}.pp and ${abi_check_out}, "
       "compilation error file can be found here: ${errorfile}")
   ENDIF()
+<<<<<<< HEAD
   FILE(REMOVE ${errorfile})
   FILE(REMOVE ${abi_check_out})
+||||||| ce0de82d3aa
+  FILE(REMOVE ${abi_check_out})
+=======
+>>>>>>> mysql-8.0.33
 ENDFOREACH()

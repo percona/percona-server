@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 # Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
+||||||| ce0de82d3aa
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# 
+=======
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+# 
+>>>>>>> mysql-8.0.33
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.

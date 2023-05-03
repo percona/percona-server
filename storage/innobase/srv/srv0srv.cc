@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <time.h>
 
 #include <chrono>
+#include <limits>
 
 #include "btr0sea.h"
 #include "buf0flu.h"
@@ -1700,10 +1701,22 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_data_pending_writes = os_n_pending_writes;
 
   export_vars.innodb_data_pending_fsyncs =
+<<<<<<< HEAD
       log_pending_flushes() + fil_n_pending_tablespace_flushes;
   export_vars.innodb_adaptive_hash_hash_searches = btr_cur_n_sea;
   export_vars.innodb_adaptive_hash_non_hash_searches = btr_cur_n_non_sea;
   export_vars.innodb_background_log_sync = srv_log_writes_and_flush;
+||||||| ce0de82d3aa
+      log_pending_flushes() + fil_n_pending_tablespace_flushes;
+=======
+      log_pending_flushes() + fil_n_pending_tablespace_flushes.load();
+
+  // Check against unsigned underflow in debug - values close to max value
+  // may be result of mismatched increment/decrement or data race; investigate
+  // on failure
+  ut_ad(export_vars.innodb_data_pending_fsyncs <=
+        std::numeric_limits<ulint>::max() - 1000);
+>>>>>>> mysql-8.0.33
 
   export_vars.innodb_data_fsyncs = os_n_fsyncs;
 
@@ -2981,10 +2994,8 @@ static void srv_master_wait(srv_slot_t *slot) {
 
   srv_suspend_thread(slot);
 
-  /* DO NOT CHANGE THIS STRING. innobase_start_or_create_for_mysql()
-  waits for database activity to die down when converting < 4.1.x
-  databases, and relies on this string being exactly as it is. InnoDB
-  manual also mentions this string in several places. */
+  /* DO NOT CHANGE THIS STRING.
+  InnoDB manual also mentions this string in several places. */
   srv_main_thread_op_info = "waiting for server activity";
 
   os_event_wait(slot->event);

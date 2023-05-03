@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -753,6 +753,7 @@ bool is_infoschema_db(const char *db);
 static char *primary_key_fields(const char *table_name, const bool desc);
 static bool get_view_structure(char *table, char *db);
 static bool dump_all_views_in_db(char *database);
+static bool get_gtid_mode(MYSQL *mysql_con);
 static int dump_all_tablespaces();
 static int dump_tablespaces_for_tables(char *db, char **table_names,
                                        int tables);
@@ -6279,6 +6280,38 @@ static int replace(DYNAMIC_STRING *ds_str, const char *search_str,
 }
 
 /**
+  This function checks if GTIDs are enabled on the server.
+
+  @param[in]          mysql_con         the connection to the server
+
+  @retval             true              if GTIDs are enabled on the server
+
+  @retval             false             if GTIDs are disabled on the server
+*/
+static bool get_gtid_mode(MYSQL *mysql_con) {
+  MYSQL_RES *gtid_mode_res;
+  MYSQL_ROW gtid_mode_row;
+  bool gtid_mode = false;
+  char *gtid_mode_val = nullptr;
+
+  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res,
+                                    "SHOW VARIABLES LIKE 'gtid_mode'"))
+    return false;
+
+  gtid_mode_row = mysql_fetch_row(gtid_mode_res);
+
+  /*
+     gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
+     get the gtid_mode value from the second column.
+  */
+  gtid_mode_val = gtid_mode_row ? (char *)gtid_mode_row[1] : nullptr;
+  gtid_mode = (gtid_mode_val && strcmp(gtid_mode_val, "OFF")) ? true : false;
+  mysql_free_result(gtid_mode_res);
+
+  return gtid_mode;
+}
+
+/**
   This function sets the session binlog in the dump file.
   When --set-gtid-purged is used, this function is called to
   disable the session binlog and at the end of the dump, to restore
@@ -6408,39 +6441,34 @@ static bool add_set_gtid_purged(MYSQL *mysql_con, bool ftwrl_done) {
   @param[in]          mysql_con     the connection to the server
   @param[in]      ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
 
+  @param[in]          is_gtid_enabled  true if server has gtid_mode on
+
   @retval             false         successful according to the value
                                     of opt_set_gtid_purged.
   @retval             true          fail.
 */
 
+<<<<<<< HEAD
 static bool process_set_gtid_purged(MYSQL *mysql_con, bool ftwrl_done) {
   MYSQL_RES *gtid_mode_res;
   MYSQL_ROW gtid_mode_row;
   char *gtid_mode_val = nullptr;
   char buf[32], query[64];
 
+||||||| ce0de82d3aa
+static bool process_set_gtid_purged(MYSQL *mysql_con) {
+  MYSQL_RES *gtid_mode_res;
+  MYSQL_ROW gtid_mode_row;
+  char *gtid_mode_val = nullptr;
+  char buf[32], query[64];
+
+=======
+static bool process_set_gtid_purged(MYSQL *mysql_con, bool is_gtid_enabled) {
+>>>>>>> mysql-8.0.33
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
     return false; /* nothing to be done */
 
-  /*
-    Check if the server has the knowledge of GTIDs(pre mysql-5.6)
-    or if the gtid_mode is ON or OFF.
-  */
-  snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
-           quote_for_like("gtid_mode", buf));
-
-  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res, query))
-    return true;
-
-  gtid_mode_row = mysql_fetch_row(gtid_mode_res);
-
-  /*
-     gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
-     get the gtid_mode value from the second column.
-  */
-  gtid_mode_val = gtid_mode_row ? (char *)gtid_mode_row[1] : nullptr;
-
-  if (gtid_mode_val && strcmp(gtid_mode_val, "OFF")) {
+  if (is_gtid_enabled) {
     /*
        For any gtid_mode !=OFF and irrespective of --set-gtid-purged
        being AUTO or ON,  add GTID_PURGED in the output.
@@ -6457,8 +6485,15 @@ static bool process_set_gtid_purged(MYSQL *mysql_con, bool ftwrl_done) {
     }
 
     set_session_binlog(false);
+<<<<<<< HEAD
     if (add_set_gtid_purged(mysql_con, ftwrl_done)) {
       mysql_free_result(gtid_mode_res);
+||||||| ce0de82d3aa
+    if (add_set_gtid_purged(mysql_con)) {
+      mysql_free_result(gtid_mode_res);
+=======
+    if (add_set_gtid_purged(mysql_con)) {
+>>>>>>> mysql-8.0.33
       return true;
     }
   } else /* gtid_mode is off */
@@ -6466,12 +6501,10 @@ static bool process_set_gtid_purged(MYSQL *mysql_con, bool ftwrl_done) {
     if (opt_set_gtid_purged_mode == SET_GTID_PURGED_ON ||
         opt_set_gtid_purged_mode == SET_GTID_PURGED_COMMENTED) {
       fprintf(stderr, "Error: Server has GTIDs disabled.\n");
-      mysql_free_result(gtid_mode_res);
       return true;
     }
   }
 
-  mysql_free_result(gtid_mode_res);
   return false;
 }
 
@@ -6825,6 +6858,8 @@ static int execute_sql_file(const char *sql_file) {
 #endif  // NDEBUG
 
 int main(int argc, char **argv) {
+  bool server_with_gtids_and_opt_purge_not_off = false;
+  bool server_has_gtid_enabled = false;
   char bin_log_name[FN_REFLEN];
   int exit_code, md_result_fd = 0;
   bool has_consistent_binlog_pos = false;
@@ -6876,6 +6911,7 @@ int main(int argc, char **argv) {
 
   if (opt_slave_data && do_stop_slave_sql(mysql)) goto err;
 
+<<<<<<< HEAD
   if (opt_single_transaction && opt_master_data) {
     /*
       See if we can avoid FLUSH TABLES WITH READ LOCK with Binlog_snapshot_*
@@ -6911,14 +6947,39 @@ int main(int argc, char **argv) {
     if (do_flush_tables_read_lock(mysql)) goto err;
     ftwrl_done = true;
   } else if (opt_lock_for_backup && do_lock_tables_for_backup(mysql))
+||||||| ce0de82d3aa
+  if ((opt_lock_all_tables || opt_master_data || opt_single_transaction) &&
+      do_flush_tables_read_lock(mysql))
+=======
+  server_has_gtid_enabled = get_gtid_mode(mysql);
+
+  server_with_gtids_and_opt_purge_not_off =
+      (server_has_gtid_enabled &&
+       (opt_set_gtid_purged_mode != SET_GTID_PURGED_OFF));
+
+  if ((opt_lock_all_tables || opt_master_data ||
+       (opt_single_transaction &&
+        (flush_logs || server_with_gtids_and_opt_purge_not_off))) &&
+      do_flush_tables_read_lock(mysql))
+>>>>>>> mysql-8.0.33
     goto err;
 
   /*
     Flush logs before starting transaction since
     this causes implicit commit starting mysql-5.5.
   */
+<<<<<<< HEAD
   if (opt_lock_all_tables || opt_master_data ||
       (opt_single_transaction && flush_logs) || opt_delete_master_logs) {
+||||||| ce0de82d3aa
+  if (opt_lock_all_tables || opt_master_data || opt_single_transaction ||
+      opt_delete_master_logs) {
+=======
+  if (opt_lock_all_tables || opt_master_data ||
+      (opt_single_transaction &&
+       (flush_logs || server_with_gtids_and_opt_purge_not_off)) ||
+      opt_delete_master_logs) {
+>>>>>>> mysql-8.0.33
     if (flush_logs || opt_delete_master_logs) {
       if (mysql_refresh(mysql, REFRESH_LOG)) {
         DB_error(mysql, "when doing refresh");
@@ -6947,7 +7008,13 @@ int main(int argc, char **argv) {
 
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required.
    */
+<<<<<<< HEAD
   if (process_set_gtid_purged(mysql, ftwrl_done)) goto err;
+||||||| ce0de82d3aa
+  if (process_set_gtid_purged(mysql)) goto err;
+=======
+  if (process_set_gtid_purged(mysql, server_has_gtid_enabled)) goto err;
+>>>>>>> mysql-8.0.33
 
   if (opt_master_data &&
       do_show_master_status(mysql, has_consistent_binlog_pos))

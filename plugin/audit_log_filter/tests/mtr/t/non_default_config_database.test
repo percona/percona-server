@@ -1,4 +1,8 @@
---skip Implement PS-8742
+--disable_query_log
+call mtr.add_suppression("Failed to shutdown components infrastructure.");
+--enable_query_log
+
+USE test;
 
 CREATE TABLE audit_log_filter(
     filter_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -13,9 +17,8 @@ CREATE TABLE audit_log_user(
     userhost VARCHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
     filtername VARCHAR(255) COLLATE utf8_bin NOT NULL,
     PRIMARY KEY (username, userhost),
-    FOREIGN KEY `filter_name` (filtername) REFERENCES mysql.audit_log_filter(name)
+    FOREIGN KEY `filter_name` (filtername) REFERENCES test.audit_log_filter(name)
 ) Engine=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci;
-
 
 --let $restart_parameters="restart: --audit-log-filter-database=test --audit-log-filter-format=NEW --audit-log-filter-file=audit_filter.xml.log"
 --source include/restart_mysqld.inc
@@ -23,16 +26,21 @@ CREATE TABLE audit_log_user(
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
 
+SELECT * FROM test.audit_log_filter;
+SELECT * FROM test.audit_log_user;
+
 --source generate_audit_events.inc
 
 --replace_column 1 <file_name>
 SELECT audit_log_rotate();
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
-
 --source validate_logs_format.inc
 
 --echo #
 --echo # Cleanup
 --let $restart_parameters="restart: "
 --source include/restart_mysqld.inc
+
+DROP TABLE audit_log_user;
+DROP TABLE audit_log_filter;

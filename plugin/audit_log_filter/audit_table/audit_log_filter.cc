@@ -232,9 +232,10 @@ TableResult AuditLogFilter::load_filters(
         filter_filter_value.get(), buff_filter_filter_value,
         sizeof(buff_filter_filter_value), utf8);
 
-    AuditRule rule{static_cast<uint64_t>(filter_id), buff_filter_name_value};
+    auto rule = std::make_shared<AuditRule>(static_cast<uint64_t>(filter_id),
+                                            buff_filter_name_value);
 
-    if (AuditRuleParser::parse(buff_filter_filter_value, rule)) {
+    if (AuditRuleParser::parse(buff_filter_filter_value, rule.get())) {
       container.insert({buff_filter_name_value, std::move(rule)});
     } else {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,

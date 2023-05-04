@@ -20,13 +20,14 @@
 #include "plugin/audit_log_filter/audit_rule.h"
 
 #include <map>
+#include <memory>
 #include <string>
 
 namespace audit_log_filter::audit_table {
 
 class AuditLogFilter : public AuditTableBase {
  public:
-  using AuditRulesContainer = std::map<std::string, AuditRule>;
+  using AuditRulesContainer = std::map<std::string, std::shared_ptr<AuditRule>>;
 
   explicit AuditLogFilter(std::string db_name);
 

@@ -357,7 +357,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
     return 0;
   }
 
-  auto *filter_rule = m_audit_rules_registry->get_rule(rule_name);
+  auto filter_rule = m_audit_rules_registry->get_rule(rule_name);
 
   if (filter_rule == nullptr) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -378,7 +378,8 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
   }
 
   // Apply filtering rule
-  AuditAction filter_result = AuditEventFilter::apply(filter_rule, audit_record);
+  AuditAction filter_result =
+      AuditEventFilter::apply(filter_rule.get(), audit_record);
 
   if (filter_result == AuditAction::Skip) {
     SysVars::inc_events_filtered();

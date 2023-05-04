@@ -54,7 +54,6 @@ enum class AuditLogFormatType {
   New,
   Old,
   Json,
-  Csv,
   FormatsCount  // This item must be last in the list
 };
 

@@ -278,9 +278,16 @@ char *AuditUdf::audit_log_filter_set_filter_udf(
     unsigned char *is_null, unsigned char *error) noexcept {
   *is_null = 0;
   *error = 0;
-  AuditRule rule{udf_args->args[0]};
+  auto rule = std::make_unique<AuditRule>(udf_args->args[0]);
 
-  if (!AuditRuleParser::parse(udf_args->args[1], rule)) {
+  if (rule == nullptr) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Internal error");
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: Internal error");
+    *length = std::strlen(result);
+    return result;
+  }
+
+  if (!AuditRuleParser::parse(udf_args->args[1], rule.get())) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Wrong argument: incorrect rule definition '%s'",
                     udf_args->args[1]);

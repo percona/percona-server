@@ -27,7 +27,8 @@ const std::string kDefaultUserName = "%";
 const std::string kDefaultHostName = "%";
 }  // namespace
 
-AuditRule *AuditRuleRegistry::get_rule(const std::string &rule_name) noexcept {
+std::shared_ptr<AuditRule> AuditRuleRegistry::get_rule(
+    const std::string &rule_name) noexcept {
   std::shared_lock lock(m_registry_mutex);
 
   if (m_audit_filter_rules.count(rule_name) == 0) {
@@ -35,7 +36,7 @@ AuditRule *AuditRuleRegistry::get_rule(const std::string &rule_name) noexcept {
   }
 
   auto it = m_audit_filter_rules.find(rule_name);
-  return &it->second;
+  return it->second;
 }
 
 bool AuditRuleRegistry::lookup_rule_name(const std::string &user_name,

@@ -48,7 +48,8 @@ class AuditRuleRegistry {
    * @param [in] rule_name Rule name
    * @return Filtering rule
    */
-  [[nodiscard]] AuditRule *get_rule(const std::string &filter_name) noexcept;
+  [[nodiscard]] std::shared_ptr<AuditRule> get_rule(
+      const std::string &filter_name) noexcept;
 
   /**
    * @brief Lookup filtering rule by user name and user host.

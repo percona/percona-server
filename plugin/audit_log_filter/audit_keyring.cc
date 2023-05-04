@@ -359,13 +359,7 @@ bool check_generate_initial_encryption_options() noexcept {
 
 std::unique_ptr<encryption::EncryptionOptions>
 get_encryption_options() noexcept {
-  std::string options_id;
-
-  if (!get_active_keyring_options_key(options_id)) {
-    return {};
-  }
-
-  return get_encryption_options(options_id);
+  return get_encryption_options(SysVars::get_encryption_options_id());
 }
 
 std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(

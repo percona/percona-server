@@ -240,13 +240,12 @@ MYSQL_SYSVAR_ENUM(handler, log_handler_type,
 
 /*
  * The audit_log_filter.format variable is used to specify the audit filter
- * log format. The audit log filter plugin supports four log formats:
- * OLD, NEW, JSON, and CSV. OLD and NEW formats are based on XML, where
+ * log format. The audit log filter plugin supports three log formats:
+ * OLD, NEW and JSON. OLD and NEW formats are based on XML, where
  * the former outputs log record properties as XML attributes and the latter
  * as XML tags.
  */
-const char *audit_log_filter_format_names[] = {"NEW", "OLD", "JSON", "CSV",
-                                               nullptr};
+const char *audit_log_filter_format_names[] = {"NEW", "OLD", "JSON", nullptr};
 TYPELIB audit_log_filter_format_typelib = {
     array_elements(audit_log_filter_format_names) - 1,
     "audit_log_filter_format_typelib", audit_log_filter_format_names, nullptr};

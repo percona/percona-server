@@ -256,7 +256,7 @@ struct Prefer_RAM_over_MMAP_policy_obeying_per_table_limit {
                              TableResourceMonitor *table_resource_monitor) {
     assert(table_resource_monitor);
     assert(table_resource_monitor->consumption() <=
-           table_resource_monitor->threshold());
+           std::max(table_resource_monitor->threshold(), 1024ul * 1024ul));
 
     if (table_resource_monitor->consumption() + block_size >
         table_resource_monitor->threshold()) {

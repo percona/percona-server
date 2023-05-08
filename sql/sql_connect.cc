@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1374,7 +1374,7 @@ static bool login_connection(THD *thd, bool extra_port_connection)
                       thd->thread_id()));
 
   /* Use "connect_timeout" value during connection phase */
-  thd->get_protocol_classic()->set_read_timeout(connect_timeout);
+  thd->get_protocol_classic()->set_read_timeout(connect_timeout, TRUE);
   thd->get_protocol_classic()->set_write_timeout(connect_timeout);
 
   error= check_connection(thd, extra_port_connection);

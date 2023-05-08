@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
    Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify

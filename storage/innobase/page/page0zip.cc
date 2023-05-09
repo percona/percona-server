@@ -3260,7 +3260,7 @@ page_zip_decompress(
 				after page creation */
 {
 #ifndef UNIV_HOTBACKUP
-	ib_time_monotonic_us_t	usec = ut_time_monotonic_ms();
+	ib_time_monotonic_us_t	usec = ut_time_monotonic_us();
 #endif /* !UNIV_HOTBACKUP */
 
 	if (!page_zip_decompress_low(page_zip, page, all)) {

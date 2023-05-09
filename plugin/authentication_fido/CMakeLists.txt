@@ -13,26 +13,28 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT FIDO_FOUND)
-  MESSAGE(WARNING "Skipping the FIDO server authentication plugin")
-  RETURN()
-ENDIF()
+IF(WITH_PERCONA_AUTHENTICATION_FIDO)
+  IF(NOT FIDO_FOUND)
+    MESSAGE(WARNING "Skipping the FIDO server authentication plugin")
+    RETURN()
+  ENDIF()
 
-SET(AUTH_FIDO_SOURCES
-  src/plugin_fido.cc
-)
-### Configuration ###
-ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="authentication_fido")
-
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
-MY_INCLUDE_SYSTEM_DIRECTORIES(FIDO)
-
-DISABLE_MISSING_PROFILE_WARNING()
-
-MYSQL_ADD_PLUGIN(auth_fido ${AUTH_FIDO_SOURCES}
-  LINK_LIBRARIES
-  ${FIDO_LIBRARY}
-  ${OPENSSL_LIBRARIES}
-  MODULE_ONLY MODULE_OUTPUT_NAME "authentication_fido"
+  SET(AUTH_FIDO_SOURCES
+    src/plugin_fido.cc
   )
+  ### Configuration ###
+  ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="authentication_fido")
+
+  INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+
+  MY_INCLUDE_SYSTEM_DIRECTORIES(FIDO)
+
+  DISABLE_MISSING_PROFILE_WARNING()
+
+  MYSQL_ADD_PLUGIN(auth_fido ${AUTH_FIDO_SOURCES}
+    LINK_LIBRARIES
+    ${FIDO_LIBRARY}
+    ${OPENSSL_LIBRARIES}
+    MODULE_ONLY MODULE_OUTPUT_NAME "authentication_fido"
+    )
+ENDIF(WITH_PERCONA_AUTHENTICATION_FIDO)

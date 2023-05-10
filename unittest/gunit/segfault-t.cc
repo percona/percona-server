@@ -61,7 +61,7 @@ TEST_F(FatalSignalDeathTest, Abort)
 
 TEST_F(FatalSignalDeathTest, Segfault)
 {
-  int *pint= NULL;
+  int *volatile pint= NULL;
 #if defined(_WIN32)
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer

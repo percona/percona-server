@@ -60,7 +60,7 @@ LIST(APPEND SRC_FILES
 
 ADD_LIBRARY(keyring_vault_test STATIC ${SRC_FILES})
 ADD_DEPENDENCIES(keyring_vault_test GenError)
-TARGET_LINK_LIBRARIES(keyring_vault_test extra::rapidjson)
+TARGET_LINK_LIBRARIES(keyring_vault_test extra::rapidjson ext::zlib)
 
 SET(ALL_KEYRING_VAULT_TESTS)
 FOREACH(test ${TESTS})

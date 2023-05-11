@@ -33,7 +33,7 @@ MYSQL_ADD_COMPONENT(encryption_udf
   encryption_udf_component.cc
   server_helpers.h
   server_helpers.cc
-  LINK_LIBRARIES OpenSSLPP::OpenSSLPP
+  LINK_LIBRARIES OpenSSLPP::OpenSSLPP ext::zlib
   MODULE_ONLY
 )
 

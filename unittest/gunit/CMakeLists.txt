@@ -368,6 +368,7 @@ ADD_DEPENDENCIES(sqlgunitlib GenError)
 SET_TARGET_PROPERTIES(sqlgunitlib
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
+TARGET_LINK_LIBRARIES(sqlgunitlib ext::zlib)
 
 MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ADD_TEST merge_small_tests
@@ -449,6 +450,7 @@ MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
 ADD_LIBRARY(rpl_event_ctx_lib STATIC
   ${CMAKE_SOURCE_DIR}/sql/rpl_event_ctx.cc
 )
+TARGET_LINK_LIBRARIES(rpl_event_ctx_lib ext::zlib)
 
 MYSQL_ADD_EXECUTABLE(rpl_event_ctx-t rpl_event_ctx-t.cc
   ENABLE_EXPORTS

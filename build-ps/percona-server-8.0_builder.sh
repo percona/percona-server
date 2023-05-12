@@ -426,13 +426,6 @@ install_deps() {
 	    yum -y install libzstd libzstd-devel
 	    yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         fi
-        if [ "x${RHEL}" = "x8" ]; then
-            if [ x"$ARCH" = "xx86_64" ]; then
-                yum -y install centos-release-stream
-            fi
-            yum -y install git gcc-toolset-11-gcc gcc-toolset-11-gcc-c++ gcc-toolset-11-annobin-plugin-gcc
-            source /opt/rh/gcc-toolset-11/enable
-        fi
         if [ "x${RHEL}" = "x7" ]; then
             apply_workaround_bug_304121
             yum -y install devtoolset-11
@@ -440,15 +433,15 @@ install_deps() {
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
             source /opt/rh/devtoolset-11/enable
         fi
-	 if [ "x${RHEL}" = "x6" ]; then
+	if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable
         fi
         if [ "x$RHEL" = "x6" ]; then
             rm -f /usr/bin/cmake
             cp -p /usr/bin/cmake3 /usr/bin/cmake
             yum -y install Percona-Server-shared-56
-	          yum -y install libevent2-devel
-	      else
+	    yum -y install libevent2-devel
+	else
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
@@ -460,14 +453,23 @@ install_deps() {
         if [ "x$RHEL" = "x8" ]; then
             yum -y install libtirpc-devel
             yum -y install centos-release-stream
-            yum -y install gcc-toolset-11-binutils gcc-toolset-11-valgrind gcc-toolset-11-valgrind-devel gcc-toolset-11-libatomic-devel
-            yum -y install gcc-toolset-11-libasan-devel gcc-toolset-11-libubsan-devel
+            yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
             if [ x"$ARCH" = "xx86_64" ]; then
                 yum -y remove centos-release-stream
             fi
         fi
         if [ "x$RHEL" = "x9" ]; then
             yum -y install libtirpc-devel
+            yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
+            if [ x"$ARCH" = "xx86_64" ]; then
+                pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12/plugin/
+                ln -s annobin.so gcc-annobin.so
+                popd
+            else
+                pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/aarch64-redhat-linux/12/plugin/
+                ln -s annobin.so gcc-annobin.so
+                popd
+            fi
         else
             yum -y install MySQL-python
         fi
@@ -664,7 +666,7 @@ build_mecab_dict(){
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}
-    wget ${MECAB_IPADIC_LINK}
+    wget --no-check-certificate ${MECAB_IPADIC_LINK}
     tar xf ${MECAB_IPADIC_TARBAL}
     cd ${MECAB_IPADIC_DIR}
   # these two lines should be removed if proper packages are created and used for builds

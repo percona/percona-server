@@ -222,15 +222,15 @@
    ${PROTOBUF_LIBRARY}
 --- router/src/router/src/CMakeLists.txt
 +++ router/src/router/src/CMakeLists.txt
-@@ -71,7 +71,7 @@ TARGET_LINK_LIBRARIES(router_lib
-   ${CMAKE_DL_LIBS}
+@@ -61,7 +61,7 @@
    harness-library
    harness_stdx
+   harness_tls
 -  perconaserverclient
 +  mysqlclient
    ${SSL_LIBRARIES}
    io_component
-   )
+   extra::rapidjson
 --- router/tests/fuzzers/CMakeLists.txt
 +++ router/tests/fuzzers/CMakeLists.txt
 @@ -34,7 +34,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
@@ -307,11 +307,11 @@
 +++ testclients/CMakeLists.txt
 @@ -23,9 +23,9 @@
  ADD_WSHADOW_WARNING()
- 
+
  MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
--TARGET_LINK_LIBRARIES(mysql_client_test perconaserverclient)
-+TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient)
- 
+-TARGET_LINK_LIBRARIES(mysql_client_test perconaserverclient extra::rapidjson)
++TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient extra::rapidjson)
+
  IF(WITH_UNIT_TESTS)
    MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL)
 -  TARGET_LINK_LIBRARIES(bug25714 perconaserverclient)
@@ -330,10 +330,10 @@
  ENDFOREACH()
 --- unittest/gunit/xplugin/xcl/CMakeLists.txt
 +++ unittest/gunit/xplugin/xcl/CMakeLists.txt
-@@ -77,7 +77,7 @@ TARGET_LINK_LIBRARIES(${XCL_UNIT_TESTS}
+@@ -68,7 +68,7 @@
    ${MYSQLX_PROTOCOL_FULL_LIB}
    ${PROTOBUF_LIBRARY}
-   ${LZ4_LIBRARY}
+   ext::lz4
 -  perconaserverclient
 +  mysqlclient
    gtest
@@ -388,24 +388,6 @@
 +++ router/src/router/tests/CMakeLists.txt	2022-07-26 08:38:26.484931770 +0000
 @@ -130,7 +130,7 @@
  ADD_HARNESS_TEST_FILE(test_mysql_session.cc
-   MODULE ${TEST_MODULE}
-   LIB_DEPENDS
--    test-helpers perconaserverclient
-+    test-helpers mysqlclient
-   EXTRA_SOURCES
-     ../src/common/mysql_session.cc
-     ../src/common/log_filter.cc
-@@ -146,7 +146,7 @@
- ADD_HARNESS_TEST_FILE(test_metadata_check.cc
-   MODULE ${TEST_MODULE}
-   LIB_DEPENDS
--    test-helpers perconaserverclient
-+    test-helpers mysqlclient
-   EXTRA_SOURCES
-     ../src/common/mysql_session.cc
-     ../src/common/log_filter.cc
-@@ -168,7 +168,7 @@
- ADD_HARNESS_TEST_FILE(test_cluster_metadata.cc
    MODULE ${TEST_MODULE}
    LIB_DEPENDS
 -    test-helpers perconaserverclient

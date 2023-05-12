@@ -317,7 +317,7 @@ bool generate_keyring_options(std::string &options_id) {
 
   const auto options = encryption::EncryptionOptions::generate(password);
 
-  if (!options->check_valid()) {
+  if (options == nullptr || !options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to generate options");
     return false;
@@ -368,7 +368,7 @@ std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(
 
   if (options_id.empty() ||
       !get_keyring_options(options_id, options_json_str)) {
-    return {};
+    return nullptr;
   }
 
   return encryption::EncryptionOptions::from_json_string(options_json_str);
@@ -385,7 +385,7 @@ bool set_encryption_options(const std::string &password) noexcept {
 
   const auto options = encryption::EncryptionOptions::generate(password);
 
-  if (!options->check_valid()) {
+  if (options == nullptr || !options->check_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to generate options");
     return false;

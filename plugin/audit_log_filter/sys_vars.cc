@@ -26,6 +26,7 @@
 
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/security_context.h>
+#include <mysql/components/services/system_variable_source.h>
 
 #include <syslog.h>
 #include <atomic>
@@ -35,6 +36,7 @@
 namespace audit_log_filter {
 namespace {
 
+const std::string kMaxSizeVarName{"audit_log_filter_max_size"};
 const size_t kMaxDbNameLength = 64;
 
 bool has_system_variables_privilege(MYSQL_THD thd) {
@@ -308,20 +310,13 @@ MYSQL_SYSVAR_ULONGLONG(
  * A value greater than 0 enables size-based pruning. The value is the
  * combined size in bytes above which audit log files become subject to pruning.
  */
-void max_size_update_func(MYSQL_THD thd, SYS_VAR *, void *val_ptr,
+void max_size_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr,
                           const void *save) {
   const auto *val = static_cast<const ulonglong *>(save);
   *static_cast<ulonglong *>(val_ptr) = *val;
 
   if (*val > 0) {
-    if (SysVars::get_log_prune_seconds() > 0) {
-      push_warning(
-          thd, Sql_condition::SL_WARNING, 42000,
-          "Both audit_log_filter_max_size and audit_log_filter_prune_seconds "
-          "are set to non-zero, audit_log_filter_max_size takes precedence and "
-          "audit_log_filter_prune_seconds is ignored.");
-    }
-
+    log_prune_seconds = 0;
     get_audit_log_filter_instance()->on_audit_log_prune_requested();
   }
 }
@@ -337,20 +332,13 @@ MYSQL_SYSVAR_ULONGLONG(
  * A value greater than 0 enables age-based pruning. The value is the number
  * of seconds after which log files become subject to pruning.
  */
-void prune_seconds_update_func(MYSQL_THD thd, SYS_VAR *, void *val_ptr,
+void prune_seconds_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr,
                                const void *save) {
   const auto *val = static_cast<const ulonglong *>(save);
   *static_cast<ulonglong *>(val_ptr) = *val;
 
   if (*val > 0) {
-    if (SysVars::get_log_max_size() > 0) {
-      push_warning(
-          thd, Sql_condition::SL_WARNING, 42000,
-          "Both audit_log_filter_max_size and audit_log_filter_prune_seconds "
-          "are set to non-zero, audit_log_filter_max_size takes precedence and "
-          "audit_log_filter_prune_seconds is ignored.");
-    }
-
+    log_max_size = 0;
     get_audit_log_filter_instance()->on_audit_log_prune_requested();
   }
 }
@@ -684,6 +672,25 @@ bool SysVars::validate() noexcept {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Bad audit_log_filter_database value");
     return false;
+  }
+
+  my_service<SERVICE_TYPE(system_variable_source)> sysvar_source_service(
+      "system_variable_source", SysVars::get_comp_regystry_srv());
+
+  enum_variable_source log_max_size_source;
+
+  if (sysvar_source_service->get(kMaxSizeVarName.c_str(),
+                                 kMaxSizeVarName.length(),
+                                 &log_max_size_source)) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to check %s source",
+                    kMaxSizeVarName.c_str());
+    return false;
+  }
+
+  if (log_max_size_source == COMPILED && SysVars::get_log_prune_seconds() > 0) {
+    // Clean default settings for max_size in case non-zero value for
+    // prune_seconds is provided
+    log_max_size = 0;
   }
 
   if (SysVars::get_log_max_size() > 0 && SysVars::get_log_prune_seconds() > 0) {

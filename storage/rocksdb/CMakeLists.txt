@@ -1,4 +1,4 @@
-# TODO: Copyrights
+SET (ROCKSDB_DYNAMIC_PLUGIN 1)
 
 # by default MyRocks is not built
 IF (NOT DEFINED WITH_ROCKSDB)
@@ -161,12 +161,6 @@ ELSE()
     LIST(APPEND PLUGIN_SOURCES ${CURRENT_PLUGIN_SOURCES})
     LIST(APPEND PLUGIN_LD ${CURRENT_PLUGIN_LD})
   ENDFOREACH()
-
-  # Statically include all RocksDB source
-  SET(ROCKSDB_SOURCES
-    ${ROCKSDB_LIB_SOURCES}
-    ${PLUGIN_SOURCES}
-  )
 ENDIF()
 
 IF (ZENFS_PLUGIN_ENABLED)
@@ -276,9 +270,14 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
 ENDIF()
 
+# Suppress warnings for clang-9 or older
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-analysis FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc)
+ENDIF()
+
 # Suppress warnings for clang-15 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-unused-but-set-variable FILES rocksdb/db/version_set.cc rocksdb/db/version_edit_handler.cc rocksdb/cache/lru_cache.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-unused-but-set-variable FILES rocksdb/db/version_set.cc rocksdb/db/version_edit_handler.cc rocksdb/cache/lru_cache.cc rocksdb/db/internal_stats.cc)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-array-parameter FILES ha_rocksdb.cc)
 ENDIF()
 
@@ -340,12 +339,12 @@ INCLUDE_DIRECTORIES(
   ${ROCKSDB_ROOT}/third-party/gtest-1.8.1/fused-src
 )
 
-SET(ROCKSDB_SOURCES
-  ${ROCKSDB_SOURCES}
+SET(ROCKSDB_SE_SOURCES
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
   logger.h
   rdb_datadic.cc rdb_datadic.h
   rdb_iterator.cc rdb_iterator.h
+  rdb_sst_partitioner_factory.h
   rdb_cf_options.cc rdb_cf_options.h
   rdb_cf_manager.cc rdb_cf_manager.h
   rdb_converter.cc rdb_converter.h
@@ -363,7 +362,7 @@ SET(ROCKSDB_SOURCES
   sql_dd.cc sql_dd.h
 )
 
-IF(WITH_FB_TSAN)
+IF(WITH_FB_TSAN OR ROCKSDB_DYNAMIC_PLUGIN)
   SET(PIC_EXT "_pic")
 ELSE()
   SET(PIC_EXT "")
@@ -378,24 +377,34 @@ IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
   SET(rocksdb_static_libs ${rocksdb_static_libs} "-lrt")
 ENDIF()
 
-MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
-  LINK_LIBRARIES ${rocksdb_static_libs}
-)
+ADD_LIBRARY(rocksdb_sources ${ROCKSDB_LIB_SOURCES} ${PLUGIN_SOURCES})
+TARGET_LINK_LIBRARIES(rocksdb_sources ${rocksdb_static_libs})
+
+IF (ROCKSDB_DYNAMIC_PLUGIN)
+  MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE DEFAULT
+    MODULE_ONLY LINK_LIBRARIES rocksdb_sources)
+ELSE()
+  MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE MANDATORY
+    STATIC_ONLY LINK_LIBRARIES rocksdb_sources)
+    # to fix linkage error on partition_base
+    TARGET_LINK_LIBRARIES(rocksdb_se sql_main)
+ENDIF()
 
 IF (NOT HAVE_EXTERNAL_ROCKSDB)
   # TODO: read this file list from src.mk:TOOL_SOURCES
-  SET(ROCKSDB_TOOL_SOURCES
+  ADD_LIBRARY(rocksdb_tool
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_tool.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_cmd.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/utilities/blob_db/blob_dump_tool.cc
-    ${ROCKSDB_LIB_SOURCES}
   )
-  MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(sst_dump ${rocksdb_static_libs})
+  TARGET_LINK_LIBRARIES(rocksdb_tool rocksdb_sources)
 
-  MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(ldb ${rocksdb_static_libs})
+  MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump.cc)
+  TARGET_LINK_LIBRARIES(sst_dump rocksdb_tool)
+
+  MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb.cc)
+  TARGET_LINK_LIBRARIES(ldb rocksdb_tool)
 
   IF (WITH_ZENFS_UTILITY)
     FIND_PATH(GFLAGS_INCLUDE_DIR
@@ -406,8 +415,8 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
       MESSAGE(FATAL_ERROR "Cannot find system gflags library.")
     ENDIF()
 
-    MYSQL_ADD_EXECUTABLE(zenfs ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs/util/zenfs.cc ${ROCKSDB_LIB_SOURCES} ${ZENFS_PLUGIN_SOURCES})
-    TARGET_LINK_LIBRARIES(zenfs ${rocksdb_static_libs} ${GFLAGS_SYSTEM_LIBRARY})
+    MYSQL_ADD_EXECUTABLE(zenfs ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs/util/zenfs.cc ${ZENFS_PLUGIN_SOURCES})
+    TARGET_LINK_LIBRARIES(zenfs rocksdb_sources ${GFLAGS_SYSTEM_LIBRARY})
 
     EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/tmp_gen/rocksdb/plugin")
     EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs" "${CMAKE_CURRENT_BINARY_DIR}/tmp_gen/rocksdb/plugin/zenfs")

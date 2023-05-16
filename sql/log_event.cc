@@ -11977,8 +11977,7 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
   DBUG_EXECUTE_IF( "wait_after_do_update_pos",
    {
      const char act[] =
-         "now signal "
-         "signal.after_do_update_pos_waiting "
+         "now "
          "wait_for "
          "signal.after_do_update_pos_continue";
      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));

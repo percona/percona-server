@@ -98,14 +98,12 @@ class iterator {
   }
 
   bool next() {
-    assert(thd->bind_parameter_values_count > 0);
-
-    while (ofs < thd->bind_parameter_values_count - 1) {
+    while (ofs < thd->bind_parameter_values_count) {
       ofs++;
       current++;
       if (current->name_length > 0 && current->name) break;
     }
-    return ofs >= thd->bind_parameter_values_count - 1;
+    return ofs >= thd->bind_parameter_values_count;
   }
 
   const PS_PARAM *get_current() const { return current; }

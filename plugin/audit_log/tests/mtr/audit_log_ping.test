@@ -1,0 +1,35 @@
+--echo #
+--echo # Checking format of Ping command related audit event in audit log
+
+--let $MYSQLD_DATADIR = `select @@datadir`
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $MYSQLD_DATADIR/test_audit.log
+SET GLOBAL audit_log_flush=ON;
+
+--ping
+
+perl;
+  die "Log file path is not set" if (!$ENV{'MYSQLD_DATADIR'});
+
+  my $full_log_name = "$ENV{MYSQLD_DATADIR}/test_audit.log";
+  my $events_count = 0;
+
+  open(my $fh, '<:encoding(UTF-8)', $full_log_name)
+    or die "Could not open file '$full_log_name' $!";
+
+  while (my $row = <$fh>) {
+    die "Bad command_class for Ping command: $row" if ($row !~ /"name":"Ping".*"command_class":"ping"/);
+    $events_count++;
+  }
+
+  if ($events_count > 0) {
+    print "PING_CMD Ok\n";
+  }
+  else {
+    print "PING_CMD not found\n";
+  }
+
+  close($fh);
+EOF

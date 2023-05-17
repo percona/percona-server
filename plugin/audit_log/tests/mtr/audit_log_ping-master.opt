@@ -1,0 +1,5 @@
+--audit_log_file=test_audit.log
+--audit_log_policy=ALL
+--audit_log_include_commands=PING
+--audit-log-format=JSON
+--audit_log_strategy=SYNCHRONOUS

@@ -116,7 +116,10 @@ case "$1" in
 
 	set -e
 
-	#DEBHELPER#
+	if [ -x "/etc/init.d/mysql" ];
+	then
+		invoke-rc.d mysql stop || exit $?
+	fi
 	server_stop
 
 	set +e

@@ -114,6 +114,8 @@ const uint CLONE_MIN_BLOCK = 1024 * 1024;
 /** Minimum network packet. Safe margin for meta information */
 const uint CLONE_MIN_NET_BLOCK = 2 * CLONE_MIN_BLOCK;
 
+extern char *clone_exclude_plugins_list;
+
 /* Namespace for all clone data types */
 namespace myclone {
 

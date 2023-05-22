@@ -1,0 +1,105 @@
+--source include/have_example_plugin.inc
+
+--echo #
+--echo # PS-8188 : Make the clone_plugin to not force plugins to match on recipient/donor
+--echo #
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+
+--echo # Install the plugins that will be active and present on donor but
+--echo # not installed on recipient
+
+--eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN'
+--eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+
+--let $recipient_port= \$SERVER_PORT_2
+--connect (conn_recipient, 127.0.0.1, root,,test,$recipient_port)
+--connection conn_recipient
+
+--echo
+--echo # create a different plugin_dir for recipient without the example and
+--echo # audit_log plugin. Now the recipient server do not have these plugins
+--echo # and we do a clone now from donor which has these plugins installed.
+
+--mkdir $MYSQL_TMP_DIR/plugin_dir
+--let $plugin_dir=`SELECT @@plugin_dir`
+--let $RECIPIENT_NEW_PLUGIN_DIR=$MYSQL_TMP_DIR/plugin_dir
+
+# Copy only mysql_clone plugin that is required for the test.
+--copy_file $plugin_dir/mysql_clone.so $RECIPIENT_NEW_PLUGIN_DIR/mysql_clone.so
+
+--replace_result $RECIPIENT_NEW_PLUGIN_DIR RECIPIENT_NEW_PLUGIN_DIR
+--let $restart_parameters="restart: --plugin_dir=$RECIPIENT_NEW_PLUGIN_DIR"
+--source include/restart_mysqld.inc
+--let $restart_parameters=
+
+--echo #connection donor
+--connection default
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64), FULLTEXT KEY fts_index(col2));
+
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+
+--let $checksum_table_donor=query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo #connection recipient
+--connection conn_recipient
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+--replace_result $HOST HOST $PORT PORT
+--eval SET GLOBAL clone_valid_donor_list = '$HOST:$PORT'
+
+--let $CLONED_DATADIR=$MYSQL_TMP_DIR/cloned_data_dir
+--replace_result $CLONED_DATADIR CLONED_DATADIR $USER USER $HOST HOST $PORT PORT
+--error ER_CLONE_PLUGIN_MATCH
+--eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY='$CLONED_DATADIR'
+
+SET GLOBAL clone_exclude_plugins_list='example';
+--replace_result $CLONED_DATADIR CLONED_DATADIR $USER USER $HOST HOST $PORT PORT
+--error ER_CLONE_PLUGIN_MATCH
+--eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY='$CLONED_DATADIR'
+
+SET GLOBAL clone_exclude_plugins_list='example,version_tokens';
+--replace_result $CLONED_DATADIR CLONED_DATADIR $USER USER $HOST HOST $PORT PORT
+--eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY='$CLONED_DATADIR'
+
+--connection conn_recipient
+# Restart server on cloned data directory
+
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Couldn't load plugin named '.*' with soname '.*'.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't open shared library.*");
+
+--replace_result $CLONED_DATADIR CLONED_DATADIR $RECIPIENT_NEW_PLUGIN_DIR RECIPIENT_NEW_PLUGIN_DIR
+--let $restart_parameters="restart: --datadir=$CLONED_DATADIR --plugin_dir=$RECIPIENT_NEW_PLUGIN_DIR"
+--source include/restart_mysqld.inc
+--connection conn_recipient
+
+--let $checksum_table_recipient=query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+--assert($checksum_table_donor == $checksum_table_recipient)
+
+--echo # restart with default datadir
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc
+--connection conn_recipient
+
+--source include/count_sessions.inc
+UNINSTALL PLUGIN clone;
+
+--connection default
+--disable_warnings
+UNINSTALL PLUGIN version_tokens;
+UNINSTALL PLUGIN clone;
+UNINSTALL PLUGIN example;
+--enable_warnings
+DROP TABLE t1;
+--disconnect conn_recipient
+--source include/wait_until_count_sessions.inc
+--force-rmdir $CLONED_DATADIR
+--force-rmdir $MYSQL_TMP_DIR/plugin_dir
+--source include/restart_mysqld.inc

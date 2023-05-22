@@ -30,10 +30,12 @@ Clone Plugin: Plugin interface
 #include <mysql/plugin.h>
 #include <mysql/plugin_clone.h>
 
+#include "include/sql_string.h"
 #include "plugin/clone/include/clone_client.h"
 #include "plugin/clone/include/clone_local.h"
 #include "plugin/clone/include/clone_server.h"
 #include "plugin/clone/include/clone_status.h"
+#include "sql/sql_error.h"
 
 #include <algorithm>
 #include <cctype>
@@ -89,6 +91,19 @@ uint clone_restart_timeout;
 
 /** Clone system variable: time delay after removing data */
 uint clone_delay_after_data_drop;
+
+/** Clone system variable: list of plugins that will not be matched on
+recipient */
+char *clone_exclude_plugins_list;
+
+/** List of plugins that cannot be excluded by clone_exclude_plugins_list */
+static std::vector<std::string> disallow_list{"daemon_keyring_proxy_plugin",
+                                              "binlog",
+                                              "performance_schema",
+                                              "memory",
+                                              "innodb",
+                                              "keyring_file",
+                                              "keyring_vault"};
 
 /** Key for registering clone allocations with performance schema */
 PSI_memory_key clone_mem_key;
@@ -510,6 +525,62 @@ static int plugin_clone_remote_server(THD *thd, MYSQL_SOCKET socket) {
   return (err);
 }
 
+static const char *val_strmake(MYSQL_THD thd,
+                               struct st_mysql_value *mysql_val) {
+  char buf[STRING_BUFFER_USUAL_SIZE];
+  int len = sizeof(buf);
+  const char *val = mysql_val->val_str(mysql_val, buf, &len);
+
+  if (val != NULL) val = thd_strmake(thd, val, len);
+
+  return val;
+}
+
+static bool plugin_is_ignorable(std::string const &plugin_name) {
+  return (std::find(disallow_list.begin(), disallow_list.end(), plugin_name) ==
+          disallow_list.end());
+}
+
+static int clone_exclude_plugins_list_validate(MYSQL_THD thd,
+                                               SYS_VAR *var [[maybe_unused]],
+                                               void *save,
+                                               st_mysql_value *value) {
+  const char *input = val_strmake(thd, value);
+  std::stringstream exclude_list(input);
+
+  // Disallow InnoDB, keyring_*, GR plugins to be excluded
+
+  std::ostringstream err_strm;
+  err_strm << "Clone: The following plugins cannot be excluded: ";
+  bool bad = false;
+  while (exclude_list.good()) {
+    std::string substr;
+    getline(exclude_list, substr, ',');
+    // remove all spaces in string
+    substr.erase(remove(substr.begin(), substr.end(), ' '), substr.end());
+    if (substr.empty()) continue;
+
+    std::transform(substr.begin(), substr.end(), substr.begin(), ::tolower);
+    if (!plugin_is_ignorable(substr)) {
+      err_strm << substr << ",";
+      bad = true;
+    }
+  }
+
+  if (bad) {
+    std::string error(err_strm.str());
+    error.erase(remove(error.end() - 1, error.end(), ','), error.end());
+
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), error.c_str());
+
+    *static_cast<const char **>(save) = nullptr;
+    return 1;
+  }
+
+  *static_cast<const char **>(save) = input;
+  return 0;
+}
+
 /** clone plugin interfaces */
 struct Mysql_clone clone_descriptor = {
     MYSQL_CLONE_INTERFACE_VERSION, plugin_clone_local,
@@ -655,6 +726,16 @@ static MYSQL_SYSVAR_UINT(delay_after_data_drop, clone_delay_after_data_drop,
                          60 * 60,             /* Maximum =  1 hour */
                          1);                  /* Step    =  1 sec */
 
+/**  Remote cloning insists on the same list of plugins to be installed on
+recipient. These list of plugins are not required to be installed on recipient.
+*/
+static MYSQL_SYSVAR_STR(exclude_plugins_list, clone_exclude_plugins_list,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        "Comma separated plugin names that are not installed "
+                        "on recipient. Clone will not error out if these are "
+                        "active on donor but not installed on recipient",
+                        clone_exclude_plugins_list_validate, nullptr, nullptr);
+
 /** Clone system variables */
 static SYS_VAR *clone_system_variables[] = {
     MYSQL_SYSVAR(buffer_size),
@@ -671,6 +752,7 @@ static SYS_VAR *clone_system_variables[] = {
     MYSQL_SYSVAR(ssl_ca),
     MYSQL_SYSVAR(donor_timeout_after_network_failure),
     MYSQL_SYSVAR(delay_after_data_drop),
+    MYSQL_SYSVAR(exclude_plugins_list),
     MYSQL_SYSVAR(compression_algorithm),
     MYSQL_SYSVAR(zstd_compression_level),
     nullptr};

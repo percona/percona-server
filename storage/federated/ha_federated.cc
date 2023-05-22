@@ -3067,6 +3067,20 @@ int ha_federated::real_query(const char *query, size_t length) {
 
   if (!query || !length) goto end;
 
+  /* Here we operate on internal proxy -> server connection which uses
+     client code. But it is compiled in context of server code, so
+     all things like:
+     #ifdef MYSQL_SERVER
+         my_error(net->last_errno, MYF(0));
+     #endif
+     are compiled in.
+     proxy -> server connection has reconnection logic, and all internal errors
+     should be handled silently as long as the overal result of the operation
+     is success.
+     If this connection fails and cannot be recovered, the function will return
+     error, which will be handled by the server.
+  */
+
   rc = mysql_real_query(mysql, query, static_cast<ulong>(length));
 
   // Simulate as errors happened within the previous query
@@ -3102,6 +3116,7 @@ int ha_federated::real_query(const char *query, size_t length) {
     Diagnostics_area *da = current_thd->get_stmt_da();
     if (da->is_set()) {
       const uint err = da->mysql_errno();
+
       if ((err == ER_NET_PACKETS_OUT_OF_ORDER || err == ER_NET_ERROR_ON_WRITE ||
            err == ER_NET_WRITE_INTERRUPTED || err == ER_NET_READ_ERROR ||
            err == ER_NET_READ_INTERRUPTED) &&
@@ -3115,6 +3130,18 @@ int ha_federated::real_query(const char *query, size_t length) {
     }
   }
 end:
+  /* Reconnection can take place above or inside cli_advanced_command().
+   If it happens in cli_advanced_command(), diagnositcs are may contain
+   the information about the error which triggered the reconnection.
+   But as the reconnection was fine, the information about transient
+   problems should not be propagated to the client.
+   */
+  if (!rc) {
+    Diagnostics_area *da = current_thd->get_stmt_da();
+    da->reset_condition_info(current_thd);
+    da->reset_diagnostics_area();
+  }
+
   return rc;
 }
 

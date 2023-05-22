@@ -1,0 +1,39 @@
+#
+# PS-8188 : Make the clone_plugin to not force plugins to match on recipient/donor
+#
+# Install the plugins that will be active and present on donor but
+# not installed on recipient
+INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL PLUGIN version_tokens SONAME 'version_token.so';;
+
+# create a different plugin_dir for recipient without the example and
+# audit_log plugin. Now the recipient server do not have these plugins
+# and we do a clone now from donor which has these plugins installed.
+# restart: --plugin_dir=RECIPIENT_NEW_PLUGIN_DIR
+#connection donor
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64), FULLTEXT KEY fts_index(col2));
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+#connection recipient
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATADIR';
+ERROR HY000: Clone Donor plugin EXAMPLE is not active in Recipient.
+SET GLOBAL clone_exclude_plugins_list='example';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATADIR';
+ERROR HY000: Clone Donor plugin version_tokens is not active in Recipient.
+SET GLOBAL clone_exclude_plugins_list='example,version_tokens';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATADIR';
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Couldn't load plugin named '.*' with soname '.*'.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't open shared library.*");
+# restart: --datadir=CLONED_DATADIR --plugin_dir=RECIPIENT_NEW_PLUGIN_DIR
+# restart with default datadir
+# restart:
+UNINSTALL PLUGIN clone;
+UNINSTALL PLUGIN version_tokens;
+UNINSTALL PLUGIN clone;
+UNINSTALL PLUGIN example;
+DROP TABLE t1;
+# restart:

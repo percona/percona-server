@@ -1,0 +1,52 @@
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+# test with empty value
+SET GLOBAL clone_exclude_plugins_list='';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+clone_exclude_plugins_list	
+# test without GLOBAL
+SET clone_exclude_plugins_list='';
+ERROR HY000: Variable 'clone_exclude_plugins_list' is a GLOBAL variable and should be set with SET GLOBAL
+# test with allowed single value
+SET GLOBAL clone_exclude_plugins_list='example';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+clone_exclude_plugins_list	example
+# test allowed plugin names(any names except the disallowed list)
+SET GLOBAL clone_exclude_plugins_list='blah1,blah2';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+clone_exclude_plugins_list	blah1,blah2
+# test allowed plugin names(any names except the disallowed list)
+SET GLOBAL clone_exclude_plugins_list='example,audit_log';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+clone_exclude_plugins_list	example,audit_log
+# test disallowed plugin names
+SET GLOBAL clone_exclude_plugins_list='InnoDB';
+ERROR HY000: Incorrect arguments to Clone: The following plugins cannot be excluded: innodb
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+clone_exclude_plugins_list	example,audit_log
+SET GLOBAL clone_exclude_plugins_list='example,audit_log,binlog';
+ERROR HY000: Incorrect arguments to Clone: The following plugins cannot be excluded: binlog
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+clone_exclude_plugins_list	example,audit_log
+# test disallowed plugin names
+SET GLOBAL clone_exclude_plugins_list='InnoDB,Memory,peformance_schema,keyring_file';
+ERROR HY000: Incorrect arguments to Clone: The following plugins cannot be excluded: innodb,memory,keyring_file
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+clone_exclude_plugins_list	example,audit_log
+# test with SET PERSIST
+SET PERSIST clone_exclude_plugins_list='example,audit_log';
+# restart
+# After restart, it should show example, audit_log
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+Variable_name	Value
+clone_exclude_plugins_list	example,audit_log
+RESET PERSIST;
+UNINSTALL PLUGIN clone;

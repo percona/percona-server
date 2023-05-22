@@ -1384,6 +1384,24 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if ((command != COM_QUIT) && mysql->reconnect && !vio_is_connected(net->vio))
     net->error = NET_ERROR_SOCKET_UNUSABLE;
 
+  /*
+    If the connection becomes dead after the above check,
+    and the packet we are sending is bigger than 16k (net_buffer_length default)
+    the client will try to send partial data. In such a case net_write_command()
+    will detect connection loss  when trying to send the packet over the network
+    and report the error via my_error() from net_write_raw_loop(). But we don't
+    want this error to be propagated back to the client session.
+    net_write_command() should fail silently and the below reconnection logic
+    should kick in.
+  */
+  DBUG_EXECUTE_IF(
+      "PS-8747_wait_for_disconnect_after_check",
+      DBUG_SET("-d,PS-8747_wait_for_disconnect_after_check");
+      net->error = 0;  // Even if above check detected we are already
+                       // disconnected pretend we know nothing about this.
+      sleep(10);       // MTR test will set interactive_timeout/wait_timeout = 4
+  );
+
   if (net_write_command(net, (uchar)command, header, header_length, arg,
                         arg_length)) {
     DBUG_PRINT("error",

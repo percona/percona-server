@@ -1,0 +1,47 @@
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo # test with empty value
+SET GLOBAL clone_exclude_plugins_list='';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+
+--echo # test without GLOBAL
+--error ER_GLOBAL_VARIABLE
+SET clone_exclude_plugins_list='';
+
+--echo # test with allowed single value
+SET GLOBAL clone_exclude_plugins_list='example';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+
+--echo # test allowed plugin names(any names except the disallowed list)
+SET GLOBAL clone_exclude_plugins_list='blah1,blah2';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+
+--echo # test allowed plugin names(any names except the disallowed list)
+SET GLOBAL clone_exclude_plugins_list='example,audit_log';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+
+--echo # test disallowed plugin names
+--error ER_WRONG_ARGUMENTS
+SET GLOBAL clone_exclude_plugins_list='InnoDB';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+
+--error ER_WRONG_ARGUMENTS
+SET GLOBAL clone_exclude_plugins_list='example,audit_log,binlog';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+
+--echo # test disallowed plugin names
+--error ER_WRONG_ARGUMENTS
+SET GLOBAL clone_exclude_plugins_list='InnoDB,Memory,peformance_schema,keyring_file';
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+
+--echo # test with SET PERSIST
+SET PERSIST clone_exclude_plugins_list='example,audit_log';
+--source include/restart_mysqld.inc
+--echo # After restart, it should show example, audit_log
+SHOW VARIABLES LIKE 'clone_exclude_plugins_list';
+RESET PERSIST;
+
+UNINSTALL PLUGIN clone;

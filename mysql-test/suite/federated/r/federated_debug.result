@@ -27,6 +27,29 @@ a
 # Drop tables on master and slave
 DROP TABLE t1;
 DROP TABLE t1;
+#
+# PS-8747: Got an error writing communication packets error during FEDERATED engine reconnection
+#
+SET @OLD_SLAVE_WAIT_TIMEOUT= @@GLOBAL.WAIT_TIMEOUT;
+SET @@GLOBAL.WAIT_TIMEOUT= 4;
+CREATE TABLE test.t1 (id int PRIMARY KEY);
+CREATE SERVER test FOREIGN DATA WRAPPER test1 OPTIONS(
+user 'root',
+password '',
+host '127.0.0.1',
+port SLAVE_PORT,
+database 'test');
+CREATE TABLE test.t1 (id int PRIMARY KEY) ENGINE=FEDERATED CONNECTION='test';
+SELECT * FROM test.t1;
+id
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,PS-8747_wait_for_disconnect_after_check';
+INSERT INTO test.t1 SELECT tt.* FROM SEQUENCE_TABLE(20000) AS tt;
+SET GLOBAL DEBUG= @debug_save;
+DROP TABLE test.t1;
+DROP SERVER test;
+DROP TABLE test.t1;
+SET @@GLOBAL.WAIT_TIMEOUT= @OLD_SLAVE_WAIT_TIMEOUT;
 # Federated cleanup
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE federated;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6737,7 +6737,6 @@ static int replace(DYNAMIC_STRING *ds_str,
   return 0;
 }
 
-
 /**
   This function sets the session binlog in the dump file.
   When --set-gtid-purged is used, this function is called to
@@ -6884,7 +6883,6 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
                                     If TRUE, set the gtid purged and
                                     restore the session binlog if disabled
                                     previously.
-
   @retval             FALSE         successful according to the value
                                     of opt_set_gtid_purged.
   @retval             TRUE          fail.
@@ -6898,9 +6896,6 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool ftwrl_done,
   char *gtid_mode_val= 0;
   static int  gtid_mode= -1;
   char buf[32], query[64];
-
-  if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
-    return FALSE;  /* nothing to be done */
 
   /*
      Set gtid_mode, by fetching gtid_mode from server, if its not
@@ -7446,6 +7441,7 @@ int main(int argc, char **argv)
       support consistent gtid_executed. In such case we need FTWRL.
    3. --single-transaction and --flush-logs
    */
+
   if (opt_lock_all_tables ||
       (opt_master_data &&
        (!has_consistent_binlog_pos || !has_consistent_gtid_executed)) ||

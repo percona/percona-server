@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ TEST_F(FatalSignalDeathTest, Abort)
 
 TEST_F(FatalSignalDeathTest, Segfault)
 {
-  int *pint= NULL;
+  int *volatile pint= NULL;
 #if defined(_WIN32)
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer

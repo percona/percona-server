@@ -34,6 +34,41 @@ DROP TABLE t1;
 connection slave;
 DROP TABLE t1;
 
+--echo #
+--echo # PS-8747: Got an error writing communication packets error during FEDERATED engine reconnection
+--echo #
+connection slave;
+SET @OLD_SLAVE_WAIT_TIMEOUT= @@GLOBAL.WAIT_TIMEOUT;
+SET @@GLOBAL.WAIT_TIMEOUT= 4;
+CREATE TABLE test.t1 (id int PRIMARY KEY);
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE SERVER test FOREIGN DATA WRAPPER test1 OPTIONS(
+  user 'root',
+  password '',
+  host '127.0.0.1',
+  port $SLAVE_MYPORT,
+  database 'test');
+CREATE TABLE test.t1 (id int PRIMARY KEY) ENGINE=FEDERATED CONNECTION='test';
+
+# The following SELECT will setup internal client-server connection inside Federated SE
+SELECT * FROM test.t1;
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,PS-8747_wait_for_disconnect_after_check';
+
+# Send data which will not fit into one communication packet, so client will try to send them
+# before flush and reconnection.
+INSERT INTO test.t1 SELECT tt.* FROM SEQUENCE_TABLE(20000) AS tt;
+SET GLOBAL DEBUG= @debug_save;
+
+DROP TABLE test.t1;
+DROP SERVER test;
+connection slave;
+DROP TABLE test.t1;
+SET @@GLOBAL.WAIT_TIMEOUT= @OLD_SLAVE_WAIT_TIMEOUT;
+
 connection default;
 --echo # Federated cleanup
 source suite/federated/include/federated_cleanup.inc;

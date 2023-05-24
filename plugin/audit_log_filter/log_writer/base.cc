@@ -29,7 +29,7 @@ LogWriterBase::LogWriterBase(
 
 void LogWriterBase::init_formatter() noexcept { SysVars::init_record_id(0); }
 
-void LogWriterBase::write(AuditRecordVariant record) noexcept {
+void LogWriterBase::write(const AuditRecordVariant &record) noexcept {
   // Format event data according to audit_log_filter_format settings
   std::string record_str = std::visit(
       [this](const auto &rec) -> std::string {

@@ -2152,7 +2152,6 @@ DROP TABLE federated.t1;
 
 --echo #
 --echo # Bug#105878: PS-7999: FEDERATED engine not reconnecting on wait_timeout exceeded
---echo # PS-8747: Got an error writing communication packets error during FEDERATED engine reconnection
 --echo #
 connection slave;
 SET @OLD_SLAVE_WAIT_TIMEOUT= @@GLOBAL.WAIT_TIMEOUT;
@@ -2170,20 +2169,9 @@ eval CREATE SERVER test FOREIGN DATA WRAPPER test1 OPTIONS(
   database 'test');
 CREATE TABLE test.t1 (id int PRIMARY KEY) ENGINE=FEDERATED CONNECTION='test';
 
-# scenario 1: PS-7999
 SELECT * FROM test.t1;
 SELECT sleep(5);
 SELECT * from test.t1;
-
-# scenario 2: PS-8747
-SET @debug_save= @@GLOBAL.DEBUG;
-DELETE FROM test.t1;
-SET @@GLOBAL.DEBUG='+d,PS-8747_wait_for_disconnect_after_check';
-
-# Send data which will not fit into one communication packet, so client will try to send them
-# before flush and reconnection.
-INSERT INTO test.t1 SELECT tt.* FROM SEQUENCE_TABLE(20000) AS tt;
-SET GLOBAL DEBUG= @debug_save;
 
 DROP TABLE test.t1;
 DROP SERVER test;

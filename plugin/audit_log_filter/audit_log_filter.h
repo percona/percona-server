@@ -16,6 +16,9 @@
 #ifndef AUDIT_LOG_FILTER_H_INCLUDED
 #define AUDIT_LOG_FILTER_H_INCLUDED
 
+#include <mysql/components/services/dynamic_privilege.h>
+#include <mysql/components/services/security_context.h>
+
 #include "mysql/plugin_audit.h"
 #include "plugin/audit_log_filter/audit_record.h"
 
@@ -36,6 +39,13 @@ class AuditLogFilter {
                  std::unique_ptr<AuditUdf> audit_udf,
                  std::unique_ptr<log_writer::LogWriterBase> log_writer,
                  std::unique_ptr<AuditLogReader> log_reader);
+
+  /**
+   * @brief Init plugin components.
+   *
+   * @return true in case of success, false otherwise
+   */
+  bool init() noexcept;
 
   /**
    * @brief De-init plugin components.
@@ -112,14 +122,33 @@ class AuditLogFilter {
   /**
    * @brief Get user and host name from connection THD instance
    *
-   * @param thd Server thread instance
+   * @param ctx Security context handle
    * @param user_name Returned user name
    * @param user_host Returned host name
    * @return true in case user and host name are fetched successfully,
    *         false otherwise
    */
-  bool get_connection_user(MYSQL_THD thd, std::string &user_name,
+  bool get_connection_user(Security_context_handle &ctx, std::string &user_name,
                            std::string &user_host) noexcept;
+
+  /**
+   * @brief Check if user has AUDIT_ABORT_EXEMPT privilege assigned
+   *
+   * @param ctx Security context handle
+   * @return true in case user has AUDIT_ABORT_EXEMPT privilege,
+   *         false otherwise
+   */
+  bool check_abort_exempt_privilege(Security_context_handle &ctx) noexcept;
+
+  /**
+   * @brief Get user's security context handle
+   *
+   * @param thd Server thread instance
+   * @param ctx Security context handle
+   * @return true in case of success, false otherwise
+   */
+  bool get_security_context(MYSQL_THD thd,
+                            Security_context_handle *ctx) noexcept;
 
  private:
   std::unique_ptr<AuditRuleRegistry> m_audit_rules_registry;
@@ -127,6 +156,10 @@ class AuditLogFilter {
   std::unique_ptr<log_writer::LogWriterBase> m_log_writer;
   std::unique_ptr<AuditLogReader> m_log_reader;
   std::atomic_bool m_is_active;
+
+  SERVICE_TYPE(mysql_thd_security_context) * m_security_context_srv;
+  SERVICE_TYPE(mysql_security_context_options) * m_security_context_opts_srv;
+  SERVICE_TYPE(global_grants_check) * m_grants_check_srv;
 };
 
 /**

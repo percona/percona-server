@@ -22,13 +22,7 @@
 #include <mutex>
 #include <string>
 
-namespace audit_log_filter {
-
-namespace log_writer_strategy {
-class FileWriterStrategyBase;
-}
-
-namespace log_writer {
+namespace audit_log_filter::log_writer {
 
 class FileWriterBase;
 
@@ -117,7 +111,6 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
 
 using LogWriterFile = LogWriter<AuditLogHandlerType::File>;
 
-}  // namespace log_writer
-}  // namespace audit_log_filter
+}  // namespace audit_log_filter::log_writer
 
 #endif  // AUDIT_LOG_FILTER_LOG_WRITER_FILE_H_INCLUDED

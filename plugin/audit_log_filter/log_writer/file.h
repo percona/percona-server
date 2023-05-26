@@ -80,6 +80,13 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
 
  private:
   /**
+   * @brief Rotate log file.
+   *
+   * @param record File rotation result
+   */
+  void rotate(FileRotationResult *result) noexcept override;
+
+  /**
    * @brief Implement actual file opening logic.
    *
    * @return true in case file opened successfully, false otherwise
@@ -94,11 +101,20 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   bool do_close_file() noexcept;
 
   /**
-   * @brief Rotate log file.
+   * @brief Implement actual file writing logic.
+   *
+   * @param record String representation of audit record
+   * @param print_separator Add lor record separator before a record
+   *                        if set to true
+   */
+  void do_write(const std::string &record, bool print_separator) noexcept;
+
+  /**
+   * @brief Implement actual file rotation logic.
    *
    * @param record File rotation result
    */
-  void rotate(FileRotationResult *result) noexcept override;
+  void do_rotate(FileRotationResult *result) noexcept;
 
  private:
   bool m_is_rotating;
@@ -106,7 +122,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   bool m_is_opened;
   FileWriterPtr m_file_writer{};
   FileHandle m_file_handle;
-  std::recursive_mutex m_write_lock;
+  std::mutex m_write_lock;
 };
 
 using LogWriterFile = LogWriter<AuditLogHandlerType::File>;

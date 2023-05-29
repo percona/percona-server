@@ -6897,6 +6897,9 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool ftwrl_done,
   static int  gtid_mode= -1;
   char buf[32], query[64];
 
+  if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
+    return FALSE;  /* nothing to be done */
+
   /*
      Set gtid_mode, by fetching gtid_mode from server, if its not
      yet populated. gtid_mode is set to -1 if gtid_mode is not yet

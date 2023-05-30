@@ -73,6 +73,7 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
 
   const std::regex user_name_all_regex("^%$");
   const std::regex user_name_regex("(.*)@(.*)");
+  const std::regex deprecated_symbols_regex("[\\*|\\%]");
 
   auto user_info_data = std::make_unique<UserNameInfo>();
 
@@ -103,6 +104,18 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
                       "Wrong argument: user host part of user_name "
                       "is too long, max length is %ld",
                       audit_table::kAuditFieldLengthUserhost);
+        return nullptr;
+      }
+
+      if (std::regex_search(user_name_match.str(), deprecated_symbols_regex)) {
+        std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                      "Wrong argument: bad user name format");
+        return nullptr;
+      }
+
+      if (std::regex_search(user_host_match.str(), deprecated_symbols_regex)) {
+        std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                      "Wrong argument: bad host name format");
         return nullptr;
       }
 

@@ -551,13 +551,13 @@ bool AuditLogFilter::get_connection_user(Security_context_handle &ctx,
   MYSQL_LEX_CSTRING user{"", 0};
   MYSQL_LEX_CSTRING host{"", 0};
 
-  if (m_security_context_opts_srv->get(ctx, "priv_user", &user)) {
+  if (m_security_context_opts_srv->get(ctx, "user", &user)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Can not get user name from security context");
     return false;
   }
 
-  if (m_security_context_opts_srv->get(ctx, "priv_host", &host)) {
+  if (m_security_context_opts_srv->get(ctx, "host", &host)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Can not get user host from security context");
     return false;

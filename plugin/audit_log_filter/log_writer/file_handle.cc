@@ -236,10 +236,15 @@ PruneFilesList FileHandle::get_prune_files(
     const std::string &working_dir_name,
     const std::string &file_name) noexcept {
   PruneFilesList prune_files;
-  const std::regex log_time_regex(R"(.*\.(\d{8}T\d{6})\..*)");
-  auto base_file_name =
-      std::filesystem::path{file_name}.replace_extension().string();
-  auto time_now = std::time(nullptr);
+  const std::regex log_time_regex(R"(.*\.(\d{8}T\d{6}).*)");
+  auto base_file_path = std::filesystem::path{file_name};
+
+  while (base_file_path.has_extension()) {
+    base_file_path.replace_extension();
+  }
+
+  const auto base_file_name = base_file_path.string();
+  const auto time_now = std::time(nullptr);
 
   for (const auto &entry :
        std::filesystem::directory_iterator{working_dir_name}) {

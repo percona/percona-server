@@ -34,13 +34,16 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --source rename_rotated_log.inc
 
 # Make sure all rotated logs have valid format
---let $audit_filter_log_name = audit_filter.xml.NEW
+--let $audit_filter_log_check_one = audit_filter.xml.NEW
+--let $audit_filter_log_format = xml
 --source validate_logs_format.inc
 
---let $audit_filter_log_name = audit_filter.xml.OLD
+--let $audit_filter_log_check_one = audit_filter.xml.OLD
+--let $audit_filter_log_format = xml
 --source validate_logs_format.inc
 
---let $audit_filter_log_name = audit_filter.json.JSON
+--let $audit_filter_log_check_one = audit_filter.json.JSON
+--let $audit_filter_log_format = json
 --source validate_logs_format.inc
 
 --echo #

@@ -18,6 +18,8 @@ SELECT audit_log_rotate();
 SELECT audit_log_rotate();
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
+--let $audit_filter_log_format = xml
 --source validate_logs_format.inc
 
 --echo #

@@ -1,0 +1,25 @@
+--echo #
+--echo # Component Masking Functions: gen_rnd_us_phone
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--disable_query_log
+--disable_result_log
+
+--let $i = 0
+
+while ($i < 1000) {
+
+
+--let $assert_cond= "[SELECT gen_rnd_us_phone() LIKE \'1-555-___-____\']"
+--let $assert_text = random phone number should be in the format '1-555-XXX-XXXX'
+--source include/assert.inc
+
+--inc $i
+}
+--enable_result_log
+--enable_query_log
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+

@@ -1,0 +1,46 @@
+--echo #
+--echo # Component Masking Functions: mask_outer
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+SELECT mask_outer('This is a string', 5, 1);
+SELECT mask_outer('This is a string', 1, 5);
+SELECT mask_outer('This is a string', 5, 1, '#');
+SELECT mask_outer(NULL, 5, 1);
+SELECT mask_outer(NULL, 5, 1, '#');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_outer('This is a string', -1, 5);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_outer('This is a string', 1, -5);
+
+SELECT mask_outer('This is a string', 1, 25);
+SELECT mask_outer('This is a string', 100, 500);
+SELECT mask_outer('This is a string', 9, 9);
+
+SELECT mask_outer('abcdef', 0, 5);
+SELECT mask_outer('abcdef', 0, 5, '#');
+
+--echo # check charset of mask_outer()
+SELECT CHARSET(mask_outer('abcdef', 1, 2));
+
+SELECT mask_outer(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2);
+SELECT CHARSET(mask_outer(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2));
+
+SELECT CHAR_LENGTH('This is a string');
+SELECT mask_outer('This is a string', 5, 1, 'ű');
+SELECT mask_outer('This is a string', 0, 1, 'ű');
+SELECT mask_outer('This is a string', 5, 0, 'ű');
+SELECT CHAR_LENGTH(mask_outer('This is a string', 5, 1, 'ű'));
+
+SELECT mask_outer('This is a string', 5, 1, _utf32'#');
+SELECT CHAR_LENGTH(mask_outer('This is a string', 5, 1, _utf32'#'));
+
+# BUG: upstream string handling functions can't deal with utf16/32
+#SELECT mask_outer(_utf32'This is a string', 5, 1, '#');
+#SELECT CHAR_LENGTH(mask_outer(_utf32'This is a string', 5, 1, '#'));
+#SELECT mask_outer(_utf32'This is a string', 1, 25);
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

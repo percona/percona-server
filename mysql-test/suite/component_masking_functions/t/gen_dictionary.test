@@ -1,0 +1,68 @@
+--echo #
+--echo # Compoent Masking Functions: gen_dictionary
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+CREATE TABLE
+mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term),
+    INDEX dictionary_idx (Dictionary)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO mysql.masking_dictionaries VALUES("us_cities", "city1");
+INSERT INTO mysql.masking_dictionaries VALUES("us_cities", "city2");
+INSERT INTO mysql.masking_dictionaries VALUES("us_cities", "city3");
+INSERT INTO mysql.masking_dictionaries VALUES("us_cities", "city4");
+
+CREATE USER udftest;
+--connect(con1,localhost,udftest,,)
+--connection con1
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_add("single_dict", "entry");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_remove("single_dict", "entry");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_remove("single_dict");
+
+--connection default
+--disconnect con1
+
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest;
+
+--connect(con1,localhost,udftest,,)
+--connection con1
+
+SELECT masking_dictionary_term_add("single_dict", "entry");
+SELECT masking_dictionary_term_add("single_dict", "entry");
+
+--replace_column 1 CITY
+SELECT gen_dictionary('us_cities');
+
+SELECT gen_dictionary('single_dict');
+
+SELECT gen_dictionary('nonexistent');
+
+SELECT masking_dictionary_term_remove("single_dict", "entry");
+SELECT masking_dictionary_term_remove("single_dict", "entry");
+
+SELECT gen_dictionary('single_dict');
+
+SELECT masking_dictionary_remove("us_cities"); 
+SELECT masking_dictionary_remove("us_cities"); 
+
+SELECT gen_dictionary('us_cities');
+
+--connection default
+--disconnect con1
+
+DROP USER udftest;
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+DROP TABLE mysql.masking_dictionaries;

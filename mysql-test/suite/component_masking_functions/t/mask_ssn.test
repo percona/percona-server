@@ -1,0 +1,27 @@
+--echo #
+--echo # Component Masking Functions: mask_ssn
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+SELECT mask_ssn("123456789");
+SELECT mask_ssn("123-45-6789");
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_ssn(NULL);
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_ssn("");
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_ssn("this is not an ssn");
+
+SELECT mask_ssn("123-45-6789", "!");
+SELECT mask_ssn("123456789", "!");
+
+--echo # check charset of mask_pan_relaxed()
+SELECT mask_ssn("123456789", 'ű');
+SELECT mask_ssn(_latin2"123456789", 'ű');
+SELECT mask_ssn("123-45-6789", 'ű');
+SELECT mask_ssn(_latin2"123-45-6789", 'ű');
+SELECT CHARSET(mask_ssn("123456789", 'ű'));
+SELECT CHARSET(mask_ssn(_latin2"123456789", 'ű'));
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

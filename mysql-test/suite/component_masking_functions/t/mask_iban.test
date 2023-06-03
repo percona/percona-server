@@ -1,0 +1,29 @@
+--echo #
+--echo # Component Masking Functions: mask_iban
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+SELECT mask_iban("1234567890122461");
+SELECT mask_iban("123456789012246");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_iban(NULL);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_iban("");
+
+SELECT mask_iban("123496798465498779");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_iban("this is definitely not an iban because it is too long");
+
+SELECT mask_iban("1234567890122461", "!");
+
+--echo # check charset of mask_iban()
+SELECT mask_iban("1234567890122461", 'ű');
+SELECT mask_iban(_latin2"1234567890122461", 'ű');
+SELECT CHARSET(mask_iban("1234567890122461", 'ű'));
+SELECT CHARSET(mask_iban(_latin2"1234567890122461", 'ű'));
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

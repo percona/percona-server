@@ -1,0 +1,25 @@
+--echo #
+--echo # Component Masking Functions: mask_uuid
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+SELECT mask_uuid("12345678-1234-1234-1234-123456789012");
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_uuid(NULL);
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_uuid("");
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_uuid("123496798465498779");
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_uuid("this is not a uuid");
+
+SELECT mask_uuid("12345678-1234-1234-1234-123456789012", "!");
+
+--echo # check charset of mask_uuid()
+SELECT mask_uuid("12345678-1234-1234-1234-123456789012", 'ű');
+SELECT mask_uuid(_latin2"12345678-1234-1234-1234-123456789012", 'ű');
+SELECT CHARSET(mask_uuid("12345678-1234-1234-1234-123456789012", 'ű'));
+SELECT CHARSET(mask_uuid(_latin2"12345678-1234-1234-1234-123456789012", 'ű'));
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

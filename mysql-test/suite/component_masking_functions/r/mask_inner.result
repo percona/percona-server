@@ -1,0 +1,64 @@
+#
+# Component Masking Functions: mask_inner
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT mask_inner('This is a string', 5, 1);
+mask_inner('This is a string', 5, 1)
+This XXXXXXXXXXg
+SELECT mask_inner('This is a string', 1, 5);
+mask_inner('This is a string', 1, 5)
+TXXXXXXXXXXtring
+SELECT mask_inner('This is a string', 5, 1, '#');
+mask_inner('This is a string', 5, 1, '#')
+This ##########g
+SELECT mask_inner(NULL, 1, 2);
+mask_inner(NULL, 1, 2)
+NULL
+SELECT mask_inner(NULL, 1, 2, '#');
+mask_inner(NULL, 1, 2, '#')
+NULL
+SELECT mask_inner('This is a string', -1, 5);
+ERROR HY000: Can't initialize function 'mask_inner'; Wrong argument: margin1 can't be negative
+SELECT mask_inner('This is a string', 1, -5);
+ERROR HY000: Can't initialize function 'mask_inner'; Wrong argument: margin1 can't be negative
+SELECT mask_inner('This is a string', 1, 25);
+mask_inner('This is a string', 1, 25)
+This is a string
+SELECT mask_inner('This is a string', 100, 500);
+mask_inner('This is a string', 100, 500)
+This is a string
+SELECT mask_inner('This is a string', 9, 9, '#');
+mask_inner('This is a string', 9, 9, '#')
+This is a string
+# check charset of mask_inner()
+SELECT CHARSET(mask_inner('abcdef', 1, 2));
+CHARSET(mask_inner('abcdef', 1, 2))
+utf8mb4
+SELECT mask_inner(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2);
+mask_inner(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2)
+árvíztűrő XXXXXXXXXXró
+SELECT CHARSET(mask_inner(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2));
+CHARSET(mask_inner(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2))
+utf8mb4
+SELECT CHAR_LENGTH('This is a string');
+CHAR_LENGTH('This is a string')
+16
+SELECT mask_inner('This is a string', 5, 1, 'ű');
+mask_inner('This is a string', 5, 1, 'ű')
+This űűűűűűűűűűg
+SELECT mask_inner('This is a string', 0, 1, 'ű');
+mask_inner('This is a string', 0, 1, 'ű')
+űűűűűűűűűűűűűűűg
+SELECT mask_inner('This is a string', 5, 0, 'ű');
+mask_inner('This is a string', 5, 0, 'ű')
+This űűűűűűűűűűű
+SELECT CHAR_LENGTH(mask_inner('This is a string', 5, 1, 'ű'));
+CHAR_LENGTH(mask_inner('This is a string', 5, 1, 'ű'))
+16
+SELECT mask_inner('This is a string', 5, 1, _utf32'#');
+mask_inner('This is a string', 5, 1, _utf32'#')
+This ##########g
+SELECT CHAR_LENGTH(mask_inner('This is a string', 5, 1, _utf32'#'));
+CHAR_LENGTH(mask_inner('This is a string', 5, 1, _utf32'#'))
+16
+UNINSTALL COMPONENT 'file://component_masking_functions';

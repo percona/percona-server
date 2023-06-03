@@ -220,6 +220,20 @@ DECLARE_BOOL_METHOD(get_char,
                     (my_h_string string, uint index, ulong *out_char));
 
 /**
+  Gets offset of character on specified index position in
+  string to a specified buffer.
+
+  @param string String object handle to get character from.
+  @param index Index, position of character to query.
+  @param [out] out_offset Pointer to long value to store offset to.
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+DECLARE_BOOL_METHOD(get_char_offset,
+                    (my_h_string string, uint index, ulong *out_offset));
+
+/**
   Gets length of specified string expressed as number of characters.
 
   @param string String object handle to get length of.

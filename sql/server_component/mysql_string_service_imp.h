@@ -143,6 +143,25 @@ class mysql_string_imp {
                             (my_h_string in_string, char *out_buffer,
                              uint64 length, const char *charset_name));
 
+  /**
+    Converts the mysql_string to the character set specified by
+    charset_name parameter.
+
+    @param in_string Pointer to string object handle to set new string
+      to.
+    @param [out] out_buffer Pointer to the buffer with data to be interpreted
+      as characters.
+    @param length Length of the buffer to hold out put in characters.
+    @param charset_name charset that is used for conversion.
+    @param [out] out_length Pointer to store the actual length used in the buffer
+    @return Status of performed operation
+    @retval false success
+    @retval true failure
+  */
+  static DEFINE_BOOL_METHOD(convert_to_buffer_v3,
+                            (my_h_string in_string, char *out_buffer,
+                             uint64 length, const char *charset_name, uint64* out_length));
+
   /* mysql_string_converter_v2 service. */
 
   static DEFINE_BOOL_METHOD(convert_from_buffer_v2,
@@ -166,6 +185,20 @@ class mysql_string_imp {
   */
   static DEFINE_BOOL_METHOD(get_char,
                             (my_h_string string, uint index, ulong *out_char));
+
+  /**
+    Gets character offset of character on specified index position in
+    string to a specified buffer.
+
+    @param string String object handle to get character from.
+    @param index Index, position of character to query.
+    @param [out] out_offset Pointer to unsigned long value to store offset to.
+    @return Status of performed operation
+    @retval false success
+    @retval true failure
+  */
+  static DEFINE_BOOL_METHOD(get_char_offset,
+                            (my_h_string string, uint index, ulong *out_offset));
 
   /**
     Gets length of specified string expressed as number of characters.

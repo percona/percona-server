@@ -1,0 +1,33 @@
+#
+# Component Masking Functions: mask_uk_nin
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT mask_uk_nin("123456789");
+mask_uk_nin("123456789")
+12XXXXXXX
+SELECT mask_uk_nin("123-45-6789");
+mask_uk_nin("123-45-6789")
+12XXXXXXXXX
+SELECT mask_uk_nin(NULL);
+ERROR HY000: Can't initialize function 'mask_uk_nin'; Wrong argument: NIN must be between 9 and 11 characters
+SELECT mask_uk_nin("");
+ERROR HY000: Can't initialize function 'mask_uk_nin'; Wrong argument: NIN must be between 9 and 11 characters
+SELECT mask_uk_nin("this is not a uk_nin");
+ERROR HY000: Can't initialize function 'mask_uk_nin'; Wrong argument: NIN must be between 9 and 11 characters
+SELECT mask_uk_nin("123456789", "!");
+mask_uk_nin("123456789", "!")
+12!!!!!!!
+# check charset of mask_uk_nin()
+SELECT mask_uk_nin("123456789", 'ű');
+mask_uk_nin("123456789", 'ű')
+12űűűűűűű
+SELECT mask_uk_nin(_latin2"123456789", 'ű');
+mask_uk_nin(_latin2"123456789", 'ű')
+12űűűűűűű
+SELECT CHARSET(mask_uk_nin("123456789", 'ű'));
+CHARSET(mask_uk_nin("123456789", 'ű'))
+utf8mb4
+SELECT CHARSET(mask_uk_nin(_latin2"123456789", 'ű'));
+CHARSET(mask_uk_nin(_latin2"123456789", 'ű'))
+latin2
+UNINSTALL COMPONENT 'file://component_masking_functions';

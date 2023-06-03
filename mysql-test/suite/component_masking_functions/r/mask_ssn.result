@@ -1,0 +1,42 @@
+#
+# Component Masking Functions: mask_ssn
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT mask_ssn("123456789");
+mask_ssn("123456789")
+XXXXX6789
+SELECT mask_ssn("123-45-6789");
+mask_ssn("123-45-6789")
+XXX-XX-6789
+SELECT mask_ssn(NULL);
+ERROR HY000: Can't initialize function 'mask_ssn'; Wrong argument: SSN must be specified either as nine digits, or in the format xxx-xx-xxxxx
+SELECT mask_ssn("");
+ERROR HY000: Can't initialize function 'mask_ssn'; Wrong argument: SSN must be specified either as nine digits, or in the format xxx-xx-xxxxx
+SELECT mask_ssn("this is not an ssn");
+ERROR HY000: Can't initialize function 'mask_ssn'; Wrong argument: SSN must be specified either as nine digits, or in the format xxx-xx-xxxxx
+SELECT mask_ssn("123-45-6789", "!");
+mask_ssn("123-45-6789", "!")
+!!!-!!-6789
+SELECT mask_ssn("123456789", "!");
+mask_ssn("123456789", "!")
+!!!!!6789
+# check charset of mask_pan_relaxed()
+SELECT mask_ssn("123456789", 'ű');
+mask_ssn("123456789", 'ű')
+űűűűű6789
+SELECT mask_ssn(_latin2"123456789", 'ű');
+mask_ssn(_latin2"123456789", 'ű')
+űűűűű6789
+SELECT mask_ssn("123-45-6789", 'ű');
+mask_ssn("123-45-6789", 'ű')
+űűű-űű-6789
+SELECT mask_ssn(_latin2"123-45-6789", 'ű');
+mask_ssn(_latin2"123-45-6789", 'ű')
+űűű-űű-6789
+SELECT CHARSET(mask_ssn("123456789", 'ű'));
+CHARSET(mask_ssn("123456789", 'ű'))
+utf8mb4
+SELECT CHARSET(mask_ssn(_latin2"123456789", 'ű'));
+CHARSET(mask_ssn(_latin2"123456789", 'ű'))
+latin2
+UNINSTALL COMPONENT 'file://component_masking_functions';

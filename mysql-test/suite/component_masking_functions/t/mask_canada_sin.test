@@ -1,0 +1,27 @@
+--echo #
+--echo # Component Masking Functions: mask_canada_sin
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+SELECT mask_canada_sin("123456789");
+SELECT mask_canada_sin("123-456-789");
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_canada_sin(NULL);
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_canada_sin("");
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_canada_sin("this is not an canada_sin");
+
+SELECT mask_canada_sin("123-456-789", "!");
+SELECT mask_canada_sin("123456789", "!");
+
+--echo # check charset of mask_pan_relaxed()
+SELECT mask_canada_sin("123456789", 'ű');
+SELECT mask_canada_sin(_latin2"123456789", 'ű');
+SELECT mask_canada_sin("123-456-789", 'ű');
+SELECT mask_canada_sin(_latin2"123-456-789", 'ű');
+SELECT CHARSET(mask_canada_sin("123456789", 'ű'));
+SELECT CHARSET(mask_canada_sin(_latin2"123456789", 'ű'));
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

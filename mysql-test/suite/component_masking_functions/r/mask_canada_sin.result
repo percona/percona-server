@@ -1,0 +1,42 @@
+#
+# Component Masking Functions: mask_canada_sin
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT mask_canada_sin("123456789");
+mask_canada_sin("123456789")
+XXXXXXXXX
+SELECT mask_canada_sin("123-456-789");
+mask_canada_sin("123-456-789")
+XXX-XXX-XXX
+SELECT mask_canada_sin(NULL);
+ERROR HY000: Can't initialize function 'mask_canada_sin'; Wrong argument: SIN must be specified either as nine digits, or in the format xxx-xxx-xxxx
+SELECT mask_canada_sin("");
+ERROR HY000: Can't initialize function 'mask_canada_sin'; Wrong argument: SIN must be specified either as nine digits, or in the format xxx-xxx-xxxx
+SELECT mask_canada_sin("this is not an canada_sin");
+ERROR HY000: Can't initialize function 'mask_canada_sin'; Wrong argument: SIN must be specified either as nine digits, or in the format xxx-xxx-xxxx
+SELECT mask_canada_sin("123-456-789", "!");
+mask_canada_sin("123-456-789", "!")
+!!!-!!!-!!!
+SELECT mask_canada_sin("123456789", "!");
+mask_canada_sin("123456789", "!")
+!!!!!!!!!
+# check charset of mask_pan_relaxed()
+SELECT mask_canada_sin("123456789", 'ű');
+mask_canada_sin("123456789", 'ű')
+űűűűűűűűű
+SELECT mask_canada_sin(_latin2"123456789", 'ű');
+mask_canada_sin(_latin2"123456789", 'ű')
+űűűűűűűűű
+SELECT mask_canada_sin("123-456-789", 'ű');
+mask_canada_sin("123-456-789", 'ű')
+űűű-űűű-űűű
+SELECT mask_canada_sin(_latin2"123-456-789", 'ű');
+mask_canada_sin(_latin2"123-456-789", 'ű')
+űűű-űűű-űűű
+SELECT CHARSET(mask_canada_sin("123456789", 'ű'));
+CHARSET(mask_canada_sin("123456789", 'ű'))
+utf8mb4
+SELECT CHARSET(mask_canada_sin(_latin2"123456789", 'ű'));
+CHARSET(mask_canada_sin(_latin2"123456789", 'ű'))
+latin2
+UNINSTALL COMPONENT 'file://component_masking_functions';

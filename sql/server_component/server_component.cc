@@ -155,6 +155,7 @@ mysql_string_imp::convert_from_buffer_v2,
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_character_access)
 mysql_string_imp::get_char,
+mysql_string_imp::get_char_offset,
     mysql_string_imp::get_char_length END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_byte_access)

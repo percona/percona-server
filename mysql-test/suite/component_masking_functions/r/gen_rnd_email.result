@@ -1,0 +1,26 @@
+#
+# Component Masking Functions: gen_rnd_email()
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT mask_inner(gen_rnd_email(), 0, 12);
+mask_inner(gen_rnd_email(), 0, 12)
+XXXXXXXX@example.com
+SELECT mask_inner(gen_rnd_email(16), 0, 12);
+mask_inner(gen_rnd_email(16), 0, 12)
+XXXX@example.com
+SELECT mask_inner(gen_rnd_email(16, "foo.com"), 0, 8);
+mask_inner(gen_rnd_email(16, "foo.com"), 0, 8)
+XXXXXXXX@foo.com
+SELECT CHARSET(gen_rnd_email());
+CHARSET(gen_rnd_email())
+utf8mb4
+SELECT CHARSET(gen_rnd_email(16));
+CHARSET(gen_rnd_email(16))
+utf8mb4
+SELECT CHARSET(gen_rnd_email(16, "foo.com"));
+CHARSET(gen_rnd_email(16, "foo.com"))
+utf8mb4
+SELECT CHARSET(gen_rnd_email(16, _latin2"foo.com"));
+CHARSET(gen_rnd_email(16, _latin2"foo.com"))
+latin2
+UNINSTALL COMPONENT 'file://component_masking_functions';

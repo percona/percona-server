@@ -1,0 +1,36 @@
+#
+# Component Masking Functions: mask_iban
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT mask_iban("1234567890122461");
+mask_iban("1234567890122461")
+12XXXXXXXXXXXXXX
+SELECT mask_iban("123456789012246");
+mask_iban("123456789012246")
+12XXXXXXXXXXXXX
+SELECT mask_iban(NULL);
+ERROR HY000: Can't initialize function 'mask_iban'; Wrong argument: IBAN must be between 13 and 34 characters
+SELECT mask_iban("");
+ERROR HY000: Can't initialize function 'mask_iban'; Wrong argument: IBAN must be between 13 and 34 characters
+SELECT mask_iban("123496798465498779");
+mask_iban("123496798465498779")
+12XXXXXXXXXXXXXXXX
+SELECT mask_iban("this is definitely not an iban because it is too long");
+ERROR HY000: Can't initialize function 'mask_iban'; Wrong argument: IBAN must be between 13 and 34 characters
+SELECT mask_iban("1234567890122461", "!");
+mask_iban("1234567890122461", "!")
+12!!!!!!!!!!!!!!
+# check charset of mask_iban()
+SELECT mask_iban("1234567890122461", 'ű');
+mask_iban("1234567890122461", 'ű')
+12űűűűűűűűűűűűűű
+SELECT mask_iban(_latin2"1234567890122461", 'ű');
+mask_iban(_latin2"1234567890122461", 'ű')
+12űűűűűűűűűűűűűű
+SELECT CHARSET(mask_iban("1234567890122461", 'ű'));
+CHARSET(mask_iban("1234567890122461", 'ű'))
+utf8mb4
+SELECT CHARSET(mask_iban(_latin2"1234567890122461", 'ű'));
+CHARSET(mask_iban(_latin2"1234567890122461", 'ű'))
+latin2
+UNINSTALL COMPONENT 'file://component_masking_functions';

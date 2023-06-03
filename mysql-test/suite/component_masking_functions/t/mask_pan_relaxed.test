@@ -1,0 +1,24 @@
+--echo #
+--echo # Component Masking Functions: mask_pan_relaxed
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+SELECT mask_pan_relaxed("1234567890122461");
+SELECT mask_pan_relaxed("123456789012246");
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_pan_relaxed(NULL);
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_pan_relaxed("");
+SELECT mask_pan_relaxed("123496798465498779");
+SELECT mask_pan_relaxed("this is not a pan");
+
+SELECT mask_pan_relaxed("1234567890122461", "!");
+
+--echo # check charset of mask_pan_relaxed()
+SELECT mask_pan_relaxed("1234567890122461", 'ű');
+SELECT mask_pan_relaxed(_latin2"1234567890122461", 'ű');
+SELECT CHARSET(mask_pan_relaxed("1234567890122461", 'ű'));
+SELECT CHARSET(mask_pan_relaxed(_latin2"1234567890122461", 'ű'));
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

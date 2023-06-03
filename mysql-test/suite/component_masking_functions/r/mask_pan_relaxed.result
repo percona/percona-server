@@ -1,0 +1,37 @@
+#
+# Component Masking Functions: mask_pan_relaxed
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT mask_pan_relaxed("1234567890122461");
+mask_pan_relaxed("1234567890122461")
+123456XXXXXX2461
+SELECT mask_pan_relaxed("123456789012246");
+mask_pan_relaxed("123456789012246")
+123456XXXXX2246
+SELECT mask_pan_relaxed(NULL);
+ERROR HY000: Can't initialize function 'mask_pan_relaxed'; Wrong argument: PAN must be between 14 and 19 characters
+SELECT mask_pan_relaxed("");
+ERROR HY000: Can't initialize function 'mask_pan_relaxed'; Wrong argument: PAN must be between 14 and 19 characters
+SELECT mask_pan_relaxed("123496798465498779");
+mask_pan_relaxed("123496798465498779")
+123496XXXXXXXX8779
+SELECT mask_pan_relaxed("this is not a pan");
+mask_pan_relaxed("this is not a pan")
+this iXXXXXXX pan
+SELECT mask_pan_relaxed("1234567890122461", "!");
+mask_pan_relaxed("1234567890122461", "!")
+123456!!!!!!2461
+# check charset of mask_pan_relaxed()
+SELECT mask_pan_relaxed("1234567890122461", 'ű');
+mask_pan_relaxed("1234567890122461", 'ű')
+123456űűűűűű2461
+SELECT mask_pan_relaxed(_latin2"1234567890122461", 'ű');
+mask_pan_relaxed(_latin2"1234567890122461", 'ű')
+123456űűűűűű2461
+SELECT CHARSET(mask_pan_relaxed("1234567890122461", 'ű'));
+CHARSET(mask_pan_relaxed("1234567890122461", 'ű'))
+utf8mb4
+SELECT CHARSET(mask_pan_relaxed(_latin2"1234567890122461", 'ű'));
+CHARSET(mask_pan_relaxed(_latin2"1234567890122461", 'ű'))
+latin2
+UNINSTALL COMPONENT 'file://component_masking_functions';

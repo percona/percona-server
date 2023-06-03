@@ -1,0 +1,30 @@
+--echo #
+--echo # Compoent Masking Functions: gen_blocklist
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+CREATE TABLE
+mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term),
+    INDEX dictionary_idx (Dictionary)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO mysql.masking_dictionaries VALUES("DE_Cities", "Berlin");
+INSERT INTO mysql.masking_dictionaries VALUES("US_Cities", "Houston");
+INSERT INTO mysql.masking_dictionaries VALUES("US_Cities", "Phoenix");
+INSERT INTO mysql.masking_dictionaries VALUES("US_Cities", "El Paso");
+INSERT INTO mysql.masking_dictionaries VALUES("US_Cities", "Detroit");
+
+SELECT gen_blocklist('Moscow', 'DE_Cities', 'US_Cities');
+
+--let $assert_text= Return an entry of the dest dict if the string is present in the source dict
+--let $city= `SELECT gen_blocklist('Berlin', 'DE_Cities', 'US_Cities')`
+--let $assert_cond= "$city" = "Houston" OR "$city" = "Phoenix" OR "$city" = "El Paso" OR "$city" = "Detroit"
+--source include/assert.inc
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+DROP TABLE mysql.masking_dictionaries;

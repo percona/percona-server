@@ -1,0 +1,32 @@
+#
+# Component Masking Functions: mask_uuid
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT mask_uuid("12345678-1234-1234-1234-123456789012");
+mask_uuid("12345678-1234-1234-1234-123456789012")
+XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+SELECT mask_uuid(NULL);
+ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument: UUID must be 36 characters
+SELECT mask_uuid("");
+ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument: UUID must be 36 characters
+SELECT mask_uuid("123496798465498779");
+ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument: UUID must be 36 characters
+SELECT mask_uuid("this is not a uuid");
+ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument: UUID must be 36 characters
+SELECT mask_uuid("12345678-1234-1234-1234-123456789012", "!");
+mask_uuid("12345678-1234-1234-1234-123456789012", "!")
+!!!!!!!!-!!!!-!!!!-!!!!-!!!!!!!!!!!!
+# check charset of mask_uuid()
+SELECT mask_uuid("12345678-1234-1234-1234-123456789012", 'ű');
+mask_uuid("12345678-1234-1234-1234-123456789012", 'ű')
+űűűűűűűű-űűűű-űűűű-űűűű-űűűűűűűűűűűű
+SELECT mask_uuid(_latin2"12345678-1234-1234-1234-123456789012", 'ű');
+mask_uuid(_latin2"12345678-1234-1234-1234-123456789012", 'ű')
+űűűűűűűű-űűűű-űűűű-űűűű-űűűűűűűűűűűű
+SELECT CHARSET(mask_uuid("12345678-1234-1234-1234-123456789012", 'ű'));
+CHARSET(mask_uuid("12345678-1234-1234-1234-123456789012", 'ű'))
+utf8mb4
+SELECT CHARSET(mask_uuid(_latin2"12345678-1234-1234-1234-123456789012", 'ű'));
+CHARSET(mask_uuid(_latin2"12345678-1234-1234-1234-123456789012", 'ű'))
+latin2
+UNINSTALL COMPONENT 'file://component_masking_functions';

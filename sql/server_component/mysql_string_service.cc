@@ -248,6 +248,23 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_char,
   return true;
 }
 
+DEFINE_BOOL_METHOD(mysql_string_imp::get_char_offset,
+                   (my_h_string string, uint index, ulong *out_offset)) {
+  try {
+    String *str = reinterpret_cast<String *>(string);
+    if (str == nullptr || index >= str->length()) return true;
+    int ret = str->charpos(index);
+    if (ret < 0) return true;
+
+    *out_offset = ret;
+
+    return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
 DEFINE_BOOL_METHOD(mysql_string_imp::get_char_length,
                    (my_h_string string, uint *out_length)) {
   try {

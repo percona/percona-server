@@ -104,8 +104,8 @@ std::filesystem::path FileHandle::get_not_rotated_file_path(
     const std::string &base_file_name) noexcept {
   for (const auto &entry :
        std::filesystem::directory_iterator(working_dir_name)) {
-    if (entry.is_regular_file() && entry.path().filename().string().find(
-                                       base_file_name) != std::string::npos) {
+    if (entry.is_regular_file() &&
+        entry.path().filename().compare(base_file_name) == 0) {
       return entry.path();
     }
   }

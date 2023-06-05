@@ -20,6 +20,12 @@ SELECT audit_log_rotate();
 --source check_logs_name_format.inc
 
 --echo #
+--echo # After rotation during server restart
+--let $restart_parameters="restart: "
+--source include/restart_mysqld.inc
+--source check_logs_name_format.inc
+
+--echo #
 --echo # With compression
 --let $restart_parameters="restart: --audit-log-filter-compression=GZIP"
 --source include/restart_mysqld.inc

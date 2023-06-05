@@ -491,6 +491,7 @@ void AuditLogFilter::on_audit_log_rotate_requested(
     log_writer::FileRotationResult *result) noexcept {
   if (m_is_active) {
     m_log_writer->rotate(result);
+    m_log_writer->prune();
   }
 }
 

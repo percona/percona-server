@@ -249,10 +249,6 @@ void LogWriterFile::do_rotate(FileRotationResult *result) noexcept {
 }
 
 void LogWriterFile::prune() noexcept {
-  if (SysVars::get_rotate_on_size() == 0) {
-    return;
-  }
-
   const auto log_max_size = SysVars::get_log_max_size();
   const auto prune_seconds = SysVars::get_log_prune_seconds();
 

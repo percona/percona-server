@@ -19,8 +19,7 @@ let $filter = {
 eval SELECT audit_log_filter_set_filter('log_table_insert', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_table_insert');
 
---source clean_current_audit_log.inc
---source remove_rotated_logs.inc
+--source clean_all_audit_logs.inc
 
 SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
 

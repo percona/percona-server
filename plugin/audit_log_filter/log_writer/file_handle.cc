@@ -236,7 +236,7 @@ PruneFilesList FileHandle::get_prune_files(
     const std::string &working_dir_name,
     const std::string &file_name) noexcept {
   PruneFilesList prune_files;
-  const std::regex log_time_regex(R"(.*\.(\d{8}T\d{6}).*)");
+  const std::regex log_time_regex(R"(.*?\.(\d{8}T\d{6}).*)");
   auto base_file_path = std::filesystem::path{file_name};
 
   while (base_file_path.has_extension()) {
@@ -248,13 +248,21 @@ PruneFilesList FileHandle::get_prune_files(
 
   for (const auto &entry :
        std::filesystem::directory_iterator{working_dir_name}) {
-    const auto name = entry.path().filename().string();
+    auto filename = entry.path().filename();
 
     if (entry.is_regular_file() &&
-        name.find(base_file_name) != std::string::npos) {
+        filename.string().find(base_file_name) != std::string::npos) {
+      if (filename.has_extension() &&
+          filename.extension().compare(".enc") == 0) {
+        // Remove encryption key ID from the file name
+        filename.replace_extension();
+        filename.replace_extension();
+      }
+
+      const auto name_str = filename.string();
       std::smatch pieces_match;
 
-      if (std::regex_match(name, pieces_match, log_time_regex)) {
+      if (std::regex_match(name_str, pieces_match, log_time_regex)) {
         std::tm tm{};
         std::istringstream ss(pieces_match[1].str());
         ss >> std::get_time(&tm, kRotationTimeFormat.c_str());

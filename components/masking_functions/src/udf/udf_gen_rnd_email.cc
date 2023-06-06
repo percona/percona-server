@@ -60,7 +60,7 @@ static bool gen_rnd_email_init(UDF_INIT *initid, UDF_ARGS *args,
   initid->maybe_null = 0;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
 
   return false;
 }
@@ -89,7 +89,7 @@ static char *gen_rnd_email(UDF_INIT *initid, UDF_ARGS *args,
     email_length = *(int *)args->args[0];
   }
 
-  std::string original_charset = "utf8mb4";
+  std::string original_charset = std::string(mysql::plugins::default_charset);
 
   std::string email_domain("example.com");
   if (args->arg_count >= 2) {

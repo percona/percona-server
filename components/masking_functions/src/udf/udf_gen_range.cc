@@ -39,7 +39,7 @@ static bool gen_range_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   initid->maybe_null = 1;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
 
   return false;
 }
@@ -64,8 +64,8 @@ static long long gen_range(UDF_INIT *initid [[maybe_unused]], UDF_ARGS *args,
                            char *is_null, char *is_error) {
   DBUG_TRACE;
 
-  long lower = *(long long *)args->args[0];
-  long upper = *(long long *)args->args[1];
+  long long lower = *(long long *)args->args[0];
+  long long upper = *(long long *)args->args[1];
   long long value = 0;
 
   if (upper < lower) {

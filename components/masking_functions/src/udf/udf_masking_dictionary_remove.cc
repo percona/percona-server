@@ -74,7 +74,7 @@ static char *masking_dictionary_remove(UDF_INIT *initid, UDF_ARGS *args, char *,
   std::string original_charset;
   mysql::plugins::get_arg_character_set(args, 0, original_charset);
   const std::string dictionary = mysql::plugins::convert(
-      {args->args[0], args->lengths[0]}, original_charset, "utf8mb4");
+      {args->args[0], args->lengths[0]}, original_charset, mysql::plugins::default_charset);
 
   mysql::components::sql_context sqlc;
 

@@ -52,7 +52,7 @@ static bool mask_uk_nin_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   }
 
   initid->maybe_null = 1;
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
 
   return false;
 }

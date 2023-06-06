@@ -50,7 +50,7 @@ static bool gen_blocklist_init(UDF_INIT *initid, UDF_ARGS *args,
   initid->maybe_null = 1;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
 
   return false;
 }
@@ -68,15 +68,15 @@ static char *gen_blocklist(UDF_INIT *initid, UDF_ARGS *args, char *,
   std::string original_charset;
   mysql::plugins::get_arg_character_set(args, 0, original_charset);
   const std::string term = mysql::plugins::convert(
-      {args->args[0], args->lengths[0]}, original_charset, "utf8mb4");
+      {args->args[0], args->lengths[0]}, original_charset, mysql::plugins::default_charset);
 
   mysql::plugins::get_arg_character_set(args, 1, original_charset);
   const std::string dict_a = mysql::plugins::convert(
-      {args->args[1], args->lengths[1]}, original_charset, "utf8mb4");
+      {args->args[1], args->lengths[1]}, original_charset, mysql::plugins::default_charset);
 
   mysql::plugins::get_arg_character_set(args, 2, original_charset);
   const std::string dict_b = mysql::plugins::convert(
-      {args->args[2], args->lengths[2]}, original_charset, "utf8mb4");
+      {args->args[2], args->lengths[2]}, original_charset, mysql::plugins::default_charset);
 
   {
     mysql::components::sql_context sqlc;

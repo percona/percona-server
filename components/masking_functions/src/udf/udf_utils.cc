@@ -21,28 +21,25 @@
 
 namespace mysql {
 namespace plugins {
-std::string random_string(unsigned long length, bool letter_start) {
-  auto randchar_a = []() -> char {
-    const std::string charset(
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz");
-    std::random_device r;
-    std::default_random_engine el(r());
-    std::uniform_int_distribution<int> dist(0, charset.length() - 1);
 
-    return charset[dist(el)];
-  };
-  auto randchar_an = []() -> char {
-    const std::string charset(
-        "0123456789"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz");
-    std::random_device r;
-    std::default_random_engine el(r());
-    std::uniform_int_distribution<int> dist(0, charset.length() - 1);
+std::string random_string(std::size_t length, bool letter_start) {
+  std::random_device r;
+  std::default_random_engine el(r());
 
-    return charset[dist(el)];
-  };
+  const std::string charset_char(
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "abcdefghijklmnopqrstuvwxyz");
+  std::uniform_int_distribution<int> dist_char(0, charset_char.length() - 1);
+
+  auto randchar_a = [&]() -> char { return charset_char[dist_char(el)]; };
+
+  const std::string charset_charal(
+      "0123456789"
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "abcdefghijklmnopqrstuvwxyz");
+  std::uniform_int_distribution<int> dist_charal(0, charset_charal.length() - 1);
+
+  auto randchar_an = [&]() -> char { return charset_charal[dist_charal(el)]; };
 
   std::string str(length, '0');
   if (letter_start) {
@@ -56,12 +53,13 @@ std::string random_string(unsigned long length, bool letter_start) {
   return str;
 }
 
-std::string random_number(const unsigned int length) {
-  auto randchar = []() -> char {
+std::string random_number(std::size_t length) {
     const std::string charset("1234567890");
     std::random_device r;
     std::default_random_engine el(r());
     std::uniform_int_distribution<int> dist(0, charset.length() - 1);
+
+  auto randchar = [&]() -> char {
 
     return charset[dist(el)];
   };
@@ -72,7 +70,7 @@ std::string random_number(const unsigned int length) {
   return str;
 }
 
-long random_number(const long min, const long max) {
+std::size_t random_number(std::size_t min, std::size_t max) {
   std::random_device r;
   std::default_random_engine el(r());
   std::uniform_int_distribution<long> dist(min, max);
@@ -106,9 +104,9 @@ std::string random_credit_card() {
       break;
   }
 
-  int check_sum = 0, n;
-  int check_offset = (str.size() + 1) % 2;
-  for (unsigned long i = 0; i < str.size(); i++) {
+  std::size_t check_sum = 0, n;
+  std::size_t check_offset = (str.size() + 1) % 2;
+  for (std::size_t i = 0; i < str.size(); i++) {
     n = str[i] - '0';  // We can convert to int substracting the ASCII for 0
     if ((i + check_offset) % 2 == 0) {
       n *= 2;
@@ -155,8 +153,8 @@ std::string random_ssn() {
       .append(random_number(4));
 }
 
-std::string random_iban(std::string country, int length) {
-  return country.append(random_number(length));
+std::string random_iban(std::string_view const& country, std::size_t length) {
+  return std::string(country).append(random_number(length));
 }
 
 std::string random_uk_nin() {
@@ -177,7 +175,7 @@ std::string random_us_phone() {
       .append(random_number(4));
 }
 
-bool set_return_value_charset(UDF_INIT *initid, const std::string &charset) {
+bool set_return_value_charset(UDF_INIT *initid, std::string_view const& charset) {
   void *cs = const_cast<char *>(charset.data());
   if (mysql_service_mysql_udf_metadata->result_set(initid, "charset", cs))
     return true;
@@ -185,7 +183,7 @@ bool set_return_value_charset(UDF_INIT *initid, const std::string &charset) {
   return false;
 }
 
-bool get_arg_character_set(UDF_ARGS *args, size_t index, std::string &charset) {
+bool get_arg_character_set(UDF_ARGS *args, std::size_t index, std::string & charset) {
   void *output = nullptr;
   if (args->arg_type[index] != STRING_RESULT) return true;
 
@@ -198,7 +196,7 @@ bool get_arg_character_set(UDF_ARGS *args, size_t index, std::string &charset) {
 }
 
 bool set_return_value_charset_to_match_arg(UDF_INIT *initid, UDF_ARGS *args,
-                                           size_t index) {
+                                           std::size_t index) {
   void *output = nullptr;
   if (args->arg_type[index] != STRING_RESULT) return true;
   if (mysql_service_mysql_udf_metadata->argument_get(args, "charset", index,
@@ -210,8 +208,6 @@ bool set_return_value_charset_to_match_arg(UDF_INIT *initid, UDF_ARGS *args,
 
   return false;
 }
-
-std::size_t get_character_set_width(std::string const &) { return 0; }
 
 }  // namespace plugins
 }  // namespace mysql

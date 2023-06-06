@@ -40,7 +40,7 @@ static bool gen_rnd_us_phone_init(UDF_INIT *initid, UDF_ARGS *args,
   initid->maybe_null = 0;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
 
   return false;
 }

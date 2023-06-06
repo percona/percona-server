@@ -41,7 +41,7 @@ static bool gen_rnd_iban_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   }
 
   if (args->arg_count == 2) {
-    int len = *(int *)args->args[1];
+    long long len = *(int *)args->args[1];
     if (len < 15 || len > 34) {
       std::snprintf(
           message, MYSQL_ERRMSG_SIZE,
@@ -59,7 +59,7 @@ static bool gen_rnd_iban_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   initid->maybe_null = 0;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
 
   return false;
 }
@@ -86,7 +86,7 @@ static char *gen_rnd_iban(UDF_INIT *initid, UDF_ARGS *args [[maybe_unused]],
     country.assign(static_cast<const char *>(args->args[0]), args->lengths[0]);
   }
 
-  unsigned int len = 16;
+  long long len = 16;
   if (args->arg_count >= 2) {
     len = *(int *)args->args[1];
   }

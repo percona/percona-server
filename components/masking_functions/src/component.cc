@@ -64,16 +64,15 @@ constexpr std::string_view privilege_name = "MASKING_DICTIONARIES_ADMIN";
 static mysql_service_status_t component_init() {
   DBUG_TRACE;
 
-  // reg_srv = mysql_plugin_registry_acquire();
-
-  // if (mysql::plugins::Charset_service::init(reg_srv)) return 1;
-
   sql_print_information(
       "Masking Functions Component: Initializing component");
 
-  mysql_service_dynamic_privilege_register->register_privilege(
-      privilege_name.data(), privilege_name.size());
-  register_udfs();
+  if(mysql_service_dynamic_privilege_register->register_privilege(
+      privilege_name.data(), privilege_name.size())) {
+          return 1;
+  }
+
+  return register_udfs();
 
   return 0;
 }
@@ -83,12 +82,12 @@ static mysql_service_status_t component_deinit() {
 
   sql_print_information("Masking Function Component: Deinitializing component");
 
-  unregister_udfs();
+  int error = unregister_udfs();
 
-  mysql_service_dynamic_privilege_register->register_privilege(
+  error |= mysql_service_dynamic_privilege_register->register_privilege(
       privilege_name.data(), privilege_name.size());
 
-  return 0;
+  return error;
 }
 
 void my_error(int error_id, myf flags, ...) {

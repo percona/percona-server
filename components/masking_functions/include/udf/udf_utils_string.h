@@ -24,21 +24,17 @@ namespace mysql {
 namespace plugins {
 std::string &ltrim(std::string &s);
 
-std::string convert(std::string_view const &src, std::string const &src_cs,
-                    std::string const &dst_cs);
+std::string convert(std::string_view const &src, std::string_view const &src_cs,
+                    std::string_view const &dst_cs);
 
 std::string decide_masking_char(UDF_ARGS *args, size_t argno,
-                                std::string const &original_charset,
+                                std::string_view const &original_charset,
                                 std::string_view const &def = "X");
 
-std::string mask_inner(const char *str, const long str_length,
-                       const int margin1, const int margin2,
-                       std::string const &original_charset,
-                       std::string const &mask_char);
-
-std::string mask_outer(const char *str, const unsigned long str_length,
-                       const long margin1, const long margin2,
-                       const char mask_char);
+std::string mask_inner(const char *str, std::size_t str_length,
+                       std::size_t margin1, std::size_t margin2,
+                       std::string_view const &original_charset,
+                       std::string_view const &mask_char);
 
 std::string &rtrim(std::string &s);
 

@@ -41,8 +41,8 @@ std::string &ltrim(std::string &s) {
   return s;
 }
 
-std::string convert(std::string_view const &src, std::string const &src_cs,
-                    std::string const &dst_cs) {
+std::string convert(std::string_view const &src, std::string_view const &src_cs,
+                    std::string_view const &dst_cs) {
   // In practice we only use this to convert single character strings
   // For that, this buffer is more than enough
   constexpr std::size_t buffer_size = 256;
@@ -53,9 +53,9 @@ std::string convert(std::string_view const &src, std::string const &src_cs,
   // strings are null terminated Which is not true for charsets such as UCS2 or
   // UTF32
   CHARSET_INFO *cs_o =
-      get_charset_by_csname(dst_cs.c_str(), MY_CS_PRIMARY, MYF(0));
+      get_charset_by_csname(dst_cs.data(), MY_CS_PRIMARY, MYF(0));
   CHARSET_INFO *cs_r =
-      get_charset_by_csname(src_cs.c_str(), MY_CS_PRIMARY, MYF(0));
+      get_charset_by_csname(src_cs.data(), MY_CS_PRIMARY, MYF(0));
 
   uint error;
   used_buffer = my_convert(buffer, buffer_size - 1, cs_o, src.data(),
@@ -88,10 +88,10 @@ std::string convert(std::string_view const &src, std::string const &src_cs,
  * of the margin values is larger than the argument length, no masking occurs
  * and the argument is returned unchanged.
  */
-std::string mask_inner(const char *str, const long str_length,
-                       const int margin1, const int margin2,
-                       std::string const &original_charset,
-                       std::string const &mask_char) {
+std::string mask_inner(const char *str, std::size_t str_length,
+                       std::size_t margin1, std::size_t margin2,
+                       std::string_view const &original_charset,
+                       std::string_view const &mask_char) {
   // Calculate margins from offsets
   // NOTE: the string service doesn't work with some character sets, such as
   // utf16/32
@@ -100,7 +100,7 @@ std::string mask_inner(const char *str, const long str_length,
   {
     my_h_string mstr;
     mysql_service_mysql_string_converter->convert_from_buffer(
-        &mstr, str, str_length, original_charset.c_str());
+        &mstr, str, str_length, original_charset.data());
     mysql_service_mysql_string_character_access->get_char_length(mstr, &mlen);
     mysql_service_mysql_string_character_access->get_char_offset(mstr, margin1,
                                                                  &c2);
@@ -109,7 +109,7 @@ std::string mask_inner(const char *str, const long str_length,
     mysql_service_mysql_string_factory->destroy(mstr);
   }
 
-  if (margin1 + margin2 >= (int)mlen) {
+  if (margin1 + margin2 >= mlen) {
     // too long => return unchanged
     return std::string(str, str_length);
   }
@@ -124,46 +124,6 @@ std::string mask_inner(const char *str, const long str_length,
   if (margin2 > 0) sresult.append(str + c2 + pads_to_insert, str_length - c3);
 
   return sresult;
-}
-
-/**
- * Masks the left and right ends of a string, leaving the interior unmasked, and
- * returns the result. An optional masking character can be specified.
- *
- * @param str: The string to mask.
- * @param str_length: The length of the string to mask.
- * @param margin1: A nonnegative integer that specifies the number of characters
- * on the left end of the string to mask. If the value is 0, no left end
- * characters are masked.
- * @param margin2: A nonnegative integer that specifies the number of characters
- * on the right end of the string to mask. If the value is 0, no right end
- * characters are masked.
- * @param mask_char: The single character to use for masking.
- *
- * @return The masked string, or empty if either margin is negative.
- *         If the sum of the margin values is larger than the argument length,
- * the entire argument is masked.
- */
-std::string mask_outer(const char *str, const unsigned long str_length,
-                       const long margin1, const long margin2,
-                       const char mask_char) {
-  if (margin1 < 0 || margin2 < 0) {
-    return std::string();
-  }
-
-  std::string str_masked(str);
-  auto maskchar = [mask_char]() -> char { return mask_char; };
-
-  // Mask left
-  std::generate_n(str_masked.begin(),
-                  std::min(static_cast<unsigned long>(margin1), str_length),
-                  maskchar);
-
-  // Mask right
-  if (static_cast<unsigned long>(margin2) < str_length)
-    std::generate_n(str_masked.end() - margin2, margin2, maskchar);
-
-  return str_masked;
 }
 
 std::string &rtrim(std::string &s) {
@@ -181,8 +141,8 @@ std::string &tolower(std::string &s) {
 
 std::string &trim(std::string &s) { return ltrim(rtrim(s)); }
 
-std::string decide_masking_char(UDF_ARGS *args, size_t argno,
-                                std::string const &original_charset,
+std::string decide_masking_char(UDF_ARGS *args, std::size_t argno,
+                                std::string_view const &original_charset,
                                 std::string_view const &def) {
   std::string masking_char;
   if (args->arg_count >= argno + 1) {

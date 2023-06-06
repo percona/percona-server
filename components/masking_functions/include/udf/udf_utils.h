@@ -25,19 +25,23 @@
 #include <random>
 #include <string>
 
+
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
 
 namespace mysql {
 namespace plugins {
-std::string random_string(unsigned long length, bool letter_start);
 
-std::string random_number(const unsigned int length);
+constexpr std::string_view default_charset = "utf8mb4";
 
-long random_number(const long min, const long max);
+std::string random_string(std::size_t length, bool letter_start);
+
+std::string random_number(std::size_t length);
+
+std::size_t random_number(std::size_t min, std::size_t max);
 
 std::string random_credit_card();
 
-std::string random_iban(std::string country, int length);
+std::string random_iban(std::string_view const& country, std::size_t length);
 
 std::string random_ssn();
 
@@ -47,16 +51,13 @@ std::string random_uk_nin();
 
 std::string random_us_phone();
 
-bool get_arg_character_set(UDF_ARGS *args, size_t index, std::string &charset);
-
-// 0 = variable
-std::size_t get_character_set_width(std::string const &charset);
+bool get_arg_character_set(UDF_ARGS *args, std::size_t index, std::string& charset);
 
 bool set_return_value_charset(UDF_INIT *initid,
-                              const std::string &charset = "utf8mb4");
+                              std::string_view const& charset = "utf8mb4");
 
 bool set_return_value_charset_to_match_arg(UDF_INIT *initid, UDF_ARGS *args,
-                                           size_t index);
+                                           std::size_t index);
 
 }  // namespace plugins
 }  // namespace mysql

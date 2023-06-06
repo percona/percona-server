@@ -54,7 +54,7 @@ static bool mask_pan_relaxed_init(UDF_INIT *initid, UDF_ARGS *args,
   }
 
   initid->maybe_null = 1;
-  initid->ptr = NULL;
+  initid->ptr = nullptr;
 
   return false;
 }

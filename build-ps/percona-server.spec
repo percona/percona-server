@@ -46,6 +46,9 @@
 # By default a build will be done including the RocksDB
 %{!?with_rocksdb: %global rocksdb 1}
 
+# By default a build will be done excluding zenfs utility
+%{?with_zenfs: %global zenfs 1}
+
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -518,6 +521,9 @@ mkdir debug
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
+%if 0%{?zenfs}
+           -DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON -DWITH_ZBD=bundled \
+%endif$
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
@@ -569,6 +575,9 @@ mkdir release
            -DWITH_CURL=system \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
+%endif
+%if 0%{?zenfs}
+           -DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON -DWITH_ZBD=bundled \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
@@ -1426,6 +1435,9 @@ fi
 %attr(755, root, root) %{_bindir}/ldb
 %attr(755, root, root) %{_bindir}/mysql_ldb
 %attr(755, root, root) %{_bindir}/sst_dump
+%if 0%{?zenfs}
+%attr(755, root, root) %{_bindir}/zenfs
+%endif
 %endif
 
 %files -n percona-mysql-router

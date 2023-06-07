@@ -374,6 +374,8 @@ enable_zenfs() {
         sed -i '51s:percona-server:libgflags2.2, percona-server:' debian/control
         echo "usr/bin/zenfs" >> debian/percona-server-rocksdb.install
         dch -D unstable --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}" "Update to new upstream release Percona Server ${VERSION}-${RELEASE}-1"
+    elif [[ $mode == "rhel" ]]; then
+        echo "mode rhel selected"
     fi
     return
 }
@@ -804,9 +806,17 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        if [[ ${WITH_ZENFS} == "1" ]]; then
+            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        else
+            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        fi
     else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        if [[ ${WITH_ZENFS} == "1" ]]; then
+            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        else
+            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        fi
     fi
 
     if [ $RHEL = 6 ]; then

@@ -440,7 +440,7 @@ mysqlpp::udf_result_t<STRING_RESULT> get_last_gtid_from_binlog_impl::calculate(
   auto length =
       static_cast<std::size_t>(extracted_gtid.to_string(&sid_map, buf));
 
-  return mysqlpp::udf_result_t<STRING_RESULT>{boost::in_place_init, buf,
+  return mysqlpp::udf_result_t<STRING_RESULT>{std::in_place, buf,
                                               length};
 }
 
@@ -524,7 +524,7 @@ mysqlpp::udf_result_t<STRING_RESULT> get_gtid_set_by_binlog_impl::calculate(
   dynamic_buffer_t result_buffer(covering_gtids.get_string_length() + 1);
   auto length = covering_gtids.to_string(result_buffer.data());
 
-  return mysqlpp::udf_result_t<STRING_RESULT>{boost::in_place_init,
+  return mysqlpp::udf_result_t<STRING_RESULT>{std::in_place,
                                               result_buffer.data(), length};
 }
 

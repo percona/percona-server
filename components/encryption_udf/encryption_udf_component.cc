@@ -667,7 +667,7 @@ mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
   auto optional_length = ctx.get_arg<INT_RESULT>(0);
   if (!optional_length)
     throw std::invalid_argument("Parameters length cannot be NULL");
-  auto length = optional_length.get();
+  auto length = optional_length.value();
 
   if (!check_if_bits_in_range(length, threshold_index_type::dh))
     throw std::invalid_argument("Invalid DH parameters length specified");

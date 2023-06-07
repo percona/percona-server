@@ -102,6 +102,31 @@ class udf_context {
     initid_->decimals = DECIMAL_NOT_SPECIFIED;
   }
 
+#ifdef MYSQLPP_CHARSET_SUPPORT
+  void set_return_value_charset(std::string_view const &charset) {
+    void *cs = const_cast<char *>(charset.data());
+    if (mysql_service_mysql_udf_metadata->result_set(initid_, "charset", cs))
+      throw std::runtime_error{"Couldn't set character set"};
+  }
+
+  std::string_view get_arg_charset(std::size_t index) const {
+    void *output = nullptr;
+    if (args_->arg_type[index] != STRING_RESULT)
+      throw std::runtime_error{"Argument is not a string"};
+
+    if (mysql_service_mysql_udf_metadata->argument_get(args_, "charset", index,
+                                                       &output)) {
+      throw std::runtime_error{"Couldn't query character set"};
+    }
+
+    return static_cast<char *>(output);
+  }
+
+  void set_return_value_charset_to_match_arg(std::size_t index) {
+    set_return_value_charset(get_arg_charset(index));
+  }
+#endif
+
  private:
   UDF_INIT *initid_;
   UDF_ARGS *args_;

@@ -148,7 +148,7 @@ class generic_udf<ImplType, STRING_RESULT>
       return nullptr;
     } else {
       *is_null = 0;
-      extended_impl.mixin = std::move(res.get());
+      extended_impl.mixin = std::move(res.value());
       *length = extended_impl.mixin.size();
       return const_cast<char *>(extended_impl.mixin.c_str());
     }
@@ -180,7 +180,7 @@ class generic_udf<ImplType, REAL_RESULT>
       return 0.0;
     } else {
       *is_null = 0;
-      return res.get();
+      return res.value();
     }
   }
 };
@@ -210,7 +210,7 @@ class generic_udf<ImplType, INT_RESULT>
       return 0.0;
     } else {
       *is_null = 0;
-      return res.get();
+      return res.value();
     }
   }
 };

@@ -78,14 +78,14 @@ constexpr std::size_t number_of_algorithms =
     static_cast<std::size_t>(algorithm_id_type::delimiter);
 
 #define ENCRYPTION_UDF_X_MACRO(X) BOOST_PP_STRINGIZE(X)
-constexpr std::array<ext::string_view, number_of_algorithms>
+constexpr std::array<std::string_view, number_of_algorithms>
     algorithm_id_labels = {ENCRYPTION_UDF_X_MACRO_LIST()};
 #undef ENCRYPTION_UDF_X_MACRO
 
 #undef ENCRYPTION_UDF_X_MACRO_LIST
 
 algorithm_id_type get_algorithm_id_by_label(
-    ext::string_view algorithm) noexcept {
+    std::string_view algorithm) noexcept {
   assert(algorithm.data() != nullptr);
   std::size_t index = 0;
   while (index < number_of_algorithms &&
@@ -95,7 +95,7 @@ algorithm_id_type get_algorithm_id_by_label(
 }
 
 algorithm_id_type get_and_validate_algorithm_id_by_label(
-    ext::string_view algorithm) {
+    std::string_view algorithm) {
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
   auto res = get_algorithm_id_by_label(algorithm);
@@ -667,7 +667,7 @@ mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
   auto optional_length = ctx.get_arg<INT_RESULT>(0);
   if (!optional_length)
     throw std::invalid_argument("Parameters length cannot be NULL");
-  auto length = optional_length.get();
+  auto length = optional_length.value();
 
   if (!check_if_bits_in_range(length, threshold_index_type::dh))
     throw std::invalid_argument("Invalid DH parameters length specified");

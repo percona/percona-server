@@ -52,7 +52,7 @@ class udf_context {
     return get_arg_impl(index, item_result_tag<ItemResult>{});
   }
 
-  ext::string_view get_attribute(std::size_t index) const noexcept {
+  std::string_view get_attribute(std::size_t index) const noexcept {
     return {args_->attributes[index], args_->attribute_lengths[index]};
   }
 

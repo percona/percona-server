@@ -17,10 +17,9 @@
 #ifndef MYSQLPP_UDF_TRAITS_HPP
 #define MYSQLPP_UDF_TRAITS_HPP
 
+#include <optional>
 #include <string>
-
-#include <ext/optional.hpp>
-#include <ext/string_view.hpp>
+#include <string_view>
 
 namespace mysqlpp {
 
@@ -44,26 +43,26 @@ struct udf_traits;
 
 template <>
 struct udf_traits<STRING_RESULT> {
-  using arg_type = ext::string_view;
-  using result_type = ext::optional<std::string>;
+  using arg_type = std::string_view;
+  using result_type = std::optional<std::string>;
   using mixin_type = wrapped_t<std::string>;
 };
 template <>
 struct udf_traits<REAL_RESULT> {
-  using arg_type = ext::optional<double>;
-  using result_type = ext::optional<double>;
+  using arg_type = std::optional<double>;
+  using result_type = std::optional<double>;
   using mixin_type = empty_mixin;
 };
 template <>
 struct udf_traits<INT_RESULT> {
-  using arg_type = ext::optional<long long>;
-  using result_type = ext::optional<long long>;
+  using arg_type = std::optional<long long>;
+  using result_type = std::optional<long long>;
   using mixin_type = empty_mixin;
 };
 template <>
 struct udf_traits<DECIMAL_RESULT> {
-  using arg_type = ext::string_view;
-  using result_type = ext::optional<std::string>;
+  using arg_type = std::string_view;
+  using result_type = std::optional<std::string>;
   using mixin_type = wrapped_t<std::string>;
 };
 

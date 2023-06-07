@@ -79,17 +79,18 @@ class wrapped_udf_real_impl {
     auto arg_opt = ctx.get_arg<REAL_RESULT>(0);
     if (!arg_opt) return {};
 
-    if (arg_opt.get() == 100.0) {
+    if (arg_opt.value() == 100.0) {
       my_error(ER_DA_OOM, MYF(0));
       throw mysqlpp::udf_exception("test udf_exception with sentinel");
     }
-    if (arg_opt.get() == 101.0)
+    if (arg_opt.value() == 101.0)
       throw mysqlpp::udf_exception("test udf_exception without sentinel",
                                    ER_WRAPPED_UDF_EXCEPTION);
-    if (arg_opt.get() == 102.0) throw std::runtime_error("test runtime_error");
-    if (arg_opt.get() == 103.0) throw 42;
+    if (arg_opt.value() == 102.0)
+      throw std::runtime_error("test runtime_error");
+    if (arg_opt.value() == 103.0) throw 42;
 
-    return arg_opt.get() + 0.25;
+    return arg_opt.value() + 0.25;
   }
 };
 
@@ -108,17 +109,17 @@ class wrapped_udf_int_impl {
     auto arg_opt = ctx.get_arg<INT_RESULT>(0);
     if (!arg_opt) return {};
 
-    if (arg_opt.get() == 100) {
+    if (arg_opt.value() == 100) {
       my_error(ER_DA_OOM, MYF(0));
       throw mysqlpp::udf_exception("test udf_exception with sentinel");
     }
-    if (arg_opt.get() == 101)
+    if (arg_opt.value() == 101)
       throw mysqlpp::udf_exception("test udf_exception without sentinel",
                                    ER_WRAPPED_UDF_EXCEPTION);
-    if (arg_opt.get() == 102) throw std::runtime_error("test runtime_error");
-    if (arg_opt.get() == 103) throw 42;
+    if (arg_opt.value() == 102) throw std::runtime_error("test runtime_error");
+    if (arg_opt.value() == 103) throw 42;
 
-    return arg_opt.get() + 100;
+    return arg_opt.value() + 100;
   }
 };
 

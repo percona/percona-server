@@ -18,15 +18,14 @@
 #define MYSQLPP_COMMON_TYPES_HPP
 
 #include <cassert>
+#include <string_view>
 
 #include <mysql/udf_registration_types.h>
-
-#include <ext/string_view.hpp>
 
 namespace mysqlpp {
 
 using item_result_type = Item_result;
-inline ext::string_view get_item_result_label(
+inline std::string_view get_item_result_label(
     item_result_type item_result) noexcept {
   switch (item_result) {
     case INVALID_RESULT:

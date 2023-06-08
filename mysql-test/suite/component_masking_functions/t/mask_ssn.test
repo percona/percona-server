@@ -6,11 +6,11 @@ INSTALL COMPONENT 'file://component_masking_functions';
 
 SELECT mask_ssn("123456789");
 SELECT mask_ssn("123-45-6789");
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_ssn(NULL);
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_ssn("");
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_ssn("this is not an ssn");
 
 SELECT mask_ssn("123-45-6789", "!");

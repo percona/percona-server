@@ -9,11 +9,11 @@ SELECT mask_ssn("123-45-6789");
 mask_ssn("123-45-6789")
 XXX-XX-6789
 SELECT mask_ssn(NULL);
-ERROR HY000: Can't initialize function 'mask_ssn'; Wrong argument: SSN must be specified either as nine digits, or in the format xxx-xx-xxxxx
+ERROR HY000: mask_ssn<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_ssn("");
-ERROR HY000: Can't initialize function 'mask_ssn'; Wrong argument: SSN must be specified either as nine digits, or in the format xxx-xx-xxxxx
+ERROR HY000: mask_ssn<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_ssn("this is not an ssn");
-ERROR HY000: Can't initialize function 'mask_ssn'; Wrong argument: SSN must be specified either as nine digits, or in the format xxx-xx-xxxxx
+ERROR HY000: mask_ssn<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_ssn("123-45-6789", "!");
 mask_ssn("123-45-6789", "!")
 !!!-!!-6789

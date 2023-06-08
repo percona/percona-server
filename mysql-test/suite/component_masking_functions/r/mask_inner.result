@@ -18,9 +18,9 @@ SELECT mask_inner(NULL, 1, 2, '#');
 mask_inner(NULL, 1, 2, '#')
 NULL
 SELECT mask_inner('This is a string', -1, 5);
-ERROR HY000: Can't initialize function 'mask_inner'; Wrong argument: margin1 can't be negative
+ERROR HY000: mask_inner<string> UDF failed; Margins can't be negative!
 SELECT mask_inner('This is a string', 1, -5);
-ERROR HY000: Can't initialize function 'mask_inner'; Wrong argument: margin1 can't be negative
+ERROR HY000: mask_inner<string> UDF failed; Margins can't be negative!
 SELECT mask_inner('This is a string', 1, 25);
 mask_inner('This is a string', 1, 25)
 This is a string

@@ -15,11 +15,11 @@ INSERT INTO mysql.masking_dictionaries VALUES("us_cities", "city3");
 INSERT INTO mysql.masking_dictionaries VALUES("us_cities", "city4");
 CREATE USER udftest;
 SELECT masking_dictionary_term_add("single_dict", "entry");
-ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; masking_dictionary_term_add requires the MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; Function requires MASKING_DICTIONARIES_ADMIN privilege
 SELECT masking_dictionary_term_remove("single_dict", "entry");
-ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; masking_dictionary_term_remove requires the MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
 SELECT masking_dictionary_remove("single_dict");
-ERROR HY000: Can't initialize function 'masking_dictionary_remove'; masking_dictionary_remove requires the MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
 GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest;
 SELECT masking_dictionary_term_add("single_dict", "entry");
 masking_dictionary_term_add("single_dict", "entry")

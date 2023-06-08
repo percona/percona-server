@@ -9,9 +9,9 @@ SELECT mask_pan_relaxed("123456789012246");
 mask_pan_relaxed("123456789012246")
 123456XXXXX2246
 SELECT mask_pan_relaxed(NULL);
-ERROR HY000: Can't initialize function 'mask_pan_relaxed'; Wrong argument: PAN must be between 14 and 19 characters
+ERROR HY000: mask_pan_relaxed<string> UDF failed; Wrong argument: must be between 14 and 19 characters
 SELECT mask_pan_relaxed("");
-ERROR HY000: Can't initialize function 'mask_pan_relaxed'; Wrong argument: PAN must be between 14 and 19 characters
+ERROR HY000: mask_pan_relaxed<string> UDF failed; Wrong argument: must be between 14 and 19 characters
 SELECT mask_pan_relaxed("123496798465498779");
 mask_pan_relaxed("123496798465498779")
 123496XXXXXXXX8779

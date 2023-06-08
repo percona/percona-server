@@ -6,11 +6,11 @@ INSTALL COMPONENT 'file://component_masking_functions';
 
 SELECT mask_canada_sin("123456789");
 SELECT mask_canada_sin("123-456-789");
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_canada_sin(NULL);
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_canada_sin("");
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_canada_sin("this is not an canada_sin");
 
 SELECT mask_canada_sin("123-456-789", "!");

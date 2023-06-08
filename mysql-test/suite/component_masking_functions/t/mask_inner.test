@@ -10,10 +10,10 @@ SELECT mask_inner('This is a string', 5, 1, '#');
 SELECT mask_inner(NULL, 1, 2);
 SELECT mask_inner(NULL, 1, 2, '#');
 
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_inner('This is a string', -1, 5);
 
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_inner('This is a string', 1, -5);
 
 SELECT mask_inner('This is a string', 1, 25);

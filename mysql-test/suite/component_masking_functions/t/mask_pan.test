@@ -6,9 +6,9 @@ INSTALL COMPONENT 'file://component_masking_functions';
 
 SELECT mask_pan("1234567890122461");
 SELECT mask_pan("123456789012246");
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_pan(NULL);
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_pan("");
 SELECT mask_pan("123496798465498779");
 SELECT mask_pan("this is not a pan");

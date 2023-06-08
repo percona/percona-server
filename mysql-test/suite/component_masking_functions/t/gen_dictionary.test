@@ -2,6 +2,8 @@
 --echo # Compoent Masking Functions: gen_dictionary
 --echo #
 
+--source include/count_sessions.inc
+
 INSTALL COMPONENT 'file://component_masking_functions';
 
 CREATE TABLE
@@ -66,3 +68,5 @@ DROP USER udftest;
 UNINSTALL COMPONENT 'file://component_masking_functions';
 
 DROP TABLE mysql.masking_dictionaries;
+
+--source include/wait_until_count_sessions.inc

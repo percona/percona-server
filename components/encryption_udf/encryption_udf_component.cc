@@ -744,17 +744,6 @@ DECLARE_INT_UDF(asymmetric_verify_impl, asymmetric_verify)
 DECLARE_STRING_UDF(create_dh_parameters_impl, create_dh_parameters)
 DECLARE_STRING_UDF(asymmetric_derive_impl, asymmetric_derive)
 
-struct udf_info {
-  const char *name;
-  Item_result return_type;
-  Udf_func_any func;
-  Udf_func_init init_func;
-  Udf_func_deinit deinit_func;
-};
-
-#define DECLARE_UDF_INFO(NAME, TYPE) \
-  udf_info { #NAME, TYPE, (Udf_func_any)&NAME, &NAME##_init, &NAME##_deinit }
-
 static const std::array known_udfs{
     DECLARE_UDF_INFO(create_asymmetric_priv_key, STRING_RESULT),
     DECLARE_UDF_INFO(create_asymmetric_pub_key, STRING_RESULT),
@@ -766,17 +755,12 @@ static const std::array known_udfs{
     DECLARE_UDF_INFO(create_dh_parameters, STRING_RESULT),
     DECLARE_UDF_INFO(asymmetric_derive, STRING_RESULT)};
 
-#undef DECLARE_UDF_INFO
-
 using udf_bitset_type =
     std::bitset<std::tuple_size<decltype(known_udfs)>::value>;
 static udf_bitset_type registered_udfs;
 
 using threshold_bitset_type = std::bitset<number_of_thresholds>;
 static threshold_bitset_type registered_thresholds;
-
-static constexpr std::size_t max_unregister_attempts = 10;
-static constexpr auto unregister_sleep_interval = std::chrono::seconds(1);
 
 static mysql_service_status_t component_init() {
   std::size_t index = 0U;
@@ -799,41 +783,14 @@ static mysql_service_status_t component_init() {
     ++index;
   }
 
-  index = 0U;
-  for (const auto &element : known_udfs) {
-    if (!registered_udfs.test(index)) {
-      if (mysql_service_udf_registration->udf_register(
-              element.name, element.return_type, element.func,
-              element.init_func, element.deinit_func) == 0)
-        registered_udfs.set(index);
-    }
-    ++index;
-  }
+  mysqlpp::register_udfs(known_udfs, registered_udfs);
   return registered_udfs.all() && registered_thresholds.all() ? 0 : 1;
 }
 
 static mysql_service_status_t component_deinit() {
-  int was_present = 0;
+  mysqlpp::unregister_udfs(known_udfs, registered_udfs);
 
-  std::size_t index = 0U;
-
-  for (const auto &element : known_udfs) {
-    if (registered_udfs.test(index)) {
-      std::size_t attempt = 0;
-      mysql_service_status_t status = 0;
-      while (attempt < max_unregister_attempts &&
-             (status = mysql_service_udf_registration->udf_unregister(
-                  element.name, &was_present)) != 0 &&
-             was_present != 0) {
-        std::this_thread::sleep_for(unregister_sleep_interval);
-        ++attempt;
-      }
-      if (status == 0) registered_udfs.reset(index);
-    }
-    ++index;
-  }
-
-  index = 0;
+  std::size_t index = 0;
   for (const auto &threshold : thresholds) {
     if (registered_thresholds.test(index)) {
       if (mysql_service_component_sys_variable_unregister->unregister_variable(

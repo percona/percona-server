@@ -6,13 +6,13 @@ SELECT mask_uuid("12345678-1234-1234-1234-123456789012");
 mask_uuid("12345678-1234-1234-1234-123456789012")
 XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
 SELECT mask_uuid(NULL);
-ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument: UUID must be 36 characters
+ERROR HY000: mask_uuid<string> UDF failed; Wrong argument: must be exactly 36 characters
 SELECT mask_uuid("");
-ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument: UUID must be 36 characters
+ERROR HY000: mask_uuid<string> UDF failed; Wrong argument: must be exactly 36 characters
 SELECT mask_uuid("123496798465498779");
-ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument: UUID must be 36 characters
+ERROR HY000: mask_uuid<string> UDF failed; Wrong argument: must be exactly 36 characters
 SELECT mask_uuid("this is not a uuid");
-ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument: UUID must be 36 characters
+ERROR HY000: mask_uuid<string> UDF failed; Wrong argument: must be exactly 36 characters
 SELECT mask_uuid("12345678-1234-1234-1234-123456789012", "!");
 mask_uuid("12345678-1234-1234-1234-123456789012", "!")
 !!!!!!!!-!!!!-!!!!-!!!!-!!!!!!!!!!!!

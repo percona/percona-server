@@ -18,9 +18,9 @@ SELECT mask_outer(NULL, 5, 1, '#');
 mask_outer(NULL, 5, 1, '#')
 NULL
 SELECT mask_outer('This is a string', -1, 5);
-ERROR HY000: Can't initialize function 'mask_outer'; Wrong argument: margin1 can't be negative
+ERROR HY000: mask_outer<string> UDF failed; Margins can't be negative!
 SELECT mask_outer('This is a string', 1, -5);
-ERROR HY000: Can't initialize function 'mask_outer'; Wrong argument: margin1 can't be negative
+ERROR HY000: mask_outer<string> UDF failed; Margins can't be negative!
 SELECT mask_outer('This is a string', 1, 25);
 mask_outer('This is a string', 1, 25)
 XXXXXXXXXXXXXXXX

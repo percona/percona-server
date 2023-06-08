@@ -20,6 +20,9 @@
 #include <string>
 #include <string_view>
 
+#define MYSQLPP_CHARSET_SUPPORT
+#include <mysqlpp/udf_wrappers.hpp>
+
 namespace mysql {
 namespace plugins {
 std::string &ltrim(std::string &s);
@@ -27,6 +30,9 @@ std::string &ltrim(std::string &s);
 std::string convert(std::string_view const &src, std::string_view const &src_cs,
                     std::string_view const &dst_cs);
 
+std::string decide_masking_char(mysqlpp::udf_context const& args, size_t argno,
+                                std::string_view const &original_charset,
+                                std::string_view const &def = "X");
 std::string decide_masking_char(UDF_ARGS *args, size_t argno,
                                 std::string_view const &original_charset,
                                 std::string_view const &def = "X");

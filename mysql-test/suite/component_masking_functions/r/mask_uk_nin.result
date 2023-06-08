@@ -9,11 +9,11 @@ SELECT mask_uk_nin("123-45-6789");
 mask_uk_nin("123-45-6789")
 12XXXXXXXXX
 SELECT mask_uk_nin(NULL);
-ERROR HY000: Can't initialize function 'mask_uk_nin'; Wrong argument: NIN must be between 9 and 11 characters
+ERROR HY000: mask_uk_nin<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_uk_nin("");
-ERROR HY000: Can't initialize function 'mask_uk_nin'; Wrong argument: NIN must be between 9 and 11 characters
+ERROR HY000: mask_uk_nin<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_uk_nin("this is not a uk_nin");
-ERROR HY000: Can't initialize function 'mask_uk_nin'; Wrong argument: NIN must be between 9 and 11 characters
+ERROR HY000: mask_uk_nin<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_uk_nin("123456789", "!");
 mask_uk_nin("123456789", "!")
 12!!!!!!!

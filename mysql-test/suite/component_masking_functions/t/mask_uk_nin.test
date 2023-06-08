@@ -6,11 +6,11 @@ INSTALL COMPONENT 'file://component_masking_functions';
 
 SELECT mask_uk_nin("123456789");
 SELECT mask_uk_nin("123-45-6789");
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_uk_nin(NULL);
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_uk_nin("");
---error ER_CANT_INITIALIZE_UDF
+--error ER_UDF_ERROR
 SELECT mask_uk_nin("this is not a uk_nin");
 
 SELECT mask_uk_nin("123456789", "!");

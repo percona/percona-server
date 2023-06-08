@@ -141,6 +141,27 @@ std::string &tolower(std::string &s) {
 
 std::string &trim(std::string &s) { return ltrim(rtrim(s)); }
 
+std::string decide_masking_char(mysqlpp::udf_context const &ctx,
+                                std::size_t argno,
+                                std::string_view const &original_charset,
+                                std::string_view const &def) {
+  std::string masking_char;
+  if (ctx.get_number_of_args() >= argno + 1) {
+    auto repl_charset = ctx.get_arg_charset(argno);
+
+    if (repl_charset != original_charset) {
+      masking_char = mysql::plugins::convert(ctx.get_arg<STRING_RESULT>(argno),
+                                             repl_charset, original_charset);
+    } else {
+      masking_char = ctx.get_arg<STRING_RESULT>(argno);
+    }
+  } else {
+    masking_char = mysql::plugins::convert(def, "utf8mb4", original_charset);
+  }
+
+  return masking_char;
+}
+
 std::string decide_masking_char(UDF_ARGS *args, std::size_t argno,
                                 std::string_view const &original_charset,
                                 std::string_view const &def) {

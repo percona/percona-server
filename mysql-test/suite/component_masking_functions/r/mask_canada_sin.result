@@ -9,11 +9,11 @@ SELECT mask_canada_sin("123-456-789");
 mask_canada_sin("123-456-789")
 XXX-XXX-XXX
 SELECT mask_canada_sin(NULL);
-ERROR HY000: Can't initialize function 'mask_canada_sin'; Wrong argument: SIN must be specified either as nine digits, or in the format xxx-xxx-xxxx
+ERROR HY000: mask_canada_sin<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_canada_sin("");
-ERROR HY000: Can't initialize function 'mask_canada_sin'; Wrong argument: SIN must be specified either as nine digits, or in the format xxx-xxx-xxxx
+ERROR HY000: mask_canada_sin<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_canada_sin("this is not an canada_sin");
-ERROR HY000: Can't initialize function 'mask_canada_sin'; Wrong argument: SIN must be specified either as nine digits, or in the format xxx-xxx-xxxx
+ERROR HY000: mask_canada_sin<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_canada_sin("123-456-789", "!");
 mask_canada_sin("123-456-789", "!")
 !!!-!!!-!!!

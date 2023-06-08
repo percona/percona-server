@@ -45,6 +45,7 @@ IF(WITH_PERCONA_AUDIT_LOG_FILTER)
       log_writer/file.cc
       log_writer/syslog.cc
       log_writer/file_handle.cc
+      log_writer/file_name.cc
       log_writer/file_writer.cc
       log_writer/file_writer_decorator_base.cc
       log_writer/file_writer_buffering.cc

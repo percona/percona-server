@@ -32,6 +32,7 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "sql/mysqld.h"
+#include "sql/sql_plugin_var.h"
 #include "typelib.h"
 
 #include "audit_handler.h"
@@ -808,7 +809,7 @@ static int audit_log_plugin_init(MYSQL_PLUGIN plugin_info) {
     my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
                           "Both 'audit_log_exclude_accounts' and "
                           "'audit_log_include_accounts' are not NULL\n");
-    goto validation_error;
+    return 1;
   }
 
   if (audit_log_exclude_commands != nullptr &&
@@ -816,7 +817,7 @@ static int audit_log_plugin_init(MYSQL_PLUGIN plugin_info) {
     my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
                           "Both 'audit_log_exclude_commands' and "
                           "'audit_log_include_commands' are not NULL\n");
-    goto validation_error;
+    return 1;
   }
 
   if (audit_log_exclude_databases != nullptr &&
@@ -824,37 +825,25 @@ static int audit_log_plugin_init(MYSQL_PLUGIN plugin_info) {
     my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
                           "Both 'audit_log_exclude_databases' and "
                           "'audit_log_include_databases' are not NULL\n");
-    goto validation_error;
+    return 1;
   }
 
   if (audit_log_exclude_accounts != nullptr) {
-    audit_log_exclude_accounts = my_strdup(
-        PSI_NOT_INSTRUMENTED, audit_log_exclude_accounts, MYF(MY_FAE));
     audit_log_set_exclude_accounts(audit_log_exclude_accounts);
   }
   if (audit_log_include_accounts != nullptr) {
-    audit_log_include_accounts = my_strdup(
-        PSI_NOT_INSTRUMENTED, audit_log_include_accounts, MYF(MY_FAE));
     audit_log_set_include_accounts(audit_log_include_accounts);
   }
   if (audit_log_exclude_commands != nullptr) {
-    audit_log_exclude_commands = my_strdup(
-        PSI_NOT_INSTRUMENTED, audit_log_exclude_commands, MYF(MY_FAE));
     audit_log_set_exclude_commands(audit_log_exclude_commands);
   }
   if (audit_log_include_commands != nullptr) {
-    audit_log_include_commands = my_strdup(
-        PSI_NOT_INSTRUMENTED, audit_log_include_commands, MYF(MY_FAE));
     audit_log_set_include_commands(audit_log_include_commands);
   }
   if (audit_log_exclude_databases != nullptr) {
-    audit_log_exclude_databases = my_strdup(
-        PSI_NOT_INSTRUMENTED, audit_log_exclude_databases, MYF(MY_FAE));
     audit_log_set_exclude_databases(audit_log_exclude_databases);
   }
   if (audit_log_include_databases != nullptr) {
-    audit_log_include_databases = my_strdup(
-        PSI_NOT_INSTRUMENTED, audit_log_include_databases, MYF(MY_FAE));
     audit_log_set_include_databases(audit_log_include_databases);
   }
 
@@ -864,14 +853,6 @@ static int audit_log_plugin_init(MYSQL_PLUGIN plugin_info) {
     audit_log_write(buf, len);
 
   return 0;
-
-validation_error:
-
-  audit_log_exclude_accounts = audit_log_include_accounts = nullptr;
-  audit_log_exclude_commands = audit_log_include_commands = nullptr;
-  audit_log_exclude_databases = audit_log_include_databases = nullptr;
-
-  return 1;
 }
 
 static int audit_log_plugin_deinit(void *arg [[maybe_unused]]) {
@@ -885,16 +866,7 @@ static int audit_log_plugin_deinit(void *arg [[maybe_unused]]) {
 
   audit_log_filter_destroy();
 
-  my_free(audit_log_include_accounts);
-  my_free(audit_log_exclude_accounts);
-
-  my_free(audit_log_include_databases);
-  my_free(audit_log_exclude_databases);
-
-  my_free(audit_log_include_commands);
-  my_free(audit_log_exclude_commands);
-
-  return (0);
+  return 0;
 }
 
 static bool is_event_class_allowed_by_policy(mysql_event_class_t event_class,
@@ -1339,41 +1311,23 @@ static MYSQL_THDVAR_STR(query_stack,
                             PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
                         "Query stack.", nullptr, nullptr, "");
 
-static const char *val_strmake(MYSQL_THD thd,
-                               struct st_mysql_value *mysql_val) {
-  char buf[STRING_BUFFER_USUAL_SIZE];
-  int len = sizeof(buf);
-  const char *val = mysql_val->val_str(mysql_val, buf, &len);
-
-  if (val != NULL) val = thd_strmake(thd, val, len);
-
-  return val;
-}
-
-static int audit_log_exclude_accounts_validate(MYSQL_THD thd,
-                                               SYS_VAR *var [[maybe_unused]],
+static int audit_log_exclude_accounts_validate(MYSQL_THD thd, SYS_VAR *var,
                                                void *save,
                                                st_mysql_value *value) {
-  if (audit_log_include_accounts) return 1;
+  if (audit_log_include_accounts) {
+    return 1;
+  }
 
-  *(const char **)(save) = val_strmake(thd, value);
-
-  return 0;
+  return check_func_str(thd, var, save, value);
 }
 
-static void audit_log_exclude_accounts_update(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *var_ptr [[maybe_unused]], const void *save) {
-  const char *new_val = *(const char * const*)(save);
-
+static void audit_log_exclude_accounts_update(MYSQL_THD thd, SYS_VAR *var,
+                                              void *var_ptr, const void *save) {
   assert(audit_log_include_accounts == nullptr);
 
-  my_free(audit_log_exclude_accounts);
-  audit_log_exclude_accounts = nullptr;
+  update_func_str(thd, var, var_ptr, save);
 
-  if (new_val != nullptr) {
-    audit_log_exclude_accounts =
-        my_strdup(PSI_NOT_INSTRUMENTED, new_val, MYF(MY_FAE));
+  if (audit_log_exclude_accounts != nullptr) {
     audit_log_set_exclude_accounts(audit_log_exclude_accounts);
   } else {
     audit_log_set_exclude_accounts("");
@@ -1381,36 +1335,29 @@ static void audit_log_exclude_accounts_update(
 }
 
 static MYSQL_SYSVAR_STR(exclude_accounts, audit_log_exclude_accounts,
-                        PLUGIN_VAR_RQCMDARG,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Comma separated list of accounts "
                         "for which events should not be logged.",
                         audit_log_exclude_accounts_validate,
                         audit_log_exclude_accounts_update, nullptr);
 
-static int audit_log_include_accounts_validate(MYSQL_THD thd,
-                                               SYS_VAR *var [[maybe_unused]],
+static int audit_log_include_accounts_validate(MYSQL_THD thd, SYS_VAR *var,
                                                void *save,
                                                st_mysql_value *value) {
-  if (audit_log_exclude_accounts) return 1;
+  if (audit_log_exclude_accounts) {
+    return 1;
+  }
 
-  *(const char **)(save) = val_strmake(thd, value);
-
-  return 0;
+  return check_func_str(thd, var, save, value);
 }
 
-static void audit_log_include_accounts_update(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *var_ptr [[maybe_unused]], const void *save) {
-  const char *new_val = *(const char * const*)(save);
-
+static void audit_log_include_accounts_update(MYSQL_THD thd, SYS_VAR *var,
+                                              void *var_ptr, const void *save) {
   assert(audit_log_exclude_accounts == nullptr);
 
-  my_free(audit_log_include_accounts);
-  audit_log_include_accounts = nullptr;
+  update_func_str(thd, var, var_ptr, save);
 
-  if (new_val != nullptr) {
-    audit_log_include_accounts =
-        my_strdup(PSI_NOT_INSTRUMENTED, new_val, MYF(MY_FAE));
+  if (audit_log_include_accounts != nullptr) {
     audit_log_set_include_accounts(audit_log_include_accounts);
   } else {
     audit_log_set_include_accounts("");
@@ -1418,35 +1365,30 @@ static void audit_log_include_accounts_update(
 }
 
 static MYSQL_SYSVAR_STR(
-    include_accounts, audit_log_include_accounts, PLUGIN_VAR_RQCMDARG,
+    include_accounts, audit_log_include_accounts,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "Comma separated list of accounts for which events should be logged.",
     audit_log_include_accounts_validate, audit_log_include_accounts_update,
     nullptr);
 
-static int audit_log_exclude_databases_validate(MYSQL_THD thd,
-                                                SYS_VAR *var [[maybe_unused]],
+static int audit_log_exclude_databases_validate(MYSQL_THD thd, SYS_VAR *var,
                                                 void *save,
                                                 st_mysql_value *value) {
-  if (audit_log_include_databases) return 1;
+  if (audit_log_include_databases) {
+    return 1;
+  }
 
-  *(const char **)(save) = val_strmake(thd, value);
-
-  return 0;
+  return check_func_str(thd, var, save, value);
 }
 
-static void audit_log_exclude_databases_update(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *var_ptr [[maybe_unused]], const void *save) {
-  const char *new_val = *(const char * const*)(save);
-
+static void audit_log_exclude_databases_update(MYSQL_THD thd, SYS_VAR *var,
+                                               void *var_ptr,
+                                               const void *save) {
   assert(audit_log_include_databases == nullptr);
 
-  my_free(audit_log_exclude_databases);
-  audit_log_exclude_databases = nullptr;
+  update_func_str(thd, var, var_ptr, save);
 
-  if (new_val != nullptr) {
-    audit_log_exclude_databases =
-        my_strdup(PSI_NOT_INSTRUMENTED, new_val, MYF(MY_FAE));
+  if (audit_log_exclude_databases != nullptr) {
     audit_log_set_exclude_databases(audit_log_exclude_databases);
   } else {
     audit_log_set_exclude_databases("");
@@ -1454,36 +1396,30 @@ static void audit_log_exclude_databases_update(
 }
 
 static MYSQL_SYSVAR_STR(exclude_databases, audit_log_exclude_databases,
-                        PLUGIN_VAR_RQCMDARG,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Comma separated list of databases "
                         "for which events should not be logged.",
                         audit_log_exclude_databases_validate,
                         audit_log_exclude_databases_update, nullptr);
 
-static int audit_log_include_databases_validate(MYSQL_THD thd,
-                                                SYS_VAR *var [[maybe_unused]],
+static int audit_log_include_databases_validate(MYSQL_THD thd, SYS_VAR *var,
                                                 void *save,
                                                 st_mysql_value *value) {
-  if (audit_log_exclude_databases) return 1;
+  if (audit_log_exclude_databases) {
+    return 1;
+  }
 
-  *(const char **)(save) = val_strmake(thd, value);
-
-  return 0;
+  return check_func_str(thd, var, save, value);
 }
 
-static void audit_log_include_databases_update(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *var_ptr [[maybe_unused]], const void *save) {
-  const char *new_val = *(const char * const*)(save);
-
+static void audit_log_include_databases_update(MYSQL_THD thd, SYS_VAR *var,
+                                               void *var_ptr,
+                                               const void *save) {
   assert(audit_log_exclude_databases == nullptr);
 
-  my_free(audit_log_include_databases);
-  audit_log_include_databases = nullptr;
+  update_func_str(thd, var, var_ptr, save);
 
-  if (new_val != nullptr) {
-    audit_log_include_databases =
-        my_strdup(PSI_NOT_INSTRUMENTED, new_val, MYF(MY_FAE));
+  if (audit_log_include_databases != nullptr) {
     audit_log_set_include_databases(audit_log_include_databases);
   } else {
     audit_log_set_include_databases("");
@@ -1491,35 +1427,29 @@ static void audit_log_include_databases_update(
 }
 
 static MYSQL_SYSVAR_STR(
-    include_databases, audit_log_include_databases, PLUGIN_VAR_RQCMDARG,
+    include_databases, audit_log_include_databases,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "Comma separated list of databases for which events should be logged.",
     audit_log_include_databases_validate, audit_log_include_databases_update,
     nullptr);
 
-static int audit_log_exclude_commands_validate(MYSQL_THD thd,
-                                               SYS_VAR *var [[maybe_unused]],
+static int audit_log_exclude_commands_validate(MYSQL_THD thd, SYS_VAR *var,
                                                void *save,
                                                st_mysql_value *value) {
-  if (audit_log_include_commands) return 1;
+  if (audit_log_include_commands) {
+    return 1;
+  }
 
-  *(const char **)(save) = val_strmake(thd, value);
-
-  return 0;
+  return check_func_str(thd, var, save, value);
 }
 
-static void audit_log_exclude_commands_update(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *var_ptr [[maybe_unused]], const void *save) {
-  const char *new_val = *(const char * const*)(save);
-
+static void audit_log_exclude_commands_update(MYSQL_THD thd, SYS_VAR *var,
+                                              void *var_ptr, const void *save) {
   assert(audit_log_include_commands == nullptr);
 
-  my_free(audit_log_exclude_commands);
-  audit_log_exclude_commands = nullptr;
+  update_func_str(thd, var, var_ptr, save);
 
-  if (new_val != nullptr) {
-    audit_log_exclude_commands =
-        my_strdup(PSI_NOT_INSTRUMENTED, new_val, MYF(MY_FAE));
+  if (audit_log_exclude_commands != nullptr) {
     audit_log_set_exclude_commands(audit_log_exclude_commands);
   } else {
     audit_log_set_exclude_commands("");
@@ -1527,36 +1457,29 @@ static void audit_log_exclude_commands_update(
 }
 
 static MYSQL_SYSVAR_STR(exclude_commands, audit_log_exclude_commands,
-                        PLUGIN_VAR_RQCMDARG,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Comma separated list of commands "
                         "for which events should not be logged.",
                         audit_log_exclude_commands_validate,
                         audit_log_exclude_commands_update, nullptr);
 
-static int audit_log_include_commands_validate(MYSQL_THD thd,
-                                               SYS_VAR *var [[maybe_unused]],
+static int audit_log_include_commands_validate(MYSQL_THD thd, SYS_VAR *var,
                                                void *save,
                                                st_mysql_value *value) {
-  if (audit_log_exclude_commands) return 1;
+  if (audit_log_exclude_commands) {
+    return 1;
+  }
 
-  *(const char **)(save) = val_strmake(thd, value);
-
-  return 0;
+  return check_func_str(thd, var, save, value);
 }
 
-static void audit_log_include_commands_update(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *var_ptr [[maybe_unused]], const void *save) {
-  const char *new_val = *(const char * const*)(save);
-
+static void audit_log_include_commands_update(MYSQL_THD thd, SYS_VAR *var,
+                                              void *var_ptr, const void *save) {
   assert(audit_log_exclude_commands == nullptr);
 
-  my_free(audit_log_include_commands);
-  audit_log_include_commands = nullptr;
+  update_func_str(thd, var, var_ptr, save);
 
-  if (new_val != nullptr) {
-    audit_log_include_commands =
-        my_strdup(PSI_NOT_INSTRUMENTED, new_val, MYF(MY_FAE));
+  if (audit_log_include_commands != nullptr) {
     audit_log_set_include_commands(audit_log_include_commands);
   } else {
     audit_log_set_include_commands("");
@@ -1564,7 +1487,8 @@ static void audit_log_include_commands_update(
 }
 
 static MYSQL_SYSVAR_STR(
-    include_commands, audit_log_include_commands, PLUGIN_VAR_RQCMDARG,
+    include_commands, audit_log_include_commands,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "Comma separated list of commands for which events should be logged.",
     audit_log_include_commands_validate, audit_log_include_commands_update,
     nullptr);
@@ -1615,31 +1539,32 @@ static void MY_ATTRIBUTE((constructor)) audit_log_so_init() noexcept {
  Return pointer to THD specific data.
  */
 static audit_log_thd_local *get_thd_local(MYSQL_THD thd) noexcept {
-  audit_log_thd_local *local = (audit_log_thd_local *)THDVAR(thd, local_ptr);
+  auto *thd_local =
+      reinterpret_cast<audit_log_thd_local *>(THDVAR(thd, local_ptr));
 
   static_assert(sizeof(THDVAR(thd, local_ptr)) >= sizeof(void *),
                 "THD::local_ptr must be at least pointer-big");
 
-  if (unlikely(local == nullptr)) {
+  if (unlikely(thd_local == nullptr)) {
     THDVAR_SET(thd, local, thd_local_init_buf);
-    local = (audit_log_thd_local *)THDVAR(thd, local);
-    memset(local, 0, sizeof(audit_log_thd_local));
-    THDVAR(thd, local_ptr) = (ulong)local;
+    thd_local = (audit_log_thd_local *)THDVAR(thd, local);
+    memset(thd_local, 0, sizeof(audit_log_thd_local));
+    THDVAR(thd, local_ptr) = (ulong)thd_local;
 
     realloc_stack_frames(thd, 4);
   }
-  return local;
+  return thd_local;
 }
 
 /*
  Allocate and return buffer of given size.
  */
 static char *get_record_buffer(MYSQL_THD thd, size_t size) noexcept {
-  audit_log_thd_local *local = get_thd_local(thd);
-  char *buf = local->record_buffer;
+  auto *thd_local = get_thd_local(thd);
+  char *buf = thd_local->record_buffer;
 
-  if (local->record_buffer_size < size) {
-    local->record_buffer_size = size;
+  if (thd_local->record_buffer_size < size) {
+    thd_local->record_buffer_size = size;
 
     buf = (char *)my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(MY_FAE));
     memset(buf, 1, size - 1);
@@ -1650,7 +1575,7 @@ static char *get_record_buffer(MYSQL_THD thd, size_t size) noexcept {
     my_free(buf);
 
     buf = (char *)THDVAR(thd, record_buffer);
-    local->record_buffer = buf;
+    thd_local->record_buffer = buf;
   }
 
   return buf;
@@ -1661,26 +1586,27 @@ static char *get_record_buffer(MYSQL_THD thd, size_t size) noexcept {
  */
 static query_stack_frame *realloc_stack_frames(MYSQL_THD thd,
                                                size_t size) noexcept {
-  audit_log_thd_local *local = get_thd_local(thd);
-  query_stack_frame *stack = (query_stack_frame *)THDVAR(thd, query_stack);
+  auto *thd_local = get_thd_local(thd);
+  auto *stack = reinterpret_cast<query_stack_frame *>(THDVAR(thd, query_stack));
 
-  if (local->stack.size < size) {
+  if (thd_local->stack.size < size) {
     char *buf = (char *)my_malloc(
         PSI_NOT_INSTRUMENTED,
-        (local->stack.size + size) * sizeof(query_stack_frame), MYF(MY_FAE));
-    memset(buf + local->stack.size * sizeof(query_stack_frame), 1,
+        (thd_local->stack.size + size) * sizeof(query_stack_frame),
+        MYF(MY_FAE));
+    memset(buf + thd_local->stack.size * sizeof(query_stack_frame), 1,
            size * sizeof(query_stack_frame) - 1);
-    buf[(local->stack.size + size) * sizeof(query_stack_frame) - 1] = 0;
-    if (local->stack.size > 0)
-      memcpy(buf, stack, local->stack.size * sizeof(query_stack_frame));
+    buf[(thd_local->stack.size + size) * sizeof(query_stack_frame) - 1] = 0;
+    if (thd_local->stack.size > 0)
+      memcpy(buf, stack, thd_local->stack.size * sizeof(query_stack_frame));
     THDVAR_SET(thd, query_stack,
-               buf + local->stack.size * sizeof(query_stack_frame));
+               buf + thd_local->stack.size * sizeof(query_stack_frame));
     stack = (query_stack_frame *)THDVAR(thd, query_stack);
     memset(stack, 0, size * sizeof(query_stack_frame));
-    if (local->stack.size > 0)
-      memcpy(stack, buf, local->stack.size * sizeof(query_stack_frame));
-    local->stack.frames = stack;
-    local->stack.size = size;
+    if (thd_local->stack.size > 0)
+      memcpy(stack, buf, thd_local->stack.size * sizeof(query_stack_frame));
+    thd_local->stack.frames = stack;
+    thd_local->stack.size = size;
     my_free(buf);
   }
 

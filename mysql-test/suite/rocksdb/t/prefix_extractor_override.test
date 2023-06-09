@@ -2,6 +2,33 @@
 
 SET @orig_rocksdb_update_cf_options = @@global.rocksdb_update_cf_options;
 
+DELIMITER //;
+CREATE PROCEDURE bloom_start()
+BEGIN
+  select sum(variable_value) into @u from performance_schema.global_status
+  where variable_name in (
+    'rocksdb_bloom_filter_prefix_useful',
+    'rocksdb_last_level_seek_filter_match',
+    'rocksdb_last_level_seek_filtered',
+    'rocksdb_last_level_seek_data_useful_filter_match',
+    'rocksdb_non_last_level_seek_filter_match',
+    'rocksdb_non_last_level_seek_filtered',
+    'rocksdb_non_last_level_seek_data_useful_filter_match');
+END//
+CREATE PROCEDURE bloom_end()
+BEGIN
+  select sum(variable_value)-@u into @bloom_result from performance_schema.global_status
+  where variable_name in (
+    'rocksdb_bloom_filter_prefix_useful',
+    'rocksdb_last_level_seek_filter_match',
+    'rocksdb_last_level_seek_filtered',
+    'rocksdb_last_level_seek_data_useful_filter_match',
+    'rocksdb_non_last_level_seek_filter_match',
+    'rocksdb_non_last_level_seek_filtered',
+    'rocksdb_non_last_level_seek_data_useful_filter_match');
+END//
+DELIMITER ;//
+
 CREATE TABLE t1 (id1 BIGINT, id2 BIGINT, id3 BIGINT, id4 BIGINT, PRIMARY KEY (id1, id2, id3, id4) comment 'cfname=cf1') ENGINE=rocksdb collate latin1_bin;
 --disable_query_log
 let $i = 1;
@@ -20,11 +47,14 @@ set global rocksdb_force_flush_memtable_now = 1;
 SELECT * FROM information_schema.rocksdb_cf_options WHERE option_type like '%prefix_extractor%';
 
 # BF used (4+8+8+8)
-select variable_value into @u from performance_schema.global_status where variable_name='rocksdb_bloom_filter_prefix_checked';
+call bloom_start();
 SELECT COUNT(*) FROM t1 WHERE id1=1 AND id2=1 AND id3=1;
---let $assert_text="Expected exactly one bloom filter prefix check"
---let $assert_cond="[select variable_value-@u from performance_schema.global_status where variable_name=\'rocksdb_bloom_filter_prefix_checked\']" = 1
+call bloom_end();
+--let $assert_text="Expected increase of sum of variable values = 2"
+--let $assert_cond="[select @bloom_result]" = 2
 --source include/assert.inc
+
+--let $_mysqld_option=--rocksdb_override_cf_options=cf1={prefix_extractor=capped:26};
 
 --echo
 --echo Prefix Extractor (after override_cf_options set, should not be changed):
@@ -42,10 +72,11 @@ SELECT * FROM information_schema.rocksdb_cf_options WHERE option_type like '%pre
 
 # Satisfies can_use_bloom_filter (4+8+8+8), but can't use because the old SST
 # files have old prefix extractor
-select variable_value into @u from performance_schema.global_status where variable_name='rocksdb_bloom_filter_prefix_checked';
+call bloom_start();
 SELECT COUNT(*) FROM t1 WHERE id1=1 AND id2=1 AND id3=1;
---let $assert_text="Expected no bloom filter prefix check"
---let $assert_cond="[select variable_value-@u from performance_schema.global_status where variable_name=\'rocksdb_bloom_filter_prefix_checked\']" = 0
+call bloom_end();
+--let $assert_text="Expected increase of sum of variable values = 0"
+--let $assert_cond="[select @bloom_result]" = 0
 --source include/assert.inc
 
 # Insert more data into t1, verify it uses new bloom filter
@@ -63,10 +94,11 @@ set global rocksdb_force_flush_memtable_now = 1;
 # BF used w/ new prefix extractor (4+8+8+8) (still increments once because it
 # needs to check the new SST file, but doesnt increment for SST file with old
 # extractor)
-select variable_value into @u from performance_schema.global_status where variable_name='rocksdb_bloom_filter_prefix_checked';
+call bloom_start();
 SELECT COUNT(*) FROM t1 WHERE id1=1 AND id2=1 AND id3=1;
---let $assert_text="Expected exactly one bloom filter prefix check"
---let $assert_cond="[select variable_value-@u from performance_schema.global_status where variable_name=\'rocksdb_bloom_filter_prefix_checked\']" = 1
+call bloom_end();
+--let $assert_text="Expected increase of sum of variable values = 1"
+--let $assert_cond="[select @bloom_result]" = 1
 --source include/assert.inc
 
 # should have 2 sst files, one with old prefix extractor and one with new
@@ -79,21 +111,25 @@ set global rocksdb_force_flush_memtable_now = 1;
 
 # should have 3 sst files, one with old prefix extractor and two with new
 SELECT COUNT(*) FROM information_schema.rocksdb_index_file_map WHERE COLUMN_FAMILY != 1;
-select variable_value into @u from performance_schema.global_status where variable_name='rocksdb_bloom_filter_prefix_checked';
+call bloom_start();
 SELECT COUNT(*) FROM t1 WHERE id1=1 AND id2=1 AND id3=1;
---let $assert_text="Expected exactly two bloom filter prefix checks"
---let $assert_cond="[select variable_value-@u from performance_schema.global_status where variable_name=\'rocksdb_bloom_filter_prefix_checked\']" = 2
+call bloom_end();
+--let $assert_text="Expected increase of sum of variable values = 2"
+--let $assert_cond="[select @bloom_result]" = 2
 --source include/assert.inc
 
 SET @@global.rocksdb_update_cf_options = '';
 set global rocksdb_compact_cf='cf1';
 
 # Select the updated, make sure bloom filter is checked now
-select variable_value into @u from performance_schema.global_status where variable_name='rocksdb_bloom_filter_prefix_checked';
+call bloom_start();
 SELECT COUNT(*) FROM t1 WHERE id1=1 AND id2=30 AND id3=30;
---let $assert_text="Expected exactly one bloom filter prefix checks"
---let $assert_cond="[select variable_value-@u from performance_schema.global_status where variable_name=\'rocksdb_bloom_filter_prefix_checked\']" = 1
+call bloom_end();
+--let $assert_text="Expected increase of sum of variable values = 2"
+--let $assert_cond="[select @bloom_result]" = 2
 --source include/assert.inc
 
 SET @@global.rocksdb_update_cf_options = @orig_rocksdb_update_cf_options;
 DROP TABLE t1;
+DROP PROCEDURE bloom_start;
+DROP PROCEDURE bloom_end;

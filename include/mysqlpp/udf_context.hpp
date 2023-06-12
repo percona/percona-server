@@ -27,6 +27,10 @@
 #include <mysqlpp/common_types.hpp>
 #include <mysqlpp/udf_traits.hpp>
 
+#include <mysql/components/component_implementation.h>
+#include <mysql/components/services/udf_metadata.h>
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
+
 namespace mysqlpp {
 
 class udf_context {
@@ -102,7 +106,6 @@ class udf_context {
     initid_->decimals = DECIMAL_NOT_SPECIFIED;
   }
 
-#ifdef MYSQLPP_CHARSET_SUPPORT
   void set_return_value_charset(std::string_view const &charset) {
     void *cs = const_cast<char *>(charset.data());
     if (mysql_service_mysql_udf_metadata->result_set(initid_, "charset", cs))
@@ -125,7 +128,6 @@ class udf_context {
   void set_return_value_charset_to_match_arg(std::size_t index) {
     set_return_value_charset(get_arg_charset(index));
   }
-#endif
 
  private:
   UDF_INIT *initid_;

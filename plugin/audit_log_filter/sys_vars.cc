@@ -547,7 +547,7 @@ MYSQL_SYSVAR_INT(key_derivation_iterations_count_mean,
                  "Mean value of randomly generated iterations count used by "
                  "password based derivation routine.",
                  nullptr, nullptr, default_key_derivation_iter_count_mean, 1000,
-                 INT_MAX, 0);
+                 1000000, 0);
 
 /*
  * The audit_log_filter.format_unix_timestamp variable when enabled causes

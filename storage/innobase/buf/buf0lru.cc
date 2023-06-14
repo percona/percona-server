@@ -1057,7 +1057,7 @@ static bool buf_LRU_free_from_unzip_LRU_list(buf_pool_t *buf_pool,
   bool freed = false;
 
   for (buf_block_t *block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
-       block != nullptr && !freed && (scan_all || scanned < srv_LRU_scan_depth);
+       block != nullptr && (scan_all || scanned < srv_LRU_scan_depth);
        ++scanned) {
     buf_block_t *prev_block;
 
@@ -1071,10 +1071,12 @@ static bool buf_LRU_free_from_unzip_LRU_list(buf_pool_t *buf_pool,
 
     freed = buf_LRU_free_page(&block->page, false);
 
-    if (!freed) {
-      mutex_exit(&block->mutex);
+    if (freed) {
+      ++scanned;
+      break;
     }
 
+    mutex_exit(&block->mutex);
     block = prev_block;
   }
 
@@ -1101,7 +1103,7 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
   ulint scanned{};
 
   for (buf_page_t *bpage = buf_pool->lru_scan_itr.start();
-       bpage != nullptr && !freed &&
+       bpage != nullptr &&
        (scan_all || scanned < BUF_LRU_SEARCH_SCAN_THRESHOLD);
        ++scanned, bpage = buf_pool->lru_scan_itr.get()) {
     ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
@@ -1139,6 +1141,7 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
     ut_ad(!mutex_own(block_mutex));
 
     if (freed) {
+      ++scanned;
       break;
     }
   }

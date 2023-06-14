@@ -103,7 +103,7 @@ ELSE()
   # get a list of rocksdb library source files
   # run with env -i to avoid passing variables
   EXECUTE_PROCESS(
-    COMMAND env -i CXX=${CMAKE_CXX_COMPILER} PATH="/sbin:/usr/sbin:/bin:/usr/bin" ${CMAKE_CURRENT_SOURCE_DIR}/get_rocksdb_files.sh ${ROCKSDB_FOLLY}
+    COMMAND env -i CXX=${CMAKE_CXX_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/get_rocksdb_files.sh ${ROCKSDB_FOLLY}
     OUTPUT_VARIABLE SCRIPT_OUTPUT
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )

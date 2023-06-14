@@ -117,6 +117,8 @@ script_template: &SCRIPT_TEMPLATE
     mysql-test/mysql-test-run.pl $MTR_TESTS --parallel=$NTHREADS --junit-output=$CIRRUS_WORKING_DIR/${RESULTS_FILE}.xml --mysqld-env=LD_PRELOAD=${LIBEATMYDATA##* } --force --max-test-fail=0 --retry-failure=0 --debug-server || echo Ignore mysql_test_run.pl errorcode
     echo "Finished testing with $NTHREADS/$NPROC threads"
     df -Th
+    rm -rf mysql-test/var
+    df -Th
     npm install -g xunit-viewer
     xunit-viewer --results $CIRRUS_WORKING_DIR/${RESULTS_FILE}.xml --output $CIRRUS_WORKING_DIR/${RESULTS_FILE}.html
   html_artifacts:
@@ -159,7 +161,7 @@ task:
   only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.0' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
   ec2_instance:
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202302*"
-    image: ami-0e5872bad32cd6a9d # Ubuntu 22.04.1 x86-64 with percona-server gcc-12 gcc-11 gcc-10 gcc-9 clang-15 clang-14 clang-13 node-12
+    image: ami-0f9f8d3ed33d7cb88 # Ubuntu 22.04.1 x86-64 with 40 GB gp2 and percona-server gcc-13 gcc-12 gcc-11 gcc-10 gcc-9 clang-15 clang-14 clang-13 node-12
     type: c6a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.612 USD/H
     #type: c5a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.616 USD/H
     #type: c5.4xlarge   # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H

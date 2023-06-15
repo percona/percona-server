@@ -385,7 +385,8 @@ jobs:
         fi
       else
          brew update
-         brew install ccache protobuf lz4 openssl@1.1
+         brew install ccache protobuf@21 lz4 openssl@1.1
+         brew link protobuf@21
       fi
 
       UPDATE_TIME=$SECONDS

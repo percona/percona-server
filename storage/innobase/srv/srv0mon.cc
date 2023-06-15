@@ -305,6 +305,20 @@ static monitor_info_t innodb_counter_info[] = {
                                  MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGES_FREE},
 
+    {"buffer_pool_pages_flushed", "buffer",
+     "Number of requests to flush pages from the buffer "
+     "(innodb_buffer_pool_pages_flushed)",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT |
+                                 MONITOR_DEFAULT_ON),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGES_FLUSHED},
+
+    {"buffer_pool_pages_lru_flushed", "buffer",
+     "Number of requests to flush pages from the LRU list "
+     "(innodb_buffer_pool_pages_LRU_flushed)",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT |
+                                 MONITOR_DEFAULT_ON),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGES_LRU_FLUSHED},
+
     {"buffer_pages_created", "buffer",
      "Number of pages created (innodb_pages_created)",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
@@ -1708,6 +1722,17 @@ void srv_mon_process_existing_counter(
     case MONITOR_OVLD_BUF_POOL_PAGES_FREE:
       buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
       value = free_len;
+      break;
+
+    /* innodb_buffer_pool_pages_flushed */
+    case MONITOR_OVLD_BUF_POOL_PAGES_FLUSHED:
+      value = srv_stats.buf_pool_flushed;
+      break;
+
+    /* innodb_buffer_pool_pages_LRU_flushed */
+    case MONITOR_OVLD_BUF_POOL_PAGES_LRU_FLUSHED:
+      buf_get_total_stat(&stat);
+      value = stat.buf_lru_flush_page_count;
       break;
 
     /* innodb_pages_created, the number of pages created */

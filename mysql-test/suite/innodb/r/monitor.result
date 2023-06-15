@@ -40,6 +40,8 @@ buffer_pool_bytes_data	disabled
 buffer_pool_pages_dirty	disabled
 buffer_pool_bytes_dirty	disabled
 buffer_pool_pages_free	disabled
+buffer_pool_pages_flushed	disabled
+buffer_pool_pages_lru_flushed	disabled
 buffer_pages_created	disabled
 buffer_pages_written	disabled
 buffer_pages_read	disabled

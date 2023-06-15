@@ -36,7 +36,7 @@ extern REQUIRES_SERVICE_PLACEHOLDER(mysql_string_character_access);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_string_converter);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 
-#define MYSQLPP_CHARSET_SUPPORT
+#include <mysqlpp/udf_registration.hpp>
 #include <mysqlpp/udf_wrappers.hpp>
 
 class gen_range_impl {
@@ -88,7 +88,7 @@ class gen_rnd_email_impl {
     }
 
     if (ctx.get_number_of_args() >= 2) {
-      ctx.set_return_value_charset(ctx.get_arg_charset(1));
+      ctx.set_return_value_charset_to_match_arg(1);
     } else {
       ctx.set_return_value_charset(mysql::plugins::default_charset);
     }
@@ -115,8 +115,7 @@ class gen_rnd_email_impl {
     {
       my_h_string mstr;
       mysql_service_mysql_string_converter->convert_from_buffer(
-          &mstr, email_domain.data(), email_domain.size(),
-          original_charset.data());
+          &mstr, email_domain.data(), email_domain.size(), original_charset);
       mysql_service_mysql_string_character_access->get_char_length(
           mstr, &domain_length);
     }
@@ -254,7 +253,7 @@ class mask_inner_impl {
       ctx.set_arg_type(3, STRING_RESULT);
     }
 
-    ctx.set_return_value_charset(ctx.get_arg_charset(0));
+    ctx.set_return_value_charset_to_match_arg(0);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -312,7 +311,7 @@ class mask_outer_impl {
       ctx.set_arg_type(3, STRING_RESULT);
     }
 
-    ctx.set_return_value_charset(ctx.get_arg_charset(0));
+    ctx.set_return_value_charset_to_match_arg(0);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -339,7 +338,7 @@ class mask_outer_impl {
     {
       my_h_string mstr;
       mysql_service_mysql_string_converter->convert_from_buffer(
-          &mstr, str.data(), str.size(), original_charset.data());
+          &mstr, str.data(), str.size(), original_charset);
       mysql_service_mysql_string_character_access->get_char_length(mstr, &mlen);
       mysql_service_mysql_string_character_access->get_char_offset(mstr, a2,
                                                                    &c2);
@@ -382,7 +381,7 @@ class mask_impl_base {
   virtual std::size_t max_length() = 0;
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              std::string_view original_charset) = 0;
+                              const char* original_charset) = 0;
 
  public:
   mask_impl_base(mysqlpp::udf_context &ctx) {
@@ -401,7 +400,7 @@ class mask_impl_base {
       ctx.set_arg_type(1, STRING_RESULT);
     }
 
-    ctx.set_return_value_charset(ctx.get_arg_charset(0));
+    ctx.set_return_value_charset_to_match_arg(0);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -447,7 +446,7 @@ class mask_canada_sin_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 11; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              std::string_view original_charset) override {
+                              const char* original_charset) override {
     if (str.size() == 11) {
       std::string sresult = mysql::plugins::mask_inner(
           str.data(), str.size(), 4, 4, original_charset, masking_char);
@@ -471,7 +470,7 @@ class mask_iban_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 34; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              std::string_view original_charset) override {
+                              const char* original_charset) override {
     return mysql::plugins::mask_inner(str.data(), str.size(), 2, 0,
                                       original_charset, masking_char);
   }
@@ -486,7 +485,7 @@ class mask_pan_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 19; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              std::string_view original_charset) override {
+                              const char* original_charset) override {
     return mysql::plugins::mask_inner(str.data(), str.size(), 0, 4,
                                       original_charset, masking_char);
   }
@@ -501,7 +500,7 @@ class mask_pan_relaxed_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 19; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              std::string_view original_charset) override {
+                              const char* original_charset) override {
     return mysql::plugins::mask_inner(str.data(), str.size(), 6, 4,
                                       original_charset, masking_char);
   }
@@ -516,7 +515,7 @@ class mask_ssn_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 11; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              std::string_view original_charset) override {
+                              const char* original_charset) override {
     if (str.size() == 11) {
       std::string sresult = mysql::plugins::mask_inner(
           str.data(), str.size(), 4, 5, original_charset, masking_char);
@@ -538,7 +537,7 @@ class mask_uk_nin_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 11; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              std::string_view original_charset) override {
+                              const char* original_charset) override {
     return mysql::plugins::mask_inner(str.data(), str.size(), 2, 0,
                                       original_charset, masking_char);
   }
@@ -553,7 +552,7 @@ class mask_uuid_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 36; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              std::string_view original_charset) override {
+                              const char* original_charset) override {
     std::string sresult;
 
     sresult = mysql::plugins::mask_inner(str.data(), str.size(), 0, 36 - 8,

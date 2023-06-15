@@ -35,6 +35,7 @@
 #include <mysql/components/services/udf_registration.h>
 
 #include <mysqlpp/udf_wrappers.hpp>
+#include <mysqlpp/udf_registration.hpp>
 
 #include <opensslpp/core_error.hpp>
 #include <opensslpp/dh_compute_operations.hpp>

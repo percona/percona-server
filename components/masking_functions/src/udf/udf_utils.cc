@@ -37,7 +37,8 @@ std::string random_string(std::size_t length, bool letter_start) {
       "0123456789"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "abcdefghijklmnopqrstuvwxyz");
-  std::uniform_int_distribution<int> dist_charal(0, charset_charal.length() - 1);
+  std::uniform_int_distribution<int> dist_charal(0,
+                                                 charset_charal.length() - 1);
 
   auto randchar_an = [&]() -> char { return charset_charal[dist_charal(el)]; };
 
@@ -54,15 +55,12 @@ std::string random_string(std::size_t length, bool letter_start) {
 }
 
 std::string random_number(std::size_t length) {
-    const std::string charset("1234567890");
-    std::random_device r;
-    std::default_random_engine el(r());
-    std::uniform_int_distribution<int> dist(0, charset.length() - 1);
+  const std::string charset("1234567890");
+  std::random_device r;
+  std::default_random_engine el(r());
+  std::uniform_int_distribution<int> dist(0, charset.length() - 1);
 
-  auto randchar = [&]() -> char {
-
-    return charset[dist(el)];
-  };
+  auto randchar = [&]() -> char { return charset[dist(el)]; };
 
   std::string str(length, '0');
   std::generate_n(str.begin(), length, randchar);
@@ -153,7 +151,7 @@ std::string random_ssn() {
       .append(random_number(4));
 }
 
-std::string random_iban(std::string_view const& country, std::size_t length) {
+std::string random_iban(std::string_view const &country, std::size_t length) {
   return std::string(country).append(random_number(length));
 }
 
@@ -173,40 +171,6 @@ std::string random_us_phone() {
       .append(random_number(3))
       .append("-")
       .append(random_number(4));
-}
-
-bool set_return_value_charset(UDF_INIT *initid, std::string_view const& charset) {
-  void *cs = const_cast<char *>(charset.data());
-  if (mysql_service_mysql_udf_metadata->result_set(initid, "charset", cs))
-    return true;
-
-  return false;
-}
-
-bool get_arg_character_set(UDF_ARGS *args, std::size_t index, std::string & charset) {
-  void *output = nullptr;
-  if (args->arg_type[index] != STRING_RESULT) return true;
-
-  if (mysql_service_mysql_udf_metadata->argument_get(args, "charset", index,
-                                                     &output))
-    return true;
-
-  charset = static_cast<char *>(output);
-  return false;
-}
-
-bool set_return_value_charset_to_match_arg(UDF_INIT *initid, UDF_ARGS *args,
-                                           std::size_t index) {
-  void *output = nullptr;
-  if (args->arg_type[index] != STRING_RESULT) return true;
-  if (mysql_service_mysql_udf_metadata->argument_get(args, "charset", index,
-                                                     &output))
-    return true;
-
-  if (mysql_service_mysql_udf_metadata->result_set(initid, "charset", output))
-    return true;
-
-  return false;
 }
 
 }  // namespace plugins

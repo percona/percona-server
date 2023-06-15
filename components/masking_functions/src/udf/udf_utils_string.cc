@@ -41,8 +41,8 @@ std::string &ltrim(std::string &s) {
   return s;
 }
 
-std::string convert(std::string_view const &src, std::string_view const &src_cs,
-                    std::string_view const &dst_cs) {
+std::string convert(std::string_view const &src, const char *src_cs,
+                    const char *dst_cs) {
   // In practice we only use this to convert single character strings
   // For that, this buffer is more than enough
   constexpr std::size_t buffer_size = 256;
@@ -52,10 +52,8 @@ std::string convert(std::string_view const &src, std::string_view const &src_cs,
   // We can't use the mysql_string_converter service, because it assumes that
   // strings are null terminated Which is not true for charsets such as UCS2 or
   // UTF32
-  CHARSET_INFO *cs_o =
-      get_charset_by_csname(dst_cs.data(), MY_CS_PRIMARY, MYF(0));
-  CHARSET_INFO *cs_r =
-      get_charset_by_csname(src_cs.data(), MY_CS_PRIMARY, MYF(0));
+  CHARSET_INFO *cs_o = get_charset_by_csname(dst_cs, MY_CS_PRIMARY, MYF(0));
+  CHARSET_INFO *cs_r = get_charset_by_csname(src_cs, MY_CS_PRIMARY, MYF(0));
 
   uint error;
   used_buffer = my_convert(buffer, buffer_size - 1, cs_o, src.data(),
@@ -90,8 +88,8 @@ std::string convert(std::string_view const &src, std::string_view const &src_cs,
  */
 std::string mask_inner(const char *str, std::size_t str_length,
                        std::size_t margin1, std::size_t margin2,
-                       std::string_view const &original_charset,
-                       std::string_view const &mask_char) {
+                       const char *original_charset,
+                       std::string_view mask_char) {
   // Calculate margins from offsets
   // NOTE: the string service doesn't work with some character sets, such as
   // utf16/32
@@ -100,7 +98,7 @@ std::string mask_inner(const char *str, std::size_t str_length,
   {
     my_h_string mstr;
     mysql_service_mysql_string_converter->convert_from_buffer(
-        &mstr, str, str_length, original_charset.data());
+        &mstr, str, str_length, original_charset);
     mysql_service_mysql_string_character_access->get_char_length(mstr, &mlen);
     mysql_service_mysql_string_character_access->get_char_offset(mstr, margin1,
                                                                  &c2);
@@ -143,39 +141,17 @@ std::string &trim(std::string &s) { return ltrim(rtrim(s)); }
 
 std::string decide_masking_char(mysqlpp::udf_context const &ctx,
                                 std::size_t argno,
-                                std::string_view const &original_charset,
-                                std::string_view const &def) {
+                                const char *&original_charset,
+                                std::string_view def) {
   std::string masking_char;
   if (ctx.get_number_of_args() >= argno + 1) {
     auto repl_charset = ctx.get_arg_charset(argno);
 
-    if (repl_charset != original_charset) {
+    if (strcmp(repl_charset, original_charset) != 0) {
       masking_char = mysql::plugins::convert(ctx.get_arg<STRING_RESULT>(argno),
                                              repl_charset, original_charset);
     } else {
       masking_char = ctx.get_arg<STRING_RESULT>(argno);
-    }
-  } else {
-    masking_char = mysql::plugins::convert(def, "utf8mb4", original_charset);
-  }
-
-  return masking_char;
-}
-
-std::string decide_masking_char(UDF_ARGS *args, std::size_t argno,
-                                std::string_view const &original_charset,
-                                std::string_view const &def) {
-  std::string masking_char;
-  if (args->arg_count >= argno + 1) {
-    std::string repl_charset;
-    mysql::plugins::get_arg_character_set(args, argno, repl_charset);
-
-    if (repl_charset != original_charset) {
-      masking_char = mysql::plugins::convert(
-          std::string_view(args->args[argno], args->lengths[argno]),
-          repl_charset, original_charset);
-    } else {
-      masking_char = std::string(args->args[argno], args->lengths[argno]);
     }
   } else {
     masking_char = mysql::plugins::convert(def, "utf8mb4", original_charset);

@@ -25,13 +25,12 @@
 #include <random>
 #include <string>
 
-
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
 
 namespace mysql {
 namespace plugins {
 
-constexpr std::string_view default_charset = "utf8mb4";
+constexpr const char *default_charset = "utf8mb4";
 
 std::string random_string(std::size_t length, bool letter_start);
 
@@ -41,7 +40,7 @@ std::size_t random_number(std::size_t min, std::size_t max);
 
 std::string random_credit_card();
 
-std::string random_iban(std::string_view const& country, std::size_t length);
+std::string random_iban(std::string_view const &country, std::size_t length);
 
 std::string random_ssn();
 
@@ -50,14 +49,6 @@ std::string random_uuid();
 std::string random_uk_nin();
 
 std::string random_us_phone();
-
-bool get_arg_character_set(UDF_ARGS *args, std::size_t index, std::string& charset);
-
-bool set_return_value_charset(UDF_INIT *initid,
-                              std::string_view const& charset = "utf8mb4");
-
-bool set_return_value_charset_to_match_arg(UDF_INIT *initid, UDF_ARGS *args,
-                                           std::size_t index);
 
 }  // namespace plugins
 }  // namespace mysql

@@ -1726,15 +1726,10 @@ select * from t1 where id=9 for update;
 -- disconnect con1
 drop table t1;
 
---echo #Index on blob column
-SET @old_mode = @@sql_mode;
-SET sql_mode = 'strict_all_tables';
+--echo # Index on blob column
 create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(c, b(255))) engine=rocksdb;
 drop table t1;
-set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
-set @@global.rocksdb_large_prefix=1;
 create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(b(255))) engine=rocksdb;
-set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
 --replace_column 10 #
@@ -1744,9 +1739,6 @@ explain select b, a from t1 where b like '1%';
 update t1 set b= '12345' where b = '2abcde';
 select * from t1;
 drop table t1;
---error ER_TOO_LONG_KEY
-create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(2255))) engine=rocksdb;
-SET sql_mode = @old_mode;
 
 drop table t0;
 

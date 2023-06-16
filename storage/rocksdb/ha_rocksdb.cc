@@ -60,6 +60,7 @@
 #include "sql/sql_thd_internal_api.h"
 #include "sql/strfunc.h"
 #include "sql/table.h"
+#include "sql/strfunc.h"
 
 /* RocksDB includes */
 #include "monitoring/histogram.h"
@@ -1187,6 +1188,50 @@ static const char *index_type_names[] = {"kBinarySearch", "kHashSearch", NullS};
 static TYPELIB index_type_typelib = {array_elements(index_type_names) - 1,
                                      "index_type_typelib", index_type_names,
                                      nullptr};
+
+static constexpr char large_prefix_deprecated_msg[] =
+    "using rocksdb_large_prefix is deprecated and it will be removed in a "
+    "future release";
+
+// Copied over from InnoDB with minor changes. Returns false on success, true on
+// failure.
+static bool check_func_bool(void *save, st_mysql_value *value) {
+  int result;
+  if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    int length = sizeof(buff);
+
+    const auto *const str = value->val_str(value, buff, &length);
+
+    if (str == nullptr) return true;
+
+    result = find_type(&bool_typelib, str, length, true) - 1;
+
+    if (result < 0) return true;
+  } else {
+    long long tmp;
+    if (value->val_int(value, &tmp) < 0) return true;
+    if (tmp > 1 || tmp < 0) return true;
+    result = static_cast<int>(tmp);
+  }
+  *(bool *)save = result != 0;
+  return false;
+}
+
+static int rocksdb_large_prefix_check(THD *, SYS_VAR *, void *save,
+                                      st_mysql_value *value) {
+  if (check_func_bool(save, value)) return HA_EXIT_FAILURE;
+
+  return HA_EXIT_SUCCESS;
+}
+
+static void rocksdb_large_prefix_update(THD *thd, SYS_VAR *, void *var_ptr,
+                                        const void *save) {
+  push_warning(thd, Sql_condition::SL_WARNING, HA_ERR_WRONG_COMMAND,
+               large_prefix_deprecated_msg);
+
+  *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
+}
 
 // TODO: 0 means don't wait at all, and we don't support it yet?
 static MYSQL_THDVAR_ULONG(lock_wait_timeout,
@@ -2444,9 +2489,9 @@ static MYSQL_SYSVAR_BOOL(table_stats_use_table_scan,
 
 static MYSQL_SYSVAR_BOOL(
     large_prefix, rocksdb_large_prefix, PLUGIN_VAR_RQCMDARG,
-    "Support large index prefix length of 3072 bytes. If off, the maximum "
-    "index prefix length is 767.",
-    nullptr, nullptr, true);
+    "Deprecated: support large index prefix length of 3072 bytes. If off, the "
+    "maximum index prefix length is 767.",
+    rocksdb_large_prefix_check, rocksdb_large_prefix_update, true);
 
 static MYSQL_SYSVAR_BOOL(
     allow_to_start_after_corruption, rocksdb_allow_to_start_after_corruption,

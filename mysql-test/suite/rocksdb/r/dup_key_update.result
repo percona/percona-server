@@ -176,8 +176,6 @@ id1	id2	id3
 9	17	9
 DROP TABLE t1;
 DROP TABLE t2;
-set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
-set @@global.rocksdb_large_prefix=1;
 CREATE TABLE t1 (id1 varchar(128) CHARACTER SET latin1 COLLATE latin1_bin,
 id2 varchar(256) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin,
 id3 varchar(200) CHARACTER SET latin1 COLLATE latin1_swedish_ci,
@@ -194,7 +192,6 @@ UNIQUE KEY (id3, id1) COMMENT 'cfname=rev:cf') ENGINE=ROCKSDB;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 INSERT INTO t1 VALUES (1, 1, 1) ON DUPLICATE KEY UPDATE id2 = 9;
 SELECT * FROM t1 WHERE id1 = 1;
 id1	id2	id3

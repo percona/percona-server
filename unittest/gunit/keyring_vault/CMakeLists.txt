@@ -60,6 +60,7 @@ LIST(APPEND SRC_FILES
 
 ADD_LIBRARY(keyring_vault_test STATIC ${SRC_FILES})
 ADD_DEPENDENCIES(keyring_vault_test GenError)
+TARGET_LINK_LIBRARIES(keyring_vault_test extra::rapidjson ext::zlib)
 
 SET(ALL_KEYRING_VAULT_TESTS)
 FOREACH(test ${TESTS})
@@ -83,8 +84,8 @@ TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t
   minchassis
   binlog
   rpl
-  master
-  slave
+  rpl_source
+  rpl_replica
   ${CURL_LIBRARY}
   ${SSL_LIBRARIES}
   ${ICU_LIBRARIES})

@@ -131,7 +131,7 @@ static inline bool hp_process_field_data_to_chunkset(
     if (to_copy == 0) {
     /* Jump to the next chunk */
 #if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
-      dump_chunk(info, curr_chunk);
+    dump_chunk(info, curr_chunk);
 #endif
       memcpy(&curr_chunk, curr_chunk + info.recordspace.offset_link,
              sizeof(uchar *));

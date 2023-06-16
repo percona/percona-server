@@ -1,5 +1,5 @@
 # Bug #71374
-# Slave I/O thread won't attempt to automatically reconnect to the master
+# Replica I/O thread won't attempt to automatically reconnect to the master
 # on ER_NET_READ_INTERRUPTED network error.
 #
 # The bug is in get_master_version_and_clock(). There are two places in this
@@ -15,11 +15,11 @@ source include/have_debug_sync.inc;
 # Hence it's enough it to run only with one binlog format
 source include/have_binlog_format_mixed.inc;
 
-call mtr.add_suppression("Slave I/O: Get master clock failed with error: , Error_code: 1159");
-call mtr.add_suppression("Get master SERVER_ID failed with error: , Error_code: 1159");
-call mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: , Error_code: 1159");
-call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
-call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Replica I/O: Get source clock failed with error: , Error_code: 1159");
+call mtr.add_suppression("Get source SERVER_ID failed with error: , Error_code: 1159");
+call mtr.add_suppression("Replica I/O: SET @master_heartbeat_period to source failed with error: , Error_code: 1159");
+call mtr.add_suppression("Replica I/O: Master command COM_REGISTER_SLAVE failed: .*");
+call mtr.add_suppression("Replica SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 
 --let SEARCH_FILE=$MYSQL_TMP_DIR/rpl_bug71374.mysqld.2.err
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# older gcc doesn't support "#include <charconv>"
+IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.1)
+  MESSAGE(WARNING "Skips building NDB for gcc older than 8.1")
+  RETURN()
+ENDIF()
+
 # Add both MySQL and NDB cmake repositories to search path
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
@@ -28,6 +34,7 @@ INCLUDE(ndb_add_target_property)
 INCLUDE(ndb_add_test)
 INCLUDE(ndb_add_executable)
 
+MSVC_CPPCHECK_DISABLE()
 DISABLE_MISSING_PROFILE_WARNING()
 
 IF(NOT WITHOUT_SERVER)
@@ -56,7 +63,6 @@ IF(NOT WITHOUT_SERVER)
     plugin/ndb_thd.cc
     plugin/ndb_thd_ndb.cc
     plugin/ndb_global_schema_lock.cc
-    plugin/ndb_mi.cc
     plugin/ndb_conflict_trans.cc
     plugin/ndb_anyvalue.cc
     plugin/ndb_ndbapi_util.cc
@@ -110,6 +116,8 @@ IF(NOT WITHOUT_SERVER)
     plugin/ndb_table_stats.cc
     plugin/ndb_index_stat_head_table.cc
     plugin/ndb_index_stat_sample_table.cc
+    plugin/ndb_applier.cc
+    plugin/ndb_replica.cc
   )
 
   # Include directories used when building ha_ndbcluster
@@ -119,7 +127,7 @@ IF(NOT WITHOUT_SERVER)
   # unless it is explicitly disabled on the command line.
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
     DEFAULT STATIC_ONLY
-    LINK_LIBRARIES ndbclient_static)
+    LINK_LIBRARIES ndbclient_static extra::rapidjson)
 
   # Sanity check that MYSQL_ADD_PLUGIN didn't decide to skip build
   IF (NOT WITH_NDBCLUSTER_STORAGE_ENGINE)

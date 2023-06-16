@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -127,7 +127,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <set>
 #include <type_traits> /* std::is_trivially_default_constructible */
 #include <unordered_set>
-#include <utility>
 
 #include "my_basename.h"
 #include "mysql/components/services/bits/psi_bits.h"

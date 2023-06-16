@@ -1,9 +1,9 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave:*");
+call mtr.add_suppression("Replica:*");
 create table a(id int);
 insert into a values(11);
 start transaction;
@@ -28,7 +28,7 @@ id
 12
 13
 insert into a values(21);
-set global debug="d,stop_slave_middle_group,incomplete_group_in_relay_log";
+set global debug="d,stop_replica_middle_group,incomplete_group_in_relay_log";
 set global debug="d,dump_thread_wait_before_send_xid";
 start transaction;
 insert into a values(22);
@@ -97,7 +97,7 @@ start transaction;
 insert into a values(42);
 insert into a values(43);
 commit;
-set global debug="d,stop_slave_middle_group,incomplete_group_in_relay_log";
+set global debug="d,stop_replica_middle_group,incomplete_group_in_relay_log";
 include/stop_slave.inc
 set global debug="";
 include/start_slave.inc

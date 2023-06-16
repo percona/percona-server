@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -7501,4 +7501,3 @@ struct st_mysql_plugin i_s_innodb_session_temp_tablespaces = {
     /* unsigned long */
     STRUCT_FLD(flags, 0UL),
 };
-

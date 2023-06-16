@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,7 +291,7 @@ Query_block *build_show_session_variables(const POS &pos, THD *thd,
 
   DBUG_EXECUTE_IF("catch_show_gtid_mode", {
     String gtid_mode;
-    static const char *gm = "gtid\\_mode";
+    static const char *gm = "gtid_mode";
     unsigned int errors;
     gtid_mode.copy(gm, strlen(gm), &my_charset_latin1, wild->charset(),
                    &errors);

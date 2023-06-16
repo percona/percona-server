@@ -1,10 +1,10 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 CREATE DATABASE replicate_do_db;
@@ -172,7 +172,7 @@ in savepoint mixed_cases
 SELECT * FROM replicate_do_db.t1 WHERE a IN (30, 40);
 a
 
-# BUG#55798 Slave SQL retry on transaction inserts extra data into
+# BUG#55798 Replica SQL retry on transaction inserts extra data into
 # non-transaction table
 # ----------------------------------------------------------------
 # To verify that SQL thread does not retry a transaction which can

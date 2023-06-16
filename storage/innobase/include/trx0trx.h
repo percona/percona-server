@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -56,6 +56,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "read0read.h"
 #include "sql/handler.h"  // Xa_state_list
 #include "srv0srv.h"
+
+/* std::vector to store the trx id & table id of tables that needs to be
+ * rollbacked. We take SHARED MDL on these tables inside
+ * trx_recovery_rollback_thread before letting server accept connections */
+extern std::vector<std::pair<trx_id_t, table_id_t>> to_rollback_trx_tables;
 
 // Forward declaration
 struct mtr_t;
@@ -1524,8 +1529,8 @@ inline void trx_stats::bump_io_read(trx_t *trx, ulint n) noexcept {
   if (UNIV_LIKELY_NULL(trx)) bump_io_read(*trx, n);
 }
 
-inline void trx_stats::bump_innodb_enter_wait(const trx_t &trx, ulint us) const
-    noexcept {
+inline void trx_stats::bump_innodb_enter_wait(const trx_t &trx,
+                                              ulint us) const noexcept {
   if (UNIV_LIKELY(!take_stats)) return;
   thd_report_innodb_stat(trx.mysql_thd, trx.id,
                          MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS, us);
@@ -1541,8 +1546,7 @@ inline void trx_stats::stop_lock_wait(const trx_t &trx) noexcept {
 #pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
-  ut_d(lock_que_wait_ustarted =
-           std::chrono::steady_clock::time_point{});
+  ut_d(lock_que_wait_ustarted = std::chrono::steady_clock::time_point{});
 #pragma GCC diagnostic pop
 }
 

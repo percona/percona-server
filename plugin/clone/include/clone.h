@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,6 +113,8 @@ const uint CLONE_MIN_BLOCK = 1024 * 1024;
 
 /** Minimum network packet. Safe margin for meta information */
 const uint CLONE_MIN_NET_BLOCK = 2 * CLONE_MIN_BLOCK;
+
+extern char *clone_exclude_plugins_list;
 
 /* Namespace for all clone data types */
 namespace myclone {

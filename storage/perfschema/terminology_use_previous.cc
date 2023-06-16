@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,7 @@
 
 #include "storage/perfschema/terminology_use_previous.h"
 
-#include <functional>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -33,20 +31,10 @@
 #include "sql/sql_class.h"  // thd_get_current_thd_terminology_use_previous
 #include "storage/perfschema/pfs_instr_class.h"  // PFS_class_type
 
-// Add custom hash function to be used for class_map_t unordered_map
-// below to fix gcc-5 build as it lacks std::hash specialization for enums.
-struct EnumHash {
-  template <typename T>
-  std::size_t operator()(T t) const noexcept {
-    using type = typename std::underlying_type<T>::type;
-    return std::hash<type>{}(static_cast<type>(t));
-  }
-};
-
 // Map from strings to strings
 using str_map_t = std::unordered_map<std::string, const char *>;
 // Map from a "class type" to a str_map_t.
-using class_map_t = std::unordered_map<PFS_class_type, str_map_t, EnumHash>;
+using class_map_t = std::unordered_map<PFS_class_type, str_map_t>;
 // Map from a version to a class_map_t.
 using version_vector_t = std::vector<class_map_t>;
 
@@ -214,7 +202,7 @@ compatible_name_t lookup(PFS_class_type class_type, const std::string str,
                          bool use_prefix) {
   for (version_vector_t::size_type int_version = 0;
        int_version < version_vector.size(); ++int_version) {
-    enum_compatibility_version enum_version{
+    const enum_compatibility_version enum_version{
         static_cast<enum_compatibility_version>(int_version + 1)};
     auto &class_map = version_vector[int_version];
     auto class_name_pair = class_map.find(class_type);
@@ -226,14 +214,14 @@ compatible_name_t lookup(PFS_class_type class_type, const std::string str,
         lookup_str = str;
       else {
         // Get length of prefix and prepend it to str
-        assert(name_map.size());
-        auto &elem = name_map.begin()->first;
+        assert(!name_map.empty());
+        const auto &elem = name_map.begin()->first;
         prefix_length = elem.rfind('/') + 1;
         lookup_str = elem.substr(0, prefix_length) + str;
       }
       auto name_pair = name_map.find(lookup_str);
       if (name_pair != name_map.end()) {
-        auto name = name_pair->second;
+        const auto *name = name_pair->second;
         return compatible_name_t{name + prefix_length, enum_version};
       }
     }
@@ -242,7 +230,7 @@ compatible_name_t lookup(PFS_class_type class_type, const std::string str,
 }
 
 bool is_older_required(enum_compatibility_version version) {
-  ulong i_n_c = thd_get_current_thd_terminology_use_previous();
+  const ulong i_n_c = thd_get_current_thd_terminology_use_previous();
   return i_n_c != 0 && i_n_c <= (ulong)version;
 }
 

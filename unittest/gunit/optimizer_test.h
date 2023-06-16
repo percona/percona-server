@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -362,6 +362,7 @@ inline handlerton *OptimizerTestBase::EnableSecondaryEngine(
   hton->secondary_engine_modify_access_path_cost = nullptr;
 
   for (const auto &[name, table] : m_fake_tables) {
+    (void)name;
     table->file->ht = hton;
     static_cast<Fake_TABLE_SHARE *>(table->s)->set_secondary_engine(true);
     ON_CALL(table->mock_handler, table_type())

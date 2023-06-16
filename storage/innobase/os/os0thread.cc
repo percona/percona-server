@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -124,7 +124,7 @@ returns tid.  On other systems currently returns os_thread_get_curr_id().
 
 @return	current thread identifier */
 os_tid_t os_thread_get_tid() noexcept {
-#if defined(HAVE_PTHREAD_THREADID_NP)   // macOS
+#if defined(HAVE_PTHREAD_THREADID_NP)  // macOS
   uint64_t tid64;
   pthread_threadid_np(nullptr, &tid64);
   return (os_tid_t)tid64;

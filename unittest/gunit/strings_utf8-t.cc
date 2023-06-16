@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,6 @@ TEST_F(StringsUTF8Test, MyIsmbcharUtf8) {
 
   /* valid utf8 charaters, testing for boundry values */
   utf8_src[0] = '\x00';
-  utf8_src[1] = '\x00';
   EXPECT_EQ(0U, system_charset_info->cset->ismbchar(system_charset_info,
                                                     utf8_src, utf8_src + 1));
 
@@ -523,7 +522,6 @@ TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4) {
 
   /* valid utf8mb4 charaters, testing for boundry values */
   utf8_src[0] = '\x00';
-  utf8_src[1] = '\x00';
   EXPECT_EQ(0U, system_charset_info->cset->ismbchar(system_charset_info,
                                                     utf8_src, utf8_src + 1));
   utf8_src[0] = '\x7f';

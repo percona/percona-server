@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1967,7 +1967,7 @@ static struct my_option my_long_options[] = {
      &start_position, &start_position, nullptr, GET_ULL, REQUIRED_ARG,
      BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
      /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
-     (ulonglong)(~(uint32)0), nullptr, 0, nullptr},
+     (ulonglong)(~(uint64)0), nullptr, 0, nullptr},
     {"stop-datetime", OPT_STOP_DATETIME,
      "Stop reading the binlog at first event having a datetime equal or "
      "posterior to the argument; the argument must be a date and time "
@@ -2920,8 +2920,8 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
     return error || rewrite_db(buffer, length);
   }
 
-  bool start_decryption(
-      binary_log::Start_encryption_event *see [[maybe_unused]]) {
+  bool start_decryption(binary_log::Start_encryption_event *see
+                        [[maybe_unused]]) {
     m_binlog_5_7_encrypted = true;
     return false;
   }
@@ -3169,7 +3169,15 @@ static int args_post_process(void) {
         "BINLOG-DUMP-NON-GTIDS");
     return ERROR_STOP;
   }
-
+  if (opt_remote_proto != BINLOG_LOCAL &&
+      start_position > (ulonglong)(~(uint32)0)) {
+    error(
+        "The option --start-position cannot be used with values greater than 4 "
+        "GiB (4294967854), "
+        "when one of read-from-remote-server or read-from-remote-source "
+        "is used.");
+    return ERROR_STOP;
+  }
   if (raw_mode) {
     if (one_database)
       warning("The --database option is ignored with --raw mode");

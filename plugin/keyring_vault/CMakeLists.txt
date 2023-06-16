@@ -52,7 +52,8 @@ MYSQL_ADD_PLUGIN(keyring_vault
                  vault_keyring.cc
                  LINK_LIBRARIES ${CURL_LIBRARY} ${SSL_LIBRARIES}
                  MODULE_ONLY
-                 MODULE_OUTPUT_NAME "keyring_vault")
+                 MODULE_OUTPUT_NAME "keyring_vault"
+                 LINK_LIBRARIES extra::rapidjson)
 
 # We limit symbols exported on Linux to only those required by server.
 IF(LINK_FLAG_NO_UNDEFINED)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -6944,34 +6944,34 @@ extern MY_CHARSET_HANDLER my_charset_utf8mb4_handler;
 CHARSET_INFO my_charset_utf8mb4_unicode_ci = {
     224,
     0,
-    0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname      */
-    MY_UTF8MB4 "_unicode_ci", /* m_coll_name  */
-    "UTF-8 Unicode",          /* comment      */
-    "",                       /* tailoring    */
-    nullptr,                  /* coll_param   */
-    ctype_utf8,               /* ctype        */
-    nullptr,                  /* to_lower     */
-    nullptr,                  /* to_upper     */
-    nullptr,                  /* sort_order   */
-    nullptr,                  /* uca          */
-    nullptr,                  /* tab_to_uni   */
-    nullptr,                  /* tab_from_uni */
-    &my_unicase_default,      /* caseinfo     */
-    nullptr,                  /* state_map    */
-    nullptr,                  /* ident_map    */
-    8,                        /* strxfrm_multiply */
-    1,                        /* caseup_multiply  */
-    1,                        /* casedn_multiply  */
-    1,                        /* mbminlen     */
-    4,                        /* mbmaxlen     */
-    1,                        /* mbmaxlenlen  */
-    9,                        /* min_sort_char */
-    0xFFFF,                   /* max_sort_char */
-    ' ',                      /* pad char      */
-    false,                    /* escape_with_backslash_is_dangerous */
-    1,                        /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_unicode_ci",    /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    "",                      /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -6979,34 +6979,34 @@ CHARSET_INFO my_charset_utf8mb4_unicode_ci = {
 CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci = {
     225,
     0,
-    0,                          /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,    /* state    */
-    MY_UTF8MB4,                 /* csname     */
-    MY_UTF8MB4 "_icelandic_ci", /* m_coll_name  */
-    "UTF-8 Unicode",            /* comment      */
-    icelandic,                  /* tailoring    */
-    nullptr,                    /* coll_param   */
-    ctype_utf8,                 /* ctype        */
-    nullptr,                    /* to_lower     */
-    nullptr,                    /* to_upper     */
-    nullptr,                    /* sort_order   */
-    nullptr,                    /* uca          */
-    nullptr,                    /* tab_to_uni   */
-    nullptr,                    /* tab_from_uni */
-    &my_unicase_default,        /* caseinfo     */
-    nullptr,                    /* state_map    */
-    nullptr,                    /* ident_map    */
-    8,                          /* strxfrm_multiply */
-    1,                          /* caseup_multiply  */
-    1,                          /* casedn_multiply  */
-    1,                          /* mbminlen     */
-    4,                          /* mbmaxlen     */
-    1,                          /* mbmaxlenlen  */
-    9,                          /* min_sort_char */
-    0xFFFF,                     /* max_sort_char */
-    ' ',                        /* pad char      */
-    false,                      /* escape_with_backslash_is_dangerous */
-    1,                          /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname     */
+    "utf8mb4_icelandic_ci",  /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    icelandic,               /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7014,34 +7014,34 @@ CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci = {
     226,
     0,
-    0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname      */
-    MY_UTF8MB4 "_latvian_ci", /* m_coll_name  */
-    "UTF-8 Unicode",          /* comment      */
-    latvian,                  /* tailoring    */
-    nullptr,                  /* coll_param   */
-    ctype_utf8,               /* ctype        */
-    nullptr,                  /* to_lower     */
-    nullptr,                  /* to_upper     */
-    nullptr,                  /* sort_order   */
-    nullptr,                  /* uca          */
-    nullptr,                  /* tab_to_uni   */
-    nullptr,                  /* tab_from_uni */
-    &my_unicase_default,      /* caseinfo     */
-    nullptr,                  /* state_map    */
-    nullptr,                  /* ident_map    */
-    8,                        /* strxfrm_multiply */
-    1,                        /* caseup_multiply  */
-    1,                        /* casedn_multiply  */
-    1,                        /* mbminlen     */
-    4,                        /* mbmaxlen     */
-    1,                        /* mbmaxlenlen  */
-    9,                        /* min_sort_char */
-    0xFFFF,                   /* max_sort_char */
-    ' ',                      /* pad char      */
-    false,                    /* escape_with_backslash_is_dangerous */
-    1,                        /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_latvian_ci",    /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    latvian,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7049,34 +7049,34 @@ CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci = {
     227,
     0,
-    0,                         /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,   /* state    */
-    MY_UTF8MB4,                /* csname      */
-    MY_UTF8MB4 "_romanian_ci", /* m_coll_name  */
-    "UTF-8 Unicode",           /* comment      */
-    romanian,                  /* tailoring    */
-    nullptr,                   /* coll_param   */
-    ctype_utf8,                /* ctype        */
-    nullptr,                   /* to_lower     */
-    nullptr,                   /* to_upper     */
-    nullptr,                   /* sort_order   */
-    nullptr,                   /* uca          */
-    nullptr,                   /* tab_to_uni   */
-    nullptr,                   /* tab_from_uni */
-    &my_unicase_default,       /* caseinfo     */
-    nullptr,                   /* state_map    */
-    nullptr,                   /* ident_map    */
-    8,                         /* strxfrm_multiply */
-    1,                         /* caseup_multiply  */
-    1,                         /* casedn_multiply  */
-    1,                         /* mbminlen     */
-    4,                         /* mbmaxlen     */
-    1,                         /* mbmaxlenlen  */
-    9,                         /* min_sort_char */
-    0xFFFF,                    /* max_sort_char */
-    ' ',                       /* pad char      */
-    false,                     /* escape_with_backslash_is_dangerous */
-    1,                         /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_romanian_ci",   /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    romanian,                /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7084,34 +7084,34 @@ CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci = {
     228,
     0,
-    0,                          /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,    /* state    */
-    MY_UTF8MB4,                 /* csname      */
-    MY_UTF8MB4 "_slovenian_ci", /* m_coll_name  */
-    "UTF-8 Unicode",            /* comment      */
-    slovenian,                  /* tailoring    */
-    nullptr,                    /* coll_param   */
-    ctype_utf8,                 /* ctype        */
-    nullptr,                    /* to_lower     */
-    nullptr,                    /* to_upper     */
-    nullptr,                    /* sort_order   */
-    nullptr,                    /* uca          */
-    nullptr,                    /* tab_to_uni   */
-    nullptr,                    /* tab_from_uni */
-    &my_unicase_default,        /* caseinfo     */
-    nullptr,                    /* state_map    */
-    nullptr,                    /* ident_map    */
-    8,                          /* strxfrm_multiply */
-    1,                          /* caseup_multiply  */
-    1,                          /* casedn_multiply  */
-    1,                          /* mbminlen     */
-    4,                          /* mbmaxlen     */
-    1,                          /* mbmaxlenlen  */
-    9,                          /* min_sort_char */
-    0xFFFF,                     /* max_sort_char */
-    ' ',                        /* pad char      */
-    false,                      /* escape_with_backslash_is_dangerous */
-    1,                          /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_slovenian_ci",  /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    slovenian,               /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7121,8 +7121,8 @@ CHARSET_INFO my_charset_utf8mb4_polish_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
-    MY_UTF8MB4,              /* csname      */
-    MY_UTF8MB4 "_polish_ci", /* m_coll_name  */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_polish_ci",     /* m_coll_name  */
     "UTF-8 Unicode",         /* comment      */
     polish,                  /* tailoring    */
     nullptr,                 /* coll_param   */
@@ -7154,34 +7154,34 @@ CHARSET_INFO my_charset_utf8mb4_polish_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci = {
     230,
     0,
-    0,                         /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,   /* state    */
-    MY_UTF8MB4,                /* csname      */
-    MY_UTF8MB4 "_estonian_ci", /* m_coll_name  */
-    "UTF-8 Unicode",           /* comment      */
-    estonian,                  /* tailoring    */
-    nullptr,                   /* coll_param   */
-    ctype_utf8,                /* ctype        */
-    nullptr,                   /* to_lower     */
-    nullptr,                   /* to_upper     */
-    nullptr,                   /* sort_order   */
-    nullptr,                   /* uca          */
-    nullptr,                   /* tab_to_uni   */
-    nullptr,                   /* tab_from_uni */
-    &my_unicase_default,       /* caseinfo     */
-    nullptr,                   /* state_map    */
-    nullptr,                   /* ident_map    */
-    8,                         /* strxfrm_multiply */
-    1,                         /* caseup_multiply  */
-    1,                         /* casedn_multiply  */
-    1,                         /* mbminlen     */
-    4,                         /* mbmaxlen     */
-    1,                         /* mbmaxlenlen  */
-    9,                         /* min_sort_char */
-    0xFFFF,                    /* max_sort_char */
-    ' ',                       /* pad char      */
-    false,                     /* escape_with_backslash_is_dangerous */
-    1,                         /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_estonian_ci",   /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    estonian,                /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7189,34 +7189,34 @@ CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci = {
     231,
     0,
-    0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname      */
-    MY_UTF8MB4 "_spanish_ci", /* m_coll_name  */
-    "UTF-8 Unicode",          /* comment      */
-    spanish,                  /* tailoring    */
-    nullptr,                  /* coll_param   */
-    ctype_utf8,               /* ctype        */
-    nullptr,                  /* to_lower     */
-    nullptr,                  /* to_upper     */
-    nullptr,                  /* sort_order   */
-    nullptr,                  /* uca          */
-    nullptr,                  /* tab_to_uni   */
-    nullptr,                  /* tab_from_uni */
-    &my_unicase_default,      /* caseinfo     */
-    nullptr,                  /* state_map    */
-    nullptr,                  /* ident_map    */
-    8,                        /* strxfrm_multiply */
-    1,                        /* caseup_multiply  */
-    1,                        /* casedn_multiply  */
-    1,                        /* mbminlen     */
-    4,                        /* mbmaxlen     */
-    1,                        /* mbmaxlenlen  */
-    9,                        /* min_sort_char */
-    0xFFFF,                   /* max_sort_char */
-    ' ',                      /* pad char      */
-    false,                    /* escape_with_backslash_is_dangerous */
-    1,                        /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_spanish_ci",    /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    spanish,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7224,34 +7224,34 @@ CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci = {
     232,
     0,
-    0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname      */
-    MY_UTF8MB4 "_swedish_ci", /* m_coll_name  */
-    "UTF-8 Unicode",          /* comment      */
-    swedish,                  /* tailoring    */
-    nullptr,                  /* coll_param   */
-    ctype_utf8,               /* ctype        */
-    nullptr,                  /* to_lower     */
-    nullptr,                  /* to_upper     */
-    nullptr,                  /* sort_order   */
-    nullptr,                  /* uca          */
-    nullptr,                  /* tab_to_uni   */
-    nullptr,                  /* tab_from_uni */
-    &my_unicase_default,      /* caseinfo     */
-    nullptr,                  /* state_map    */
-    nullptr,                  /* ident_map    */
-    8,                        /* strxfrm_multiply */
-    1,                        /* caseup_multiply  */
-    1,                        /* casedn_multiply  */
-    1,                        /* mbminlen     */
-    4,                        /* mbmaxlen     */
-    1,                        /* mbmaxlenlen  */
-    9,                        /* min_sort_char */
-    0xFFFF,                   /* max_sort_char */
-    ' ',                      /* pad char      */
-    false,                    /* escape_with_backslash_is_dangerous */
-    1,                        /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_swedish_ci",    /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    swedish,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7259,34 +7259,34 @@ CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci = {
     233,
     0,
-    0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname      */
-    MY_UTF8MB4 "_turkish_ci", /* m_coll_name  */
-    "UTF-8 Unicode",          /* comment      */
-    turkish,                  /* tailoring    */
-    nullptr,                  /* coll_param   */
-    ctype_utf8,               /* ctype        */
-    nullptr,                  /* to_lower     */
-    nullptr,                  /* to_upper     */
-    nullptr,                  /* sort_order   */
-    nullptr,                  /* uca          */
-    nullptr,                  /* tab_to_uni   */
-    nullptr,                  /* tab_from_uni */
-    &my_unicase_turkish,      /* caseinfo     */
-    nullptr,                  /* state_map    */
-    nullptr,                  /* ident_map    */
-    8,                        /* strxfrm_multiply */
-    2,                        /* caseup_multiply  */
-    2,                        /* casedn_multiply  */
-    1,                        /* mbminlen     */
-    4,                        /* mbmaxlen     */
-    1,                        /* mbmaxlenlen  */
-    9,                        /* min_sort_char */
-    0xFFFF,                   /* max_sort_char */
-    ' ',                      /* pad char      */
-    false,                    /* escape_with_backslash_is_dangerous */
-    1,                        /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_turkish_ci",    /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    turkish,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_turkish,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    2,                       /* caseup_multiply  */
+    2,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7296,8 +7296,8 @@ CHARSET_INFO my_charset_utf8mb4_czech_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
-    MY_UTF8MB4,              /* csname      */
-    MY_UTF8MB4 "_czech_ci",  /* m_coll_name  */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_czech_ci",      /* m_coll_name  */
     "UTF-8 Unicode",         /* comment      */
     czech,                   /* tailoring    */
     nullptr,                 /* coll_param   */
@@ -7331,8 +7331,8 @@ CHARSET_INFO my_charset_utf8mb4_danish_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
-    MY_UTF8MB4,              /* csname      */
-    MY_UTF8MB4 "_danish_ci", /* m_coll_name  */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_danish_ci",     /* m_coll_name  */
     "UTF-8 Unicode",         /* comment      */
     danish,                  /* tailoring    */
     nullptr,                 /* coll_param   */
@@ -7364,34 +7364,34 @@ CHARSET_INFO my_charset_utf8mb4_danish_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci = {
     236,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname      */
-    MY_UTF8MB4 "_lithuanian_ci", /* m_coll_name  */
-    "UTF-8 Unicode",             /* comment      */
-    lithuanian,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    nullptr,                     /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_default,         /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    8,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen     */
-    4,                           /* mbmaxlen     */
-    1,                           /* mbmaxlenlen  */
-    9,                           /* min_sort_char */
-    0xFFFF,                      /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_lithuanian_ci", /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    lithuanian,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7401,8 +7401,8 @@ CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
-    MY_UTF8MB4,              /* csname      */
-    MY_UTF8MB4 "_slovak_ci", /* m_coll_name  */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_slovak_ci",     /* m_coll_name  */
     "UTF-8 Unicode",         /* comment      */
     slovak,                  /* tailoring    */
     nullptr,                 /* coll_param   */
@@ -7434,34 +7434,34 @@ CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci = {
     238,
     0,
-    0,                         /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,   /* state    */
-    MY_UTF8MB4,                /* csname      */
-    MY_UTF8MB4 "_spanish2_ci", /* m_coll_name  */
-    "UTF-8 Unicode",           /* comment      */
-    spanish2,                  /* tailoring    */
-    nullptr,                   /* coll_param   */
-    ctype_utf8,                /* ctype        */
-    nullptr,                   /* to_lower     */
-    nullptr,                   /* to_upper     */
-    nullptr,                   /* sort_order   */
-    nullptr,                   /* uca          */
-    nullptr,                   /* tab_to_uni   */
-    nullptr,                   /* tab_from_uni */
-    &my_unicase_default,       /* caseinfo     */
-    nullptr,                   /* state_map    */
-    nullptr,                   /* ident_map    */
-    8,                         /* strxfrm_multiply */
-    1,                         /* caseup_multiply  */
-    1,                         /* casedn_multiply  */
-    1,                         /* mbminlen     */
-    4,                         /* mbmaxlen     */
-    1,                         /* mbmaxlenlen  */
-    9,                         /* min_sort_char */
-    0xFFFF,                    /* max_sort_char */
-    ' ',                       /* pad char      */
-    false,                     /* escape_with_backslash_is_dangerous */
-    1,                         /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_spanish2_ci",   /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    spanish2,                /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7471,8 +7471,8 @@ CHARSET_INFO my_charset_utf8mb4_roman_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
-    MY_UTF8MB4,              /* csname      */
-    MY_UTF8MB4 "_roman_ci",  /* m_coll_name  */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_roman_ci",      /* m_coll_name  */
     "UTF-8 Unicode",         /* comment      */
     roman,                   /* tailoring    */
     nullptr,                 /* coll_param   */
@@ -7504,21 +7504,231 @@ CHARSET_INFO my_charset_utf8mb4_roman_uca_ci = {
 CHARSET_INFO my_charset_utf8mb4_persian_uca_ci = {
     240,
     0,
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_persian_ci",    /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    persian,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler,
+    PAD_SPACE};
+
+CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci = {
+    241,
+    0,
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_esperanto_ci",  /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    esperanto,               /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler,
+    PAD_SPACE};
+
+CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci = {
+    242,
+    0,
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_hungarian_ci",  /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    hungarian,               /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler,
+    PAD_SPACE};
+
+CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci = {
+    243,
+    0,
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_sinhala_ci",    /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    sinhala,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler,
+    PAD_SPACE};
+
+CHARSET_INFO my_charset_utf8mb4_german2_uca_ci = {
+    244,
+    0,
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_german2_ci",    /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    german2,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler,
+    PAD_SPACE};
+
+CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci = {
+    245,
+    0,
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname      */
+    "utf8mb4_croatian_ci",   /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    croatian,                /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler,
+    PAD_SPACE};
+
+CHARSET_INFO my_charset_utf8mb4_unicode_520_ci = {
+    246,
+    0,
     0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname      */
-    MY_UTF8MB4 "_persian_ci", /* m_coll_name  */
+    MY_CS_UTF8MB4_UCA_FLAGS,  /* flags     */
+    "utf8mb4",                /* csname       */
+    "utf8mb4_unicode_520_ci", /* m_coll_name  */
     "UTF-8 Unicode",          /* comment      */
-    persian,                  /* tailoring    */
+    "",                       /* tailoring    */
     nullptr,                  /* coll_param   */
     ctype_utf8,               /* ctype        */
     nullptr,                  /* to_lower     */
     nullptr,                  /* to_upper     */
     nullptr,                  /* sort_order   */
-    nullptr,                  /* uca          */
+    &my_uca_v520,             /* uca          */
     nullptr,                  /* tab_to_uni   */
     nullptr,                  /* tab_from_uni */
-    &my_unicase_default,      /* caseinfo     */
+    &my_unicase_unicode520,   /* caseinfo   */
     nullptr,                  /* state_map    */
     nullptr,                  /* ident_map    */
     8,                        /* strxfrm_multiply */
@@ -7528,220 +7738,10 @@ CHARSET_INFO my_charset_utf8mb4_persian_uca_ci = {
     4,                        /* mbmaxlen     */
     1,                        /* mbmaxlenlen  */
     9,                        /* min_sort_char */
-    0xFFFF,                   /* max_sort_char */
+    0x10FFFF,                 /* max_sort_char */
     ' ',                      /* pad char      */
     false,                    /* escape_with_backslash_is_dangerous */
     1,                        /* levels_for_compare */
-    &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler,
-    PAD_SPACE};
-
-CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci = {
-    241,
-    0,
-    0,                          /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,    /* state    */
-    MY_UTF8MB4,                 /* csname      */
-    MY_UTF8MB4 "_esperanto_ci", /* m_coll_name  */
-    "UTF-8 Unicode",            /* comment      */
-    esperanto,                  /* tailoring    */
-    nullptr,                    /* coll_param   */
-    ctype_utf8,                 /* ctype        */
-    nullptr,                    /* to_lower     */
-    nullptr,                    /* to_upper     */
-    nullptr,                    /* sort_order   */
-    nullptr,                    /* uca          */
-    nullptr,                    /* tab_to_uni   */
-    nullptr,                    /* tab_from_uni */
-    &my_unicase_default,        /* caseinfo     */
-    nullptr,                    /* state_map    */
-    nullptr,                    /* ident_map    */
-    8,                          /* strxfrm_multiply */
-    1,                          /* caseup_multiply  */
-    1,                          /* casedn_multiply  */
-    1,                          /* mbminlen     */
-    4,                          /* mbmaxlen     */
-    1,                          /* mbmaxlenlen  */
-    9,                          /* min_sort_char */
-    0xFFFF,                     /* max_sort_char */
-    ' ',                        /* pad char      */
-    false,                      /* escape_with_backslash_is_dangerous */
-    1,                          /* levels_for_compare */
-    &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler,
-    PAD_SPACE};
-
-CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci = {
-    242,
-    0,
-    0,                          /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,    /* state    */
-    MY_UTF8MB4,                 /* csname      */
-    MY_UTF8MB4 "_hungarian_ci", /* m_coll_name  */
-    "UTF-8 Unicode",            /* comment      */
-    hungarian,                  /* tailoring    */
-    nullptr,                    /* coll_param   */
-    ctype_utf8,                 /* ctype        */
-    nullptr,                    /* to_lower     */
-    nullptr,                    /* to_upper     */
-    nullptr,                    /* sort_order   */
-    nullptr,                    /* uca          */
-    nullptr,                    /* tab_to_uni   */
-    nullptr,                    /* tab_from_uni */
-    &my_unicase_default,        /* caseinfo     */
-    nullptr,                    /* state_map    */
-    nullptr,                    /* ident_map    */
-    8,                          /* strxfrm_multiply */
-    1,                          /* caseup_multiply  */
-    1,                          /* casedn_multiply  */
-    1,                          /* mbminlen     */
-    4,                          /* mbmaxlen     */
-    1,                          /* mbmaxlenlen  */
-    9,                          /* min_sort_char */
-    0xFFFF,                     /* max_sort_char */
-    ' ',                        /* pad char      */
-    false,                      /* escape_with_backslash_is_dangerous */
-    1,                          /* levels_for_compare */
-    &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler,
-    PAD_SPACE};
-
-CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci = {
-    243,
-    0,
-    0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname      */
-    MY_UTF8MB4 "_sinhala_ci", /* m_coll_name  */
-    "UTF-8 Unicode",          /* comment      */
-    sinhala,                  /* tailoring    */
-    nullptr,                  /* coll_param   */
-    ctype_utf8,               /* ctype        */
-    nullptr,                  /* to_lower     */
-    nullptr,                  /* to_upper     */
-    nullptr,                  /* sort_order   */
-    nullptr,                  /* uca          */
-    nullptr,                  /* tab_to_uni   */
-    nullptr,                  /* tab_from_uni */
-    &my_unicase_default,      /* caseinfo     */
-    nullptr,                  /* state_map    */
-    nullptr,                  /* ident_map    */
-    8,                        /* strxfrm_multiply */
-    1,                        /* caseup_multiply  */
-    1,                        /* casedn_multiply  */
-    1,                        /* mbminlen      */
-    4,                        /* mbmaxlen      */
-    1,                        /* mbmaxlenlen   */
-    9,                        /* min_sort_char */
-    0xFFFF,                   /* max_sort_char */
-    ' ',                      /* pad char      */
-    false,                    /* escape_with_backslash_is_dangerous */
-    1,                        /* levels_for_compare */
-    &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler,
-    PAD_SPACE};
-
-CHARSET_INFO my_charset_utf8mb4_german2_uca_ci = {
-    244,
-    0,
-    0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname      */
-    MY_UTF8MB4 "_german2_ci", /* m_coll_name  */
-    "UTF-8 Unicode",          /* comment      */
-    german2,                  /* tailoring    */
-    nullptr,                  /* coll_param   */
-    ctype_utf8,               /* ctype        */
-    nullptr,                  /* to_lower     */
-    nullptr,                  /* to_upper     */
-    nullptr,                  /* sort_order   */
-    nullptr,                  /* uca          */
-    nullptr,                  /* tab_to_uni   */
-    nullptr,                  /* tab_from_uni */
-    &my_unicase_default,      /* caseinfo     */
-    nullptr,                  /* state_map    */
-    nullptr,                  /* ident_map    */
-    8,                        /* strxfrm_multiply */
-    1,                        /* caseup_multiply  */
-    1,                        /* casedn_multiply  */
-    1,                        /* mbminlen      */
-    4,                        /* mbmaxlen      */
-    1,                        /* mbmaxlenlen   */
-    9,                        /* min_sort_char */
-    0xFFFF,                   /* max_sort_char */
-    ' ',                      /* pad char      */
-    false,                    /* escape_with_backslash_is_dangerous */
-    1,                        /* levels_for_compare */
-    &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler,
-    PAD_SPACE};
-
-CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci = {
-    245,
-    0,
-    0,                         /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,   /* state    */
-    MY_UTF8MB4,                /* csname      */
-    MY_UTF8MB4 "_croatian_ci", /* m_coll_name  */
-    "UTF-8 Unicode",           /* comment      */
-    croatian,                  /* tailoring    */
-    nullptr,                   /* coll_param   */
-    ctype_utf8,                /* ctype        */
-    nullptr,                   /* to_lower     */
-    nullptr,                   /* to_upper     */
-    nullptr,                   /* sort_order   */
-    nullptr,                   /* uca          */
-    nullptr,                   /* tab_to_uni   */
-    nullptr,                   /* tab_from_uni */
-    &my_unicase_default,       /* caseinfo     */
-    nullptr,                   /* state_map    */
-    nullptr,                   /* ident_map    */
-    8,                         /* strxfrm_multiply */
-    1,                         /* caseup_multiply  */
-    1,                         /* casedn_multiply  */
-    1,                         /* mbminlen      */
-    4,                         /* mbmaxlen      */
-    1,                         /* mbmaxlenlen   */
-    9,                         /* min_sort_char */
-    0xFFFF,                    /* max_sort_char */
-    ' ',                       /* pad char      */
-    false,                     /* escape_with_backslash_is_dangerous */
-    1,                         /* levels_for_compare */
-    &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler,
-    PAD_SPACE};
-
-CHARSET_INFO my_charset_utf8mb4_unicode_520_ci = {
-    246,
-    0,
-    0,                            /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,      /* flags     */
-    MY_UTF8MB4,                   /* csname       */
-    MY_UTF8MB4 "_unicode_520_ci", /* m_coll_name  */
-    "UTF-8 Unicode",              /* comment      */
-    "",                           /* tailoring    */
-    nullptr,                      /* coll_param   */
-    ctype_utf8,                   /* ctype        */
-    nullptr,                      /* to_lower     */
-    nullptr,                      /* to_upper     */
-    nullptr,                      /* sort_order   */
-    &my_uca_v520,                 /* uca          */
-    nullptr,                      /* tab_to_uni   */
-    nullptr,                      /* tab_from_uni */
-    &my_unicase_unicode520,       /* caseinfo   */
-    nullptr,                      /* state_map    */
-    nullptr,                      /* ident_map    */
-    8,                            /* strxfrm_multiply */
-    1,                            /* caseup_multiply  */
-    1,                            /* casedn_multiply  */
-    1,                            /* mbminlen     */
-    4,                            /* mbmaxlen     */
-    1,                            /* mbmaxlenlen  */
-    9,                            /* min_sort_char */
-    0x10FFFF,                     /* max_sort_char */
-    ' ',                          /* pad char      */
-    false,                        /* escape_with_backslash_is_dangerous */
-    1,                            /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -7749,34 +7749,34 @@ CHARSET_INFO my_charset_utf8mb4_unicode_520_ci = {
 CHARSET_INFO my_charset_utf8mb4_vietnamese_ci = {
     247,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_vietnamese_ci", /* m_coll_name  */
-    "UTF-8 Unicode",             /* comment      */
-    vietnamese,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    nullptr,                     /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_default,         /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    8,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0xFFFF,                      /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_vietnamese_ci", /* m_coll_name  */
+    "UTF-8 Unicode",         /* comment      */
+    vietnamese,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    nullptr,                 /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_default,     /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    8,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0xFFFF,                  /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler,
     PAD_SPACE};
@@ -9580,8 +9580,8 @@ CHARSET_INFO my_charset_utf8mb4_0900_ai_ci = {
     0,
     0,                                       /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_PRIMARY, /* state    */
-    MY_UTF8MB4,                              /* csname       */
-    MY_UTF8MB4 "_0900_ai_ci",                /* m_coll_name  */
+    "utf8mb4",                               /* csname       */
+    "utf8mb4_0900_ai_ci",                    /* m_coll_name  */
     "UTF-8 Unicode",                         /* comment      */
     nullptr,                                 /* tailoring    */
     nullptr,                                 /* coll_param   */
@@ -9613,34 +9613,34 @@ CHARSET_INFO my_charset_utf8mb4_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci = {
     256,
     0,
-    0,                              /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,        /* state    */
-    MY_UTF8MB4,                     /* csname       */
-    MY_UTF8MB4 "_de_pb_0900_ai_ci", /* m_coll_name  */
-    "",                             /* comment      */
-    de_pb_cldr_30,                  /* tailoring    */
-    nullptr,                        /* coll_param   */
-    ctype_utf8,                     /* ctype        */
-    nullptr,                        /* to_lower     */
-    nullptr,                        /* to_upper     */
-    nullptr,                        /* sort_order   */
-    &my_uca_v900,                   /* uca_900          */
-    nullptr,                        /* tab_to_uni   */
-    nullptr,                        /* tab_from_uni */
-    &my_unicase_unicode900,         /* caseinfo     */
-    nullptr,                        /* state_map    */
-    nullptr,                        /* ident_map    */
-    0,                              /* strxfrm_multiply */
-    1,                              /* caseup_multiply  */
-    1,                              /* casedn_multiply  */
-    1,                              /* mbminlen      */
-    4,                              /* mbmaxlen      */
-    1,                              /* mbmaxlenlen   */
-    9,                              /* min_sort_char */
-    0x10FFFF,                       /* max_sort_char */
-    ' ',                            /* pad char      */
-    false,                          /* escape_with_backslash_is_dangerous */
-    1,                              /* levels_for_compare */
+    0,                          /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS,    /* state    */
+    "utf8mb4",                  /* csname       */
+    "utf8mb4_de_pb_0900_ai_ci", /* m_coll_name  */
+    "",                         /* comment      */
+    de_pb_cldr_30,              /* tailoring    */
+    nullptr,                    /* coll_param   */
+    ctype_utf8,                 /* ctype        */
+    nullptr,                    /* to_lower     */
+    nullptr,                    /* to_upper     */
+    nullptr,                    /* sort_order   */
+    &my_uca_v900,               /* uca_900          */
+    nullptr,                    /* tab_to_uni   */
+    nullptr,                    /* tab_from_uni */
+    &my_unicase_unicode900,     /* caseinfo     */
+    nullptr,                    /* state_map    */
+    nullptr,                    /* ident_map    */
+    0,                          /* strxfrm_multiply */
+    1,                          /* caseup_multiply  */
+    1,                          /* casedn_multiply  */
+    1,                          /* mbminlen      */
+    4,                          /* mbmaxlen      */
+    1,                          /* mbmaxlenlen   */
+    9,                          /* min_sort_char */
+    0x10FFFF,                   /* max_sort_char */
+    ' ',                        /* pad char      */
+    false,                      /* escape_with_backslash_is_dangerous */
+    1,                          /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9648,34 +9648,34 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci = {
     257,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_is_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    is_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_is_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    is_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9683,34 +9683,34 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci = {
     258,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_lv_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    lv_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_lv_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    lv_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9718,34 +9718,34 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci = {
     259,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_ro_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    ro_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_ro_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    ro_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9753,34 +9753,34 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci = {
     260,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_sl_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    sl_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_sl_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    sl_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9788,34 +9788,34 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci = {
     261,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_pl_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    pl_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_pl_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    pl_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9823,34 +9823,34 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci = {
     262,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_et_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    et_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_et_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    et_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9858,34 +9858,34 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci = {
     263,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_es_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    spanish,                     /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_es_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    spanish,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9893,34 +9893,34 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci = {
     264,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_sv_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    sv_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_sv_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    sv_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9928,34 +9928,34 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci = {
     265,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_tr_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    tr_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_tr_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    tr_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9963,34 +9963,34 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci = {
     266,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_cs_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    cs_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_cs_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    cs_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -9998,34 +9998,34 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci = {
     267,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_da_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    da_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_da_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    da_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10033,34 +10033,34 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci = {
     268,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_lt_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    lt_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_lt_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    lt_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10068,34 +10068,34 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci = {
     269,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_sk_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    sk_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_sk_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    sk_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10103,34 +10103,34 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci = {
     270,
     0,
-    0,                                /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,          /* state    */
-    MY_UTF8MB4,                       /* csname       */
-    MY_UTF8MB4 "_es_trad_0900_ai_ci", /* m_coll_name  */
-    "",                               /* comment      */
-    es_trad_cldr_30,                  /* tailoring    */
-    nullptr,                          /* coll_param   */
-    ctype_utf8,                       /* ctype        */
-    nullptr,                          /* to_lower     */
-    nullptr,                          /* to_upper     */
-    nullptr,                          /* sort_order   */
-    &my_uca_v900,                     /* uca          */
-    nullptr,                          /* tab_to_uni   */
-    nullptr,                          /* tab_from_uni */
-    &my_unicase_unicode900,           /* caseinfo     */
-    nullptr,                          /* state_map    */
-    nullptr,                          /* ident_map    */
-    0,                                /* strxfrm_multiply */
-    1,                                /* caseup_multiply  */
-    1,                                /* casedn_multiply  */
-    1,                                /* mbminlen      */
-    4,                                /* mbmaxlen      */
-    1,                                /* mbmaxlenlen   */
-    9,                                /* min_sort_char */
-    0x10FFFF,                         /* max_sort_char */
-    ' ',                              /* pad char      */
-    false,                            /* escape_with_backslash_is_dangerous */
-    1,                                /* levels_for_compare */
+    0,                            /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS,      /* state    */
+    "utf8mb4",                    /* csname       */
+    "utf8mb4_es_trad_0900_ai_ci", /* m_coll_name  */
+    "",                           /* comment      */
+    es_trad_cldr_30,              /* tailoring    */
+    nullptr,                      /* coll_param   */
+    ctype_utf8,                   /* ctype        */
+    nullptr,                      /* to_lower     */
+    nullptr,                      /* to_upper     */
+    nullptr,                      /* sort_order   */
+    &my_uca_v900,                 /* uca          */
+    nullptr,                      /* tab_to_uni   */
+    nullptr,                      /* tab_from_uni */
+    &my_unicase_unicode900,       /* caseinfo     */
+    nullptr,                      /* state_map    */
+    nullptr,                      /* ident_map    */
+    0,                            /* strxfrm_multiply */
+    1,                            /* caseup_multiply  */
+    1,                            /* casedn_multiply  */
+    1,                            /* mbminlen      */
+    4,                            /* mbmaxlen      */
+    1,                            /* mbmaxlenlen   */
+    9,                            /* min_sort_char */
+    0x10FFFF,                     /* max_sort_char */
+    ' ',                          /* pad char      */
+    false,                        /* escape_with_backslash_is_dangerous */
+    1,                            /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10138,34 +10138,34 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci = {
     271,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_la_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    roman,                       /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_la_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    roman,                   /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10175,8 +10175,8 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
 {
   272, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
-  MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_fa_0900_ai_ci",/* m_coll_name */
+  "utf8mb4",          /* csname       */
+  "utf8mb4_fa_0900_ai_ci",    /* m_coll_name */
   "",                 /* comment      */
   fa_cldr_30,         /* tailoring    */
   &fa_coll_param,     /* coll_param   */
@@ -10210,34 +10210,34 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
 CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci = {
     273,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_eo_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    esperanto,                   /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_eo_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    esperanto,               /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10245,34 +10245,34 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci = {
     274,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_hu_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    hu_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_hu_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    hu_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10280,34 +10280,34 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci = {
 CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci = {
     275,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_hr_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    hr_cldr_30,                  /* tailoring    */
-    &hr_coll_param,              /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_hr_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    hr_cldr_30,              /* tailoring    */
+    &hr_coll_param,          /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10317,8 +10317,8 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
 {
   276, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
-  MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_si_0900_ai_ci",/* m_coll_name */
+  "utf8mb4",          /* csname       */
+  "utf8mb4_si_0900_ai_ci",    /* m_coll_name */
   "",                 /* comment      */
   si_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -10352,34 +10352,34 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
 CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci = {
     277,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_vi_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    vi_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_vi_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    vi_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -10389,8 +10389,8 @@ CHARSET_INFO my_charset_utf8mb4_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_0900_as_cs",               /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_0900_as_cs",                   /* m_coll_name  */
     "",                                     /* comment      */
     nullptr,                                /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10424,8 +10424,8 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_de_pb_0900_as_cs",         /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_de_pb_0900_as_cs",             /* m_coll_name  */
     "",                                     /* comment      */
     de_pb_cldr_30,                          /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10459,8 +10459,8 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_is_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_is_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     is_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10494,8 +10494,8 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_lv_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_lv_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     lv_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10529,8 +10529,8 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_ro_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_ro_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     ro_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10564,8 +10564,8 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_sl_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_sl_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     sl_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10599,8 +10599,8 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_pl_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_pl_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     pl_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10634,8 +10634,8 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_et_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_et_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     et_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10669,8 +10669,8 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_es_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_es_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     spanish,                                /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10704,8 +10704,8 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_sv_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_sv_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     sv_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10739,8 +10739,8 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_tr_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_tr_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     tr_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10774,8 +10774,8 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_cs_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_cs_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     cs_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10809,8 +10809,8 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_da_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_da_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     da_cldr_30,                             /* tailoring    */
     &da_coll_param,                         /* coll_param   */
@@ -10844,8 +10844,8 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_lt_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_lt_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     lt_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10879,8 +10879,8 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_sk_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_sk_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     sk_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10914,8 +10914,8 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_es_trad_0900_as_cs",       /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_es_trad_0900_as_cs",           /* m_coll_name  */
     "",                                     /* comment      */
     es_trad_cldr_30,                        /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10949,8 +10949,8 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_la_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_la_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     roman,                                  /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -10984,8 +10984,8 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_as_cs=
 {
   295, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_CSSORT,/* state    */
-  MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_fa_0900_as_cs",/* m_coll_name */
+  "utf8mb4",          /* csname       */
+  "utf8mb4_fa_0900_as_cs",    /* m_coll_name */
   "",                 /* comment      */
   fa_cldr_30,         /* tailoring    */
   &fa_coll_param,     /* coll_param   */
@@ -11021,8 +11021,8 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_eo_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_eo_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     esperanto,                              /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -11056,8 +11056,8 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_hu_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_hu_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     hu_cldr_30,                             /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -11091,8 +11091,8 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_hr_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_hr_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     hr_cldr_30,                             /* tailoring    */
     &hr_coll_param,                         /* coll_param   */
@@ -11126,8 +11126,8 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_as_cs=
 {
   299, 0, 0,            /* number       */
   MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_CSSORT,/* state    */
-  MY_UTF8MB4,         /* csname       */
-  MY_UTF8MB4 "_si_0900_as_cs",/* m_coll_name */
+  "utf8mb4",          /* csname       */
+  "utf8mb4_si_0900_as_cs",    /* m_coll_name */
   "",                 /* comment      */
   si_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
@@ -11163,8 +11163,8 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_vi_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_vi_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     vi_cldr_30,                             /* tailoring    */
     &vi_coll_param,                         /* coll_param   */
@@ -11198,8 +11198,8 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_ja_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_ja_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     ja_cldr_30,                             /* tailoring    */
     &ja_coll_param,                         /* coll_param   */
@@ -11233,8 +11233,8 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs_ks = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_ja_0900_as_cs_ks",         /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_ja_0900_as_cs_ks",             /* m_coll_name  */
     "",                                     /* comment      */
     ja_cldr_30,                             /* tailoring    */
     &ja_coll_param,                         /* coll_param   */
@@ -11266,34 +11266,34 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs_ks = {
 CHARSET_INFO my_charset_utf8mb4_0900_as_ci = {
     305,
     0,
-    0,                        /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,  /* state    */
-    MY_UTF8MB4,               /* csname       */
-    MY_UTF8MB4 "_0900_as_ci", /* m_coll_name  */
-    "",                       /* comment      */
-    nullptr,                  /* tailoring    */
-    nullptr,                  /* coll_param   */
-    ctype_utf8,               /* ctype        */
-    nullptr,                  /* to_lower     */
-    nullptr,                  /* to_upper     */
-    nullptr,                  /* sort_order   */
-    &my_uca_v900,             /* uca          */
-    nullptr,                  /* tab_to_uni   */
-    nullptr,                  /* tab_from_uni */
-    &my_unicase_unicode900,   /* caseinfo     */
-    nullptr,                  /* state_map    */
-    nullptr,                  /* ident_map    */
-    0,                        /* strxfrm_multiply */
-    1,                        /* caseup_multiply  */
-    1,                        /* casedn_multiply  */
-    1,                        /* mbminlen      */
-    4,                        /* mbmaxlen      */
-    1,                        /* mbmaxlenlen   */
-    32,                       /* min_sort_char */
-    0x10FFFF,                 /* max_sort_char */
-    ' ',                      /* pad char      */
-    false,                    /* escape_with_backslash_is_dangerous */
-    2,                        /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_0900_as_ci",    /* m_coll_name  */
+    "",                      /* comment      */
+    nullptr,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    32,                      /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    2,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11301,34 +11301,34 @@ CHARSET_INFO my_charset_utf8mb4_0900_as_ci = {
 CHARSET_INFO my_charset_utf8mb4_ru_0900_ai_ci = {
     306,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_ru_0900_ai_ci", /* m_coll_name  */
-    "",                          /* comment      */
-    "",                          /* tailoring    */
-    &ru_coll_param,              /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    32,                          /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_ru_0900_ai_ci", /* m_coll_name  */
+    "",                      /* comment      */
+    "",                      /* tailoring    */
+    &ru_coll_param,          /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    32,                      /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11338,8 +11338,8 @@ CHARSET_INFO my_charset_utf8mb4_ru_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_ru_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_ru_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     "",                                     /* tailoring    */
     &ru_coll_param,                         /* coll_param   */
@@ -11373,8 +11373,8 @@ CHARSET_INFO my_charset_utf8mb4_zh_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_zh_0900_as_cs",            /* m_coll_name  */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_zh_0900_as_cs",                /* m_coll_name  */
     "",                                     /* comment      */
     zh_cldr_30,                             /* tailoring    */
     &zh_coll_param,                         /* coll_param   */
@@ -11452,8 +11452,8 @@ CHARSET_INFO my_charset_utf8mb4_0900_bin = {
     0,
     0,                                        // number
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_BINSORT,  // state
-    MY_UTF8MB4,                               // cs name
-    MY_UTF8MB4 "_0900_bin",                   // name
+    "utf8mb4",                                // cs name
+    "utf8mb4_0900_bin",                       // name
     "",                                       // comment
     nullptr,                                  // tailoring
     nullptr,                                  // coll_param
@@ -11485,34 +11485,34 @@ CHARSET_INFO my_charset_utf8mb4_0900_bin = {
 CHARSET_INFO my_charset_utf8mb4_nb_0900_ai_ci = {
     310,
     0,
-    0,                           /* number   */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_nb_0900_ai_ci", /* name         */
-    "",                          /* comment      */
-    da_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number   */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_nb_0900_ai_ci", /* name         */
+    "",                      /* comment      */
+    da_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11522,8 +11522,8 @@ CHARSET_INFO my_charset_utf8mb4_nb_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_nb_0900_as_cs",            /* name         */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_nb_0900_as_cs",                /* name         */
     "",                                     /* comment      */
     da_cldr_30,                             /* tailoring    */
     &no_coll_param,                         /* coll_param   */
@@ -11555,34 +11555,34 @@ CHARSET_INFO my_charset_utf8mb4_nb_0900_as_cs = {
 CHARSET_INFO my_charset_utf8mb4_nn_0900_ai_ci = {
     312,
     0,
-    0,                           /* number   */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_nn_0900_ai_ci", /* name         */
-    "",                          /* comment      */
-    da_cldr_30,                  /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number   */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_nn_0900_ai_ci", /* name         */
+    "",                      /* comment      */
+    da_cldr_30,              /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11592,8 +11592,8 @@ CHARSET_INFO my_charset_utf8mb4_nn_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_nn_0900_as_cs",            /* name         */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_nn_0900_as_cs",                /* name         */
     "",                                     /* comment      */
     da_cldr_30,                             /* tailoring    */
     &no_coll_param,                         /* coll_param   */
@@ -11625,34 +11625,34 @@ CHARSET_INFO my_charset_utf8mb4_nn_0900_as_cs = {
 CHARSET_INFO my_charset_utf8mb4_sr_latn_0900_ai_ci = {
     314,
     0,
-    0,                                /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,          /* state    */
-    MY_UTF8MB4,                       /* csname       */
-    MY_UTF8MB4 "_sr_latn_0900_ai_ci", /* name */
-    "",                               /* comment      */
-    hr_cldr_30,                       /* tailoring    */
-    &hr_coll_param,                   /* coll_param   */
-    ctype_utf8,                       /* ctype        */
-    nullptr,                          /* to_lower     */
-    nullptr,                          /* to_upper     */
-    nullptr,                          /* sort_order   */
-    &my_uca_v900,                     /* uca          */
-    nullptr,                          /* tab_to_uni   */
-    nullptr,                          /* tab_from_uni */
-    &my_unicase_unicode900,           /* caseinfo     */
-    nullptr,                          /* state_map    */
-    nullptr,                          /* ident_map    */
-    0,                                /* strxfrm_multiply */
-    1,                                /* caseup_multiply  */
-    1,                                /* casedn_multiply  */
-    1,                                /* mbminlen      */
-    4,                                /* mbmaxlen      */
-    1,                                /* mbmaxlenlen   */
-    9,                                /* min_sort_char */
-    0x10FFFF,                         /* max_sort_char */
-    ' ',                              /* pad char      */
-    false,                            /* escape_with_backslash_is_dangerous */
-    1,                                /* levels_for_compare */
+    0,                            /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS,      /* state    */
+    "utf8mb4",                    /* csname       */
+    "utf8mb4_sr_latn_0900_ai_ci", /* name */
+    "",                           /* comment      */
+    hr_cldr_30,                   /* tailoring    */
+    &hr_coll_param,               /* coll_param   */
+    ctype_utf8,                   /* ctype        */
+    nullptr,                      /* to_lower     */
+    nullptr,                      /* to_upper     */
+    nullptr,                      /* sort_order   */
+    &my_uca_v900,                 /* uca          */
+    nullptr,                      /* tab_to_uni   */
+    nullptr,                      /* tab_from_uni */
+    &my_unicase_unicode900,       /* caseinfo     */
+    nullptr,                      /* state_map    */
+    nullptr,                      /* ident_map    */
+    0,                            /* strxfrm_multiply */
+    1,                            /* caseup_multiply  */
+    1,                            /* casedn_multiply  */
+    1,                            /* mbminlen      */
+    4,                            /* mbmaxlen      */
+    1,                            /* mbmaxlenlen   */
+    9,                            /* min_sort_char */
+    0x10FFFF,                     /* max_sort_char */
+    ' ',                          /* pad char      */
+    false,                        /* escape_with_backslash_is_dangerous */
+    1,                            /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11662,8 +11662,8 @@ CHARSET_INFO my_charset_utf8mb4_sr_latn_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_sr_latn_0900_as_cs",       /* name         */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_sr_latn_0900_as_cs",           /* name         */
     "",                                     /* comment      */
     hr_cldr_30,                             /* tailoring    */
     &hr_coll_param,                         /* coll_param   */
@@ -11695,34 +11695,34 @@ CHARSET_INFO my_charset_utf8mb4_sr_latn_0900_as_cs = {
 CHARSET_INFO my_charset_utf8mb4_bs_0900_ai_ci = {
     316,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_bs_0900_ai_ci", /* name */
-    "",                          /* comment      */
-    hr_cldr_30,                  /* tailoring    */
-    &hr_coll_param,              /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_bs_0900_ai_ci", /* name */
+    "",                      /* comment      */
+    hr_cldr_30,              /* tailoring    */
+    &hr_coll_param,          /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11732,8 +11732,8 @@ CHARSET_INFO my_charset_utf8mb4_bs_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_bs_0900_as_cs",            /* name         */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_bs_0900_as_cs",                /* name         */
     "",                                     /* comment      */
     hr_cldr_30,                             /* tailoring    */
     &hr_coll_param,                         /* coll_param   */
@@ -11765,34 +11765,34 @@ CHARSET_INFO my_charset_utf8mb4_bs_0900_as_cs = {
 CHARSET_INFO my_charset_utf8mb4_bg_0900_ai_ci = {
     318,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_bg_0900_ai_ci", /* name */
-    "",                          /* comment      */
-    "",                          /* tailoring    */
-    &ru_coll_param,              /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    32,                          /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_bg_0900_ai_ci", /* name */
+    "",                      /* comment      */
+    "",                      /* tailoring    */
+    &ru_coll_param,          /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    32,                      /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11802,8 +11802,8 @@ CHARSET_INFO my_charset_utf8mb4_bg_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_bg_0900_as_cs",            /* name */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_bg_0900_as_cs",                /* name */
     "",                                     /* comment      */
     "",                                     /* tailoring    */
     &ru_coll_param,                         /* coll_param   */
@@ -11835,34 +11835,34 @@ CHARSET_INFO my_charset_utf8mb4_bg_0900_as_cs = {
 CHARSET_INFO my_charset_utf8mb4_gl_0900_ai_ci = {
     320,
     0,
-    0,                           /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,     /* state    */
-    MY_UTF8MB4,                  /* csname       */
-    MY_UTF8MB4 "_gl_0900_ai_ci", /* name */
-    "",                          /* comment      */
-    spanish,                     /* tailoring    */
-    nullptr,                     /* coll_param   */
-    ctype_utf8,                  /* ctype        */
-    nullptr,                     /* to_lower     */
-    nullptr,                     /* to_upper     */
-    nullptr,                     /* sort_order   */
-    &my_uca_v900,                /* uca          */
-    nullptr,                     /* tab_to_uni   */
-    nullptr,                     /* tab_from_uni */
-    &my_unicase_unicode900,      /* caseinfo     */
-    nullptr,                     /* state_map    */
-    nullptr,                     /* ident_map    */
-    0,                           /* strxfrm_multiply */
-    1,                           /* caseup_multiply  */
-    1,                           /* casedn_multiply  */
-    1,                           /* mbminlen      */
-    4,                           /* mbmaxlen      */
-    1,                           /* mbmaxlenlen   */
-    9,                           /* min_sort_char */
-    0x10FFFF,                    /* max_sort_char */
-    ' ',                         /* pad char      */
-    false,                       /* escape_with_backslash_is_dangerous */
-    1,                           /* levels_for_compare */
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state    */
+    "utf8mb4",               /* csname       */
+    "utf8mb4_gl_0900_ai_ci", /* name */
+    "",                      /* comment      */
+    spanish,                 /* tailoring    */
+    nullptr,                 /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    nullptr,                 /* to_lower     */
+    nullptr,                 /* to_upper     */
+    nullptr,                 /* sort_order   */
+    &my_uca_v900,            /* uca          */
+    nullptr,                 /* tab_to_uni   */
+    nullptr,                 /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    nullptr,                 /* state_map    */
+    nullptr,                 /* ident_map    */
+    0,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen      */
+    4,                       /* mbmaxlen      */
+    1,                       /* mbmaxlenlen   */
+    9,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    false,                   /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11872,8 +11872,8 @@ CHARSET_INFO my_charset_utf8mb4_gl_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_gl_0900_as_cs",            /* name */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_gl_0900_as_cs",                /* name */
     "",                                     /* comment      */
     spanish,                                /* tailoring    */
     nullptr,                                /* coll_param   */
@@ -11905,34 +11905,34 @@ CHARSET_INFO my_charset_utf8mb4_gl_0900_as_cs = {
 CHARSET_INFO my_charset_utf8mb4_mn_cyrl_0900_ai_ci = {
     322,
     0,
-    0,                                /* number       */
-    MY_CS_UTF8MB4_UCA_FLAGS,          /* state    */
-    MY_UTF8MB4,                       /* csname       */
-    MY_UTF8MB4 "_mn_cyrl_0900_ai_ci", /* name */
-    "",                               /* comment      */
-    "",                               /* tailoring    */
-    &ru_coll_param,                   /* coll_param   */
-    ctype_utf8,                       /* ctype        */
-    nullptr,                          /* to_lower     */
-    nullptr,                          /* to_upper     */
-    nullptr,                          /* sort_order   */
-    &my_uca_v900,                     /* uca          */
-    nullptr,                          /* tab_to_uni   */
-    nullptr,                          /* tab_from_uni */
-    &my_unicase_unicode900,           /* caseinfo     */
-    nullptr,                          /* state_map    */
-    nullptr,                          /* ident_map    */
-    0,                                /* strxfrm_multiply */
-    1,                                /* caseup_multiply  */
-    1,                                /* casedn_multiply  */
-    1,                                /* mbminlen      */
-    4,                                /* mbmaxlen      */
-    1,                                /* mbmaxlenlen   */
-    32,                               /* min_sort_char */
-    0x10FFFF,                         /* max_sort_char */
-    ' ',                              /* pad char      */
-    false,                            /* escape_with_backslash_is_dangerous */
-    1,                                /* levels_for_compare */
+    0,                            /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS,      /* state    */
+    "utf8mb4",                    /* csname       */
+    "utf8mb4_mn_cyrl_0900_ai_ci", /* name */
+    "",                           /* comment      */
+    "",                           /* tailoring    */
+    &ru_coll_param,               /* coll_param   */
+    ctype_utf8,                   /* ctype        */
+    nullptr,                      /* to_lower     */
+    nullptr,                      /* to_upper     */
+    nullptr,                      /* sort_order   */
+    &my_uca_v900,                 /* uca          */
+    nullptr,                      /* tab_to_uni   */
+    nullptr,                      /* tab_from_uni */
+    &my_unicase_unicode900,       /* caseinfo     */
+    nullptr,                      /* state_map    */
+    nullptr,                      /* ident_map    */
+    0,                            /* strxfrm_multiply */
+    1,                            /* caseup_multiply  */
+    1,                            /* casedn_multiply  */
+    1,                            /* mbminlen      */
+    4,                            /* mbmaxlen      */
+    1,                            /* mbmaxlenlen   */
+    32,                           /* min_sort_char */
+    0x10FFFF,                     /* max_sort_char */
+    ' ',                          /* pad char      */
+    false,                        /* escape_with_backslash_is_dangerous */
+    1,                            /* levels_for_compare */
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
@@ -11942,8 +11942,8 @@ CHARSET_INFO my_charset_utf8mb4_mn_cyrl_0900_as_cs = {
     0,
     0,                                      /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state    */
-    MY_UTF8MB4,                             /* csname       */
-    MY_UTF8MB4 "_mn_cyrl_0900_as_cs",       /* name */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_mn_cyrl_0900_as_cs",           /* name */
     "",                                     /* comment      */
     "",                                     /* tailoring    */
     &ru_coll_param,                         /* coll_param   */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@ Clone Plugin: Client implementation
 */
 #include <inttypes.h>
 
+#include "plugin/clone/include/clone.h"
 #include "plugin/clone/include/clone_client.h"
 #include "plugin/clone/include/clone_os.h"
 
@@ -724,7 +725,7 @@ int Client::clone() {
     err = connect_remote(restart, true);
 
     if (is_master()) {
-      log_error(get_thd(), true, err, "Master ACK Connect");
+      log_error(get_thd(), true, err, "Source ACK Connect");
     }
 
     if (err != 0) {
@@ -776,14 +777,14 @@ int Client::clone() {
       /* For network error master would attempt
       to restart clone. */
       if (is_master() && is_network_error(err, false)) {
-        log_error(get_thd(), true, err, "Master Network issue");
+        log_error(get_thd(), true, err, "Source Network issue");
         restart = true;
       }
     }
 
     /* Break from restart loop if not network error */
     if (restart && !is_network_error(err, false)) {
-      log_error(get_thd(), true, err, "Master break restart loop");
+      log_error(get_thd(), true, err, "Source break restart loop");
       restart = false;
     }
 
@@ -791,13 +792,13 @@ int Client::clone() {
     if (is_master()) {
       /* Ask other end to exit clone protocol */
       auto err2 = remote_command(COM_EXIT, true);
-      log_error(get_thd(), true, err2, "Master ACK COM_EXIT");
+      log_error(get_thd(), true, err2, "Source ACK COM_EXIT");
 
       /* If clone is interrupted, ask the remote to exit. */
       if (err2 == 0 && err == ER_QUERY_INTERRUPTED) {
         err2 = mysql_service_clone_protocol->mysql_clone_kill(m_conn_aux.m_conn,
                                                               m_conn);
-        log_error(get_thd(), true, err2, "Master Interrupt");
+        log_error(get_thd(), true, err2, "Source Interrupt");
       }
 
       /* if COM_EXIT is unsuccessful, abort the connection */
@@ -807,7 +808,7 @@ int Client::clone() {
           nullptr, m_conn_aux.m_conn, abort_net_aux, false);
       m_conn_aux.m_conn = nullptr;
 
-      snprintf(info_mesg, 128, "Master ACK Disconnect : abort: %s",
+      snprintf(info_mesg, 128, "Source ACK Disconnect : abort: %s",
                abort_net_aux ? "true" : "false");
       LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
     }
@@ -935,12 +936,12 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
     if (m_conn_aux.m_conn == nullptr) {
       /* Disconnect from remote and return */
       err = remote_command(COM_EXIT, false);
-      log_error(get_thd(), true, err, "Master Task COM_EXIT");
+      log_error(get_thd(), true, err, "Source Task COM_EXIT");
 
       bool abort_net = (err != 0);
       mysql_service_clone_protocol->mysql_clone_disconnect(get_thd(), m_conn,
                                                            abort_net, false);
-      snprintf(info_mesg, 128, "Master Task Disconnect: abort: %s",
+      snprintf(info_mesg, 128, "Source Task Disconnect: abort: %s",
                abort_net ? "true" : "false");
       LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
 
@@ -972,7 +973,7 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
     }
 
     ++loop_count;
-    snprintf(info_mesg, 128, "Master re-connect failed: count: %u", loop_count);
+    snprintf(info_mesg, 128, "Source re-connect failed: count: %u", loop_count);
     LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
 
     if (is_master() && thd_killed(get_thd())) {
@@ -1043,6 +1044,26 @@ int Client::validate_remote_params() {
     last_error = ER_CLONE_PLUGIN_MATCH;
   }
 
+  /* Build list of plugins from comma separated value of the variable
+  clone_exclude_plugins_list */
+  std::vector<std::string> excl_plugins_vec;
+  if (clone_exclude_plugins_list != nullptr) {
+    std::string excl_plugins_str(clone_exclude_plugins_list);
+    std::transform(excl_plugins_str.begin(), excl_plugins_str.end(),
+                   excl_plugins_str.begin(), ::tolower);
+
+    std::stringstream exclude_stream(excl_plugins_str);
+
+    while (exclude_stream.good()) {
+      std::string substr;
+      getline(exclude_stream, substr, ',');
+      substr.erase(remove(substr.begin(), substr.end(), ' '), substr.end());
+      if (!substr.empty()) {
+        excl_plugins_vec.push_back(substr);
+      }
+    }
+  }
+
   /* Validate plugins and check if shared objects can be loaded. */
   for (auto &plugin : m_parameters.m_plugins_with_so) {
     assert(m_share->m_protocol_version > CLONE_PROTOCOL_VERSION_V1);
@@ -1059,6 +1080,26 @@ int Client::validate_remote_params() {
 
     if (so_name.empty() || plugin_is_loadable(so_name)) {
       continue;
+    }
+
+    /* Plugin is not installed in recipient but active on donor. Check if this
+    plugin can be exempted from matching with donor */
+    if (clone_exclude_plugins_list != nullptr) {
+      std::string plugin_str(plugin_name);
+      std::transform(plugin_str.begin(), plugin_str.end(), plugin_str.begin(),
+                     ::tolower);
+
+      if (std::find(excl_plugins_vec.begin(), excl_plugins_vec.end(),
+                    plugin_str) != excl_plugins_vec.end()) {
+        char info_mesg[256];
+        snprintf(info_mesg, 256,
+                 "Ignoring plugin %s installed on the source server but not on "
+                 "the recepient. The mismatch is ignored due to "
+                 "'clone_exclude_plugins_list'.",
+                 plugin_name.c_str());
+        LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
+        continue;
+      }
     }
 
     /* Donor plugin is not there in recipient. */

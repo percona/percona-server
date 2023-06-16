@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2112,7 +2112,8 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   /* If tablespace is to be encrypted, encrypt it now */
   if (is_encrypted && srv_undo_log_encrypt) {
-    ut_d(bool ret =) set_undo_tablespace_encryption(nullptr, new_space_id, &mtr);
+    ut_d(bool ret =)
+        set_undo_tablespace_encryption(nullptr, new_space_id, &mtr);
     /* Don't expect any error here (unless keyring plugin is uninstalled). In
     that case too, continue truncation processing of tablespace. */
     ut_ad(!ret);

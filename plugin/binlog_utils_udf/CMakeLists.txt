@@ -1,4 +1,8 @@
-MYSQL_ADD_PLUGIN(binlog_utils_udf binlog_utils_udf.cc MODULE_ONLY MODULE_OUTPUT_NAME "binlog_utils_udf")
+MYSQL_ADD_PLUGIN(binlog_utils_udf
+  binlog_utils_udf.cc
+  MODULE_ONLY MODULE_OUTPUT_NAME "binlog_utils_udf"
+  LINK_LIBRARIES extra::rapidjson
+)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 

@@ -42,7 +42,7 @@
 # (https://jira.percona.com/browse/PS-5824)
 # Oracle Bug #96400 "MTS STOP SLAVE takes over a minute when master crashed during event logging"
 # (https://bugs.mysql.com/bug.php?id=96400)
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 # Reduce this to a minimum
 --let $replica_checkpoint_period_value = `SELECT @@global.replica_checkpoint_period`
@@ -159,7 +159,7 @@ INSERT INTO t VALUES(2);
 --echo # 5 Check the starting SQL thread message reports invalid positions
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_select= Slave SQL thread for channel '' initialized, starting replication in log 'INVALID' at position 0, relay log *
+--let $assert_select= Replica SQL thread for channel '' initialized, starting replication in log 'INVALID' at position 0, relay log *
 --let $assert_count= 1
 --let $assert_text= The SQL thread start will report the information in relation to the source as invalid
 --source include/assert_grep.inc

@@ -36,6 +36,10 @@
 #include "sql/table.h"  // ST_FIELD_INFO
 
 /* RocksDB header files */
+#include "rocksdb/version.h"
+#if ROCKSDB_MAJOR >= 8
+#include "rocksdb/advanced_cache.h"
+#endif  // ROCKSDB_MAJOR >= 8
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/convenience.h"
 #include "rocksdb/filter_policy.h"
@@ -511,7 +515,9 @@ static int rdb_i_s_cfoptions_fill_table(
     rocksdb::ColumnFamilyOptions opts;
 
     assert(!cf_name.empty());
-    cf_manager.get_cf_options(cf_name, &opts);
+    if (!cf_manager.get_cf_options(cf_name, &opts)) {
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
 
     std::vector<std::pair<std::string, std::string>> cf_option_types = {
         {"COMPARATOR", opts.comparator == nullptr
@@ -806,6 +812,16 @@ static int rdb_i_s_global_info_fill_table(
 
     ret |= rdb_global_info_fill_row(thd, tables, "MAX_INDEX_ID", "MAX_INDEX_ID",
                                     max_index_id_buf);
+  }
+
+  uint32_t max_dd_index_id;
+  char max_dd_index_id_buf[INT_BUF_LEN] = {0};
+  if (dict_manager->get_dict_manager_selector_const(false /*is_tmp_table*/)
+          ->get_max_index_id(&max_dd_index_id, true /*is_dd_tbl*/)) {
+    snprintf(max_dd_index_id_buf, INT_BUF_LEN, "%u", max_dd_index_id);
+
+    ret |= rdb_global_info_fill_row(thd, tables, "MAX_DD_INDEX_ID",
+                                    "MAX_DD_INDEX_ID", max_dd_index_id_buf);
   }
 
   /* cf_id -> cf_flags */
@@ -1668,16 +1684,18 @@ static ST_FIELD_INFO rdb_i_s_sst_props_fields_info[] = {
                        MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO("FILTER_BLOCK_SIZE", sizeof(int64_t),
                        MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("COMPRESSION_ALGO", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("COMPRESSION_ALGO", NAME_LEN + 1, MYSQL_TYPE_STRING,
+                       MY_I_S_MAYBE_NULL),
     ROCKSDB_FIELD_INFO("CREATION_TIME", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
                        0),
     ROCKSDB_FIELD_INFO("FILE_CREATION_TIME", sizeof(int64_t),
                        MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO("OLDEST_KEY_TIME", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
                        0),
-    ROCKSDB_FIELD_INFO("FILTER_POLICY", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("FILTER_POLICY", NAME_LEN + 1, MYSQL_TYPE_STRING,
+                       MY_I_S_MAYBE_NULL),
     ROCKSDB_FIELD_INFO("COMPRESSION_OPTIONS", NAME_LEN + 1, MYSQL_TYPE_STRING,
-                       0),
+                       MY_I_S_MAYBE_NULL),
     ROCKSDB_FIELD_INFO_END};
 
 static int rdb_i_s_sst_props_fill_table(
@@ -1754,6 +1772,7 @@ static int rdb_i_s_sst_props_fill_table(
       if (props.second->compression_name.empty()) {
         field[RDB_SST_PROPS_FIELD::COMPRESSION_ALGO]->set_null();
       } else {
+        field[RDB_SST_PROPS_FIELD::COMPRESSION_ALGO]->set_notnull();
         field[RDB_SST_PROPS_FIELD::COMPRESSION_ALGO]->store(
             props.second->compression_name.c_str(),
             props.second->compression_name.size(), system_charset_info);
@@ -1767,6 +1786,7 @@ static int rdb_i_s_sst_props_fill_table(
       if (props.second->filter_policy_name.empty()) {
         field[RDB_SST_PROPS_FIELD::FILTER_POLICY]->set_null();
       } else {
+        field[RDB_SST_PROPS_FIELD::FILTER_POLICY]->set_notnull();
         field[RDB_SST_PROPS_FIELD::FILTER_POLICY]->store(
             props.second->filter_policy_name.c_str(),
             props.second->filter_policy_name.size(), system_charset_info);
@@ -1774,6 +1794,7 @@ static int rdb_i_s_sst_props_fill_table(
       if (props.second->compression_options.empty()) {
         field[RDB_SST_PROPS_FIELD::COMPRESSION_OPTIONS]->set_null();
       } else {
+        field[RDB_SST_PROPS_FIELD::COMPRESSION_OPTIONS]->set_notnull();
         field[RDB_SST_PROPS_FIELD::COMPRESSION_OPTIONS]->store(
             props.second->compression_options.c_str(),
             props.second->compression_options.size(), system_charset_info);

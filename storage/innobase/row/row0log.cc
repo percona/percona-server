@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -199,7 +199,7 @@ struct row_log_t {
   is being created online */
   dict_table_t *table;
 
- /** index to be built */
+  /** index to be built */
   dict_index_t *index;
 
   /** Whether the definition of the PRIMARY KEY has remained the same */
@@ -229,7 +229,7 @@ struct row_log_t {
   row_log_apply_ops() */
   row_log_buf_t head;
 
-   /** reader context; temporary buffer used in encryption, decryption or NULL */
+  /** reader context; temporary buffer used in encryption, decryption or NULL */
   byte *crypt_head;
 
   /** number of non-virtual column in old table */
@@ -2786,17 +2786,22 @@ flag_ok:
         }
 
         /* if there is more than 2 bytes length info */
-        if (n_v_size > 2 && mrec_end > next_mrec) {
+        if (n_v_size > 2) {
+          if (next_mrec + 2 > mrec_end) {
+            return (nullptr);
+          }
+          o_v_size = mach_read_from_2(next_mrec);
+          if (next_mrec + o_v_size > mrec_end) {
+            return (nullptr);
+          }
+
           trx_undo_read_v_cols(log->table, const_cast<byte *>(next_mrec),
                                old_pk, false, true,
                                &(log->col_map[log->n_old_col]), heap);
-          o_v_size = mach_read_from_2(next_mrec);
         }
 
         next_mrec += o_v_size;
-        if (next_mrec > mrec_end) {
-          return (nullptr);
-        }
+        ut_ad(next_mrec <= mrec_end);
       }
 
       ut_ad(next_mrec <= mrec_end);

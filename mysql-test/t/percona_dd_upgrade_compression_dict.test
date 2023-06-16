@@ -1,6 +1,8 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_util_unzip.inc
 
+--source include/add_mtr_suppression_for_innodb_readonly.inc
+
 --disable_query_log
 call mtr.add_suppression("Resizing redo log from");
 call mtr.add_suppression("Upgrading redo log");
@@ -40,8 +42,6 @@ call mtr.add_suppression("Error creating master info: Error checking repositorie
 call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
 call mtr.add_suppression("db.opt file not found for test database. Using default Character set");
-call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
-call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
 --enable_query_log
 
 --echo # Set different paths for --datadir

@@ -31,6 +31,7 @@
 #include "./ha_rocksdb.h"
 #include "./rdb_cf_manager.h"
 #include "./rdb_compact_filter.h"
+#include "./rdb_sst_partitioner_factory.h"
 
 namespace myrocks {
 
@@ -59,6 +60,14 @@ bool Rdb_cf_options::init(
     return false;
   }
 
+  if (m_default_cf_opts.sst_partitioner_factory != nullptr) {
+    // NO_LINT_DEBUG
+    LogPluginErrMsg(
+        WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+        "Invalid cf options, sst_partitioner_factory should not be set");
+    return false;
+  }
+
   return true;
 }
 
@@ -66,14 +75,20 @@ bool Rdb_cf_options::get(const std::string &cf_name,
                          rocksdb::ColumnFamilyOptions *const opts) {
   assert(opts != nullptr);
 
+  rocksdb::ConfigOptions config_options;
+  config_options.input_strings_escaped = false;
+  config_options.ignore_unknown_options = false;
+
   // Get defaults.
-  rocksdb::GetColumnFamilyOptionsFromString(*opts, m_default_config, opts);
+  rocksdb::GetColumnFamilyOptionsFromString(config_options, *opts,
+                                            m_default_config, opts);
 
   // Get a custom confguration if we have one.
   Name_to_config_t::iterator it = m_name_map.find(cf_name);
 
   if (it != m_name_map.end()) {
-    rocksdb::GetColumnFamilyOptionsFromString(*opts, it->second, opts);
+    rocksdb::GetColumnFamilyOptionsFromString(config_options, *opts, it->second,
+                                              opts);
     return true;
   }
   return false;
@@ -92,10 +107,13 @@ void Rdb_cf_options::update(const std::string &cf_name,
 
 bool Rdb_cf_options::set_default(const std::string &default_config) {
   rocksdb::ColumnFamilyOptions options;
+  rocksdb::ConfigOptions config_options;
+  config_options.input_strings_escaped = false;
+  config_options.ignore_unknown_options = false;
 
   if (!default_config.empty()) {
     rocksdb::Status s = rocksdb::GetColumnFamilyOptionsFromString(
-        options, default_config, &options);
+        config_options, options, default_config, &options);
     if (!s.ok()) {
       // NO_LINT_DEBUG
       fprintf(stderr,
@@ -259,6 +277,9 @@ bool Rdb_cf_options::parse_cf_options(const std::string &cf_options,
   std::string opt_str;
   std::stringstream ss;
   rocksdb::ColumnFamilyOptions options;
+  rocksdb::ConfigOptions config_options;
+  config_options.input_strings_escaped = false;
+  config_options.ignore_unknown_options = false;
 
   // Only print warnings if the caller didn't pass an output stream
   bool print_warnings = (output == nullptr);
@@ -296,8 +317,8 @@ bool Rdb_cf_options::parse_cf_options(const std::string &cf_options,
     }
 
     // Generate an error if the <opt_str> is not valid according to RocksDB.
-    rocksdb::Status s =
-        rocksdb::GetColumnFamilyOptionsFromString(options, opt_str, &options);
+    rocksdb::Status s = rocksdb::GetColumnFamilyOptionsFromString(
+        config_options, options, opt_str, &options);
     if (!s.ok()) {
       (*output) << "Invalid cf config for '" << cf.c_str()
                 << "' in override options: " << s.getState()
@@ -345,14 +366,34 @@ std::shared_ptr<rocksdb::MergeOperator> Rdb_cf_options::get_cf_merge_operator(
 }
 
 bool Rdb_cf_options::get_cf_options(const std::string &cf_name,
-                                    rocksdb::ColumnFamilyOptions *const opts) {
+                                    rocksdb::ColumnFamilyOptions *const opts,
+                                    bool &cf_exists) {
   *opts = m_default_cf_opts;
-  bool ret = get(cf_name, opts);
+  cf_exists = get(cf_name, opts);
 
   // Set the comparator according to 'rev:'
   opts->comparator = get_cf_comparator(cf_name);
   opts->merge_operator = get_cf_merge_operator(cf_name);
-  return ret;
+
+  // this sst partitioner is used in bulk load scenario, no need to set it for
+  // non-data cfs.
+  if (cf_name != DEFAULT_SYSTEM_CF_NAME && cf_name != DEFAULT_TMP_CF_NAME &&
+      cf_name != DEFAULT_TMP_SYSTEM_CF_NAME) {
+    if (opts->sst_partitioner_factory != nullptr) {
+      // NO_LINT_DEBUG
+      LogPluginErrMsg(
+          WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+          "Invalid cf options for %s, sst_partitioner_factory should not be "
+          "set.",
+          cf_name.c_str());
+      return false;
+    }
+    opts->sst_partitioner_factory =
+        std::make_shared<Rdb_sst_partitioner_factory>(
+            opts->comparator, opts->num_levels,
+            Rdb_cf_manager::is_cf_name_reverse(cf_name.c_str()));
+  }
+  return true;
 }
 
 }  // namespace myrocks

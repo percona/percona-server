@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3713,8 +3713,7 @@ static ulint row_sel_try_search_shortcut_for_mysql(
   ut_ad(trx->has_search_latch);
 
   pcur->open_no_init(index, search_tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF,
-                     RW_S_LATCH, mtr,
-                     UT_LOCATION_HERE);
+                     RW_S_LATCH, mtr, UT_LOCATION_HERE);
   rec = pcur->get_rec();
 
   if (!page_rec_is_user_rec(rec)) {

@@ -6,7 +6,7 @@
 --source include/master-slave.inc
 
 --disable_query_log
-call mtr.add_suppression("Slave:*");
+call mtr.add_suppression("Replica:*");
 --enable_query_log
 
 create table a(id int) engine=InnoDB;

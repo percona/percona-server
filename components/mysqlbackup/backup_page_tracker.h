@@ -1,6 +1,6 @@
 /************************************************************************
                       Mysql Enterprise Backup
- Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+ Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,6 @@
 
 #include <mysql/components/services/page_track_service.h>
 
-#include <stddef.h>  // size_t
 #include <list>
 
 #include "mysqlbackup.h"

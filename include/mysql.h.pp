@@ -368,7 +368,7 @@ void finish_client_errs(void);
 extern const char *client_errors[];
 extern const char **mysql_client_errors;
 static inline const char *ER_CLIENT(int client_errno) {
-  if (client_errno >= 2000 && client_errno <= 2073)
+  if (client_errno >= 2000 && client_errno <= 2074)
     return client_errors[client_errno - 2000];
   return client_errors[2000 - 2000];
 }

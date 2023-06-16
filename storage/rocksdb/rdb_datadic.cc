@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <openssl/ssl.h>
+#include "rdb_global.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation  // gcc: Class implementation
 #endif
@@ -4863,8 +4864,14 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
   rocksdb::Iterator *it = dict_user_table->new_iterator();
   int i = 0;
 
+  uint max_dd_index_id_in_dict = 0;
+  dict_user_table->get_max_index_id(&max_dd_index_id_in_dict,
+                                    true /*is_dd_tbl*/);
+
   uint max_index_id_in_dict = 0;
   dict_user_table->get_max_index_id(&max_index_id_in_dict);
+
+  uint system_cf_id = m_cf_manager->get_cf(DEFAULT_SYSTEM_CF_NAME)->GetID();
 
   for (it->Seek(ddl_entry_slice); it->Valid(); it->Next()) {
     const uchar *ptr;
@@ -4922,12 +4929,16 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
                         tdef->full_tablename().c_str());
         return true;
       }
-      if (max_index_id_in_dict < gl_index_id.index_id) {
+      // check if the cf is system cf
+      uint cur_max_index_id = gl_index_id.cf_id == system_cf_id
+                                  ? max_dd_index_id_in_dict
+                                  : max_index_id_in_dict;
+      if (cur_max_index_id < gl_index_id.index_id) {
         LogPluginErrMsg(ERROR_LEVEL, 0,
                         "Found max index id %u from data dictionary but also "
                         "found larger index id %u from dictionary. This should "
                         "never happen and possibly a bug.",
-                        max_index_id_in_dict, gl_index_id.index_id);
+                        cur_max_index_id, gl_index_id.index_id);
         return true;
       }
       if (!dict_user_table->get_cf_flags(gl_index_id.cf_id, &flags)) {
@@ -5011,12 +5022,21 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
 #endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
         // ROCKSDB_INCLUDE_VALIDATE_TABLES
 
+  if (max_dd_index_id_in_dict < Rdb_key_def::END_DICT_INDEX_ID) {
+    max_dd_index_id_in_dict = Rdb_key_def::END_DICT_INDEX_ID;
+  }
+
   // index ids used by applications should not conflict with
   // data dictionary index ids
   if (max_index_id_in_dict < Rdb_key_def::END_DICT_INDEX_ID) {
     max_index_id_in_dict = Rdb_key_def::END_DICT_INDEX_ID;
   }
 
+  // TODO: need to revisit the dd table id initialization value after enabling
+  // upgrade/downgrade
+  // data dictionary index id is allocated in system cf
+  // user table index id is allocated in non-system cf
+  m_dd_table_sequence.init(max_dd_index_id_in_dict + 1);
   m_user_table_sequence.init(max_index_id_in_dict + 1);
   m_tmp_table_sequence.init(1);
   if (!it->status().ok()) {
@@ -5258,7 +5278,11 @@ void Rdb_ddl_manager::set_table_stats(const std::string &tbl_name) {
   mysql_rwlock_unlock(&m_rwlock);
 }
 
-uint Rdb_ddl_manager::get_and_update_next_number(uint cf_id) {
+uint Rdb_ddl_manager::get_and_update_next_number(uint cf_id, bool is_dd_tbl) {
+  if (is_dd_tbl) {
+    return m_dd_table_sequence.get_and_update_next_number(
+        m_dict->get_dict_manager_selector_non_const(cf_id), true /*is_dd_tbl*/);
+  }
   if (m_cf_manager->is_tmp_column_family(cf_id)) {
     return m_tmp_table_sequence.get_and_update_next_number(
         m_dict->get_dict_manager_selector_non_const(cf_id));
@@ -5395,6 +5419,7 @@ void Rdb_ddl_manager::cleanup() {
   m_ddl_map.clear();
 
   mysql_rwlock_destroy(&m_rwlock);
+  m_dd_table_sequence.cleanup();
   m_user_table_sequence.cleanup();
   m_tmp_table_sequence.cleanup();
 }
@@ -5442,8 +5467,13 @@ bool Rdb_dict_manager::init(rocksdb::TransactionDB *const rdb_dict,
     return HA_EXIT_FAILURE;
   }
 
-  rdb_netbuf_store_index(m_key_buf_max_index_id, Rdb_key_def::MAX_INDEX_ID);
+  rdb_netbuf_store_index(m_key_buf_max_dd_index_id,
+                         Rdb_key_def::MAX_DD_INDEX_ID);
+  m_key_slice_max_dd_index_id =
+      rocksdb::Slice(reinterpret_cast<char *>(m_key_buf_max_dd_index_id),
+                     Rdb_key_def::INDEX_NUMBER_SIZE);
 
+  rdb_netbuf_store_index(m_key_buf_max_index_id, Rdb_key_def::MAX_INDEX_ID);
   m_key_slice_max_index_id =
       rocksdb::Slice(reinterpret_cast<char *>(m_key_buf_max_index_id),
                      Rdb_key_def::INDEX_NUMBER_SIZE);
@@ -6141,15 +6171,20 @@ void Rdb_dict_manager::log_start_drop_index(GL_INDEX_ID gl_index_id,
   }
 }
 
-bool Rdb_dict_manager::get_max_index_id(uint32_t *const index_id) const {
+bool Rdb_dict_manager::get_max_index_id(uint32_t *const index_id,
+                                        bool is_dd_tbl) const {
   bool found = false;
   std::string value;
 
-  const rocksdb::Status status = get_value(m_key_slice_max_index_id, &value);
+  const rocksdb::Status status =
+      is_dd_tbl ? get_value(m_key_slice_max_dd_index_id, &value)
+                : get_value(m_key_slice_max_index_id, &value);
+  const uint16_t cur_version = is_dd_tbl ? Rdb_key_def::MAX_DD_INDEX_ID_VERSION
+                                         : Rdb_key_def::MAX_INDEX_ID_VERSION;
   if (status.ok()) {
     const uchar *const val = (const uchar *)value.c_str();
     const uint16_t version = rdb_netbuf_to_uint16(val);
-    if (version == Rdb_key_def::MAX_INDEX_ID_VERSION) {
+    if (version == cur_version) {
       *index_id = rdb_netbuf_to_uint32(val + Rdb_key_def::VERSION_SIZE);
       found = true;
     }
@@ -6158,11 +6193,12 @@ bool Rdb_dict_manager::get_max_index_id(uint32_t *const index_id) const {
 }
 
 bool Rdb_dict_manager::update_max_index_id(rocksdb::WriteBatch *const batch,
-                                           const uint32_t index_id) const {
+                                           const uint32_t index_id,
+                                           bool is_dd_tbl) const {
   assert(batch != nullptr);
 
   uint32_t old_index_id = -1;
-  if (get_max_index_id(&old_index_id)) {
+  if (get_max_index_id(&old_index_id, is_dd_tbl)) {
     if (old_index_id > index_id) {
       LogPluginErrMsg(ERROR_LEVEL, 0,
                       "Found max index id %u from data dictionary but trying "
@@ -6175,10 +6211,18 @@ bool Rdb_dict_manager::update_max_index_id(rocksdb::WriteBatch *const batch,
 
   Rdb_buf_writer<Rdb_key_def::VERSION_SIZE + Rdb_key_def::INDEX_NUMBER_SIZE>
       value_writer;
-  value_writer.write_uint16(Rdb_key_def::MAX_INDEX_ID_VERSION);
-  value_writer.write_uint32(index_id);
 
-  batch->Put(m_system_cfh, m_key_slice_max_index_id, value_writer.to_slice());
+  if (is_dd_tbl) {
+    value_writer.write_uint16(Rdb_key_def::MAX_DD_INDEX_ID_VERSION);
+    value_writer.write_uint32(index_id);
+    batch->Put(m_system_cfh, m_key_slice_max_dd_index_id,
+               value_writer.to_slice());
+  } else {
+    value_writer.write_uint16(Rdb_key_def::MAX_INDEX_ID_VERSION);
+    value_writer.write_uint32(index_id);
+    batch->Put(m_system_cfh, m_key_slice_max_index_id, value_writer.to_slice());
+  }
+
   return false;
 }
 
@@ -6257,8 +6301,8 @@ bool Rdb_dict_manager::get_auto_incr_val(const GL_INDEX_ID &gl_index_id,
   return false;
 }
 
-uint Rdb_seq_generator::get_and_update_next_number(
-    Rdb_dict_manager *const dict) {
+uint Rdb_seq_generator::get_and_update_next_number(Rdb_dict_manager *const dict,
+                                                   bool is_dd_tbl) {
   assert(dict != nullptr);
 
   uint res;
@@ -6270,7 +6314,7 @@ uint Rdb_seq_generator::get_and_update_next_number(
   rocksdb::WriteBatch *const batch = wb.get();
 
   assert(batch != nullptr);
-  dict->update_max_index_id(batch, res);
+  dict->update_max_index_id(batch, res, is_dd_tbl);
   dict->commit(batch);
 
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -124,5 +124,4 @@ FOREACH(file ${ABI_HEADERS})
       "compilation error file can be found here: ${errorfile}")
   ENDIF()
   FILE(REMOVE ${errorfile})
-  FILE(REMOVE ${abi_check_out})
 ENDFOREACH()

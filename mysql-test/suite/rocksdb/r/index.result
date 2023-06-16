@@ -43,6 +43,8 @@ ALTER TABLE t1 DROP KEY a;
 DROP TABLE t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
 set @@global.rocksdb_large_prefix=0;
+Warnings:
+Warning	131	using rocksdb_large_prefix is deprecated and it will be removed in a future release
 CREATE TABLE t1 (
 a BLOB(1024),
 KEY (a(767))
@@ -54,6 +56,8 @@ KEY (a(768))
 ) ENGINE=ROCKSDB;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
 set @@global.rocksdb_large_prefix=1;
+Warnings:
+Warning	131	using rocksdb_large_prefix is deprecated and it will be removed in a future release
 CREATE TABLE t1 (
 a BLOB(4096),
 KEY (a(3072))
@@ -65,6 +69,8 @@ KEY (a(3073))
 ) ENGINE=ROCKSDB;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
+Warnings:
+Warning	131	using rocksdb_large_prefix is deprecated and it will be removed in a future release
 #
 # Issue #376: MyRocks: ORDER BY optimizer is unable to use the index extension
 #

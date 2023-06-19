@@ -2,6 +2,10 @@
 # Stored PROCEDURE error tests
 #
 
+# ER_STACK_OVERRUN_NEED_MORE does not currenly work well with ASan
+# (when ASAN_OPTIONS include 'detect_stack_use_after_return=true')
+--source include/not_asan.inc
+
 --disable_warnings ONCE
 drop table if exists t1, t2;
 

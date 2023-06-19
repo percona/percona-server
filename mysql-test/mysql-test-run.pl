@@ -3161,7 +3161,14 @@ sub environment_setup {
     "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp"
     if $opt_sanitize;
 
-  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
+  # 'detect_odr_violation=0' is added here in order to suppress ODR violations
+  # coming from zlib's 'deflate_copyright' symbol presented in both main
+  # 'mysqld' executable and in dynamically loaded 'ha_rocksdb.so'.
+
+  # TODO: Instead of suppressing this should be fixed properly by not letting
+  # 'RocksDB' compile in its private copy of 'zlibWrapper' and use the same
+  # '/extra/zlib' as the main server executable 'mysqld'.
+  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp:detect_odr_violation=0"
     if $opt_sanitize;
 
   # Add dir of this perl to aid mysqltest in finding perl

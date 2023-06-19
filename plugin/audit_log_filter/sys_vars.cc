@@ -200,8 +200,8 @@ ulonglong log_max_size = 0;
 constexpr ulonglong default_log_max_size = 1024 * 1024 * 1024;
 ulonglong log_prune_seconds = 0;
 bool log_disabled = false;
-char *log_syslog_ident = nullptr;
-const char default_log_syslog_ident[] = "percona-audit-event-filter";
+char *log_syslog_tag = nullptr;
+const char default_log_syslog_tag[] = "audit-filter";
 ulong log_syslog_facility = 0;
 ulong log_syslog_priority = 0;
 ulong log_compression_type = static_cast<ulong>(AuditLogCompressionType::None);
@@ -350,15 +350,15 @@ MYSQL_SYSVAR_ULONGLONG(
     nullptr, prune_seconds_update_func, 0UL, 0UL, ULLONG_MAX, 0UL);
 
 /*
- * The audit_log_filter.syslog_ident variable is used to specify the ident
- * value for syslog.
+ * The audit_log_filter.syslog_tag variable is used to specify the prefix
+ * used for syslog messages.
  */
-MYSQL_SYSVAR_STR(syslog_ident, log_syslog_ident,
+MYSQL_SYSVAR_STR(syslog_tag, log_syslog_tag,
                  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                      PLUGIN_VAR_MEMALLOC,
                  "The string that will be prepended to each log message, "
                  "if SYSLOG handler is used.",
-                 nullptr, nullptr, default_log_syslog_ident);
+                 nullptr, nullptr, default_log_syslog_tag);
 
 /*
  * The audit_log_filter.syslog_facility variable is used to specify the
@@ -617,7 +617,7 @@ SYS_VAR *sys_vars[] = {MYSQL_SYSVAR(file),
                        MYSQL_SYSVAR(rotate_on_size),
                        MYSQL_SYSVAR(max_size),
                        MYSQL_SYSVAR(prune_seconds),
-                       MYSQL_SYSVAR(syslog_ident),
+                       MYSQL_SYSVAR(syslog_tag),
                        MYSQL_SYSVAR(syslog_facility),
                        MYSQL_SYSVAR(syslog_priority),
                        MYSQL_SYSVAR(filter_id),
@@ -740,7 +740,7 @@ ulonglong SysVars::get_log_prune_seconds() noexcept {
   return log_prune_seconds;
 }
 
-const char *SysVars::get_syslog_ident() noexcept { return log_syslog_ident; }
+const char *SysVars::get_syslog_tag() noexcept { return log_syslog_tag; }
 
 int SysVars::get_syslog_facility() noexcept {
   return audit_log_filter_syslog_facility_codes[log_syslog_facility];

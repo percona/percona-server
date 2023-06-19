@@ -146,11 +146,11 @@ class SysVars {
   [[nodiscard]] static ulonglong get_log_prune_seconds() noexcept;
 
   /**
-   * @brief Get the ident value for syslog.
+   * @brief Get the syslog messages tag value.
    *
-   * @return Ident value for syslog
+   * @return Syslog tag value
    */
-  [[nodiscard]] static const char *get_syslog_ident() noexcept;
+  [[nodiscard]] static const char *get_syslog_tag() noexcept;
 
   /**
    * @brief Get the facility value for syslog.

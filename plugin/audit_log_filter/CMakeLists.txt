@@ -78,7 +78,7 @@ IF(WITH_PERCONA_AUDIT_LOG_FILTER)
   )
 
   MYSQL_ADD_PLUGIN(audit_log_filter ${AUDIT_LOG_FILTER_SOURCES}
-                   LINK_LIBRARIES ${ZLIB_LIBRARY} ${SSL_LIBRARIES}
+                   LINK_LIBRARIES ${SSL_LIBRARIES} extra::rapidjson ext::zlib
                    MODULE_ONLY MODULE_OUTPUT_NAME "audit_log_filter")
 
   IF(UNIX)

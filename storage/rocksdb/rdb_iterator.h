@@ -120,6 +120,7 @@ class Rdb_iterator_base : public Rdb_iterator {
 
   uchar *m_prefix_buf;
   rocksdb::Slice m_prefix_tuple;
+  bool m_check_iterate_bounds;
 };
 
 class Rdb_iterator_partial : public Rdb_iterator_base {

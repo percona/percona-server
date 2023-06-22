@@ -1,7 +1,3 @@
---disable_query_log
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
---enable_query_log
-
 --source clean_all_audit_logs.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`

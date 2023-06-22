@@ -338,7 +338,7 @@ void AuditLogFilter::deinit() noexcept {
   m_audit_udf->deinit();
   m_log_writer->close();
 
-  auto *reg_srv = SysVars::get_comp_regystry_srv();
+  const auto *reg_srv = SysVars::get_comp_regystry_srv();
   reg_srv->release(reinterpret_cast<my_h_service>(
       const_cast<SERVICE_TYPE_NO_CONST(mysql_thd_security_context) *>(
           m_security_context_srv)));
@@ -348,6 +348,8 @@ void AuditLogFilter::deinit() noexcept {
   reg_srv->release(reinterpret_cast<my_h_service>(
       const_cast<SERVICE_TYPE_NO_CONST(global_grants_check) *>(
           m_grants_check_srv)));
+
+  mysql_plugin_registry_release(reg_srv);
 }
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,

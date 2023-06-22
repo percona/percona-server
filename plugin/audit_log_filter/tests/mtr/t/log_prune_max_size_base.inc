@@ -2,10 +2,6 @@
 # The $log_rotate_type must be set to 'auto' or 'manual' in main test file
 assert($log_rotate_type);
 
---disable_query_log
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
---enable_query_log
-
 SET @old_max_size = @@global.audit_log_filter_max_size;
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');

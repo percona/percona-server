@@ -2,10 +2,10 @@ SET GLOBAL audit_log_filter_database=audit_db;
 ERROR HY000: Variable 'audit_log_filter_database' is a read only variable
 SET SESSION audit_log_filter_database=audit_db;
 ERROR HY000: Variable 'audit_log_filter_database' is a read only variable
-# restart: --log-error=/home/shurik/workspace/percona-server/audit_log_v2/cmake-build-debug/mysql-test/var/tmp/audit_filter_error.err --audit-log-filter-database=
+# restart:<hidden args>
 include/assert_grep.inc [Bad audit_log_filter_database value]
-# restart: --log-error=/home/shurik/workspace/percona-server/audit_log_v2/cmake-build-debug/mysql-test/var/tmp/audit_filter_error.err --audit-log-filter-database=Too_loooooooooooooooooooooooooooooooooooooooooooooooooong_db_name
+# restart:<hidden args>
 include/assert_grep.inc [Bad audit_log_filter_database value]
-# restart: --log-error=/home/shurik/workspace/percona-server/audit_log_v2/cmake-build-debug/mysql-test/var/tmp/audit_filter_error.err --audit-log-filter-database=audit_db
+# restart:<hidden args>
 include/assert_grep.inc [Bad audit_log_filter_database value]
-# restart: 
+# restart:<hidden args>

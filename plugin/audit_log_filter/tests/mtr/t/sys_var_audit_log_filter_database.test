@@ -19,6 +19,7 @@ call mtr.add_suppression("Failed to get an opened audit_log_filter table");
 
 # Empty DB name
 --let $error_log_file = $MYSQLTEST_VARDIR/tmp/audit_filter_error.err
+--let $do_not_echo_parameters = 1
 --let $restart_parameters="restart: --log-error=$error_log_file --audit-log-filter-database=''"
 --source include/restart_mysqld.inc
 

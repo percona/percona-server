@@ -1,10 +1,6 @@
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 
---disable_query_log
-call mtr.add_suppression("Failed to shutdown components infrastructure.");
---enable_query_log
-
 CREATE TABLE t1 (c1 INT);
 
 let $filter = {

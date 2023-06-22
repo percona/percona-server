@@ -1,0 +1,5 @@
+--source include/have_rocksdb.inc
+
+set @@default_storage_engine=rocksdb;
+
+--source include/attachable_trx.inc

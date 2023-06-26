@@ -222,6 +222,8 @@ class Table_cache_manager {
 
   uint cached_tables();
 
+  uint loaded_triggers_tables() const;
+
   void lock_all_and_tdc();
   void unlock_all_and_tdc();
   void assert_owner(THD *thd);

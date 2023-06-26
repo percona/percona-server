@@ -9903,6 +9903,13 @@ static int show_open_tables(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+static int show_open_tables_with_triggers(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  *((long *)buff) = (long)table_cache_manager.loaded_triggers_tables();
+  return 0;
+}
+
 static int show_prepared_stmt_count(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
@@ -10296,6 +10303,8 @@ SHOW_VAR status_vars[] = {
     {"Open_table_definitions", (char *)&show_table_definitions, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Open_tables", (char *)&show_open_tables, SHOW_FUNC, SHOW_SCOPE_ALL},
+    {"Open_tables_with_triggers", (char *)&show_open_tables_with_triggers,
+     SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Opened_files",
      const_cast<char *>(reinterpret_cast<const char *>(&my_file_total_opened)),
      SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},

@@ -47,33 +47,34 @@ FLUSH STATUS;
 --echo # when only 1 is present in TC causes 1 hit and 1 miss.
 SELECT count(*) FROM t1;
 
---let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 SELECT count(*) FROM t1 AS a, t1 AS b;
 
---let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 SELECT count(*) FROM t4;
 
---let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
 --echo # Updating statement needs fully-loaded triggers, so there will be
 --echo # a table cache hit, but also trigger miss and trigger will be
---echo # loaded.
+--echo # loaded. Total number of table objects with fully-loaded triggers
+--echo # in the cache should increase as result as well.
 INSERT INTO t1 VALUES (4);
 
---let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 0, "trg_misses_inc" : 1, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 0, "trg_misses_inc" : 1, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 1 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
 --echo # Repeating the statement will cause table cache and trigger hits.
 INSERT INTO t1 VALUES (5);
 
---let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 1, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 1, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
@@ -83,21 +84,22 @@ INSERT INTO t1 VALUES (5);
 --echo # without triggers we also have for read-only part.
 INSERT INTO t1 SELECT * FROM t1;
 
---let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 1, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 1, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
 --echo # Statement needing 2 table objects with triggers will cause one
 --echo # trigger hit and one trigger miss (causing trigger loading for
---echo # one of cached table objects).
+--echo # one of cached table objects). Total number of table objects with
+--echo # fully-loaded triggers in cache should increase further.
 LOCK TABLES t1 AS a WRITE, t1 AS b WRITE;
 
---let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 1, "trg_misses_inc" : 1, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 1, "trg_misses_inc" : 1, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 1 }
 --source include/assert_trigger_cache_increment.inc
 
 UNLOCK TABLES;
 
---let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
@@ -106,7 +108,7 @@ UNLOCK TABLES;
 --echo # used before it will cause single TC miss as expected.
 SELECT count(*) FROM t4 AS a, t4 AS b;
 
---let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
@@ -115,7 +117,7 @@ SELECT count(*) FROM t4 AS a, t4 AS b;
 --echo # exceed the soft limit on open tables with triggers.
 LOCK TABLES t1 AS a WRITE, t1 AS b WRITE, t1 AS c WRITE;
 
---let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 2, "trg_misses_inc" : 1, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 2, "trg_misses_inc" : 1, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 1 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
@@ -124,7 +126,7 @@ LOCK TABLES t1 AS a WRITE, t1 AS b WRITE, t1 AS c WRITE;
 --echo # is left.
 UNLOCK TABLES;
 
---let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 1 }
+--let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 1 , "tc_trg_tables_inc" : -1 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
@@ -133,7 +135,7 @@ UNLOCK TABLES;
 --echo # table t2 so far, there will be 1 TC miss.
 SELECT count(*) FROM t1, t2;
 
---let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
@@ -142,26 +144,29 @@ SELECT count(*) FROM t1, t2;
 --echo # without triggers for t2), and won't disturb cache otherwise.
 INSERT INTO t1 SELECT * FROM t2;
 
---let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 1, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+--let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 1, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
 --echo # Statement that updates t2 will require loading of triggers (existing
 --echo # table object will be used for this), this will cause table object
---echo # with triggers for table t1 eviction.
+--echo # with triggers for table t1 eviction. So total number of table
+--echo # objects with fully-loaded triggers should stay the same.
+
 INSERT INTO t2 VALUES (2);
 
---let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 0, "trg_misses_inc" : 1, "trg_overflows_inc" : 1 }
+--let $expected_inc = { "tc_misses_inc": 0, "trg_hits_inc": 0, "trg_misses_inc" : 1, "trg_overflows_inc" : 1 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
 --echo # Statement that updates t3 will require new table object and triggers
 --echo # loaded for it. Since Table Cache already has 2 table objects with
 --echo # triggers it will cause eviction of one of these objects. According
---echo # to LRU it should be object for t1.
+--echo # to LRU it should be object for t1. Again total number of table
+--echo # objects with fully-loaded triggers should stay the same.
 INSERT INTO t3 VALUES (2);
 
---let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 1, "trg_overflows_inc" : 1 }
+--let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 1, "trg_overflows_inc" : 1 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo
@@ -169,7 +174,7 @@ INSERT INTO t3 VALUES (2);
 --echo # missing, by showing that it and its triggers need to be loaded again.
 INSERT INTO t1 VALUES (6);
 
---let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 1, "trg_overflows_inc" : 1 }
+--let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 1, "trg_overflows_inc" : 1 , "tc_trg_tables_inc" : 0 }
 --source include/assert_trigger_cache_increment.inc
 
 --echo #

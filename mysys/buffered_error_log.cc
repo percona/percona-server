@@ -1,5 +1,6 @@
 
 #include "buffered_error_log.h"
+#include <string>
 
 Buffered_error_logger buffered_error_log;
 char *buffered_error_log_filename = nullptr;

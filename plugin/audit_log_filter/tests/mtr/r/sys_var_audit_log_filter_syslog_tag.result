@@ -7,3 +7,4 @@ audit-filter
 SELECT @@global.audit_log_filter_syslog_tag;
 @@global.audit_log_filter_syslog_tag
 audit-filter-test
+# restart:

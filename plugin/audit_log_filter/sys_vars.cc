@@ -389,7 +389,8 @@ TYPELIB audit_log_filter_syslog_facility_typelib = {
     audit_log_filter_syslog_facility_names, nullptr};
 
 MYSQL_SYSVAR_ENUM(
-    syslog_facility, log_syslog_facility, PLUGIN_VAR_RQCMDARG,
+    syslog_facility, log_syslog_facility,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "The syslog facility to assign to messages, if SYSLOG handler is used.",
     nullptr, nullptr, 0, &audit_log_filter_syslog_facility_typelib);
 
@@ -411,7 +412,8 @@ TYPELIB audit_log_filter_syslog_priority_typelib = {
     "audit_log_filter_syslog_priority_typelib",
     audit_log_filter_syslog_priority_names, nullptr};
 
-MYSQL_SYSVAR_ENUM(syslog_priority, log_syslog_priority, PLUGIN_VAR_RQCMDARG,
+MYSQL_SYSVAR_ENUM(syslog_priority, log_syslog_priority,
+                  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                   "Priority to be assigned to all messages written to syslog.",
                   nullptr, nullptr, 0,
                   &audit_log_filter_syslog_priority_typelib);

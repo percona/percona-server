@@ -38,6 +38,7 @@ include/assert.inc [Expected table cache misses increment : 1]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 SELECT count(*) FROM t1 AS a, t1 AS b;
 count(*)
 9
@@ -45,6 +46,7 @@ include/assert.inc [Expected table cache misses increment : 1]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 SELECT count(*) FROM t4;
 count(*)
 1
@@ -52,15 +54,18 @@ include/assert.inc [Expected table cache misses increment : 1]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # Updating statement needs fully-loaded triggers, so there will be
 # a table cache hit, but also trigger miss and trigger will be
-# loaded.
+# loaded. Total number of table objects with fully-loaded triggers
+# in the cache should increase as result as well.
 INSERT INTO t1 VALUES (4);
 include/assert.inc [Expected table cache misses increment : 0]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 1]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 1]
 
 # Repeating the statement will cause table cache and trigger hits.
 INSERT INTO t1 VALUES (5);
@@ -68,6 +73,7 @@ include/assert.inc [Expected table cache misses increment : 0]
 include/assert.inc [Expected table cache triggers hits increment : 1]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # When same statement needs 2 instances of the table, one for
 # updating and another for read-only purposes, then for updating
@@ -78,20 +84,24 @@ include/assert.inc [Expected table cache misses increment : 0]
 include/assert.inc [Expected table cache triggers hits increment : 1]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # Statement needing 2 table objects with triggers will cause one
 # trigger hit and one trigger miss (causing trigger loading for
-# one of cached table objects).
+# one of cached table objects). Total number of table objects with
+# fully-loaded triggers in cache should increase further.
 LOCK TABLES t1 AS a WRITE, t1 AS b WRITE;
 include/assert.inc [Expected table cache misses increment : 0]
 include/assert.inc [Expected table cache triggers hits increment : 1]
 include/assert.inc [Expected table cache triggers misses increment : 1]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 1]
 UNLOCK TABLES;
 include/assert.inc [Expected table cache misses increment : 0]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # Running read-only statement on unrelated table should not disturb
 # trigger counters. Since only one table object for this table was
@@ -103,6 +113,7 @@ include/assert.inc [Expected table cache misses increment : 1]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # Statement which needs 3 table objects for updating will cause 2
 # trigger hits and 1 trigger (and TC) miss . As result we temporarily
@@ -112,6 +123,7 @@ include/assert.inc [Expected table cache misses increment : 1]
 include/assert.inc [Expected table cache triggers hits increment : 2]
 include/assert.inc [Expected table cache triggers misses increment : 1]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 1]
 
 # Once we are done with using all 3 table objects, one table
 # object with trigger gets evicted. 2 table objects with triggers
@@ -121,6 +133,7 @@ include/assert.inc [Expected table cache misses increment : 0]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 1]
+include/assert.inc [Expected table cache open tables with triggers increment : -1]
 
 # Read-only statement will use table objects with triggers and
 # should not disturb trigger counters. Since we have not used
@@ -132,6 +145,7 @@ include/assert.inc [Expected table cache misses increment : 1]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # Statement that uses t1 for updating and table t2 in read-only
 # mode will reuse 1 table object with triggers (and also reuse object
@@ -141,25 +155,30 @@ include/assert.inc [Expected table cache misses increment : 0]
 include/assert.inc [Expected table cache triggers hits increment : 1]
 include/assert.inc [Expected table cache triggers misses increment : 0]
 include/assert.inc [Expected table cache triggers overflows increment : 0]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # Statement that updates t2 will require loading of triggers (existing
 # table object will be used for this), this will cause table object
-# with triggers for table t1 eviction.
+# with triggers for table t1 eviction. So total number of table
+# objects with fully-loaded triggers should stay the same.
 INSERT INTO t2 VALUES (2);
 include/assert.inc [Expected table cache misses increment : 0]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 1]
 include/assert.inc [Expected table cache triggers overflows increment : 1]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # Statement that updates t3 will require new table object and triggers
 # loaded for it. Since Table Cache already has 2 table objects with
 # triggers it will cause eviction of one of these objects. According
-# to LRU it should be object for t1.
+# to LRU it should be object for t1. Again total number of table
+# objects with fully-loaded triggers should stay the same.
 INSERT INTO t3 VALUES (2);
 include/assert.inc [Expected table cache misses increment : 1]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 1]
 include/assert.inc [Expected table cache triggers overflows increment : 1]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 
 # Let us confirm that it is table object for t1 which is gone
 # missing, by showing that it and its triggers need to be loaded again.
@@ -168,6 +187,7 @@ include/assert.inc [Expected table cache misses increment : 1]
 include/assert.inc [Expected table cache triggers hits increment : 0]
 include/assert.inc [Expected table cache triggers misses increment : 1]
 include/assert.inc [Expected table cache triggers overflows increment : 1]
+include/assert.inc [Expected table cache open tables with triggers increment : 0]
 #
 # Clean up.
 #

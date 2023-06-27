@@ -43,4 +43,21 @@ PREPARE stmt from @create_user;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
-INSTALL PLUGIN audit_log_filter SONAME 'audit_log_filter.so';
+DROP PROCEDURE IF EXISTS mysql.install_audit_log;
+
+DELIMITER //
+CREATE PROCEDURE mysql.install_audit_log()
+BEGIN
+  DECLARE status VARCHAR(20);
+
+  SELECT PLUGIN_STATUS INTO status FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'audit_log_filter';
+
+  IF ISNULL(status) THEN
+    INSTALL PLUGIN audit_log_filter SONAME 'audit_log_filter.so';
+  END IF;
+END//
+DELIMITER ;
+
+CALL mysql.install_audit_log();
+
+DROP PROCEDURE mysql.install_audit_log;

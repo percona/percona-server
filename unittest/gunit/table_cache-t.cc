@@ -1218,6 +1218,169 @@ TEST_F(TableCacheDoubleCacheTest, ManagerCachedTables) {
 }
 
 /*
+  Test for Table_cache_manager/Table_cache::loaded_triggers_tables().
+*/
+
+TEST_F(TableCacheDoubleCacheTest, ManagerLoadedTriggersTables) {
+  THD *thd_1 = get_thd(0);
+  THD *thd_2 = get_thd(1);
+
+  Table_cache *table_cache_1 = table_cache_manager.get_cache(thd_1);
+  Table_cache *table_cache_2 = table_cache_manager.get_cache(thd_2);
+
+  // There should be no TABLE instances with loaded triggers in all caches.
+  EXPECT_EQ(0U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(0U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(0U, table_cache_manager.loaded_triggers_tables());
+
+  Mock_share share_1("share_1");
+  Mock_share share_2("share_2");
+  TABLE *table_1 = share_1.create_table_with_triggers(thd_1);
+  TABLE *table_2 = share_1.create_table_with_triggers(thd_1);
+  TABLE *table_3 = share_2.create_table_with_triggers(thd_1);
+  TABLE *table_4 = share_1.create_table_with_triggers(thd_2);
+  TABLE *table_5 = share_2.create_table_with_triggers(thd_2);
+
+  table_cache_manager.lock_all_and_tdc();
+  add_used_table(table_cache_1, thd_1, table_1);
+  add_used_table(table_cache_1, thd_1, table_2);
+  add_used_table(table_cache_1, thd_1, table_3);
+  add_used_table(table_cache_2, thd_2, table_4);
+  add_used_table(table_cache_2, thd_2, table_5);
+  table_cache_manager.unlock_all_and_tdc();
+
+  // Still there should be no TABLE instances with loaded triggers in caches.
+  EXPECT_EQ(0U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(0U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(0U, table_cache_manager.loaded_triggers_tables());
+
+  // Simulate loading of triggers for a couple of TABLE instances in the
+  // first cache.
+  table_1->triggers->finalize_load(thd_1);
+  table_3->triggers->finalize_load(thd_1);
+
+  // There should be 2 TABLE instances with loaded triggers in the
+  // first cache partition and all caches.
+  EXPECT_EQ(2U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(0U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(2U, table_cache_manager.loaded_triggers_tables());
+
+  // Load triggers for one more TABLE instance in the second cache.
+  table_4->triggers->finalize_load(thd_2);
+
+  // There should be 2 + 1 TABLE instances with loaded triggers in caches.
+  EXPECT_EQ(2U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(1U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(3U, table_cache_manager.loaded_triggers_tables());
+
+  // Mark a few TABLE instances as unused.
+  table_cache_manager.lock_all_and_tdc();
+  table_cache_1->release_table(thd_1, table_1);
+  table_cache_2->release_table(thd_2, table_4);
+  table_cache_2->release_table(thd_2, table_5);
+  table_cache_manager.unlock_all_and_tdc();
+
+  // This should not change number of TABLE instances with fully loaded
+  // triggers. We still should have 2 + 1 instances with triggers.
+  EXPECT_EQ(2U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(1U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(3U, table_cache_manager.loaded_triggers_tables());
+
+  // Get TABLE instance with loaded triggers from cache.
+  TABLE *table_6;
+  TABLE_SHARE *share_3;
+  table_cache_1->lock();
+  table_6 =
+      table_cache_1->get_table(thd_1, share_1.table_cache_key.str,
+                               share_1.table_cache_key.length, true, &share_3);
+  table_cache_1->unlock();
+
+  EXPECT_TRUE(table_6 == table_1);
+  EXPECT_TRUE(share_3 == &share_1);
+  EXPECT_TRUE(table_6->triggers->has_load_been_finalized());
+
+  // This should not change number of TABLE instances with fully loaded
+  // triggers in any way.
+  EXPECT_EQ(2U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(1U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(3U, table_cache_manager.loaded_triggers_tables());
+
+  // Attempt to get TABLE instance with loaded triggers for another share
+  // from the second cache. This is expected not to fully succeed.
+  table_cache_2->lock();
+  table_6 =
+      table_cache_2->get_table(thd_2, share_2.table_cache_key.str,
+                               share_2.table_cache_key.length, true, &share_3);
+  table_cache_2->unlock();
+
+  EXPECT_TRUE(table_6 == table_5);
+  EXPECT_TRUE(share_3 == &share_2);
+  // We should get TABLE instance sans triggers.
+  EXPECT_FALSE(table_6->triggers->has_load_been_finalized());
+
+  // Still no change in number of TABLE instances with fully loaded triggers.
+  EXPECT_EQ(2U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(1U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(3U, table_cache_manager.loaded_triggers_tables());
+
+  // Load triggers for this TABLE instace.
+  table_5->triggers->finalize_load(thd_2);
+
+  // There should be 2 + 2 TABLE instances with loaded triggers in caches.
+  EXPECT_EQ(2U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(2U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(4U, table_cache_manager.loaded_triggers_tables());
+
+  // Remove TABLE instance without triggers from the cache.
+  table_cache_1->lock();
+  table_cache_1->remove_table(table_2);
+  table_cache_1->unlock();
+
+  // This should not change number of TABLE instances with loaded triggers.
+  EXPECT_EQ(2U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(2U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(4U, table_cache_manager.loaded_triggers_tables());
+
+  // Now let us remove TABLE instance with loaded triggers.
+  table_cache_1->lock();
+  table_cache_1->remove_table(table_1);
+  table_cache_1->unlock();
+
+  // Now there should be 1 + 2 TABLE instances with loaded triggers in caches.
+  EXPECT_EQ(1U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(2U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(3U, table_cache_manager.loaded_triggers_tables());
+
+  // And one more.
+  table_cache_1->lock();
+  table_cache_1->remove_table(table_3);
+  table_cache_1->unlock();
+
+  // Now there should be 0 + 2 TABLE instances with loaded triggers in caches.
+  EXPECT_EQ(0U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(2U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(2U, table_cache_manager.loaded_triggers_tables());
+
+  // Remove remaining TABLE instances with loaded triggers.
+  table_cache_2->lock();
+  table_cache_2->remove_table(table_4);
+  table_cache_2->remove_table(table_5);
+  table_cache_2->unlock();
+
+  // There should be no TABLE instances with loaded triggers in all caches.
+  EXPECT_EQ(0U, table_cache_1->loaded_triggers_tables());
+  EXPECT_EQ(0U, table_cache_2->loaded_triggers_tables());
+  EXPECT_EQ(0U, table_cache_manager.loaded_triggers_tables());
+
+  // Clean-up.
+  share_1.destroy_table(table_1);
+  share_1.destroy_table(table_2);
+  share_2.destroy_table(table_3);
+  share_1.destroy_table(table_4);
+  share_2.destroy_table(table_5);
+}
+
+/*
   Coverage for lock and unlock methods of Table_cache_manager class.
 */
 

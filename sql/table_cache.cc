@@ -240,6 +240,20 @@ uint Table_cache_manager::cached_tables() {
 }
 
 /**
+  Get total number of used and unused TABLE objects with fully-loaded triggers
+  in all table caches.
+*/
+
+uint Table_cache_manager::loaded_triggers_tables() const {
+  uint result = 0;
+
+  for (uint i = 0; i < table_cache_instances; i++)
+    result += m_table_cache[i].loaded_triggers_tables();
+
+  return result;
+}
+
+/**
   Acquire locks on all instances of table cache and table definition
   cache (i.e. LOCK_open).
 */

@@ -3,13 +3,13 @@
 # Check that values of system status variables related to storing
 # triggers in Table Cache (Table_open_cache_misses,
 # Table_open_cache_trigger_hits, Table_open_cache_triggers_misses,
-# Table_open_cache_triggers_overflows) have got expected increments
-# since the last execution of this script, fail with debug info if
-# they have not.
+# Table_open_cache_triggers_overflows, Open_tables_with_triggers)
+# have got expected increments since the last execution of this script,
+# fail with debug info if they have not.
 #
 # ==== Usage ====
 #
-# --let $expected_inc = { "tc_misses_inc": VALUE1, "trg_hits_inc": VALUE2, "trg_misses_inc" : VALUE3, "trg_overflows_inc" : VALUE4 }
+# --let $expected_inc = { "tc_misses_inc": VALUE1, "trg_hits_inc": VALUE2, "trg_misses_inc" : VALUE3, "trg_overflows_inc" : VALUE4, "tc_trg_tables_inc" : VALUE5 }
 # --source include/assert_trigger_cache_increment.inc
 #
 # $expected_inc
@@ -23,7 +23,7 @@
 # # Run SELECT reading from table which was absent in Table Cache so far.
 # SELECT count(*) FROM t1;
 #
-# --let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0 }
+# --let $expected_inc = { "tc_misses_inc": 1, "trg_hits_inc": 0, "trg_misses_inc" : 0, "trg_overflows_inc" : 0, "tc_trg_tables_inc" : 0}
 # --source include/assert_trigger_cache_increment.inc
 #
 # Resulting output:
@@ -31,6 +31,7 @@
 # include/assert.inc [Expected table cache triggers hits increment : 0]
 # include/assert.inc [Expected table cache triggers misses increment : 0]
 # include/assert.inc [Expected table cache triggers overflows increment : 0]
+# include/assert.inc [Expected table cache open tables with triggers increment : 0]
 #
 
 # If missing, create helper scripts to iterate through bellow JSON array.
@@ -70,6 +71,12 @@ let $json_array = [
     "psname": "Table_open_cache_triggers_overflows",
     "varname": "trg_overflows_count",
     "atext": "Expected table cache triggers overflows increment"
+  },
+  {
+    "paramname" : "tc_trg_tables_inc",
+    "psname": "Open_tables_with_triggers",
+    "varname" : "tc_trg_tables_count",
+    "atext" : "Expected table cache open tables with triggers increment"
   }
 ];
 

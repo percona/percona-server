@@ -33,6 +33,7 @@
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 
+#include <scope_guard.h>
 #include <array>
 #include <memory>
 #include <variant>
@@ -53,6 +54,45 @@ namespace audit_log_filter {
 namespace {
 
 AuditLogFilter *audit_log_filter = nullptr;
+
+void deinit_logging_service(SERVICE_TYPE(registry) * *reg_srv,
+                            SERVICE_TYPE(log_builtins) * *log_bi,
+                            SERVICE_TYPE(log_builtins_string) * *log_bs) {
+  using log_builtins_t = SERVICE_TYPE_NO_CONST(log_builtins);
+  using log_builtins_string_t = SERVICE_TYPE_NO_CONST(log_builtins_string);
+
+  if (*log_bi != nullptr) {
+    (*reg_srv)->release(
+        reinterpret_cast<my_h_service>(const_cast<log_builtins_t *>(*log_bi)));
+  }
+
+  if (*log_bs != nullptr) {
+    (*reg_srv)->release(reinterpret_cast<my_h_service>(
+        const_cast<log_builtins_string_t *>(*log_bs)));
+  }
+
+  *log_bi = nullptr;
+  *log_bs = nullptr;
+}
+
+bool init_logging_service(SERVICE_TYPE(registry) * *reg_srv,
+                          SERVICE_TYPE(log_builtins) * *log_bi,
+                          SERVICE_TYPE(log_builtins_string) * *log_bs) {
+  my_h_service log_srv = nullptr;
+  my_h_service log_str_srv = nullptr;
+
+  if (!(*reg_srv)->acquire("log_builtins.mysql_server", &log_srv) &&
+      !(*reg_srv)->acquire("log_builtins_string.mysql_server", &log_str_srv)) {
+    *log_bi = reinterpret_cast<SERVICE_TYPE(log_builtins) *>(log_srv);
+    *log_bs =
+        reinterpret_cast<SERVICE_TYPE(log_builtins_string) *>(log_str_srv);
+  } else {
+    deinit_logging_service(reg_srv, log_bi, log_bs);
+    return false;
+  }
+
+  return true;
+}
 
 bool init_abort_exempt_privilege() {
   my_service<SERVICE_TYPE(dynamic_privilege_register)> reg_priv_srv(
@@ -147,18 +187,24 @@ static std::array udfs_list{
  *         code otherwise
  */
 int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
+  const auto *comp_registry_srv = SysVars::get_comp_regystry_srv();
+
+  auto comp_scope_guard = create_scope_guard([&] {
+    if (comp_registry_srv != nullptr) {
+      deinit_logging_service(&comp_registry_srv, &log_bi, &log_bs);
+      mysql_plugin_registry_release(comp_registry_srv);
+    }
+  });
+
+  if (comp_registry_srv == nullptr ||
+      !init_logging_service(&comp_registry_srv, &log_bi, &log_bs)) {
+    return 1;
+  }
+
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Initializing Audit Event Filter...");
 
   if (!SysVars::validate()) {
-    return 1;
-  }
-
-  auto comp_registry_srv = SysVars::get_comp_regystry_srv();
-
-  if (comp_registry_srv == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "Failed to acquire components registry service");
     return 1;
   }
 
@@ -245,6 +291,9 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
+  // Prevent comp_registry_srv from being released
+  comp_registry_srv = nullptr;
+
   if (SysVars::get_log_disabled()) {
     LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Audit Log Filter is disabled. Enable it with "
@@ -275,6 +324,10 @@ int audit_log_filter_deinit(void *arg [[maybe_unused]]) {
 
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Uninstalled Audit Event Filter");
+
+  const auto *reg_srv = SysVars::get_comp_regystry_srv();
+  deinit_logging_service(&reg_srv, &log_bi, &log_bs);
+  mysql_plugin_registry_release(reg_srv);
 
   delete audit_log_filter;
   audit_log_filter = nullptr;
@@ -348,8 +401,6 @@ void AuditLogFilter::deinit() noexcept {
   reg_srv->release(reinterpret_cast<my_h_service>(
       const_cast<SERVICE_TYPE_NO_CONST(global_grants_check) *>(
           m_grants_check_srv)));
-
-  mysql_plugin_registry_release(reg_srv);
 }
 
 int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,

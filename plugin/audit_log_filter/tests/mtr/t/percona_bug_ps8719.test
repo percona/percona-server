@@ -1,6 +1,5 @@
 # PS-8719: Audit log plugin stalls on flush
 --source include/have_debug.inc
---source include/have_debug_sync.inc
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');

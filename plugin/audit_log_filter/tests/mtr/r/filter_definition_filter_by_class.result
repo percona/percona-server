@@ -1,0 +1,123 @@
+#
+# Create all simple filters
+SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
+audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}')
+OK
+SELECT audit_log_filter_set_filter('log_connection', '{"filter": {"class": {"name": "connection"}}}');
+audit_log_filter_set_filter('log_connection', '{"filter": {"class": {"name": "connection"}}}')
+OK
+SELECT audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}');
+audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}')
+OK
+SELECT audit_log_filter_set_filter('log_global_variable', '{"filter": {"class": {"name": "global_variable"}}}');
+audit_log_filter_set_filter('log_global_variable', '{"filter": {"class": {"name": "global_variable"}}}')
+OK
+SELECT audit_log_filter_set_filter('log_command', '{"filter": {"class": {"name": "command"}}}');
+audit_log_filter_set_filter('log_command', '{"filter": {"class": {"name": "command"}}}')
+OK
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}')
+OK
+SELECT audit_log_filter_set_filter('log_stored_program', '{"filter": {"class": {"name": "stored_program"}}}');
+audit_log_filter_set_filter('log_stored_program', '{"filter": {"class": {"name": "stored_program"}}}')
+OK
+SELECT audit_log_filter_set_filter('log_authentication', '{"filter": {"class": {"name": "authentication"}}}');
+audit_log_filter_set_filter('log_authentication', '{"filter": {"class": {"name": "authentication"}}}')
+OK
+SELECT audit_log_filter_set_filter('log_message', '{"filter": {"class": {"name": "message"}}}');
+audit_log_filter_set_filter('log_message', '{"filter": {"class": {"name": "message"}}}')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_general	{"filter": {"class": {"name": "general"}}}
+2	log_connection	{"filter": {"class": {"name": "connection"}}}
+3	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+4	log_global_variable	{"filter": {"class": {"name": "global_variable"}}}
+5	log_command	{"filter": {"class": {"name": "command"}}}
+6	log_query	{"filter": {"class": {"name": "query"}}}
+7	log_stored_program	{"filter": {"class": {"name": "stored_program"}}}
+8	log_authentication	{"filter": {"class": {"name": "authentication"}}}
+9	log_message	{"filter": {"class": {"name": "message"}}}
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+#
+# Log 'general' events only
+SELECT audit_log_filter_set_user('%', 'log_general');
+audit_log_filter_set_user('%', 'log_general')
+OK
+Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME> Ok
+#
+# Log 'connection' events only
+SELECT audit_log_filter_set_user('%', 'log_connection');
+audit_log_filter_set_user('%', 'log_connection')
+OK
+Tag <EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME> Ok
+#
+# Log 'table_access' events only
+SELECT audit_log_filter_set_user('%', 'log_table_access');
+audit_log_filter_set_user('%', 'log_table_access')
+OK
+Tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME> Ok
+#
+# Log 'global_variable' events only
+SELECT audit_log_filter_set_user('%', 'log_global_variable');
+audit_log_filter_set_user('%', 'log_global_variable')
+OK
+Tag <EVENT_CLASS_NAME>global_variable</EVENT_CLASS_NAME> Ok
+#
+# Log 'command' events only
+SELECT audit_log_filter_set_user('%', 'log_command');
+audit_log_filter_set_user('%', 'log_command')
+OK
+Tag <EVENT_CLASS_NAME>command</EVENT_CLASS_NAME> Ok
+#
+# Log 'query' events only
+SELECT audit_log_filter_set_user('%', 'log_query');
+audit_log_filter_set_user('%', 'log_query')
+OK
+Tag <EVENT_CLASS_NAME>query</EVENT_CLASS_NAME> Ok
+#
+# Log 'stored_program' events only
+SELECT audit_log_filter_set_user('%', 'log_stored_program');
+audit_log_filter_set_user('%', 'log_stored_program')
+OK
+Tag <EVENT_CLASS_NAME>stored_program</EVENT_CLASS_NAME> Ok
+#
+# Log 'authentication' events only
+SELECT audit_log_filter_set_user('%', 'log_authentication');
+audit_log_filter_set_user('%', 'log_authentication')
+OK
+Tag <EVENT_CLASS_NAME>authentication</EVENT_CLASS_NAME> Ok
+#
+# Log 'message' events only
+SELECT audit_log_filter_set_user('%', 'log_message');
+audit_log_filter_set_user('%', 'log_message')
+OK
+Tag <EVENT_CLASS_NAME>message</EVENT_CLASS_NAME> Ok
+#
+# Enable logging multiple classes with one rule
+SELECT audit_log_filter_set_filter('log_classes_list_1', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}');
+audit_log_filter_set_filter('log_classes_list_1', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_classes_list_1');
+audit_log_filter_set_user('%', 'log_classes_list_1')
+OK
+Tag <EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME> Ok
+#
+# Another way to enable logging multiple classes with one rule
+SELECT audit_log_filter_set_filter('log_classes_list_2', '{"filter": {"class": [{"name": ["general", "connection"]}]}}');
+audit_log_filter_set_filter('log_classes_list_2', '{"filter": {"class": [{"name": ["general", "connection"]}]}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_classes_list_2');
+audit_log_filter_set_user('%', 'log_classes_list_2')
+OK
+Tag <EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME> Ok
+#
+# Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK

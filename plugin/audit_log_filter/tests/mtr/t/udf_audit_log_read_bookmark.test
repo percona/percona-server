@@ -1,0 +1,40 @@
+
+--echo #
+--echo # Check wrong argument number
+--error 1123
+SELECT audit_log_read_bookmark(1);
+
+--echo #
+--echo # Check bookmark updates
+SET GLOBAL DEBUG='+d,audit_log_filter_reset_log_bookmark';
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
+
+CREATE TABLE t1 (c1 INT);
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {"name": "insert", "log": true}
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_inserts', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_inserts');
+
+INSERT INTO t1 VALUES (1);
+SELECT audit_log_read_bookmark();
+INSERT INTO t1 VALUES (2);
+SELECT audit_log_read_bookmark();
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
+SET GLOBAL DEBUG='-d,audit_log_filter_reset_log_bookmark';
+
+DELETE FROM mysql.audit_log_user;
+DELETE FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+
+DROP TABLE t1;

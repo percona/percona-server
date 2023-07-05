@@ -33,7 +33,7 @@ TableAccessContext::~TableAccessContext() {
 
   if (ta_session != nullptr) {
     my_service<SERVICE_TYPE(table_access_factory_v1)> ta_factory_srv(
-        "table_access_factory_v1", SysVars::get_comp_regystry_srv());
+        "table_access_factory_v1", SysVars::get_comp_registry_srv());
     ta_factory_srv->destroy(ta_session);
     ta_session = nullptr;
   }
@@ -51,11 +51,11 @@ std::unique_ptr<TableAccessContext> AuditTableBase::open_table() noexcept {
   }
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(table_access_factory_v1)> ta_factory_srv(
-      "table_access_factory_v1", SysVars::get_comp_regystry_srv());
+      "table_access_factory_v1", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(table_access_v1)> table_access_srv(
-      "table_access_v1", SysVars::get_comp_regystry_srv());
+      "table_access_v1", SysVars::get_comp_registry_srv());
 
   thd_reader_srv->get(&ta_context->thd);
 

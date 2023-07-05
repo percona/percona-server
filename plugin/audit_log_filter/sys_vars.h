@@ -402,7 +402,7 @@ class SysVars {
    * @return component registry service instance
    */
   static decltype(get_component_registry_service().get())
-  get_comp_regystry_srv() noexcept;
+  get_comp_registry_srv() noexcept;
 };
 
 }  // namespace audit_log_filter

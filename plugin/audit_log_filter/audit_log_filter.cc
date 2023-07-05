@@ -96,7 +96,7 @@ bool init_logging_service(SERVICE_TYPE(registry) * *reg_srv,
 
 bool init_abort_exempt_privilege() {
   my_service<SERVICE_TYPE(dynamic_privilege_register)> reg_priv_srv(
-      "dynamic_privilege_register", SysVars::get_comp_regystry_srv());
+      "dynamic_privilege_register", SysVars::get_comp_registry_srv());
 
   if (reg_priv_srv.is_valid() && !reg_priv_srv->register_privilege(
                                      STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"))) {
@@ -108,7 +108,7 @@ bool init_abort_exempt_privilege() {
 
 void deinit_abort_exempt_privilege() {
   my_service<SERVICE_TYPE(dynamic_privilege_register)> reg_priv_srv(
-      "dynamic_privilege_register", SysVars::get_comp_regystry_srv());
+      "dynamic_privilege_register", SysVars::get_comp_registry_srv());
 
   if (reg_priv_srv.is_valid()) {
     reg_priv_srv->unregister_privilege(STRING_WITH_LEN("AUDIT_ABORT_EXEMPT"));
@@ -187,7 +187,7 @@ static std::array udfs_list{
  *         code otherwise
  */
 int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
-  const auto *comp_registry_srv = SysVars::get_comp_regystry_srv();
+  const auto *comp_registry_srv = SysVars::get_comp_registry_srv();
 
   auto comp_scope_guard = create_scope_guard([&] {
     if (comp_registry_srv != nullptr) {
@@ -325,7 +325,7 @@ int audit_log_filter_deinit(void *arg [[maybe_unused]]) {
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Uninstalled Audit Event Filter");
 
-  const auto *reg_srv = SysVars::get_comp_regystry_srv();
+  const auto *reg_srv = SysVars::get_comp_registry_srv();
   deinit_logging_service(&reg_srv, &log_bi, &log_bs);
   mysql_plugin_registry_release(reg_srv);
 
@@ -361,7 +361,7 @@ AuditLogFilter::AuditLogFilter(
       m_is_active{true} {}
 
 bool AuditLogFilter::init() noexcept {
-  auto *reg_srv = SysVars::get_comp_regystry_srv();
+  auto *reg_srv = SysVars::get_comp_registry_srv();
 
   if (reg_srv->acquire(
           "mysql_thd_security_context",
@@ -391,7 +391,7 @@ void AuditLogFilter::deinit() noexcept {
   m_audit_udf->deinit();
   m_log_writer->close();
 
-  const auto *reg_srv = SysVars::get_comp_regystry_srv();
+  const auto *reg_srv = SysVars::get_comp_registry_srv();
   reg_srv->release(reinterpret_cast<my_h_service>(
       const_cast<SERVICE_TYPE_NO_CONST(mysql_thd_security_context) *>(
           m_security_context_srv)));
@@ -481,7 +481,7 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
 
 void AuditLogFilter::send_audit_start_event() noexcept {
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
   MYSQL_THD thd;
 
@@ -502,7 +502,7 @@ void AuditLogFilter::send_audit_start_event() noexcept {
 
 void AuditLogFilter::send_audit_stop_event() noexcept {
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
   MYSQL_THD thd;
 
@@ -567,7 +567,7 @@ void AuditLogFilter::on_audit_log_rotated() noexcept {
 void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
                                           AuditRecordVariant &audit_record) {
   my_service<SERVICE_TYPE(mysql_connection_attributes_iterator)> attrs_service(
-      "mysql_connection_attributes_iterator", SysVars::get_comp_regystry_srv());
+      "mysql_connection_attributes_iterator", SysVars::get_comp_registry_srv());
 
   if (!attrs_service.is_valid()) {
     return;

@@ -41,9 +41,9 @@ const size_t kMaxDbNameLength = 64;
 
 bool has_system_variables_privilege(MYSQL_THD thd) {
   my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
-      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
+      "mysql_thd_security_context", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
-      "global_grants_check", SysVars::get_comp_regystry_srv());
+      "global_grants_check", SysVars::get_comp_registry_srv());
 
   bool has_audit_admin_grant = false;
   bool has_system_variables_admin_grant = false;
@@ -499,9 +499,9 @@ MYSQL_SYSVAR_ENUM(encryption, log_encryption_type,
 int password_history_keep_days_check_func(MYSQL_THD thd, SYS_VAR *var,
                                           void *save, st_mysql_value *value) {
   my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
-      "mysql_thd_security_context", SysVars::get_comp_regystry_srv());
+      "mysql_thd_security_context", SysVars::get_comp_registry_srv());
   my_service<SERVICE_TYPE(global_grants_check)> grants_check_service(
-      "global_grants_check", SysVars::get_comp_regystry_srv());
+      "global_grants_check", SysVars::get_comp_registry_srv());
 
   bool has_audit_admin_grant = false;
 
@@ -677,7 +677,7 @@ bool SysVars::validate() noexcept {
   }
 
   my_service<SERVICE_TYPE(system_variable_source)> sysvar_source_service(
-      "system_variable_source", SysVars::get_comp_regystry_srv());
+      "system_variable_source", SysVars::get_comp_registry_srv());
 
   enum_variable_source log_max_size_source;
 
@@ -905,7 +905,7 @@ std::string SysVars::get_encryption_options_id() noexcept {
 }
 
 decltype(get_component_registry_service().get())
-SysVars::get_comp_regystry_srv() noexcept {
+SysVars::get_comp_registry_srv() noexcept {
   static auto comp_registry_srv = get_component_registry_service();
   return comp_registry_srv.get();
 }

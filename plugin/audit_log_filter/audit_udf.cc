@@ -136,7 +136,7 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
 }
 
 bool has_audit_admin_privilege(char *message) {
-  const auto *reg_srv = SysVars::get_comp_regystry_srv();
+  const auto *reg_srv = SysVars::get_comp_registry_srv();
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
       "mysql_current_thread_reader", reg_srv);
@@ -192,7 +192,7 @@ AuditUdf::~AuditUdf() { deinit(); }
 
 bool AuditUdf::init(UdfFuncInfo *begin, UdfFuncInfo *end) {
   my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
-      "udf_registration", SysVars::get_comp_regystry_srv());
+      "udf_registration", SysVars::get_comp_registry_srv());
 
   for (UdfFuncInfo *it = begin; it != end; ++it) {
     if (udf_registration_srv->udf_register(it->udf_name, STRING_RESULT,
@@ -213,7 +213,7 @@ void AuditUdf::deinit() noexcept {
   if (!m_active_udf_names.empty()) {
     int was_present = 0;
     my_service<SERVICE_TYPE(udf_registration)> udf_registration_srv(
-        "udf_registration", SysVars::get_comp_regystry_srv());
+        "udf_registration", SysVars::get_comp_registry_srv());
 
     for (const auto &name : m_active_udf_names) {
       udf_registration_srv->udf_unregister(name.c_str(), &was_present);
@@ -786,7 +786,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
   *error = 0;
 
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
   MYSQL_THD thd;
 
@@ -964,7 +964,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
 void AuditUdf::audit_log_read_udf_deinit(UDF_INIT *initid [[maybe_unused]]) {
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_regystry_srv());
+      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
   MYSQL_THD thd;
 
@@ -1262,7 +1262,7 @@ void AuditUdf::audit_log_encryption_password_set_udf_deinit(UDF_INIT *) {}
 bool AuditUdf::set_return_value_charset(
     UDF_INIT *initid, const std::string &charset_name) noexcept {
   my_service<SERVICE_TYPE(mysql_udf_metadata)> udf_metadata_srv(
-      "mysql_udf_metadata", SysVars::get_comp_regystry_srv());
+      "mysql_udf_metadata", SysVars::get_comp_registry_srv());
   char *charset = const_cast<char *>(charset_name.c_str());
   return !udf_metadata_srv->result_set(initid, "charset",
                                        static_cast<void *>(charset));
@@ -1271,7 +1271,7 @@ bool AuditUdf::set_return_value_charset(
 bool AuditUdf::set_args_charset(UDF_ARGS *udf_args,
                                 const std::string &charset_name) noexcept {
   my_service<SERVICE_TYPE(mysql_udf_metadata)> udf_metadata_srv(
-      "mysql_udf_metadata", SysVars::get_comp_regystry_srv());
+      "mysql_udf_metadata", SysVars::get_comp_registry_srv());
   char *charset = const_cast<char *>(charset_name.c_str());
   for (uint index = 0; index < udf_args->arg_count; ++index) {
     if (udf_args->arg_type[index] == STRING_RESULT &&

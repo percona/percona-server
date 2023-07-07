@@ -55,19 +55,19 @@ namespace {
 
 AuditLogFilter *audit_log_filter = nullptr;
 
-void deinit_logging_service(SERVICE_TYPE(registry) * *reg_srv,
+void deinit_logging_service(SERVICE_TYPE(registry) * reg_srv,
                             SERVICE_TYPE(log_builtins) * *log_bi,
                             SERVICE_TYPE(log_builtins_string) * *log_bs) {
   using log_builtins_t = SERVICE_TYPE_NO_CONST(log_builtins);
   using log_builtins_string_t = SERVICE_TYPE_NO_CONST(log_builtins_string);
 
   if (*log_bi != nullptr) {
-    (*reg_srv)->release(
+    reg_srv->release(
         reinterpret_cast<my_h_service>(const_cast<log_builtins_t *>(*log_bi)));
   }
 
   if (*log_bs != nullptr) {
-    (*reg_srv)->release(reinterpret_cast<my_h_service>(
+    reg_srv->release(reinterpret_cast<my_h_service>(
         const_cast<log_builtins_string_t *>(*log_bs)));
   }
 
@@ -75,14 +75,14 @@ void deinit_logging_service(SERVICE_TYPE(registry) * *reg_srv,
   *log_bs = nullptr;
 }
 
-bool init_logging_service(SERVICE_TYPE(registry) * *reg_srv,
+bool init_logging_service(SERVICE_TYPE(registry) * reg_srv,
                           SERVICE_TYPE(log_builtins) * *log_bi,
                           SERVICE_TYPE(log_builtins_string) * *log_bs) {
   my_h_service log_srv = nullptr;
   my_h_service log_str_srv = nullptr;
 
-  if (!(*reg_srv)->acquire("log_builtins.mysql_server", &log_srv) &&
-      !(*reg_srv)->acquire("log_builtins_string.mysql_server", &log_str_srv)) {
+  if (!reg_srv->acquire("log_builtins.mysql_server", &log_srv) &&
+      !reg_srv->acquire("log_builtins_string.mysql_server", &log_str_srv)) {
     *log_bi = reinterpret_cast<SERVICE_TYPE(log_builtins) *>(log_srv);
     *log_bs =
         reinterpret_cast<SERVICE_TYPE(log_builtins_string) *>(log_str_srv);
@@ -187,17 +187,17 @@ static std::array udfs_list{
  *         code otherwise
  */
 int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
-  const auto *comp_registry_srv = SysVars::get_comp_registry_srv();
+  const auto *comp_registry_srv = SysVars::acquire_comp_registry_srv();
 
   auto comp_scope_guard = create_scope_guard([&] {
     if (comp_registry_srv != nullptr) {
-      deinit_logging_service(&comp_registry_srv, &log_bi, &log_bs);
-      mysql_plugin_registry_release(comp_registry_srv);
+      deinit_logging_service(comp_registry_srv, &log_bi, &log_bs);
+      SysVars::release_comp_registry_srv();
     }
   });
 
   if (comp_registry_srv == nullptr ||
-      !init_logging_service(&comp_registry_srv, &log_bi, &log_bs)) {
+      !init_logging_service(comp_registry_srv, &log_bi, &log_bs)) {
     return 1;
   }
 
@@ -291,7 +291,8 @@ int audit_log_filter_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     return 1;
   }
 
-  // Prevent comp_registry_srv from being released
+  // In case of successful initialization,
+  // prevent comp_registry_srv from being released by the comp_scope_guard.
   comp_registry_srv = nullptr;
 
   if (SysVars::get_log_disabled()) {
@@ -325,9 +326,8 @@ int audit_log_filter_deinit(void *arg [[maybe_unused]]) {
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "Uninstalled Audit Event Filter");
 
-  const auto *reg_srv = SysVars::get_comp_registry_srv();
-  deinit_logging_service(&reg_srv, &log_bi, &log_bs);
-  mysql_plugin_registry_release(reg_srv);
+  deinit_logging_service(SysVars::get_comp_registry_srv(), &log_bi, &log_bs);
+  SysVars::release_comp_registry_srv();
 
   delete audit_log_filter;
   audit_log_filter = nullptr;
@@ -361,7 +361,7 @@ AuditLogFilter::AuditLogFilter(
       m_is_active{true} {}
 
 bool AuditLogFilter::init() noexcept {
-  auto *reg_srv = SysVars::get_comp_registry_srv();
+  const auto *reg_srv = SysVars::get_comp_registry_srv();
 
   if (reg_srv->acquire(
           "mysql_thd_security_context",

@@ -69,6 +69,7 @@ std::atomic<uint64_t> record_id{0};
 LogBookmark log_bookmark;
 std::string encryption_options_id;
 bool log_encryption_enabled{false};
+comp_registry_srv_container_t comp_registry_srv;
 
 /*
  * Status variables
@@ -904,9 +905,19 @@ std::string SysVars::get_encryption_options_id() noexcept {
   return encryption_options_id;
 }
 
-decltype(get_component_registry_service().get())
-SysVars::get_comp_registry_srv() noexcept {
-  static auto comp_registry_srv = get_component_registry_service();
+comp_registry_srv_t *SysVars::acquire_comp_registry_srv() noexcept {
+  assert(comp_registry_srv == nullptr);
+  comp_registry_srv = get_component_registry_service();
+  return comp_registry_srv.get();
+}
+
+void SysVars::release_comp_registry_srv() noexcept {
+  assert(comp_registry_srv != nullptr);
+  comp_registry_srv.reset();
+}
+
+comp_registry_srv_t *SysVars::get_comp_registry_srv() noexcept {
+  assert(comp_registry_srv != nullptr);
   return comp_registry_srv.get();
 }
 

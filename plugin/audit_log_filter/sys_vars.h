@@ -397,12 +397,23 @@ class SysVars {
   static std::string get_encryption_options_id() noexcept;
 
   /**
+   * @brief Acquire component registry service.
+   *
+   * @return component registry service instance
+   */
+  static comp_registry_srv_t *acquire_comp_registry_srv() noexcept;
+
+  /**
+   * @brief Release component registry service.
+   */
+  static void release_comp_registry_srv() noexcept;
+
+  /**
    * @brief Get component registry service instance.
    *
    * @return component registry service instance
    */
-  static decltype(get_component_registry_service().get())
-  get_comp_registry_srv() noexcept;
+  static comp_registry_srv_t *get_comp_registry_srv() noexcept;
 };
 
 }  // namespace audit_log_filter

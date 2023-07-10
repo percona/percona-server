@@ -72,7 +72,7 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
   list.clear();
 
   my_service<SERVICE_TYPE(keyring_keys_metadata_iterator)> iterator_srv(
-      "keyring_keys_metadata_iterator", SysVars::get_comp_regystry_srv());
+      "keyring_keys_metadata_iterator", SysVars::get_comp_registry_srv());
 
   if (!iterator_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -165,7 +165,7 @@ bool get_active_keyring_options_key(std::string &options_id) {
 bool get_keyring_options(const std::string &options_id,
                          std::string &options_json_str) {
   my_service<SERVICE_TYPE(keyring_reader_with_status)> reader_srv(
-      "keyring_reader_with_status", SysVars::get_comp_regystry_srv());
+      "keyring_reader_with_status", SysVars::get_comp_registry_srv());
 
   if (!reader_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -234,7 +234,7 @@ bool get_keyring_options(const std::string &options_id,
 
 bool generate_keyring_options_id(std::string &options_id) {
   my_service<SERVICE_TYPE(keyring_reader_with_status)> reader_srv(
-      "keyring_reader_with_status", SysVars::get_comp_regystry_srv());
+      "keyring_reader_with_status", SysVars::get_comp_registry_srv());
 
   if (!reader_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -285,7 +285,7 @@ bool generate_keyring_options_id(std::string &options_id) {
 bool set_keyring_options(const std::string &options_id,
                          const std::string &options_json_str) {
   my_service<SERVICE_TYPE(keyring_writer)> writer_srv(
-      "keyring_writer", SysVars::get_comp_regystry_srv());
+      "keyring_writer", SysVars::get_comp_registry_srv());
 
   if (!writer_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -330,7 +330,7 @@ bool generate_keyring_options(std::string &options_id) {
 
 bool check_keyring_initialized() noexcept {
   my_service<SERVICE_TYPE(keyring_component_status)> component_status(
-      "keyring_component_status", SysVars::get_comp_regystry_srv());
+      "keyring_component_status", SysVars::get_comp_registry_srv());
 
   if (!component_status.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -417,7 +417,7 @@ void prune_encryption_options(
   }
 
   my_service<SERVICE_TYPE(keyring_writer)> writer_srv(
-      "keyring_writer", SysVars::get_comp_regystry_srv());
+      "keyring_writer", SysVars::get_comp_registry_srv());
 
   if (!writer_srv.is_valid()) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,

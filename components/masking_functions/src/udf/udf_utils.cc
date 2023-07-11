@@ -76,6 +76,36 @@ std::size_t random_number(std::size_t min, std::size_t max) {
   return dist(el);
 }
 
+std::string random_canada_sin() {
+  std::string str;
+  str.append((random_number(3)));
+  str.append((random_number(3)));
+  str.append((random_number(2)));
+
+  std::size_t check_sum = 0, n;
+  std::size_t check_offset = (str.size() + 1) % 2;
+  for (std::size_t i = 0; i < str.size(); i++) {
+    n = str[i] - '0';  // We can convert to int substracting the ASCII for 0
+    if ((i + check_offset) % 2 == 0) {
+      n *= 2;
+      check_sum += n > 9 ? (n - 9) : n;
+    } else {
+      check_sum += n;
+    }
+  }
+
+  if (check_sum % 10 == 0) {
+    str.append(std::to_string(0));
+  } else {
+    str.append(std::to_string(10 - (check_sum % 10)));
+  }
+
+  str.insert(6, "-");
+  str.insert(3, "-");
+
+  return str;
+}
+
 // Validate: https://stevemorse.org/ssn/cc.html
 std::string random_credit_card() {
   std::string str;

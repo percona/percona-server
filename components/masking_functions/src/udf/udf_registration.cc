@@ -183,9 +183,17 @@ class rnd_impl_base {
   rnd_impl_base(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() != 0) {
       throw std::invalid_argument("Wrong argument list: should be empty");
-
-      ctx.set_return_value_charset(mysql::plugins::default_charset);
     }
+
+    ctx.set_return_value_charset(mysql::plugins::default_charset);
+  }
+};
+
+class gen_rnd_canada_sin_impl : public rnd_impl_base {
+ public:
+  using rnd_impl_base::rnd_impl_base;
+  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+    return mysql::plugins::random_canada_sin();
   }
 };
 
@@ -225,6 +233,7 @@ class gen_rnd_uuid_impl : public rnd_impl_base {
  public:
   using rnd_impl_base::rnd_impl_base;
   mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+      //const_cast<mysqlpp::udf_context&>(ctx).set_return_value_charset(mysql::plugins::default_charset);
     return mysql::plugins::random_uuid();
   }
 };
@@ -832,6 +841,7 @@ class masking_dictionary_term_remove_impl {
 DECLARE_INT_UDF(gen_range_impl, gen_range);
 DECLARE_STRING_UDF(gen_rnd_email_impl, gen_rnd_email);
 DECLARE_STRING_UDF(gen_rnd_iban_impl, gen_rnd_iban);
+DECLARE_STRING_UDF(gen_rnd_canada_sin_impl, gen_rnd_canada_sin);
 DECLARE_STRING_UDF(gen_rnd_pan_impl, gen_rnd_pan);
 DECLARE_STRING_UDF(gen_rnd_ssn_impl, gen_rnd_ssn);
 DECLARE_STRING_UDF(gen_rnd_uk_nin_impl, gen_rnd_uk_nin);
@@ -859,6 +869,7 @@ std::array known_udfs{
     DECLARE_UDF_INFO(gen_range, INT_RESULT),
     DECLARE_UDF_INFO(gen_rnd_email, STRING_RESULT),
     DECLARE_UDF_INFO(gen_rnd_iban, STRING_RESULT),
+    DECLARE_UDF_INFO(gen_rnd_canada_sin, STRING_RESULT),
     DECLARE_UDF_INFO(gen_rnd_pan, STRING_RESULT),
     DECLARE_UDF_INFO(gen_rnd_ssn, STRING_RESULT),
     DECLARE_UDF_INFO(gen_rnd_uk_nin, STRING_RESULT),

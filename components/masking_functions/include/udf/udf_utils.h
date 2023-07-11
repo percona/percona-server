@@ -40,6 +40,8 @@ std::size_t random_number(std::size_t min, std::size_t max);
 
 std::string random_credit_card();
 
+std::string random_canada_sin();
+
 std::string random_iban(std::string_view const &country, std::size_t length);
 
 std::string random_ssn();

@@ -18,9 +18,9 @@
 #define MYSQLPP_UDF_CONTEXT_HPP
 
 #include <cassert>
-#include <cstdint>
+#include <cstddef>
 #include <cstring>
-#include <type_traits>
+#include <string_view>
 
 #include <decimal.h>
 
@@ -29,7 +29,11 @@
 
 namespace mysqlpp {
 
+// A helper class which simplifies operations with the arguments and the
+// result of a UDF.
 class udf_context {
+  friend class udf_context_charset_extension;
+
   template <typename ImplType, item_result_type ItemResult>
   friend class generic_udf_base;
 
@@ -46,10 +50,17 @@ class udf_context {
 
   template <item_result_type ItemResult>
   auto get_arg(std::size_t index) const noexcept {
-    // TODO: this function can be converted to 'if constexpr' chain instead of
-    // tag dispatch when MySQL source code switches to c++17
     assert(get_arg_type(index) == ItemResult);
-    return get_arg_impl(index, item_result_tag<ItemResult>{});
+    if constexpr (ItemResult == STRING_RESULT || ItemResult == DECIMAL_RESULT) {
+      return udf_arg_t<ItemResult>{args_->args[index], args_->lengths[index]};
+    } else if constexpr (ItemResult == INT_RESULT ||
+                         ItemResult == REAL_RESULT) {
+      using result_type = udf_arg_t<ItemResult>;
+      if (args_->args[index] == nullptr) return result_type{};
+      typename result_type::value_type res;
+      std::memcpy(&res, args_->args[index], sizeof res);
+      return result_type{res};
+    }
   }
 
   std::string_view get_attribute(std::size_t index) const noexcept {
@@ -106,37 +117,8 @@ class udf_context {
   UDF_INIT *initid_;
   UDF_ARGS *args_;
 
-  template <item_result_type ItemResult>
-  using item_result_tag = std::integral_constant<item_result_type, ItemResult>;
-
-  using string_result_tag = item_result_tag<STRING_RESULT>;
-  using real_result_tag = item_result_tag<REAL_RESULT>;
-  using int_result_tag = item_result_tag<INT_RESULT>;
-  using decimal_result_tag = item_result_tag<DECIMAL_RESULT>;
-
   udf_context(UDF_INIT *initid, UDF_ARGS *args) noexcept
       : initid_{initid}, args_{args} {}
-
-  auto get_arg_impl(std::size_t index, string_result_tag) const noexcept {
-    return udf_arg_t<STRING_RESULT>{args_->args[index], args_->lengths[index]};
-  }
-  auto get_arg_impl(std::size_t index, real_result_tag) const noexcept {
-    using result_type = udf_arg_t<REAL_RESULT>;
-    if (args_->args[index] == nullptr) return result_type{};
-    result_type::value_type res;
-    std::memcpy(&res, args_->args[index], sizeof res);
-    return result_type{res};
-  }
-  auto get_arg_impl(std::size_t index, int_result_tag) const noexcept {
-    using result_type = udf_arg_t<INT_RESULT>;
-    if (args_->args[index] == nullptr) return result_type{};
-    result_type::value_type res;
-    std::memcpy(&res, args_->args[index], sizeof res);
-    return result_type{res};
-  }
-  auto get_arg_impl(std::size_t index, decimal_result_tag) const noexcept {
-    return udf_arg_t<DECIMAL_RESULT>{args_->args[index], args_->lengths[index]};
-  }
 };
 
 }  // namespace mysqlpp

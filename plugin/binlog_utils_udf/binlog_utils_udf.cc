@@ -64,6 +64,10 @@ int binlog_utils_udf_init(void *) {
   sys_var_srv.reset(
       reinterpret_cast<SERVICE_TYPE(component_sys_variable_register) *>(
           acquired_service));
+  // Here we initialize UDF wrapper error reporter with
+  // the default one from mysys
+  mysqlpp::udf_error_reporter::instance() = &my_error;
+
   binlog_utils_udf_initialized = true;
   return 0;
 }
@@ -698,16 +702,9 @@ get_last_record_timestamp_by_binlog_impl::calculate(
 
 }  // end of anonymous namespace
 
-DECLARE_STRING_UDF(get_binlog_by_gtid_impl, get_binlog_by_gtid)
-
-DECLARE_STRING_UDF(get_last_gtid_from_binlog_impl, get_last_gtid_from_binlog)
-
-DECLARE_STRING_UDF(get_gtid_set_by_binlog_impl, get_gtid_set_by_binlog)
-
-DECLARE_STRING_UDF(get_binlog_by_gtid_set_impl, get_binlog_by_gtid_set)
-
-DECLARE_INT_UDF(get_first_record_timestamp_by_binlog_impl,
-                get_first_record_timestamp_by_binlog)
-
-DECLARE_INT_UDF(get_last_record_timestamp_by_binlog_impl,
-                get_last_record_timestamp_by_binlog)
+DECLARE_STRING_UDF_AUTO(get_binlog_by_gtid)
+DECLARE_STRING_UDF_AUTO(get_last_gtid_from_binlog)
+DECLARE_STRING_UDF_AUTO(get_gtid_set_by_binlog)
+DECLARE_STRING_UDF_AUTO(get_binlog_by_gtid_set)
+DECLARE_INT_UDF_AUTO(get_first_record_timestamp_by_binlog)
+DECLARE_INT_UDF_AUTO(get_last_record_timestamp_by_binlog)

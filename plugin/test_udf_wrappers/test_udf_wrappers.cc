@@ -17,11 +17,29 @@
 #include <stdexcept>
 #include <string>
 
+#include <my_sys.h>
+
 #include <mysqlpp/udf_wrappers.hpp>
 
 namespace {
 
-class wrapped_udf_string_impl {
+// As 'test_udf_wrappers' is neither a plugin nor a component (it does not have
+// a 'main()' or 'init()' entry point in which we could add 'udf_error_reporter'
+// initialization, the idea is to create a helper class from which we could
+// inherit a UDF implementation class, so that this inheritance would guarantee
+// that mysqlpp::udf_error_reporter::instance() is initialized. As this
+// initialization needs to happen only once, we use a trick with a static data
+// member and immediately invoked lambda.
+class error_reporter_initializer {
+ public:
+  error_reporter_initializer() noexcept {
+    [[maybe_unused]] static bool dummy_value = []() {
+      mysqlpp::udf_error_reporter::instance() = &my_error;
+      return true;
+    }();
+  }
+};
+class wrapped_udf_string_impl : private error_reporter_initializer {
  public:
   wrapped_udf_string_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() == 2)
@@ -62,7 +80,7 @@ class wrapped_udf_string_impl {
   }
 };
 
-class wrapped_udf_real_impl {
+class wrapped_udf_real_impl : private error_reporter_initializer {
  public:
   wrapped_udf_real_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() != 1)
@@ -94,7 +112,7 @@ class wrapped_udf_real_impl {
   }
 };
 
-class wrapped_udf_int_impl {
+class wrapped_udf_int_impl : private error_reporter_initializer {
  public:
   wrapped_udf_int_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() != 1)
@@ -125,6 +143,6 @@ class wrapped_udf_int_impl {
 
 }  // end of anonymous namespace
 
-DECLARE_STRING_UDF(wrapped_udf_string_impl, wrapped_udf_string)
-DECLARE_REAL_UDF(wrapped_udf_real_impl, wrapped_udf_real)
-DECLARE_INT_UDF(wrapped_udf_int_impl, wrapped_udf_int)
+DECLARE_STRING_UDF_AUTO(wrapped_udf_string)
+DECLARE_REAL_UDF_AUTO(wrapped_udf_real)
+DECLARE_INT_UDF_AUTO(wrapped_udf_int)

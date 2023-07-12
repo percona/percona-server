@@ -49,7 +49,10 @@ SET(HEADERS_MYSQL_DIR
 SET(HEADERS_MYSQLPP_DIR
   mysqlpp/common_types.hpp
   mysqlpp/udf_context.hpp
+  mysqlpp/udf_context_charset_extension.hpp
+  mysqlpp/udf_error_reporter.hpp
   mysqlpp/udf_exception.hpp
+  mysqlpp/udf_registration.hpp
   mysqlpp/udf_traits.hpp
   mysqlpp/udf_wrappers.hpp
 )

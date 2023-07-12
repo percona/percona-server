@@ -5,4 +5,9 @@ MYSQL_ADD_PLUGIN(
   MODULE_OUTPUT_NAME "test_udf_wrappers"
 )
 
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+set_target_properties(test_udf_wrappers PROPERTIES
+  CXX_VISIBILITY_PRESET hidden
+  VISIBILITY_INLINES_HIDDEN YES
+)
+
+target_include_directories(test_udf_wrappers SYSTEM PRIVATE ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})

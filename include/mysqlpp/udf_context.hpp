@@ -48,6 +48,10 @@ class udf_context {
     return args_->arg_type[index];
   }
 
+  bool is_arg_null(std::size_t index) const noexcept {
+    return args_->args[index] == nullptr;
+  }
+
   template <item_result_type ItemResult>
   auto get_arg(std::size_t index) const noexcept {
     assert(get_arg_type(index) == ItemResult);

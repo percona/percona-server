@@ -20,6 +20,7 @@
 #include <cassert>
 #include <cstring>
 #include <exception>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 
@@ -137,6 +138,14 @@ class udf_base {
       message[message_size - 1] = '\0';
     }
   }
+  static void validate_argument_nullness(const udf_context &udf_ctx) {
+    for (std::size_t index = 0; index < udf_ctx.get_number_of_args(); ++index) {
+      if (!udf_ctx.is_arg_nullable(index) && udf_ctx.is_arg_null(index)) {
+        throw std::invalid_argument("argument " + std::to_string(index + 1) +
+                                    " cannot be null");
+      }
+    }
+  }
 };
 
 template <typename ImplType, item_result_type ItemResult>
@@ -185,6 +194,7 @@ class generic_udf<ImplType, STRING_RESULT>
     udf_result_t<STRING_RESULT> res;
     const udf_context udf_ctx{initid, args};
     try {
+      udf_base::validate_argument_nullness(udf_ctx);
       res = extended_impl.impl.calculate(udf_ctx);
     } catch (...) {
       udf_base::template handle_exception<ImplType>();
@@ -217,6 +227,7 @@ class generic_udf<ImplType, REAL_RESULT>
     udf_result_t<REAL_RESULT> res;
     const udf_context udf_ctx{initid, args};
     try {
+      udf_base::validate_argument_nullness(udf_ctx);
       res = extended_impl.impl.calculate(udf_ctx);
     } catch (...) {
       udf_base::template handle_exception<ImplType>();
@@ -247,6 +258,7 @@ class generic_udf<ImplType, INT_RESULT>
     udf_result_t<INT_RESULT> res;
     const udf_context udf_ctx{initid, args};
     try {
+      udf_base::validate_argument_nullness(udf_ctx);
       res = extended_impl.impl.calculate(udf_ctx);
     } catch (...) {
       udf_base::template handle_exception<ImplType>();

@@ -16136,7 +16136,7 @@ rocksdb::Status rdb_tx_get_for_update(Rdb_transaction *tx,
                                       rocksdb::PinnableSlice *const value,
                                       bool exclusive, bool skip_wait) {
   bool do_validate =
-      my_core::thd_tx_isolation(tx->get_thd()) > ISO_READ_COMMITTED;
+      my_core::thd_tx_isolation(tx->get_thd()) > ISO_READ_UNCOMMITTED;
   rocksdb::Status s =
       tx->get_for_update(kd, key, value, exclusive, do_validate, skip_wait);
 

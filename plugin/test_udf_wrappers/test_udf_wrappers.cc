@@ -39,22 +39,34 @@ class error_reporter_initializer {
     }();
   }
 };
-class wrapped_udf_string_impl : private error_reporter_initializer {
- public:
-  wrapped_udf_string_impl(mysqlpp::udf_context &ctx) {
-    if (ctx.get_number_of_args() == 2)
-      throw mysqlpp::udf_exception("test udf_exception with sentinel");
+class wrapped_udf_base {
+ protected:
+  static void validate_input_arguments(const mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() == 3)
+      throw mysqlpp::udf_exception("test udf_exception with sentinel");
+    if (ctx.get_number_of_args() == 4)
       throw mysqlpp::udf_exception("test udf_exception without sentinel",
                                    ER_WRAPPED_UDF_EXCEPTION);
-    if (ctx.get_number_of_args() == 4) throw 42;
+    if (ctx.get_number_of_args() == 5) throw 42;
 
-    if (ctx.get_number_of_args() != 1)
-      throw std::invalid_argument("function requires exactly one argument");
+    if (ctx.get_number_of_args() != 1 && ctx.get_number_of_args() != 2)
+      throw std::invalid_argument("function requires one or two argument");
+  }
+};
+
+class wrapped_udf_string_impl : private error_reporter_initializer,
+                                private wrapped_udf_base {
+ public:
+  wrapped_udf_string_impl(mysqlpp::udf_context &ctx) {
+    validate_input_arguments(ctx);
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
     ctx.mark_arg_nullable(0, true);
     ctx.set_arg_type(0, STRING_RESULT);
+    if (ctx.get_number_of_args() == 2) {
+      ctx.mark_arg_nullable(1, false);
+      ctx.set_arg_type(1, STRING_RESULT);
+    }
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -80,16 +92,20 @@ class wrapped_udf_string_impl : private error_reporter_initializer {
   }
 };
 
-class wrapped_udf_real_impl : private error_reporter_initializer {
+class wrapped_udf_real_impl : private error_reporter_initializer,
+                              private wrapped_udf_base {
  public:
   wrapped_udf_real_impl(mysqlpp::udf_context &ctx) {
-    if (ctx.get_number_of_args() != 1)
-      throw std::invalid_argument("function requires exactly one argument");
+    validate_input_arguments(ctx);
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
     ctx.set_result_decimals_not_fixed();
     ctx.mark_arg_nullable(0, true);
     ctx.set_arg_type(0, REAL_RESULT);
+    if (ctx.get_number_of_args() == 2) {
+      ctx.mark_arg_nullable(1, false);
+      ctx.set_arg_type(1, REAL_RESULT);
+    }
   }
 
   mysqlpp::udf_result_t<REAL_RESULT> calculate(
@@ -112,15 +128,19 @@ class wrapped_udf_real_impl : private error_reporter_initializer {
   }
 };
 
-class wrapped_udf_int_impl : private error_reporter_initializer {
+class wrapped_udf_int_impl : private error_reporter_initializer,
+                             private wrapped_udf_base {
  public:
   wrapped_udf_int_impl(mysqlpp::udf_context &ctx) {
-    if (ctx.get_number_of_args() != 1)
-      throw std::invalid_argument("function requires exactly one argument");
+    validate_input_arguments(ctx);
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
     ctx.mark_arg_nullable(0, true);
     ctx.set_arg_type(0, INT_RESULT);
+    if (ctx.get_number_of_args() == 2) {
+      ctx.mark_arg_nullable(1, false);
+      ctx.set_arg_type(1, INT_RESULT);
+    }
   }
 
   mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &ctx) {

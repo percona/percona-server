@@ -4,7 +4,7 @@ INSTALL COMPONENT 'file://component_encryption_udf';
 SELECT create_dh_parameters();
 ERROR HY000: Can't initialize function 'create_dh_parameters'; Function requires exactly one argument
 SELECT create_dh_parameters(NULL);
-ERROR HY000: create_dh_parameters<string> UDF failed; Parameters length cannot be NULL
+ERROR HY000: create_dh_parameters<string> UDF failed; argument 1 cannot be null
 SELECT create_dh_parameters(0);
 ERROR HY000: create_dh_parameters<string> UDF failed; Invalid DH parameters length specified
 SELECT create_dh_parameters(-1);
@@ -25,13 +25,13 @@ SET @dh_pub2 =  create_asymmetric_pub_key('DH', @dh_priv2);
 SELECT asymmetric_derive();
 ERROR HY000: Can't initialize function 'asymmetric_derive'; Function requires exactly two arguments
 SELECT asymmetric_derive(NULL, @dh_priv2);
-ERROR HY000: asymmetric_derive<string> UDF failed; Public key cannot be NULL
+ERROR HY000: asymmetric_derive<string> UDF failed; argument 1 cannot be null
 SELECT asymmetric_derive(42, @dh_priv2);
 ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PUBLIC KEY
 SELECT asymmetric_derive('blah-blah', @dh_priv2);
 ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PUBLIC KEY
 SELECT asymmetric_derive(@dh_pub1, NULL);
-ERROR HY000: asymmetric_derive<string> UDF failed; Private key cannot be NULL
+ERROR HY000: asymmetric_derive<string> UDF failed; argument 2 cannot be null
 SELECT asymmetric_derive(@dh_pub1, 42);
 ERROR HY000: asymmetric_derive<string> UDF failed; cannot import DH key from PEM PRIVATE KEY
 SELECT asymmetric_derive(@dh_pub1, 'blah-blah');

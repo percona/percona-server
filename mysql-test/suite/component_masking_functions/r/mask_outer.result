@@ -21,6 +21,10 @@ SELECT mask_outer('This is a string', -1, 5);
 ERROR HY000: mask_outer<string> UDF failed; Margins can't be negative!
 SELECT mask_outer('This is a string', 1, -5);
 ERROR HY000: mask_outer<string> UDF failed; Margins can't be negative!
+SELECT mask_outer('This is a string', 'a', 5);
+ERROR HY000: mask_outer<string> UDF failed; Margins have to be numbers!
+SELECT mask_outer('This is a string', 2, 'b');
+ERROR HY000: mask_outer<string> UDF failed; Margins have to be numbers!
 SELECT mask_outer('This is a string', 1, 25);
 mask_outer('This is a string', 1, 25)
 XXXXXXXXXXXXXXXX
@@ -42,7 +46,7 @@ CHARSET(mask_outer('abcdef', 1, 2))
 utf8mb4
 SELECT mask_outer(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2);
 mask_outer(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2)
-XXXXXXXXXXrő tüköXX
+XXXXXXXXXXtükörfúrógXX
 SELECT CHARSET(mask_outer(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2));
 CHARSET(mask_outer(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2))
 utf8mb4

@@ -11,6 +11,21 @@ SELECT mask_inner(NULL, 1, 2);
 SELECT mask_inner(NULL, 1, 2, '#');
 
 --error ER_UDF_ERROR
+SELECT mask_inner('This is a string', 0, 5, '');
+
+--error ER_UDF_ERROR
+SELECT mask_inner('This is a string', 0, 5, 'ab');
+
+--error ER_UDF_ERROR
+SELECT mask_inner('This is a string', 0, 5, 5);
+
+--error ER_UDF_ERROR
+SELECT mask_inner('This is a string', 'a', 5, 'a');
+
+--error ER_UDF_ERROR
+SELECT mask_inner('This is a string', 2, 'a', 'a');
+
+--error ER_UDF_ERROR
 SELECT mask_inner('This is a string', -1, 5);
 
 --error ER_UDF_ERROR
@@ -40,5 +55,7 @@ SELECT CHAR_LENGTH(mask_inner('This is a string', 5, 1, _utf32'#'));
 #SELECT mask_inner(_utf32'This is a string', 5, 1, '#');
 #SELECT CHAR_LENGTH(mask_inner(_utf32'This is a string', 5, 1, '#'));
 #SELECT mask_inner(_utf32'This is a string', 1, 25);
+
+SELECT mask_inner('űűűűűűűűűűűűű', 1,1);
 
 UNINSTALL COMPONENT 'file://component_masking_functions';

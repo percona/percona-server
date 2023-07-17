@@ -4,10 +4,10 @@
 INSTALL COMPONENT 'file://component_masking_functions';
 SELECT mask_ssn("123456789");
 mask_ssn("123456789")
-XXXXX6789
+*****6789
 SELECT mask_ssn("123-45-6789");
 mask_ssn("123-45-6789")
-XXX-XX-6789
+***-**-6789
 SELECT mask_ssn(NULL);
 ERROR HY000: mask_ssn<string> UDF failed; Wrong argument: must be between 9 and 11 characters
 SELECT mask_ssn("");

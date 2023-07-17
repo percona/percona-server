@@ -17,6 +17,16 @@ NULL
 SELECT mask_inner(NULL, 1, 2, '#');
 mask_inner(NULL, 1, 2, '#')
 NULL
+SELECT mask_inner('This is a string', 0, 5, '');
+ERROR HY000: mask_inner<string> UDF failed; Masking character has to be exactly one character!
+SELECT mask_inner('This is a string', 0, 5, 'ab');
+ERROR HY000: mask_inner<string> UDF failed; Masking character has to be exactly one character!
+SELECT mask_inner('This is a string', 0, 5, 5);
+ERROR HY000: mask_inner<string> UDF failed; Mask has to be a string!
+SELECT mask_inner('This is a string', 'a', 5, 'a');
+ERROR HY000: mask_inner<string> UDF failed; Margins have to be numbers!
+SELECT mask_inner('This is a string', 2, 'a', 'a');
+ERROR HY000: mask_inner<string> UDF failed; Margins have to be numbers!
 SELECT mask_inner('This is a string', -1, 5);
 ERROR HY000: mask_inner<string> UDF failed; Margins can't be negative!
 SELECT mask_inner('This is a string', 1, -5);
@@ -36,7 +46,7 @@ CHARSET(mask_inner('abcdef', 1, 2))
 utf8mb4
 SELECT mask_inner(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2);
 mask_inner(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2)
-árvíztűrő XXXXXXXXXXró
+árvíztűrő XXXXXXXXXXép
 SELECT CHARSET(mask_inner(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2));
 CHARSET(mask_inner(_utf8mb4'árvíztűrő tükörfúrógép', 10, 2))
 utf8mb4
@@ -61,4 +71,7 @@ This ##########g
 SELECT CHAR_LENGTH(mask_inner('This is a string', 5, 1, _utf32'#'));
 CHAR_LENGTH(mask_inner('This is a string', 5, 1, _utf32'#'))
 16
+SELECT mask_inner('űűűűűűűűűűűűű', 1,1);
+mask_inner('űűűűűűűűűűűűű', 1,1)
+űXXXXXXXXXXXű
 UNINSTALL COMPONENT 'file://component_masking_functions';

@@ -30,7 +30,8 @@ std::string &ltrim(std::string &s);
 std::string convert(std::string_view const &src, const char *src_cs,
                     const char *dst_cs);
 
-std::string decide_masking_char(mysqlpp::udf_context const &args, std::size_t argno,
+std::string decide_masking_char(mysqlpp::udf_context const &args,
+                                std::size_t argno,
                                 const char *&original_charset,
                                 std::string_view def = "X");
 
@@ -38,6 +39,11 @@ std::string mask_inner(const char *str, std::size_t str_length,
                        std::size_t margin1, std::size_t margin2,
                        const char *original_charset,
                        std::string_view mask_char);
+
+std::string mask_inner_alphanum(const char *str, std::size_t str_length,
+                                std::size_t margin1, std::size_t margin2,
+                                const char *original_charset,
+                                std::string_view mask_char);
 
 std::string &rtrim(std::string &s);
 

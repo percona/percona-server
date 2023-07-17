@@ -4,17 +4,23 @@
 INSTALL COMPONENT 'file://component_masking_functions';
 SELECT mask_iban("1234567890122461");
 mask_iban("1234567890122461")
-12XXXXXXXXXXXXXX
+12**************
 SELECT mask_iban("123456789012246");
 mask_iban("123456789012246")
-12XXXXXXXXXXXXX
+12*************
+SELECT mask_iban("HU123-4567-8901!22?46");
+mask_iban("HU123-4567-8901!22?46")
+HU***-****-****!**?**
+SELECT mask_iban("HU123-4567-8901!22ű46");
+mask_iban("HU123-4567-8901!22ű46")
+HU***-****-****!**ű4*
 SELECT mask_iban(NULL);
 ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 34 characters
 SELECT mask_iban("");
 ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 34 characters
 SELECT mask_iban("123496798465498779");
 mask_iban("123496798465498779")
-12XXXXXXXXXXXXXXXX
+12****************
 SELECT mask_iban("this is definitely not an iban because it is too long");
 ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 34 characters
 SELECT mask_iban("1234567890122461", "!");

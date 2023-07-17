@@ -8,14 +8,14 @@ SELECT mask_inner(gen_rnd_email(), 0, 12);
 
 SELECT mask_inner(gen_rnd_email(16), 0, 12);
 
-SELECT mask_inner(gen_rnd_email(16, "foo.com"), 0, 8);
+SELECT mask_inner(gen_rnd_email(16, 20, "foo.com"), 0, 8);
 
 SELECT CHARSET(gen_rnd_email());
 
 SELECT CHARSET(gen_rnd_email(16));
 
-SELECT CHARSET(gen_rnd_email(16, "foo.com"));
+SELECT CHARSET(gen_rnd_email(16, 4, "foo.com"));
 
-SELECT CHARSET(gen_rnd_email(16, _latin2"foo.com"));
+SELECT CHARSET(gen_rnd_email(16, 8, _latin2"foo.com"));
 
 UNINSTALL COMPONENT 'file://component_masking_functions';

@@ -64,12 +64,11 @@ constexpr std::string_view privilege_name = "MASKING_DICTIONARIES_ADMIN";
 static mysql_service_status_t component_init() {
   DBUG_TRACE;
 
-  sql_print_information(
-      "Masking Functions Component: Initializing component");
+  sql_print_information("Masking Functions Component: Initializing component");
 
-  if(mysql_service_dynamic_privilege_register->register_privilege(
-      privilege_name.data(), privilege_name.size())) {
-          return 1;
+  if (mysql_service_dynamic_privilege_register->register_privilege(
+          privilege_name.data(), privilege_name.size())) {
+    return 1;
   }
 
   return register_udfs();

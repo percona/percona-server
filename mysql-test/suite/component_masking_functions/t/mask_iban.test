@@ -7,6 +7,10 @@ INSTALL COMPONENT 'file://component_masking_functions';
 SELECT mask_iban("1234567890122461");
 SELECT mask_iban("123456789012246");
 
+SELECT mask_iban("HU123-4567-8901!22?46");
+
+SELECT mask_iban("HU123-4567-8901!22ű46");
+
 --error ER_UDF_ERROR
 SELECT mask_iban(NULL);
 

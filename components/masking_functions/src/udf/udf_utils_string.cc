@@ -119,7 +119,71 @@ std::string mask_inner(const char *str, std::size_t str_length,
 
   for (int i = 0; i < pads_to_insert; ++i) sresult.append(mask_char);
 
-  if (margin2 > 0) sresult.append(str + c2 + pads_to_insert, str_length - c3);
+  if (margin2 > 0) sresult.append(str + c3, str_length - c3);
+
+  return sresult;
+}
+
+constexpr static bool is_alphanum(char c) {
+  return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+         (c >= '0' && c <= '9');
+}
+
+std::string mask_inner_alphanum(const char *str, std::size_t str_length,
+                                std::size_t margin1, std::size_t margin2,
+                                const char *original_charset,
+                                std::string_view mask_char) {
+  // Calculate margins from offsets
+  // NOTE: the string service doesn't work with some character sets, such as
+  // utf16/32
+  ulong c2, c3;
+  uint mlen = 0;
+
+  my_h_string mstr;
+  mysql_service_mysql_string_converter->convert_from_buffer(
+      &mstr, str, str_length, original_charset);
+  mysql_service_mysql_string_character_access->get_char_length(mstr, &mlen);
+  mysql_service_mysql_string_character_access->get_char_offset(mstr, margin1,
+                                                               &c2);
+  mysql_service_mysql_string_character_access->get_char_offset(
+      mstr, mlen - margin2, &c3);
+
+  if (margin1 + margin2 >= mlen) {
+    // too long => return unchanged
+    mysql_service_mysql_string_factory->destroy(mstr);
+    return std::string(str, str_length);
+  }
+
+  // create a latin1 representation: alphanum characters are all there
+  auto utf8str = convert({str, str_length}, original_charset, "utf8mb4");
+
+  const int pads_to_insert = mlen - margin1 - margin2;
+
+  std::string sresult;
+  if (margin1 > 0) sresult.append(str, c2);
+
+  int utf8index = margin1;
+
+  for (int i = 0; i < pads_to_insert; ++i) {
+    if (is_alphanum(utf8str[utf8index])) {
+      sresult.append(mask_char);
+    } else {
+      ulong co1, co2;
+      mysql_service_mysql_string_character_access->get_char_offset(
+          mstr, margin1 + i, &co1);
+      mysql_service_mysql_string_character_access->get_char_offset(
+          mstr, margin1 + i + 1, &co2);
+      sresult.append(str + co1, co2 - co1);
+    }
+
+    // we only care about single byte UTF8 characters for alphanumerical checks
+    utf8index++;
+    while (utf8index > 127) utf8index++;
+  }
+
+  if (margin2 > 0) sresult.append(str + c3, str_length - c3);
+
+  mysql_service_mysql_string_factory->destroy(mstr);
 
   return sresult;
 }
@@ -155,6 +219,19 @@ std::string decide_masking_char(mysqlpp::udf_context const &ctx,
     }
   } else {
     masking_char = mysql::plugins::convert(def, "utf8mb4", original_charset);
+  }
+
+  // verify that it is one character
+  uint mlen = 0;
+  my_h_string mstr;
+  mysql_service_mysql_string_converter->convert_from_buffer(
+      &mstr, masking_char.data(), masking_char.size(), original_charset);
+  mysql_service_mysql_string_character_access->get_char_length(mstr, &mlen);
+  mysql_service_mysql_string_factory->destroy(mstr);
+
+  if (mlen != 1) {
+    throw std::invalid_argument(
+        "Masking character has to be exactly one character!");
   }
 
   return masking_char;

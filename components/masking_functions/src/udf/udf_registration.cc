@@ -49,13 +49,16 @@ class gen_range_impl {
     ctx.mark_result_const(false);
 
     ctx.mark_arg_nullable(0, false);
-    ctx.set_arg_type(0, INT_RESULT);
 
     ctx.mark_arg_nullable(1, false);
-    ctx.set_arg_type(1, INT_RESULT);
   }
 
   mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &ctx) {
+    if (ctx.get_arg_type(0) != INT_RESULT ||
+        ctx.get_arg_type(1) != INT_RESULT) {
+      throw std::invalid_argument("Margins have to be numbers!");
+    }
+
     const long long lower = *ctx.get_arg<INT_RESULT>(0);
     const long long upper = *ctx.get_arg<INT_RESULT>(1);
 
@@ -70,25 +73,27 @@ class gen_range_impl {
 class gen_rnd_email_impl {
  public:
   gen_rnd_email_impl(mysqlpp::udf_context &ctx) {
-    if (ctx.get_number_of_args() > 2)
+    if (ctx.get_number_of_args() > 3)
       throw std::invalid_argument(
-          "Wrong argument list: should be ([int], [string])");
+          "Wrong argument list: should be ([int], [int], [string])");
 
     ctx.mark_result_nullable(true);
     ctx.mark_result_const(false);
 
     if (ctx.get_number_of_args() >= 1) {
       ctx.mark_arg_nullable(0, false);
-      ctx.set_arg_type(0, INT_RESULT);
     }
 
     if (ctx.get_number_of_args() >= 2) {
       ctx.mark_arg_nullable(1, false);
-      ctx.set_arg_type(1, STRING_RESULT);
     }
 
-    if (ctx.get_number_of_args() >= 2) {
-      ctx.set_return_value_charset_to_match_arg(1);
+    if (ctx.get_number_of_args() >= 3) {
+      ctx.mark_arg_nullable(2, false);
+    }
+
+    if (ctx.get_number_of_args() >= 3) {
+      ctx.set_return_value_charset_to_match_arg(2);
     } else {
       ctx.set_return_value_charset(mysql::plugins::default_charset);
     }
@@ -96,19 +101,33 @@ class gen_rnd_email_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
-    auto original_charset = ctx.get_number_of_args() >= 2
-                                ? ctx.get_arg_charset(1)
+    if (ctx.get_number_of_args() >= 3 && ctx.get_arg_type(2) != STRING_RESULT) {
+      throw std::invalid_argument("Domain has to be a string!");
+    }
+    auto original_charset = ctx.get_number_of_args() >= 3
+                                ? ctx.get_arg_charset(2)
                                 : mysql::plugins::default_charset;
-    const std::string_view email_domain = ctx.get_number_of_args() >= 2
-                                              ? ctx.get_arg<STRING_RESULT>(1)
+    const std::string_view email_domain = ctx.get_number_of_args() >= 3
+                                              ? ctx.get_arg<STRING_RESULT>(2)
                                               : "example.com";
 
-    const long long email_length =
-        ctx.get_number_of_args() >= 1 ? *ctx.get_arg<INT_RESULT>(0) : 20;
+    if (ctx.get_number_of_args() >= 1 && ctx.get_arg_type(0) != INT_RESULT) {
+      throw std::invalid_argument("Length has to be a number!");
+    }
 
-    if (email_length < 0) {
+    if (ctx.get_number_of_args() >= 2 && ctx.get_arg_type(1) != INT_RESULT) {
+      throw std::invalid_argument("Length has to be a number!");
+    }
+
+    const long long name_length =
+        ctx.get_number_of_args() >= 1 ? *ctx.get_arg<INT_RESULT>(0) : 5;
+
+    const long long surname_length =
+        ctx.get_number_of_args() >= 2 ? *ctx.get_arg<INT_RESULT>(1) : 7;
+
+    if (name_length < 0 || surname_length < 0) {
       throw std::invalid_argument(
-          "Wrong argument list: length should be positive");
+          "Wrong argument list: lengths should be positive");
     }
 
     unsigned int domain_length = 0;
@@ -119,10 +138,11 @@ class gen_rnd_email_impl {
       mysql_service_mysql_string_character_access->get_char_length(
           mstr, &domain_length);
     }
-    unsigned int user_length = email_length - (domain_length + 1);
-
     std::string email =
-        mysql::plugins::random_string(user_length, true).append("@");
+        mysql::plugins::random_string(name_length, true)
+            .append(".")
+            .append(mysql::plugins::random_string(surname_length, true))
+            .append("@");
 
     std::string sresult = mysql::plugins::convert(
         email, mysql::plugins::default_charset, original_charset);
@@ -145,12 +165,10 @@ class gen_rnd_iban_impl {
 
     if (ctx.get_number_of_args() >= 1) {
       ctx.mark_arg_nullable(0, false);
-      ctx.set_arg_type(0, STRING_RESULT);
     }
 
     if (ctx.get_number_of_args() >= 2) {
       ctx.mark_arg_nullable(1, false);
-      ctx.set_arg_type(1, INT_RESULT);
     }
 
     ctx.set_return_value_charset(mysql::plugins::default_charset);
@@ -158,12 +176,20 @@ class gen_rnd_iban_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
+    if (ctx.get_number_of_args() >= 1 && ctx.get_arg_type(0) != STRING_RESULT) {
+      throw std::invalid_argument("Country has to be a string!");
+    }
+
     const std::string_view country =
         ctx.get_number_of_args() >= 1 ? ctx.get_arg<STRING_RESULT>(0) : "ZZ";
 
     if (country.size() != 2) {
       throw std::invalid_argument(
           "Wrong argument list: country should be two characters");
+    }
+
+    if (ctx.get_number_of_args() >= 2 && ctx.get_arg_type(1) != INT_RESULT) {
+      throw std::invalid_argument("Length has to be numbers!");
     }
 
     const long long len =
@@ -233,7 +259,7 @@ class gen_rnd_uuid_impl : public rnd_impl_base {
  public:
   using rnd_impl_base::rnd_impl_base;
   mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
-      //const_cast<mysqlpp::udf_context&>(ctx).set_return_value_charset(mysql::plugins::default_charset);
+    // const_cast<mysqlpp::udf_context&>(ctx).set_return_value_charset(mysql::plugins::default_charset);
     return mysql::plugins::random_uuid();
   }
 };
@@ -249,17 +275,13 @@ class mask_inner_impl {
     ctx.mark_result_const(false);
 
     ctx.mark_arg_nullable(0, false);
-    ctx.set_arg_type(0, STRING_RESULT);
 
     ctx.mark_arg_nullable(1, false);
-    ctx.set_arg_type(1, INT_RESULT);
 
     ctx.mark_arg_nullable(2, false);
-    ctx.set_arg_type(2, INT_RESULT);
 
     if (ctx.get_number_of_args() >= 4) {
       ctx.mark_arg_nullable(3, false);
-      ctx.set_arg_type(3, STRING_RESULT);
     }
 
     ctx.set_return_value_charset_to_match_arg(0);
@@ -267,6 +289,10 @@ class mask_inner_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
+    if (ctx.get_arg_type(0) != STRING_RESULT) {
+      throw std::invalid_argument("First argument has to be a string!");
+    }
+
     auto original_charset = ctx.get_arg_charset(0);
     const auto str = ctx.get_arg<STRING_RESULT>(0);
 
@@ -274,8 +300,17 @@ class mask_inner_impl {
       return std::nullopt;
     }
 
+    if (ctx.get_number_of_args() >= 4 && ctx.get_arg_type(3) != STRING_RESULT) {
+      throw std::invalid_argument("Mask has to be a string!");
+    }
+
     const std::string masking_char =
         mysql::plugins::decide_masking_char(ctx, 3, original_charset);
+
+    if (ctx.get_arg_type(1) != INT_RESULT ||
+        ctx.get_arg_type(2) != INT_RESULT) {
+      throw std::invalid_argument("Margins have to be numbers!");
+    }
 
     const long long a2 = *ctx.get_arg<INT_RESULT>(1);
     const long long a3 = *ctx.get_arg<INT_RESULT>(2);
@@ -305,19 +340,14 @@ class mask_outer_impl {
     ctx.mark_result_nullable(true);
     ctx.mark_result_const(false);
 
-    ctx.mark_arg_nullable(
-        0, false);  // TODO: what's the point? It can still be null
-    ctx.set_arg_type(0, STRING_RESULT);
+    ctx.mark_arg_nullable(0, false);
 
     ctx.mark_arg_nullable(1, false);
-    ctx.set_arg_type(1, INT_RESULT);
 
     ctx.mark_arg_nullable(2, false);
-    ctx.set_arg_type(2, INT_RESULT);
 
     if (ctx.get_number_of_args() >= 4) {
       ctx.mark_arg_nullable(3, false);
-      ctx.set_arg_type(3, STRING_RESULT);
     }
 
     ctx.set_return_value_charset_to_match_arg(0);
@@ -325,6 +355,10 @@ class mask_outer_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
+    if (ctx.get_arg_type(0) != STRING_RESULT) {
+      throw std::invalid_argument("First argument has to be a string!");
+    }
+
     auto original_charset = ctx.get_arg_charset(0);
     const auto str = ctx.get_arg<STRING_RESULT>(0);
 
@@ -332,8 +366,17 @@ class mask_outer_impl {
       return std::nullopt;
     }
 
+    if (ctx.get_number_of_args() >= 4 && ctx.get_arg_type(3) != STRING_RESULT) {
+      throw std::invalid_argument("Mask has to be a string!");
+    }
+
     const std::string masking_char =
         mysql::plugins::decide_masking_char(ctx, 3, original_charset);
+
+    if (ctx.get_arg_type(1) != INT_RESULT ||
+        ctx.get_arg_type(2) != INT_RESULT) {
+      throw std::invalid_argument("Margins have to be numbers!");
+    }
 
     const long long a2 = *ctx.get_arg<INT_RESULT>(1);
     const long long a3 = *ctx.get_arg<INT_RESULT>(2);
@@ -349,10 +392,12 @@ class mask_outer_impl {
       mysql_service_mysql_string_converter->convert_from_buffer(
           &mstr, str.data(), str.size(), original_charset);
       mysql_service_mysql_string_character_access->get_char_length(mstr, &mlen);
+
       mysql_service_mysql_string_character_access->get_char_offset(mstr, a2,
                                                                    &c2);
       mysql_service_mysql_string_character_access->get_char_offset(
           mstr, mlen - a3, &c3);
+      if (a3 == 0) c3 = str.size();
       mysql_service_mysql_string_factory->destroy(mstr);
     }
 
@@ -366,13 +411,14 @@ class mask_outer_impl {
         return std::nullopt;
       }
     }
-    const int chars_to_keep = mlen - a2 - a3;
+
+    const int chars_to_keep = c3 - c2;
 
     std::string sresult;
 
     for (uint i = 0; i < a2; ++i) sresult.append(masking_char);
 
-    sresult.append(str.data() + a2, chars_to_keep);
+    sresult.append(str.data() + c2, chars_to_keep);
 
     for (uint i = 0; i < a3; ++i) sresult.append(masking_char);
 
@@ -388,9 +434,10 @@ class mask_impl_base {
  protected:
   virtual std::size_t min_length() = 0;
   virtual std::size_t max_length() = 0;
+  virtual std::string_view default_masking_char() { return "X"; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              const char* original_charset) = 0;
+                              const char *original_charset) = 0;
 
  public:
   mask_impl_base(mysqlpp::udf_context &ctx) {
@@ -402,11 +449,9 @@ class mask_impl_base {
     ctx.mark_result_const(false);
 
     ctx.mark_arg_nullable(0, false);
-    ctx.set_arg_type(0, STRING_RESULT);
 
     if (ctx.get_number_of_args() >= 2) {
       ctx.mark_arg_nullable(1, false);
-      ctx.set_arg_type(1, STRING_RESULT);
     }
 
     ctx.set_return_value_charset_to_match_arg(0);
@@ -414,6 +459,10 @@ class mask_impl_base {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
+    if (ctx.get_arg_type(0) != STRING_RESULT) {
+      throw std::invalid_argument("First argument has to be a string!");
+    }
+
     auto original_charset = ctx.get_arg_charset(0);
     const auto str = ctx.get_arg<STRING_RESULT>(0);
 
@@ -433,8 +482,12 @@ class mask_impl_base {
       }
     }
 
-    const std::string masking_char =
-        mysql::plugins::decide_masking_char(ctx, 1, original_charset);
+    if (ctx.get_number_of_args() >= 2 && ctx.get_arg_type(1) != STRING_RESULT) {
+      throw std::invalid_argument("Mask has to be a string!");
+    }
+
+    const std::string masking_char = mysql::plugins::decide_masking_char(
+        ctx, 1, original_charset, default_masking_char());
 
     const std::string sresult = process(str, masking_char, original_charset);
 
@@ -455,17 +508,18 @@ class mask_canada_sin_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 11; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              const char* original_charset) override {
+                              const char *original_charset) override {
     if (str.size() == 11) {
       std::string sresult = mysql::plugins::mask_inner(
           str.data(), str.size(), 4, 4, original_charset, masking_char);
       sresult = mysql::plugins::mask_inner(sresult.c_str(), sresult.size(), 0,
                                            8, original_charset, masking_char);
-      return mysql::plugins::mask_inner(sresult.c_str(), sresult.size(), 8, 0,
-                                        original_charset, masking_char);
+      return mysql::plugins::mask_inner_alphanum(
+          sresult.c_str(), sresult.size(), 8, 0, original_charset,
+          masking_char);
     } else {
-      return mysql::plugins::mask_inner(str.data(), str.size(), 0, 0,
-                                        original_charset, masking_char);
+      return mysql::plugins::mask_inner_alphanum(
+          str.data(), str.size(), 0, 0, original_charset, masking_char);
     }
   }
 };
@@ -477,11 +531,12 @@ class mask_iban_impl : public mask_impl_base {
  protected:
   virtual std::size_t min_length() override { return 13; }
   virtual std::size_t max_length() override { return 34; }
+  virtual std::string_view default_masking_char() override { return "*"; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              const char* original_charset) override {
-    return mysql::plugins::mask_inner(str.data(), str.size(), 2, 0,
-                                      original_charset, masking_char);
+                              const char *original_charset) override {
+    return mysql::plugins::mask_inner_alphanum(str.data(), str.size(), 2, 0,
+                                               original_charset, masking_char);
   }
 };
 
@@ -494,7 +549,7 @@ class mask_pan_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 19; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              const char* original_charset) override {
+                              const char *original_charset) override {
     return mysql::plugins::mask_inner(str.data(), str.size(), 0, 4,
                                       original_charset, masking_char);
   }
@@ -509,7 +564,7 @@ class mask_pan_relaxed_impl : public mask_impl_base {
   virtual std::size_t max_length() override { return 19; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              const char* original_charset) override {
+                              const char *original_charset) override {
     return mysql::plugins::mask_inner(str.data(), str.size(), 6, 4,
                                       original_charset, masking_char);
   }
@@ -522,9 +577,10 @@ class mask_ssn_impl : public mask_impl_base {
  protected:
   virtual std::size_t min_length() override { return 9; }
   virtual std::size_t max_length() override { return 11; }
+  virtual std::string_view default_masking_char() override { return "*"; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              const char* original_charset) override {
+                              const char *original_charset) override {
     if (str.size() == 11) {
       std::string sresult = mysql::plugins::mask_inner(
           str.data(), str.size(), 4, 5, original_charset, masking_char);
@@ -544,11 +600,12 @@ class mask_uk_nin_impl : public mask_impl_base {
  protected:
   virtual std::size_t min_length() override { return 9; }
   virtual std::size_t max_length() override { return 11; }
+  virtual std::string_view default_masking_char() override { return "*"; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              const char* original_charset) override {
-    return mysql::plugins::mask_inner(str.data(), str.size(), 2, 0,
-                                      original_charset, masking_char);
+                              const char *original_charset) override {
+    return mysql::plugins::mask_inner_alphanum(str.data(), str.size(), 2, 0,
+                                               original_charset, masking_char);
   }
 };
 
@@ -559,9 +616,10 @@ class mask_uuid_impl : public mask_impl_base {
  protected:
   virtual std::size_t min_length() override { return 36; }
   virtual std::size_t max_length() override { return 36; }
+  virtual std::string_view default_masking_char() override { return "*"; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
-                              const char* original_charset) override {
+                              const char *original_charset) override {
     std::string sresult;
 
     sresult = mysql::plugins::mask_inner(str.data(), str.size(), 0, 36 - 8,
@@ -664,13 +722,15 @@ class gen_dictionary_impl {
 
     // arg1 - dictionary
     ctx.mark_arg_nullable(0, false);
-    ctx.set_arg_type(0, STRING_RESULT);
 
     ctx.set_return_value_charset(mysql::plugins::default_charset);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
+    if (ctx.get_arg_type(0) != STRING_RESULT) {
+      throw std::invalid_argument("Argument has to be a string!");
+    }
     const std::string dictionary = mysql::plugins::convert(
         ctx.get_arg<STRING_RESULT>(0), ctx.get_arg_charset(0),
         mysql::plugins::default_charset);
@@ -709,11 +769,13 @@ class masking_dictionary_remove_impl {
 
     // arg1 - dictionary
     ctx.mark_arg_nullable(0, false);
-    ctx.set_arg_type(0, STRING_RESULT);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
+    if (ctx.get_arg_type(0) != STRING_RESULT) {
+      throw std::invalid_argument("Argument has to be a string!");
+    }
     const std::string dictionary = mysql::plugins::convert(
         ctx.get_arg<STRING_RESULT>(0), ctx.get_arg_charset(0),
         mysql::plugins::default_charset);
@@ -751,15 +813,23 @@ class masking_dictionary_term_add_impl {
 
     // arg1 - dictionary
     ctx.mark_arg_nullable(0, false);
-    ctx.set_arg_type(0, STRING_RESULT);
 
     // arg2 - term
     ctx.mark_arg_nullable(1, false);
-    ctx.set_arg_type(1, STRING_RESULT);
+
+    ctx.set_return_value_charset(mysql::plugins::default_charset);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
+    if (ctx.get_arg_type(0) != STRING_RESULT) {
+      throw std::invalid_argument("Argument has to be a string!");
+    }
+
+    if (ctx.get_arg_type(1) != STRING_RESULT) {
+      throw std::invalid_argument("Argument has to be a string!");
+    }
+
     const std::string dictionary = mysql::plugins::convert(
         ctx.get_arg<STRING_RESULT>(0), ctx.get_arg_charset(0),
         mysql::plugins::default_charset);
@@ -804,15 +874,20 @@ class masking_dictionary_term_remove_impl {
 
     // arg1 - dictionary
     ctx.mark_arg_nullable(0, false);
-    ctx.set_arg_type(0, STRING_RESULT);
 
     // arg2 - term
     ctx.mark_arg_nullable(1, false);
-    ctx.set_arg_type(1, STRING_RESULT);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
+    if (ctx.get_arg_type(0) != STRING_RESULT) {
+      throw std::invalid_argument("Argument has to be a string!");
+    }
+
+    if (ctx.get_arg_type(1) != STRING_RESULT) {
+      throw std::invalid_argument("Argument has to be a string!");
+    }
     const std::string dictionary = mysql::plugins::convert(
         ctx.get_arg<STRING_RESULT>(0), ctx.get_arg_charset(0),
         mysql::plugins::default_charset);

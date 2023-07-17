@@ -4766,8 +4766,6 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   rocksdb::WriteOptions write_opts;
   // Called after commit/rollback.
   void reset() {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     m_batch->Clear();
     m_read_opts = rocksdb::ReadOptions();
     m_read_opts.ignore_range_deletions =
@@ -4777,8 +4775,6 @@ class Rdb_writebatch_impl : public Rdb_transaction {
 
  private:
   bool prepare() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     return true;
   }
 
@@ -4818,27 +4814,19 @@ class Rdb_writebatch_impl : public Rdb_transaction {
 
   /* Implementations of do_*savepoint based on rocksdB::WriteBatch savepoints */
   void do_set_savepoint() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     m_batch->SetSavePoint();
   }
 
   rocksdb::Status do_pop_savepoint() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     return m_batch->PopSavePoint();
   }
 
   void do_rollback_to_savepoint() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     m_batch->RollbackToSavePoint();
   }
 
  public:
   bool is_writebatch_trx() const override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     return true;
   }
 
@@ -4849,8 +4837,6 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   }
 
   void set_sync(bool sync) override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     write_opts.sync = sync;
   }
 
@@ -4862,8 +4848,6 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   }
 
   void rollback() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     on_rollback();
     m_write_count = 0;
     m_row_lock_count = 0;
@@ -4875,14 +4859,10 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   }
 
   void acquire_snapshot(bool acquire_now) override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     if (m_read_opts.snapshot == nullptr) snapshot_created(rdb->GetSnapshot());
   }
 
   void release_snapshot() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     if (m_read_opts.snapshot != nullptr) {
       rdb->ReleaseSnapshot(m_read_opts.snapshot);
       m_read_opts.snapshot = nullptr;
@@ -4921,20 +4901,15 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   }
 
   bool has_modifications() const override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     return m_batch->GetWriteBatch()->Count() > 0;
   }
 
   rocksdb::WriteBatchBase *get_write_batch() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     return m_batch;
   }
 
   rocksdb::WriteBatchBase *get_indexed_write_batch() override {
     assert(!is_ac_nl_ro_rc_transaction());
-
     ++m_write_count;
     return m_batch;
   }
@@ -4942,8 +4917,6 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   rocksdb::Status get(rocksdb::ColumnFamilyHandle *const column_family,
                       const rocksdb::Slice &key,
                       rocksdb::PinnableSlice *const value) const override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     value->Reset();
     return m_batch->GetFromBatchAndDB(rdb, m_read_opts, column_family, key,
                                       value);
@@ -4971,20 +4944,15 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   rocksdb::Iterator *get_iterator(
       const rocksdb::ReadOptions &options,
       rocksdb::ColumnFamilyHandle *const column_family) override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     const auto it = rdb->NewIterator(options);
     return m_batch->NewIteratorWithBase(it);
   }
 
   bool is_tx_started() const override {
-    assert(!is_ac_nl_ro_rc_transaction());
     return (m_batch != nullptr);
   }
 
   void start_tx() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     reset();
     write_opts.sync = (rocksdb_flush_log_at_trx_commit == FLUSH_LOG_SYNC) &&
                       rdb_sync_wal_supported();
@@ -4999,13 +4967,11 @@ class Rdb_writebatch_impl : public Rdb_transaction {
     set_initial_savepoint();
   }
 
-  void set_name() override { assert(!is_ac_nl_ro_rc_transaction()); }
+  void set_name() override {}
 
-  void start_stmt() override { assert(!is_ac_nl_ro_rc_transaction()); }
+  void start_stmt() override {}
 
   void rollback_stmt() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     if (m_batch) rollback_to_stmt_savepoint();
   }
 
@@ -5016,8 +4982,6 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   }
 
   virtual ~Rdb_writebatch_impl() override {
-    assert(!is_ac_nl_ro_rc_transaction());
-
     // Remove from the global list before all other processing is started.
     // Otherwise, information_schema.rocksdb_trx can crash on this object.
     Rdb_transaction::remove_from_global_trx_list();

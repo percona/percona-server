@@ -125,7 +125,7 @@ class gen_rnd_email_impl {
     const long long surname_length =
         ctx.get_number_of_args() >= 2 ? *ctx.get_arg<INT_RESULT>(1) : 7;
 
-    if (name_length < 0 || surname_length < 0) {
+    if (name_length <= 0 || surname_length <= 0) {
       throw std::invalid_argument(
           "Wrong argument list: lengths should be positive");
     }
@@ -171,7 +171,11 @@ class gen_rnd_iban_impl {
       ctx.mark_arg_nullable(1, false);
     }
 
-    ctx.set_return_value_charset(mysql::plugins::default_charset);
+    if (ctx.get_number_of_args() >= 1) {
+      ctx.set_return_value_charset_to_match_arg(0);
+    } else {
+      ctx.set_return_value_charset(mysql::plugins::default_charset);
+    }
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -197,7 +201,7 @@ class gen_rnd_iban_impl {
 
     if (len < 15 || len > 34) {
       throw std::invalid_argument(
-          "Wrong argument list: length should be between 14 and 34");
+          "Wrong argument list: length should be between 15 and 34");
     }
 
     return mysql::plugins::random_iban(country, len);
@@ -514,7 +518,7 @@ class mask_canada_sin_impl : public mask_impl_base {
           str.data(), str.size(), 4, 4, original_charset, masking_char);
       sresult = mysql::plugins::mask_inner(sresult.c_str(), sresult.size(), 0,
                                            8, original_charset, masking_char);
-      return mysql::plugins::mask_inner_alphanum(
+      return mysql::plugins::mask_inner(
           sresult.c_str(), sresult.size(), 8, 0, original_charset,
           masking_char);
     } else {
@@ -769,6 +773,8 @@ class masking_dictionary_remove_impl {
 
     // arg1 - dictionary
     ctx.mark_arg_nullable(0, false);
+
+    ctx.set_return_value_charset(mysql::plugins::default_charset);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -877,6 +883,8 @@ class masking_dictionary_term_remove_impl {
 
     // arg2 - term
     ctx.mark_arg_nullable(1, false);
+
+    ctx.set_return_value_charset(mysql::plugins::default_charset);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(

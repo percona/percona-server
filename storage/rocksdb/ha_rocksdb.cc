@@ -803,6 +803,7 @@ static uint32_t rocksdb_validate_tables = 1;
 static char *rocksdb_datadir = nullptr;
 static char *rocksdb_fs_uri;
 static uint32_t rocksdb_max_bottom_pri_background_compactions = 0;
+static int rocksdb_block_cache_numshardbits = -1;
 static uint32_t rocksdb_table_stats_sampling_pct =
     RDB_DEFAULT_TBL_STATS_SAMPLE_PCT;
 static uint32_t rocksdb_table_stats_recalc_threshold_pct = 10;
@@ -1858,6 +1859,13 @@ static MYSQL_SYSVAR_INT(table_cache_numshardbits,
                         rocksdb_db_options->table_cache_numshardbits,
                         /* min */ 0, /* max */ 19, 0);
 
+static MYSQL_SYSVAR_INT(block_cache_numshardbits,
+                        rocksdb_block_cache_numshardbits,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                        "Block cache numshardbits for RocksDB", nullptr,
+                        nullptr,
+                        /* default */ -1, /* min */ -1, /* max */ 8, 0);
+
 static MYSQL_SYSVAR_UINT64_T(wal_ttl_seconds,
                              rocksdb_db_options->WAL_ttl_seconds,
                              PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -2727,6 +2735,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(keep_log_file_num),
     MYSQL_SYSVAR(max_manifest_file_size),
     MYSQL_SYSVAR(table_cache_numshardbits),
+    MYSQL_SYSVAR(block_cache_numshardbits),
     MYSQL_SYSVAR(wal_ttl_seconds),
     MYSQL_SYSVAR(wal_size_limit_mb),
     MYSQL_SYSVAR(manifest_preallocation_size),
@@ -6733,13 +6742,12 @@ static int rocksdb_init_internal(void *const p) {
         rocksdb_use_hyper_clock_cache
             ? rocksdb::HyperClockCacheOptions(
                   rocksdb_block_cache_size, rocksdb_tbl_options->block_size,
-                  -1
-                  /* num_shard_bits */,
+                  rocksdb_block_cache_numshardbits,
                   false /* strict_capacity_limit */, memory_allocator)
                   .MakeSharedCache()
 
             : rocksdb::NewLRUCache(
-                  rocksdb_block_cache_size, -1 /*num_shard_bits*/,
+                  rocksdb_block_cache_size, rocksdb_block_cache_numshardbits,
                   false /*strict_capcity_limit*/,
                   rocksdb_cache_high_pri_pool_ratio, memory_allocator);
     if (rocksdb_sim_cache_size > 0) {

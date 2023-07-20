@@ -1,6 +1,12 @@
 SET @old_binlog_format=@@binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_format='STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION binlog_format='STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 reset master;
 create table t1 (word varchar(20));
 insert into t1 values ("abirvalg");
@@ -43,3 +49,5 @@ DELIMITER ;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 drop table t1;
 SET GLOBAL binlog_format = @old_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

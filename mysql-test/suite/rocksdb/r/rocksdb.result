@@ -902,6 +902,7 @@ rocksdb_allow_unsafe_alter	OFF
 rocksdb_alter_column_default_inplace	ON
 rocksdb_alter_table_comment_inplace	OFF
 rocksdb_blind_delete_primary_key	OFF
+rocksdb_block_cache_numshardbits	-1
 rocksdb_block_cache_size	536870912
 rocksdb_block_restart_interval	16
 rocksdb_block_size	16384

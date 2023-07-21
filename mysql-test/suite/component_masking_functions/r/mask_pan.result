@@ -17,7 +17,7 @@ mask_pan("123496798465498779")
 XXXXXXXXXXXXXX8779
 SELECT mask_pan("this is not a pan");
 mask_pan("this is not a pan")
-XXXXXXXXXXXXX pan
+XXXX XX XXX X pan
 SELECT mask_pan("1234567890122461", "!");
 mask_pan("1234567890122461", "!")
 !!!!!!!!!!!!2461

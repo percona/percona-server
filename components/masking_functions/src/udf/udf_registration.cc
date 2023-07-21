@@ -554,7 +554,7 @@ class mask_pan_impl : public mask_impl_base {
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
                               const char *original_charset) override {
-    return mysql::plugins::mask_inner(str.data(), str.size(), 0, 4,
+    return mysql::plugins::mask_inner_alphanum(str.data(), str.size(), 0, 4,
                                       original_charset, masking_char);
   }
 };
@@ -569,7 +569,7 @@ class mask_pan_relaxed_impl : public mask_impl_base {
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
                               const char *original_charset) override {
-    return mysql::plugins::mask_inner(str.data(), str.size(), 6, 4,
+    return mysql::plugins::mask_inner_alphanum(str.data(), str.size(), 6, 4,
                                       original_charset, masking_char);
   }
 };
@@ -591,7 +591,7 @@ class mask_ssn_impl : public mask_impl_base {
       return mysql::plugins::mask_inner(sresult.c_str(), sresult.size(), 0, 8,
                                         original_charset, masking_char);
     } else {
-      return mysql::plugins::mask_inner(str.data(), str.size(), 0, 4,
+      return mysql::plugins::mask_inner_alphanum(str.data(), str.size(), 0, 4,
                                         original_charset, masking_char);
     }
   }

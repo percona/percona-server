@@ -17,7 +17,7 @@ mask_pan_relaxed("123496798465498779")
 123496XXXXXXXX8779
 SELECT mask_pan_relaxed("this is not a pan");
 mask_pan_relaxed("this is not a pan")
-this iXXXXXXX pan
+this iX XXX X pan
 SELECT mask_pan_relaxed("1234567890122461", "!");
 mask_pan_relaxed("1234567890122461", "!")
 123456!!!!!!2461

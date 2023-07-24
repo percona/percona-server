@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
 SELECT audit_log_filter_set_user('%', 'log_general');
 
@@ -19,6 +21,4 @@ SELECT audit_log_rotate();
 
 --echo #
 --echo # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc

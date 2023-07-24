@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source audit_tables_init.inc
 
 SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
 
@@ -33,6 +34,4 @@ UNINSTALL COMPONENT "file://component_audit_api_message_emit";
 --echo # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
 
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc

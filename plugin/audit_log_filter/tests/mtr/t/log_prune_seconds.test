@@ -1,3 +1,7 @@
+--source include/have_debug.inc
+--source audit_tables_init.inc
+
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
 
 SET @old_prune_seconds = @@global.audit_log_filter_prune_seconds;
 SET @old_max_size = @@global.audit_log_filter_max_size;
@@ -11,34 +15,24 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 # prune_seconds is not set, no logs prune happens
 --source generate_audit_events.inc
 --source generate_audit_events.inc
---source generate_audit_events.inc
---source generate_audit_events.inc
---source generate_audit_events.inc
---source generate_audit_events.inc
---source generate_audit_events.inc
---source generate_audit_events.inc
 
 # stop updating log before size check
 SELECT audit_log_filter_remove_user('%');
 
 --let $log_path = `SELECT @@global.datadir`
 --let $log_name = `SELECT @@global.audit_log_filter_file`
---let $prune_seconds = 2
+--let $prune_seconds = 180
 
 --source check_logs_age.inc
 
 # logs get pruned after prune_seconds update
-SET GLOBAL audit_log_filter_prune_seconds = 2;
+SET GLOBAL audit_log_filter_prune_seconds = 180;
 
 --source check_logs_age.inc
 
 # oldest log rotation time should not exceed prune_seconds while writing
 # audit events
 SELECT audit_log_filter_set_user('%', 'log_all');
---source generate_audit_events.inc
---source generate_audit_events.inc
---source generate_audit_events.inc
---source generate_audit_events.inc
 --source generate_audit_events.inc
 --source generate_audit_events.inc
 
@@ -49,9 +43,9 @@ SELECT audit_log_filter_remove_user('%');
 
 --echo #
 --echo # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc
 
 SET GLOBAL audit_log_filter_prune_seconds = @old_prune_seconds;
 SET GLOBAL audit_log_filter_max_size = @old_max_size;
+
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';

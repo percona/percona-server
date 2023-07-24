@@ -1,3 +1,4 @@
+--source audit_tables_init.inc
 
 SELECT @@global.audit_log_filter_filter_id;
 SELECT @@session.audit_log_filter_filter_id;
@@ -6,3 +7,5 @@ SELECT @@session.audit_log_filter_filter_id;
 SET GLOBAL audit_log_filter_filter_id = 1;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET SESSION audit_log_filter_filter_id = 1;
+
+--source audit_tables_cleanup.inc

@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
 
@@ -27,6 +29,4 @@ if (`SELECT @@global.audit_log_filter_compression = 'GZIP'`) {
 
 --echo #
 --echo # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc

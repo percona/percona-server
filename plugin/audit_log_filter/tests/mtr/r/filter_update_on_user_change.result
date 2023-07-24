@@ -76,10 +76,5 @@ SELECT @@session.audit_log_filter_filter_id;
 0
 #
 # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK
 DROP USER user1@localhost;
 DROP USER user2@localhost;

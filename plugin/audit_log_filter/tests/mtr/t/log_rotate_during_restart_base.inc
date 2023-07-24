@@ -1,3 +1,4 @@
+--source audit_tables_init.inc
 --source clean_all_audit_logs.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
@@ -20,3 +21,5 @@
 --sorted_result
 --replace_regex /\d{8}T\d{6}-\d*/<keyring_id>/ /\d{8}T\d{6}/<timestamp>/
 --list_files $audit_filter_log_path audit_filter.*
+
+--source audit_tables_cleanup.inc

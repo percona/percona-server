@@ -157,11 +157,6 @@ c2
 3
 #
 # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK
 DROP TABLE t1;
 DROP TABLE t2;
 UNINSTALL COMPONENT "file://component_audit_api_message_emit";

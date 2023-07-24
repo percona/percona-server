@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE t2 (c2 INT);
 INSERT INTO t1 VALUES (1);
@@ -140,9 +142,7 @@ connection default;
 
 --echo #
 --echo # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc
 
 DROP TABLE t1;
 DROP TABLE t2;

@@ -1,3 +1,4 @@
+--source audit_tables_init.inc
 --source include/have_component_keyring_file.inc
 --source suite/component_keyring_file/inc/setup_component.inc
 
@@ -76,3 +77,4 @@ SELECT audit_log_rotate();
 --source check_logs_name_format.inc
 
 --source suite/component_keyring_file/inc/teardown_component.inc
+--source audit_tables_cleanup.inc

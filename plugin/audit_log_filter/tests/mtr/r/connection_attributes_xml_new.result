@@ -28,8 +28,3 @@ Tag <NAME>_client_version</NAME> Ok
 Tag <NAME>_platform</NAME> Ok
 #
 # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK

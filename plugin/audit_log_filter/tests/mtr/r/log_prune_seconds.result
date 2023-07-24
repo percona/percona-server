@@ -1,3 +1,4 @@
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
 SET @old_prune_seconds = @@global.audit_log_filter_prune_seconds;
 SET @old_max_size = @@global.audit_log_filter_max_size;
 SET GLOBAL audit_log_filter_prune_seconds = 0;
@@ -11,22 +12,18 @@ OK
 SELECT audit_log_filter_remove_user('%');
 audit_log_filter_remove_user('%')
 OK
-Logs age exceeds expected prune_seconds 2
-SET GLOBAL audit_log_filter_prune_seconds = 2;
-Logs age doesn't exceed expected prune_seconds 2
+Logs age exceeds expected prune_seconds 180
+SET GLOBAL audit_log_filter_prune_seconds = 180;
+Logs age doesn't exceed expected prune_seconds 180
 SELECT audit_log_filter_set_user('%', 'log_all');
 audit_log_filter_set_user('%', 'log_all')
 OK
 SELECT audit_log_filter_remove_user('%');
 audit_log_filter_remove_user('%')
 OK
-Logs age doesn't exceed expected prune_seconds 2
+Logs age doesn't exceed expected prune_seconds 180
 #
 # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK
 SET GLOBAL audit_log_filter_prune_seconds = @old_prune_seconds;
 SET GLOBAL audit_log_filter_max_size = @old_max_size;
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';

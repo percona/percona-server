@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL audit_log_filter_buffer_size=4096;
 SELECT @@global.audit_log_filter_buffer_size;
@@ -13,3 +15,5 @@ call mtr.add_suppression("Plugin 'audit_log_filter' registration as a AUDIT fail
 # Too big buffer, should not crash
 --let $restart_parameters="restart: --audit-log-filter-buffer-size=99999999999"
 --source include/restart_mysqld.inc
+
+--source audit_tables_cleanup.inc

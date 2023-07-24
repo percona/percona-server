@@ -103,8 +103,3 @@ SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 #
 # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK

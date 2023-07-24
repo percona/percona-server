@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL audit_log_filter_compression=GZIP;
 SELECT @@global.audit_log_filter_compression;
@@ -10,3 +12,5 @@ SELECT @@global.audit_log_filter_compression;
 --let $restart_parameters="restart:"
 --source include/restart_mysqld.inc
 SELECT @@global.audit_log_filter_compression;
+
+--source audit_tables_cleanup.inc

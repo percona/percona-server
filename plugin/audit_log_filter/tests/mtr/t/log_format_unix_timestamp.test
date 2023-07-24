@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --let $restart_parameters="restart: --audit_log_filter_format=JSON --audit_log_filter_file=audit_filter.json.log --audit_log_filter_format_unix_timestamp=ON"
 --source include/restart_mysqld.inc
 
@@ -33,8 +35,5 @@ SET GLOBAL audit_log_filter_format_unix_timestamp=OFF;
 
 --echo #
 --echo # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-
+--source audit_tables_cleanup.inc
 --remove_files_wildcard $audit_filter_log_path *.json.log

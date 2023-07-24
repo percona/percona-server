@@ -5,6 +5,7 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_all');
 audit_log_filter_set_user('%', 'log_all')
 OK
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
 SELECT audit_log_filter_remove_user('%');
 audit_log_filter_remove_user('%')
 OK
@@ -26,9 +27,5 @@ audit_log_rotate()
 Logs size doesn't exceed expected 8192 bytes
 #
 # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
 SET GLOBAL audit_log_filter_max_size = @old_max_size;

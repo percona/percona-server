@@ -242,7 +242,15 @@ PruneFilesList FileHandle::get_prune_files(
     const std::string &file_name) noexcept {
   PruneFilesList prune_files;
   const auto base_file_name = FileName::from_path(file_name).get_base_name();
-  const auto time_now = std::time(nullptr);
+  auto time_now = std::time(nullptr);
+
+  DBUG_EXECUTE_IF("audit_log_filter_debug_timestamp", {
+    // This will return the time of the newest rotated log + 1 minute so
+    // file age will be calculated properly for files which are subject
+    // for age based pruning.
+    time_now = std::chrono::system_clock::to_time_t(
+        SysVars::get_debug_time_point_for_rotation());
+  });
 
   for (const auto &entry :
        std::filesystem::directory_iterator{working_dir_name}) {

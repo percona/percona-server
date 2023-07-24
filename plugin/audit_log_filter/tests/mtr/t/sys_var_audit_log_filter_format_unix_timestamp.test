@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 SET @start_value = @@global.audit_log_filter_format_unix_timestamp;
 
 SELECT @@global.audit_log_filter_format_unix_timestamp;
@@ -54,3 +56,5 @@ SELECT @@global.audit_log_filter_format_unix_timestamp;
 DROP USER user1;
 
 SET GLOBAL audit_log_filter_format_unix_timestamp = @start_value;
+
+--source audit_tables_cleanup.inc

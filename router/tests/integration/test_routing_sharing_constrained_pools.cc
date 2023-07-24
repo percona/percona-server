@@ -3460,6 +3460,16 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
     // before this admin connection can be opened to reset the globals again.
     ASSERT_NO_ERROR(
         try_until_connection_available([&]() { return reset_globals(); }));
+
+    // close all connections that are currently in the pool to get a stable
+    // baseline.
+    for (auto &srv : shared_servers()) {
+      ASSERT_NO_ERROR(try_until_connection_available([&]() {
+        // reset the router's connection-pool
+        return srv->close_all_connections();
+      }));
+    }
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
   }};
 
   SCOPED_TRACE("// testing");
@@ -3534,16 +3544,6 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   }
 
   SCOPED_TRACE("// cleanup");
-
-  // close all connections that are currently in the pool to get a stable
-  // baseline.
-  for (auto &srv : shared_servers()) {
-    ASSERT_NO_ERROR(try_until_connection_available([&]() {
-      // reset the router's connection-pool
-      return srv->close_all_connections();
-    }));
-  }
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
   // calls Scope_guard
 }

@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 # The Audit_log_filter_buffer_size_overflow status variable should catch when
 # statement was too big to fit buffer.
 
@@ -37,6 +39,4 @@ SHOW GLOBAL STATUS LIKE 'Audit_log_filter_event_max_drop_size';
 
 --echo #
 --echo # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc

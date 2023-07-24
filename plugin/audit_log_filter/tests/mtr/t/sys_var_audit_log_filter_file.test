@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --let $DATA_DIR = `SELECT @@global.datadir`
 --let $audit_filter_log_path = $DATA_DIR
 --let $audit_filter_log_name = audit_log_filter_file
@@ -42,3 +44,5 @@ call mtr.add_suppression("Plugin 'audit_log_filter' init function returned error
 call mtr.add_suppression("Plugin 'audit_log_filter' registration as a AUDIT failed");
 --let $restart_parameters="restart: --audit-log-filter-file='/audit_log'"
 --source include/restart_mysqld.inc
+
+--source audit_tables_cleanup.inc

@@ -39,9 +39,4 @@ audit_log_read_bookmark()
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
 SET GLOBAL DEBUG='-d,audit_log_filter_reset_log_bookmark';
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK
 DROP TABLE t1;

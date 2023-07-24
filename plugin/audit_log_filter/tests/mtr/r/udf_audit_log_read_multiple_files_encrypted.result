@@ -113,11 +113,6 @@ audit_log_read('null')
 OK
 #
 # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK
 DROP TABLE t1;
 SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
 # ----------------------------------------------------------------------

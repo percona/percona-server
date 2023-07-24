@@ -2604,7 +2604,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
   ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
-  Scope_guard restore_at_end{[]() {
+  Scope_guard restore_at_end{[this]() {
     auto reset_globals = []() -> stdx::expected<void, MysqlError> {
       for (auto *admin_cli : admin_clis()) {
         auto query_res =
@@ -2619,6 +2619,16 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
     // before this admin connection can be opened to reset the globals again.
     ASSERT_NO_ERROR(
         try_until_connection_available([&]() { return reset_globals(); }));
+
+    // close all connections that are currently in the pool to get a stable
+    // baseline.
+    for (auto *admin_cli : admin_clis()) {
+      ASSERT_NO_ERROR(try_until_connection_available([&]() {
+        // reset the router's connection-pool
+        return SharedServer::close_all_connections(*admin_cli);
+      }));
+    }
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
   }};
 
   SCOPED_TRACE("// testing");
@@ -2693,16 +2703,6 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   }
 
   SCOPED_TRACE("// cleanup");
-
-  // close all connections that are currently in the pool to get a stable
-  // baseline.
-  for (auto *admin_cli : admin_clis()) {
-    ASSERT_NO_ERROR(try_until_connection_available([&]() {
-      // reset the router's connection-pool
-      return SharedServer::close_all_connections(*admin_cli);
-    }));
-  }
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
   // calls Scope_guard
 }

@@ -1,3 +1,4 @@
+--source audit_tables_init.inc
 
 SET @old_prune_seconds = @@global.audit_log_filter_prune_seconds;
 SET @old_max_size = @@global.audit_log_filter_max_size;
@@ -29,3 +30,5 @@ SELECT @@global.audit_log_filter_prune_seconds;
 
 SET GLOBAL audit_log_filter_prune_seconds = @old_prune_seconds;
 SET GLOBAL audit_log_filter_max_size = @old_max_size;
+
+--source audit_tables_cleanup.inc

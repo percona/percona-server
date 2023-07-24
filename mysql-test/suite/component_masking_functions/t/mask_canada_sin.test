@@ -18,7 +18,7 @@ SELECT mask_canada_sin("123456789", "!");
 
 SELECT mask_canada_sin('046-454-286','ペ');
 
---echo # check charset of mask_pan_relaxed()
+--echo # check charset of mask_canada_sin()
 SELECT mask_canada_sin("123456789", 'ű');
 SELECT mask_canada_sin(_latin2"123456789", 'ű');
 SELECT mask_canada_sin("123-456-789", 'ű');

@@ -15,14 +15,14 @@ SELECT mask_iban("HU123-4567-8901!22ű46");
 mask_iban("HU123-4567-8901!22ű46")
 HU***-****-****!**ű4*
 SELECT mask_iban(NULL);
-ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 34 characters
+ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 42 characters
 SELECT mask_iban("");
-ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 34 characters
+ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 42 characters
 SELECT mask_iban("123496798465498779");
 mask_iban("123496798465498779")
 12****************
 SELECT mask_iban("this is definitely not an iban because it is too long");
-ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 34 characters
+ERROR HY000: mask_iban<string> UDF failed; Wrong argument: must be between 13 and 42 characters
 SELECT mask_iban("1234567890122461", "!");
 mask_iban("1234567890122461", "!")
 12!!!!!!!!!!!!!!

@@ -534,7 +534,7 @@ class mask_iban_impl : public mask_impl_base {
 
  protected:
   virtual std::size_t min_length() override { return 13; }
-  virtual std::size_t max_length() override { return 34; }
+  virtual std::size_t max_length() override { return 34 + 8; }
   virtual std::string_view default_masking_char() override { return "*"; }
   virtual std::string process(std::string_view str,
                               std::string const &masking_char,
@@ -555,7 +555,7 @@ class mask_pan_impl : public mask_impl_base {
                               std::string const &masking_char,
                               const char *original_charset) override {
     return mysql::plugins::mask_inner_alphanum(str.data(), str.size(), 0, 4,
-                                      original_charset, masking_char);
+                                               original_charset, masking_char);
   }
 };
 
@@ -570,7 +570,7 @@ class mask_pan_relaxed_impl : public mask_impl_base {
                               std::string const &masking_char,
                               const char *original_charset) override {
     return mysql::plugins::mask_inner_alphanum(str.data(), str.size(), 6, 4,
-                                      original_charset, masking_char);
+                                               original_charset, masking_char);
   }
 };
 
@@ -591,8 +591,8 @@ class mask_ssn_impl : public mask_impl_base {
       return mysql::plugins::mask_inner(sresult.c_str(), sresult.size(), 0, 8,
                                         original_charset, masking_char);
     } else {
-      return mysql::plugins::mask_inner_alphanum(str.data(), str.size(), 0, 4,
-                                        original_charset, masking_char);
+      return mysql::plugins::mask_inner_alphanum(
+          str.data(), str.size(), 0, 4, original_charset, masking_char);
     }
   }
 };

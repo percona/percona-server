@@ -23,7 +23,7 @@ mask_canada_sin("123456789", "!")
 SELECT mask_canada_sin('046-454-286','ペ');
 mask_canada_sin('046-454-286','ペ')
 ペペペ-ペペペ-ペペペ
-# check charset of mask_pan_relaxed()
+# check charset of mask_canada_sin()
 SELECT mask_canada_sin("123456789", 'ű');
 mask_canada_sin("123456789", 'ű')
 űűűűűűűűű

@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL audit_log_filter_strategy=ASYNCHRONOUS;
 
@@ -20,3 +22,5 @@ SELECT @@global.audit_log_filter_strategy;
 # Restart with original value
 --let $restart_parameters="restart:"
 --source include/restart_mysqld.inc
+
+--source audit_tables_cleanup.inc

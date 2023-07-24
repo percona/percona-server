@@ -252,8 +252,3 @@ Tag [<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t1</TABLE>|<EVENT
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
 SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
-audit_log_filter_flush()
-OK

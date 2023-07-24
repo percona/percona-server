@@ -1,3 +1,5 @@
+--source include/have_debug.inc
+--source audit_tables_init.inc
 
 # The $log_rotate_type must be set to 'auto' or 'manual' in main test file
 assert($log_rotate_type);
@@ -6,6 +8,9 @@ SET @old_max_size = @@global.audit_log_filter_max_size;
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
+
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
+--source clean_all_audit_logs.inc
 
 # max_size is not set, no logs prune happens
 --source generate_audit_events.inc
@@ -53,8 +58,7 @@ SELECT audit_log_rotate();
 
 --echo #
 --echo # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc
 
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
 SET GLOBAL audit_log_filter_max_size = @old_max_size;

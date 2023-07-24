@@ -1,3 +1,4 @@
+--source audit_tables_init.inc
 
 let $filter = {
   "filter": {
@@ -50,9 +51,7 @@ SELECT @@session.audit_log_filter_filter_id;
 
 --echo #
 --echo # Cleanup
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc
 
 DROP USER user1@localhost;
 DROP USER user2@localhost;

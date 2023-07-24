@@ -1,3 +1,4 @@
+--source audit_tables_init.inc
 
 SELECT @@global.audit_log_filter_disable;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
@@ -57,4 +58,5 @@ SELECT @@global.audit_log_filter_disable;
 
 --echo #
 --echo # Cleanup
+--source audit_tables_cleanup.inc
 DROP USER user1;

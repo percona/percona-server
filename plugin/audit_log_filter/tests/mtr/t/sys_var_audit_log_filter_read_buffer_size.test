@@ -1,3 +1,4 @@
+--source audit_tables_init.inc
 
 SELECT @@session.audit_log_filter_read_buffer_size;
 
@@ -33,3 +34,5 @@ SELECT @@session.audit_log_filter_read_buffer_size;
 
 SET GLOBAL audit_log_filter_read_buffer_size=32768;
 SELECT @@global.audit_log_filter_read_buffer_size;
+
+--source audit_tables_cleanup.inc

@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --echo #
 --echo # Check wrong argument number
 --error ER_CANT_INITIALIZE_UDF
@@ -76,3 +78,5 @@ SET @bookmark := audit_log_read_bookmark();
 --replace_column 1 RESULT
 SELECT audit_log_read(@bookmark);
 SELECT audit_log_read('null');
+
+--source audit_tables_cleanup.inc

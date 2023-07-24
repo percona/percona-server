@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source audit_tables_init.inc
 
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter_file`
@@ -56,6 +57,4 @@ SELECT audit_log_filter_set_user('%', 'log_exclusive');
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
 SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
 
-DELETE FROM mysql.audit_log_user;
-DELETE FROM mysql.audit_log_filter;
-SELECT audit_log_filter_flush();
+--source audit_tables_cleanup.inc

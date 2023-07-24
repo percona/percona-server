@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL audit_log_filter_database=audit_db;
 
@@ -45,3 +47,4 @@ call mtr.add_suppression("Failed to get an opened audit_log_filter table");
 --source include/restart_mysqld.inc
 
 --remove_file $error_log_file
+--source audit_tables_cleanup.inc

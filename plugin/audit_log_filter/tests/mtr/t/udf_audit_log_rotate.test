@@ -1,3 +1,5 @@
+--source audit_tables_init.inc
+
 --replace_regex /\d{8}T\d{6}/<timestamp>/
 SELECT audit_log_rotate();
 
@@ -19,4 +21,6 @@ SELECT audit_log_rotate();
 
 --echo #
 --echo # Cleanup
+--source audit_tables_cleanup.inc
+
 DROP USER user1;

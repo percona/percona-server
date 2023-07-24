@@ -1,3 +1,4 @@
+--source audit_tables_init.inc
 
 --disable_query_log
 call mtr.add_suppression("Both audit_log_filter_max_size and audit_log_filter_prune_seconds are set to non-zero");
@@ -41,3 +42,4 @@ SELECT @@global.audit_log_filter_prune_seconds;
 --echo # Cleanup
 --let $restart_parameters="restart:"
 --source include/restart_mysqld.inc
+--source audit_tables_cleanup.inc

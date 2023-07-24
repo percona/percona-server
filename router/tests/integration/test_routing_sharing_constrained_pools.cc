@@ -3402,6 +3402,13 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
       ASSERT_NO_ERROR(reset_res);
       break;
     }
+
+    // close all connections that are currently in the pool to get a stable
+    // baseline.
+    for (auto &srv : shared_servers()) {
+      srv->close_all_connections();  // reset the router's connection-pool
+    }
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
   }};
 
   SCOPED_TRACE("// testing");
@@ -3475,13 +3482,6 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   }
 
   SCOPED_TRACE("// cleanup");
-
-  // close all connections that are currently in the pool to get a stable
-  // baseline.
-  for (auto &srv : shared_servers()) {
-    srv->close_all_connections();  // reset the router's connection-pool
-  }
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
 
   // calls Scope_guard
 }

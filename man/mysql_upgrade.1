@@ -2,12 +2,12 @@
 .\"     Title: mysql_upgrade
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/07/2022
+.\"      Date: 06/20/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "MYSQL_UPGRADE" "1" "12/07/2022" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQL_UPGRADE" "1" "06/20/2023" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,7 +77,7 @@ It examines user schemas\&.
 If
 \fBmysql_upgrade\fR
 finds that a table has a possible incompatibility, it performs a table check and, if problems are found, attempts a table repair\&. If the table cannot be repaired, see
-Section\ \&2.11.12, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.10.12, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&.
 .PP
 \fBmysql_upgrade\fR
@@ -137,7 +137,7 @@ If you upgrade to MySQL 5\&.7\&.2 or later from a version older than 5\&.7\&.2, 
 mysql\&.user
 table requires a special sequence of steps to perform an upgrade using
 \fBmysql_upgrade\fR\&. For details, see
-Section\ \&2.11.3, \(lqChanges in MySQL 5.7\(rq\&.
+Section\ \&2.10.3, \(lqChanges in MySQL 5.7\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -180,7 +180,7 @@ Some upgrade incompatibilities may require special handling
 \fIbefore\fR
 upgrading your MySQL installation and running
 \fBmysql_upgrade\fR\&. See
-Section\ \&2.11, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
+Section\ \&2.10, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
 .sp .5v
 .RE
 .PP
@@ -1006,7 +1006,7 @@ When the server is running with global transaction identifiers (GTIDs) enabled (
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2022, Oracle and/or its affiliates.
+Copyright \(co 1997, 2023, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

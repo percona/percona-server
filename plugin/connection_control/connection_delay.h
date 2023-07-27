@@ -34,6 +34,7 @@
 #include "plugin/connection_control/connection_control_interfaces.h" /* Observer interface */
 #include "plugin/connection_control/connection_control_memory.h" /* Connection_control_alloc */
 #include "plugin/connection_control/connection_delay_api.h" /* Constants */
+#include "plugin/connection_control/log_rate_limiter.h"
 #include "sql/table.h"                                      /* Table_ref */
 
 namespace connection_control {
@@ -237,6 +238,8 @@ class Connection_delay_action : public Connection_event_observer,
   Connection_delay_event m_userhost_hash;
   /** RW lock */
   mysql_rwlock_t *m_lock;
+  /** Log messages rate limit handling object **/
+  LogRateLimiter m_log_rate_limiter;
 };
 }  // namespace connection_control
 #endif /* !CONNECTION_DELAY_H */

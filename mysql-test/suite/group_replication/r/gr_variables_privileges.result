@@ -153,6 +153,10 @@ SET GLOBAL group_replication_unreachable_majority_timeout = @@GLOBAL.group_repli
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_xcom_ssl_accept_retries = @@GLOBAL.group_replication_xcom_ssl_accept_retries;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_xcom_ssl_socket_timeout = @@GLOBAL.group_replication_xcom_ssl_socket_timeout;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 
 # Like most system variables, setting the session value for
 # group_replication_consistency requires no special privileges.
@@ -236,6 +240,8 @@ SET GLOBAL group_replication_unreachable_majority_timeout = @@GLOBAL.group_repli
 SET GLOBAL group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+SET GLOBAL group_replication_xcom_ssl_accept_retries = @@GLOBAL.group_replication_xcom_ssl_accept_retries;
+SET GLOBAL group_replication_xcom_ssl_socket_timeout = @@GLOBAL.group_replication_xcom_ssl_socket_timeout;
 
 ############################################################
 # 4. Grant GROUP_REPLICATION_ADMIN and verify setting

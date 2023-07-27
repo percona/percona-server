@@ -92,9 +92,11 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection = default;
 --let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader;`
 --let $saved_group_replication_preemptive_garbage_collection = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection;`
 --let $saved_group_replication_preemptive_garbage_collection_rows_threshold = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold;`
+--let $saved_gr_xcom_ssl_socket_timeout = `SELECT @@GLOBAL.group_replication_xcom_ssl_socket_timeout;`
+--let $saved_gr_xcom_ssl_accept_retries = `SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries;`
 
 # Total number of GR variables.
---let $total_gr_vars= 64
+--let $total_gr_vars= 66
 
 --echo #
 --echo # Test Unit#1
@@ -165,6 +167,8 @@ SET @@GLOBAL.group_replication_view_change_uuid= default;
 SET @@GLOBAL.group_replication_communication_stack = default;
 SET @@GLOBAL.group_replication_paxos_single_leader = default;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold = default;
+SET @@GLOBAL.group_replication_xcom_ssl_socket_timeout = default;
+SET @@GLOBAL.group_replication_xcom_ssl_accept_retries = default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -404,6 +408,15 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= [SELECT @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold] = 100000
 --source include/assert.inc
 
+# group_replication_xcom_ssl_socket_timeout
+--let $assert_text= Default group_replication_xcom_ssl_socket_timeout is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_xcom_ssl_socket_timeout]" = 0
+--source include/assert.inc
+
+# group_replication_xcom_ssl_accept_retries
+--let $assert_text= Default group_replication_xcom_ssl_accept_retries is 10
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries]" = 10
+--source include/assert.inc
 
 --echo #
 --echo # Clean up
@@ -462,6 +475,8 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
 --eval SET @@GLOBAL.group_replication_preemptive_garbage_collection= $saved_group_replication_preemptive_garbage_collection
 --eval SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= $saved_group_replication_preemptive_garbage_collection_rows_threshold
+--eval SET @@GLOBAL.group_replication_xcom_ssl_socket_timeout= $saved_gr_xcom_ssl_socket_timeout
+--eval SET @@GLOBAL.group_replication_xcom_ssl_accept_retries= $saved_gr_xcom_ssl_accept_retries
 --enable_query_log
 
 --let $total_gr_vars=

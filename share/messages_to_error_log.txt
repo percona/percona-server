@@ -12382,6 +12382,15 @@ ER_GRP_RPL_FLOW_CONTROL_TIMEOUT
 ER_PERCONA_IGNORE_TMP_TABLE_SIZE
   eng "Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning."
 
+ER_CONN_CONTROL_FAILED_CONN_THRESHOLD_REACHED
+  eng "Failing connection attempts threshold reached for %s"
+
+ER_CONN_CONTROL_FAILED_CONN_THRESHOLD_REACHED_WITH_WARN
+  eng "Failing connection attempts threshold reached for %s, further messages will be suppressed for next %llu seconds"
+
+ER_CONN_CONTROL_DELAYED_CONN_STATS
+  eng "Delayed %llu connection attempts during last %llu seconds"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

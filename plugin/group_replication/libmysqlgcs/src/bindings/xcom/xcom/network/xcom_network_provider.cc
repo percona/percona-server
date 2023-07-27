@@ -38,6 +38,9 @@
 #include "xcom/xcom_base.h"
 #include "xcom/xcom_transport.h"
 
+extern unsigned long xcom_ssl_accept_retries;
+extern unsigned long xcom_ssl_socket_timeout;
+
 void xcom_tcp_server_startup(Xcom_network_provider *net_provider) {
   xcom_port port = net_provider->get_port();
 
@@ -63,7 +66,6 @@ void xcom_tcp_server_startup(Xcom_network_provider *net_provider) {
     SET_OS_ERR(0);
     accept_fd = 0;
     funerr = 0;
-
     accept_fd = (int)accept(tcp_fd.val, (struct sockaddr *)&sock_addr, &size);
     funerr = to_errno(GET_OS_ERR);
 
@@ -104,6 +106,8 @@ void xcom_tcp_server_startup(Xcom_network_provider *net_provider) {
         {
           int ret_ssl;
           int err;
+          unsigned long no_of_retries = xcom_ssl_accept_retries;
+
           ERR_clear_error();
           ret_ssl = SSL_accept(new_incoming_connection->ssl_fd);
           err = SSL_get_error(new_incoming_connection->ssl_fd, ret_ssl);
@@ -113,6 +117,16 @@ void xcom_tcp_server_startup(Xcom_network_provider *net_provider) {
             if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
               break;
             }
+
+            if (no_of_retries == 0) {
+              G_DEBUG(
+                  "SSL_accept did receive any data on fd %d despite waiting "
+                  "for %ld seconds in total, aborting the connection.",
+                  new_incoming_connection->fd,
+                  xcom_ssl_socket_timeout * (xcom_ssl_accept_retries + 1));
+              break;
+            }
+            --no_of_retries;
 
             SET_OS_ERR(0);
             G_DEBUG("acceptor learner accept SSL retry fd %d",

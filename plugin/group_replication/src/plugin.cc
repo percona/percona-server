@@ -338,6 +338,14 @@ ulong get_certification_loop_chunk_size_var() {
   return ov.certification_loop_chunk_size_var;
 }
 
+ulong get_xcom_ssl_socket_timeout_var() {
+  return ov.xcom_ssl_socket_timeout_var;
+}
+
+ulong get_xcom_ssl_accept_retries_var() {
+  return ov.xcom_ssl_accept_retries_var;
+}
+
 long get_flow_control_certifier_threshold_var() {
   return ov.flow_control_certifier_threshold_var;
 }
@@ -2620,6 +2628,9 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
     std::string ssl_crlpath("");
     std::string tls_version("");
     std::string ssl_fips_mode("");
+    std::string xcom_ssl_socket_timeout("");
+    std::string xcom_ssl_accept_retries("");
+
     if (xcom_comm_protocol == XCOM_PROTOCOL) {
       ssl_key.append(sv.ssl_key ? sv.ssl_key : "");
       ssl_cert.append(sv.ssl_cert ? sv.ssl_cert : "");
@@ -2630,6 +2641,16 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
       ssl_crlpath.append(sv.ssl_crlpath ? sv.ssl_crlpath : "");
       tls_version.append(sv.tls_version ? sv.tls_version : "");
       ssl_fips_mode.append(ov.ssl_fips_mode_values[sv.ssl_fips_mode]);
+
+      if (ov.xcom_ssl_socket_timeout_var > 0) {
+        xcom_ssl_socket_timeout.append(
+            std::to_string(ov.xcom_ssl_socket_timeout_var));
+      }
+
+      if (ov.xcom_ssl_accept_retries_var > 0) {
+        xcom_ssl_accept_retries.append(
+            std::to_string(ov.xcom_ssl_accept_retries_var));
+      }
     } else if (xcom_comm_protocol == MYSQL_PROTOCOL) {
       ssl_key.append(ov.recovery_ssl_key_var ? ov.recovery_ssl_key_var : "");
       ssl_cert.append(ov.recovery_ssl_cert_var ? ov.recovery_ssl_cert_var : "");
@@ -2659,6 +2680,11 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
                                           ssl_capath); /* purecov: inspected */
     gcs_module_parameters.add_parameter("cipher", ssl_cipher);
     gcs_module_parameters.add_parameter("tls_version", tls_version);
+
+    gcs_module_parameters.add_parameter("xcom_ssl_socket_timeout",
+                                        xcom_ssl_socket_timeout);
+    gcs_module_parameters.add_parameter("xcom_ssl_accept_retries",
+                                        xcom_ssl_accept_retries);
 
     bool is_ciphersuites_null =
         xcom_comm_protocol == XCOM_PROTOCOL
@@ -4749,6 +4775,37 @@ static MYSQL_SYSVAR_ULONG(
 );
 
 static MYSQL_SYSVAR_ULONG(
+    xcom_ssl_socket_timeout,        /* name */
+    ov.xcom_ssl_socket_timeout_var, /* var */
+    PLUGIN_VAR_OPCMDARG |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | no set default */
+    "The timeout in seconds for the socket used for SSL Handshake on xcom port "
+    "Default: 0.",
+    nullptr,                         /* check func. */
+    nullptr,                         /* update func. */
+    DEFAULT_XCOM_SSL_SOCKET_TIMEOUT, /* default */
+    MIN_XCOM_SSL_SOCKET_TIMEOUT,     /* min */
+    MAX_XCOM_SSL_SOCKET_TIMEOUT,     /* max */
+    0                                /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
+    xcom_ssl_accept_retries,        /* name */
+    ov.xcom_ssl_accept_retries_var, /* var */
+    PLUGIN_VAR_OPCMDARG |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | no set default */
+    "Number of retries to be performed before closing the socket listenting on "
+    "the xcom port. "
+    "Default: 10.",
+    nullptr,                         /* check func. */
+    nullptr,                         /* update func. */
+    DEFAULT_XCOM_SSL_ACCEPT_RETRIES, /* default */
+    MIN_XCOM_SSL_ACCEPT_RETRIES,     /* min */
+    MAX_XCOM_SSL_ACCEPT_RETRIES,     /* max */
+    0                                /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
     compression_threshold,        /* name */
     ov.compression_threshold_var, /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
@@ -5441,6 +5498,8 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(auto_evict_timeout),            /* Added by Percona */
     MYSQL_SYSVAR(certification_loop_sleep_time), /* Added by Percona */
     MYSQL_SYSVAR(certification_loop_chunk_size), /* Added by Percona */
+    MYSQL_SYSVAR(xcom_ssl_socket_timeout),       /* Added by Percona */
+    MYSQL_SYSVAR(xcom_ssl_accept_retries),       /* Added by Percona */
     nullptr,
 };
 

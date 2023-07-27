@@ -251,6 +251,8 @@ ulong get_exit_state_action_var();
 ulong get_flow_control_mode_var();
 ulong get_certification_loop_sleep_time_var();
 ulong get_certification_loop_chunk_size_var();
+ulong get_xcom_ssl_socket_timeout_var();
+ulong get_xcom_ssl_accept_retries_var();
 long get_flow_control_certifier_threshold_var();
 long get_flow_control_applier_threshold_var();
 long get_flow_control_min_quota_var();

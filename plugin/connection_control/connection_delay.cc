@@ -557,6 +557,10 @@ bool Connection_delay_action::notify_event(
       error_handler->handle_error(
           ER_CONN_CONTROL_STAT_CONN_DELAY_TRIGGERED_UPDATE_FAILED);
     }
+
+    m_log_rate_limiter.report_delayed_connection(
+        userhost, current_count == threshold, error_handler);
+
     /*
       Invoking sleep while holding read lock on Connection_delay_action
       would block access to cache data through IS table.

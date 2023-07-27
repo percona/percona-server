@@ -257,7 +257,7 @@ jobs:
         BuildType: Debug
 
 
-      # gcc-7 and newer compilers
+      # gcc-8 and newer compilers
       gcc-13 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         Compiler: gcc
@@ -271,31 +271,31 @@ jobs:
         BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-12 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+        gcc-12 RelWithDebInfo Ubuntu 22.04 Jammy:
           imageName: 'ubuntu-22.04'
           Compiler: gcc
           CompilerVer: 12
           BuildType: RelWithDebInfo
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-12 Debug [Ubuntu 22.04 Jammy]:
-          imageName: 'ubuntu-22.04'
-          Compiler: gcc
-          CompilerVer: 12
-          BuildType: Debug
+      gcc-12 Debug [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        Compiler: gcc
+        CompilerVer: 12
+        BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-11 RelWithDebInfo Ubuntu 20.04 Focal:
+        gcc-11 RelWithDebInfo [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 11
           BuildType: RelWithDebInfo
 
-      gcc-11 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: gcc
-        CompilerVer: 11
-        BuildType: Debug
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-11 Debug [Ubuntu 20.04 Focal]:
+          imageName: 'ubuntu-20.04'
+          Compiler: gcc
+          CompilerVer: 11
+          BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-10 RelWithDebInfo [Ubuntu 20.04 Focal]:
@@ -304,12 +304,11 @@ jobs:
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-10 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 10
-          BuildType: Debug
+      gcc-10 Debug [Ubuntu 20.04 Focal]:
+        imageName: 'ubuntu-20.04'
+        Compiler: gcc
+        CompilerVer: 10
+        BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-9 RelWithDebInfo [Ubuntu 20.04 Focal]:
@@ -318,36 +317,23 @@ jobs:
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      gcc-9 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: gcc
-        CompilerVer: 9
-        BuildType: Debug
-
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-8 RelWithDebInfo [Ubuntu 20.04 Focal]:
+        gcc-9 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
-          CompilerVer: 8
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-8 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 8
+          CompilerVer: 9
           BuildType: Debug
 
-      gcc-7 RelWithDebInfo [Ubuntu 20.04 Focal]:
+      gcc-8 RelWithDebInfo [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
-        CompilerVer: 7
+        CompilerVer: 8
         BuildType: RelWithDebInfo
 
-      gcc-7 Debug [Ubuntu 20.04 Focal]:
+      gcc-8 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
-        CompilerVer: 7
+        CompilerVer: 8
         BuildType: Debug
 
   steps:

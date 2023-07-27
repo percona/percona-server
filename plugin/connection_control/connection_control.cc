@@ -49,6 +49,13 @@ class Connection_control_error_handler : public Error_handler {
     LogPluginErrV(ERROR_LEVEL, errcode, vl);
     va_end(vl);
   }
+
+  void handle_info(longlong errcode, ...) override {
+    va_list vl;
+    va_start(vl, errcode);
+    LogPluginErrV(INFORMATION_LEVEL, errcode, vl);
+    va_end(vl);
+  }
 };
 }  // namespace connection_control
 

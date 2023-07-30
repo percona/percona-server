@@ -276,17 +276,12 @@ int vio_ssl_shutdown(Vio *vio, int how)
     default: /* Shutdown failed */
       DBUG_PRINT("vio_error", ("SSL_shutdown() failed, error: %d",
                                SSL_get_error(ssl, r)));
-<<<<<<< HEAD
 #ifndef NDEBUG /* Debug build */
       /* Note: the OpenSSL error queue gets cleared in report_errors(). */
       report_errors(ssl);
 #else /* Release build */
       ERR_clear_error();
 #endif
-||||||| f091fb09ee1
-=======
-      ERR_clear_error();
->>>>>>> 31cfd8993db80b3ed883c0ca0ef5748f9f43ebe7^
       break;
     }
   }

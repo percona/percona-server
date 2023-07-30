@@ -1990,14 +1990,10 @@ row_upd_store_v_row(
 {
 	mem_heap_t*	heap = NULL;
 	dict_index_t*	index = dict_table_get_first_index(node->table);
-<<<<<<< HEAD
 	TABLE*		mysql_table =
 		prebuilt ? prebuilt->m_mysql_table : NULL;
-||||||| f091fb09ee1
-=======
 	bool		new_val_v_cols_dup = false;
 	const ulint	n_upd = update ? upd_get_n_fields(update) : 0;
->>>>>>> 31cfd8993db80b3ed883c0ca0ef5748f9f43ebe7^
 
 	for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(node->table);
 	     col_no++) {

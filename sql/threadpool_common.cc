@@ -138,7 +138,8 @@ int threadpool_add_connection(THD *thd) {
   int retval = 1;
   Worker_thread_context worker_context;
 
-  my_thread_init();
+  /* this function is executed when worker started */
+  /* my_thread_init(); */
 
   /* Create new PSI thread for use with the THD. */
 #ifdef HAVE_PSI_THREAD_INTERFACE

@@ -28,40 +28,50 @@
 #include <my_byteorder.h>
 #include <algorithm>
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace binary_log::transaction::compression {
 
 std::unique_ptr<Compressor> Factory::build_compressor(type t) {
-  std::unique_ptr<Compressor> res{nullptr};
   switch (t) {
+<<<<<<< HEAD
     case ALGORITHM_ZSTD:
       res = std::make_unique<Zstd_comp>();
       break;
-    case NONE:
-      res = std::make_unique<None_comp>();
+||||||| ea7087d88500
+    case ZSTD:
+      res = std::make_unique<Zstd_comp>();
       break;
+=======
+    case ZSTD:
+      return std::make_unique<Zstd_comp>();
+>>>>>>> mysql-8.0.34
+    case NONE:
+      return std::make_unique<None_comp>();
     default:
       break;
   }
-  return res;
+  return std::unique_ptr<Compressor>();
 }
 
 std::unique_ptr<Decompressor> Factory::build_decompressor(type t) {
-  std::unique_ptr<Decompressor> res{nullptr};
   switch (t) {
+<<<<<<< HEAD
     case ALGORITHM_ZSTD:
       res = std::make_unique<Zstd_dec>();
       break;
-    case NONE:
-      res = std::make_unique<None_dec>();
+||||||| ea7087d88500
+    case ZSTD:
+      res = std::make_unique<Zstd_dec>();
       break;
+=======
+    case ZSTD:
+      return std::make_unique<Zstd_dec>();
+>>>>>>> mysql-8.0.34
+    case NONE:
+      return std::make_unique<None_dec>();
     default:
       break;
   }
-  return res;
+  return std::unique_ptr<Decompressor>();
 }
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+}  // namespace binary_log::transaction::compression

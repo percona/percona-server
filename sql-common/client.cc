@@ -1074,6 +1074,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
                                                      &is_error);
               if (is_error) return;
+              if (!buffer_check_remaining(mysql, pos, length, len)) return;
               pos += len;
               break;
           }
@@ -1191,8 +1192,8 @@ ulong cli_safe_read_with_ok_complete(MYSQL *mysql, bool parse_ok,
 
   if (len == packet_error || len == 0) {
 #ifndef NDEBUG
-    char desc[VIO_DESCRIPTION_SIZE];
-    vio_description(net->vio, desc);
+    char desc[VIO_DESCRIPTION_SIZE]{"n/a"};
+    if (net->vio) vio_description(net->vio, desc);
     DBUG_PRINT("error",
                ("Wrong connection or packet. fd: %s  len: %lu", desc, len));
 #endif  // NDEBUG
@@ -5596,7 +5597,7 @@ static net_async_status client_mpvio_write_packet_nonblocking(
     MYSQL_TRACE(SEND_AUTH_DATA, mpvio->mysql, ((size_t)pkt_len, pkt));
 
     if (mpvio->mysql->thd)
-      *result = 1; /* no chit-chat in embedded */
+      error = true; /* no chit-chat in embedded */
     else {
       net_async_status status =
           my_net_write_nonblocking(net, pkt, pkt_len, &error);
@@ -8705,6 +8706,9 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       mysql->options.report_data_truncation = *static_cast<const bool *>(arg);
       break;
     case MYSQL_OPT_RECONNECT:
+      fprintf(stderr,
+              "WARNING: MYSQL_OPT_RECONNECT is deprecated and will be "
+              "removed in a future version.\n");
       mysql->reconnect = *static_cast<const bool *>(arg);
       break;
     case MYSQL_OPT_BIND:
@@ -8771,7 +8775,10 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
                mysql->options.extension->tls_version)) == -1)
         return 1;
       break;
-    case MYSQL_OPT_SSL_FIPS_MODE: {
+    case MYSQL_OPT_SSL_FIPS_MODE: { /* This option is deprecated */
+      fprintf(stderr,
+              "WARNING: MYSQL_OPT_SSL_FIPS_MODE is deprecated and will be "
+              "removed in a future version.\n");
       char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->ssl_fips_mode =
@@ -9024,6 +9031,9 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
           mysql->options.report_data_truncation;
       break;
     case MYSQL_OPT_RECONNECT:
+      fprintf(stderr,
+              "WARNING: MYSQL_OPT_RECONNECT is deprecated and will be "
+              "removed in a future version.\n");
       *(const_cast<bool *>(static_cast<const bool *>(arg))) = mysql->reconnect;
       break;
     case MYSQL_OPT_BIND:
@@ -9034,7 +9044,7 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
       *(const_cast<uint *>(static_cast<const uint *>(arg))) =
           mysql->options.extension ? mysql->options.extension->ssl_mode : 0;
       break;
-    case MYSQL_OPT_SSL_FIPS_MODE:
+    case MYSQL_OPT_SSL_FIPS_MODE: /* This option is deprecated */
       *(const_cast<uint *>(static_cast<const uint *>(arg))) =
           mysql->options.extension ? mysql->options.extension->ssl_fips_mode
                                    : 0;

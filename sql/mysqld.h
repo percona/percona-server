@@ -694,7 +694,12 @@ extern PSI_stage_info stage_rpl_failover_fetching_source_member_details;
 extern PSI_stage_info stage_rpl_failover_updating_source_member_details;
 extern PSI_stage_info stage_rpl_failover_wait_before_next_fetch;
 extern PSI_stage_info stage_communication_delegation;
+<<<<<<< HEAD
 extern PSI_stage_info stage_restoring_secondary_keys;
+||||||| ea7087d88500
+=======
+extern PSI_stage_info stage_wait_on_commit_ticket;
+>>>>>>> mysql-8.0.34
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).

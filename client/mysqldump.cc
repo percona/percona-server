@@ -106,6 +106,9 @@ enum class key_type_t { NONE, PRIMARY, UNIQUE, NON_UNIQUE, CONSTRAINT };
 /* One year in seconds */
 #define LONG_TIMEOUT (3600UL * 24UL * 365UL)
 
+/*  First mysql version supporting column statistics. */
+#define FIRST_COLUMN_STATISTICS_VERSION 80002
+
 using std::string;
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
@@ -4656,6 +4659,7 @@ static void dump_table(char *table, char *db) {
     while ((row = mysql_fetch_row(res))) {
       uint i;
       ulong *lengths = mysql_fetch_lengths(res);
+      bool first_column = true;
       rownr++;
       if (!extended_insert && !opt_xml) {
         fputs(insert_pat.str, md_result_file);
@@ -4694,9 +4698,10 @@ static void dump_table(char *table, char *db) {
                 ? 1
                 : 0;
         if (extended_insert && !opt_xml) {
-          if (i == 0)
+          if (first_column) {
             dynstr_set_checked(&extended_row, "(");
-          else
+            first_column = false;
+          } else
             dynstr_append_checked(&extended_row, ",");
 
           if (row[i]) {
@@ -6961,6 +6966,7 @@ int main(int argc, char **argv) {
   if (process_set_gtid_purged(mysql, server_has_gtid_enabled, ftwrl_done))
     goto err;
 
+<<<<<<< HEAD
   if (opt_master_data &&
       do_show_master_status(mysql, has_consistent_binlog_pos))
     goto err;
@@ -6996,6 +7002,16 @@ int main(int argc, char **argv) {
       goto err;
   }
 
+||||||| ea7087d88500
+=======
+  if (column_statistics &&
+      mysql_get_server_version(mysql) < FIRST_COLUMN_STATISTICS_VERSION) {
+    column_statistics = false;
+    fprintf(stderr,
+            "-- Warning: column statistics not supported by the server.\n");
+  }
+
+>>>>>>> mysql-8.0.34
   if (opt_alltspcs) dump_all_tablespaces();
 
   if (opt_alldbs) {

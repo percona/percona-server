@@ -63,6 +63,7 @@ dberr_t File_reader::prepare() noexcept {
     return DB_END_OF_INDEX;
   }
 
+<<<<<<< HEAD
   if (log_tmp_is_encrypted()) {
     // If encrypted, the chunk of data must be read in one go
     // so the decryption is correct
@@ -73,10 +74,18 @@ dberr_t File_reader::prepare() noexcept {
   }
 
   if (!m_aligned_buffer.allocate(m_buffer_size)) {
+||||||| ea7087d88500
+  if (!m_aligned_buffer.allocate(m_buffer_size)) {
+=======
+  m_aligned_buffer = ut::make_unique_aligned<byte[]>(
+      ut::make_psi_memory_key(mem_key_ddl), UNIV_SECTOR_SIZE, m_buffer_size);
+
+  if (!m_aligned_buffer) {
+>>>>>>> mysql-8.0.34
     return DB_OUT_OF_MEMORY;
   }
 
-  m_io_buffer = m_aligned_buffer.io_buffer();
+  m_io_buffer = {m_aligned_buffer.get(), m_buffer_size};
 
   if (log_tmp_is_encrypted()) {
     if (!m_aligned_buffer_crypt.allocate(m_io_buffer.second)) {

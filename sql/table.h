@@ -752,6 +752,8 @@ struct TABLE_SHARE {
 
   /** Secondary storage engine. */
   LEX_CSTRING secondary_engine{nullptr, 0};
+  /** Secondary engine load status */
+  bool secondary_load{false};
 
   bool explicit_encryption{false};
 
@@ -1849,7 +1851,6 @@ struct TABLE {
     class JOIN_TAB *join_tab{nullptr};
     class QEP_TAB *qep_tab{nullptr};
     thr_lock_type lock_type{TL_UNLOCK}; /* How table is used */
-    thr_locked_row_action locked_row_action{THR_DEFAULT};
     bool not_exists_optimize{false};
     /*
       true <=> range optimizer found that there is no rows satisfying
@@ -2206,6 +2207,12 @@ struct TABLE {
   */
   void update_covering_prefix_keys(Field *field, uint16 key_read_length,
                                    Key_map *covering_prefix_keys);
+
+  /**
+    Returns the primary engine handler for the table.
+    If none exist, nullptr is returned.
+  */
+  handler *get_primary_handler() const;
 
  private:
   /**
@@ -3234,6 +3241,9 @@ class Table_ref {
 
   /// Returns true if a MATCH function references this table.
   bool is_fulltext_searched() const { return m_fulltext_searched; }
+
+  /// Is this table only available in an external storage engine?
+  bool is_external() const;
 
   /**
     Set table as readonly, ie it is neither updatable, insertable nor

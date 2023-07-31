@@ -43,19 +43,10 @@
         Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
 
-/*
-  Leaving "used_stack" macro undefined when STACK_DIRECTION is undefined
-  deliberately so that an attempt to use it would result in compilation
-  errors.
-*/
-#ifdef STACK_DIRECTION
-
 #if STACK_DIRECTION < 0
 #define used_stack(A, B) (long)(A - B)
-#elif STACK_DIRECTION > 0
+#else
 #define used_stack(A, B) (long)(B - A)
-#endif
-
 #endif
 
 #ifndef NDEBUG
@@ -80,12 +71,7 @@ std::atomic<long> max_stack_used;
   - For -flto builds, the dummy buffer may be optimized away,
     so we need to write something into it.
 */
-bool check_stack_overrun([[maybe_unused]] const THD *thd,
-                         [[maybe_unused]] long margin,
-                         [[maybe_unused]] unsigned char *buf) {
-#ifndef STACK_DIRECTION
-  return false;
-#else
+bool check_stack_overrun(const THD *thd, long margin, unsigned char *buf) {
   assert(thd == current_thd);
   long stack_used =
       used_stack(thd->thread_stack, reinterpret_cast<char *>(&stack_used));
@@ -112,5 +98,4 @@ bool check_stack_overrun([[maybe_unused]] const THD *thd,
   max_stack_used = std::max(max_stack_used.load(), stack_used);
 #endif
   return false;
-#endif
 }

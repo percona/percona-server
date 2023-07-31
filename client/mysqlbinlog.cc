@@ -3119,7 +3119,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       if (force_opt) {
         const char empty_header[LOG_EVENT_MINIMAL_HEADER_LEN] = {0};
         Unknown_log_event *unknown_event = new Unknown_log_event(
-            empty_header, mysqlbinlog_file_reader.format_description_event());
+            empty_header, &mysqlbinlog_file_reader.format_description_event());
         unknown_event->what = Unknown_log_event::kind::ENCRYPTED_WITH_5_7;
         ev = unknown_event;
       }
@@ -3134,6 +3134,11 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       auto fde_flags =
           mysqlbinlog_file_reader.format_description_event().header()->flags;
       auto in_use_flag = fde_flags & LOG_EVENT_BINLOG_IN_USE_F;
+      if (in_use_flag != 0 &&
+          mysqlbinlog_file_reader.event_data_istream()
+              ->is_5_7_binlog_encrypted() &&
+          error_type == Binlog_read_error::ERROR_DECRYPTING_FILE)
+        return OK_CONTINUE;
       if (in_use_flag != 0 && error_type == Binlog_read_error::TRUNC_EVENT) {
         warning("File ends with a truncated event.");
         return OK_CONTINUE;

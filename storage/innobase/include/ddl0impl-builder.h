@@ -255,8 +255,9 @@ struct Builder {
     /** Buffer to use for file writes. */
     IO_buffer m_io_buffer;
 
-    /** Buffer to use for file writes. */
-    Aligned_buffer m_aligned_buffer_crypt{};
+    /** Aligned buffer for cryptography. */
+    ut::unique_ptr_aligned<byte[]> m_aligned_buffer_crypt{};
+    IO_buffer m_io_buffer_crypt;
 
     /** Record list starting offset in the output file. */
     Merge_offsets m_offsets{};

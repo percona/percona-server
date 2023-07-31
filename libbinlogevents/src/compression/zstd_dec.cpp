@@ -65,16 +65,10 @@ void Zstd_dec::do_feed(const Char_t *input_data, Size_t input_size) {
   m_ibuf.pos = 0;
 }
 
-<<<<<<< HEAD
-type Zstd_dec::compression_type_code() { return ALGORITHM_ZSTD; }
-||||||| ea7087d88500
-type Zstd_dec::compression_type_code() { return ZSTD; }
-=======
 std::pair<Decompress_status, Decompressor::Size_t> Zstd_dec::do_decompress(
     Char_t *out, Size_t output_size) {
   BAPI_TRACE;
   assert(m_ibuf.src);
->>>>>>> mysql-8.0.34
 
   // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define TRACE_RETURN(status, size)                                       \

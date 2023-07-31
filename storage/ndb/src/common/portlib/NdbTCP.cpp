@@ -448,22 +448,14 @@ TAPTEST(NdbGetInAddr)
   {
     NdbTCP_set_preferred_IP_version(4);
     CHECK("localhost", 0, "127.0.0.1");
-<<<<<<< HEAD
-    NdbTCP_set_preferred_IP_version(6);
-    if (can_resolve_hostname("ip6-localhost"))
-      CHECK("ip6-localhost", 0, "::1");
-    else
-      CHECK("localhost", 0, "::1");
-||||||| ea7087d88500
-    NdbTCP_set_preferred_IP_version(6);
-    CHECK("localhost", 0, "::1");
-=======
     if (ipv6)
     {
       NdbTCP_set_preferred_IP_version(6);
-      CHECK("localhost", 0, "::1");
+      if (can_resolve_hostname("ip6-localhost"))
+        CHECK("ip6-localhost", 0, "::1");
+      else
+        CHECK("localhost", 0, "::1");
     }
->>>>>>> mysql-8.0.34
     NdbTCP_set_preferred_IP_version(4);
   }
   CHECK("127.0.0.1", 0);

@@ -43,7 +43,7 @@ enum type {
 template <class T>
 bool type_is_valid(T t) {
   switch (t) {
-    case ZSTD:
+    case ALGORITHM_ZSTD:
       return true;
     case NONE:
       return true;

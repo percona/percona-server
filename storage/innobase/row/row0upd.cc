@@ -1846,13 +1846,9 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
                                 row_prebuilt_t *prebuilt) {
   mem_heap_t *heap = nullptr;
   dict_index_t *index = node->table->first_index();
-<<<<<<< HEAD
-  TABLE *const mysql_table = prebuilt ? prebuilt->m_mysql_table : nullptr;
-||||||| ea7087d88500
-=======
   bool new_val_v_cols_dup = false;
   const ulint n_upd = update ? upd_get_n_fields(update) : 0;
->>>>>>> mysql-8.0.34
+  TABLE *const mysql_table = prebuilt ? prebuilt->m_mysql_table : nullptr;
 
   for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(node->table);
        col_no++) {

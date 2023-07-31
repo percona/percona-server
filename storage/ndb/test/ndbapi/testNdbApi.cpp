@@ -2885,11 +2885,6 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
   pNdb->getDictionary()->dropTable(tab.getName());
 
   return NDBT_OK;
-<<<<<<< HEAD
-
-||||||| ea7087d88500
-  
-=======
 }
 
 int
@@ -2914,7 +2909,6 @@ testPKUpdateWithSetValue(NDBT_Context* ctx, NDBT_Step* step)
    */
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table* pTab= ctx->getTab();
-  
   /* Run as a 'T1' testcase - do nothing for other tables */
   if (strcmp(pTab->getName(), "T1") != 0)
     return NDBT_OK;
@@ -3256,7 +3250,6 @@ testPKUpdateWithSetValue(NDBT_Context* ctx, NDBT_Step* step)
 
   pNdb->getDictionary()->dropTable(tab.getName());
   return NDBT_OK;
->>>>>>> mysql-8.0.34
 }
 
 int

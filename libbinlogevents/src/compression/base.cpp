@@ -27,29 +27,11 @@ namespace binary_log::transaction::compression {
 
 std::string type_to_string(type t) {
   switch (t) {
-<<<<<<< HEAD
-    case binary_log::transaction::compression::type::ALGORITHM_ZSTD:
-      res = "ZSTD";
-      break;
-    case binary_log::transaction::compression::type::NONE:
-      res = "NONE";
-      break;
-    /* purecov: begin inspected */
-||||||| ea7087d88500
-    case binary_log::transaction::compression::type::ZSTD:
-      res = "ZSTD";
-      break;
-    case binary_log::transaction::compression::type::NONE:
-      res = "NONE";
-      break;
-    /* purecov: begin inspected */
-=======
     using binary_log::transaction::compression::type;
-    case ZSTD:
+    case ALGORITHM_ZSTD:
       return "ZSTD";
     case NONE:
       return "NONE";
->>>>>>> mysql-8.0.34
     default:
       break;
   }

@@ -7628,7 +7628,7 @@ column_attribute:
         ;
 
 opt_with_compression_dictionary:
-          /* empty */ { $$= null_lex_cstr; }
+          %empty { $$= null_lex_cstr; }
         | WITH COMPRESSION_DICTIONARY_SYM ident
           {
             $$= to_lex_cstring($3);
@@ -7940,19 +7940,9 @@ keys_or_index:
         | INDEXES {}
         ;
 
-<<<<<<< HEAD
 opt_unique_combo_clustering:
-          /* empty */  { $$= KEYTYPE_MULTIPLE; }
-        | unique_combo_clustering
-||||||| ea7087d88500
-opt_unique:
-          /* empty */  { $$= KEYTYPE_MULTIPLE; }
-        | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
-=======
-opt_unique:
           %empty { $$= KEYTYPE_MULTIPLE; }
-        | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
->>>>>>> mysql-8.0.34
+        | unique_combo_clustering
         ;
 
 unique_combo_clustering:

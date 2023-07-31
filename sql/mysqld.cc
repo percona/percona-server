@@ -759,13 +759,7 @@ MySQL clients support the protocol:
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-<<<<<<< HEAD
 #include "mysys/buffered_error_log.h"
-#include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
-||||||| ea7087d88500
-#include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
-=======
->>>>>>> mysql-8.0.34
 #include "mysys/build_id.h"
 #include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
@@ -12810,12 +12804,8 @@ PSI_stage_info stage_rpl_failover_fetching_source_member_details= { 0, "Fetching
 PSI_stage_info stage_rpl_failover_updating_source_member_details= { 0, "Updating fetched source member details on receiver", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_failover_wait_before_next_fetch= { 0, "Wait before trying to fetch next membership changes from source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_communication_delegation= { 0, "Connection delegated to Group Replication", 0, PSI_DOCUMENT_ME};
-<<<<<<< HEAD
 PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0, PSI_DOCUMENT_ME};
-||||||| ea7087d88500
-=======
 PSI_stage_info stage_wait_on_commit_ticket= { 0, "Waiting for Binlog Group Commit ticket", 0, PSI_DOCUMENT_ME};
->>>>>>> mysql-8.0.34
 /* clang-format on */
 
 extern PSI_stage_info stage_waiting_for_disk_space;
@@ -12919,15 +12909,9 @@ PSI_stage_info *all_server_stages[] = {
     &stage_rpl_failover_fetching_source_member_details,
     &stage_rpl_failover_updating_source_member_details,
     &stage_rpl_failover_wait_before_next_fetch,
-<<<<<<< HEAD
     &stage_communication_delegation,
-    &stage_restoring_secondary_keys};
-||||||| ea7087d88500
-    &stage_communication_delegation};
-=======
-    &stage_communication_delegation,
+    &stage_restoring_secondary_keys,
     &stage_wait_on_commit_ticket};
->>>>>>> mysql-8.0.34
 
 PSI_socket_key key_socket_tcpip;
 PSI_socket_key key_socket_unix;

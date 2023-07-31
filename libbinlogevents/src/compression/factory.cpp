@@ -32,18 +32,8 @@ namespace binary_log::transaction::compression {
 
 std::unique_ptr<Compressor> Factory::build_compressor(type t) {
   switch (t) {
-<<<<<<< HEAD
     case ALGORITHM_ZSTD:
-      res = std::make_unique<Zstd_comp>();
-      break;
-||||||| ea7087d88500
-    case ZSTD:
-      res = std::make_unique<Zstd_comp>();
-      break;
-=======
-    case ZSTD:
       return std::make_unique<Zstd_comp>();
->>>>>>> mysql-8.0.34
     case NONE:
       return std::make_unique<None_comp>();
     default:
@@ -54,18 +44,8 @@ std::unique_ptr<Compressor> Factory::build_compressor(type t) {
 
 std::unique_ptr<Decompressor> Factory::build_decompressor(type t) {
   switch (t) {
-<<<<<<< HEAD
     case ALGORITHM_ZSTD:
-      res = std::make_unique<Zstd_dec>();
-      break;
-||||||| ea7087d88500
-    case ZSTD:
-      res = std::make_unique<Zstd_dec>();
-      break;
-=======
-    case ZSTD:
       return std::make_unique<Zstd_dec>();
->>>>>>> mysql-8.0.34
     case NONE:
       return std::make_unique<None_dec>();
     default:

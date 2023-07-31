@@ -49,15 +49,9 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
       "corrupt_read_log_event", unsigned char type = buffer[EVENT_TYPE_OFFSET];
       if (type != binary_log::FORMAT_DESCRIPTION_EVENT &&
           type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
-<<<<<<< HEAD
           type != binary_log::GTID_LOG_EVENT &&
+          type != binary_log::ANONYMOUS_GTID_LOG_EVENT &&
           type != binary_log::START_5_7_ENCRYPTION_EVENT) {
-||||||| ea7087d88500
-          type != binary_log::GTID_LOG_EVENT) {
-=======
-          type != binary_log::GTID_LOG_EVENT &&
-          type != binary_log::ANONYMOUS_GTID_LOG_EVENT) {
->>>>>>> mysql-8.0.34
         int cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN -
                                 LOG_EVENT_MINIMAL_HEADER_LEN) +
                       LOG_EVENT_MINIMAL_HEADER_LEN;

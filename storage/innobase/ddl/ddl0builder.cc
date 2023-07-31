@@ -675,19 +675,22 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
       return DB_OUT_OF_MEMORY;
     }
 
-<<<<<<< HEAD
-    if (log_tmp_is_encrypted()) {
-      if (!thread_ctx->m_aligned_buffer_crypt.allocate(buffer_size.second)) {
-        return DB_OUT_OF_MEMORY;
-      }
-    }
-
-||||||| ea7087d88500
-=======
     thread_ctx->m_io_buffer = {thread_ctx->m_aligned_buffer.get(),
                                buffer_size.second};
 
->>>>>>> mysql-8.0.34
+    if (log_tmp_is_encrypted()) {
+      thread_ctx->m_aligned_buffer_crypt =
+          ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
+                                          UNIV_SECTOR_SIZE, buffer_size.second);
+
+      if (!thread_ctx->m_aligned_buffer_crypt) {
+        return DB_OUT_OF_MEMORY;
+      }
+
+      thread_ctx->m_io_buffer_crypt = {thread_ctx->m_aligned_buffer_crypt.get(),
+                                       buffer_size.second};
+    }
+
     if (is_spatial_index()) {
       thread_ctx->m_rtree_inserter = ut::new_withkey<RTree_inserter>(
           ut::make_psi_memory_key(mem_key_ddl), m_ctx, index);
@@ -1526,7 +1529,7 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       }
       ut_a(n >= IO_BLOCK_SIZE);
 
-      auto crypt_buffer = thread_ctx->m_aligned_buffer_crypt.io_buffer();
+      auto crypt_buffer = thread_ctx->m_io_buffer_crypt;
       auto err = ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size,
                              crypt_buffer.first, get_space_id());
 

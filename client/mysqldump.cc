@@ -6445,8 +6445,8 @@ static bool add_set_gtid_purged(MYSQL *mysql_con, bool ftwrl_done) {
 
   @param[in]          mysql_con     the connection to the server
   @param[in]          is_gtid_enabled  true if server has gtid_mode on
-
   @param[in]          ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
+
   @retval             false         successful according to the value
                                     of opt_set_gtid_purged.
   @retval             true          fail.
@@ -6966,7 +6966,6 @@ int main(int argc, char **argv) {
   if (process_set_gtid_purged(mysql, server_has_gtid_enabled, ftwrl_done))
     goto err;
 
-<<<<<<< HEAD
   if (opt_master_data &&
       do_show_master_status(mysql, has_consistent_binlog_pos))
     goto err;
@@ -7002,8 +7001,6 @@ int main(int argc, char **argv) {
       goto err;
   }
 
-||||||| ea7087d88500
-=======
   if (column_statistics &&
       mysql_get_server_version(mysql) < FIRST_COLUMN_STATISTICS_VERSION) {
     column_statistics = false;
@@ -7011,7 +7008,6 @@ int main(int argc, char **argv) {
             "-- Warning: column statistics not supported by the server.\n");
   }
 
->>>>>>> mysql-8.0.34
   if (opt_alltspcs) dump_all_tablespaces();
 
   if (opt_alldbs) {

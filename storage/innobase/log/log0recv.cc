@@ -3659,35 +3659,7 @@ static void recv_init_crash_recovery() {
   ib::info(ER_IB_MSG_726);
   ib::info(ER_IB_MSG_727);
 
-<<<<<<< HEAD
-  return recv_sys->dblwr->recover();
-||||||| ea7087d88500
-  dberr_t err = recv_sys->dblwr->recover();
-
-  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    /* Spawn the background thread to flush dirty pages
-    from the buffer pools. */
-
-    srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, 0, recv_writer_thread);
-
-    srv_threads.m_recv_writer.start();
-  }
-
-  return err;
-=======
   recv_sys->dblwr->recover();
-
-  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    /* Spawn the background thread to flush dirty pages
-    from the buffer pools. */
-
-    srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, 0, recv_writer_thread);
-
-    srv_threads.m_recv_writer.start();
-  }
->>>>>>> mysql-8.0.34
 }
 #endif /* !UNIV_HOTBACKUP */
 

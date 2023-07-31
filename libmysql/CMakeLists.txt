@@ -145,17 +145,9 @@ SET(CLIENT_API_FUNCTIONS
   mysql_get_ssl_session_reused
   mysql_get_ssl_session_data
   mysql_free_ssl_session_data
-<<<<<<< HEAD
-  # binlog API
   mysql_binlog_close
   mysql_binlog_fetch
   mysql_binlog_open
-||||||| ea7087d88500
-=======
-  mysql_binlog_close
-  mysql_binlog_fetch
-  mysql_binlog_open
->>>>>>> mysql-8.0.34
   CACHE INTERNAL "Functions exported by client API"
 )
 

@@ -167,7 +167,7 @@ class Managed_buffer : public buffer::Rw_buffer<Char_tp> {
         m_owns_default_buffer(false) {}
 
   Managed_buffer(Managed_buffer &other) = delete;
-  Managed_buffer(Managed_buffer &&other) noexcept = default;
+  Managed_buffer(Managed_buffer &&other) = default;
   Managed_buffer &operator=(Managed_buffer &other) = delete;
   Managed_buffer &operator=(Managed_buffer &&other) noexcept = default;
 

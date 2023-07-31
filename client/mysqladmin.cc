@@ -51,13 +51,7 @@
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-<<<<<<< HEAD
-#define MAX_MYSQL_VAR 612
-||||||| ea7087d88500
-#define MAX_MYSQL_VAR 512
-=======
 #define MAX_MYSQL_VAR 8192
->>>>>>> mysql-8.0.34
 #define SHUTDOWN_DEF_TIMEOUT 3600 /* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 

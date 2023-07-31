@@ -386,7 +386,6 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_host = sctx->host();
   event.general_external_user = sctx->external_user();
   event.general_rows = thd->get_stmt_da()->current_row_for_condition();
-<<<<<<< HEAD
   if (thd->lex->sql_command == SQLCOM_END && msg_len > 0 && error_code == 0) {
     enum_server_command found_index = Command_names::get_index_by_str_name(msg);
 
@@ -414,17 +413,6 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   } else {
     event.general_sql_command = sql_statement_names[thd->lex->sql_command];
   }
-||||||| ea7087d88500
-  event.general_sql_command = sql_statement_names[thd->lex->sql_command];
-=======
-
-  if (msg != nullptr && thd->lex->sql_command == SQLCOM_END &&
-      thd->get_command() != COM_QUERY) {
-    event.general_sql_command = {STRING_WITH_LEN("")};
-  } else {
-    event.general_sql_command = sql_statement_names[thd->lex->sql_command];
-  }
->>>>>>> mysql-8.0.34
 
   event.general_charset = const_cast<CHARSET_INFO *>(
       thd_get_audit_query(thd, &event.general_query));

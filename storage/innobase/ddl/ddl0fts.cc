@@ -168,7 +168,9 @@ struct FTS::Parser {
     /** Buffer for IO to use for temporary file writes. */
     IO_buffer m_io_buffer;
 
-    Aligned_buffer m_aligned_buffer_crypt;
+    /** Aligned buffer for cryptography. */
+    ut::unique_ptr_aligned<byte[]> m_aligned_buffer_crypt;
+    IO_buffer m_io_buffer_crypt;
 
     /** Record list start offsets. */
     Merge_offsets m_offsets{};
@@ -386,18 +388,21 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
       return DB_OUT_OF_MEMORY;
     }
 
-<<<<<<< HEAD
-    if (log_tmp_is_encrypted()) {
-      if (!handler->m_aligned_buffer_crypt.allocate(buffer_size.first)) {
-        return DB_OUT_OF_MEMORY;
-      }
-    }
-
-||||||| ea7087d88500
-=======
     handler->m_io_buffer = {handler->m_aligned_buffer.get(), buffer_size.first};
 
->>>>>>> mysql-8.0.34
+    if (log_tmp_is_encrypted()) {
+      handler->m_aligned_buffer_crypt =
+          ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
+                                          UNIV_SECTOR_SIZE, buffer_size.first);
+
+      if (!handler->m_aligned_buffer_crypt) {
+        return DB_OUT_OF_MEMORY;
+      }
+
+      handler->m_io_buffer_crypt = {handler->m_aligned_buffer_crypt.get(),
+                                    buffer_size.first};
+    }
+
     if (!file_create(&handler->m_file, path)) {
       return DB_OUT_OF_MEMORY;
     }
@@ -921,9 +926,8 @@ void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
         handler->m_offsets.push_back(file.m_size);
 
         auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
-          return builder->append(
-              file, io_buffer,
-              handler->m_aligned_buffer_crypt.io_buffer().first, space_id);
+          return builder->append(file, io_buffer,
+                                 handler->m_io_buffer_crypt.first, space_id);
         };
 
         err = key_buffer->serialize(io_buffer, persistor);
@@ -1039,9 +1043,8 @@ void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
       handler->m_offsets.push_back(file.m_size);
 
       auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
-        return builder->append(
-            file, io_buffer, handler->m_aligned_buffer_crypt.io_buffer().first,
-            space_id);
+        return builder->append(file, io_buffer,
+                               handler->m_io_buffer_crypt.first, space_id);
       };
 
       err = key_buffer->serialize(io_buffer, persistor);

@@ -2111,14 +2111,8 @@ EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
 SET @a = 2;
-<<<<<<< HEAD
-SET @b = '2033-05-06 16:49:45';
-||||||| ea7087d88500
-SET @b = '2023-05-06 16:49:45';
-=======
 SET @b = '2023-05-06 16:49:45';
 SET timestamp=UNIX_TIMESTAMP('2023-05-06 16:49:45');
->>>>>>> mysql-8.0.34
 EXECUTE stmt USING @a, @b;
 EXPLAIN
 -> Table scan on dt  (rows=2)

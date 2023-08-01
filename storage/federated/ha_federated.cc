@@ -1961,6 +1961,74 @@ int ha_federated::repair(THD *, HA_CHECK_OPT *check_opt) {
 }
 
 /*
+  We need to handle DOUBLE type in a special way.
+  This is because Federated SE does the update in the following way:
+  1. Query the remote server for the row(s) to be updated
+  2. Call update_row() for each row
+  3. Construct update query together with WHERE clause which contains all
+  columns (even if they were not specified in the original query)
+  4. Query the remote server
+
+  If the row contains DOUBLE(M,D) column, the value in WHERE clause is rounded
+  to D digits after the decimal point comparing to the underlying, actually
+  stored value. This is because of field definition. This rounded value goes to
+  the server side and appears there as Item_decimal. It is converted to double
+  in the following way:
+  1. convert decimal to string by decimal2string()
+  2. convert string to double by my_strtod()
+  Then analyze_field_constant() detects that the result would be rounded for
+  comparison with field having precision (M,D), so it is decided that row
+  matching is not safe and query execution does not continue.
+
+  This is desired behavior because if we have table:
+  CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, i INT, d DOUBLE(8,6));
+  INSERT INTO f1(i, d) VALUES (0, 8.730550);
+  and we execute:
+  UPDATE t1 set i=1 where d=8.7305501;
+  we do not expect row to be updated.
+
+  Note that there is the same issue even if we use a single server.
+  If DOUBLE(M,D) column is specified in WHERE clause, the column is row is
+  not found. Like in the above example: UPDATE t1 set i=1 where d=8.730550;
+  Item_decimal = 8.730550 => string 8.730550 => double = 8.7305499999999991
+
+  Here we force server side to pass stored value through string to double
+  conversion which results in the same number as conversion of provided constant
+  to double (both go through the same conversion path). E.g.: Constant:
+  Item_decimal = 8.730550 => string 8.730550 => double = 8.7305499999999991
+  Stored value: Stored in DB as 8.7305500000000009 => apply (M,D) 8.730550 =>
+                string 8.730550 => double = 8.7305499999999991
+  */
+static bool handle_double_type_with_explicit_precision(Field *field,
+                                                       uchar *record,
+                                                       const uchar *old_data,
+                                                       String &where_string,
+                                                       String &field_value) {
+  if (field->type() != MYSQL_TYPE_DOUBLE) {
+    return true;
+  }
+  if (field->is_null_in_record(old_data)) {
+    return true;
+  }
+  const auto fn = down_cast<Field_num *>(field);
+  if (fn->dec == DECIMAL_NOT_SPECIFIED) {
+    return true;
+  }
+
+  where_string.append("CAST(");
+  size_t field_name_length = strlen(field->field_name);
+  append_ident(&where_string, field->field_name, field_name_length,
+               ident_quote_char);
+  where_string.append(" AS CHAR) = ");
+
+  field->val_str(&field_value,
+                 const_cast<uchar *>(old_data + field->offset(record)));
+  field_value.print(&where_string);
+
+  return false;
+}
+
+/*
   Yes, update_row() does what you expect, it updates a row. old_data will have
   the previous row record in it, while new_data will have the newest data in
   it.
@@ -2057,31 +2125,37 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
     }
 
     if (bitmap_is_set(table->read_set, (*field)->field_index())) {
-      const size_t field_name_length = strlen((*field)->field_name);
-      append_ident(&where_string, (*field)->field_name, field_name_length,
-                   ident_quote_char);
-      if ((*field)->is_null_in_record(old_data))
-        where_string.append(STRING_WITH_LEN(" IS NULL "));
-      else {
-        const bool needs_quote = (*field)->str_needs_quotes();
-        where_string.append(STRING_WITH_LEN(" = "));
-
-        const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
-        if (is_json) {
-          where_string.append("CAST(");
-        }
-
-        (*field)->val_str(
-            &field_value,
-            const_cast<uchar *>(old_data + (*field)->offset(record)));
-        if (needs_quote) where_string.append(value_quote_char);
-        field_value.print(&where_string);
-        if (needs_quote) where_string.append(value_quote_char);
-
-        if (is_json) {
-          where_string.append(" AS JSON)");
-        }
+      if (!handle_double_type_with_explicit_precision(
+              *field, record, old_data, where_string, field_value)) {
         field_value.length(0);
+      } else {
+        const size_t field_name_length = strlen((*field)->field_name);
+        append_ident(&where_string, (*field)->field_name, field_name_length,
+                     ident_quote_char);
+        if ((*field)->is_null_in_record(old_data))
+          where_string.append(STRING_WITH_LEN(" IS NULL "));
+        else {
+          const bool needs_quote = (*field)->str_needs_quotes();
+          where_string.append(STRING_WITH_LEN(" = "));
+
+          const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
+          if (is_json) {
+            where_string.append("CAST(");
+          }
+
+          (*field)->val_str(
+              &field_value,
+              const_cast<uchar *>(old_data + (*field)->offset(record)));
+
+          if (needs_quote) where_string.append(value_quote_char);
+          field_value.print(&where_string);
+          if (needs_quote) where_string.append(value_quote_char);
+
+          if (is_json) {
+            where_string.append(" AS JSON)");
+          }
+          field_value.length(0);
+        }
       }
       where_string.append(STRING_WITH_LEN(" AND "));
     }

@@ -1,0 +1,38 @@
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+CREATE TABLE t1 (id INT, i INT, d DOUBLE(8,6));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (0, 0, 8.730550);
+CREATE TABLE t2 (id INT, i INT, d DOUBLE);
+INSERT INTO t2 VALUES (0, 0, 8.730550);
+CREATE TABLE t3 (id INT, i INT, f FLOAT(8,6));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+INSERT INTO t3 VALUES (0, 0, 8.730550);
+CREATE TABLE t1(id INT, i INT, d DOUBLE(8,6)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t2(id INT, i INT, d DOUBLE) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t2';
+CREATE TABLE t3(id INT, i INT, f FLOAT(8,6)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t3';
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+include/assert.inc [Row should have been inserted]
+include/assert.inc [Row should have been inserted]
+include/assert.inc [Row should have been inserted]
+UPDATE t1 SET i = 1 WHERE id = 0;
+UPDATE t2 SET i = 1 WHERE id = 0;
+UPDATE t3 SET i = 1 WHERE id = 0;
+include/assert.inc [Row should have been updated]
+include/assert.inc [Row should have been updated]
+include/assert.inc [Row should have been updated]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;

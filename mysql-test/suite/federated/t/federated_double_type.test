@@ -1,0 +1,58 @@
+--source suite/federated/include/federated.inc
+
+--connection slave
+CREATE TABLE t1 (id INT, i INT, d DOUBLE(8,6));
+INSERT INTO t1 VALUES (0, 0, 8.730550);
+
+CREATE TABLE t2 (id INT, i INT, d DOUBLE);
+INSERT INTO t2 VALUES (0, 0, 8.730550);
+
+CREATE TABLE t3 (id INT, i INT, f FLOAT(8,6));
+INSERT INTO t3 VALUES (0, 0, 8.730550);
+
+--connection master
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--eval CREATE TABLE t1(id INT, i INT, d DOUBLE(8,6)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1'
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--eval CREATE TABLE t2(id INT, i INT, d DOUBLE) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t2'
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--eval CREATE TABLE t3(id INT, i INT, f FLOAT(8,6)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t3'
+  
+--let $assert_text = Row should have been inserted
+--let $assert_cond = [SELECT COUNT(*) FROM t1 WHERE i=1] = 0
+--source include/assert.inc
+
+--let $assert_text = Row should have been inserted
+--let $assert_cond = [SELECT COUNT(*) FROM t2 WHERE i=1] = 0
+--source include/assert.inc
+
+--let $assert_text = Row should have been inserted
+--let $assert_cond = [SELECT COUNT(*) FROM t3 WHERE i=1] = 0
+--source include/assert.inc
+
+UPDATE t1 SET i = 1 WHERE id = 0;
+UPDATE t2 SET i = 1 WHERE id = 0;
+UPDATE t3 SET i = 1 WHERE id = 0;
+
+--let $assert_text = Row should have been updated
+--let $assert_cond = [SELECT COUNT(*) FROM t1 WHERE i=1] = 1
+--source include/assert.inc
+
+--let $assert_text = Row should have been updated
+--let $assert_cond = [SELECT COUNT(*) FROM t2 WHERE i=1] = 1
+--source include/assert.inc
+
+--let $assert_text = Row should have been updated
+--let $assert_cond = [SELECT COUNT(*) FROM t3 WHERE i=1] = 1
+--source include/assert.inc
+
+--connection slave
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--connection master
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+--source suite/federated/include/federated_cleanup.inc

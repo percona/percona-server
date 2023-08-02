@@ -1,3 +1,8 @@
+call mtr.add_suppression("CA certificate/certficates is invalid. Please check logs for more details.");
+call mtr.add_suppression("Failed to validate certificate .*");
+call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
+call mtr.add_suppression("Failed to set up TLS. Check logs for details");
+call mtr.add_suppression("Internal TLS error error.*");
 CREATE USER xuser_sha256@localhost
 IDENTIFIED WITH 'sha256_password' BY 'sha256';
 GRANT ALL ON *.* TO xuser_sha256@localhost;

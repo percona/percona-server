@@ -393,13 +393,6 @@ alter table t3 add keyB int not null, add index iB(keyB);
 alter table t3 add keyC int not null, add index iC(keyC);
 update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
 
-# Force complete purge
-SET @@GLOBAL.innodb_fast_shutdown = 0;
---source include/restart_mysqld.inc
-
-# reset default engine after restart
-eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
-
 -- disable_query_log
 -- disable_result_log
 if ($eval_before_analyze)
@@ -714,7 +707,6 @@ select * from t1 where a=4 or b=4;
 select * from t1 ignore index(a,b) where a=4 or b=4;
 
 --echo must use union, not sort-union:
---replace_column 10 # 11 #
 --replace_regex $elide_costs_and_rows
 explain select * from t2 where a=4 or b=4;
 --sorted_result
@@ -767,11 +759,11 @@ analyze table t3;
 -- enable_result_log
 -- enable_query_log
 
+--replace_regex $elide_costs
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 10 # 11 #
+  --replace_regex $elide_costs_and_rows
 }
---replace_regex $elide_costs
 explain select * from t1 
 where exists (select 1 from t2, t3 
               where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));

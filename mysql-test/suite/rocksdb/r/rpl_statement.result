@@ -6,6 +6,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 select @@binlog_format;
 @@binlog_format
 STATEMENT
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 create table t1 (pk int primary key) engine=rocksdb;
 insert into t1 values (1),(2),(3);
 ERROR HY000: Can't execute updates on master with binlog_format != ROW.
@@ -21,6 +23,8 @@ set session rocksdb_unsafe_for_binlog=off;
 insert into t1 values (1),(2),(3);
 ERROR HY000: Can't execute updates on master with binlog_format != ROW.
 set binlog_format=row;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 insert into t1 values (1),(2),(3);
 include/sync_slave_sql_with_master.inc
 select * from t1;
@@ -50,4 +54,6 @@ id	value	value2
 3	1	300
 drop table t1;
 set binlog_format=row;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/rpl_end.inc

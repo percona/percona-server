@@ -12,11 +12,11 @@ set global rocksdb_force_flush_memtable_now=1;
 set @save_rocksdb_pause_background_work=@@rocksdb_pause_background_work;
 set global rocksdb_pause_background_work=1;
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT b, d FROM t WHERE d < 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` < 2)
+EXPLAIN FORMAT=TREE SELECT b, d FROM t WHERE d < 2;
+EXPLAIN
+-> Filter: (t.d < 2)  (rows=833)
+    -> Covering index skip scan on t using b over d < 2  (rows=833)
+
 FLUSH STATUS;
 SELECT b, d FROM t WHERE d < 2;
 SHOW STATUS LIKE 'handler_read%';
@@ -29,11 +29,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT b, d FROM t WHERE d < 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	NULL	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` < 2)
+EXPLAIN FORMAT=TREE SELECT b, d FROM t WHERE d < 2;
+EXPLAIN
+-> Filter: (t.d < 2)  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT b, d FROM t WHERE d < 2;
 SHOW STATUS LIKE 'handler_read%';
@@ -46,11 +46,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ b, d FROM t WHERE d < 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` < 2)
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, d FROM t WHERE d < 2;
+EXPLAIN
+-> Filter: (t.d < 2)  (rows=833)
+    -> Covering index skip scan on t using b over d < 2  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, d FROM t WHERE d < 2;
 SHOW STATUS LIKE 'handler_read%';
@@ -64,11 +64,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT b, d FROM t WHERE d > 4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` > 4)
+EXPLAIN FORMAT=TREE SELECT b, d FROM t WHERE d > 4;
+EXPLAIN
+-> Filter: (t.d > 4)  (rows=833)
+    -> Covering index skip scan on t using b over 4 < d  (rows=833)
+
 FLUSH STATUS;
 SELECT b, d FROM t WHERE d > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -81,11 +81,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT b, d FROM t WHERE d > 4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	NULL	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` > 4)
+EXPLAIN FORMAT=TREE SELECT b, d FROM t WHERE d > 4;
+EXPLAIN
+-> Filter: (t.d > 4)  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT b, d FROM t WHERE d > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -98,11 +98,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ b, d FROM t WHERE d > 4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` > 4)
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, d FROM t WHERE d > 4;
+EXPLAIN
+-> Filter: (t.d > 4)  (rows=833)
+    -> Covering index skip scan on t using b over 4 < d  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, d FROM t WHERE d > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -116,11 +116,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.d <= 3))  (rows=833)
+    -> Covering index skip scan on t using b over d <= 3  (rows=833)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -133,11 +133,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
+EXPLAIN
+-> Filter: (t.d <= 3)  (rows=833)
+    -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -150,11 +150,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND d <= 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	40.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND d <= 3;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.d <= 3))  (rows=333)
+    -> Covering index skip scan on t using b over d <= 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -168,11 +168,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.d >= 98))  (rows=833)
+    -> Covering index skip scan on t using b over 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -185,11 +185,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
+EXPLAIN
+-> Filter: (t.d >= 98)  (rows=833)
+    -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -202,11 +202,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	40.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.d >= 98))  (rows=333)
+    -> Covering index skip scan on t using b over 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -220,11 +220,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,5)) and (t.d >= 98))  (rows=833)
+    -> Covering index skip scan on t using b over 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -237,11 +237,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	PRIMARY	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,5)) and (t.d >= 98))  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -254,11 +254,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	20.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,5)) and (t.d >= 98))  (rows=167)
+    -> Covering index skip scan on t using b over 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -272,11 +272,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,3,5)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,3,5)) and (t.d >= 98))  (rows=833)
+    -> Covering index skip scan on t using b over 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -289,11 +289,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	PRIMARY	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,3,5)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,3,5)) and (t.d >= 98))  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -306,11 +306,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	30.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,3,5)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,3,5)) and (t.d >= 98))  (rows=250)
+    -> Covering index skip scan on t using b over 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -324,11 +324,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	PRIMARY,b	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`b` in (1,2)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,5)) and (t.b in (1,2)) and (t.d >= 98))  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -341,11 +341,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	PRIMARY,b	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`b` in (1,2)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,5)) and (t.b in (1,2)) and (t.d >= 98))  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -358,11 +358,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	PRIMARY	16	NULL	3333	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`b` in (1,2)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,5)) and (t.b in (1,2)) and (t.d >= 98))  (rows=3333)
+    -> Covering index skip scan on t using PRIMARY over a IN (1, 5), b IN (1, 2), 98 <= d  (rows=3333)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -376,11 +376,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	PRIMARY,b	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,2,3,4,5)) and (`test`.`t`.`b` in (1,2,3)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,2,3,4,5)) and (t.b in (1,2,3)) and (t.d >= 98))  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -393,11 +393,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	PRIMARY,b	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,2,3,4,5)) and (`test`.`t`.`b` in (1,2,3)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,2,3,4,5)) and (t.b in (1,2,3)) and (t.d >= 98))  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -410,11 +410,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	PRIMARY	16	NULL	12498	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,2,3,4,5)) and (`test`.`t`.`b` in (1,2,3)) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
+EXPLAIN
+-> Filter: ((t.a in (1,2,3,4,5)) and (t.b in (1,2,3)) and (t.d >= 98))  (rows=12498)
+    -> Covering index skip scan on t using PRIMARY over a IN (1, 2, (3 more)), b IN (1, 2, 3), 98 <= d  (rows=12498)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -428,11 +428,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY,b	PRIMARY	8	const,const	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
+EXPLAIN
+-> Filter: (t.d >= 98)  (rows=833)
+    -> Covering index lookup on t using PRIMARY (a=5, b=2)  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -445,11 +445,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY,b	PRIMARY	8	const,const	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
+EXPLAIN
+-> Filter: (t.d >= 98)  (rows=833)
+    -> Covering index lookup on t using PRIMARY (a=5, b=2)  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -462,11 +462,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	PRIMARY	16	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
+EXPLAIN
+-> Filter: ((t.b = 2) and (t.a = 5) and (t.d >= 98))  (rows=833)
+    -> Covering index skip scan on t using PRIMARY over a = 5, b = 2, 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -480,11 +480,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select (`test`.`t`.`a` + 1) AS `a+1`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.d < 3))  (rows=833)
+    -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -497,11 +497,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select (`test`.`t`.`a` + 1) AS `a+1`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
+EXPLAIN
+-> Filter: (t.d < 3)  (rows=833)
+    -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -514,11 +514,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	40.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ (`test`.`t`.`a` + 1) AS `a+1`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.d < 3))  (rows=333)
+    -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -532,11 +532,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.d < 3))  (rows=833)
+    -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -549,11 +549,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
+EXPLAIN
+-> Filter: (t.d < 3)  (rows=833)
+    -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -566,11 +566,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	40.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND d < 3;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.d < 3))  (rows=333)
+    -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -584,11 +584,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	40.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = `test`.`t`.`a`) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
+EXPLAIN
+-> Filter: ((t.b = t.a) and (t.d >= 98))  (rows=333)
+    -> Covering index skip scan on t using b over 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -601,11 +601,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	NULL	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = `test`.`t`.`a`) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
+EXPLAIN
+-> Filter: ((t.b = t.a) and (t.d >= 98))  (rows=833)
+    -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -618,11 +618,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = b AND d >= 98;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	40.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = `test`.`t`.`a`) and (`test`.`t`.`d` >= 98))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = b AND d >= 98;
+EXPLAIN
+-> Filter: ((t.b = t.a) and (t.d >= 98))  (rows=333)
+    -> Covering index skip scan on t using b over 98 <= d  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = b AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -636,11 +636,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	33.33	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
+    -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -653,11 +653,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Filter: ((t.c > 10) and (t.d < 3))  (rows=278)
+    -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -670,11 +670,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	13.33	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=111)
+    -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -688,11 +688,12 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	33.33	Using where; Using index for skip scan; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
+EXPLAIN
+-> Sort: t.d, t.c  (rows=833)
+    -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=833)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
 SHOW STATUS LIKE 'handler_read%';
@@ -705,11 +706,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using index; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
+EXPLAIN
+-> Sort: t.d, t.c  (rows=2500)
+    -> Filter: ((t.c > 10) and (t.d < 3))  (rows=2500)
+        -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
 SHOW STATUS LIKE 'handler_read%';
@@ -722,11 +724,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	13.33	Using where; Using index for skip scan; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
+EXPLAIN
+-> Sort: t.d, t.c  (rows=833)
+    -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=833)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
 SHOW STATUS LIKE 'handler_read%';
@@ -740,11 +743,12 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	33.33	Using where; Using index for skip scan; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 1) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,(`test`.`t`.`c` * -(1))
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
+EXPLAIN
+-> Sort: t.d, (t.c * -(1))  (rows=833)
+    -> Filter: ((t.a = 5) and (t.c > 1) and (t.d < 3))  (rows=833)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
 SHOW STATUS LIKE 'handler_read%';
@@ -757,11 +761,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using index; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 1) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,(`test`.`t`.`c` * -(1))
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
+EXPLAIN
+-> Sort: t.d, (t.c * -(1))  (rows=2500)
+    -> Filter: ((t.c > 1) and (t.d < 3))  (rows=2500)
+        -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
 SHOW STATUS LIKE 'handler_read%';
@@ -774,11 +779,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	13.33	Using where; Using index for skip scan; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 1) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,(`test`.`t`.`c` * -(1))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
+EXPLAIN
+-> Sort: t.d, (t.c * -(1))  (rows=833)
+    -> Filter: ((t.a = 5) and (t.c > 1) and (t.d < 3))  (rows=833)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
 SHOW STATUS LIKE 'handler_read%';
@@ -792,11 +798,11 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT e FROM t WHERE a = 5 AND d <= 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`e` AS `e` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
+EXPLAIN FORMAT=TREE SELECT e FROM t WHERE a = 5 AND d <= 3;
+EXPLAIN
+-> Filter: (t.d <= 3)  (rows=833)
+    -> Index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT e FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -809,11 +815,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT e FROM t WHERE a = 5 AND d <= 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`e` AS `e` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
+EXPLAIN FORMAT=TREE SELECT e FROM t WHERE a = 5 AND d <= 3;
+EXPLAIN
+-> Filter: (t.d <= 3)  (rows=833)
+    -> Index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT e FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -826,11 +832,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ e FROM t WHERE a = 5 AND d <= 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`e` AS `e` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ e FROM t WHERE a = 5 AND d <= 3;
+EXPLAIN
+-> Filter: (t.d <= 3)  (rows=833)
+    -> Index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ e FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -844,11 +850,12 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`,`test`.`t`.`e`
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
+EXPLAIN
+-> Sort: t.d, t.c, t.e  (rows=2500)
+    -> Filter: ((t.c > 10) and (t.d < 3))  (rows=2500)
+        -> Index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 SHOW STATUS LIKE 'handler_read%';
@@ -861,11 +868,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`,`test`.`t`.`e`
+EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
+EXPLAIN
+-> Sort: t.d, t.c, t.e  (rows=2500)
+    -> Filter: ((t.c > 10) and (t.d < 3))  (rows=2500)
+        -> Index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 SHOW STATUS LIKE 'handler_read%';
@@ -878,11 +886,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`,`test`.`t`.`e`
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
+EXPLAIN
+-> Sort: t.d, t.c, t.e  (rows=2500)
+    -> Filter: ((t.c > 10) and (t.d < 3))  (rows=2500)
+        -> Index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 SHOW STATUS LIKE 'handler_read%';
@@ -896,11 +905,12 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT count(a), count(b), count(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	33.33	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select count(`test`.`t`.`a`) AS `count(a)`,count(`test`.`t`.`b`) AS `count(b)`,count(`test`.`t`.`c`) AS `count(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT count(a), count(b), count(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: count(t.a), count(t.b), count(t.c)  (rows=1)
+    -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT count(a), count(b), count(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -913,11 +923,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT count(a), count(b), count(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select count(`test`.`t`.`a`) AS `count(a)`,count(`test`.`t`.`b`) AS `count(b)`,count(`test`.`t`.`c`) AS `count(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT count(a), count(b), count(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: count(t.a), count(t.b), count(t.c)  (rows=1)
+    -> Filter: ((t.c > 10) and (t.d < 3))  (rows=278)
+        -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT count(a), count(b), count(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -930,11 +941,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ count(a), count(b), count(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	13.33	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ count(`test`.`t`.`a`) AS `count(a)`,count(`test`.`t`.`b`) AS `count(b)`,count(`test`.`t`.`c`) AS `count(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ count(a), count(b), count(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: count(t.a), count(t.b), count(t.c)  (rows=1)
+    -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=111)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ count(a), count(b), count(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -948,11 +960,12 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT min(a), max(b), min(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	33.33	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t`.`a`) AS `min(a)`,max(`test`.`t`.`b`) AS `max(b)`,min(`test`.`t`.`c`) AS `min(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT min(a), max(b), min(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: min(t.a), max(t.b), min(t.c)  (rows=1)
+    -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT min(a), max(b), min(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -965,11 +978,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT min(a), max(b), min(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t`.`a`) AS `min(a)`,max(`test`.`t`.`b`) AS `max(b)`,min(`test`.`t`.`c`) AS `min(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT min(a), max(b), min(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: min(t.a), max(t.b), min(t.c)  (rows=1)
+    -> Filter: ((t.c > 10) and (t.d < 3))  (rows=278)
+        -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT min(a), max(b), min(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -982,11 +996,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ min(a), max(b), min(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	13.33	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ min(`test`.`t`.`a`) AS `min(a)`,max(`test`.`t`.`b`) AS `max(b)`,min(`test`.`t`.`c`) AS `min(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ min(a), max(b), min(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: min(t.a), max(t.b), min(t.c)  (rows=1)
+    -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=111)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ min(a), max(b), min(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1000,11 +1015,12 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT sum(a), sum(b), sum(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	33.33	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select sum(`test`.`t`.`a`) AS `sum(a)`,sum(`test`.`t`.`b`) AS `sum(b)`,sum(`test`.`t`.`c`) AS `sum(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT sum(a), sum(b), sum(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: sum(t.a), sum(t.b), sum(t.c)  (rows=1)
+    -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT sum(a), sum(b), sum(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1017,11 +1033,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT sum(a), sum(b), sum(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	2500	11.11	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select sum(`test`.`t`.`a`) AS `sum(a)`,sum(`test`.`t`.`b`) AS `sum(b)`,sum(`test`.`t`.`c`) AS `sum(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT sum(a), sum(b), sum(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: sum(t.a), sum(t.b), sum(t.c)  (rows=1)
+    -> Filter: ((t.c > 10) and (t.d < 3))  (rows=278)
+        -> Covering index lookup on t using PRIMARY (a=5)  (rows=2500)
+
 FLUSH STATUS;
 SELECT sum(a), sum(b), sum(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1034,11 +1051,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ sum(a), avg(b), sum(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	13.33	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ sum(`test`.`t`.`a`) AS `sum(a)`,avg(`test`.`t`.`b`) AS `avg(b)`,sum(`test`.`t`.`c`) AS `sum(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ sum(a), avg(b), sum(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
+EXPLAIN
+-> Aggregate: sum(t.a), avg(t.b), sum(t.c)  (rows=1)
+    -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=111)
+        -> Covering index skip scan on t using b over d < 3  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ sum(a), avg(b), sum(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1052,11 +1070,12 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
-EXPLAIN SELECT count(*) FROM t WHERE d < 2;;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t` where (`test`.`t`.`d` < 2)
+EXPLAIN FORMAT=TREE SELECT count(*) FROM t WHERE d < 2;;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t.d < 2)  (rows=833)
+        -> Covering index skip scan on t using b over d < 2  (rows=833)
+
 FLUSH STATUS;
 SELECT count(*) FROM t WHERE d < 2;;
 SHOW STATUS LIKE 'handler_read%';
@@ -1069,11 +1088,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
-EXPLAIN SELECT count(*) FROM t WHERE d < 2;;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	index	NULL	b	8	NULL	2500	33.33	Using where; Using index
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t` where (`test`.`t`.`d` < 2)
+EXPLAIN FORMAT=TREE SELECT count(*) FROM t WHERE d < 2;;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t.d < 2)  (rows=833)
+        -> Covering index scan on t using b  (rows=2500)
+
 FLUSH STATUS;
 SELECT count(*) FROM t WHERE d < 2;;
 SHOW STATUS LIKE 'handler_read%';
@@ -1086,11 +1106,12 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
-EXPLAIN SELECT /*+ SKIP_SCAN(t) */ count(*) FROM t WHERE d < 2;;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	100.00	Using where; Using index for skip scan
-Warnings:
-Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ count(0) AS `count(*)` from `test`.`t` where (`test`.`t`.`d` < 2)
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ count(*) FROM t WHERE d < 2;;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t.d < 2)  (rows=833)
+        -> Covering index skip scan on t using b over d < 2  (rows=833)
+
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ count(*) FROM t WHERE d < 2;;
 SHOW STATUS LIKE 'handler_read%';

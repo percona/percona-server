@@ -1,5 +1,7 @@
 set @save_default_storage_engine=@@global.default_storage_engine;
 set @save_binlog_format=@@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 connect  con1,localhost,root,,;
 connect  con2,localhost,root,,;
 connection con1;
@@ -143,6 +145,8 @@ UNLOCK TABLES;
 
 2
 SET GLOBAL binlog_format=statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 connection default;
 disconnect con2;
 disconnect con1;
@@ -150,3 +154,5 @@ drop table r1;
 RESET BINARY LOGS AND GTIDS;
 set @@global.default_storage_engine=@save_default_storage_engine;
 set @@global.binlog_format=@save_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

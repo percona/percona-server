@@ -1516,8 +1516,11 @@ int ha_innopart::index_init(uint keynr, bool sorted) {
     m_prebuilt->m_no_prefetch = true;
   }
 
-  /* For scan across partitions, the keys needs to be materialized */
-  m_prebuilt->m_read_virtual_key = true;
+  /* For scan across partitions, the keys needs to be materialized.
+  Multi-value indexes do not support ordering and should not be materialized
+  though. */
+  if (!(table_share->key_info[keynr].flags & HA_MULTI_VALUED_KEY))
+    m_prebuilt->m_read_virtual_key = true;
 
   error = change_active_index(part_id, keynr);
   if (error != 0) {

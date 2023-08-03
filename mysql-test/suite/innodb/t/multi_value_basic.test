@@ -985,4 +985,33 @@ INSERT INTO t2 (data) VALUES ('{\"parentID\":1,\"idArray\":[1]}');
 DELETE FROM t1 WHERE id = 1;
 DROP TABLE t2,t1;
 
+--echo #
+--echo # PS-8849 'Unexpected hitting Assertion failure: row0mysql.cc:218:len < 256 * 256 thread'
+--echo #
+CREATE TABLE t1 (id INT, a JSON DEFAULT NULL,
+                 KEY a ((CAST(a AS CHAR(255) ARRAY)))
+) PARTITION BY HASH(id) PARTITIONS 4;
+INSERT INTO t1 (id, a) VALUES (1, JSON_ARRAY('session', '1'));
+
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SELECT COUNT(*) FROM t1;
+
+--enable_connect_log
+--connect (con1, localhost, root,,)
+UPDATE t1 SET a = JSON_ARRAY('session', '2') WHERE id = 1;
+
+--connection default
+SELECT a FROM t1 WHERE ('session' MEMBER OF (a));
+
+--connection con1
+COMMIT;
+
+--echo # Clean-up.
+--disconnect con1
+
+--connection default
+--disable_connect_log
+DROP TABLE t1;
+
 --source include/wait_until_count_sessions.inc

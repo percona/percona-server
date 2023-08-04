@@ -19,6 +19,7 @@
 # [--let $command_opt = opt1 opt2 ...]
 # [--let $output_file = output_file]
 # [--let $pid_file = pid_file]
+# [--let $redirect_stderr = 0 | 1 ]
 # --source include/start_proc_in_backcground.inc
 #
 # Parameters:
@@ -45,7 +46,14 @@ if (!$command)
 
 if ($output_file)
 {
-  --let $line = $line > $output_file
+  if ($redirect_stderr == 1)
+  {
+    --let $line = $line 2> $output_file
+  }
+  if ($redirect_stderr == 0)
+  {
+    --let $line = $line > $output_file
+  }
 }
 
 --let $line = $line &

@@ -1,0 +1,1100 @@
+#
+# Component Masking Functions: mask_uuid()
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+# arity checks
+SELECT mask_uuid();
+ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument list: should be (string, [char])
+SELECT mask_uuid('', '', '');
+ERROR HY000: Can't initialize function 'mask_uuid'; Wrong argument list: should be (string, [char])
+# argument nullness checks
+SELECT mask_uuid('', NULL);
+ERROR HY000: mask_uuid<string> UDF failed; argument 2 cannot be null
+# constraints checks
+SELECT mask_uuid('');
+ERROR HY000: mask_uuid<string> UDF failed; Argument must be exactly 36 characters
+SELECT mask_uuid('12345678-1234-abcd-5678-1234567890a');
+ERROR HY000: mask_uuid<string> UDF failed; Argument must be exactly 36 characters
+SELECT mask_uuid('12345678-1234-abcd-5678-1234567890abc');
+ERROR HY000: mask_uuid<string> UDF failed; Argument must be exactly 36 characters
+SELECT mask_uuid('12345678-1234-abcd-5678-1234567890ab', '');
+ERROR HY000: mask_uuid<string> UDF failed; masking character must be of length 1
+SELECT mask_uuid('12345678-1234-abcd-5678-1234567890ab', 'XX');
+ERROR HY000: mask_uuid<string> UDF failed; masking character must be of length 1
+# NULL for NULL checks
+include/assert.inc [mask_uuid() for the NULL primary argument should return NULL]
+include/assert.inc [mask_uuid() for the NULL primary argument and custom mask should return NULL]
+# logic checks
+SET @check_expression_result = mask_uuid('12345678-1234-abcd-5678-1234567890ab');
+include/assert.inc [the result of evaluating 'mask_uuid('12345678-1234-abcd-5678-1234567890ab')' must be equal to '********-****-****-****-************']
+include/assert.inc [charset of the result of evaluating 'mask_uuid('12345678-1234-abcd-5678-1234567890ab')' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid('12345678-1234-abcd-5678-1234567890ab')' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid('12345678 1234 abcd 5678 1234567890ab');
+include/assert.inc [the result of evaluating 'mask_uuid('12345678 1234 abcd 5678 1234567890ab')' must be equal to '******** **** **** **** ************']
+include/assert.inc [charset of the result of evaluating 'mask_uuid('12345678 1234 abcd 5678 1234567890ab')' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid('12345678 1234 abcd 5678 1234567890ab')' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid('12345678-1234-abcd-5678-1234567890ab', 'Ю');
+include/assert.inc [the result of evaluating 'mask_uuid('12345678-1234-abcd-5678-1234567890ab', 'Ю')' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid('12345678-1234-abcd-5678-1234567890ab', 'Ю')' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid('12345678-1234-abcd-5678-1234567890ab', 'Ю')' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(_ascii '12345678-1234-abcd-5678-1234567890ab', 'Ю');
+include/assert.inc [the result of evaluating 'mask_uuid(_ascii '12345678-1234-abcd-5678-1234567890ab', 'Ю')' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(_ascii '12345678-1234-abcd-5678-1234567890ab', 'Ю')' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(_ascii '12345678-1234-abcd-5678-1234567890ab', 'Ю')' must be 'ascii_general_ci']
+# character set / collation checks
+SET @regular_charset_list = '[ "utf8mb4", "utf8mb3", "utf16", "utf16le", "utf32", "ucs2", "koi8u"]';
+SET @special_charset_list = '[ "latin2", "ascii", "binary"]';
+SET @charset_list = JSON_MERGE_PRESERVE(@regular_charset_list, @special_charset_list);
+# checking utf8mb4 string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf8mb4))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf8mb4))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf8mb4))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf8mb4))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf8mb3))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf8mb3))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf8mb3))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf8mb3))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf16))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf16))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf16))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf16))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf16le))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf16le))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf16le))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf16le))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf32))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING utf32))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf32))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING utf32))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING ucs2))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING ucs2))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING ucs2))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING ucs2))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING koi8u))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('Ю' USING koi8u))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING koi8u))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('Ю' USING koi8u))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING latin2))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING latin2))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING latin2))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING latin2))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING ascii))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING ascii))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING ascii))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING ascii))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb4 string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING binary))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb4), CONVERT('@' USING binary))' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING binary))' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb4), CONVERT('@' USING binary))' must be 'utf8mb4_0900_ai_ci']
+# checking utf8mb3 string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf8mb4));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf8mb4))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf8mb4))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf8mb4));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf8mb4))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf8mb4))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf8mb3))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf8mb3))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf8mb3))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf8mb3))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf16));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf16))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf16))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf16));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf16))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf16))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf16le));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf16le))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf16le))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf16le));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf16le))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf16le))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf32));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf32))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING utf32))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf32));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf32))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING utf32))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING ucs2))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING ucs2))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING ucs2))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING ucs2))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING koi8u));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING koi8u))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('Ю' USING koi8u))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING koi8u));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING koi8u))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('Ю' USING koi8u))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING latin2));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING latin2))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING latin2))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING latin2));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING latin2))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING latin2))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING ascii));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING ascii))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING ascii))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING ascii));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING ascii))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING ascii))' must be 'utf8mb3_general_ci']
+# checking utf8mb3 string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING binary));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING binary))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf8mb3), CONVERT('@' USING binary))' must be 'utf8mb3_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING binary));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING binary))' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf8mb3), CONVERT('@' USING binary))' must be 'utf8mb3_general_ci']
+# checking utf16 string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf8mb4))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf8mb4))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf8mb4))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf8mb4))' must be 'utf16_general_ci']
+# checking utf16 string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf8mb3))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf8mb3))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf8mb3))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf8mb3))' must be 'utf16_general_ci']
+# checking utf16 string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf16))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf16))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf16))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf16))' must be 'utf16_general_ci']
+# checking utf16 string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf16le))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf16le))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf16le))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf16le))' must be 'utf16_general_ci']
+# checking utf16 string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf32))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING utf32))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf32))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING utf32))' must be 'utf16_general_ci']
+# checking utf16 string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING ucs2))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING ucs2))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING ucs2))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING ucs2))' must be 'utf16_general_ci']
+# checking utf16 string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING koi8u))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('Ю' USING koi8u))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING koi8u))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('Ю' USING koi8u))' must be 'utf16_general_ci']
+# checking utf16 string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING latin2))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING latin2))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING latin2))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING latin2))' must be 'utf16_general_ci']
+# checking utf16 string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING ascii))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING ascii))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING ascii))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING ascii))' must be 'utf16_general_ci']
+# checking utf16 string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING binary))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16), CONVERT('@' USING binary))' must be 'utf16_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING binary))' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16), CONVERT('@' USING binary))' must be 'utf16_general_ci']
+# checking utf16le string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf8mb4))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf8mb4))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf8mb4))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf8mb4))' must be 'utf16le_general_ci']
+# checking utf16le string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf8mb3))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf8mb3))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf8mb3))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf8mb3))' must be 'utf16le_general_ci']
+# checking utf16le string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf16))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf16))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf16))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf16))' must be 'utf16le_general_ci']
+# checking utf16le string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf16le))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf16le))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf16le))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf16le))' must be 'utf16le_general_ci']
+# checking utf16le string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf32))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING utf32))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf32))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING utf32))' must be 'utf16le_general_ci']
+# checking utf16le string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING ucs2))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING ucs2))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING ucs2))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING ucs2))' must be 'utf16le_general_ci']
+# checking utf16le string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING koi8u))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('Ю' USING koi8u))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING koi8u))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('Ю' USING koi8u))' must be 'utf16le_general_ci']
+# checking utf16le string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING latin2))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING latin2))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING latin2))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING latin2))' must be 'utf16le_general_ci']
+# checking utf16le string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING ascii))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING ascii))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING ascii))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING ascii))' must be 'utf16le_general_ci']
+# checking utf16le string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING binary))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf16le), CONVERT('@' USING binary))' must be 'utf16le_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING binary))' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf16le), CONVERT('@' USING binary))' must be 'utf16le_general_ci']
+# checking utf32 string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf8mb4))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf8mb4))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf8mb4))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf8mb4))' must be 'utf32_general_ci']
+# checking utf32 string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf8mb3))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf8mb3))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf8mb3))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf8mb3))' must be 'utf32_general_ci']
+# checking utf32 string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf16))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf16))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf16))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf16))' must be 'utf32_general_ci']
+# checking utf32 string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf16le))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf16le))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf16le))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf16le))' must be 'utf32_general_ci']
+# checking utf32 string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf32))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING utf32))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf32))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING utf32))' must be 'utf32_general_ci']
+# checking utf32 string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING ucs2))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING ucs2))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING ucs2))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING ucs2))' must be 'utf32_general_ci']
+# checking utf32 string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING koi8u))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('Ю' USING koi8u))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING koi8u))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('Ю' USING koi8u))' must be 'utf32_general_ci']
+# checking utf32 string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING latin2))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING latin2))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING latin2))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING latin2))' must be 'utf32_general_ci']
+# checking utf32 string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING ascii))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING ascii))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING ascii))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING ascii))' must be 'utf32_general_ci']
+# checking utf32 string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING binary))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING utf32), CONVERT('@' USING binary))' must be 'utf32_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING binary))' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING utf32), CONVERT('@' USING binary))' must be 'utf32_general_ci']
+# checking ucs2 string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf8mb4));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf8mb4))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf8mb4))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf8mb4));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf8mb4))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf8mb4))' must be 'ucs2_general_ci']
+# checking ucs2 string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf8mb3))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf8mb3))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf8mb3))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf8mb3))' must be 'ucs2_general_ci']
+# checking ucs2 string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf16));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf16))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf16))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf16));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf16))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf16))' must be 'ucs2_general_ci']
+# checking ucs2 string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf16le));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf16le))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf16le))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf16le));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf16le))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf16le))' must be 'ucs2_general_ci']
+# checking ucs2 string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf32));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf32))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING utf32))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf32));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf32))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING utf32))' must be 'ucs2_general_ci']
+# checking ucs2 string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING ucs2))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING ucs2))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING ucs2))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING ucs2))' must be 'ucs2_general_ci']
+# checking ucs2 string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING koi8u));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING koi8u))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('Ю' USING koi8u))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING koi8u));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING koi8u))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('Ю' USING koi8u))' must be 'ucs2_general_ci']
+# checking ucs2 string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING latin2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING latin2))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING latin2))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING latin2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING latin2))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING latin2))' must be 'ucs2_general_ci']
+# checking ucs2 string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING ascii));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING ascii))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING ascii))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING ascii));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING ascii))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING ascii))' must be 'ucs2_general_ci']
+# checking ucs2 string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING binary));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING binary))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ucs2), CONVERT('@' USING binary))' must be 'ucs2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING binary));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING binary))' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ucs2), CONVERT('@' USING binary))' must be 'ucs2_general_ci']
+# checking koi8u string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf8mb4))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf8mb4))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf8mb4))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf8mb4))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf8mb4))' must be 'koi8u_general_ci']
+# checking koi8u string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf8mb3))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf8mb3))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf8mb3))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf8mb3))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf8mb3))' must be 'koi8u_general_ci']
+# checking koi8u string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf16))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf16))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf16))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf16))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf16))' must be 'koi8u_general_ci']
+# checking koi8u string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf16le))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf16le))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf16le))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf16le))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf16le))' must be 'koi8u_general_ci']
+# checking koi8u string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf32))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING utf32))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf32))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf32))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING utf32))' must be 'koi8u_general_ci']
+# checking koi8u string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING ucs2))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING ucs2))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING ucs2))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING ucs2))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING ucs2))' must be 'koi8u_general_ci']
+# checking koi8u string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮ-ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING koi8u))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('Ю' USING koi8u))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING koi8u))' must be equal to 'ЮЮЮЮЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮ ЮЮЮЮЮЮЮЮЮЮЮЮ']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING koi8u))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('Ю' USING koi8u))' must be 'koi8u_general_ci']
+# checking koi8u string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING latin2))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING latin2))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING latin2))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING latin2))' must be 'koi8u_general_ci']
+# checking koi8u string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING ascii))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING ascii))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING ascii))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING ascii))' must be 'koi8u_general_ci']
+# checking koi8u string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING binary))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING koi8u), CONVERT('@' USING binary))' must be 'koi8u_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING binary))' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING koi8u), CONVERT('@' USING binary))' must be 'koi8u_general_ci']
+# checking latin2 string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf8mb4))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf8mb4))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf8mb4))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf8mb4))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf8mb4))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf8mb4))' must be 'latin2_general_ci']
+# checking latin2 string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf8mb3))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf8mb3))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf8mb3))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf8mb3))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf8mb3))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf8mb3))' must be 'latin2_general_ci']
+# checking latin2 string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf16))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf16))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf16))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf16))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf16))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf16))' must be 'latin2_general_ci']
+# checking latin2 string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf16le))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf16le))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf16le))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf16le))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf16le))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf16le))' must be 'latin2_general_ci']
+# checking latin2 string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf32))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf32))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING utf32))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf32))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf32))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING utf32))' must be 'latin2_general_ci']
+# checking latin2 string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING ucs2))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING ucs2))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING ucs2))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING ucs2))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING ucs2))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING ucs2))' must be 'latin2_general_ci']
+# checking latin2 string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING koi8u))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING koi8u))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('Ю' USING koi8u))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING koi8u))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING koi8u))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('Ю' USING koi8u))' must be 'latin2_general_ci']
+# checking latin2 string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING latin2))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING latin2))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING latin2))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING latin2))' must be 'latin2_general_ci']
+# checking latin2 string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING ascii))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING ascii))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING ascii))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING ascii))' must be 'latin2_general_ci']
+# checking latin2 string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING binary))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING latin2), CONVERT('@' USING binary))' must be 'latin2_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING binary))' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING latin2), CONVERT('@' USING binary))' must be 'latin2_general_ci']
+# checking ascii string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf8mb4))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf8mb4))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf8mb4))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf8mb4))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf8mb4))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf8mb4))' must be 'ascii_general_ci']
+# checking ascii string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf8mb3))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf8mb3))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf8mb3))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf8mb3))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf8mb3))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf8mb3))' must be 'ascii_general_ci']
+# checking ascii string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf16))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf16))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf16))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf16))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf16))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf16))' must be 'ascii_general_ci']
+# checking ascii string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf16le))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf16le))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf16le))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf16le))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf16le))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf16le))' must be 'ascii_general_ci']
+# checking ascii string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf32))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf32))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING utf32))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf32))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf32))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING utf32))' must be 'ascii_general_ci']
+# checking ascii string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING ucs2))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING ucs2))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING ucs2))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING ucs2))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING ucs2))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING ucs2))' must be 'ascii_general_ci']
+# checking ascii string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING koi8u))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING koi8u))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('Ю' USING koi8u))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING koi8u))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING koi8u))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('Ю' USING koi8u))' must be 'ascii_general_ci']
+# checking ascii string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING latin2))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING latin2))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING latin2))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING latin2))' must be 'ascii_general_ci']
+# checking ascii string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING ascii))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING ascii))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING ascii))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING ascii))' must be 'ascii_general_ci']
+# checking ascii string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING binary))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING ascii), CONVERT('@' USING binary))' must be 'ascii_general_ci']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING binary))' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING ascii), CONVERT('@' USING binary))' must be 'ascii_general_ci']
+# checking binary string with utf8mb4 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf8mb4))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf8mb4))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf8mb4))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf8mb4));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf8mb4))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf8mb4))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf8mb4))' must be 'binary']
+# checking binary string with utf8mb3 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf8mb3))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf8mb3))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf8mb3))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf8mb3));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf8mb3))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf8mb3))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf8mb3))' must be 'binary']
+# checking binary string with utf16 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf16))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf16))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf16))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf16));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf16))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf16))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf16))' must be 'binary']
+# checking binary string with utf16le mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf16le))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf16le))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf16le))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf16le));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf16le))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf16le))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf16le))' must be 'binary']
+# checking binary string with utf32 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf32))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf32))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING utf32))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf32));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf32))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf32))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING utf32))' must be 'binary']
+# checking binary string with ucs2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING ucs2))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING ucs2))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING ucs2))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING ucs2));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING ucs2))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING ucs2))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING ucs2))' must be 'binary']
+# checking binary string with koi8u mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING koi8u))' must be equal to '????????-????-????-????-????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING koi8u))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('Ю' USING koi8u))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING koi8u));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING koi8u))' must be equal to '???????? ???? ???? ???? ????????????']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING koi8u))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('Ю' USING koi8u))' must be 'binary']
+# checking binary string with latin2 mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING latin2))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING latin2))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING latin2));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING latin2))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING latin2))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING latin2))' must be 'binary']
+# checking binary string with ascii mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING ascii))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING ascii))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING ascii));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING ascii))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING ascii))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING ascii))' must be 'binary']
+# checking binary string with binary mask
+SET @check_expression_result = mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING binary))' must be equal to '@@@@@@@@-@@@@-@@@@-@@@@-@@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING binary))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(gen_rnd_uuid() USING binary), CONVERT('@' USING binary))' must be 'binary']
+SET @check_expression_result = mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING binary));
+include/assert.inc [the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING binary))' must be equal to '@@@@@@@@ @@@@ @@@@ @@@@ @@@@@@@@@@@@']
+include/assert.inc [charset of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING binary))' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'mask_uuid(CONVERT(REPLACE(gen_rnd_uuid(), '-', ' ') USING binary), CONVERT('@' USING binary))' must be 'binary']
+UNINSTALL COMPONENT 'file://component_masking_functions';

@@ -1,0 +1,115 @@
+--source include/have_masking_functions_component.inc
+
+--echo #
+--echo # Component Masking Functions: mask_uk_nin()
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--echo # arity checks
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_uk_nin();
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_uk_nin('', '', '');
+
+--echo # argument nullness checks
+--error ER_UDF_ERROR
+SELECT mask_uk_nin('', NULL);
+
+--echo # constraints checks
+--error ER_UDF_ERROR
+SELECT mask_uk_nin('');
+--error ER_UDF_ERROR
+SELECT mask_uk_nin('QQ123456');
+--error ER_UDF_ERROR
+SELECT mask_uk_nin('QQ 123456 CD');
+--error ER_UDF_ERROR
+SELECT mask_uk_nin('QQ123456C', '');
+--error ER_UDF_ERROR
+SELECT mask_uk_nin('QQ123456C', 'XX');
+
+
+--echo # NULL for NULL checks
+--let $assert_cond = mask_uk_nin(NULL) IS NULL
+--let $assert_text = mask_uk_nin() for the NULL primary argument should return NULL
+--source include/assert.inc
+--let $assert_cond = mask_uk_nin(NULL, "*") IS NULL
+--let $assert_text = mask_uk_nin() for the NULL primary argument and custom mask should return NULL
+--source include/assert.inc
+
+
+--echo # logic checks
+--let $expected_charset = utf8mb4
+
+--let $expression = mask_uk_nin('QQ123456C')
+--let $value = QQ*******
+--source check_expression.inc
+
+--let $expression = mask_uk_nin('QQ-123456-C')
+--let $value = QQ-******-*
+--source check_expression.inc
+
+--let $expression = mask_uk_nin('QQ 123456 C')
+--let $value = QQ ****** *
+--source check_expression.inc
+
+--let $expression = mask_uk_nin('QQ-123456C')
+--let $value = QQ-*******
+--source check_expression.inc
+
+--let $expression = mask_uk_nin('QQ-123456-C', 'Ю')
+--let $value = QQ-ЮЮЮЮЮЮ-Ю
+--source check_expression.inc
+
+# when a mask character cannot be converted to the destination
+# character set ('ascii' in this case) it will be substituted with '?'
+--let $expression = mask_uk_nin(_ascii 'QQ-123456-C', 'Ю')
+--let $value = QQ-??????-?
+--let $expected_charset = ascii
+--source check_expression.inc
+
+
+--echo # character set / collation checks
+--let $dollar = `SELECT _utf8mb4 0x24`
+
+SET @regular_charset_list = '[ "utf8mb4", "utf8mb3", "utf16", "utf16le", "utf32", "ucs2", "koi8u"]';
+SET @special_charset_list = '[ "latin2", "ascii", "binary"]';
+SET @charset_list = JSON_MERGE_PRESERVE(@regular_charset_list, @special_charset_list);
+--let $number_of_charsets = `SELECT JSON_LENGTH(@charset_list)`
+--let $i = 0
+while($i < $number_of_charsets) {
+  --let $expected_charset = `SELECT JSON_UNQUOTE(JSON_EXTRACT(@charset_list, '$dollar[$i]'))`
+  --let $primary_charset_is_special = `SELECT '$expected_charset' MEMBER OF (@special_charset_list)`
+
+  --let $j = 0
+  while ($j < $number_of_charsets) {
+    --let $mask_charset = `SELECT JSON_UNQUOTE(JSON_EXTRACT(@charset_list, '$dollar[$j]'))`
+    --let $mask_charset_is_special = `SELECT '$mask_charset' MEMBER OF (@special_charset_list)`
+    --echo # checking $expected_charset string with $mask_charset mask
+
+    --let $mch = Ю
+    if ($mask_charset_is_special) {
+      --let $mch = @
+    }
+
+    --let $expression = mask_uk_nin(CONVERT(gen_rnd_uk_nin() USING $expected_charset), CONVERT('$mch' USING $mask_charset))
+    --let $ch = $mch
+    if ($primary_charset_is_special) {
+      if (!$mask_charset_is_special) {
+        --let $ch = ?
+      }
+    }
+    --let $value = `SELECT CONCAT('AA', REPEAT('$ch', 7))`
+    --source check_expression.inc
+
+    --let $expression = mask_uk_nin(CONVERT(INSERT(gen_rnd_uk_nin(), 3, 0, '-') USING $expected_charset), CONVERT('$mch' USING $mask_charset))
+    --let $value = `SELECT INSERT('$value', 3, 0, '-')`
+    --source check_expression.inc
+
+    --inc $j
+  }
+
+  --inc $i
+}
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

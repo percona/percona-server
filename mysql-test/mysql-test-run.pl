@@ -302,6 +302,7 @@ our @DEFAULT_SUITES = qw(
   component_keyring_file
 
   percona-pam-for-mysql
+  component_masking_functions
   procfs
   rocksdb
   rocksdb_rpl

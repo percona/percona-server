@@ -301,6 +301,7 @@ our @DEFAULT_SUITES = qw(
   audit_log
   binlog_57_decryption
   percona-pam-for-mysql
+  component_masking_functions
   data_masking
   procfs
   rocksdb

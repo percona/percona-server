@@ -1,0 +1,279 @@
+#
+# Component Masking Functions: gen_range()
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+# arity checks
+SELECT gen_range();
+ERROR HY000: Can't initialize function 'gen_range'; Wrong argument list: should be (int, int)
+SELECT gen_range(42);
+ERROR HY000: Can't initialize function 'gen_range'; Wrong argument list: should be (int, int)
+SELECT gen_range(42, 43, 44);
+ERROR HY000: Can't initialize function 'gen_range'; Wrong argument list: should be (int, int)
+# argument nullness checks
+SELECT gen_range(NULL, 42);
+ERROR HY000: gen_range<int> UDF failed; argument 1 cannot be null
+SELECT gen_range(42, NULL);
+ERROR HY000: gen_range<int> UDF failed; argument 2 cannot be null
+# reversing min,max would be always NULL
+include/assert.inc [gen_range(-10, -80) should return NULL]
+include/assert.inc [gen_range(90, 10) should return NULL]
+include/assert.inc [random number should be < 0]
+SET @res = gen_range(0, 0);
+include/assert.inc [random number should be >= 0 and <= 0]
+SET @res = gen_range(-1, 1);
+include/assert.inc [random number should be >= -1 and <= 1]
+SET @res = gen_range(-2, 2);
+include/assert.inc [random number should be >= -2 and <= 2]
+SET @res = gen_range(-3, 3);
+include/assert.inc [random number should be >= -3 and <= 3]
+SET @res = gen_range(-4, 4);
+include/assert.inc [random number should be >= -4 and <= 4]
+SET @res = gen_range(-5, 5);
+include/assert.inc [random number should be >= -5 and <= 5]
+SET @res = gen_range(-6, 6);
+include/assert.inc [random number should be >= -6 and <= 6]
+SET @res = gen_range(-7, 7);
+include/assert.inc [random number should be >= -7 and <= 7]
+SET @res = gen_range(-8, 8);
+include/assert.inc [random number should be >= -8 and <= 8]
+SET @res = gen_range(-9, 9);
+include/assert.inc [random number should be >= -9 and <= 9]
+SET @res = gen_range(-10, 10);
+include/assert.inc [random number should be >= -10 and <= 10]
+SET @res = gen_range(-11, 11);
+include/assert.inc [random number should be >= -11 and <= 11]
+SET @res = gen_range(-12, 12);
+include/assert.inc [random number should be >= -12 and <= 12]
+SET @res = gen_range(-13, 13);
+include/assert.inc [random number should be >= -13 and <= 13]
+SET @res = gen_range(-14, 14);
+include/assert.inc [random number should be >= -14 and <= 14]
+SET @res = gen_range(-15, 15);
+include/assert.inc [random number should be >= -15 and <= 15]
+SET @res = gen_range(-16, 16);
+include/assert.inc [random number should be >= -16 and <= 16]
+SET @res = gen_range(-17, 17);
+include/assert.inc [random number should be >= -17 and <= 17]
+SET @res = gen_range(-18, 18);
+include/assert.inc [random number should be >= -18 and <= 18]
+SET @res = gen_range(-19, 19);
+include/assert.inc [random number should be >= -19 and <= 19]
+SET @res = gen_range(-20, 20);
+include/assert.inc [random number should be >= -20 and <= 20]
+SET @res = gen_range(-21, 21);
+include/assert.inc [random number should be >= -21 and <= 21]
+SET @res = gen_range(-22, 22);
+include/assert.inc [random number should be >= -22 and <= 22]
+SET @res = gen_range(-23, 23);
+include/assert.inc [random number should be >= -23 and <= 23]
+SET @res = gen_range(-24, 24);
+include/assert.inc [random number should be >= -24 and <= 24]
+SET @res = gen_range(-25, 25);
+include/assert.inc [random number should be >= -25 and <= 25]
+SET @res = gen_range(-26, 26);
+include/assert.inc [random number should be >= -26 and <= 26]
+SET @res = gen_range(-27, 27);
+include/assert.inc [random number should be >= -27 and <= 27]
+SET @res = gen_range(-28, 28);
+include/assert.inc [random number should be >= -28 and <= 28]
+SET @res = gen_range(-29, 29);
+include/assert.inc [random number should be >= -29 and <= 29]
+SET @res = gen_range(-30, 30);
+include/assert.inc [random number should be >= -30 and <= 30]
+SET @res = gen_range(-31, 31);
+include/assert.inc [random number should be >= -31 and <= 31]
+SET @res = gen_range(-32, 32);
+include/assert.inc [random number should be >= -32 and <= 32]
+SET @res = gen_range(-33, 33);
+include/assert.inc [random number should be >= -33 and <= 33]
+SET @res = gen_range(-34, 34);
+include/assert.inc [random number should be >= -34 and <= 34]
+SET @res = gen_range(-35, 35);
+include/assert.inc [random number should be >= -35 and <= 35]
+SET @res = gen_range(-36, 36);
+include/assert.inc [random number should be >= -36 and <= 36]
+SET @res = gen_range(-37, 37);
+include/assert.inc [random number should be >= -37 and <= 37]
+SET @res = gen_range(-38, 38);
+include/assert.inc [random number should be >= -38 and <= 38]
+SET @res = gen_range(-39, 39);
+include/assert.inc [random number should be >= -39 and <= 39]
+SET @res = gen_range(-40, 40);
+include/assert.inc [random number should be >= -40 and <= 40]
+SET @res = gen_range(-41, 41);
+include/assert.inc [random number should be >= -41 and <= 41]
+SET @res = gen_range(-42, 42);
+include/assert.inc [random number should be >= -42 and <= 42]
+SET @res = gen_range(-43, 43);
+include/assert.inc [random number should be >= -43 and <= 43]
+SET @res = gen_range(-44, 44);
+include/assert.inc [random number should be >= -44 and <= 44]
+SET @res = gen_range(-45, 45);
+include/assert.inc [random number should be >= -45 and <= 45]
+SET @res = gen_range(-46, 46);
+include/assert.inc [random number should be >= -46 and <= 46]
+SET @res = gen_range(-47, 47);
+include/assert.inc [random number should be >= -47 and <= 47]
+SET @res = gen_range(-48, 48);
+include/assert.inc [random number should be >= -48 and <= 48]
+SET @res = gen_range(-49, 49);
+include/assert.inc [random number should be >= -49 and <= 49]
+SET @res = gen_range(-50, 50);
+include/assert.inc [random number should be >= -50 and <= 50]
+SET @res = gen_range(-51, 51);
+include/assert.inc [random number should be >= -51 and <= 51]
+SET @res = gen_range(-52, 52);
+include/assert.inc [random number should be >= -52 and <= 52]
+SET @res = gen_range(-53, 53);
+include/assert.inc [random number should be >= -53 and <= 53]
+SET @res = gen_range(-54, 54);
+include/assert.inc [random number should be >= -54 and <= 54]
+SET @res = gen_range(-55, 55);
+include/assert.inc [random number should be >= -55 and <= 55]
+SET @res = gen_range(-56, 56);
+include/assert.inc [random number should be >= -56 and <= 56]
+SET @res = gen_range(-57, 57);
+include/assert.inc [random number should be >= -57 and <= 57]
+SET @res = gen_range(-58, 58);
+include/assert.inc [random number should be >= -58 and <= 58]
+SET @res = gen_range(-59, 59);
+include/assert.inc [random number should be >= -59 and <= 59]
+SET @res = gen_range(-60, 60);
+include/assert.inc [random number should be >= -60 and <= 60]
+SET @res = gen_range(-61, 61);
+include/assert.inc [random number should be >= -61 and <= 61]
+SET @res = gen_range(-62, 62);
+include/assert.inc [random number should be >= -62 and <= 62]
+SET @res = gen_range(-63, 63);
+include/assert.inc [random number should be >= -63 and <= 63]
+SET @res = gen_range(-64, 64);
+include/assert.inc [random number should be >= -64 and <= 64]
+SET @res = gen_range(-65, 65);
+include/assert.inc [random number should be >= -65 and <= 65]
+SET @res = gen_range(-66, 66);
+include/assert.inc [random number should be >= -66 and <= 66]
+SET @res = gen_range(-67, 67);
+include/assert.inc [random number should be >= -67 and <= 67]
+SET @res = gen_range(-68, 68);
+include/assert.inc [random number should be >= -68 and <= 68]
+SET @res = gen_range(-69, 69);
+include/assert.inc [random number should be >= -69 and <= 69]
+SET @res = gen_range(-70, 70);
+include/assert.inc [random number should be >= -70 and <= 70]
+SET @res = gen_range(-71, 71);
+include/assert.inc [random number should be >= -71 and <= 71]
+SET @res = gen_range(-72, 72);
+include/assert.inc [random number should be >= -72 and <= 72]
+SET @res = gen_range(-73, 73);
+include/assert.inc [random number should be >= -73 and <= 73]
+SET @res = gen_range(-74, 74);
+include/assert.inc [random number should be >= -74 and <= 74]
+SET @res = gen_range(-75, 75);
+include/assert.inc [random number should be >= -75 and <= 75]
+SET @res = gen_range(-76, 76);
+include/assert.inc [random number should be >= -76 and <= 76]
+SET @res = gen_range(-77, 77);
+include/assert.inc [random number should be >= -77 and <= 77]
+SET @res = gen_range(-78, 78);
+include/assert.inc [random number should be >= -78 and <= 78]
+SET @res = gen_range(-79, 79);
+include/assert.inc [random number should be >= -79 and <= 79]
+SET @res = gen_range(-80, 80);
+include/assert.inc [random number should be >= -80 and <= 80]
+SET @res = gen_range(-81, 81);
+include/assert.inc [random number should be >= -81 and <= 81]
+SET @res = gen_range(-82, 82);
+include/assert.inc [random number should be >= -82 and <= 82]
+SET @res = gen_range(-83, 83);
+include/assert.inc [random number should be >= -83 and <= 83]
+SET @res = gen_range(-84, 84);
+include/assert.inc [random number should be >= -84 and <= 84]
+SET @res = gen_range(-85, 85);
+include/assert.inc [random number should be >= -85 and <= 85]
+SET @res = gen_range(-86, 86);
+include/assert.inc [random number should be >= -86 and <= 86]
+SET @res = gen_range(-87, 87);
+include/assert.inc [random number should be >= -87 and <= 87]
+SET @res = gen_range(-88, 88);
+include/assert.inc [random number should be >= -88 and <= 88]
+SET @res = gen_range(-89, 89);
+include/assert.inc [random number should be >= -89 and <= 89]
+SET @res = gen_range(-90, 90);
+include/assert.inc [random number should be >= -90 and <= 90]
+SET @res = gen_range(-91, 91);
+include/assert.inc [random number should be >= -91 and <= 91]
+SET @res = gen_range(-92, 92);
+include/assert.inc [random number should be >= -92 and <= 92]
+SET @res = gen_range(-93, 93);
+include/assert.inc [random number should be >= -93 and <= 93]
+SET @res = gen_range(-94, 94);
+include/assert.inc [random number should be >= -94 and <= 94]
+SET @res = gen_range(-95, 95);
+include/assert.inc [random number should be >= -95 and <= 95]
+SET @res = gen_range(-96, 96);
+include/assert.inc [random number should be >= -96 and <= 96]
+SET @res = gen_range(-97, 97);
+include/assert.inc [random number should be >= -97 and <= 97]
+SET @res = gen_range(-98, 98);
+include/assert.inc [random number should be >= -98 and <= 98]
+SET @res = gen_range(-99, 99);
+include/assert.inc [random number should be >= -99 and <= 99]
+SET @res = gen_range(-100, 100);
+include/assert.inc [random number should be >= -100 and <= 100]
+SET @res = gen_range(-101, 101);
+include/assert.inc [random number should be >= -101 and <= 101]
+SET @res = gen_range(-102, 102);
+include/assert.inc [random number should be >= -102 and <= 102]
+SET @res = gen_range(-103, 103);
+include/assert.inc [random number should be >= -103 and <= 103]
+SET @res = gen_range(-104, 104);
+include/assert.inc [random number should be >= -104 and <= 104]
+SET @res = gen_range(-105, 105);
+include/assert.inc [random number should be >= -105 and <= 105]
+SET @res = gen_range(-106, 106);
+include/assert.inc [random number should be >= -106 and <= 106]
+SET @res = gen_range(-107, 107);
+include/assert.inc [random number should be >= -107 and <= 107]
+SET @res = gen_range(-108, 108);
+include/assert.inc [random number should be >= -108 and <= 108]
+SET @res = gen_range(-109, 109);
+include/assert.inc [random number should be >= -109 and <= 109]
+SET @res = gen_range(-110, 110);
+include/assert.inc [random number should be >= -110 and <= 110]
+SET @res = gen_range(-111, 111);
+include/assert.inc [random number should be >= -111 and <= 111]
+SET @res = gen_range(-112, 112);
+include/assert.inc [random number should be >= -112 and <= 112]
+SET @res = gen_range(-113, 113);
+include/assert.inc [random number should be >= -113 and <= 113]
+SET @res = gen_range(-114, 114);
+include/assert.inc [random number should be >= -114 and <= 114]
+SET @res = gen_range(-115, 115);
+include/assert.inc [random number should be >= -115 and <= 115]
+SET @res = gen_range(-116, 116);
+include/assert.inc [random number should be >= -116 and <= 116]
+SET @res = gen_range(-117, 117);
+include/assert.inc [random number should be >= -117 and <= 117]
+SET @res = gen_range(-118, 118);
+include/assert.inc [random number should be >= -118 and <= 118]
+SET @res = gen_range(-119, 119);
+include/assert.inc [random number should be >= -119 and <= 119]
+SET @res = gen_range(-120, 120);
+include/assert.inc [random number should be >= -120 and <= 120]
+SET @res = gen_range(-121, 121);
+include/assert.inc [random number should be >= -121 and <= 121]
+SET @res = gen_range(-122, 122);
+include/assert.inc [random number should be >= -122 and <= 122]
+SET @res = gen_range(-123, 123);
+include/assert.inc [random number should be >= -123 and <= 123]
+SET @res = gen_range(-124, 124);
+include/assert.inc [random number should be >= -124 and <= 124]
+SET @res = gen_range(-125, 125);
+include/assert.inc [random number should be >= -125 and <= 125]
+SET @res = gen_range(-126, 126);
+include/assert.inc [random number should be >= -126 and <= 126]
+SET @res = gen_range(-127, 127);
+include/assert.inc [random number should be >= -127 and <= 127]
+# test max range
+include/assert.inc [random number should be >= -9223372036854775808 AND <= 9223372036854775807]
+UNINSTALL COMPONENT 'file://component_masking_functions';

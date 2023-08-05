@@ -1,0 +1,28 @@
+--source include/have_masking_functions_component.inc
+
+--echo #
+--echo # Component Masking Functions: gen_rnd_uuid()
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--echo # arity checks
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_rnd_uuid('');
+
+
+--echo # logic checks
+--let $number_of_iterations = 16
+--let $iteration = 0
+
+--let $expression = gen_rnd_uuid()
+--let $regexp = [[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}
+--let $expected_charset = utf8mb4
+while($iteration < $number_of_iterations) {
+  --echo # iteration $iteration
+  --source check_expression.inc
+  --inc $iteration
+}
+
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

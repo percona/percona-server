@@ -1,0 +1,923 @@
+#
+# Component Masking Functions: gen_rnd_iban()
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+# arity checks
+SELECT gen_rnd_iban('', 42, '');
+ERROR HY000: Can't initialize function 'gen_rnd_iban'; Wrong argument list: should be ([string], [int])
+# argument nullness checks
+SELECT gen_rnd_iban(NULL);
+ERROR HY000: gen_rnd_iban<string> UDF failed; argument 1 cannot be null
+SELECT gen_rnd_iban(NULL, 42);
+ERROR HY000: gen_rnd_iban<string> UDF failed; argument 1 cannot be null
+SELECT gen_rnd_iban('', NULL);
+ERROR HY000: gen_rnd_iban<string> UDF failed; argument 2 cannot be null
+# constraints checks
+SELECT gen_rnd_iban('');
+ERROR HY000: gen_rnd_iban<string> UDF failed; IBAN country code must be exactly 2 ASCII characters
+SELECT gen_rnd_iban('U');
+ERROR HY000: gen_rnd_iban<string> UDF failed; IBAN country code must be exactly 2 ASCII characters
+SELECT gen_rnd_iban('UKK');
+ERROR HY000: gen_rnd_iban<string> UDF failed; IBAN country code must be exactly 2 ASCII characters
+SELECT gen_rnd_iban('ЮЮ');
+ERROR HY000: gen_rnd_iban<string> UDF failed; IBAN country code must include only latin upper-case characters
+SELECT gen_rnd_iban('UK', -1);
+ERROR HY000: gen_rnd_iban<string> UDF failed; IBAN length must not be a negative number
+SELECT gen_rnd_iban('UK', 0);
+ERROR HY000: gen_rnd_iban<string> UDF failed; IBAN length must be between 15 and 34
+SELECT gen_rnd_iban('UK', 14);
+ERROR HY000: gen_rnd_iban<string> UDF failed; IBAN length must be between 15 and 34
+SELECT gen_rnd_iban('UK', 35);
+ERROR HY000: gen_rnd_iban<string> UDF failed; IBAN length must be between 15 and 34
+# logic checks
+SET @check_expression_result = gen_rnd_iban();
+include/assert.inc [the result of evaluating 'gen_rnd_iban()' must match the 'ZZ[[:digit:]]{14}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban()' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = gen_rnd_iban('UK');
+include/assert.inc [the result of evaluating 'gen_rnd_iban('UK')' must match the 'UK[[:digit:]]{14}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban('UK')' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban('UK')' must be 'utf8mb4_0900_ai_ci']
+SET @check_expression_result = gen_rnd_iban('UK', 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban('UK', 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban('UK', 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban('UK', 20)' must be 'utf8mb4_0900_ai_ci']
+# character set / collation checks
+SET @regular_charset_list = '[ "utf8mb4", "utf8mb3", "utf16", "utf16le", "utf32", "ucs2", "koi8u"]';
+SET @special_charset_list = '[ "latin2", "ascii", "binary"]';
+SET @charset_list = JSON_MERGE_PRESERVE(@regular_charset_list, @special_charset_list);
+chacacter set 'utf8mb4': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+chacacter set 'utf8mb4': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb4), 20)' must be 'utf8mb4_0900_ai_ci']
+################################
+chacacter set 'utf8mb3': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+chacacter set 'utf8mb3': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf8mb3), 20)' must be 'utf8mb3_general_ci']
+################################
+chacacter set 'utf16': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+chacacter set 'utf16': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16), 20)' must be 'utf16_general_ci']
+################################
+chacacter set 'utf16le': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+chacacter set 'utf16le': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf16le), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf16le), 20)' must be 'utf16le_general_ci']
+################################
+chacacter set 'utf32': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+chacacter set 'utf32': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING utf32), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING utf32), 20)' must be 'utf32_general_ci']
+################################
+chacacter set 'ucs2': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+chacacter set 'ucs2': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ucs2), 20);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ucs2), 20)' must be 'ucs2_general_ci']
+################################
+chacacter set 'koi8u': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+chacacter set 'koi8u': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING koi8u), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING koi8u), 20)' must be 'koi8u_general_ci']
+################################
+chacacter set 'latin2': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+chacacter set 'latin2': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING latin2), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING latin2), 20)' must be 'latin2_general_ci']
+################################
+chacacter set 'ascii': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+chacacter set 'ascii': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING ascii), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING ascii), 20)' must be 'ascii_general_ci']
+################################
+chacacter set 'binary': iteration 0
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 1
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 2
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 3
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 4
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 5
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 6
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 7
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 8
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 9
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 10
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 11
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 12
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 13
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 14
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+chacacter set 'binary': iteration 15
+SET @check_expression_result = gen_rnd_iban(CONVERT('UK' USING binary), 20);
+include/assert.inc [the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must match the 'UK[[:digit:]]{18}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_iban(CONVERT('UK' USING binary), 20)' must be 'binary']
+################################
+UNINSTALL COMPONENT 'file://component_masking_functions';

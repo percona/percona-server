@@ -1,0 +1,463 @@
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+INSTALL COMPONENT 'file://component_masking_functions';
+[connection slave]
+INSTALL COMPONENT 'file://component_masking_functions';
+[connection master]
+#
+# Random number generation functions
+#
+# gen_range()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_range(0, 1048575));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_range(0, 1048575)" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_range(0, 1048575)" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Random string generation functions
+#
+# gen_rnd_canada_sin()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_canada_sin());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_canada_sin()" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_canada_sin()" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_email()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_email());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_email()" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_email()" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_email(4));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_email(4)" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_email(4)" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_email(4, 6));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_email(4, 6)" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_email(4, 6)" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_email(4, 6, 'foo.com'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_email(4, 6, 'foo.com')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_email(4, 6, 'foo.com')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_iban()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_iban());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_iban()" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_iban()" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_iban('UK'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_iban('UK')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_iban('UK')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_iban('UK', 20));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_iban('UK', 20)" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_iban('UK', 20)" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_pan()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_pan());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_pan()" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_pan()" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_ssn()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_ssn());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_ssn()" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_ssn()" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_uk_nin()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_uk_nin());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_uk_nin()" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_uk_nin()" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_us_phone()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_us_phone());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_us_phone()" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_us_phone()" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_uuid()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_uuid());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_rnd_uuid()" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_rnd_uuid()" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Masking functions
+#
+# mask_canada_sin()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_canada_sin('046-454-286'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_canada_sin('046-454-286')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_canada_sin('046-454-286')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_canada_sin('046-454-286', '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_canada_sin('046-454-286', '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_canada_sin('046-454-286', '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_iban()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_iban('IE12BOFI90000112345678'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_iban('IE12BOFI90000112345678')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_iban('IE12BOFI90000112345678')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_iban('IE12BOFI90000112345678', '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_iban('IE12BOFI90000112345678', '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_iban('IE12BOFI90000112345678', '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_inner()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_inner('abcdefgh', 2, 4));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_inner('abcdefgh', 2, 4)" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_inner('abcdefgh', 2, 4)" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_inner('abcdefgh', 2, 4, '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_inner('abcdefgh', 2, 4, '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_inner('abcdefgh', 2, 4, '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_outer()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_outer('abcdefgh', 2, 4));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_outer('abcdefgh', 2, 4)" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_outer('abcdefgh', 2, 4)" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_outer('abcdefgh', 2, 4, '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_outer('abcdefgh', 2, 4, '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_outer('abcdefgh', 2, 4, '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_pan()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_pan('1234567887654321'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_pan('1234567887654321')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_pan('1234567887654321')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_pan('1234567887654321', '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_pan('1234567887654321', '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_pan('1234567887654321', '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_pan_relaxed()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_pan_relaxed('1234567887654321'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_pan_relaxed('1234567887654321')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_pan_relaxed('1234567887654321')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_pan_relaxed('1234567887654321', '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_pan_relaxed('1234567887654321', '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_pan_relaxed('1234567887654321', '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_ssn()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_ssn('909-63-6922'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_ssn('909-63-6922')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_ssn('909-63-6922')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_ssn('909-63-6922', '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_ssn('909-63-6922', '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_ssn('909-63-6922', '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_uk_nin()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_uk_nin('QQ123456C'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_uk_nin('QQ123456C')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_uk_nin('QQ123456C')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_uk_nin('QQ123456C', '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_uk_nin('QQ123456C', '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_uk_nin('QQ123456C', '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_uuid()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb', '_'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb', '_')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb', '_')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Dictionary functions
+#
+[connection master]
+CREATE TABLE mysql.masking_dictionaries(
+Dictionary VARCHAR(256) NOT NULL,
+Term VARCHAR(256) NOT NULL,
+UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO root@localhost;
+# masking_dictionary_term_add()
+SELECT masking_dictionary_term_add('dict1', 'word11');
+masking_dictionary_term_add('dict1', 'word11')
+1
+SELECT masking_dictionary_term_add('dict1', 'word12');
+masking_dictionary_term_add('dict1', 'word12')
+1
+SELECT masking_dictionary_term_add('dict2', 'word21');
+masking_dictionary_term_add('dict2', 'word21')
+1
+SELECT masking_dictionary_term_add('dict2', 'word22');
+masking_dictionary_term_add('dict2', 'word22')
+1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.masking_dictionaries must have 4 records]
+# gen_dictionary()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_dictionary('dict1'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_dictionary('dict1')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_dictionary('dict1')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_blocklist()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_blocklist('word11', 'dict1', 'dict2'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+include/assert.inc [The "gen_blocklist('word11', 'dict1', 'dict2')" must generate exactly one warning when binlog_format is STATEMENT]
+include/assert.inc [The "gen_blocklist('word11', 'dict1', 'dict2')" must generate the ER_BINLOG_UNSAFE_STATEMENT warning when binlog_format is STATEMENT]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# masking_dictionary_term_remove()
+[connection master]
+SELECT masking_dictionary_term_remove('dict2', 'word21');
+masking_dictionary_term_remove('dict2', 'word21')
+1
+SELECT masking_dictionary_term_remove('dict2', 'word22');
+masking_dictionary_term_remove('dict2', 'word22')
+1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.masking_dictionaries must have 2 records]
+# masking_dictionary_remove()
+[connection master]
+SELECT masking_dictionary_remove('dict1');
+masking_dictionary_remove('dict1')
+1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.masking_dictionaries must have no records]
+[connection master]
+REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM root@localhost;
+DROP TABLE mysql.masking_dictionaries;
+[connection slave]
+UNINSTALL COMPONENT 'file://component_masking_functions';
+[connection master]
+UNINSTALL COMPONENT 'file://component_masking_functions';
+include/rpl_end.inc

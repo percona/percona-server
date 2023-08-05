@@ -1,0 +1,4 @@
+--source include/have_masking_functions_component.inc
+--source include/have_binlog_format_row.inc
+
+--source rpl_function_determinism.inc

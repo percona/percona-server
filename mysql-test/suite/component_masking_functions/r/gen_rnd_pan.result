@@ -1,0 +1,89 @@
+#
+# Component Masking Functions: gen_rnd_pan()
+#
+INSTALL COMPONENT 'file://component_masking_functions';
+# arity checks
+SELECT gen_rnd_pan('');
+ERROR HY000: Can't initialize function 'gen_rnd_pan'; Wrong argument list: should be empty
+# logic checks
+# iteration 0
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 1
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 2
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 3
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 4
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 5
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 6
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 7
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 8
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 9
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 10
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 11
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 12
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 13
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 14
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+# iteration 15
+SET @check_expression_result = gen_rnd_pan();
+include/assert.inc [the result of evaluating 'gen_rnd_pan()' must match the '[[:digit:]]{15,16}' pattern]
+include/assert.inc [charset of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4']
+include/assert.inc [collation of the result of evaluating 'gen_rnd_pan()' must be 'utf8mb4_0900_ai_ci']
+UNINSTALL COMPONENT 'file://component_masking_functions';

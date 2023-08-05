@@ -1,0 +1,42 @@
+* Not a difference, but we should mention it: in the plugin, there was a function called gen_blacklist.
+  In the component, it is named gen_blocklist. Upstream documentation forgets to mention that they changed this.
+* component_masking (C++ interface) not implemented, as it has no public documentation
+
+* Upstream documentation has some contradictions / unclear sentences about character set conversions and optimizations.
+  Sometimes it says that it converts things to utf8mb4, sometimes it claims that it return the same character set as the parameter. Sometimes it mentions both for the same function, which is a contradiction.
+  There are also mentions of optimization for single byte utf8mb4 strings... which again make no sense, as utf8mb4 is variable width and can't be optimized in the way the documentation describes.
+  In our implementation:
+  * the return value always uses the same character set as the primary string argument, if there is at least one string argument
+  * if there is no string arguments, we use utf8mb4
+  * we never do unneccessary internal conversions, we process the string in that character set as specified, and copy data in big chucks when possible
+  * if the function uses multiple strings, and they are specified in different character sets, we use the character set of the first parameter, and convert the rest to it
+  * masking characters CAN be multibyte characters (it is unclear if upstream allows this or not)
+* Upstream claims that specific masking functions (PAN, SSN, etc) only support specific format.
+  They also contradict this by showing examples not in those formats.
+  In our implementation, we only do length checks in these functions:
+  if the argument is of the correct length, we do the masking as specified, if it is not, we report an error
+* In the case of mask_uk_nin, upstream documentation shows an example that is not of the specified length, and yet, they claim that it works. It doesn't in our implementation.
+* There's no mention about the privilege requirements for the gen_blocklist and gen_dictionary UDFs, other than a side comment that all users can execute gen_dictionary. I'm not sure if that's secure, but our implementation currently does exactly that, and allows access to everyone. To accomplish this, internal queries are ran as 'root'@'localhost', as the documentation doesn't mention adding additional users, only the table, or making the table world readable.
+* Upstream doc says that masking_dictionary_term_add should return error if a dictionary doesn't exists... but there is no other way to create a new dictionary. Also, the table structure doesn't allow to create a dictionary without an initial term. Our implementation succeeds, and creates the dictionary.
+* gen_rnd_pan is kept as in the plugin: it has no optional number parameter, and generates a random, but valid Mastercard / Visa / Discover number instead of something totally random
+
+Dictionary table structure:
+Upstream recommends to create the following table
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term),
+    INDEX dictionary_idx (Dictionary)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+Here 'dictionary_idx' is unnecessary as 'dictionary_term_idx' covers it.
+In the Percona implementation we do not have such strict requirements:
+* The length of the 'Dictionary' field does not need to be 256
+* The length of the 'Term' field does not need to be 256
+* The lengths of the 'Dictionary' and 'Term' fields can be different.
+* The character set of the 'Dictionary' field does not need to be 'utf8mb4'
+* The character set of the 'Term' field does not need to be 'utf8mb4'
+* The character sets of the 'Dictionary' and 'Term' fields can be different.
+* The presence of a '(Dictionary, Term)' index is optional although recommended for speed and uniqueness checks .
+* The only requirements are the name of the table 'masking_dictionaries' (in the 'mysql' database) and the presence of two string fields named 'Dictionary' and 'Term'.
+* The table may also have additional fields but 'INSERT INTO mysql.masking_dictionaries (Dictionary, Term) VALUES('xxx', 'yyy')' should be a valid operation (these fields should be either nullable or have default values)

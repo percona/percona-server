@@ -1,0 +1,42 @@
+--source include/have_masking_functions_component.inc
+
+SET @saved_autocommit = @@global.autocommit;
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--echo #
+--echo # Checking dictionary manipulation functions with autocommit turned off
+--echo #
+
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+--let $current_user = `SELECT USER()`
+eval GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO $current_user;
+
+
+--let $assert_cond = [ SELECT masking_dictionary_term_add("dict", "entry") ] = 1
+--let $assert_text = adding "entry" to "dict" must succeed
+--source include/assert.inc
+--let $assert_cond = [ SELECT COUNT(*) FROM mysql.masking_dictionaries ] = 1
+--let $assert_text = mysql.masking_dictionaries must have 1 record
+--source include/assert.inc
+
+SET @@global.autocommit = OFF;
+--let $assert_cond = [ SELECT masking_dictionary_term_add("dict", "another_entry") ] = 1
+--let $assert_text = adding "another_entry" to "dict" must succeed
+--source include/assert.inc
+--let $assert_cond = [ SELECT COUNT(*) FROM mysql.masking_dictionaries ] = 2
+--let $assert_text = mysql.masking_dictionaries must have 2 record
+--source include/assert.inc
+
+eval REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM $current_user;
+DROP TABLE mysql.masking_dictionaries;
+
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+SET @@global.autocommit = @saved_autocommit;

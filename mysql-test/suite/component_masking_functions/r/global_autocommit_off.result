@@ -1,0 +1,20 @@
+SET @saved_autocommit = @@global.autocommit;
+INSTALL COMPONENT 'file://component_masking_functions';
+#
+# Checking dictionary manipulation functions with autocommit turned off
+#
+CREATE TABLE mysql.masking_dictionaries(
+Dictionary VARCHAR(256) NOT NULL,
+Term VARCHAR(256) NOT NULL,
+UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO root@localhost;
+include/assert.inc [adding "entry" to "dict" must succeed]
+include/assert.inc [mysql.masking_dictionaries must have 1 record]
+SET @@global.autocommit = OFF;
+include/assert.inc [adding "another_entry" to "dict" must succeed]
+include/assert.inc [mysql.masking_dictionaries must have 2 record]
+REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM root@localhost;
+DROP TABLE mysql.masking_dictionaries;
+UNINSTALL COMPONENT 'file://component_masking_functions';
+SET @@global.autocommit = @saved_autocommit;

@@ -1,0 +1,394 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+INSTALL COMPONENT 'file://component_masking_functions';
+[connection slave]
+INSTALL COMPONENT 'file://component_masking_functions';
+[connection master]
+#
+# Random number generation functions
+#
+# gen_range()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_range(0, 1048575));
+include/assert.inc [The "gen_range(0, 1048575)" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_range(0, 1048575)" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Random string generation functions
+#
+# gen_rnd_canada_sin()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_canada_sin());
+include/assert.inc [The "gen_rnd_canada_sin()" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_canada_sin()" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_email()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_email());
+include/assert.inc [The "gen_rnd_email()" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_email()" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_email(4));
+include/assert.inc [The "gen_rnd_email(4)" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_email(4)" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_email(4, 6));
+include/assert.inc [The "gen_rnd_email(4, 6)" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_email(4, 6)" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_email(4, 6, 'foo.com'));
+include/assert.inc [The "gen_rnd_email(4, 6, 'foo.com')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_email(4, 6, 'foo.com')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_iban()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_iban());
+include/assert.inc [The "gen_rnd_iban()" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_iban()" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_iban('UK'));
+include/assert.inc [The "gen_rnd_iban('UK')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_iban('UK')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_iban('UK', 20));
+include/assert.inc [The "gen_rnd_iban('UK', 20)" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_iban('UK', 20)" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_pan()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_pan());
+include/assert.inc [The "gen_rnd_pan()" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_pan()" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_ssn()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_ssn());
+include/assert.inc [The "gen_rnd_ssn()" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_ssn()" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_uk_nin()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_uk_nin());
+include/assert.inc [The "gen_rnd_uk_nin()" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_uk_nin()" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_us_phone()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_us_phone());
+include/assert.inc [The "gen_rnd_us_phone()" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_us_phone()" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_rnd_uuid()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_rnd_uuid());
+include/assert.inc [The "gen_rnd_uuid()" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_rnd_uuid()" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Masking functions
+#
+# mask_canada_sin()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_canada_sin('046-454-286'));
+include/assert.inc [The "mask_canada_sin('046-454-286')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_canada_sin('046-454-286')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_canada_sin('046-454-286', '_'));
+include/assert.inc [The "mask_canada_sin('046-454-286', '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_canada_sin('046-454-286', '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_iban()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_iban('IE12BOFI90000112345678'));
+include/assert.inc [The "mask_iban('IE12BOFI90000112345678')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_iban('IE12BOFI90000112345678')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_iban('IE12BOFI90000112345678', '_'));
+include/assert.inc [The "mask_iban('IE12BOFI90000112345678', '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_iban('IE12BOFI90000112345678', '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_inner()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_inner('abcdefgh', 2, 4));
+include/assert.inc [The "mask_inner('abcdefgh', 2, 4)" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_inner('abcdefgh', 2, 4)" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_inner('abcdefgh', 2, 4, '_'));
+include/assert.inc [The "mask_inner('abcdefgh', 2, 4, '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_inner('abcdefgh', 2, 4, '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_outer()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_outer('abcdefgh', 2, 4));
+include/assert.inc [The "mask_outer('abcdefgh', 2, 4)" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_outer('abcdefgh', 2, 4)" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_outer('abcdefgh', 2, 4, '_'));
+include/assert.inc [The "mask_outer('abcdefgh', 2, 4, '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_outer('abcdefgh', 2, 4, '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_pan()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_pan('1234567887654321'));
+include/assert.inc [The "mask_pan('1234567887654321')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_pan('1234567887654321')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_pan('1234567887654321', '_'));
+include/assert.inc [The "mask_pan('1234567887654321', '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_pan('1234567887654321', '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_pan_relaxed()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_pan_relaxed('1234567887654321'));
+include/assert.inc [The "mask_pan_relaxed('1234567887654321')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_pan_relaxed('1234567887654321')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_pan_relaxed('1234567887654321', '_'));
+include/assert.inc [The "mask_pan_relaxed('1234567887654321', '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_pan_relaxed('1234567887654321', '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_ssn()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_ssn('909-63-6922'));
+include/assert.inc [The "mask_ssn('909-63-6922')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_ssn('909-63-6922')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_ssn('909-63-6922', '_'));
+include/assert.inc [The "mask_ssn('909-63-6922', '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_ssn('909-63-6922', '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_uk_nin()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_uk_nin('QQ123456C'));
+include/assert.inc [The "mask_uk_nin('QQ123456C')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_uk_nin('QQ123456C')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_uk_nin('QQ123456C', '_'));
+include/assert.inc [The "mask_uk_nin('QQ123456C', '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_uk_nin('QQ123456C', '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# mask_uuid()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb'));
+include/assert.inc [The "mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb', '_'));
+include/assert.inc [The "mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb', '_')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "mask_uuid('8594a73a-5190-4f75-bafc-12b3153309eb', '_')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Dictionary functions
+#
+[connection master]
+CREATE TABLE mysql.masking_dictionaries(
+Dictionary VARCHAR(256) NOT NULL,
+Term VARCHAR(256) NOT NULL,
+UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO root@localhost;
+# masking_dictionary_term_add()
+SELECT masking_dictionary_term_add('dict1', 'word11');
+masking_dictionary_term_add('dict1', 'word11')
+1
+SELECT masking_dictionary_term_add('dict1', 'word12');
+masking_dictionary_term_add('dict1', 'word12')
+1
+SELECT masking_dictionary_term_add('dict2', 'word21');
+masking_dictionary_term_add('dict2', 'word21')
+1
+SELECT masking_dictionary_term_add('dict2', 'word22');
+masking_dictionary_term_add('dict2', 'word22')
+1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.masking_dictionaries must have 4 records]
+# gen_dictionary()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_dictionary('dict1'));
+include/assert.inc [The "gen_dictionary('dict1')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_dictionary('dict1')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# gen_blocklist()
+[connection master]
+CREATE TABLE t(vl VARCHAR(64) NOT NULL);
+INSERT INTO t VALUES(gen_blocklist('word11', 'dict1', 'dict2'));
+include/assert.inc [The "gen_blocklist('word11', 'dict1', 'dict2')" must not generate any warnings when binlog_format is ROW / MIXED]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The result of "gen_blocklist('word11', 'dict1', 'dict2')" on primary and replica must match when binlog_format is ROW / MIXED]
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+# masking_dictionary_term_remove()
+[connection master]
+SELECT masking_dictionary_term_remove('dict2', 'word21');
+masking_dictionary_term_remove('dict2', 'word21')
+1
+SELECT masking_dictionary_term_remove('dict2', 'word22');
+masking_dictionary_term_remove('dict2', 'word22')
+1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.masking_dictionaries must have 2 records]
+# masking_dictionary_remove()
+[connection master]
+SELECT masking_dictionary_remove('dict1');
+masking_dictionary_remove('dict1')
+1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.masking_dictionaries must have no records]
+[connection master]
+REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM root@localhost;
+DROP TABLE mysql.masking_dictionaries;
+[connection slave]
+UNINSTALL COMPONENT 'file://component_masking_functions';
+[connection master]
+UNINSTALL COMPONENT 'file://component_masking_functions';
+include/rpl_end.inc

@@ -1,0 +1,58 @@
+--source include/have_masking_functions_component.inc
+
+--echo #
+--echo # Component Masking Functions: gen_range()
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--echo # arity checks
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_range();
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_range(42);
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_range(42, 43, 44);
+
+--echo # argument nullness checks
+--error ER_UDF_ERROR
+SELECT gen_range(NULL, 42);
+--error ER_UDF_ERROR
+SELECT gen_range(42, NULL);
+
+--echo # reversing min,max would be always NULL
+--let $assert_cond = gen_range(-10, -80) IS NULL
+--let $assert_text = gen_range(-10, -80) should return NULL
+--source include/assert.inc
+
+--let $assert_cond = gen_range(90, 10) IS NULL
+--let $assert_text = gen_range(90, 10) should return NULL
+--source include/assert.inc
+
+--let $assert_cond = gen_range(-80, -10) < 0
+--let $assert_text = random number should be < 0
+--source include/assert.inc
+
+--let $number_of_iterations = 128
+--let $iteration = 0
+--let $min = 0
+--let $max = 0
+
+while ($iteration < $number_of_iterations) {
+  --eval SET @res = gen_range($min, $max)
+
+  --let $assert_cond= [SELECT @res] >= $min AND <1> <= $max
+  --let $assert_text = random number should be >= $min and <= $max
+  --source include/assert.inc
+
+  --dec $min
+  --inc $max
+  --inc $iteration
+}
+
+--echo # test max range
+--let $assert_cond= [SELECT gen_range(-9223372036854775808, 9223372036854775807)] >=  -9223372036854775808 AND <1> <= 9223372036854775807
+--let $assert_text = random number should be >= -9223372036854775808 AND <= 9223372036854775807
+--source include/assert.inc
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

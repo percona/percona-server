@@ -1,0 +1,147 @@
+--source include/have_masking_functions_component.inc
+
+--echo #
+--echo # Component Masking Functions: mask_inner()
+--echo #
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--echo # arity checks
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_inner();
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_inner('');
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_inner('', 42);
+--error ER_CANT_INITIALIZE_UDF
+SELECT mask_inner('', 42, 42, '', '');
+
+
+--echo # argument nullness checks
+--error ER_UDF_ERROR
+SELECT mask_inner('', NULL, 42);
+--error ER_UDF_ERROR
+SELECT mask_inner('', 42, NULL);
+
+--error ER_UDF_ERROR
+SELECT mask_inner('', NULL, 42, '');
+--error ER_UDF_ERROR
+SELECT mask_inner('', 42, NULL, '');
+--error ER_UDF_ERROR
+SELECT mask_inner('', 42, 42, NULL);
+
+
+--echo # constraints checks
+--error ER_UDF_ERROR
+SELECT mask_inner('foo', -1, 0);
+--error ER_UDF_ERROR
+SELECT mask_inner('foo', 0, -1);
+--error ER_UDF_ERROR
+SELECT mask_inner('foo', 1, 1, '');
+--error ER_UDF_ERROR
+SELECT mask_inner('foo', 1, 1, ''XX);
+
+
+--echo # NULL for NULL checks
+--let $assert_cond = mask_inner(NULL, 42, 42) IS NULL
+--let $assert_text = mask_inner() for the NULL primary argument should return NULL
+--source include/assert.inc
+--let $assert_cond = mask_inner(NULL, 42, 42, "*") IS NULL
+--let $assert_text = mask_inner() for the NULL primary argument and custom mask should return NULL
+--source include/assert.inc
+
+
+--echo # logic checks
+--let $expected_charset = utf8mb4
+
+--let $expression = mask_inner('qwerty', 0, 1)
+--let $value = XXXXXy
+--source check_expression.inc
+
+--let $expression = mask_inner('qwerty', 1, 0)
+--let $value = qXXXXX
+--source check_expression.inc
+
+--let $expression = mask_inner('qwerty', 1, 1)
+--let $value = qXXXXy
+--source check_expression.inc
+
+--let $expression = mask_inner('qwerty', 0, 6)
+--let $value = qwerty
+--source check_expression.inc
+
+--let $expression = mask_inner('qwerty', 6, 0)
+--let $value = qwerty
+--source check_expression.inc
+
+--let $expression = mask_inner('qwerty', 3, 3)
+--let $value = qwerty
+--source check_expression.inc
+
+--let $expression = mask_inner('qwerty', 5, 5)
+--let $value = qwerty
+--source check_expression.inc
+
+--let $expression = mask_inner('qwerty', 42, 42)
+--let $value = qwerty
+--source check_expression.inc
+
+--let $expression = mask_inner('qwerty', 1, 1, 'Ю')
+--let $value = qЮЮЮЮy
+--source check_expression.inc
+
+# when a mask character cannot be converted to the destination
+# character set ('ascii' in this case) it will be substituted with '?'
+--let $expression = mask_inner(_ascii 'qwerty', 1, 1, 'Ю')
+--let $value = q????y
+--let $expected_charset = ascii
+--source check_expression.inc
+
+
+--echo # character set / collation checks
+--let $dollar = `SELECT _utf8mb4 0x24`
+
+SET @regular_charset_list = '[ "utf8mb4", "utf8mb3", "utf16", "utf16le", "utf32", "ucs2", "koi8u"]';
+SET @special_charset_list = '[ "latin2", "ascii", "binary"]';
+SET @charset_list = JSON_MERGE_PRESERVE(@regular_charset_list, @special_charset_list);
+--let $number_of_charsets = `SELECT JSON_LENGTH(@charset_list)`
+--let $i = 0
+while($i < $number_of_charsets) {
+  --let $expected_charset = `SELECT JSON_UNQUOTE(JSON_EXTRACT(@charset_list, '$dollar[$i]'))`
+  --let $primary_charset_is_special = `SELECT '$expected_charset' MEMBER OF (@special_charset_list)`
+  --let $word = ЛевMySQL
+  if ($primary_charset_is_special) {
+    --let $word = LeoMySQL
+  }
+
+  --let $j = 0
+  while ($j < $number_of_charsets) {
+    --let $mask_charset = `SELECT JSON_UNQUOTE(JSON_EXTRACT(@charset_list, '$dollar[$j]'))`
+    --let $mask_charset_is_special = `SELECT '$mask_charset' MEMBER OF (@special_charset_list)`
+    --echo # checking $expected_charset string with $mask_charset mask
+
+    --let $mch = Ю
+    if ($mask_charset_is_special) {
+      --let $mch = @
+    }
+    --let $expression = mask_inner(CONVERT('$word' USING $expected_charset), 2, 2, CONVERT('$mch' USING $mask_charset))
+    if ($primary_charset_is_special) {
+      if (!$mask_charset_is_special) {
+        --let $mch = ?
+      }
+    }
+    --let $beginning = Ле
+    if ($primary_charset_is_special) {
+      --let $beginning = Le
+    }
+    --let $ending = QL
+    --let $value = $beginning$mch$mch$mch$mch$ending
+    --source check_expression.inc
+
+    --inc $j
+  }
+
+  --inc $i
+}
+
+UNINSTALL COMPONENT 'file://component_masking_functions';

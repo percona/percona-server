@@ -1,0 +1,387 @@
+--source include/have_masking_functions_component.inc
+
+--echo #
+--echo # Compoent Masking Functions:
+--echo # * gen_dictionary
+--echo # * gen_blocklist
+--echo # * masking_dictionary_term_add
+--echo # * masking_dictionary_term_remove
+--echo # * masking_dictionary_remove
+--echo #
+
+--source include/count_sessions.inc
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--echo # arity checks
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_dictionary();
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_dictionary('', '');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_blocklist();
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_blocklist('');
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_blocklist('', '');
+--error ER_CANT_INITIALIZE_UDF
+SELECT gen_blocklist('', '', '', '');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_add();
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_add('');
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_add('', '', '');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_remove();
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_remove('');
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_remove('', '', '');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_remove();
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_remove('', '');
+
+
+--echo # argument nullness checks for functions not requiring MASKING_DICTIONARIES_ADMIN
+--error ER_UDF_ERROR
+SELECT gen_dictionary(NULL);
+
+--error ER_UDF_ERROR
+SELECT gen_blocklist('Berlin', NULL, 'us_cities');
+--error ER_UDF_ERROR
+SELECT gen_blocklist('Berlin', 'de_cities', NULL);
+
+
+--echo # checking the case when there is no mysql.masking_dictionaries table
+--error ER_COMMAND_SERVICE_BACKEND_FAILED
+SELECT gen_blocklist('Berlin', 'de_cities', 'us_cities');
+
+--error ER_COMMAND_SERVICE_BACKEND_FAILED
+SELECT gen_dictionary('us_cities');
+
+
+--echo # NULL for NULL checks
+--let $assert_cond = gen_blocklist(NULL, "de_cities", "us_cities") IS NULL
+--let $assert_text = gen_blocklist() for the NULL primary argument should return NULL
+--source include/assert.inc
+
+
+--echo # checking the case when mysql.masking_dictionaries has invalid structure
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+--error ER_COMMAND_SERVICE_BACKEND_FAILED
+SELECT gen_blocklist('Berlin', 'de_cities', 'us_cities');
+
+--error ER_COMMAND_SERVICE_BACKEND_FAILED
+SELECT gen_dictionary('us_cities');
+
+DROP TABLE mysql.masking_dictionaries;
+
+
+--echo # checks for an unprivileged user
+CREATE USER udftest;
+--connect(con1,localhost,udftest,,)
+--connection con1
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_add('single_dict', 'entry');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_term_remove('single_dict', 'entry');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionary_remove('single_dict');
+
+--connection default
+--echo # checking the case when mysql.masking_dictionaries is empty
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+--connection con1
+--let $assert_cond = gen_dictionary("us_cities") IS NULL
+--let $assert_text = gen_dictionary on an empty table must return NULL
+--source include/assert.inc
+
+--let $expression = gen_blocklist('Berlin', 'de_cities', 'us_cities')
+--let $regexp =
+--let $value = Berlin
+--let $expected_charset = utf8mb4
+--source check_expression.inc
+
+
+--connection default
+--echo # checking that gen_dictionary / gen_blocklist can be run without MASKING_DICTIONARIES_ADMIN
+INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city1');
+INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city2');
+INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city3');
+INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city4');
+INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто1');
+INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто2');
+
+--connection con1
+--let $assert_cond = gen_dictionary("de_cities") IS NULL
+--let $assert_text = gen_dictionary on a non-existing dictionary must return NULL
+--source include/assert.inc
+
+--let $expression = gen_dictionary('us_cities')
+--let $regexp = city[[:digit:]]{1}
+--let $value =
+--let $expected_charset = utf8mb4
+--source check_expression.inc
+
+--let $expression = gen_dictionary('укр_міста')
+--let $regexp = місто[[:digit:]]{1}
+--let $value =
+--let $expected_charset = utf8mb4
+--source check_expression.inc
+
+--let $expression = gen_blocklist('Berlin', 'de_cities', 'us_cities')
+--let $regexp =
+--let $value = Berlin
+--let $expected_charset = utf8mb4
+--source check_expression.inc
+
+--let $expression = gen_blocklist('Berlin', 'de_cities', 'fr_cities')
+--let $regexp =
+--let $value = Berlin
+--let $expected_charset = utf8mb4
+--source check_expression.inc
+
+--let $expression = gen_blocklist('Berlin', 'us_cities', 'укр_міста')
+--let $regexp =
+--let $value = Berlin
+--let $expected_charset = utf8mb4
+--source check_expression.inc
+
+--let $expression = gen_blocklist('Berlin', 'us_cities', 'fr_cities')
+--let $regexp =
+--let $value = Berlin
+--let $expected_charset = utf8mb4
+--source check_expression.inc
+
+--let $expression = gen_blocklist('city1', 'us_cities', 'укр_міста')
+--let $regexp = місто[[:digit:]]{1}
+--let $value =
+--let $expected_charset = utf8mb4
+--source check_expression.inc
+
+--let $assert_cond = gen_blocklist("city1", "us_cities", "fr_cities") IS NULL
+--let $assert_text = gen_blocklist when to_dictionary does not exist must return NULL
+--source include/assert.inc
+
+--connection default
+--disconnect con1
+
+DELETE FROM mysql.masking_dictionaries;
+
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest;
+
+--connect(con1,localhost,udftest,,)
+--connection con1
+
+--echo # argument nullness checks for functions requiring MASKING_DICTIONARIES_ADMIN
+--error ER_UDF_ERROR
+SELECT masking_dictionary_term_add(NULL, 'entry');
+--error ER_UDF_ERROR
+SELECT masking_dictionary_term_add('single_dict', NULL);
+
+--error ER_UDF_ERROR
+SELECT masking_dictionary_term_remove(NULL, 'entry');
+--error ER_UDF_ERROR
+SELECT masking_dictionary_term_remove('single_dict', NULL);
+
+--error ER_UDF_ERROR
+SELECT masking_dictionary_remove(NULL);
+
+
+--echo # checks for a user with MASKING_DICTIONARIES_ADMIN privilege using various character sets / collations
+--let $dollar = `SELECT _utf8mb4 0x24`
+
+--let $number_of_iterations = 16
+
+SET @regular_charset_list = '[ "utf8mb4", "utf8mb3", "utf16", "utf16le", "utf32", "ucs2", "koi8u"]';
+SET @special_charset_list = '[ "latin2", "ascii", "binary"]';
+SET @charset_list = JSON_MERGE_PRESERVE(@regular_charset_list, @special_charset_list);
+--let $number_of_charsets = `SELECT JSON_LENGTH(@charset_list)`
+--let $i = 0
+while($i < $number_of_charsets) {
+  --let $current_charset = `SELECT JSON_UNQUOTE(JSON_EXTRACT(@charset_list, '$dollar[$i]'))`
+  --let $charset_is_special = `SELECT '$current_charset' MEMBER OF (@special_charset_list)`
+  --echo chacacter set '$current_charset'
+  --let $term_suffix = юра
+  if ($charset_is_special) {
+    --let $term_suffix = yura
+  }
+
+  --echo masking_dictionary_term_add checks
+  --let $dictionary = single
+  --let $term = term00_$term_suffix
+  --let $expression = masking_dictionary_term_add('$dictionary', CONVERT('$term' USING $current_charset))
+  --let $regexp =
+  --let $value = 1
+  --let $expected_charset = utf8mb4
+  --source check_expression.inc
+
+  --let $assert_cond = masking_dictionary_term_add("$dictionary", CONVERT("$term" USING $current_charset)) IS NULL
+  --let $assert_text = second masking_dictionary_term_add must fail
+  --source include/assert.inc
+
+  --let $dictionary = dictionary
+  --let $term = term10_$term_suffix
+  --let $expression = masking_dictionary_term_add('$dictionary', CONVERT('$term' USING $current_charset))
+  --let $regexp =
+  --let $value = 1
+  --let $expected_charset = utf8mb4
+  --source check_expression.inc
+
+  --let $term = term11_$term_suffix
+  --let $expression = masking_dictionary_term_add('$dictionary', CONVERT('$term' USING $current_charset))
+  --source check_expression.inc
+
+  --let $dictionary = словник
+  --let $term = term20_$term_suffix
+  --let $expression = masking_dictionary_term_add('$dictionary', CONVERT('$term' USING $current_charset))
+  --source check_expression.inc
+
+  --let $term = term21_$term_suffix
+  --let $expression = masking_dictionary_term_add('$dictionary', CONVERT('$term' USING $current_charset))
+  --source check_expression.inc
+
+  --let $term = term22_$term_suffix
+  --let $expression = masking_dictionary_term_add('$dictionary', CONVERT('$term' USING $current_charset))
+  --source check_expression.inc
+
+  --connection default
+  --let $assert_cond = [ SELECT COUNT(*) FROM mysql.masking_dictionaries ] = 6
+  --let $assert_text = mysql.masking_dictionaries must have 6 records
+  --source include/assert.inc
+
+
+  --connection con1
+  --let $expected_charset = utf8mb4
+  --let $iteration = 0
+  while ($iteration < $number_of_iterations) {
+    --echo gen_dictionary: iteration $iteration
+    --let $dictionary = single
+    --let $expression = gen_dictionary('$dictionary')
+    --let $regexp =
+    --let $value = term00_$term_suffix
+    --source check_expression.inc
+
+    --let $dictionary = dictionary
+    --let $expression = gen_dictionary('$dictionary')
+    --let $regexp = term1[[:digit:]]{1}_$term_suffix
+    --let $value =
+    --source check_expression.inc
+
+    --let $dictionary = словник
+    --let $expression = gen_dictionary('$dictionary')
+    --let $regexp = term2[[:digit:]]{1}_$term_suffix
+    --let $value =
+    --source check_expression.inc
+
+    --inc $iteration
+  }
+
+
+  --let $expected_charset = $current_charset
+  --let $iteration = 0
+  while ($iteration < $number_of_iterations) {
+    --echo gen_blocklist: iteration $iteration
+    --let $expression = gen_blocklist(CONVERT('term10_$term_suffix' USING $current_charset), 'dictionary', 'single')
+    --let $regexp =
+    --let $value = term00_$term_suffix
+    --source check_expression.inc
+
+    --let $expression = gen_blocklist(CONVERT('term10_$term_suffix' USING $current_charset), 'dictionary', 'словник')
+    --let $regexp = term2[[:digit:]]{1}_$term_suffix
+    --let $value =
+    --source check_expression.inc
+
+    --let $expression = gen_blocklist(CONVERT('term20_$term_suffix' USING $current_charset), 'словник', 'dictionary')
+    --let $regexp = term1[[:digit:]]{1}_$term_suffix
+    --let $value =
+    --source check_expression.inc
+
+    --inc $iteration
+  }
+
+
+  --echo masking_dictionary_term_remove checks
+  --let $dictionary = single
+  --let $term = term00_$term_suffix
+  --let $expression = masking_dictionary_term_remove('$dictionary', CONVERT('$term' USING $current_charset))
+  --let $regexp =
+  --let $value = 1
+  --let $expected_charset = utf8mb4
+  --source check_expression.inc
+
+  --let $assert_cond = masking_dictionary_term_remove("$dictionary", CONVERT("$term" USING $current_charset)) IS NULL
+  --let $assert_text = second masking_dictionary_term_remove must fail
+  --source include/assert.inc
+
+  --connection default
+  --let $assert_cond = [ SELECT COUNT(*) FROM mysql.masking_dictionaries ] = 5
+  --let $assert_text = mysql.masking_dictionaries must have 5 records
+  --source include/assert.inc
+
+
+  --connection con1
+  --echo masking_dictionary_remove checks
+  --let $dictionary = dictionary
+  --let $expression = masking_dictionary_remove('$dictionary')
+  --let $regexp =
+  --let $value = 1
+  --let $expected_charset = utf8mb4
+  --source check_expression.inc
+
+  --let $assert_cond = masking_dictionary_remove("$dictionary") IS NULL
+  --let $assert_text = second masking_dictionary_remove must fail
+  --source include/assert.inc
+
+  --connection default
+  --let $assert_cond = [ SELECT COUNT(*) FROM mysql.masking_dictionaries ] = 3
+  --let $assert_text = mysql.masking_dictionaries must have 3 records
+  --source include/assert.inc
+
+  --connection con1
+  --let $dictionary = словник
+  --let $expression = masking_dictionary_remove('$dictionary')
+  --let $regexp =
+  --let $value = 1
+  --let $expected_charset = utf8mb4
+  --source check_expression.inc
+
+  --connection default
+  --let $assert_cond = [ SELECT COUNT(*) FROM mysql.masking_dictionaries ] = 0
+  --let $assert_text = mysql.masking_dictionaries must have 0 records
+  --source include/assert.inc
+
+  --connection con1
+  --echo ################################
+
+  --inc $i
+}
+
+--connection default
+--disconnect con1
+
+DROP USER udftest;
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+DROP TABLE mysql.masking_dictionaries;
+
+--source include/wait_until_count_sessions.inc

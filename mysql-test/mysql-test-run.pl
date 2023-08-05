@@ -304,6 +304,7 @@ our @DEFAULT_SUITES = qw(
   component_connection_control
 
   percona-pam-for-mysql
+  component_masking_functions
   procfs
   rocksdb
   rocksdb_rpl

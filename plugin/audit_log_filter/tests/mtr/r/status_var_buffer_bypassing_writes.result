@@ -4,11 +4,11 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_general');
 audit_log_filter_set_user('%', 'log_general')
 OK
-SHOW GLOBAL STATUS LIKE 'Audit_log_filter_buffer_bypassing_writes';
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_direct_writes';
 Variable_name	Value
-Audit_log_filter_buffer_bypassing_writes	0
-SHOW GLOBAL STATUS LIKE 'Audit_log_filter_buffer_bypassing_writes';
+Audit_log_filter_direct_writes	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_direct_writes';
 Variable_name	Value
-Audit_log_filter_buffer_bypassing_writes	3
+Audit_log_filter_direct_writes	3
 #
 # Cleanup

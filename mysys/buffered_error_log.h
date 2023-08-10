@@ -33,6 +33,8 @@ class Buffered_error_logger {
 
   void write_to_disk();
 
+  void close();
+
   bool is_enabled();
 
  private:

@@ -419,6 +419,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
       }
   }
 #endif
+  ERR_clear_error();
 
   if ((r= ssl_handshake_loop(vio, ssl, func, ssl_errno_holder)) < 1)
   {

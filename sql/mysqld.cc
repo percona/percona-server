@@ -2752,6 +2752,9 @@ static void clean_up(bool print_message) {
     the component system unregister_ variable()  api's, hence we need
     to call the sys_var_end() after component_infrastructure_deinit()
   */
+  buffered_error_log.write_to_disk();
+  buffered_error_log
+      .close();  // buffered_error_log_filename will be freed by sys_var_end()
   sys_var_end();
   free_status_vars();
 

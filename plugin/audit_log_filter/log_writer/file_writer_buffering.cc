@@ -190,7 +190,7 @@ void FileWriterBuffering::write(const char *record, size_t size) noexcept {
       FileWriterDecoratorBase::write(record, size);
       resume();
 
-      SysVars::inc_buffer_bypassing_writes();
+      SysVars::inc_direct_writes();
     } else {
       SysVars::inc_events_lost();
       SysVars::update_event_max_drop_size(size);

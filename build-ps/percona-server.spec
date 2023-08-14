@@ -1470,7 +1470,7 @@ fi
 %files -n percona-icu-data-files
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt73l
 %{_libdir}/mysql/private/icudt69l/unames.icu
 %{_libdir}/mysql/private/icudt69l/brkitr
 

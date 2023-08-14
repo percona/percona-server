@@ -3094,7 +3094,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
   }
 
   if (thd->resource_group_ctx()->m_warn != 0) {
-    auto res_grp_name = thd->resource_group_ctx()->m_switch_resource_group_str;
     switch (thd->resource_group_ctx()->m_warn) {
       case WARN_RESOURCE_GROUP_UNSUPPORTED: {
         auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
@@ -3120,18 +3119,23 @@ int mysql_execute_command(THD *thd, bool first_level) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
         pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
 #endif  // HAVE_PSI_THREAD_INTERFACE
+        // Resource group name is always specified for this type of warning.
+        assert(thd->lex->switch_resource_group != nullptr);
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_RESOURCE_GROUP_BIND_FAILED,
                             ER_THD(thd, ER_RESOURCE_GROUP_BIND_FAILED),
-                            res_grp_name, pfs_thread_id,
+                            thd->lex->switch_resource_group, pfs_thread_id,
                             "System resource group can't be bound"
                             " with a session thread");
         break;
       }
       case WARN_RESOURCE_GROUP_NOT_EXISTS:
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, ER_RESOURCE_GROUP_NOT_EXISTS,
-            ER_THD(thd, ER_RESOURCE_GROUP_NOT_EXISTS), res_grp_name);
+        // Resource group name is always specified for this type of warning.
+        assert(thd->lex->switch_resource_group != nullptr);
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_RESOURCE_GROUP_NOT_EXISTS,
+                            ER_THD(thd, ER_RESOURCE_GROUP_NOT_EXISTS),
+                            thd->lex->switch_resource_group);
         break;
       case WARN_RESOURCE_GROUP_ACCESS_DENIED:
         push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -3141,7 +3145,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
                             "RESOURCE_GROUP_USER");
     }
     thd->resource_group_ctx()->m_warn = 0;
-    res_grp_name[0] = '\0';
   }
 
   if (unlikely(thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))) {
@@ -5481,7 +5484,6 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
           if (switched)
             mgr_ptr->restore_original_resource_group(thd, src_res_grp,
                                                      dest_res_grp);
-          thd->resource_group_ctx()->m_switch_resource_group_str[0] = '\0';
           if (ticket != nullptr)
             mgr_ptr->release_shared_mdl_for_resource_group(thd, ticket);
           if (cur_ticket != nullptr)

@@ -28,3 +28,48 @@ CREATE RESOURCE GROUP CAFE TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
 DROP RESOURCE GROUP CaFé;
 
 SET NAMES default;
+
+
+--echo #
+--echo # PS-8871 : RESOURCE GROUP hint fails when used within a prepared statement
+--echo #
+
+CREATE RESOURCE GROUP r1 TYPE=USER VCPU=0,1;
+CREATE RESOURCE GROUP r2 TYPE=USER VCPU=2,3;
+
+--echo # The below query sees itself as executed in 'r1' resource group
+--echo # in the P_S.THREADS table.
+SELECT /*+ RESOURCE_GROUP(r1) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id();
+
+--echo # Make prepared statement from the same query.
+PREPARE stmt1 FROM 'SELECT /*+ RESOURCE_GROUP(r1) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()';
+--echo # Execution of prepared statement should use 'r1' resource group
+--echo # as well (it didn't before the fix).
+EXECUTE stmt1;
+--echo # Check that hint applies in case of re-execution.
+EXECUTE stmt1;
+
+--echo # Check that further statements in the connection are not affected.
+SELECT processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id();
+
+--echo # Now let us check that we can have several prepared statements using
+--echo # different resource groups within the same connection.
+PREPARE stmt2 FROM 'SELECT /*+ RESOURCE_GROUP(r2) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()';
+PREPARE stmt3 FROM 'SELECT processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()';
+--echo # The first statement should still use 'r1',
+EXECUTE stmt1;
+--echo # The second statement should use 'r2',
+EXECUTE stmt2;
+--echo # The third one should used default group.
+EXECUTE stmt3;
+--echo # Ditto for case of re-execution.
+EXECUTE stmt1;
+EXECUTE stmt2;
+EXECUTE stmt3;
+
+--echo # Clean-up.
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DROP RESOURCE GROUP r1;
+DROP RESOURCE GROUP r2;

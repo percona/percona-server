@@ -1035,8 +1035,7 @@ class THD : public MDL_context_owner,
 
   /**
     Resource group context indicating the current resource group
-    and the name of the resource group to switch to during execution
-    of a query.
+    and if there are any warnings related to switching resource group.
   */
   resourcegroups::Resource_group_ctx m_resource_group_ctx;
 

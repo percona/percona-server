@@ -409,7 +409,7 @@ install_deps() {
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
         apt-get -y install libcurl4-openssl-dev patchelf
-        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" -o "x${DIST}" = "xbullseye" -o "x${DIST}" = "xjammy" ]; then
+        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" -o "x${DIST}" = "xbullseye" -o "x${DIST}" = "xjammy" -o "x${DIST}" = "xbookworm" ]; then
             apt-get -y install libeatmydata1
         fi
     fi
@@ -717,15 +717,15 @@ build_deb(){
 
     cd ${DIRNAME}
     #
-    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster -o ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy ]; then
+    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster -o ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm ]; then
         rm -rf debian
         cp -r build-ps/ubuntu debian
     fi
-    if [ ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy ]; then
+    if [ ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm ]; then
         sed -i '28d' debian/control
         sed -i 's|libcurl4-openssl-dev,|libcurl4-openssl-dev|' debian/control
     fi
-    if [ ${DEBIAN_VERSION} = jammy ]; then
+    if [ ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm ]; then
         sed -i 's|libjemalloc1 (>= 3.3.0)|libjemalloc2|' debian/control
         sed -i 's|libjemalloc.so.1|libjemalloc.so.2|' scripts/*.sh
         sed -i 's|libjemalloc1|libjemalloc2|' scripts/*.sh
@@ -738,7 +738,7 @@ build_deb(){
         mv debian/rules.notokudb debian/rules
         mv debian/control.notokudb debian/control
     else
-        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster -a ${DEBIAN_VERSION} != bullseye -a ${DEBIAN_VERSION} != jammy ]; then
+        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster -a ${DEBIAN_VERSION} != bullseye -a ${DEBIAN_VERSION} != jammy -a ${DEBIAN_VERSION} != bookworm ]; then
             gcc47=$(which gcc-4.7 2>/dev/null || true)
             if [ -x "${gcc47}" ]; then
                 export CC=gcc-4.7
@@ -762,7 +762,7 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "jammy" ]; then
+    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "jammy" -o ${DEBIAN_VERSION} = "bookworm" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare  /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare -Wno-error /' debian/rules
     fi

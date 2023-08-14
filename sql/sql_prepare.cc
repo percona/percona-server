@@ -3377,7 +3377,6 @@ bool Prepared_statement::execute(THD *thd, String *expanded_query,
 
     if (resource_group_switched)
       mgr_ptr->restore_original_resource_group(thd, src_res_grp, dest_res_grp);
-    thd->resource_group_ctx()->m_switch_resource_group_str[0] = '\0';
     if (ticket != nullptr)
       mgr_ptr->release_shared_mdl_for_resource_group(thd, ticket);
     if (cur_ticket != nullptr)

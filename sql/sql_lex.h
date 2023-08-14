@@ -4375,6 +4375,9 @@ struct LEX : public Query_tables_list {
   // Maximum execution time for a statement.
   ulong max_execution_time;
 
+  /// Value of RESOURCE_GROUP hint for a statement (nullptr if no hint).
+  const char *switch_resource_group;
+
   /*
     To flag the current statement as dependent for binary logging
     on explicit_defaults_for_timestamp

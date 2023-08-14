@@ -52,8 +52,8 @@ usr/lib/mysql/private/libprotobuf-lite.so.*
 usr/lib/mysql/private/libprotobuf.so.*
 usr/lib/mysql/private/libfido2.so.*
 # private data files
-usr/lib/mysql/private/icudt69l/unames.icu
-usr/lib/mysql/private/icudt69l/brkitr/*
+usr/lib/mysql/private/icudt73l/unames.icu
+usr/lib/mysql/private/icudt73l/brkitr/*
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so

@@ -1024,6 +1024,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log_filter.so
 
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
@@ -1074,6 +1075,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log_filter.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -1136,6 +1138,7 @@ fi
 %attr(644, root, root) %{_datadir}/percona-server/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/percona-server/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/percona-server/uninstall_rewriter.sql
+%attr(644, root, root) %{_datadir}/percona-server/audit_log_filter_linux_install.sql
 %if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysqld.service
 %attr(644, root, root) %{_unitdir}/mysqld@.service
@@ -1483,7 +1486,7 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql/private/icudt73l
-%{_libdir}/mysql/private/icudt73l/unames.icu
+%{_libdir}/mysql/private/icudt73l/*.icu
 %{_libdir}/mysql/private/icudt73l/brkitr
 
 %changelog

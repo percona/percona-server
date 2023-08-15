@@ -24,6 +24,19 @@
 --let encryption_iterations = $encryption_iterations
 
 perl;
+  my $help_text = qx(openssl enc -help 2>&1);
+  my $openssl_iter_support = 1;
+
+  if ($help_text !~ m/\-iter/) {
+    $openssl_iter_support = 0;
+  }
+
+  open(OUTPUT, ">$ENV{MYSQLTEST_VARDIR}/tmp/audit_decrypt_openssl_status.inc") or die "Cannot open tmp file";
+  print OUTPUT "let \$openssl_iter_support = $openssl_iter_support;\n";
+  close(OUTPUT);
+
+  if (!$openssl_iter_support) { exit; }
+
   my $dir_name = $ENV{'audit_filter_log_path'} or die "Empty audit_filter_log_path";
   my $password = $ENV{'encryption_password'} or die "Empty encryption_password";
   my $iterations = $ENV{'encryption_iterations'} or die "Empty encryption_iterations";
@@ -40,3 +53,10 @@ perl;
 
   closedir $dh;
 EOF
+
+--source  $MYSQLTEST_VARDIR/tmp/audit_decrypt_openssl_status.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/audit_decrypt_openssl_status.inc
+
+if (!$openssl_iter_support) {
+  --skip 'openssl enc -iter' not supported
+}
